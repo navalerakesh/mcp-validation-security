@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/mcpval-icon.png" width="180" alt="MCP Validator Logo" />
+</p>
+
 # MCP Validator (`mcpval`)
 
 [![CI](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml)

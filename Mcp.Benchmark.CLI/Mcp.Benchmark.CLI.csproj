@@ -24,11 +24,13 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>mcpval-icon.png</PackageIcon>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\assets\mcpval-icon.png" Pack="true" PackagePath="\" />
   </ItemGroup>
 
   <ItemGroup>

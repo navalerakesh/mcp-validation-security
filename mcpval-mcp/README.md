@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="https://raw.githubusercontent.com/navalerakesh/mcp-validation-security/main/assets/mcpval-icon.png" width="180" alt="MCP Validator Logo" />
+</p>
+
 # mcpval-mcp
 
 MCP server that wraps the [mcpval CLI](https://github.com/navalerakesh/mcp-benchmark-validation) — validate MCP servers from any AI agent.
