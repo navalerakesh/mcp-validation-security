@@ -24,8 +24,8 @@ mcpval --version
 ### Option B: Build from source
 
 ```bash
-git clone https://github.com/navalerakesh/mcp-benchmark-validation.git
-cd mcp-benchmark-validation
+git clone https://github.com/navalerakesh/mcp-validation-security.git
+cd mcp-validation-security
 dotnet build
 dotnet run --project Mcp.Benchmark.CLI -- --version
 ```
@@ -252,8 +252,8 @@ start ./reports/validation-report.html # Windows
 ## Getting Help
 
 - 📖 [Full Documentation](../docs/README.md)
-- 🐛 [Report Issues](https://github.com/navalerakesh/mcp-benchmark-validation/issues)
-- 💬 [Discussions](https://github.com/navalerakesh/mcp-benchmark-validation/discussions)
+- 🐛 [Report Issues](https://github.com/navalerakesh/mcp-validation-security/issues)
+- 💬 [Discussions](https://github.com/navalerakesh/mcp-validation-security/discussions)
 - 🔒 [Security Issues](SECURITY.md)
 
 ---

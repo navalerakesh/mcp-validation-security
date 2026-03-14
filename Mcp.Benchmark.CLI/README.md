@@ -31,8 +31,8 @@ This benchmark/validator helps you check your MCP server against:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/navalerakesh/mcp-benchmark-validation.git
-   cd mcp-benchmark-validation
+   git clone https://github.com/navalerakesh/mcp-validation-security.git
+   cd mcp-validation-security
    ```
 
 2. **Build the project:**

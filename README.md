@@ -1,6 +1,6 @@
 # MCP Validator (`mcpval`)
 
-[![CI](https://github.com/navalerakesh/mcp-benchmark-validation/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-benchmark-validation/actions/workflows/ci.yml)
+[![CI](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/Mcp.Benchmark.CLI?label=nuget&logo=nuget)](https://www.nuget.org/packages/Mcp.Benchmark.CLI)
@@ -61,13 +61,13 @@ dotnet tool install --global Mcp.Benchmark.CLI
 mcpval --help
 ```
 
-Or download a self-contained exe from [Releases](https://github.com/navalerakesh/mcp-benchmark-validation/releases) — no .NET runtime needed.
+Or download a self-contained exe from [Releases](https://github.com/navalerakesh/mcp-validation-security/releases) — no .NET runtime needed.
 
 ### Build from Source
 
 ```bash
-git clone https://github.com/navalerakesh/mcp-benchmark-validation.git
-cd mcp-benchmark-validation
+git clone https://github.com/navalerakesh/mcp-validation-security.git
+cd mcp-validation-security
 dotnet build
 dotnet run --project Mcp.Benchmark.CLI -- validate -s https://your-mcp-server.com/mcp
 ```

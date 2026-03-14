@@ -24,7 +24,7 @@ public static class CliTheme
     public static ConsoleColor AiSafety    => ConsoleColor.Magenta;
     public static ConsoleColor Trust       => ConsoleColor.Cyan;
 
-    private const string RepoUrl = "https://github.com/navalerakesh/mcp-benchmark-validation";
+    private const string RepoUrl = "https://github.com/navalerakesh/mcp-validation-security";
 
     // ─── Banner ──────────────────────────────────────────────────
 

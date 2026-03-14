@@ -14,7 +14,7 @@ Help users and organizations **evaluate the security and compliance** of AI tool
 - Report security findings in AI protocols
 
 ### For Developers
-- Implement missing features (see [Issues](https://github.com/navalerakesh/mcp-benchmark-validation/issues))
+- Implement missing features (see [Issues](https://github.com/navalerakesh/mcp-validation-security/issues))
 - Improve test coverage
 - Add support for new protocols and standards
 - Enhance documentation
@@ -37,8 +37,8 @@ Help users and organizations **evaluate the security and compliance** of AI tool
 1. **Fork the repository**
    ```bash
    # Click "Fork" on GitHub, then:
-   git clone https://github.com/YOUR-USERNAME/mcp-benchmark-validation.git
-   cd mcp-benchmark-validation
+   git clone https://github.com/YOUR-USERNAME/mcp-validation-security.git
+   cd mcp-validation-security
    ```
 
 2. **Create a feature branch**
@@ -124,8 +124,8 @@ New to AI security testing? Check out:
 
 ## \u2753 Questions?
 
-- Open a [GitHub Discussion](https://github.com/navalerakesh/mcp-benchmark-validation/discussions)
-- Check existing [Issues](https://github.com/navalerakesh/mcp-benchmark-validation/issues)
+- Open a [GitHub Discussion](https://github.com/navalerakesh/mcp-validation-security/discussions)
+- Check existing [Issues](https://github.com/navalerakesh/mcp-validation-security/issues)
 - Read the [Documentation](docs/README.md)
 
 ## \ud83d\udcdc License
