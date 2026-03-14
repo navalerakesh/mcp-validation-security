@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    
+    <!-- 
+      Version: Single source of truth for all projects.
+      MAJOR.MINOR is set here. PATCH is overridden by CI on release.
+      To bump: change VersionPrefix here, commit, push.
+    -->
+    <VersionPrefix>2.0.0</VersionPrefix>
+    
+    <!-- Metadata -->
+    <Authors>MCP Community</Authors>
+    <Company>MCP Community</Company>
+    <Product>MCP Validator</Product>
+    <Copyright>Copyright (c) 2025-2026</Copyright>
+  </PropertyGroup>
+</Project>

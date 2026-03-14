@@ -1,0 +1,229 @@
+name: Build & Release
+
+on:
+  push:
+    branches: [ "master" ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'reports/**'
+      - 'TEMP/**'
+  pull_request:
+    branches: [ "master" ]
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'reports/**'
+
+  workflow_dispatch:
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  PROJECT_PATH: 'Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj'
+  # Version: MAJOR.MINOR comes from Directory.Build.props (VersionPrefix).
+  # CI appends the run number as the patch version on release builds.
+  # To bump version: edit VersionPrefix in Directory.Build.props, commit, push.
+
+jobs:
+  # Build, Test, and Scan
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build (Debug)
+        run: dotnet build --no-restore --configuration Debug
+        
+      - name: Test (Unit & Integration)
+        run: dotnet test --no-build --configuration Debug --verbosity normal --logger "trx;LogFileName=test-results.trx"
+        
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: '**/test-results.trx'
+
+      - name: Security Audit
+        run: dotnet list package --vulnerable --include-transitive
+
+  # Create the self-contained EXE for multiple platforms
+  package:
+    name: Package ${{ matrix.rid }}
+    needs: build-and-test
+    # Only package on pushes to main (not PRs)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rid: win-x64
+            os: windows
+          - rid: linux-x64
+            os: linux
+          - rid: osx-x64
+            os: osx
+          - rid: osx-arm64
+            os: osx
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set Version
+        shell: bash
+        run: |
+          # Read MAJOR.MINOR from Directory.Build.props, append run number as patch
+          prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+          major_minor=$(echo $prefix | cut -d. -f1,2)
+          ver="${major_minor}.${{ github.run_number }}"
+          echo "VERSION=$ver" >> $GITHUB_ENV
+          echo "Building version $ver for ${{ matrix.rid }}"
+
+      - name: Publish
+        run: |
+          dotnet publish ${{ env.PROJECT_PATH }} \
+            -c Release \
+            -r ${{ matrix.rid }} \
+            --self-contained true \
+            -p:PublishSingleFile=true \
+            -p:EnableCompressionInSingleFile=true \
+            -p:IncludeNativeLibrariesForSelfExtract=true \
+            -p:VersionPrefix=${{ env.VERSION }} \
+            -p:Version=${{ env.VERSION }} \
+            -o publish/${{ matrix.rid }}
+
+      # Rename to include architecture for the release asset
+      - name: Prepare Artifact
+        shell: bash
+        run: |
+          cd publish/${{ matrix.rid }}
+          if [ "${{ matrix.os }}" == "windows" ]; then
+            mv mcpval.exe mcpval-${{ matrix.rid }}.exe
+          else
+            mv mcpval mcpval-${{ matrix.rid }}
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mcpval-${{ matrix.rid }}
+          path: publish/${{ matrix.rid }}/mcpval-${{ matrix.rid }}*
+          retention-days: 5
+
+  # Create GitHub Release (Only on master push)
+  publish:
+    name: Publish Release
+    needs: package
+    # Only run on push to main, not on PRs
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: mcpval-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate Release Tag
+        id: tag
+        run: |
+          prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+          major_minor=$(echo $prefix | cut -d. -f1,2)
+          echo "TAG=v${major_minor}.${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.TAG }}
+          name: Release ${{ env.TAG }}
+          files: release-assets/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+
+  # Publish to NuGet.org as a dotnet global tool
+  nuget-publish:
+    name: Publish to NuGet
+    needs: [build-and-test, publish]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set Version
+        run: |
+          prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
+          major_minor=$(echo $prefix | cut -d. -f1,2)
+          echo "RELEASE_VERSION=${major_minor}.${{ github.run_number }}" >> $GITHUB_ENV
+
+      - name: Pack NuGet Package
+        run: |
+          dotnet pack Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj \
+            --configuration Release \
+            -p:PackageVersion=${{ env.RELEASE_VERSION }}
+
+      - name: Publish to NuGet.org
+        run: |
+          dotnet nuget push Mcp.Benchmark.CLI/bin/Release/*.nupkg \
+            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+  # Publish mcpval-mcp to npm
+  npm-publish:
+    name: Publish MCP Server to npm
+    needs: [build-and-test, publish]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mcpval-mcp
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Set Version
+        run: |
+          prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' ../Directory.Build.props)
+          major_minor=$(echo $prefix | cut -d. -f1,2)
+          ver="${major_minor}.${{ github.run_number }}"
+          npm version $ver --no-git-tag-version
+
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish to npm
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

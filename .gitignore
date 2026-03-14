@@ -1,0 +1,73 @@
+## .NET
+bin/
+obj/
+*/bin/
+*/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+packages/
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+.nuget/
+# Visual Studio files
+.vs/
+*.sln.cache
+*.vcxproj.user
+*.vcxproj.filters
+*.vspx
+*.vscodeolog
+
+# Test results
+TestResults/
+test-results/
+test-output/
+nupkg/
+*.trx
+*.coverage
+*.coveragexml
+
+# Node
+mcpval-mcp/node_modules/
+mcpval-mcp/dist/
+
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+csharp/MCP-Server-Validator/validation-results/*
+publish-to-ado.ps1
+PUBLISH.md
+nuget.config
+publish-package.bat
+.check_sample.txt
+.otherproject/*
+.test/test-request.ps1
+.test/token.txt
+.test/*
+#.ignore/*
+TEMP/*
+publish/*
+.vscode/tasks.json
+docs/.local/*
+docs/.private/*
+docs/Audit/*
