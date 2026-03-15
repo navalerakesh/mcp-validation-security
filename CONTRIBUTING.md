@@ -134,5 +134,3 @@ New to AI security testing? Check out:
 By contributing, you agree that your contributions will be licensed under the MIT License.
 
 ---
-
-**Thank you for helping make AI safer for everyone! \ud83d\ude80**

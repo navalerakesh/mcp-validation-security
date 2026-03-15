@@ -207,5 +207,3 @@ This project builds upon the excellent work of the Model Context Protocol specif
 This validator is a community tool designed to help with MCP implementation testing. It is not an official certification tool and results should be considered as helpful guidance rather than authoritative compliance statements. Always refer to the official MCP specification for definitive requirements.
 
 ---
-
-*Built with ❤️ for the MCP community*
