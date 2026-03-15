@@ -17,18 +17,12 @@ Index for project documentation. Each document is scoped and self-contained.
 | Technical reference | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Code map, execution pipeline, key services |
 | Schema registry | [Design/Schemas.md](Design/Schemas.md) | Versioned schema layout, registry APIs |
 
-## Audit & Analysis
-
-| Topic | Document | Description |
-| --- | --- | --- |
-| Audit trail | [Audit/03-14-2026.md](Audit/03-14-2026.md) | Gap analysis and compliance tracker |
-| Framework mapping | [FRAMEWORK-MAPPING-AND-GAP-ANALYSIS.md](FRAMEWORK-MAPPING-AND-GAP-ANALYSIS.md) | OWASP / NIST / MITRE ATLAS / EU AI Act alignment |
-
 ## Resources
 
 | Item | Location |
 | --- | --- |
 | Sample HTML reports | [Resources/](Resources/) |
+| GitHub MCP remote run | [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) |
 
 ## Contributing
 

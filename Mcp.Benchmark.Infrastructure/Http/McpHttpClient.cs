@@ -361,16 +361,54 @@ public class McpHttpClient : IMcpHttpClient
         var startTime = DateTime.UtcNow;
         try
         {
-            var serverConfig = BuildServerConfig(endpoint);
-            var initializeResult = await _mcpClient
-                .InitializeAsync(serverConfig, null, _protocolVersion, cancellationToken)
-                .ConfigureAwait(false);
+            var initializeResponse = await CallAsync(endpoint, "initialize", new
+            {
+                protocolVersion = string.IsNullOrWhiteSpace(_protocolVersion) ? "2025-03-26" : _protocolVersion,
+                capabilities = new { },
+                clientInfo = new
+                {
+                    name = "mcp-benchmark",
+                    version = "1.0.0"
+                }
+            }, cancellationToken).ConfigureAwait(false);
+
+            if (!initializeResponse.IsSuccess)
+            {
+                return new TransportResult<InitializeResult>
+                {
+                    IsSuccessful = false,
+                    Error = initializeResponse.Error ?? $"HTTP {initializeResponse.StatusCode}",
+                    Transport = CreateTransportMetadata(
+                        DateTime.UtcNow - startTime,
+                        initializeResponse.StatusCode,
+                        initializeResponse.Headers,
+                        initializeResponse.RawJson)
+                };
+            }
+
+            if (!TryParseInitializeResult(initializeResponse.RawJson, out var initializeResult))
+            {
+                return new TransportResult<InitializeResult>
+                {
+                    IsSuccessful = false,
+                    Error = "Initialize response could not be parsed.",
+                    Transport = CreateTransportMetadata(
+                        DateTime.UtcNow - startTime,
+                        initializeResponse.StatusCode,
+                        initializeResponse.Headers,
+                        initializeResponse.RawJson)
+                };
+            }
 
             return new TransportResult<InitializeResult>
             {
                 IsSuccessful = true,
                 Payload = initializeResult,
-                Transport = CreateTransportMetadata(DateTime.UtcNow - startTime)
+                Transport = CreateTransportMetadata(
+                    DateTime.UtcNow - startTime,
+                    initializeResponse.StatusCode,
+                    initializeResponse.Headers,
+                    initializeResponse.RawJson)
             };
         }
         catch (Exception ex)
@@ -400,73 +438,32 @@ public class McpHttpClient : IMcpHttpClient
         var (resourceListResponse, resourceListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken);
         var (promptListResponse, promptListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken);
 
-        var shouldAttemptSdk = toolListResponse == null ||
-                                (toolListResponse.StatusCode != 401 && toolListResponse.StatusCode != 403);
+        if (toolListResponse?.IsSuccess == true)
+        {
+            toolListingSucceeded = true;
+            firstToolName = TryGetFirstToolName(toolListResponse.RawJson);
+        }
 
-        if (shouldAttemptSdk)
+        if (toolListingSucceeded && !string.IsNullOrWhiteSpace(firstToolName))
         {
             try
             {
-                var serverConfig = BuildServerConfig(endpoint);
-                var listedTools = await _mcpClient
-                    .ListToolsAsync(serverConfig, null, _protocolVersion, cancellationToken)
-                    .ConfigureAwait(false);
+                var toolCallResponse = await CallAsync(
+                    endpoint,
+                    ValidationConstants.Methods.ToolsCall,
+                    new
+                    {
+                        name = firstToolName,
+                        arguments = new { }
+                    },
+                    cancellationToken).ConfigureAwait(false);
 
-                discoveredTools = listedTools;
-                toolListingSucceeded = true;
-            }
-            catch (OperationCanceledException)
-            {
-                throw;
+                toolInvocationSucceeded = toolCallResponse.IsSuccess || toolCallResponse.StatusCode == 400;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving tool list from {Endpoint}", endpoint);
-                return new TransportResult<CapabilitySummary>
-                {
-                    IsSuccessful = false,
-                    Error = ex.Message,
-                    Payload = BuildSummary(),
-                    Transport = CreateTransportMetadata(
-                        ResolveTransportDuration(),
-                        toolListResponse?.StatusCode,
-                        toolListResponse?.Headers,
-                        toolListResponse?.RawJson)
-                };
-            }
-        }
-        else
-        {
-            _logger.LogInformation("Skipping SDK capability probe because tools/list returned {Status} for {Endpoint}", toolListResponse?.StatusCode, endpoint);
-        }
-
-        if (toolListingSucceeded && discoveredTools.Count > 0)
-        {
-            firstToolName = discoveredTools[0].Name;
-            if (!string.IsNullOrWhiteSpace(firstToolName))
-            {
-                try
-                {
-                    var serverConfig = BuildServerConfig(endpoint);
-                    await _mcpClient
-                        .CallToolAsync(serverConfig, null, _protocolVersion, firstToolName, new Dictionary<string, object?>(), cancellationToken)
-                        .ConfigureAwait(false);
-                    toolInvocationSucceeded = true;
-                }
-                catch (McpException ex)
-                {
-                    _logger.LogWarning(ex, "Tool call failed for {Tool}", firstToolName);
-                    toolInvocationSucceeded = IsAcceptableToolError(ex);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Unexpected error calling tool {Tool}", firstToolName);
-                    toolInvocationSucceeded = false;
-                }
-            }
-            else
-            {
-                _logger.LogWarning("No tool name returned from server for {Endpoint}", endpoint);
+                _logger.LogError(ex, "Unexpected error calling tool {Tool}", firstToolName);
+                toolInvocationSucceeded = false;
             }
         }
 
@@ -561,6 +558,70 @@ public class McpHttpClient : IMcpHttpClient
         }
 
         return 0;
+    }
+
+    private bool TryParseInitializeResult(string? rawJson, out InitializeResult? initializeResult)
+    {
+        initializeResult = null;
+
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            if (!document.RootElement.TryGetProperty("result", out var resultElement))
+            {
+                return false;
+            }
+
+            initializeResult = JsonSerializer.Deserialize<InitializeResult>(resultElement.GetRawText(), _jsonOptions);
+            return initializeResult != null;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse initialize response payload");
+            return false;
+        }
+    }
+
+    private string? TryGetFirstToolName(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            if (!document.RootElement.TryGetProperty("result", out var resultElement) ||
+                !resultElement.TryGetProperty("tools", out var toolsElement) ||
+                toolsElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var toolElement in toolsElement.EnumerateArray())
+            {
+                if (toolElement.TryGetProperty("name", out var nameElement))
+                {
+                    var name = nameElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        return name;
+                    }
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse tool list response while extracting first tool name");
+        }
+
+        return null;
     }
 
     public async Task<ValidatorJsonRpcResponse> SendRawJsonAsync(string endpoint, string rawJson, CancellationToken cancellationToken, bool setContentType = true)

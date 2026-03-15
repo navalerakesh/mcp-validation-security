@@ -26,6 +26,9 @@ public class HealthCheckService : IHealthCheckService
         _logger.LogInformation("Performing health check for server: {Server}", serverConfig.Endpoint);
         _telemetryService.TrackEvent("HealthCheckStarted", new Dictionary<string, string> { { "Endpoint", serverConfig.Endpoint ?? "Unknown" } });
 
+        _httpClient.SetProtocolVersion(serverConfig.ProtocolVersion);
+        _httpClient.SetAuthentication(serverConfig.Authentication);
+
         var result = new HealthCheckResult();
         var startTime = DateTime.UtcNow;
 

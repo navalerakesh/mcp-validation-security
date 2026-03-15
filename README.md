@@ -141,6 +141,7 @@ dotnet run --project Mcp.Benchmark.CLI -- validate -s https://your-mcp-server.co
 - [docs/README.md](docs/README.md) — documentation index, contributor guide, and workflow links.
 - [docs/Design/Architecture.md](docs/Design/Architecture.md) — system overview, layers, and validator pipeline.
 - [docs/Design/Schemas.md](docs/Design/Schemas.md) — spec registry, schema layout, and versioning guidelines.
+- [docs/Resources/GitHub-MCP-Remote-Run.md](docs/Resources/GitHub-MCP-Remote-Run.md) — example CLI run against GitHub MCP remote and the generated output artifacts.
 - [docs/Features/00_ToDo.md](docs/Features/00_ToDo.md) — living roadmap tied to feature gaps and impact.
 
 ## Contributing

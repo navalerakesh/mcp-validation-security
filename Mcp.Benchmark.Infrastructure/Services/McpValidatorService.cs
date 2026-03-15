@@ -391,6 +391,9 @@ public class McpValidatorService : IMcpValidatorService
                 throw new ArgumentException("No endpoint specified for HTTP transport capability discovery");
             }
 
+            _httpClient.SetProtocolVersion(serverConfig.ProtocolVersion);
+            _httpClient.SetAuthentication(serverConfig.Authentication);
+
             // REAL HTTP transport capability discovery using MCP initialize
             _logger.LogDebug("Performing REAL MCP capability discovery via initialize and capability validation");
             var initResult = await _httpClient.ValidateInitializeAsync(serverConfig.Endpoint, cancellationToken);
