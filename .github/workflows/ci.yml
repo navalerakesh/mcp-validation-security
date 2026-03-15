@@ -2,14 +2,14 @@ name: Build & Release
 
 on:
   push:
-    branches: [ "master" ]
+    branches: [ "main" ]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
       - 'reports/**'
       - 'TEMP/**'
   pull_request:
-    branches: [ "master" ]
+    branches: [ "main" ]
     paths-ignore:
       - '**/*.md'
       - 'docs/**'
@@ -61,7 +61,7 @@ jobs:
     name: Package ${{ matrix.rid }}
     needs: build-and-test
     # Only package on pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -129,7 +129,7 @@ jobs:
     name: Publish Release
     needs: package
     # Only run on push to main, not on PRs
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -164,7 +164,7 @@ jobs:
   nuget-publish:
     name: Publish to NuGet
     needs: [build-and-test, publish]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: NuGet
     steps:
@@ -198,7 +198,7 @@ jobs:
   npm-publish:
     name: Publish MCP Server to npm
     needs: [build-and-test, publish]
-    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: Npm
     defaults:
