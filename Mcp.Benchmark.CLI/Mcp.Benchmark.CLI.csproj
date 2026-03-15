@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>mcpval</AssemblyName>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsAsErrors />
+    
+    <!-- Global Tool Configuration (dotnet tool install) -->
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mcpval</ToolCommandName>
+    <PackageId>Mcp.Benchmark.CLI</PackageId>
+    <Authors>Rakesh Navale</Authors>
+    <Company>Rakesh Navale</Company>
+    <Product>MCP Validator</Product>
+    <Description>Validate MCP servers for compliance, security, and AI safety. Checks protocol correctness, tests security posture, grades LLM-friendliness, and assigns trust levels (L1-L5).</Description>
+    <PackageTags>mcp;model-context-protocol;jsonrpc;validation;compliance;security;ai-safety;trust;cli</PackageTags>
+    <PackageProjectUrl>https://github.com/navalerakesh/mcp-validation-security</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/navalerakesh/mcp-validation-security</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>mcpval-icon.png</PackageIcon>
+    <PackageReleaseNotes>https://github.com/navalerakesh/mcp-validation-security/releases</PackageReleaseNotes>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\assets\mcpval-icon.png" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Mcp.Benchmark.Core\Mcp.Benchmark.Core.csproj" />
+    <ProjectReference Include="..\Mcp.Benchmark.Infrastructure\Mcp.Benchmark.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+  </ItemGroup>
+
+</Project>

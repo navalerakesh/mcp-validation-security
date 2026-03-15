@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="metadata">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" />
+              </xsd:sequence>
+              <xsd:attribute name="name" use="required" type="xsd:string" />
+              <xsd:attribute name="type" type="xsd:string" />
+              <xsd:attribute name="mimetype" type="xsd:string" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="assembly">
+            <xsd:complexType>
+              <xsd:attribute name="alias" type="xsd:string" />
+              <xsd:attribute name="name" type="xsd:string" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="Status_Passed" xml:space="preserve">
+    <value>✅ Validation Passed</value>
+  </data>
+  <data name="Status_Failed" xml:space="preserve">
+    <value>❌ Validation Failed</value>
+  </data>
+  <data name="Status_Warning" xml:space="preserve">
+    <value>⚠️  Warning</value>
+  </data>
+  <data name="Status_Error" xml:space="preserve">
+    <value>🔴 Error</value>
+  </data>
+  <data name="Status_Success" xml:space="preserve">
+    <value>🟢 Success</value>
+  </data>
+  <data name="Status_InProgress" xml:space="preserve">
+    <value>🔄 In Progress</value>
+  </data>
+  <data name="Status_Skipped" xml:space="preserve">
+    <value>⏭️  Skipped</value>
+  </data>
+  <data name="Status_Timeout" xml:space="preserve">
+    <value>⏱️  Timeout</value>
+  </data>
+  <data name="Status_Unknown" xml:space="preserve">
+    <value>❓ Unknown Status</value>
+  </data>
+  <data name="Title_ProtocolCompliance" xml:space="preserve">
+    <value>MCP Protocol Compliance Validation</value>
+  </data>
+  <data name="Title_JsonRpcCompliance" xml:space="preserve">
+    <value>JSON-RPC 2.0 Compliance Check</value>
+  </data>
+  <data name="Title_ToolValidation" xml:space="preserve">
+    <value>Tool Interface Validation</value>
+  </data>
+  <data name="Title_SecurityValidation" xml:space="preserve">
+    <value>Security Assessment</value>
+  </data>
+  <data name="Title_PerformanceValidation" xml:space="preserve">
+    <value>Performance Testing</value>
+  </data>
+  <data name="Title_HealthCheck" xml:space="preserve">
+    <value>Server Health Check</value>
+  </data>
+  <data name="Title_CapabilityDiscovery" xml:space="preserve">
+    <value>Capability Discovery</value>
+  </data>
+  <data name="Category_Critical" xml:space="preserve">
+    <value>Critical Issues</value>
+  </data>
+  <data name="Category_Major" xml:space="preserve">
+    <value>Major Issues</value>
+  </data>
+  <data name="Category_Minor" xml:space="preserve">
+    <value>Minor Issues</value>
+  </data>
+  <data name="Category_Informational" xml:space="preserve">
+    <value>Informational</value>
+  </data>
+  <data name="Category_BestPractice" xml:space="preserve">
+    <value>Best Practice Recommendations</value>
+  </data>
+  <data name="Progress_Initializing" xml:space="preserve">
+    <value>Initializing validation framework...</value>
+  </data>
+  <data name="Progress_ConnectingToServer" xml:space="preserve">
+    <value>Connecting to MCP server...</value>
+  </data>
+  <data name="Progress_PerformingHealthCheck" xml:space="preserve">
+    <value>Performing health check...</value>
+  </data>
+  <data name="Progress_ValidatingProtocol" xml:space="preserve">
+    <value>Validating protocol compliance...</value>
+  </data>
+  <data name="Progress_TestingTools" xml:space="preserve">
+    <value>Testing tool interfaces...</value>
+  </data>
+  <data name="Progress_CheckingSecurity" xml:space="preserve">
+    <value>Checking security configuration...</value>
+  </data>
+  <data name="Progress_MeasuringPerformance" xml:space="preserve">
+    <value>Measuring performance metrics...</value>
+  </data>
+  <data name="Progress_GeneratingReport" xml:space="preserve">
+    <value>Generating validation report...</value>
+  </data>
+  <data name="Progress_Complete" xml:space="preserve">
+    <value>Validation complete</value>
+  </data>
+  <data name="Error_ConnectionFailed" xml:space="preserve">
+    <value>Failed to connect to MCP server</value>
+  </data>
+  <data name="Error_TimeoutOccurred" xml:space="preserve">
+    <value>Validation timed out</value>
+  </data>
+  <data name="Error_InvalidConfiguration" xml:space="preserve">
+    <value>Invalid configuration provided</value>
+  </data>
+  <data name="Error_AuthenticationFailed" xml:space="preserve">
+    <value>Authentication failed</value>
+  </data>
+  <data name="Error_UnexpectedError" xml:space="preserve">
+    <value>An unexpected error occurred</value>
+  </data>
+  <data name="Error_ServerNotResponding" xml:space="preserve">
+    <value>Server is not responding</value>
+  </data>
+  <data name="Error_InvalidResponse" xml:space="preserve">
+    <value>Received invalid response from server</value>
+  </data>
+  <data name="Error_ProtocolViolation" xml:space="preserve">
+    <value>Protocol violation detected</value>
+  </data>
+  <data name="Compliance_JsonRpcVersionMissing" xml:space="preserve">
+    <value>JSON-RPC version field is missing or invalid</value>
+  </data>
+  <data name="Compliance_InvalidJsonRpcVersion" xml:space="preserve">
+    <value>JSON-RPC version must be '2.0'</value>
+  </data>
+  <data name="Compliance_MissingRequiredField" xml:space="preserve">
+    <value>Required field '{0}' is missing</value>
+  </data>
+  <data name="Compliance_InvalidFieldType" xml:space="preserve">
+    <value>Field '{0}' has invalid type. Expected: {1}, Actual: {2}</value>
+  </data>
+  <data name="Compliance_InvalidMethodName" xml:space="preserve">
+    <value>Invalid method name: '{0}'</value>
+  </data>
+  <data name="Compliance_InvalidParameterStructure" xml:space="preserve">
+    <value>Invalid parameter structure</value>
+  </data>
+  <data name="Compliance_ResponseIdMismatch" xml:space="preserve">
+    <value>Response ID does not match request ID</value>
+  </data>
+  <data name="Compliance_UnrecognizedErrorCode" xml:space="preserve">
+    <value>Unrecognized error code: {0}</value>
+  </data>
+  <data name="Compliance_InvalidContentType" xml:space="preserve">
+    <value>Invalid content type. Expected: {0}</value>
+  </data>
+  <data name="Compliance_MissingCapability" xml:space="preserve">
+    <value>Required capability '{0}' is not supported</value>
+  </data>
+  <data name="Compliance_ProtocolVersionMismatch" xml:space="preserve">
+    <value>Protocol version mismatch. Expected: {0}, Received: {1}</value>
+  </data>
+  <data name="Report_ExecutiveSummary" xml:space="preserve">
+    <value>Executive Summary</value>
+  </data>
+  <data name="Report_ValidationResults" xml:space="preserve">
+    <value>Validation Results</value>
+  </data>
+  <data name="Report_ComplianceScore" xml:space="preserve">
+    <value>Compliance Score</value>
+  </data>
+  <data name="Report_DetailedFindings" xml:space="preserve">
+    <value>Detailed Findings</value>
+  </data>
+  <data name="Report_Recommendations" xml:space="preserve">
+    <value>Recommendations</value>
+  </data>
+  <data name="Report_TechnicalDetails" xml:space="preserve">
+    <value>Technical Details</value>
+  </data>
+  <data name="Report_Appendices" xml:space="preserve">
+    <value>Appendices</value>
+  </data>
+  <data name="Header_UserAgentPrefix" xml:space="preserve">
+    <value>MCP-Validator/1.0.0</value>
+  </data>
+  <data name="Header_AuthorizationBearer" xml:space="preserve">
+    <value>Bearer {0}</value>
+  </data>
+  <data name="Header_McpVersionHeader" xml:space="preserve">
+    <value>X-MCP-Version</value>
+  </data>
+  <data name="Config_LoadingConfiguration" xml:space="preserve">
+    <value>Loading configuration from: {0}</value>
+  </data>
+  <data name="Config_ConfigurationLoaded" xml:space="preserve">
+    <value>Configuration loaded successfully</value>
+  </data>
+  <data name="Config_UsingDefaultConfiguration" xml:space="preserve">
+    <value>Using default configuration</value>
+  </data>
+  <data name="Config_InvalidConfigurationFile" xml:space="preserve">
+    <value>Invalid configuration file: {0}</value>
+  </data>
+  <data name="Config_ConfigurationValidationFailed" xml:space="preserve">
+    <value>Configuration validation failed: {0}</value>
+  </data>
+  <data name="Security_AuthenticationIssue" xml:space="preserve">
+    <value>Authentication Issue: {0}</value>
+  </data>
+  <data name="Security_Remediation_Auth" xml:space="preserve">
+    <value>Review authentication implementation to ensure proper security behavior</value>
+  </data>
+  <data name="Security_SmartAuthCompleted" xml:space="preserve">
+    <value>Smart authentication testing completed: {0:F1}% compliance, {1}/{2} scenarios failed</value>
+  </data>
+  <data name="Security_InputValidation" xml:space="preserve">
+    <value>Input Validation</value>
+  </data>
+  <data name="Security_AttackSimulation" xml:space="preserve">
+    <value>Attack Simulation</value>
+  </data>
+  <data name="Security_ExecutingAdvancedVectors" xml:space="preserve">
+    <value>Executing Advanced MCP Attack Vectors...</value>
+  </data>
+  <data name="Security_AssessmentCompleted" xml:space="preserve">
+    <value>Security assessment completed with score: {0:F1}%, {1} vulnerabilities found</value>
+  </data>
+  <data name="Security_Remediation_InputValidation" xml:space="preserve">
+    <value>Implement comprehensive input validation and sanitization</value>
+  </data>
+  <data name="Security_Remediation_HighSeverity" xml:space="preserve">
+    <value>Address high-severity vulnerabilities immediately</value>
+  </data>
+  <data name="Security_Remediation_AdditionalControls" xml:space="preserve">
+    <value>Consider implementing additional security controls</value>
+  </data>
+  <data name="Security_Remediation_DefenseMechanisms" xml:space="preserve">
+    <value>Review and strengthen defense mechanisms against successful attacks</value>
+  </data>
+  <data name="Security_Remediation_EnhanceInputValidation" xml:space="preserve">
+    <value>Enhance input validation mechanisms to prevent injection attacks</value>
+  </data>
+  <data name="Security_Defense_Auth" xml:space="preserve">
+    <value>Authentication/Authorization</value>
+  </data>
+  <data name="Security_Defense_InputValidation" xml:space="preserve">
+    <value>Input Validation</value>
+  </data>
+  <data name="Security_Defense_ServerError" xml:space="preserve">
+    <value>Server Error (Potential Unhandled Exception)</value>
+  </data>
+  <data name="Security_Defense_JsonRpcError" xml:space="preserve">
+    <value>Application Layer Validation (JSON-RPC Error)</value>
+  </data>
+  <data name="Security_Defense_Unknown" xml:space="preserve">
+    <value>Unknown</value>
+  </data>
+  <data name="Security_Defense_NetworkProtocol" xml:space="preserve">
+    <value>Network/Protocol Layer</value>
+  </data>
+  <data name="Protocol_Compliance" xml:space="preserve">
+    <value>Protocol Compliance</value>
+  </data>
+  <data name="Protocol_JsonRpcCompliance" xml:space="preserve">
+    <value>JSON-RPC 2.0 Compliance</value>
+  </data>
+  <data name="Protocol_McpCompliance" xml:space="preserve">
+    <value>MCP Protocol Compliance</value>
+  </data>
+  <data name="Protocol_ValidationCompleted" xml:space="preserve">
+    <value>Protocol validation completed with score: {0:F1}%</value>
+  </data>
+  <data name="Security_Defense_AppLayer" xml:space="preserve">
+    <value>Application Layer Validation (JSON-RPC Error)</value>
+  </data>
+  <data name="Security_Defense_Network" xml:space="preserve">
+    <value>Network/Protocol Layer</value>
+  </data>
+  <data name="Security_Rec_InputValidation" xml:space="preserve">
+    <value>Implement comprehensive input validation and sanitization</value>
+  </data>
+  <data name="Security_Rec_HighSeverity" xml:space="preserve">
+    <value>Address high-severity vulnerabilities immediately</value>
+  </data>
+  <data name="Security_Rec_Controls" xml:space="preserve">
+    <value>Consider implementing additional security controls</value>
+  </data>
+  <data name="Security_Rec_Defense" xml:space="preserve">
+    <value>Review and strengthen defense mechanisms against successful attacks</value>
+  </data>
+  <data name="Security_Rec_Injection" xml:space="preserve">
+    <value>Enhance input validation mechanisms to prevent injection attacks</value>
+  </data>
+  <data name="Security_Assessment" xml:space="preserve">
+    <value>Security Assessment</value>
+  </data>
+  <data name="Auth_Limitations_Title" xml:space="preserve">
+    <value>NOTE: AUTHENTICATION LIMITATIONS</value>
+  </data>
+  <data name="Auth_Limitations_Desc" xml:space="preserve">
+    <value>Some components were skipped because authentication was not provided or failed.</value>
+  </data>
+  <data name="Auth_Limitations_Skipped" xml:space="preserve">
+    <value>Skipped Components: {0}</value>
+  </data>
+  <data name="Auth_Limitations_Scoring" xml:space="preserve">
+    <value>These components were excluded from the scoring calculation to avoid penalizing the score.</value>
+  </data>
+  <data name="Auth_Limitations_Important" xml:space="preserve">
+    <value>IMPORTANT: True validation of tools and MCP capabilities requires valid authentication.</value>
+  </data>
+  <data name="Auth_Limitations_CommandHint" xml:space="preserve">
+    <value>To run validation with authentication, use: --auth-type bearer --token &lt;YOUR_TOKEN&gt; or --interactive</value>
+  </data>
+</root>

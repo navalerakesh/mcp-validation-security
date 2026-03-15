@@ -1,0 +1,273 @@
+{
+	"folders": [
+		{
+			"name": "Root",
+			"path": "."
+		},
+		{
+			"name": "Documentation",
+			"path": "./docs"
+		},
+		{
+			"name": "CLI",
+			"path": "./Mcp.Benchmark.CLI"
+		},
+		{
+			"name": "Core",
+			"path": "./Mcp.Benchmark.Core"
+		},
+		{
+			"name": "Infrastructure",
+			"path": "./Mcp.Benchmark.Infrastructure"
+		},
+		{
+			"name": "Tests",
+			"path": "./Mcp.Benchmark.Tests"
+		},
+		{
+			"name": "Mcpval-Local-MCP",
+			"path": "./mcpval-mcp"
+		},
+		{
+			"name": "PublicReports",
+			"path": "./PublicReports"
+		}
+	],
+	"settings": {
+		"dotnet.defaultSolution": "./Mcp.Compliance.Validator.sln",
+		"files.exclude": {
+			"**/bin": true,
+			"**/obj": true,
+			"**/*.user": true,
+			"**/.vs": true,
+			"**/TestResults": true
+		},
+		"search.exclude": {
+			"**/bin": true,
+			"**/obj": true,
+			"**/TestResults": true,
+			"**/*.dll": true,
+			"**/*.pdb": true
+		},
+		"omnisharp.enableRoslynAnalyzers": true,
+		"editor.formatOnSave": true,
+		"editor.codeActionsOnSave": {
+			"source.organizeImports": "explicit"
+		},
+		"files.associations": {
+			"*.json": "jsonc"
+		},
+		"json.schemas": [
+			{
+				"fileMatch": [
+					"validation-configs/*.json"
+				],
+				"schema": {
+					"type": "object",
+					"properties": {
+						"serverUrl": {
+							"type": "string",
+							"description": "The URL of the MCP server to validate"
+						},
+						"timeoutMs": {
+							"type": "integer",
+							"description": "Timeout in milliseconds for validation operations"
+						},
+						"enableSecurity": {
+							"type": "boolean",
+							"description": "Enable security validation tests"
+						},
+						"enablePerformance": {
+							"type": "boolean",
+							"description": "Enable performance validation tests"
+						},
+						"reportFormat": {
+							"type": "string",
+							"enum": [
+								"json",
+								"xml",
+								"console"
+							],
+							"description": "Output format for validation reports"
+						}
+					}
+				}
+			}
+		],
+		"dotnet.completion.showCompletionItemsFromUnimportedNamespaces": true
+	},
+	"tasks": {
+		"version": "2.0.0",
+		"tasks": [
+			{
+				"label": "build",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"build",
+					"${workspaceFolder}/Mcp.Compliance.Validator.sln"
+				],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "silent",
+					"focus": false,
+					"panel": "shared",
+					"showReuseMessage": true,
+					"clear": false
+				},
+				"problemMatcher": "$msCompile"
+			},
+			{
+				"label": "test",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"test",
+					"${workspaceFolder}/Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj",
+					"--verbosity",
+					"normal"
+				],
+				"group": "test",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": "$msCompile"
+			},
+			{
+				"label": "clean",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"clean",
+					"${workspaceFolder}/Mcp.Compliance.Validator.sln"
+				],
+				"group": "build",
+				"presentation": {
+					"echo": true,
+					"reveal": "silent",
+					"focus": false,
+					"panel": "shared"
+				},
+				"problemMatcher": "$msCompile"
+			},
+			{
+				"label": "run-cli",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"run",
+					"--project",
+					"${workspaceFolder}/Mcp.Benchmark.CLI",
+					"--"
+				],
+				"group": "none",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": true,
+					"panel": "shared"
+				},
+				"problemMatcher": []
+			},
+			{
+				"label": "validate-server",
+				"command": "dotnet",
+				"type": "process",
+				"args": [
+					"run",
+					"--project",
+					"${workspaceFolder}/Mcp.Benchmark.CLI",
+					"--",
+					"validate",
+					"--url",
+					"${input:serverUrl}"
+				],
+				"group": "none",
+				"presentation": {
+					"echo": true,
+					"reveal": "always",
+					"focus": true,
+					"panel": "shared"
+				},
+				"problemMatcher": []
+			}
+		],
+		"inputs": [
+			{
+				"id": "serverUrl",
+				"description": "Enter the MCP server URL to validate",
+				"default": "http://localhost:3000",
+				"type": "promptString"
+			}
+		]
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Launch CLI",
+				"type": "coreclr",
+				"request": "launch",
+				"preLaunchTask": "build",
+				"program": "${workspaceFolder}/Mcp.Benchmark.CLI/bin/Debug/net8.0/Mcp.Compliance.Validator.CLI.dll",
+				"args": [
+					"--help"
+				],
+				"cwd": "${workspaceFolder}",
+				"console": "internalConsole",
+				"stopAtEntry": false
+			},
+			{
+				"name": "Launch CLI - Validate Server",
+				"type": "coreclr",
+				"request": "launch",
+				"preLaunchTask": "build",
+				"program": "${workspaceFolder}/Mcp.Benchmark.CLI/bin/Debug/net8.0/Mcp.Compliance.Validator.CLI.dll",
+				"args": [
+					"validate",
+					"--url",
+					"http://localhost:3000",
+					"--verbose"
+				],
+				"cwd": "${workspaceFolder}",
+				"console": "internalConsole",
+				"stopAtEntry": false
+			},
+			{
+				"name": "Launch CLI - Health Check",
+				"type": "coreclr",
+				"request": "launch",
+				"preLaunchTask": "build",
+				"program": "${workspaceFolder}/Mcp.Benchmark.CLI/bin/Debug/net8.0/Mcp.Compliance.Validator.CLI.dll",
+				"args": [
+					"health-check",
+					"--url",
+					"http://localhost:3000"
+				],
+				"cwd": "${workspaceFolder}",
+				"console": "internalConsole",
+				"stopAtEntry": false
+			},
+			{
+				"name": "Attach to Process",
+				"type": "coreclr",
+				"request": "attach"
+			}
+		]
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-dotnettools.csharp",
+			"ms-dotnettools.vscode-dotnet-runtime",
+			"ms-vscode.vscode-json",
+			"redhat.vscode-yaml",
+			"ms-vscode.powershell",
+			"github.vscode-github-actions",
+			"ms-vscode.test-adapter-converter"
+		]
+	}
+}
