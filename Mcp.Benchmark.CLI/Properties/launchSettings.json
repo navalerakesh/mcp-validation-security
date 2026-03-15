@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Mcp.Compliance.Validator.CLI": {
+      "commandName": "Project",
+      "commandLineArgs": "validate -v -s http://localhost:5555/mcp"
+    }
+  }
+}
