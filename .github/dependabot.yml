@@ -1,0 +1,28 @@
+version: 2
+updates:
+  # .NET (NuGet) dependencies
+  - package-ecosystem: "nuget"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "navalerakesh"
+
+  # npm dependencies (mcpval-mcp)
+  - package-ecosystem: "npm"
+    directory: "/mcpval-mcp"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "navalerakesh"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "navalerakesh"
