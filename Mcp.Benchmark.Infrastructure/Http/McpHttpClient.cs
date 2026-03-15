@@ -361,6 +361,26 @@ public class McpHttpClient : IMcpHttpClient
         var startTime = DateTime.UtcNow;
         try
         {
+            var serverConfig = BuildServerConfig(endpoint);
+
+            try
+            {
+                var initializeResult = await _mcpClient
+                    .InitializeAsync(serverConfig, null, _protocolVersion, cancellationToken)
+                    .ConfigureAwait(false);
+
+                return new TransportResult<InitializeResult>
+                {
+                    IsSuccessful = true,
+                    Payload = initializeResult,
+                    Transport = CreateTransportMetadata(DateTime.UtcNow - startTime)
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "SDK initialize failed for {Endpoint}; falling back to raw JSON-RPC initialize", endpoint);
+            }
+
             var initializeResponse = await CallAsync(endpoint, "initialize", new
             {
                 protocolVersion = string.IsNullOrWhiteSpace(_protocolVersion) ? "2025-03-26" : _protocolVersion,
@@ -386,7 +406,7 @@ public class McpHttpClient : IMcpHttpClient
                 };
             }
 
-            if (!TryParseInitializeResult(initializeResponse.RawJson, out var initializeResult))
+            if (!TryParseInitializeResult(initializeResponse.RawJson, out var parsedInitializeResult))
             {
                 return new TransportResult<InitializeResult>
                 {
@@ -403,7 +423,7 @@ public class McpHttpClient : IMcpHttpClient
             return new TransportResult<InitializeResult>
             {
                 IsSuccessful = true,
-                Payload = initializeResult,
+                    Payload = parsedInitializeResult,
                 Transport = CreateTransportMetadata(
                     DateTime.UtcNow - startTime,
                     initializeResponse.StatusCode,
@@ -434,11 +454,31 @@ public class McpHttpClient : IMcpHttpClient
         var toolInvocationSucceeded = false;
         string? firstToolName = null;
 
+        var serverConfig = BuildServerConfig(endpoint);
+
+        try
+        {
+            discoveredTools = await _mcpClient
+                .ListToolsAsync(serverConfig, null, _protocolVersion, cancellationToken)
+                .ConfigureAwait(false);
+
+            toolListingSucceeded = true;
+            firstToolName = discoveredTools.FirstOrDefault()?.Name;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "SDK tool discovery failed for {Endpoint}; falling back to raw JSON-RPC probes", endpoint);
+        }
+
         var (toolListResponse, toolListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ToolsList, cancellationToken);
         var (resourceListResponse, resourceListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken);
         var (promptListResponse, promptListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken);
 
-        if (toolListResponse?.IsSuccess == true)
+        if (!toolListingSucceeded && toolListResponse?.IsSuccess == true)
         {
             toolListingSucceeded = true;
             firstToolName = TryGetFirstToolName(toolListResponse.RawJson);
