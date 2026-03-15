@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * mcpval-mcp — MCP server that wraps the mcpval CLI.
+ * mcpval-localmcp — MCP server that wraps the mcpval CLI.
  *
  * Exposes validation, health-check, and discovery as MCP tools
  * so AI agents can validate MCP servers through the protocol itself.
  *
  * Usage:
- *   npx mcpval-mcp              (stdio transport)
+ *   npx mcpval-localmcp           (stdio transport)
  *   node dist/index.js           (after build)
  *
  * VS Code mcp.json:
@@ -14,7 +14,7 @@
  *     "servers": {
  *       "mcpval": {
  *         "command": "npx",
- *         "args": ["-y", "mcpval-mcp"],
+ *         "args": ["-y", "mcpval-localmcp"],
  *         "type": "stdio"
  *       }
  *     }
@@ -85,7 +85,7 @@ async function main(): Promise<void> {
   await server.connect(transport);
 
   // Log to stderr (STDIO servers must not write to stdout)
-  console.error(`mcpval-mcp started (CLI: ${cliVersion})`);
+  console.error(`mcpval-localmcp started (CLI: ${cliVersion})`);
 }
 
 main().catch((err) => {

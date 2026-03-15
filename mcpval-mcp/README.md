@@ -101,6 +101,29 @@ The server communicates via JSON-RPC over stdin/stdout. Point any MCP-compatible
 npx -y mcpval-localmcp
 ```
 
+## Troubleshooting
+
+**"mcpval CLI is not installed or not on PATH"**
+
+The MCP server needs the `mcpval` CLI accessible on PATH. If you installed via `dotnet tool install --global McpVal` but the MCP server can't find it, add `env` to your MCP config:
+
+```jsonc
+{
+  "servers": {
+    "mcpval": {
+      "command": "npx",
+      "args": ["-y", "mcpval-localmcp"],
+      "type": "stdio",
+      "env": {
+        "PATH": "${env:HOME}/.dotnet/tools:${env:PATH}"
+      }
+    }
+  }
+}
+```
+
+Alternatively, download a standalone binary from [Releases](https://github.com/navalerakesh/mcp-validation-security/releases) and place it on your PATH.
+
 ## Tools
 
 | Tool | Description |

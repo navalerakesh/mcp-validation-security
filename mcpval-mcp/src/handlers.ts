@@ -86,10 +86,10 @@ function cliNotInstalledMessage(): string {
     "mcpval CLI is not installed or not on PATH.",
     "",
     "Install:",
-    "  dotnet tool install --global Mcp.Benchmark.CLI",
+    "  dotnet tool install --global McpVal",
     "",
     "Update to latest:",
-    "  dotnet tool update --global Mcp.Benchmark.CLI",
+    "  dotnet tool update --global McpVal",
     "",
     "Or download from: https://github.com/navalerakesh/mcp-validation-security/releases",
   ].join("\n");

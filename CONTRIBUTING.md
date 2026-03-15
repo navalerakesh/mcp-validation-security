@@ -56,6 +56,7 @@ Help users and organizations **evaluate the security and compliance** of AI tool
    ```bash
    dotnet run --project Mcp.Benchmark.CLI -- validate --help
    ```
+   > Note: The project folder is `Mcp.Benchmark.CLI` but the NuGet package is published as `McpVal`.
 
 ## \ud83d\udcdd Pull Request Process
 

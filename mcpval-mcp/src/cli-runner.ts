@@ -24,14 +24,26 @@ export interface CliResult {
 
 /**
  * Resolves the path to the mcpval CLI executable.
- * Priority: MCPVAL_CLI_PATH env var → global dotnet tool → PATH lookup.
+ * Priority: MCPVAL_CLI_PATH env var → known dotnet tool paths → PATH lookup.
  */
 export function resolveCliPath(): string {
   // 1. Environment variable override
   const envPath = process.env[config.cliPathEnvVar];
   if (envPath && existsSync(envPath)) return envPath;
 
-  // 2. Default: assume it's on PATH (installed via dotnet tool install --global)
+  // 2. Check known dotnet global tool install locations
+  const home = process.env.HOME || process.env.USERPROFILE || "";
+  if (home) {
+    const knownPaths = [
+      join(home, ".dotnet", "tools", "mcpval"),              // macOS / Linux
+      join(home, ".dotnet", "tools", "mcpval.exe"),          // Windows
+    ];
+    for (const p of knownPaths) {
+      if (existsSync(p)) return p;
+    }
+  }
+
+  // 3. Default: assume it's on PATH
   return config.cliCommand;
 }
 
