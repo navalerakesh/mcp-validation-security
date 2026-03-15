@@ -166,6 +166,7 @@ jobs:
     needs: [build-and-test, publish]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: NuGet
     steps:
       - uses: actions/checkout@v4
 
@@ -199,6 +200,7 @@ jobs:
     needs: [build-and-test, publish]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    environment: Npm
     defaults:
       run:
         working-directory: mcpval-mcp
