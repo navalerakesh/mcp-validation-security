@@ -16,9 +16,9 @@
     <VersionPrefix>2.0.0</VersionPrefix>
     
     <!-- Metadata -->
-    <Authors>MCP Community</Authors>
-    <Company>MCP Community</Company>
+    <Authors>Rakesh Navale</Authors>
+    <Company>Rakesh Navale</Company>
     <Product>MCP Validator</Product>
-    <Copyright>Copyright (c) 2025-2026</Copyright>
+    <Copyright>Copyright (c) 2025-2026 Rakesh Navale</Copyright>
   </PropertyGroup>
 </Project>

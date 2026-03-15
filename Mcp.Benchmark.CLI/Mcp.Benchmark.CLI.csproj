@@ -13,8 +13,8 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mcpval</ToolCommandName>
     <PackageId>Mcp.Benchmark.CLI</PackageId>
-    <Authors>MCP Community</Authors>
-    <Company>MCP Community</Company>
+    <Authors>Rakesh Navale</Authors>
+    <Company>Rakesh Navale</Company>
     <Product>MCP Validator</Product>
     <Description>Validate MCP servers for compliance, security, and AI safety. Checks protocol correctness, tests security posture, grades LLM-friendliness, and assigns trust levels (L1-L5).</Description>
     <PackageTags>mcp;model-context-protocol;jsonrpc;validation;compliance;security;ai-safety;trust;cli</PackageTags>
@@ -25,6 +25,7 @@
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>mcpval-icon.png</PackageIcon>
+    <PackageReleaseNotes>https://github.com/navalerakesh/mcp-validation-security/releases</PackageReleaseNotes>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
