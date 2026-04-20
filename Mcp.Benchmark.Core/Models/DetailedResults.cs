@@ -233,6 +233,31 @@ public class IndividualToolResult
     public bool ExecutionSuccessful { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets the human-friendly display title for the tool, if declared.
+    /// </summary>
+    public string? DisplayTitle { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tool read-only hint, if declared.
+    /// </summary>
+    public bool? ReadOnlyHint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tool destructive hint, if declared.
+    /// </summary>
+    public bool? DestructiveHint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tool open-world hint, if declared.
+    /// </summary>
+    public bool? OpenWorldHint { get; set; }
+
+    /// <summary>
+    /// Gets or sets the tool idempotent hint, if declared.
+    /// </summary>
+    public bool? IdempotentHint { get; set; }
+
+    /// <summary>
     /// Gets or sets the tool execution response time in milliseconds.
     /// </summary>
     public double ExecutionTimeMs { get; set; } = 0.0;
@@ -246,6 +271,11 @@ public class IndividualToolResult
     /// Gets or sets any issues found with this tool.
     /// </summary>
     public List<string> Issues { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets structured findings for this tool.
+    /// </summary>
+    public List<ValidationFinding> Findings { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the WWW-Authenticate header value if present.

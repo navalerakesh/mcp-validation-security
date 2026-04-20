@@ -75,6 +75,7 @@ public class ResourceValidatorIntegrationTests
 
         result.ResourceResults[0].MetadataValid.Should().BeFalse();
         result.ResourceResults[0].Issues.Should().Contain(i => i.Contains("uri"));
+        result.ResourceResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceMissingUri);
     }
 
     [Fact]
@@ -121,6 +122,7 @@ public class ResourceValidatorIntegrationTests
         var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig { TestResourceReading = true }, CancellationToken.None);
 
         result.ResourceResults[0].Issues.Should().Contain(i => i.Contains("missing both 'text' and 'blob'"));
+        result.ResourceResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceReadMissingTextOrBlob);
     }
 
     [Fact]

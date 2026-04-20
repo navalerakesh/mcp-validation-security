@@ -119,6 +119,11 @@ public class ToolTestResult : TestResultBase
     public List<string> AiReadinessIssues { get; set; } = new();
 
     /// <summary>
+    /// Structured findings produced during AI readiness analysis.
+    /// </summary>
+    public List<ValidationFinding> AiReadinessFindings { get; set; } = new();
+
+    /// <summary>
     /// Estimated token count for the full tools/list response payload.
     /// </summary>
     public long EstimatedTokenCount { get; set; } = 0;
@@ -198,6 +203,11 @@ public class AuthenticationSecurityResult
     /// Detailed security findings.
     /// </summary>
     public List<string> Findings { get; set; } = new();
+
+    /// <summary>
+    /// Structured security findings.
+    /// </summary>
+    public List<ValidationFinding> StructuredFindings { get; set; } = new();
 }
 
 /// <summary>

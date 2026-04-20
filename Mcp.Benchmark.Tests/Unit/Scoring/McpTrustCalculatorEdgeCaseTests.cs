@@ -91,6 +91,22 @@ public class McpTrustCalculatorEdgeCaseTests
     }
 
     [Fact]
+    public void Calculate_WithReadOnlyHint_ShouldOverrideDestructiveNameHeuristic()
+    {
+        var result = BuildResult(100, 100);
+        result.ToolValidation!.AiReadinessScore = 90;
+        result.ToolValidation.ToolResults = new List<IndividualToolResult>
+        {
+            new() { ToolName = "delete_preview", ReadOnlyHint = true, Status = TestStatus.Passed }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.DestructiveToolCount.Should().Be(0);
+        trust.BoundaryFindings.Should().NotContain(f => f.Category == "Destructive");
+    }
+
+    [Fact]
     public void Calculate_WithExfiltrationRisk_ShouldFlag()
     {
         var result = BuildResult(100, 100);
@@ -150,7 +166,18 @@ public class McpTrustCalculatorEdgeCaseTests
             {
                 ToolName = "test",
                 Status = TestStatus.Passed,
-                Issues = new List<string> { "🟢 LLM-Friendliness: 85/100 (Pro-LLM) — Error helps AI self-correct" }
+                Findings = new List<ValidationFinding>
+                {
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+                        Category = "AiReadiness",
+                        Component = "test",
+                        Severity = ValidationFindingSeverity.Info,
+                        Summary = "🟢 LLM-Friendliness: 85/100 (Pro-LLM) — Error helps AI self-correct",
+                        Metadata = new Dictionary<string, string> { ["score"] = "85", ["grade"] = "Pro-LLM" }
+                    }
+                }
             }
         };
 
@@ -170,7 +197,18 @@ public class McpTrustCalculatorEdgeCaseTests
             {
                 ToolName = "test",
                 Status = TestStatus.Passed,
-                Issues = new List<string> { "🔴 LLM-Friendliness: 20/100 (Anti-LLM) — Error will cause AI hallucination/loops" }
+                Findings = new List<ValidationFinding>
+                {
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+                        Category = "AiReadiness",
+                        Component = "test",
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = "🔴 LLM-Friendliness: 20/100 (Anti-LLM) — Error will cause AI hallucination/loops",
+                        Metadata = new Dictionary<string, string> { ["score"] = "20", ["grade"] = "Anti-LLM" }
+                    }
+                }
             }
         };
 
@@ -179,6 +217,38 @@ public class McpTrustCalculatorEdgeCaseTests
         trust.LlmFriendlinessScore.Should().Be(20.0);
         trust.AiSafety.Should().BeLessThan(90);
         trust.BoundaryFindings.Should().Contain(f => f.Category == "LLM-Hostile");
+    }
+
+    [Fact]
+    public void Calculate_WithStructuredMustFindings_ShouldCapAtL2()
+    {
+        var result = BuildResult(100, 100);
+        result.PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Passed, Score = 100 };
+        result.ToolValidation!.AiReadinessScore = 100;
+        result.ToolValidation.ToolResults = new List<IndividualToolResult>
+        {
+            new()
+            {
+                ToolName = "broken_tool",
+                Status = TestStatus.Failed,
+                Findings = new List<ValidationFinding>
+                {
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallMissingContentArray,
+                        Category = "ProtocolCompliance",
+                        Component = "broken_tool",
+                        Severity = ValidationFindingSeverity.Critical,
+                        Summary = "tools/call result missing 'content' array"
+                    }
+                }
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.MustFailCount.Should().BeGreaterThan(0);
+        trust.TrustLevel.Should().Be(McpTrustLevel.L2_Caution);
     }
 
     [Fact] 

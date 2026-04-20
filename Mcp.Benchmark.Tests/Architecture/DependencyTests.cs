@@ -51,4 +51,21 @@ public class DependencyTests
 
         Assert.True(result.IsSuccessful, "Infrastructure layer should not depend on CLI layer.");
     }
+
+    [Fact]
+    public void Cli_Command_Handlers_Should_Not_Depend_On_Infrastructure()
+    {
+        var cliAssembly = typeof(Mcp.Benchmark.CLI.ValidateCommand).Assembly;
+
+        var result = Types.InAssembly(cliAssembly)
+            .That()
+            .ResideInNamespace("Mcp.Benchmark.CLI")
+            .And()
+            .HaveNameEndingWith("Command")
+            .ShouldNot()
+            .HaveDependencyOn(InfrastructureNamespace)
+            .GetResult();
+
+        Assert.True(result.IsSuccessful, "CLI command handlers should depend on Core abstractions, not Infrastructure.");
+    }
 }

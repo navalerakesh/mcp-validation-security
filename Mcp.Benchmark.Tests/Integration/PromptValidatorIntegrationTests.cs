@@ -75,6 +75,7 @@ public class PromptValidatorIntegrationTests
 
         result.PromptResults[0].MetadataValid.Should().BeFalse();
         result.PromptResults[0].Issues.Should().Contain(i => i.Contains("name"));
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptMissingName);
     }
 
     [Fact]
@@ -120,6 +121,7 @@ public class PromptValidatorIntegrationTests
         var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = true }, CancellationToken.None);
 
         result.PromptResults[0].Issues.Should().Contain(i => i.Contains("missing 'role'"));
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptMessageMissingRole);
     }
 
     [Fact]

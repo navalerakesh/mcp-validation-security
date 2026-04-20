@@ -141,6 +141,46 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("SKIPPED");
     }
 
+    [Fact]
+    public void GenerateReport_WithToolGuidelineFindings_ShouldIncludeGuidelineSection()
+    {
+        var result = BuildMinimalResult();
+        result.ToolValidation = new ToolTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 100,
+            ToolsDiscovered = 1,
+            ToolResults = new List<IndividualToolResult>
+            {
+                new()
+                {
+                    ToolName = "plain_tool",
+                    Status = TestStatus.Passed,
+                    DisplayTitle = "Plain Tool",
+                    ReadOnlyHint = true,
+                    Findings = new List<ValidationFinding>
+                    {
+                        new()
+                        {
+                            RuleId = ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
+                            Category = "McpGuideline",
+                            Component = "plain_tool",
+                            Severity = ValidationFindingSeverity.Low,
+                            Summary = "Tool 'plain_tool' does not declare annotations.destructiveHint."
+                        }
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("MCP Guideline Findings");
+        report.Should().Contain("Display Title");
+        report.Should().Contain("readOnlyHint");
+        report.Should().Contain(ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing);
+    }
+
     private static ValidationResult BuildMinimalResult()
     {
         return new ValidationResult

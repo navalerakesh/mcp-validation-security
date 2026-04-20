@@ -93,7 +93,15 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     else
                     {
                         promptResult.MetadataValid = false;
-                        promptResult.Issues.Add("Missing 'name' property");
+                        promptResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.PromptMissingName,
+                            Category = "ProtocolCompliance",
+                            Component = "prompt",
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Prompt is missing 'name' property",
+                            Recommendation = "Return a stable name for every prompt listed by prompts/list."
+                        }, "Missing 'name' property");
                     }
 
                     if (prompt.TryGetProperty("description", out var descElement))
@@ -176,14 +184,31 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                                     // Each message MUST have 'role' (user|assistant)
                                                     if (!msg.TryGetProperty("role", out var role))
                                                     {
-                                                        promptResult.Issues.Add("❌ MCP Compliance: message missing 'role' field (MUST be 'user' or 'assistant')");
+                                                        promptResult.AddFinding(new ValidationFinding
+                                                        {
+                                                            RuleId = ValidationFindingRuleIds.PromptMessageMissingRole,
+                                                            Category = "ProtocolCompliance",
+                                                            Component = promptResult.PromptName,
+                                                            Severity = ValidationFindingSeverity.Critical,
+                                                            Summary = "Prompt message missing 'role' field",
+                                                            Recommendation = "Return role on every prompt message with a valid MCP role value."
+                                                        }, "❌ MCP Compliance: message missing 'role' field (MUST be 'user' or 'assistant')");
                                                         promptResult.MetadataValid = false;
                                                     }
                                                     else
                                                     {
                                                         var roleStr = role.GetString();
                                                         if (roleStr is not ("user" or "assistant"))
-                                                            promptResult.Issues.Add($"❌ MCP Compliance: message role '{roleStr}' invalid (MUST be 'user' or 'assistant')");
+                                                            promptResult.AddFinding(new ValidationFinding
+                                                            {
+                                                                RuleId = ValidationFindingRuleIds.PromptMessageInvalidRole,
+                                                                Category = "ProtocolCompliance",
+                                                                Component = promptResult.PromptName,
+                                                                Severity = ValidationFindingSeverity.High,
+                                                                Summary = $"Prompt message role '{roleStr}' is invalid",
+                                                                Recommendation = "Use valid MCP prompt roles such as user or assistant.",
+                                                                Metadata = { ["role"] = roleStr ?? string.Empty }
+                                                            }, $"❌ MCP Compliance: message role '{roleStr}' invalid (MUST be 'user' or 'assistant')");
                                                     }
 
                                                     // Each message MUST have 'content' (object with type+text or array)
@@ -202,7 +227,15 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                             }
                                             else
                                             {
-                                                promptResult.Issues.Add("❌ MCP Compliance: prompts/get result missing 'messages' array (MUST per spec)");
+                                                promptResult.AddFinding(new ValidationFinding
+                                                {
+                                                    RuleId = ValidationFindingRuleIds.PromptGetMissingMessagesArray,
+                                                    Category = "ProtocolCompliance",
+                                                    Component = promptResult.PromptName,
+                                                    Severity = ValidationFindingSeverity.Critical,
+                                                    Summary = "prompts/get result missing 'messages' array",
+                                                    Recommendation = "Return result.messages as an array for prompts/get responses."
+                                                }, "❌ MCP Compliance: prompts/get result missing 'messages' array (MUST per spec)");
                                                 promptResult.MetadataValid = false;
                                             }
                                         }

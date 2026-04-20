@@ -97,8 +97,10 @@ public static class McpTrustCalculator
 
             // Check if any tool result flagged missing content[] array
             var hasMissingContent = result.ToolValidation.ToolResults?.Any(t =>
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray) ||
                 t.Issues.Any(i => i.Contains("missing 'content' array"))) == true;
-            if (result.ToolValidation.ToolResults?.Any(t => t.ExecutionSuccessful) == true)
+            if (result.ToolValidation.ToolResults?.Any(t =>
+                t.ExecutionSuccessful || HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.ToolCallReturnsContent, "tools/call",
                     !hasMissingContent, hasMissingContent ? "tools/call result missing content[] array" : null);
@@ -109,6 +111,7 @@ public static class McpTrustCalculator
         if (result.ResourceTesting != null && result.ResourceTesting.Status != TestStatus.Skipped)
         {
             var missingUri = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceMissingUri) ||
                 r.Issues.Any(i => i.Contains("missing 'uri'"))) == true;
 
             if (result.ResourceTesting.ResourceResults?.Count > 0)
@@ -118,11 +121,17 @@ public static class McpTrustCalculator
             }
 
             var missingContentUri = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri) ||
                 r.Issues.Any(i => i.Contains("contents[0] missing 'uri'"))) == true;
             var missingTextBlob = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob) ||
                 r.Issues.Any(i => i.Contains("missing both 'text' and 'blob'"))) == true;
 
-            if (result.ResourceTesting.ResourceResults?.Any(r => r.AccessSuccessful) == true)
+            if (result.ResourceTesting.ResourceResults?.Any(r =>
+                r.AccessSuccessful ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri) ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob) ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentArray)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.ResourceContentHasUri, "resources/read",
                     !missingContentUri, missingContentUri ? "contents[] missing 'uri'" : null);
@@ -136,11 +145,16 @@ public static class McpTrustCalculator
         if (result.PromptTesting != null && result.PromptTesting.Status != TestStatus.Skipped)
         {
             var missingMessages = result.PromptTesting.PromptResults?.Any(p =>
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray) ||
                 p.Issues.Any(i => i.Contains("missing 'messages'"))) == true;
             var missingRole = result.PromptTesting.PromptResults?.Any(p =>
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole) ||
                 p.Issues.Any(i => i.Contains("missing 'role'"))) == true;
 
-            if (result.PromptTesting.PromptResults?.Any(p => p.ExecutionSuccessful) == true)
+            if (result.PromptTesting.PromptResults?.Any(p =>
+                p.ExecutionSuccessful ||
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray) ||
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.PromptsGetReturnsMessages, "prompts/get",
                     !missingMessages, missingMessages ? "prompts/get missing messages[] array" : null);
@@ -178,10 +192,12 @@ public static class McpTrustCalculator
         // Tool descriptions
         if (result.ToolValidation?.AiReadinessIssues != null)
         {
-            var hasUndescribed = result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("lack descriptions"));
+            var hasUndescribed = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions) ||
+                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("lack descriptions"));
             AddShouldCheck(assessment, McpComplianceTiers.Should.ToolHasDescription, "tools/list", !hasUndescribed);
 
-            var hasVagueTypes = result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("no enum/pattern"));
+            var hasVagueTypes = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema) ||
+                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("no enum/pattern"));
             AddShouldCheck(assessment, McpComplianceTiers.Should.DescriptiveParameterTypes, "tools/list", !hasVagueTypes);
         }
 
@@ -189,6 +205,7 @@ public static class McpTrustCalculator
         if (result.ToolValidation?.ToolResults != null)
         {
             var missingIsError = result.ToolValidation.ToolResults.Any(t =>
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingIsError) ||
                 t.Issues.Any(i => i.Contains("isError field not present")));
             AddShouldCheck(assessment, McpComplianceTiers.Should.IsErrorFieldPresent, "tools/call", !missingIsError);
         }
@@ -242,10 +259,15 @@ public static class McpTrustCalculator
             AddMayCheck(assessment, McpComplianceTiers.May.ResourceTemplates, "resources", hasTemplates);
         }
 
-        // Tool annotations
-        // We can't check directly without extending ToolInfo exposure, so check if capabilities declare it
+        var hasToolAnnotations = result.ToolValidation?.ToolResults?.Any(t =>
+            !string.IsNullOrWhiteSpace(t.DisplayTitle) ||
+            t.ReadOnlyHint.HasValue ||
+            t.DestructiveHint.HasValue ||
+            t.OpenWorldHint.HasValue ||
+            t.IdempotentHint.HasValue) == true;
+
         AddMayCheck(assessment, McpComplianceTiers.May.ToolAnnotations, "tools",
-            probeMessage.Contains("Capabilities:") && result.ToolValidation?.ToolsDiscovered > 0);
+            hasToolAnnotations);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
@@ -301,21 +323,28 @@ public static class McpTrustCalculator
             foreach (var tool in result.ToolValidation.ToolResults)
             {
                 var name = tool.ToolName?.ToLowerInvariant() ?? "";
-                var isLikelyDestructive = name.Contains("delete") || name.Contains("remove") ||
-                                          name.Contains("drop") || name.Contains("destroy") ||
-                                          name.Contains("write") || name.Contains("update") ||
-                                          name.Contains("create") || name.Contains("execute") ||
-                                          name.Contains("run") || name.Contains("send");
+                var isLikelyDestructive = tool.DestructiveHint == true ||
+                                          (tool.ReadOnlyHint != true &&
+                                           (name.Contains("delete") || name.Contains("remove") ||
+                                            name.Contains("drop") || name.Contains("destroy") ||
+                                            name.Contains("write") || name.Contains("update") ||
+                                            name.Contains("create") || name.Contains("execute") ||
+                                            name.Contains("run") || name.Contains("send")));
 
                 if (isLikelyDestructive)
                 {
                     assessment.DestructiveToolCount++;
+                    var severity = tool.DestructiveHint == true ? "High" : "Medium";
+                    var description = tool.DestructiveHint == true
+                        ? $"Tool '{tool.ToolName}' declares destructiveHint=true. AI agents SHOULD require human confirmation before invocation."
+                        : $"Tool '{tool.ToolName}' appears to perform write/destructive operations. AI agents SHOULD require human confirmation.";
+
                     assessment.BoundaryFindings.Add(new AiBoundaryFinding
                     {
                         Category = "Destructive",
                         Component = tool.ToolName ?? "unknown",
-                        Severity = "Medium",
-                        Description = $"Tool '{tool.ToolName}' appears to perform write/destructive operations. AI agents SHOULD require human confirmation.",
+                        Severity = severity,
+                        Description = description,
                         Mitigation = "Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition."
                     });
                 }
@@ -407,11 +436,23 @@ public static class McpTrustCalculator
             var llmScores = new List<int>();
             foreach (var tool in result.ToolValidation.ToolResults)
             {
+                foreach (var finding in tool.Findings.Where(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
+                {
+                    if (finding.Metadata.TryGetValue("score", out var scoreText) && int.TryParse(scoreText, out var llmScore))
+                    {
+                        llmScores.Add(llmScore);
+                    }
+                }
+
+                if (tool.Findings.Any(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
+                {
+                    continue;
+                }
+
                 foreach (var issue in tool.Issues)
                 {
                     if (issue.Contains("LLM-Friendliness:"))
                     {
-                        // Parse "LLM-Friendliness: XX/100" from the issue string
                         var start = issue.IndexOf("LLM-Friendliness:") + "LLM-Friendliness:".Length;
                         var end = issue.IndexOf("/100", start);
                         if (end > start && int.TryParse(issue.Substring(start, end - start).Trim(), out var llmScore))
@@ -458,5 +499,10 @@ public static class McpTrustCalculator
         }
 
         return result.PerformanceTesting.Score;
+    }
+
+    private static bool HasFinding(IEnumerable<ValidationFinding>? findings, string ruleId)
+    {
+        return findings?.Any(f => f.RuleId == ruleId) == true;
     }
 }

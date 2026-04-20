@@ -151,6 +151,7 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.ToolResults.Should().Contain(t => t.Issues.Any(i => i.Contains("content")));
+        result.ToolResults.Should().Contain(t => t.Findings.Any(f => f.RuleId == ValidationFindingRuleIds.ToolCallMissingContentArray));
     }
 
     [Fact]
@@ -168,6 +169,7 @@ public class ToolValidatorComprehensiveTests
         toolResult.Issues.Should().Contain(i => i.Contains("correctly validated input"));
         // Should also have LLM-friendliness grade
         toolResult.Issues.Should().Contain(i => i.Contains("LLM-Friendliness"));
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness);
     }
 
     [Fact]
@@ -214,6 +216,8 @@ public class ToolValidatorComprehensiveTests
         result.AiReadinessScore.Should().BeLessThan(100);
         result.AiReadinessIssues.Should().Contain(i => i.Contains("lack descriptions"));
         result.AiReadinessIssues.Should().Contain(i => i.Contains("no enum/pattern"));
+        result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
+        result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema);
     }
 
     [Fact]
@@ -226,6 +230,41 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.AiReadinessScore.Should().BeGreaterThanOrEqualTo(80);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithMissingGuidelineHints_ShouldEmitGuidelineFindings()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"plain_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "plain_tool");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineDisplayTitleMissing);
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineReadOnlyHintMissing);
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing);
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing);
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithAnnotationMetadata_ShouldExposeParsedHints()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"annotated_tool\",\"title\":\"Primary Title\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"annotations\":{\"title\":\"Fallback Title\",\"readOnlyHint\":true,\"destructiveHint\":false,\"openWorldHint\":true,\"idempotentHint\":true}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "annotated_tool");
+        toolResult.DisplayTitle.Should().Be("Primary Title");
+        toolResult.ReadOnlyHint.Should().BeTrue();
+        toolResult.DestructiveHint.Should().BeFalse();
+        toolResult.OpenWorldHint.Should().BeTrue();
+        toolResult.IdempotentHint.Should().BeTrue();
+        toolResult.Findings.Should().NotContain(f => f.Category == "McpGuideline");
     }
 
     // ─── Tool Execution Standalone ───────────────────────────────

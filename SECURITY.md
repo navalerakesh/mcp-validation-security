@@ -2,7 +2,7 @@
 
 ## Reporting Security Vulnerabilities
 
-If you discover a security vulnerability in the AI Security & Compliance Scanner itself, we appreciate your responsible disclosure.
+If you discover a security vulnerability in MCP Validator itself, we appreciate your responsible disclosure.
 
 ### \ud83d\udea8 How to Report
 
@@ -33,8 +33,8 @@ Instead:
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.3.x   | \u2705 Yes             |
-| < 1.3   | \u274c No              |
+| 1.1.x   | \u2705 Yes             |
+| < 1.1   | \u274c No              |
 
 ### \ud83d\udee1\ufe0f Security Best Practices for Users
 

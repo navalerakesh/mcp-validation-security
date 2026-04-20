@@ -271,6 +271,24 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine();
                     sb.AppendLine($"**Status:** {GetStatusIcon(tool.Status)} {tool.Status}");
                     sb.AppendLine($"**Execution Time:** {tool.ExecutionTimeMs:F2}ms");
+
+                    if (!string.IsNullOrWhiteSpace(tool.DisplayTitle) ||
+                        tool.ReadOnlyHint.HasValue ||
+                        tool.DestructiveHint.HasValue ||
+                        tool.OpenWorldHint.HasValue ||
+                        tool.IdempotentHint.HasValue)
+                    {
+                        sb.AppendLine();
+                        sb.AppendLine("#### Tool Metadata");
+                        sb.AppendLine("| Property | Value |");
+                        sb.AppendLine("| :--- | :--- |");
+                        if (!string.IsNullOrWhiteSpace(tool.DisplayTitle)) sb.AppendLine($"| Display Title | {tool.DisplayTitle} |");
+                        if (tool.ReadOnlyHint.HasValue) sb.AppendLine($"| readOnlyHint | {tool.ReadOnlyHint.Value} |");
+                        if (tool.DestructiveHint.HasValue) sb.AppendLine($"| destructiveHint | {tool.DestructiveHint.Value} |");
+                        if (tool.OpenWorldHint.HasValue) sb.AppendLine($"| openWorldHint | {tool.OpenWorldHint.Value} |");
+                        if (tool.IdempotentHint.HasValue) sb.AppendLine($"| idempotentHint | {tool.IdempotentHint.Value} |");
+                        sb.AppendLine();
+                    }
                     
                     if (tool.AuthMetadata != null)
                     {
@@ -304,6 +322,33 @@ public class MarkdownReportGenerator : IReportGenerator
                     }
                     
                     sb.AppendLine("---");
+                    sb.AppendLine();
+                }
+
+                var guidelineFindings = result.ToolValidation.ToolResults
+                    .SelectMany(tool => tool.Findings.Where(f => f.Category == "McpGuideline"))
+                    .ToList();
+
+                if (guidelineFindings.Count > 0)
+                {
+                    sb.AppendLine("### MCP Guideline Findings");
+                    sb.AppendLine();
+                    sb.AppendLine("These findings capture MCP guidance signals that improve agent safety and UX but are not strict protocol MUST failures.");
+                    sb.AppendLine();
+                    sb.AppendLine("| Rule ID | Tool | Severity | Finding |");
+                    sb.AppendLine("| :--- | :--- | :---: | :--- |");
+                    foreach (var finding in guidelineFindings)
+                    {
+                        var severityIcon = finding.Severity switch
+                        {
+                            ValidationFindingSeverity.Critical => "🔴 Critical",
+                            ValidationFindingSeverity.High => "🟠 High",
+                            ValidationFindingSeverity.Medium => "🟡 Medium",
+                            ValidationFindingSeverity.Low => "🔵 Low",
+                            _ => "⚪ Info"
+                        };
+                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.Component}` | {severityIcon} | {finding.Summary} |");
+                    }
                     sb.AppendLine();
                 }
             }

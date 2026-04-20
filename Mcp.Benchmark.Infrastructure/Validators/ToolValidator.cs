@@ -412,6 +412,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             foreach (var tool in toolsList)
             {
                 var toolResult = await ValidateIndividualToolAsync(serverConfig, tool, config, ct);
+                ApplyGuidelineFindings(result, tool, toolResult);
 
                 // Static, metadata-only content safety analysis
                 var safetyFindings = _contentSafetyAnalyzer.AnalyzeTool(tool.Name);
@@ -519,9 +520,32 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             }
 
             if (undescribedParams > 0)
-                result.AiReadinessIssues.Add($"Tool '{tool.Name}': {undescribedParams}/{paramCount} parameters lack descriptions (increases hallucination risk)");
+            {
+                var issue = $"Tool '{tool.Name}': {undescribedParams}/{paramCount} parameters lack descriptions (increases hallucination risk)";
+                result.AddAiReadinessFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
+                    Category = "AiReadiness",
+                    Component = tool.Name,
+                    Severity = ValidationFindingSeverity.Medium,
+                    Summary = issue,
+                    Recommendation = "Add clear descriptions to each parameter so agents can generate valid arguments without guessing."
+                }, issue);
+            }
+
             if (vagueStringParams > 0)
-                result.AiReadinessIssues.Add($"Tool '{tool.Name}': {vagueStringParams}/{paramCount} string parameters have no enum/pattern/format constraint");
+            {
+                var issue = $"Tool '{tool.Name}': {vagueStringParams}/{paramCount} string parameters have no enum/pattern/format constraint";
+                result.AddAiReadinessFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.AiReadinessVagueStringSchema,
+                    Category = "AiReadiness",
+                    Component = tool.Name,
+                    Severity = ValidationFindingSeverity.Medium,
+                    Summary = issue,
+                    Recommendation = "Constrain string parameters with enum, pattern, or format metadata when possible."
+                }, issue);
+            }
 
             totalScore += Math.Max(0, toolScore);
             scored++;
@@ -536,12 +560,32 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.EstimatedTokenCount = rawJson.Length / 4;
             if (result.EstimatedTokenCount > 32000)
             {
-                result.AiReadinessIssues.Add($"⚠️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — exceeds typical 32k context window. AI agents may truncate tool metadata.");
+                var issue = $"⚠️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — exceeds typical 32k context window. AI agents may truncate tool metadata.";
+                result.AddAiReadinessFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.AiReadinessTokenBudgetExceeded,
+                    Category = "AiReadiness",
+                    Component = "tools/list",
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = issue,
+                    Recommendation = "Reduce tool discovery payload size or split metadata so large servers remain usable by agents.",
+                    Metadata = { ["tokenCount"] = result.EstimatedTokenCount.ToString() }
+                }, issue);
                 result.AiReadinessScore = Math.Max(0, result.AiReadinessScore - 10);
             }
             else if (result.EstimatedTokenCount > 8000)
             {
-                result.AiReadinessIssues.Add($"ℹ️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — consider reducing descriptions for token efficiency.");
+                var issue = $"ℹ️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — consider reducing descriptions for token efficiency.";
+                result.AddAiReadinessFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.AiReadinessTokenBudgetWarning,
+                    Category = "AiReadiness",
+                    Component = "tools/list",
+                    Severity = ValidationFindingSeverity.Low,
+                    Summary = issue,
+                    Recommendation = "Trim overly long descriptions and examples to improve agent discovery efficiency.",
+                    Metadata = { ["tokenCount"] = result.EstimatedTokenCount.ToString() }
+                }, issue);
             }
         }
 
@@ -558,7 +602,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         {
             ToolName = tool.Name,
             DiscoveredCorrectly = true,
-            MetadataValid = true
+            MetadataValid = true,
+            DisplayTitle = tool.DisplayTitle,
+            ReadOnlyHint = tool.ReadOnlyHint,
+            DestructiveHint = tool.DestructiveHint,
+            OpenWorldHint = tool.OpenWorldHint,
+            IdempotentHint = tool.IdempotentHint
         };
 
         try
@@ -784,7 +833,21 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         var grade = score >= 70 ? "Pro-LLM" : score >= 40 ? "Neutral" : "Anti-LLM";
         var gradeIcon = score >= 70 ? "🟢" : score >= 40 ? "🟡" : "🔴";
 
-        result.Issues.Add($"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}");
+        var llmIssue = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
+        result.AddFinding(new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+            Category = "AiReadiness",
+            Component = toolName,
+            Severity = score >= 70 ? ValidationFindingSeverity.Info : score >= 40 ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High,
+            Summary = llmIssue,
+            Recommendation = "Return specific, structured errors that identify the invalid argument and expected shape.",
+            Metadata =
+            {
+                ["score"] = score.ToString(),
+                ["grade"] = grade
+            }
+        }, llmIssue);
 
         if (insights.Count > 0 && score < 70)
         {
@@ -807,69 +870,167 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         {
             using var doc = JsonDocument.Parse(rawJson);
 
-            // Navigate to result object
             if (!doc.RootElement.TryGetProperty("result", out var resultObj))
             {
-                // JSON-RPC error response (has "error" instead of "result") is valid
-                if (doc.RootElement.TryGetProperty("error", out _)) return;
-                result.Issues.Add("\u26a0\ufe0f MCP Compliance: tools/call response missing 'result' object");
+                if (doc.RootElement.TryGetProperty("error", out _))
+                {
+                    return;
+                }
+
+                result.AddFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ToolCallMissingResultObject,
+                    Category = "ProtocolCompliance",
+                    Component = result.ToolName,
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = "tools/call response missing 'result' object",
+                    Recommendation = "Return either a JSON-RPC result object or a JSON-RPC error object for every tools/call response."
+                }, "⚠️ MCP Compliance: tools/call response missing 'result' object");
                 return;
             }
 
-            // Check content[] array (MUST per spec)
             if (!resultObj.TryGetProperty("content", out var contentArray))
             {
-                result.Issues.Add("\u274c MCP Compliance: tools/call result missing 'content' array (MUST per spec)");
+                result.AddFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ToolCallMissingContentArray,
+                    Category = "ProtocolCompliance",
+                    Component = result.ToolName,
+                    Severity = ValidationFindingSeverity.Critical,
+                    Summary = "tools/call result missing 'content' array",
+                    Recommendation = "Return result.content as an array of MCP content blocks."
+                }, "❌ MCP Compliance: tools/call result missing 'content' array (MUST per spec)");
                 result.MetadataValid = false;
                 return;
             }
 
             if (contentArray.ValueKind != JsonValueKind.Array)
             {
-                result.Issues.Add("\u274c MCP Compliance: result.content MUST be an array");
+                result.AddFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ToolCallContentNotArray,
+                    Category = "ProtocolCompliance",
+                    Component = result.ToolName,
+                    Severity = ValidationFindingSeverity.Critical,
+                    Summary = "tools/call result.content is not an array",
+                    Recommendation = "Serialize result.content as an array even when there is only one content block."
+                }, "❌ MCP Compliance: result.content MUST be an array");
                 result.MetadataValid = false;
                 return;
             }
 
-            // Validate each Content object has a 'type' field
             var contentCount = contentArray.GetArrayLength();
             for (int i = 0; i < contentCount; i++)
             {
                 var item = contentArray[i];
                 if (!item.TryGetProperty("type", out var typeField))
                 {
-                    result.Issues.Add($"\u274c MCP Compliance: content[{i}] missing 'type' field (MUST be text/image/audio/resource)");
-                    result.MetadataValid = false;
-                }
-                else
-                {
-                    var typeStr = typeField.GetString();
-                    if (typeStr is not ("text" or "image" or "audio" or "resource"))
+                    result.AddFinding(new ValidationFinding
                     {
-                        result.Issues.Add($"\u26a0\ufe0f MCP Compliance: content[{i}] has unknown type '{typeStr}' (expected text/image/audio/resource)");
-                    }
+                        RuleId = ValidationFindingRuleIds.ToolCallContentMissingType,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.Critical,
+                        Summary = $"tools/call content[{i}] missing 'type' field",
+                        Recommendation = "Set content.type to one of the MCP-supported content types.",
+                        Metadata = { ["index"] = i.ToString() }
+                    }, $"❌ MCP Compliance: content[{i}] missing 'type' field (MUST be text/image/audio/resource)");
+                    result.MetadataValid = false;
+                    continue;
+                }
 
-                    // Validate type-specific required fields
-                    if (typeStr == "text" && !item.TryGetProperty("text", out _))
-                        result.Issues.Add($"\u274c MCP Compliance: content[{i}] type=text missing 'text' field");
-                    if (typeStr == "image" && (!item.TryGetProperty("data", out _) || !item.TryGetProperty("mimeType", out _)))
-                        result.Issues.Add($"\u274c MCP Compliance: content[{i}] type=image missing 'data' or 'mimeType'");
-                    if (typeStr == "audio" && (!item.TryGetProperty("data", out _) || !item.TryGetProperty("mimeType", out _)))
-                        result.Issues.Add($"\u274c MCP Compliance: content[{i}] type=audio missing 'data' or 'mimeType'");
-                    if (typeStr == "resource" && !item.TryGetProperty("resource", out _))
-                        result.Issues.Add($"\u274c MCP Compliance: content[{i}] type=resource missing 'resource' object");
+                var typeStr = typeField.GetString();
+                if (typeStr is not ("text" or "image" or "audio" or "resource"))
+                {
+                    result.AddFinding(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallContentInvalidType,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.Medium,
+                        Summary = $"tools/call content[{i}] has unknown type '{typeStr}'",
+                        Recommendation = "Use a recognized MCP content type so clients can interpret responses consistently.",
+                        Metadata = { ["index"] = i.ToString(), ["type"] = typeStr ?? string.Empty }
+                    }, $"⚠️ MCP Compliance: content[{i}] has unknown type '{typeStr}' (expected text/image/audio/resource)");
+                }
+
+                if (typeStr == "text" && !item.TryGetProperty("text", out _))
+                {
+                    result.AddFinding(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallContentMissingText,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = $"tools/call content[{i}] type=text missing 'text' field",
+                        Metadata = { ["index"] = i.ToString() }
+                    }, $"❌ MCP Compliance: content[{i}] type=text missing 'text' field");
+                }
+
+                if (typeStr == "image" && (!item.TryGetProperty("data", out _) || !item.TryGetProperty("mimeType", out _)))
+                {
+                    result.AddFinding(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallContentMissingImageData,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = $"tools/call content[{i}] type=image missing data or mimeType",
+                        Metadata = { ["index"] = i.ToString() }
+                    }, $"❌ MCP Compliance: content[{i}] type=image missing 'data' or 'mimeType'");
+                }
+
+                if (typeStr == "audio" && (!item.TryGetProperty("data", out _) || !item.TryGetProperty("mimeType", out _)))
+                {
+                    result.AddFinding(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallContentMissingAudioData,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = $"tools/call content[{i}] type=audio missing data or mimeType",
+                        Metadata = { ["index"] = i.ToString() }
+                    }, $"❌ MCP Compliance: content[{i}] type=audio missing 'data' or 'mimeType'");
+                }
+
+                if (typeStr == "resource" && !item.TryGetProperty("resource", out _))
+                {
+                    result.AddFinding(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolCallContentMissingResource,
+                        Category = "ProtocolCompliance",
+                        Component = result.ToolName,
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = $"tools/call content[{i}] type=resource missing resource object",
+                        Metadata = { ["index"] = i.ToString() }
+                    }, $"❌ MCP Compliance: content[{i}] type=resource missing 'resource' object");
                 }
             }
 
-            // Check isError field (SHOULD per spec)
             if (!resultObj.TryGetProperty("isError", out _))
             {
-                result.Issues.Add("\u2139\ufe0f MCP Note: result.isError field not present (SHOULD be included per spec)");
+                result.AddFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ToolCallMissingIsError,
+                    Category = "ProtocolCompliance",
+                    Component = result.ToolName,
+                    Severity = ValidationFindingSeverity.Low,
+                    Summary = "tools/call result.isError field not present",
+                    Recommendation = "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
+                }, "ℹ️ MCP Note: result.isError field not present (SHOULD be included per spec)");
             }
         }
         catch (Exception ex)
         {
-            result.Issues.Add($"\u26a0\ufe0f Failed to validate tools/call response structure: {ex.Message}");
+            result.AddFinding(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolCallResponseValidationFailed,
+                Category = "ProtocolCompliance",
+                Component = result.ToolName,
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = $"Failed to validate tools/call response structure: {ex.Message}",
+                Recommendation = "Return well-formed JSON-RPC responses so tools/call output can be validated consistently."
+            }, $"⚠️ Failed to validate tools/call response structure: {ex.Message}");
         }
     }
 
@@ -1005,18 +1166,25 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         }
 
                         // Parse Description (for AI readiness)
+                        if (tool.TryGetProperty("title", out var title))
+                            info.Title = title.GetString();
+
                         if (tool.TryGetProperty("description", out var desc))
                             info.Description = desc.GetString();
 
-                        // Parse Tool Annotations (MCP spec: readOnlyHint, destructiveHint, openWorldHint)
+                        // Parse Tool Annotations (MCP spec: title, readOnlyHint, destructiveHint, openWorldHint, idempotentHint)
                         if (tool.TryGetProperty("annotations", out var annotations))
                         {
+                            if (annotations.TryGetProperty("title", out var annotationTitle))
+                                info.AnnotationTitle = annotationTitle.GetString();
                             if (annotations.TryGetProperty("readOnlyHint", out var readOnly))
                                 info.ReadOnlyHint = readOnly.GetBoolean();
                             if (annotations.TryGetProperty("destructiveHint", out var destructive))
                                 info.DestructiveHint = destructive.GetBoolean();
                             if (annotations.TryGetProperty("openWorldHint", out var openWorld))
                                 info.OpenWorldHint = openWorld.GetBoolean();
+                            if (annotations.TryGetProperty("idempotentHint", out var idempotent))
+                                info.IdempotentHint = idempotent.GetBoolean();
                         }
                         
                         tools.Add(info);
@@ -1129,12 +1297,107 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     private class ToolInfo
     {
         public string Name { get; set; } = string.Empty;
+        public string? Title { get; set; }
+        public string? AnnotationTitle { get; set; }
         public string? Description { get; set; }
         public JsonElement InputSchema { get; set; }
-        // MCP Tool Annotations (spec: readOnlyHint, destructiveHint, openWorldHint)
+        public string? DisplayTitle => !string.IsNullOrWhiteSpace(Title) ? Title : AnnotationTitle;
+        // MCP Tool Annotations (spec: readOnlyHint, destructiveHint, openWorldHint, idempotentHint)
         public bool? ReadOnlyHint { get; set; }
         public bool? DestructiveHint { get; set; }
         public bool? OpenWorldHint { get; set; }
+        public bool? IdempotentHint { get; set; }
+    }
+
+    private static void ApplyGuidelineFindings(ToolTestResult aggregateResult, ToolInfo tool, IndividualToolResult toolResult)
+    {
+        AddGuidelineFindingIfMissing(
+            aggregateResult,
+            toolResult,
+            string.IsNullOrWhiteSpace(tool.DisplayTitle),
+            ValidationFindingRuleIds.ToolGuidelineDisplayTitleMissing,
+            ValidationFindingSeverity.Low,
+            $"Tool '{tool.Name}' does not declare a human-friendly display title.",
+            "Add title or annotations.title so clients can present the tool with a clear human-readable label.");
+
+        AddGuidelineFindingIfMissing(
+            aggregateResult,
+            toolResult,
+            !tool.ReadOnlyHint.HasValue,
+            ValidationFindingRuleIds.ToolGuidelineReadOnlyHintMissing,
+            ValidationFindingSeverity.Low,
+            $"Tool '{tool.Name}' does not declare annotations.readOnlyHint.",
+            "Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.");
+
+        AddGuidelineFindingIfMissing(
+            aggregateResult,
+            toolResult,
+            !tool.DestructiveHint.HasValue,
+            ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
+            ValidationFindingSeverity.Low,
+            $"Tool '{tool.Name}' does not declare annotations.destructiveHint.",
+            "Declare destructiveHint so agents know when human confirmation is appropriate.");
+
+        AddGuidelineFindingIfMissing(
+            aggregateResult,
+            toolResult,
+            !tool.OpenWorldHint.HasValue,
+            ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing,
+            ValidationFindingSeverity.Low,
+            $"Tool '{tool.Name}' does not declare annotations.openWorldHint.",
+            "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.");
+
+        AddGuidelineFindingIfMissing(
+            aggregateResult,
+            toolResult,
+            !tool.IdempotentHint.HasValue,
+            ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing,
+            ValidationFindingSeverity.Low,
+            $"Tool '{tool.Name}' does not declare annotations.idempotentHint.",
+            "Declare idempotentHint so agents can decide whether retries are safe.");
+
+        if (tool.ReadOnlyHint == true && tool.DestructiveHint == true)
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolGuidelineHintConflict,
+                Category = "McpGuideline",
+                Component = tool.Name,
+                Severity = ValidationFindingSeverity.High,
+                Summary = $"Tool '{tool.Name}' declares conflicting annotations: readOnlyHint=true and destructiveHint=true.",
+                Recommendation = "Resolve conflicting tool annotations so clients receive one consistent safety signal."
+            };
+            toolResult.AddFinding(finding, finding.Summary);
+            aggregateResult.Findings.Add(finding);
+        }
+    }
+
+    private static void AddGuidelineFindingIfMissing(
+        ToolTestResult aggregateResult,
+        IndividualToolResult toolResult,
+        bool isMissing,
+        string ruleId,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation)
+    {
+        if (!isMissing)
+        {
+            return;
+        }
+
+        var finding = new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "McpGuideline",
+            Component = toolResult.ToolName,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation
+        };
+
+        toolResult.AddFinding(finding, summary);
+        aggregateResult.Findings.Add(finding);
     }
 
     private static AuthenticationSecurityResult? BuildAuthSecurityFromDiscovery(AuthDiscoveryInfo? discovery)

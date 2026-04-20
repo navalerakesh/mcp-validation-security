@@ -88,7 +88,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     else
                     {
                         resourceResult.MetadataValid = false;
-                        resourceResult.Issues.Add("Missing 'uri' property");
+                        resourceResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.ResourceMissingUri,
+                            Category = "ProtocolCompliance",
+                            Component = resourceResult.ResourceName,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Resource is missing 'uri' property",
+                            Recommendation = "Include a stable uri for every resource returned by resources/list."
+                        }, "Missing 'uri' property");
                     }
 
                     if (resource.TryGetProperty("name", out var nameElement))
@@ -147,7 +155,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                                     }
                                     else
                                     {
-                                        resourceResult.Issues.Add("❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
+                                        resourceResult.AddFinding(new ValidationFinding
+                                        {
+                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
+                                            Category = "ProtocolCompliance",
+                                            Component = resourceResult.ResourceUri,
+                                            Severity = ValidationFindingSeverity.Critical,
+                                            Summary = "resources/read contents[0] missing 'uri' field",
+                                            Recommendation = "Return uri on each resource content item."
+                                        }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
                                     }
 
                                     if (firstContent.TryGetProperty("mimeType", out var mime)) 
@@ -159,11 +175,27 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                                     else if (firstContent.TryGetProperty("blob", out var blob))
                                         resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
                                     else
-                                        resourceResult.Issues.Add("❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                        resourceResult.AddFinding(new ValidationFinding
+                                        {
+                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
+                                            Category = "ProtocolCompliance",
+                                            Component = resourceResult.ResourceUri,
+                                            Severity = ValidationFindingSeverity.Critical,
+                                            Summary = "resources/read contents[0] missing both text and blob",
+                                            Recommendation = "Return either text or blob in each resource content item."
+                                        }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
                                 }
                                 else
                                 {
-                                    resourceResult.Issues.Add("❌ MCP Compliance: resources/read response missing result.contents[] array");
+                                    resourceResult.AddFinding(new ValidationFinding
+                                    {
+                                        RuleId = ValidationFindingRuleIds.ResourceReadMissingContentArray,
+                                        Category = "ProtocolCompliance",
+                                        Component = resourceResult.ResourceUri,
+                                        Severity = ValidationFindingSeverity.Critical,
+                                        Summary = "resources/read response missing result.contents[] array",
+                                        Recommendation = "Return result.contents as an array for resources/read responses."
+                                    }, "❌ MCP Compliance: resources/read response missing result.contents[] array");
                                     resourceResult.AccessSuccessful = false;
                                 }
                             }
