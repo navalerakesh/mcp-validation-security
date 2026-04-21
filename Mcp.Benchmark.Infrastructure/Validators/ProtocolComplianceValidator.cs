@@ -5,6 +5,8 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Compliance.Spec;
 
 using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Mcp.Benchmark.Infrastructure.Registries;
@@ -172,7 +174,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 violations.Add(new ComplianceViolation
                 {
                     CheckId = ValidationConstants.CheckIds.HttpContentType,
-                    SpecReference = "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/transports#http",
+                    SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http",
                     Description = "Content-Type requirements not enforced (Server should reject non-JSON)",
                     Severity = ViolationSeverity.Low,
                     Category = ValidationConstants.Categories.Transport
@@ -191,12 +193,25 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 });
             }
 
-            // Calculate comprehensive compliance score (now 8 tests total)
-            // Test 9: Probe optional MCP capabilities (roots/list, logging/setLevel, sampling/createMessage)
-            // These are informational — not scored as violations, but reported for completeness.
+            var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
+                serverConfig.Endpoint!,
+                config.ProtocolVersion ?? serverConfig.ProtocolVersion,
+                ct);
+
+            // Calculate comprehensive compliance score (now 8 scored tests total)
+            // Probe optional MCP capabilities for structured findings and capability-aware reporting.
             var rootsSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.RootsList, ct);
             var loggingSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct);
             var samplingSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.SamplingCreateMessage, ct);
+            var completionSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.CompletionComplete, ct);
+
+            ApplyOptionalCapabilityFindings(
+                result,
+                declaredCapabilities,
+                rootsSupported,
+                loggingSupported,
+                samplingSupported,
+                completionSupported);
 
             var scores = new[] {
                 errorCompliance * 100,
@@ -223,16 +238,46 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 Violations = violations
             };
 
-            // Append capability probe info (informational)
-            if (rootsSupported) result.Message = (result.Message ?? "") + " | roots/list: supported";
-            else result.Message = (result.Message ?? "") + " | roots/list: not supported";
-            if (loggingSupported) result.Message = (result.Message ?? "") + " | logging/setLevel: supported";
-            else result.Message = (result.Message ?? "") + " | logging/setLevel: not supported";
-            if (samplingSupported) result.Message = (result.Message ?? "") + " | sampling/createMessage: supported";
-            else result.Message = (result.Message ?? "") + " | sampling/createMessage: not supported";
+            result.Message = AppendCapabilityProbeMessage(
+                result.Message,
+                declaredCapabilities,
+                rootsSupported,
+                loggingSupported,
+                samplingSupported,
+                completionSupported);
 
             return result;
         }, cancellationToken);
+    }
+
+    private async Task<HashSet<string>> GetDeclaredCapabilitiesAsync(string endpoint, string? requestedVersion, CancellationToken ct)
+    {
+        try
+        {
+            var response = await _httpClient.CallAsync(
+                endpoint,
+                ValidationConstants.Methods.Initialize,
+                CreateInitializeRequest(requestedVersion),
+                ct);
+
+            if (!response.IsSuccess || string.IsNullOrWhiteSpace(response.RawJson))
+            {
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            using var document = JsonDocument.Parse(response.RawJson);
+            if (!document.RootElement.TryGetProperty("result", out var result) ||
+                !result.TryGetProperty("capabilities", out var capabilities))
+            {
+                return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            }
+
+            return ParseDeclaredCapabilities(capabilities);
+        }
+        catch
+        {
+            return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     /// <summary>
@@ -244,15 +289,244 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         try
         {
             var response = await _httpClient.CallAsync(endpoint, method, null, ct);
+            if (!string.IsNullOrEmpty(response.RawJson) && response.RawJson.Contains("-32601", StringComparison.Ordinal)) return false; // MethodNotFound
             if (response.IsSuccess) return true;
-            if (response.StatusCode == 401 || response.StatusCode == 403) return true; // Auth-blocked but exists
-            if (!string.IsNullOrEmpty(response.RawJson) && response.RawJson.Contains("-32601")) return false; // MethodNotFound
+            if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true; // Auth-blocked but exists
             return response.StatusCode != 404;
         }
         catch
         {
             return false;
         }
+    }
+
+    private static object CreateInitializeRequest(string? requestedVersion) => new
+    {
+        protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(requestedVersion),
+        capabilities = new { },
+        clientInfo = new { name = "mcp-benchmark", version = "1.0.0" }
+    };
+
+    private static HashSet<string> ParseDeclaredCapabilities(JsonElement capabilities)
+    {
+        var declaredCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Tools, out _))
+        {
+            declaredCapabilities.Add(McpSpecConstants.Capabilities.Tools);
+        }
+
+        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Resources, out var resourceCapabilities))
+        {
+            declaredCapabilities.Add(McpSpecConstants.Capabilities.Resources);
+            if (resourceCapabilities.ValueKind == JsonValueKind.Object)
+            {
+                if (resourceCapabilities.TryGetProperty("subscribe", out var subscribe) && subscribe.ValueKind == JsonValueKind.True)
+                {
+                    declaredCapabilities.Add("resources.subscribe");
+                }
+
+                if (resourceCapabilities.TryGetProperty("listChanged", out var listChanged) && listChanged.ValueKind == JsonValueKind.True)
+                {
+                    declaredCapabilities.Add("resources.listChanged");
+                }
+            }
+        }
+
+        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Prompts, out _))
+        {
+            declaredCapabilities.Add(McpSpecConstants.Capabilities.Prompts);
+        }
+
+        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Logging, out _))
+        {
+            declaredCapabilities.Add(McpSpecConstants.Capabilities.Logging);
+        }
+
+        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Completions, out _))
+        {
+            declaredCapabilities.Add(McpSpecConstants.Capabilities.Completions);
+        }
+
+        return declaredCapabilities;
+    }
+
+    private static string AppendCapabilityProbeMessage(
+        string? existingMessage,
+        IReadOnlySet<string> declaredCapabilities,
+        bool rootsSupported,
+        bool loggingSupported,
+        bool samplingSupported,
+        bool completionSupported)
+    {
+        var segments = new List<string>();
+        if (!string.IsNullOrWhiteSpace(existingMessage))
+        {
+            segments.Add(existingMessage);
+        }
+
+        if (declaredCapabilities.Count > 0)
+        {
+            segments.Add($"declared capabilities: {string.Join(", ", declaredCapabilities.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase))}");
+        }
+
+        segments.Add($"roots/list: {(rootsSupported ? "supported" : "not supported")}");
+        segments.Add($"logging/setLevel: {(loggingSupported ? "supported" : "not supported")}");
+        segments.Add($"sampling/createMessage: {(samplingSupported ? "supported" : "not supported")}");
+        segments.Add($"completion/complete: {(completionSupported ? "supported" : "not supported")}");
+
+        return string.Join(" | ", segments);
+    }
+
+    private static void ApplyOptionalCapabilityFindings(
+        ComplianceTestResult result,
+        IReadOnlySet<string> declaredCapabilities,
+        bool rootsSupported,
+        bool loggingSupported,
+        bool samplingSupported,
+        bool completionSupported)
+    {
+        AddOptionalCapabilitySupportedFinding(
+            result,
+            rootsSupported,
+            ValidationFindingRuleIds.OptionalCapabilityRootsSupported,
+            ValidationConstants.Methods.RootsList,
+            McpSpecConstants.Capabilities.Roots,
+            "Server responded to roots/list, indicating optional roots workflow support.");
+
+        AddOptionalCapabilitySupportedFinding(
+            result,
+            loggingSupported,
+            ValidationFindingRuleIds.OptionalCapabilityLoggingSupported,
+            ValidationConstants.Methods.LoggingSetLevel,
+            McpSpecConstants.Capabilities.Logging,
+            "Server responded to logging/setLevel, indicating optional logging controls are available.");
+
+        AddOptionalCapabilitySupportedFinding(
+            result,
+            samplingSupported,
+            ValidationFindingRuleIds.OptionalCapabilitySamplingSupported,
+            ValidationConstants.Methods.SamplingCreateMessage,
+            McpSpecConstants.Capabilities.Sampling,
+            "Server responded to sampling/createMessage, indicating optional sampling workflows are available.");
+
+        AddOptionalCapabilitySupportedFinding(
+            result,
+            completionSupported,
+            ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported,
+            ValidationConstants.Methods.CompletionComplete,
+            McpSpecConstants.Capabilities.Completions,
+            "Server responded to completion/complete, indicating optional completions are available.");
+
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && !loggingSupported)
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported,
+                Category = "McpGuideline",
+                Component = ValidationConstants.Methods.LoggingSetLevel,
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = "Server advertises the logging capability but logging/setLevel is not callable.",
+                Recommendation = "Either implement logging/setLevel or stop advertising the logging capability.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["capability"] = McpSpecConstants.Capabilities.Logging,
+                    ["method"] = ValidationConstants.Methods.LoggingSetLevel,
+                    ["declared"] = "true",
+                    ["supported"] = "false"
+                }
+            });
+        }
+
+        if (!declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported)
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.OptionalCapabilityLoggingSupportedButUndeclared,
+                Category = "McpGuideline",
+                Component = ValidationConstants.Methods.LoggingSetLevel,
+                Severity = ValidationFindingSeverity.Low,
+                Summary = "Server responds to logging/setLevel but does not advertise the logging capability during initialize.",
+                Recommendation = "Declare logging in initialize when logging/setLevel is supported.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["capability"] = McpSpecConstants.Capabilities.Logging,
+                    ["method"] = ValidationConstants.Methods.LoggingSetLevel,
+                    ["declared"] = "false",
+                    ["supported"] = "true"
+                }
+            });
+        }
+
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && !completionSupported)
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported,
+                Category = "McpGuideline",
+                Component = ValidationConstants.Methods.CompletionComplete,
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = "Server advertises the completions capability but completion/complete is not callable.",
+                Recommendation = "Either implement completion/complete or stop advertising the completions capability.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["capability"] = McpSpecConstants.Capabilities.Completions,
+                    ["method"] = ValidationConstants.Methods.CompletionComplete,
+                    ["declared"] = "true",
+                    ["supported"] = "false"
+                }
+            });
+        }
+
+        if (!declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && completionSupported)
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared,
+                Category = "McpGuideline",
+                Component = ValidationConstants.Methods.CompletionComplete,
+                Severity = ValidationFindingSeverity.Low,
+                Summary = "Server responds to completion/complete but does not advertise the completions capability during initialize.",
+                Recommendation = "Declare completions in initialize when completion/complete is supported.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["capability"] = McpSpecConstants.Capabilities.Completions,
+                    ["method"] = ValidationConstants.Methods.CompletionComplete,
+                    ["declared"] = "false",
+                    ["supported"] = "true"
+                }
+            });
+        }
+    }
+
+    private static void AddOptionalCapabilitySupportedFinding(
+        ComplianceTestResult result,
+        bool supported,
+        string ruleId,
+        string method,
+        string capability,
+        string summary)
+    {
+        if (!supported)
+        {
+            return;
+        }
+
+        result.Findings.Add(new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "McpGuideline",
+            Component = method,
+            Severity = ValidationFindingSeverity.Info,
+            Summary = summary,
+            Recommendation = "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            Metadata = new Dictionary<string, string>
+            {
+                ["capability"] = capability,
+                ["method"] = method,
+                ["supported"] = "true"
+            }
+        });
     }
 
     public async Task<ComplianceTestResult> ValidateInitializationAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
@@ -265,14 +539,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             // Server responds with the version it supports (may differ).
             // We test version negotiation by requesting the latest spec version,
             // then verify the server responds with a valid version string.
-            var requestedVersion = serverConfig.ProtocolVersion ?? "2025-03-26";
-            
-            var response = await _httpClient.CallAsync(serverConfig.Endpoint!, "initialize", new
-            {
-                protocolVersion = requestedVersion,
-                capabilities = new { },
-                clientInfo = new { name = "mcp-benchmark", version = "1.0.0" }
-            }, ct);
+            var requestedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion);
+
+            var response = await _httpClient.CallAsync(
+                serverConfig.Endpoint!,
+                ValidationConstants.Methods.Initialize,
+                CreateInitializeRequest(requestedVersion),
+                ct);
             
             if (response.IsSuccess)
             {
@@ -349,20 +622,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             // Also validate capability declarations match MCP spec structure
                             if (res.TryGetProperty("capabilities", out var capabilities))
                             {
-                                // Capability-aware: report what the server declares support for
-                                var declaredCapabilities = new List<string>();
-                                if (capabilities.TryGetProperty("tools", out _)) declaredCapabilities.Add("tools");
-                                if (capabilities.TryGetProperty("resources", out var resCap))
-                                {
-                                    declaredCapabilities.Add("resources");
-                                    if (resCap.TryGetProperty("subscribe", out var sub) && sub.GetBoolean())
-                                        declaredCapabilities.Add("resources.subscribe");
-                                    if (resCap.TryGetProperty("listChanged", out var lc) && lc.GetBoolean())
-                                        declaredCapabilities.Add("resources.listChanged");
-                                }
-                                if (capabilities.TryGetProperty("prompts", out _)) declaredCapabilities.Add("prompts");
-                                if (capabilities.TryGetProperty("logging", out _)) declaredCapabilities.Add("logging");
-                                if (capabilities.TryGetProperty("completions", out _)) declaredCapabilities.Add("completions");
+                                var declaredCapabilities = ParseDeclaredCapabilities(capabilities).ToList();
 
                                 Logger.LogInformation("Server declared capabilities: {Capabilities}", string.Join(", ", declaredCapabilities));
                                 result.Message = (result.Message ?? "") + $" | Capabilities: {string.Join(", ", declaredCapabilities)}";
@@ -437,7 +697,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var validResponse = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
         
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
-        if (validResponse.StatusCode == 401 || validResponse.StatusCode == 403) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(validResponse).IsAuthenticationChallenge) return true;
 
         if (!validResponse.IsSuccess && validResponse.StatusCode != 404) return false; // 404 is fine for ping
 
@@ -470,7 +730,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var response = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
         
         // If auth failed, we can't validate response format, but we shouldn't fail the test
-        if (response.StatusCode == 401 || response.StatusCode == 403) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
 
         if (string.IsNullOrEmpty(response.RawJson)) return false;
 
@@ -492,7 +752,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var batchRequest = "[{\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}, {\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 2}]";
         var response = await _httpClient.SendRawJsonAsync(endpoint, batchRequest, cancellationToken);
         
-        if (response.StatusCode == 401 || response.StatusCode == 403) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
 
         if (!response.IsSuccess) return false; // Batch support is optional but basic handling should work
 
@@ -513,7 +773,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var notification = "{\"jsonrpc\": \"2.0\", \"method\": \"ping\"}";
         var response = await _httpClient.SendRawJsonAsync(endpoint, notification, cancellationToken);
         
-        if (response.StatusCode == 401 || response.StatusCode == 403) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
 
         // Server MUST NOT respond to notifications (empty body or 204 No Content)
         // ACCEPTABLE: 202 Accepted (processing started)
@@ -526,7 +786,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     {
         var response = await _httpClient.CallAsync(endpoint, "non_existent_method", null, cancellationToken);
         
-        if (response.StatusCode == 401 || response.StatusCode == 403) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
 
         // If server rejects with 404/405/406/400, it's compliant enough for transport layer
         if (response.StatusCode == 404 || response.StatusCode == 405 || response.StatusCode == 406 || response.StatusCode == 400) return true;

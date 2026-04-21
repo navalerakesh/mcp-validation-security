@@ -21,12 +21,14 @@ public class ReportCommand(
     IConsoleOutputService consoleOutput,
     ILogger<ReportCommand> logger,
     IValidationReportRenderer reportRenderer,
+    IGitHubActionsReporter gitHubActionsReporter,
     INextStepAdvisor nextStepAdvisor,
     ISessionArtifactStore artifactStore)
 {
     private readonly IConsoleOutputService _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
     private readonly ILogger<ReportCommand> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly IValidationReportRenderer _reportRenderer = reportRenderer ?? throw new ArgumentNullException(nameof(reportRenderer));
+    private readonly IGitHubActionsReporter _gitHubActionsReporter = gitHubActionsReporter ?? throw new ArgumentNullException(nameof(gitHubActionsReporter));
     private readonly INextStepAdvisor _nextStepAdvisor = nextStepAdvisor ?? throw new ArgumentNullException(nameof(nextStepAdvisor));
     private readonly ISessionArtifactStore _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
 
@@ -34,13 +36,14 @@ public class ReportCommand(
     /// Executes the report generation command with the specified parameters.
     /// </summary>
     /// <param name="inputFile">The validation results file to generate a report from.</param>
-    /// <param name="format">Output format for the report (html, json, xml).</param>
+    /// <param name="format">Output format for the report (html, sarif, junit, xml).</param>
     /// <param name="outputFile">Optional output file path (if not specified, generates based on input filename).</param>
     /// <param name="configFile">Optional configuration file for report customization.</param>
     /// <param name="verbose">Enable verbose logging output.</param>
     /// <returns>Task representing the asynchronous report generation operation.</returns>
-    public async Task ExecuteAsync(FileInfo inputFile, string format, FileInfo? outputFile, FileInfo? configFile, bool verbose)
+    public async Task ExecuteAsync(FileInfo inputFile, string format, FileInfo? outputFile, FileInfo? configFile, bool verbose, string? reportDetail = null)
     {
+        _consoleOutput.SetVerbose(verbose);
         _nextStepAdvisor.Reset();
         try
         {
@@ -65,12 +68,14 @@ public class ReportCommand(
 
             // Load report configuration if provided
             var reportConfig = await LoadReportConfigurationAsync(configFile);
+            ApplyReportingPreferences(reportConfig, safeResult.ValidationConfig.Reporting, reportDetail);
 
             // Display report generation plan
             _consoleOutput.DisplayReportPlan(inputFile, outputPath, format, safeResult);
 
             // Generate report based on format
-            await GenerateReportAsync(safeResult, outputPath, format, reportConfig, verbose);
+            await GenerateReportAsync(safeResult, outputPath, format, reportConfig);
+            _gitHubActionsReporter.PublishOfflineReport(safeResult, format, outputPath);
 
             _consoleOutput.WriteSuccess($"Report generated successfully: {outputPath}");
 
@@ -292,6 +297,8 @@ public class ReportCommand(
         {
             "html" => ".html",
             "json" => ".json",
+            "junit" => ".junit.xml",
+            "sarif" => ".sarif.json",
             "xml" => ".xml",
             _ => ".txt"
         };
@@ -310,29 +317,77 @@ public class ReportCommand(
     /// <param name="reportConfig">Report configuration settings.</param>
     /// <param name="verbose">Whether to include verbose information.</param>
     /// <returns>Task representing the asynchronous report generation.</returns>
-    private async Task GenerateReportAsync(ValidationResult validationResult, string outputPath, string format, ReportingConfig reportConfig, bool verbose)
+    private async Task GenerateReportAsync(ValidationResult validationResult, string outputPath, string format, ReportingConfig reportConfig)
     {
-        // Always generate detailed reports for offline artifacts.
-        // The verbose flag is kept for backwards compatibility but
-        // we treat all report formats as detailed views.
-        verbose = true;
+        var includeDetailedOutput = reportConfig.IncludesDetailedSections();
 
         switch (format.ToLowerInvariant())
         {
             case "html":
             {
-                var html = _reportRenderer.GenerateHtmlReport(validationResult, reportConfig, verbose);
+                var html = _reportRenderer.GenerateHtmlReport(validationResult, reportConfig, includeDetailedOutput);
                 await File.WriteAllTextAsync(outputPath, html);
                 break;
             }
             case "xml":
             {
-                var xml = _reportRenderer.GenerateXmlReport(validationResult, verbose);
+                var xml = _reportRenderer.GenerateXmlReport(validationResult, includeDetailedOutput);
                 await File.WriteAllTextAsync(outputPath, xml);
+                break;
+            }
+            case "sarif":
+            {
+                var sarif = _reportRenderer.GenerateSarifReport(validationResult);
+                await File.WriteAllTextAsync(outputPath, sarif);
+                break;
+            }
+            case "junit":
+            {
+                var junit = _reportRenderer.GenerateJunitReport(validationResult);
+                await File.WriteAllTextAsync(outputPath, junit);
                 break;
             }
             default:
                 throw new CliUsageException($"Unsupported report format: {format}");
         }
+    }
+
+    private static void ApplyReportingPreferences(ReportingConfig target, ReportingConfig source, string? reportDetail)
+    {
+        ArgumentNullException.ThrowIfNull(target);
+        ArgumentNullException.ThrowIfNull(source);
+
+        if (TryParseReportDetailLevel(reportDetail, out var detailLevel))
+        {
+            target.ApplyDetailLevel(detailLevel);
+        }
+        else if (source.IncludesDetailedSections())
+        {
+            target.ApplyDetailLevel(ReportDetailLevel.Full);
+        }
+        else
+        {
+            target.NormalizeDetailLevel();
+        }
+
+        target.IncludePerformanceMetrics = target.IncludePerformanceMetrics && source.IncludePerformanceMetrics;
+        target.IncludeSecurityDetails = target.IncludeSecurityDetails && source.IncludeSecurityDetails;
+        target.GenerateComplianceSummary = target.GenerateComplianceSummary || source.GenerateComplianceSummary;
+        if (string.IsNullOrWhiteSpace(target.SpecProfile))
+        {
+            target.SpecProfile = source.SpecProfile;
+        }
+    }
+
+    private static bool TryParseReportDetailLevel(string? rawDetailLevel, out ReportDetailLevel detailLevel)
+    {
+        if (!string.IsNullOrWhiteSpace(rawDetailLevel) &&
+            Enum.TryParse(rawDetailLevel, ignoreCase: true, out detailLevel))
+        {
+            return true;
+        }
+
+        detailLevel = default;
+        return false;
     }
 }

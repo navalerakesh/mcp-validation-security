@@ -1,6 +1,7 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Authentication;
+using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
 using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
@@ -38,7 +39,8 @@ public class ToolValidatorComprehensiveTests
             schemaValidator.Object,
             schemaRegistry.Object,
             authService.Object,
-            contentSafety.Object);
+            contentSafety.Object,
+            new ToolAiReadinessAnalyzer());
     }
 
     // ─── Auth Detection ──────────────────────────────────────────
@@ -221,6 +223,24 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
+    public async Task ValidateToolDiscovery_WithRequiredArraysAndChoiceLikeStrings_ShouldEmitStructuredSchemaFindings()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"workflow_tool\",\"inputSchema\":{\"type\":\"object\",\"required\":[\"targets\",\"mode\",\"callbackUrl\"],\"properties\":{\"targets\":{\"type\":\"array\",\"description\":\"Targets to process\"},\"mode\":{\"type\":\"string\",\"description\":\"Execution mode\"},\"callbackUrl\":{\"type\":\"string\",\"description\":\"Webhook URL for completion notices\"}}}}]");
+        SetupToolCall(_httpClient, 400, null);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema);
+        result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
+        result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
+        result.AiReadinessIssues.Should().Contain(i => i.Contains("required array parameters", StringComparison.OrdinalIgnoreCase));
+        result.AiReadinessIssues.Should().Contain(i => i.Contains("fixed-choice fields", StringComparison.OrdinalIgnoreCase));
+        result.AiReadinessIssues.Should().Contain(i => i.Contains("structured values", StringComparison.OrdinalIgnoreCase));
+        result.AiReadinessScore.Should().BeLessThan(100);
+    }
+
+    [Fact]
     public async Task ValidateToolDiscovery_WithWellDescribedParams_ShouldScoreHigh()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
@@ -230,6 +250,9 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.AiReadinessScore.Should().BeGreaterThanOrEqualTo(80);
+        result.AiReadinessFindings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema);
+        result.AiReadinessFindings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
+        result.AiReadinessFindings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
     }
 
     [Fact]
@@ -265,6 +288,87 @@ public class ToolValidatorComprehensiveTests
         toolResult.OpenWorldHint.Should().BeTrue();
         toolResult.IdempotentHint.Should().BeTrue();
         toolResult.Findings.Should().NotContain(f => f.Category == "McpGuideline");
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithDestructiveHintAndNoConfirmationGuidance_ShouldEmitHeuristicFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"delete_repository\",\"description\":\"Deletes the selected repository.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"annotations\":{\"title\":\"Delete Repository\",\"readOnlyHint\":false,\"destructiveHint\":true,\"openWorldHint\":true,\"idempotentHint\":false}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "delete_repository");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithDestructiveHintAndExplicitConfirmationGuidance_ShouldNotEmitHeuristicFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"delete_repository\",\"description\":\"Deletes the selected repository after explicit user confirmation and warning review.\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"annotations\":{\"title\":\"Delete Repository\",\"readOnlyHint\":false,\"destructiveHint\":true,\"openWorldHint\":true,\"idempotentHint\":false}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "delete_repository");
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithPaginatedToolsList_ShouldFetchAllPages()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"page_one_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"cursor-2\"},\"id\":1}"
+            });
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"page_two_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]},\"id\":2}"
+            });
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":3}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.ToolsDiscovered.Should().Be(2);
+        result.DiscoveredToolNames.Should().Contain(new[] { "page_one_tool", "page_two_tool" });
+        result.Issues.Should().Contain(issue => issue.Contains("Pagination", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithRepeatedCursor_ShouldEmitPaginationStabilityFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"page_one_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"repeat\"},\"id\":1}"
+            });
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"page_two_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}],\"nextCursor\":\"repeat\"},\"id\":2}"
+            });
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":3}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolListCursorLoopDetected);
+        result.Issues.Should().Contain(issue => issue.Contains("repeated cursor", StringComparison.OrdinalIgnoreCase));
     }
 
     // ─── Tool Execution Standalone ───────────────────────────────

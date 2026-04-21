@@ -108,6 +108,7 @@ public class McpValidatorService : IMcpValidatorService
         result.ServerConfig = session.EffectiveServer;
         result.ProtocolVersion = session.ProtocolVersion ?? session.EffectiveServer.ProtocolVersion;
         result.InitializationHandshake = session.InitializationHandshake;
+        result.BootstrapHealth = session.BootstrapHealth;
         result.ServerProfile = session.ServerProfile;
         result.ServerProfileSource = session.ServerProfileSource;
 
@@ -264,32 +265,30 @@ public class McpValidatorService : IMcpValidatorService
                 }, cancellationToken));
             }
 
-            // Performance testing
-            if (categories.PerformanceTesting.TestConcurrentRequests)
-            {
-                validationTasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        result.PerformanceTesting = await _performanceValidator.PerformLoadTestingAsync(
-                            configuration.Server, categories.PerformanceTesting, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Performance testing failed");
-                        result.CriticalErrors.Add($"Performance testing error: {ex.Message}");
-                        result.PerformanceTesting = new PerformanceTestResult
-                        {
-                            Status = TestStatus.Failed,
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
-            }
-
             // Wait for all validation tasks to complete
             await Task.WhenAll(validationTasks);
+
+            // Performance testing runs after functional validation so load generation
+            // cannot cause false negatives in protocol, auth, or capability checks.
+            if (categories.PerformanceTesting.TestConcurrentRequests)
+            {
+                try
+                {
+                    result.PerformanceTesting = await _performanceValidator.PerformLoadTestingAsync(
+                        configuration.Server, categories.PerformanceTesting, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Performance testing failed");
+                    result.CriticalErrors.Add($"Performance testing error: {ex.Message}");
+                    result.PerformanceTesting = new PerformanceTestResult
+                    {
+                        Status = TestStatus.Failed,
+                        Score = 0,
+                        Message = ex.Message
+                    };
+                }
+            }
 
             PopulateProtocolDetails(result);
 
@@ -515,14 +514,17 @@ public class McpValidatorService : IMcpValidatorService
         if (result.CapabilitySnapshot?.Payload is { } snapshot)
         {
             var capability = compliance.CapabilityNegotiation ?? new CapabilityTestResult();
-            var implementedCapabilities = new List<string>();
-            if (snapshot.ToolListingSucceeded) implementedCapabilities.Add("tools");
-            if (snapshot.ResourceListingSucceeded) implementedCapabilities.Add("resources");
-            if (snapshot.PromptListingSucceeded) implementedCapabilities.Add("prompts");
+            var implementedCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (snapshot.ToolListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Tools);
+            if (snapshot.ResourceListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Resources);
+            if (snapshot.PromptListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Prompts);
+            AddOptionalImplementedCapabilities(implementedCapabilities, compliance.Findings);
 
             capability.CapabilityExchangeSuccessful = implementedCapabilities.Any();
             capability.CapabilityComplianceScore = snapshot.Score;
-            capability.ImplementedCapabilities = implementedCapabilities;
+            capability.ImplementedCapabilities = implementedCapabilities
+                .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
             if (advertisedCapabilities.Any())
             {
@@ -534,12 +536,49 @@ public class McpValidatorService : IMcpValidatorService
 
             compliance.CapabilityNegotiation = capability;
         }
+        else if (compliance.Findings.Any())
+        {
+            var optionalCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddOptionalImplementedCapabilities(optionalCapabilities, compliance.Findings);
+
+            if (optionalCapabilities.Any() || advertisedCapabilities.Any())
+            {
+                compliance.CapabilityNegotiation = new CapabilityTestResult
+                {
+                    AdvertisedCapabilities = advertisedCapabilities,
+                    ImplementedCapabilities = optionalCapabilities
+                        .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
+                        .ToList(),
+                    MissingCapabilities = advertisedCapabilities
+                        .Except(optionalCapabilities, StringComparer.OrdinalIgnoreCase)
+                        .ToList(),
+                    CapabilityExchangeSuccessful = optionalCapabilities.Any()
+                };
+            }
+        }
         else if (advertisedCapabilities.Any() && compliance.CapabilityNegotiation == null)
         {
             compliance.CapabilityNegotiation = new CapabilityTestResult
             {
                 AdvertisedCapabilities = advertisedCapabilities
             };
+        }
+    }
+
+    private static void AddOptionalImplementedCapabilities(ISet<string> implementedCapabilities, IEnumerable<ValidationFinding> findings)
+    {
+        foreach (var finding in findings)
+        {
+            if (!string.Equals(finding.Metadata.GetValueOrDefault("supported"), "true", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var capability = finding.Metadata.GetValueOrDefault("capability");
+            if (!string.IsNullOrWhiteSpace(capability))
+            {
+                implementedCapabilities.Add(capability);
+            }
         }
     }
 
@@ -601,13 +640,16 @@ public class McpValidatorService : IMcpValidatorService
         
         result.ComplianceScore = scoringResult.OverallScore;
         result.OverallStatus = scoringResult.Status;
+        result.ScoringNotes = scoringResult.ScoringNotes;
+        result.ScoringDetails = scoringResult;
         result.Summary.CoverageRatio = scoringResult.CoverageRatio;
-        
-        // Add scoring notes to recommendations
-        result.Recommendations.AddRange(scoringResult.ScoringNotes);
 
         // Generate recommendations based on results
         GenerateRecommendations(result);
+        result.Recommendations = result.Recommendations
+            .Where(recommendation => !string.IsNullOrWhiteSpace(recommendation))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     /// <summary>

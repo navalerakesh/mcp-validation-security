@@ -7,6 +7,8 @@ namespace Mcp.Benchmark.Core.Constants;
 /// </summary>
 public static class ComplianceChecks
 {
+    private const string SpecBaseUrl = "https://spec.modelcontextprotocol.io/specification/2025-11-25";
+
     public static class Protocol
     {
         public const string VersionNegotiation = "MCP-P-001";
@@ -43,24 +45,24 @@ public static class ComplianceChecks
     /// </summary>
     public static readonly FrozenDictionary<string, string> SpecReferences = new Dictionary<string, string>
     {
-        { Protocol.VersionNegotiation, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle#initialization" },
-        { Protocol.Initialization, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle#initialization" },
-        { Protocol.JsonRpcFormat, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/json-rpc" },
-        { Protocol.ErrorHandling, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/json-rpc#errors" },
-        { Protocol.CapabilityNegotiation, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/capabilities" },
-        { Protocol.Lifecycle, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/lifecycle" },
-        { Protocol.Notification, "https://spec.modelcontextprotocol.io/specification/2024-11-05/basic/json-rpc#notifications" },
+        { Protocol.VersionNegotiation, $"{SpecBaseUrl}/basic/lifecycle#initialization" },
+        { Protocol.Initialization, $"{SpecBaseUrl}/basic/lifecycle#initialization" },
+        { Protocol.JsonRpcFormat, $"{SpecBaseUrl}/basic/json-rpc" },
+        { Protocol.ErrorHandling, $"{SpecBaseUrl}/basic/json-rpc#errors" },
+        { Protocol.CapabilityNegotiation, $"{SpecBaseUrl}/basic/capabilities" },
+        { Protocol.Lifecycle, $"{SpecBaseUrl}/basic/lifecycle" },
+        { Protocol.Notification, $"{SpecBaseUrl}/basic/json-rpc#notifications" },
         
-        { Tools.ListTools, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools#listing-tools" },
-        { Tools.CallTool, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools#calling-a-tool" },
-        { Tools.ToolSchema, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/tools#tool-definition" },
+        { Tools.ListTools, $"{SpecBaseUrl}/server/tools#listing-tools" },
+        { Tools.CallTool, $"{SpecBaseUrl}/server/tools#calling-a-tool" },
+        { Tools.ToolSchema, $"{SpecBaseUrl}/server/tools#tool-definition" },
 
-        { Resources.ListResources, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources#listing-resources" },
-        { Resources.ReadResource, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources#reading-resources" },
-        { Resources.ResourceTemplates, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/resources#resource-templates" },
+        { Resources.ListResources, $"{SpecBaseUrl}/server/resources#listing-resources" },
+        { Resources.ReadResource, $"{SpecBaseUrl}/server/resources#reading-resources" },
+        { Resources.ResourceTemplates, $"{SpecBaseUrl}/server/resources#resource-templates" },
 
-        { Prompts.ListPrompts, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/prompts#listing-prompts" },
-        { Prompts.GetPrompt, "https://spec.modelcontextprotocol.io/specification/2024-11-05/server/prompts#getting-a-prompt" }
+        { Prompts.ListPrompts, $"{SpecBaseUrl}/server/prompts#listing-prompts" },
+        { Prompts.GetPrompt, $"{SpecBaseUrl}/server/prompts#getting-a-prompt" }
     }.ToFrozenDictionary();
 
     /// <summary>

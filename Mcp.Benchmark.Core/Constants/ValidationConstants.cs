@@ -52,6 +52,7 @@ public static class ValidationConstants
         public const string ResourcesUnsubscribe = "resources/unsubscribe";
         public const string PromptsList = "prompts/list";
         public const string PromptsGet = "prompts/get";
+        public const string CompletionComplete = "completion/complete";
         public const string RootsList = "roots/list";
         public const string LoggingSetLevel = "logging/setLevel";
         public const string SamplingCreateMessage = "sampling/createMessage";

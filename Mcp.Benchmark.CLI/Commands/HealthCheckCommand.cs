@@ -216,47 +216,12 @@ public class HealthCheckCommand(
 
     private static bool IsAuthenticationFailure(HealthCheckResult result)
     {
-        if (result.InitializationDetails?.Transport.StatusCode is int statusCode &&
-            (statusCode == 401 || statusCode == 403))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(result.InitializationDetails?.Error) &&
-            (result.InitializationDetails.Error.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-             result.InitializationDetails.Error.Contains("403", StringComparison.OrdinalIgnoreCase) ||
-             result.InitializationDetails.Error.Contains("unauthorized", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(result.ErrorMessage) &&
-            (result.ErrorMessage.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-             result.ErrorMessage.Contains("403", StringComparison.OrdinalIgnoreCase) ||
-             result.ErrorMessage.Contains("unauthorized", StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        return false;
+        return ValidationReliability.IsAuthenticationFailure(result);
     }
 
     private static bool IsAuthenticationFailure(Exception exception)
     {
-        var current = exception;
-        while (current != null)
-        {
-            if (current is HttpRequestException httpEx &&
-                (httpEx.Message.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-                 httpEx.Message.Contains("403", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-
-            current = current.InnerException;
-        }
-
-        return false;
+        return ValidationReliability.IsAuthenticationFailure(exception);
     }
 
     private void PersistSessionArtifact(string artifactName, McpServerConfig serverConfig, HealthCheckResult result, bool verbose)
@@ -477,20 +442,7 @@ public class DiscoverCommand
 
     private static bool IsAuthenticationFailure(Exception exception)
     {
-        var current = exception;
-        while (current != null)
-        {
-            if (current is HttpRequestException httpEx &&
-                (httpEx.Message.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-                 httpEx.Message.Contains("403", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-
-            current = current.InnerException;
-        }
-
-        return false;
+        return ValidationReliability.IsAuthenticationFailure(exception);
     }
 }
 

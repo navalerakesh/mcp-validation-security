@@ -1,0 +1,174 @@
+# MCP Server Compliance & Validation Report
+**Generated:** <normalized-timestamp>
+
+## 1. Executive Summary
+
+| Metric | Value |
+| :--- | :--- |
+| **Server Endpoint** | `https://snapshot.example.test/mcp` |
+| **Validation ID** | `validation-snapshot-001` |
+| **Overall Status** | ❌ **Failed** |
+| **Compliance Score** | **81.4%** |
+| **Compliance Profile** | `Authenticated (UserDeclared)` |
+| **Duration** | 12.00s |
+| **Transport** | HTTP |
+| **Session Bootstrap** | 🔒 Reachable (Protected) |
+| **Deferred Validation** | Yes — validation continued with a calibrated advisory bootstrap state. |
+| **MCP Protocol Version (Effective)** | `2025-11-25` |
+| **MCP Trust Level** | 🟡 **L3: Acceptable — Compliant with known limitations** |
+
+## 2. Connectivity & Session Bootstrap
+
+This section explains how the validator established initial connectivity and whether validation started from a clean initialize handshake or a deferred advisory state.
+
+| Bootstrap Signal | Value |
+| :--- | :--- |
+| **Bootstrap State** | 🔒 Reachable (Protected) |
+| **Validation Proceeded Under Deferment** | Yes — validation continued with a calibrated advisory bootstrap state. |
+| **Initialize Handshake** | 🔒 Initialize handshake confirmed a protected endpoint boundary. |
+| **Handshake HTTP Status** | `HTTP 401` |
+| **Handshake Duration** | 84.2 ms |
+| **Negotiated Protocol** | `2025-11-25` |
+| **Observed Server Version** | `2.4.1` |
+| **Server Profile Resolution** | `Authenticated (UserDeclared)` |
+
+> **Bootstrap Note:** 401 Unauthorized — bootstrap encountered an authentication challenge.
+
+Validation continued because the endpoint was classified as protected rather than unreachable; later authenticated checks provide the authoritative evidence.
+
+## 3. Priority Findings
+
+These are the highest-signal outcomes from this validation run.
+
+- Policy strict blocked the run: Strict policy blocked the validation result with 2 unsuppressed signal(s).
+- Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
+- Tool 'delete_repo' does not declare annotations.destructiveHint.
+- Prompt validation hit an unsafe reflection path.
+- MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
+
+## 4. Action Hints
+
+Compact next-step guidance derived from the highest-signal evidence in this run.
+
+- Strict policy blocked the validation result with 2 unsuppressed signal(s).
+- Protocol: Echo the negotiated protocol version in initialize.result.
+- Security: Sanitize and label untrusted content before returning it.
+- Add destructive hints to write-capable tools.
+
+## 5. MCP Trust Assessment
+
+Multi-dimensional evaluation of server trustworthiness for AI agent consumption.
+Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
+
+| Dimension | Score | What It Measures |
+| :--- | :---: | :--- |
+| **Protocol Compliance** | 84% | MCP spec adherence, JSON-RPC compliance, response structures |
+| **Security Posture** | 69% | Auth compliance, injection resistance, attack surface |
+| **AI Safety** | 75% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
+| **Operational Readiness** | 88% | Latency, throughput, error rate, stability |
+
+### AI Boundary Findings
+
+These findings go **beyond MCP protocol** to assess how AI agents interact with this server.
+
+| Category | Component | Severity | Finding |
+| :--- | :--- | :---: | :--- |
+| PromptInjection | `prompt:get` | 🔴 Critical | Prompt output includes reflected untrusted content. |
+
+### Summary
+
+- Destructive tools: **0**
+- Data exfiltration risk: **0**
+- Prompt injection surface: **0**
+
+## 6. Compliance Matrix
+
+| Category | Status | Score | Issues |
+| :--- | :---: | :---: | :---: |
+| Protocol Compliance | ❌ Failed | 84.0% | **1** |
+| Security Assessment | ❌ Failed | 69.0% | **1** |
+| Tool Validation | ✅ Passed | 91.0% | - |
+| Resource Capabilities | ✅ Passed | 0.0% | - |
+| Prompt Capabilities | ➖ Skipped | - | - |
+| Performance | ✅ Passed | 0.0% | - |
+
+## 7. Performance Calibration
+
+Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
+For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
+
+## 8. Security Assessment
+
+**Security Score:** 69.0%
+
+## 9. Protocol Compliance
+
+**Status Detail:** Protocol negotiation had one blocking violation.
+
+### Compliance Violations
+| ID | Source | Description | Severity |
+| :--- | :--- | :--- | :---: |
+| MCP.INIT.VERSION_NEGOTIATION | `spec` | Server ignored the requested MCP protocol version. | High |
+
+## 10. Tool Validation
+
+**Tools Discovered:** 2
+**Authentication Enforcement:** ⚠️ Not Enforced
+
+### Tool: `delete_repo`
+
+**Status:** ✅ Passed
+**Execution Time:** 140.00ms
+
+#### Tool Metadata
+| Property | Value |
+| :--- | :--- |
+| Display Title | Delete Repository |
+
+---
+
+### Tool: `list_repos`
+
+**Status:** ✅ Passed
+**Execution Time:** 80.00ms
+
+#### Tool Metadata
+| Property | Value |
+| :--- | :--- |
+| Display Title | List Repositories |
+
+---
+
+### MCP Guideline Findings
+
+These findings capture MCP guidance signals that improve agent safety and UX but are not strict protocol MUST failures.
+Coverage shows how prevalent each issue is across the discovered tool catalog so larger servers are judged by rate, not raw count alone.
+
+| Rule ID | Source | Coverage | Severity | Example Components | Finding |
+| :--- | :--- | :--- | :---: | :--- | :--- |
+| `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING` | `guideline` | 1/2 (50%) | 🟠 High | `delete_repo` | Tool 'delete_repo' does not declare annotations.destructiveHint. |
+
+## 11. Resource Capabilities
+
+**Resources Discovered:** 1
+
+| Resource Name | URI | MIME Type | Size | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| repo://snapshot/README.md | `repo://snapshot/README.md` | text/markdown | - | ✅ |
+
+## 12. Performance Metrics
+
+| Metric | Result | Verdict |
+| :--- | :--- | :--- |
+| **Avg Latency** | 120.50ms | ✅ Good |
+| **P95 Latency** | 210.40ms | - |
+| **Throughput** | 18.20 req/sec | - |
+| **Error Rate** | 0.00% | ✅ Clean |
+
+## 13. Recommendations
+
+- 💡 Add destructive hints to write-capable tools.
+- 💡 Return the negotiated protocol version explicitly during initialize.
+
+---
+*Report generated by mcpval — MCP Validator*

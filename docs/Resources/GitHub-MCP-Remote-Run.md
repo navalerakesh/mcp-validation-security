@@ -1,6 +1,6 @@
-# GitHub MCP Remote Run
+# GitHub MCP Remote Example Run
 
-This document shows a successful `mcpval` run against the GitHub remote MCP server and the artifacts the CLI produced.
+This document shows a representative `mcpval validate` invocation against GitHub's remote MCP endpoint and explains the artifact set the CLI produces.
 
 ## Command
 
@@ -9,51 +9,50 @@ DOTNET_ROLL_FORWARD=Major dotnet run --project Mcp.Benchmark.CLI -- validate \
   --server https://api.githubcopilot.com/mcp/ \
   --access authenticated \
   --token "$(gh auth token)" \
-  --output ./PublicReports/github-mcp-remote \
+  --output ./PublicReports/github-mcp-remote-live \
   --verbose
 ```
 
-> [!NOTE]
-> `DOTNET_ROLL_FORWARD=Major` was used on this machine because the workspace has the .NET 10 runtime installed while the CLI targets `net8.0`.
+`DOTNET_ROLL_FORWARD=Major` was required on the machine used for this example because the local runtime inventory differed from the target framework used by the CLI project. That environment-specific setting is not part of normal product usage.
 
 ## What The CLI Produces
 
-> [!TIP]
-> The CLI prints a console summary with server identity, negotiated protocol version, category scores, and next-step guidance.
+For every successful `validate --output <folder>` run, the CLI writes the following timestamped artifacts:
 
-> [!TIP]
-> The CLI writes a Markdown report for human review:
-> [mcp-validation-20260315-060145-report.md](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-report.md)
+| Artifact | Purpose |
+| --- | --- |
+| `mcp-validation-<timestamp>-report.md` | Human-readable Markdown report |
+| `mcp-validation-<timestamp>-report.html` | Shareable HTML report |
+| `mcp-validation-<timestamp>-result.json` | Canonical machine-readable validation result |
+| `mcp-validation-<timestamp>-results.sarif.json` | SARIF findings feed for CI and code-scanning systems |
 
-> [!TIP]
-> The CLI writes a JSON result snapshot for machine processing:
-> [mcp-validation-20260315-060145-result.json](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-result.json)
+Inside GitHub Actions, the same run also emits a step summary and workflow annotations derived from policy failures, structured findings, protocol violations, and security vulnerabilities.
 
-> [!TIP]
-> The CLI can render the saved JSON into a shareable HTML report:
-> [mcp-validation-20260315-060145-report.html](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-report.html)
+## Example Output Directory
 
-## Successful Run Summary
+A representative output set is kept under:
 
-- Server: `https://api.githubcopilot.com/mcp/`
-- Status: `PASSED`
-- Score: `84.1%`
-- Transport: `HTTP`
-- Protocol: `2025-03-26`
-- Duration: `66.82s`
-- Security: `100%`
-- Tools discovered: `43`
+- [../../PublicReports/github-mcp-remote-live](../../PublicReports/github-mcp-remote-live)
 
-## Output Folder
+The exact filenames change on every run because they are timestamped. The folder is preserved as an example of the default artifact contract rather than as a normative reference for scores or findings.
 
-All kept artifacts for this run are under:
+## Why This Example Matters
 
-```text
-PublicReports/github-mcp-remote/
+- It demonstrates an authenticated remote validation flow against a widely recognized MCP endpoint.
+- It shows the full artifact set produced by `validate` without requiring a separate rendering step.
+- It provides a realistic example of the type of evidence teams can archive in CI or attach to change reviews.
+
+## Reusable Action
+
+Other repositories can adopt the validator through the composite action shipped at the repository root:
+
+```yaml
+- name: Validate MCP server
+  uses: navalerakesh/mcp-validation-security@main
+  with:
+    server: https://example.test/mcp
+    access: authenticated
+    token: ${{ secrets.MCP_TOKEN }}
+    policy: strict
+    output-dir: ./mcp-validation-results
 ```
-
-Files retained from the successful run:
-
-- [mcp-validation-20260315-060145-report.md](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-report.md)
-- [mcp-validation-20260315-060145-result.json](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-result.json)
-- [mcp-validation-20260315-060145-report.html](../../PublicReports/github-mcp-remote/mcp-validation-20260315-060145-report.html)

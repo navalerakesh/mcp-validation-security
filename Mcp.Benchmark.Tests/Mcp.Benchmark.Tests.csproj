@@ -30,9 +30,15 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Mcp.Benchmark.ClientProfiles\Mcp.Benchmark.ClientProfiles.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.Core\Mcp.Benchmark.Core.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.Infrastructure\Mcp.Benchmark.Infrastructure.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.CLI\Mcp.Benchmark.CLI.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Fixtures\ReportSnapshots\**\*.snap" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\Servers\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

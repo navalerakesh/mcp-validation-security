@@ -1,9 +1,12 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Xml.Linq;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
@@ -15,6 +18,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
 {
     public string GenerateHtmlReport(ValidationResult validationResult, ReportingConfig reportConfig, bool verbose)
     {
+        var actionHints = ReportActionHintBuilder.Build(validationResult);
+        var detailLabel = verbose ? "Full" : "Minimal";
         var overallStatus = validationResult.OverallStatus;
         var statusText = overallStatus.ToString();
         var statusChipClass = "status-badge status-badge--neutral";
@@ -34,6 +39,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             : "latest";
         var serverProfileLabel = validationResult.ServerProfile.ToString();
         var serverProfileSource = validationResult.ServerProfileSource.ToString();
+        var bootstrapHealth = ResolveBootstrapHealth(validationResult);
+        var bootstrapOverviewHtml = GenerateBootstrapOverviewHtml(validationResult, bootstrapHealth);
         var protocolVersionLabel = validationResult.ProtocolVersion
             ?? validationResult.InitializationHandshake?.Payload?.ProtocolVersion
             ?? validationResult.ServerConfig.ProtocolVersion
@@ -63,7 +70,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
 <head>
     <meta charset=""UTF-8"">
     <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
-    <title>MCP Server Validation Report{(verbose ? " - Detailed" : "")}</title>
+    <title>MCP Server Validation Report - {detailLabel}</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background-color: #f1f5f9; color: #0f172a; }}
         .container {{ max-width: 1200px; margin: 0 auto; background: white; border-radius: 12px; box-shadow: 0 15px 45px rgba(15,23,42,0.12); }}
@@ -100,6 +107,23 @@ public class ValidationReportRenderer : IValidationReportRenderer
         .status-pill--warn {{ background: #fff7ed; color: #c2410c; border-color: #fed7aa; }}
         .status-pill--info {{ background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }}
         .insight-card {{ margin-top: 18px; padding: 18px; border-radius: 12px; border: 1px dashed #d1d5db; background: #f9fafb; color: #374151; }}
+        .bootstrap-shell {{ border: 1px solid #dbeafe; border-radius: 18px; padding: 24px; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%); box-shadow: 0 14px 36px rgba(15,23,42,0.08); }}
+        .bootstrap-shell--healthy {{ border-color: #86efac; background: linear-gradient(180deg, #ffffff 0%, #f0fdf4 100%); }}
+        .bootstrap-shell--protected {{ border-color: #c7d2fe; background: linear-gradient(180deg, #ffffff 0%, #eef2ff 100%); }}
+        .bootstrap-shell--transient {{ border-color: #fdba74; background: linear-gradient(180deg, #ffffff 0%, #fff7ed 100%); }}
+        .bootstrap-shell--inconclusive {{ border-color: #93c5fd; background: linear-gradient(180deg, #ffffff 0%, #eff6ff 100%); }}
+        .bootstrap-shell--unhealthy {{ border-color: #fca5a5; background: linear-gradient(180deg, #ffffff 0%, #fef2f2 100%); }}
+        .bootstrap-header {{ display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap; }}
+        .bootstrap-kicker {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; font-weight: 700; }}
+        .bootstrap-title {{ font-size: 1.55rem; font-weight: 700; color: #0f172a; margin-top: 6px; }}
+        .bootstrap-copy {{ margin-top: 10px; max-width: 760px; color: #475569; line-height: 1.6; }}
+        .bootstrap-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 20px; }}
+        .bootstrap-card {{ background: rgba(255,255,255,0.88); border: 1px solid rgba(148,163,184,0.22); border-radius: 14px; padding: 16px; box-shadow: 0 8px 20px rgba(15,23,42,0.06); }}
+        .bootstrap-card__label {{ font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; }}
+        .bootstrap-card__value {{ font-size: 1.15rem; font-weight: 700; color: #0f172a; margin-top: 8px; line-height: 1.35; }}
+        .bootstrap-meta {{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }}
+        .bootstrap-note {{ margin-top: 18px; border: 1px solid rgba(148,163,184,0.22); border-radius: 14px; padding: 14px 16px; background: rgba(255,255,255,0.76); color: #334155; }}
+        .bootstrap-note strong {{ color: #0f172a; }}
         .section {{ margin: 30px 0; }}
         .section h2 {{ color: #333; border-bottom: 2px solid #eee; padding-bottom: 10px; }}
         .test-result {{ padding: 14px 18px; margin: 8px 0; border-left: 4px solid #ddd; background: #fafafa; }}
@@ -177,7 +201,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
 <body>
     <div class=""container"">
         <div class=""header"">
-            <h1>MCP Server Validation Report{(verbose ? " - Detailed View" : "")}</h1>
+            <h1>MCP Server Validation Report</h1>
             <div class=""subtitle"">Generated on {timestamp}</div>
         </div>
         
@@ -218,11 +242,21 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 {coverageCardHtml}
             </div>
 
+            {bootstrapOverviewHtml}
+
             {(validationResult.CriticalErrors.Count > 0 ? $@"
             <div class=""section"">
                 <h2>Critical Errors</h2>
                 <div class=""error-list"">
                     {string.Join("", validationResult.CriticalErrors.Select(error => $"<div class=\"error-item\">• {error}</div>"))}
+                </div>
+            </div>" : "")}
+
+            {(actionHints.Count > 0 ? $@"
+            <div class=""section"">
+                <h2>Action Hints</h2>
+                <div class=""recommendation-list"">
+                    {string.Join("", actionHints.Select(hint => $"<div class=\"recommendation-item\">• {System.Net.WebUtility.HtmlEncode(hint)}</div>"))}
                 </div>
             </div>" : "")}
 
@@ -234,7 +268,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 </div>
             </div>" : "")}
 
-            {GenerateCapabilitySnapshotHtml(validationResult)}
+            {GenerateCapabilitySnapshotHtml(validationResult)}{GenerateClientCompatibilityHtml(validationResult)}
 
             <div class=""section section--test-results"">
                 <h2>Test Results Summary</h2>
@@ -249,7 +283,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         </div>
 
         <div class=""footer"">
-            Generated by MCP Benchmark for MCP Servers{(verbose ? " - Detailed Report" : "")}
+            Generated by MCP Benchmark for MCP Servers - {detailLabel} report
         </div>
     </div>
 </body>
@@ -296,6 +330,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
             new XElement("SpecProfile", specProfile)
         ));
 
+        var bootstrapElement = BuildBootstrapHealthElement(validationResult);
+        if (bootstrapElement != null)
+        {
+            reportElement.Add(bootstrapElement);
+        }
+
         var severityBreakdown = BuildSeverityBreakdownElement(validationResult);
         if (severityBreakdown != null)
         {
@@ -305,6 +345,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
         if (validationResult.CapabilitySnapshot?.Payload is CapabilitySummary snapshot)
         {
             reportElement.Add(BuildCapabilitySnapshotElement(snapshot));
+        }
+
+        var clientCompatibilityElement = BuildClientCompatibilityElement(validationResult);
+        if (clientCompatibilityElement != null)
+        {
+            reportElement.Add(clientCompatibilityElement);
         }
 
         var testCategories = new XElement("TestCategories");
@@ -326,6 +372,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     {
                         var violationElement = new XElement("Violation",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
                         if (!string.IsNullOrWhiteSpace(v.CheckId))
@@ -383,6 +430,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     {
                         var vulnerabilityElement = new XElement("Vulnerability",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
                         if (!string.IsNullOrWhiteSpace(v.Id))
@@ -534,12 +582,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
         if (validationResult.PerformanceTesting != null)
         {
             var perf = validationResult.PerformanceTesting;
+            var hasObservedPerformanceMetrics = PerformanceMeasurementEvaluator.HasObservedMetrics(perf);
             var perfElement = new XElement("PerformanceTesting",
                 new XAttribute("status", perf.Status.ToString()),
                 new XAttribute("durationSeconds", perf.Duration.TotalSeconds.ToString("F1"))
             );
 
-            if (verbose && perf.LoadTesting != null)
+            if (verbose && hasObservedPerformanceMetrics)
             {
                 var loadElement = new XElement("LoadTesting",
                     new XElement("AverageLatencyMs", perf.LoadTesting.AverageResponseTimeMs.ToString("F2")),
@@ -548,6 +597,16 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     new XElement("ErrorRate", perf.LoadTesting.ErrorRate.ToString("F2"))
                 );
                 perfElement.Add(loadElement);
+            }
+            else if (verbose)
+            {
+                perfElement.Add(
+                    new XElement("MeasurementStatus", "Unavailable"),
+                    new XElement(
+                        "Reason",
+                        PerformanceMeasurementEvaluator.GetUnavailableReason(
+                            perf,
+                            "Performance measurements were not captured before the run ended.")));
             }
 
             testCategories.Add(perfElement);
@@ -613,6 +672,203 @@ public class ValidationReportRenderer : IValidationReportRenderer
         reportElement.Add(issuesElement);
 
         var document = new XDocument(new XDeclaration("1.0", "UTF-8", "yes"), reportElement);
+        return document.ToString();
+    }
+
+    public string GenerateSarifReport(ValidationResult validationResult)
+    {
+        ArgumentNullException.ThrowIfNull(validationResult);
+
+        var entries = BuildSarifEntries(validationResult)
+            .GroupBy(entry => entry.Fingerprint, StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToList();
+
+        var rules = entries
+            .GroupBy(entry => entry.RuleId, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var first = group.First();
+                return new
+                {
+                    id = first.RuleId,
+                    name = first.RuleId,
+                    shortDescription = new { text = first.ShortDescription },
+                    fullDescription = new { text = first.FullDescription },
+                    help = string.IsNullOrWhiteSpace(first.Recommendation)
+                        ? null
+                        : new { text = first.Recommendation },
+                    helpUri = first.HelpUri,
+                    properties = new
+                    {
+                        source = first.Source,
+                        category = first.Category,
+                        tags = BuildSarifTags(first.Source, first.Category, first.Component)
+                    }
+                };
+            })
+            .ToList();
+
+        var run = new
+        {
+            tool = new
+            {
+                driver = new
+                {
+                    name = "MCP Benchmark",
+                    fullName = "MCP Benchmark Validation Suite",
+                    semanticVersion = "1.0.0",
+                    informationUri = "https://github.com/navalerakesh/mcp-validation-security",
+                    rules
+                }
+            },
+            automationDetails = new
+            {
+                id = validationResult.ValidationId,
+                description = new { text = "MCP validation run" }
+            },
+            invocations = new[]
+            {
+                new
+                {
+                    executionSuccessful = validationResult.OverallStatus != ValidationStatus.InProgress,
+                    startTimeUtc = validationResult.StartTime.ToUniversalTime().ToString("O"),
+                    endTimeUtc = validationResult.EndTime?.ToUniversalTime().ToString("O"),
+                    properties = new
+                    {
+                        validationId = validationResult.ValidationId,
+                        endpoint = validationResult.ServerConfig.Endpoint,
+                        transport = validationResult.ServerConfig.Transport,
+                        overallStatus = validationResult.OverallStatus.ToString(),
+                        serverProfile = validationResult.ServerProfile.ToString(),
+                        specProfile = validationResult.ValidationConfig.Reporting.SpecProfile
+                    }
+                }
+            },
+            results = entries.Select(entry => new
+            {
+                ruleId = entry.RuleId,
+                level = entry.Level,
+                kind = "fail",
+                message = new { text = entry.Message },
+                partialFingerprints = new { logicalIdentity = entry.Fingerprint },
+                locations = string.IsNullOrWhiteSpace(entry.Component)
+                    ? null
+                    : new[]
+                    {
+                        new
+                        {
+                            logicalLocations = new[]
+                            {
+                                new
+                                {
+                                    kind = "component",
+                                    name = entry.Component
+                                }
+                            }
+                        }
+                    },
+                properties = entry.Properties
+            }).ToList()
+        };
+
+        var sarif = new
+        {
+            version = "2.1.0",
+            schema = "https://json.schemastore.org/sarif-2.1.0.json",
+            runs = new[] { run }
+        };
+
+        return JsonSerializer.Serialize(sarif, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        }).Replace("\"schema\"", "\"$schema\"");
+    }
+
+    public string GenerateJunitReport(ValidationResult validationResult)
+    {
+        ArgumentNullException.ThrowIfNull(validationResult);
+
+        var testCases = BuildJunitTestCases(validationResult);
+        var suiteTimestamp = (validationResult.StartTime == default ? DateTime.UtcNow : validationResult.StartTime)
+            .ToUniversalTime()
+            .ToString("O", CultureInfo.InvariantCulture);
+
+        var suites = testCases
+            .GroupBy(testCase => testCase.SuiteName, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var tests = group.Count();
+                var failures = group.Count(testCase => testCase.Outcome == JunitOutcome.Failure);
+                var errors = group.Count(testCase => testCase.Outcome == JunitOutcome.Error);
+                var skipped = group.Count(testCase => testCase.Outcome == JunitOutcome.Skipped);
+                var suite = new XElement("testsuite",
+                    new XAttribute("name", group.Key),
+                    new XAttribute("tests", tests),
+                    new XAttribute("failures", failures),
+                    new XAttribute("errors", errors),
+                    new XAttribute("skipped", skipped),
+                    new XAttribute("time", group.Sum(testCase => testCase.TimeSeconds).ToString("F3", CultureInfo.InvariantCulture)),
+                    new XAttribute("timestamp", suiteTimestamp));
+
+                suite.Add(new XElement("properties",
+                    new XElement("property", new XAttribute("name", "validationId"), new XAttribute("value", validationResult.ValidationId)),
+                    new XElement("property", new XAttribute("name", "endpoint"), new XAttribute("value", validationResult.ServerConfig.Endpoint ?? string.Empty)),
+                    new XElement("property", new XAttribute("name", "transport"), new XAttribute("value", validationResult.ServerConfig.Transport ?? string.Empty)),
+                    new XElement("property", new XAttribute("name", "overallStatus"), new XAttribute("value", validationResult.OverallStatus.ToString())),
+                    new XElement("property", new XAttribute("name", "policyMode"), new XAttribute("value", validationResult.PolicyOutcome?.Mode ?? string.Empty)),
+                    new XElement("property", new XAttribute("name", "specProfile"), new XAttribute("value", validationResult.ValidationConfig?.Reporting?.SpecProfile ?? "latest"))));
+
+                foreach (var testCase in group)
+                {
+                    var testCaseElement = new XElement("testcase",
+                        new XAttribute("classname", testCase.ClassName),
+                        new XAttribute("name", testCase.Name),
+                        new XAttribute("time", testCase.TimeSeconds.ToString("F3", CultureInfo.InvariantCulture)));
+
+                    switch (testCase.Outcome)
+                    {
+                        case JunitOutcome.Failure:
+                            testCaseElement.Add(new XElement("failure",
+                                new XAttribute("message", testCase.Message),
+                                testCase.Details ?? string.Empty));
+                            break;
+                        case JunitOutcome.Error:
+                            testCaseElement.Add(new XElement("error",
+                                new XAttribute("message", testCase.Message),
+                                testCase.Details ?? string.Empty));
+                            break;
+                        case JunitOutcome.Skipped:
+                            testCaseElement.Add(new XElement("skipped",
+                                new XAttribute("message", testCase.Message),
+                                testCase.Details ?? string.Empty));
+                            break;
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(testCase.SystemOut))
+                    {
+                        testCaseElement.Add(new XElement("system-out", testCase.SystemOut));
+                    }
+
+                    suite.Add(testCaseElement);
+                }
+
+                return suite;
+            })
+            .ToList();
+
+        var document = new XDocument(
+            new XDeclaration("1.0", "UTF-8", "yes"),
+            new XElement("testsuites",
+                new XAttribute("name", "MCP Validator"),
+                new XAttribute("tests", testCases.Count),
+                new XAttribute("failures", testCases.Count(testCase => testCase.Outcome == JunitOutcome.Failure)),
+                new XAttribute("errors", testCases.Count(testCase => testCase.Outcome == JunitOutcome.Error)),
+                new XAttribute("skipped", testCases.Count(testCase => testCase.Outcome == JunitOutcome.Skipped)),
+                new XAttribute("time", testCases.Sum(testCase => testCase.TimeSeconds).ToString("F3", CultureInfo.InvariantCulture)),
+                suites));
+
         return document.ToString();
     }
 
@@ -727,10 +983,21 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
             if (verbose)
             {
+                var hasObservedPerformanceMetrics = PerformanceMeasurementEvaluator.HasObservedMetrics(validationResult.PerformanceTesting);
                 html.AppendLine("<div class=\"detailed-section\">");
                 html.AppendLine($"                    <h4>Performance Metrics</h4>");
                 html.AppendLine($"                    <p>Test Duration: {validationResult.PerformanceTesting.Duration.TotalSeconds:F1} seconds</p>");
                 html.AppendLine($"                    <p>Status: {validationResult.PerformanceTesting.Status}</p>");
+
+                if (!hasObservedPerformanceMetrics)
+                {
+                    var unavailableReason = PerformanceMeasurementEvaluator.GetUnavailableReason(
+                        validationResult.PerformanceTesting,
+                        "Performance measurements were not captured before the run ended.");
+                    html.AppendLine("                    <p><strong>Measurements:</strong> Unavailable</p>");
+                    html.AppendLine($"                    <p><strong>Reason:</strong> {System.Net.WebUtility.HtmlEncode(unavailableReason)}</p>");
+                }
+
                 html.AppendLine("                </div>");
             }
 
@@ -841,6 +1108,354 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
     }
+
+    private string GenerateClientCompatibilityHtml(ValidationResult validationResult)
+    {
+        if (validationResult.ClientCompatibility?.Assessments.Count > 0 != true)
+        {
+            return string.Empty;
+        }
+
+        var html = new StringBuilder();
+        html.AppendLine("<div class=\"section\">");
+        html.AppendLine("  <h2>Client Compatibility</h2>");
+        html.AppendLine("  <div class=\"capability-grid\">");
+
+        foreach (var assessment in validationResult.ClientCompatibility.Assessments)
+        {
+            var statusClass = assessment.Status switch
+            {
+                ClientProfileCompatibilityStatus.Compatible => "status-pill status-pill--success",
+                ClientProfileCompatibilityStatus.CompatibleWithWarnings => "status-pill status-pill--warn",
+                ClientProfileCompatibilityStatus.Incompatible => "status-pill status-pill--warn",
+                _ => "status-pill status-pill--info"
+            };
+            var statusLabel = System.Net.WebUtility.HtmlEncode(assessment.StatusLabel);
+            var title = System.Net.WebUtility.HtmlEncode(assessment.DisplayName);
+            var summary = System.Net.WebUtility.HtmlEncode(assessment.Summary);
+
+            html.AppendLine("    <div class=\"capability-card\">");
+            html.AppendLine("      <div class=\"capability-card__header\">");
+            html.AppendLine("        <div>");
+            html.AppendLine($"          <div class=\"capability-label\">{title}</div>");
+            html.AppendLine($"          <div class=\"capability-subtle\">{System.Net.WebUtility.HtmlEncode(assessment.ProfileId)} · {System.Net.WebUtility.HtmlEncode(assessment.Revision)}</div>");
+            html.AppendLine("        </div>");
+            html.AppendLine($"        <span class=\"{statusClass}\">{statusLabel}</span>");
+            html.AppendLine("      </div>");
+            html.AppendLine("      <div class=\"capability-stats\">");
+            html.AppendLine(RenderStatBlock("Passed", assessment.PassedRequirements.ToString(CultureInfo.InvariantCulture)));
+            html.AppendLine(RenderStatBlock("Warnings", assessment.WarningRequirements.ToString(CultureInfo.InvariantCulture)));
+            html.AppendLine(RenderStatBlock("Failed", assessment.FailedRequirements.ToString(CultureInfo.InvariantCulture)));
+            html.AppendLine("      </div>");
+            html.AppendLine($"      <div class=\"capability-footnote\">{summary}</div>");
+
+            if (!string.IsNullOrWhiteSpace(assessment.DocumentationUrl))
+            {
+                var docUrl = System.Net.WebUtility.HtmlEncode(assessment.DocumentationUrl);
+                html.AppendLine($"      <div class=\"capability-footnote subtle\"><a href=\"{docUrl}\" target=\"_blank\" rel=\"noreferrer\">Profile documentation</a></div>");
+            }
+
+            var noteworthyRequirements = assessment.Requirements
+                .Where(requirement => requirement.Outcome is ClientProfileRequirementOutcome.Warning or ClientProfileRequirementOutcome.Failed)
+                .Take(3)
+                .ToList();
+
+            if (noteworthyRequirements.Count > 0)
+            {
+                html.AppendLine("      <ul class=\"finding-list\">");
+                foreach (var requirement in noteworthyRequirements)
+                {
+                    var detail = new StringBuilder(requirement.Summary);
+                    if (requirement.ExampleComponents.Count > 0)
+                    {
+                        detail.Append($" Examples: {string.Join(", ", requirement.ExampleComponents)}.");
+                    }
+
+                    if (requirement.RuleIds.Count > 0)
+                    {
+                        detail.Append($" Rule IDs: {string.Join(", ", requirement.RuleIds)}.");
+                    }
+
+                    html.AppendLine($"        <li><strong>{System.Net.WebUtility.HtmlEncode(requirement.Title)}</strong>: {System.Net.WebUtility.HtmlEncode(detail.ToString())}</li>");
+                }
+
+                html.AppendLine("      </ul>");
+            }
+
+            html.AppendLine("    </div>");
+        }
+
+        html.AppendLine("  </div>");
+        html.AppendLine("</div>");
+        return html.ToString();
+
+        string RenderStatBlock(string label, string value)
+        {
+            var encodedLabel = System.Net.WebUtility.HtmlEncode(label);
+            var encodedValue = System.Net.WebUtility.HtmlEncode(value);
+            return $"        <div class=\"stat-block\"><div class=\"stat-label\">{encodedLabel}</div><div class=\"stat-value\">{encodedValue}</div></div>";
+        }
+    }
+
+    private string GenerateBootstrapOverviewHtml(ValidationResult validationResult, HealthCheckResult? bootstrapHealth)
+    {
+        if (bootstrapHealth == null)
+        {
+            return string.Empty;
+        }
+
+        var shellModifier = bootstrapHealth.Disposition switch
+        {
+            HealthCheckDisposition.Healthy => "healthy",
+            HealthCheckDisposition.Protected => "protected",
+            HealthCheckDisposition.TransientFailure => "transient",
+            HealthCheckDisposition.Inconclusive => "inconclusive",
+            HealthCheckDisposition.Unhealthy => "unhealthy",
+            _ => "inconclusive"
+        };
+
+        var badgeClass = bootstrapHealth.Disposition switch
+        {
+            HealthCheckDisposition.Healthy => "status-pill status-pill--success",
+            HealthCheckDisposition.Protected => "status-pill status-pill--info",
+            HealthCheckDisposition.TransientFailure => "status-pill status-pill--warn",
+            HealthCheckDisposition.Inconclusive => "status-pill status-pill--info",
+            HealthCheckDisposition.Unhealthy => "status-pill status-pill--warn",
+            _ => "status-pill status-pill--info"
+        };
+
+        var badgeLabel = bootstrapHealth.Disposition switch
+        {
+            HealthCheckDisposition.Healthy => "Healthy bootstrap",
+            HealthCheckDisposition.Protected => "Protected endpoint",
+            HealthCheckDisposition.TransientFailure => "Transient constraint",
+            HealthCheckDisposition.Inconclusive => "Inconclusive bootstrap",
+            HealthCheckDisposition.Unhealthy => "Unhealthy bootstrap",
+            _ => "Bootstrap state unknown"
+        };
+
+        var handshakeStatus = bootstrapHealth.InitializationDetails?.Transport.StatusCode is int statusCode
+            ? $"HTTP {statusCode}"
+            : "n/a";
+        var handshakeLatency = bootstrapHealth.ResponseTimeMs > 0
+            ? $"{bootstrapHealth.ResponseTimeMs:F1} ms"
+            : "n/a";
+        var protocolVersion = validationResult.ProtocolVersion
+            ?? bootstrapHealth.ProtocolVersion
+            ?? validationResult.ServerConfig.ProtocolVersion
+            ?? "n/a";
+        var serverVersion = !string.IsNullOrWhiteSpace(bootstrapHealth.ServerVersion) &&
+                            !string.Equals(bootstrapHealth.ServerVersion, "Unknown", StringComparison.OrdinalIgnoreCase)
+            ? bootstrapHealth.ServerVersion
+            : "n/a";
+        var deferredLabel = bootstrapHealth.AllowsDeferredValidation && !bootstrapHealth.IsHealthy
+            ? "Yes"
+            : "No";
+        var noteHtml = string.IsNullOrWhiteSpace(bootstrapHealth.ErrorMessage)
+            ? string.Empty
+            : $@"
+        <div class=""bootstrap-note""><strong>Bootstrap Note:</strong> {System.Net.WebUtility.HtmlEncode(bootstrapHealth.ErrorMessage)}</div>";
+
+        return $@"
+            <div class=""section"">
+                <h2>Connectivity & Session Bootstrap</h2>
+                <div class=""bootstrap-shell bootstrap-shell--{shellModifier}"">
+                    <div class=""bootstrap-header"">
+                        <div>
+                            <div class=""bootstrap-kicker"">Preflight Connectivity</div>
+                            <div class=""bootstrap-title"">{System.Net.WebUtility.HtmlEncode(GetBootstrapHeadline(bootstrapHealth))}</div>
+                            <div class=""bootstrap-copy"">{System.Net.WebUtility.HtmlEncode(GetBootstrapNarrative(bootstrapHealth))}</div>
+                        </div>
+                        <span class=""{badgeClass}"">{System.Net.WebUtility.HtmlEncode(badgeLabel)}</span>
+                    </div>
+                    <div class=""bootstrap-grid"">
+                        {RenderBootstrapCard("Bootstrap State", GetBootstrapStateLabel(bootstrapHealth))}
+                        {RenderBootstrapCard("Deferred Validation", deferredLabel)}
+                        {RenderBootstrapCard("Handshake HTTP", handshakeStatus)}
+                        {RenderBootstrapCard("Handshake Latency", handshakeLatency)}
+                        {RenderBootstrapCard("Negotiated Protocol", protocolVersion)}
+                        {RenderBootstrapCard("Observed Server Version", serverVersion)}
+                    </div>
+                    <div class=""bootstrap-meta"">
+                        <span class=""meta-tag"">Server Profile: {System.Net.WebUtility.HtmlEncode(validationResult.ServerProfile.ToString())}</span>
+                        <span class=""meta-tag"">Profile Source: {System.Net.WebUtility.HtmlEncode(validationResult.ServerProfileSource.ToString())}</span>
+                    </div>{noteHtml}
+                </div>
+            </div>";
+
+        static string RenderBootstrapCard(string label, string value)
+        {
+            return $@"<div class=""bootstrap-card""><div class=""bootstrap-card__label"">{System.Net.WebUtility.HtmlEncode(label)}</div><div class=""bootstrap-card__value"">{System.Net.WebUtility.HtmlEncode(value)}</div></div>";
+        }
+    }
+
+    private static XElement? BuildBootstrapHealthElement(ValidationResult validationResult)
+    {
+        var bootstrapHealth = ResolveBootstrapHealth(validationResult);
+        if (bootstrapHealth == null)
+        {
+            return null;
+        }
+
+        var element = new XElement("BootstrapHealth",
+            new XAttribute("disposition", bootstrapHealth.Disposition.ToString()),
+            new XAttribute("isHealthy", bootstrapHealth.IsHealthy),
+            new XAttribute("allowsDeferredValidation", bootstrapHealth.AllowsDeferredValidation),
+            new XElement("ResponseTimeMs", bootstrapHealth.ResponseTimeMs.ToString("F1", CultureInfo.InvariantCulture)));
+
+        if (!string.IsNullOrWhiteSpace(bootstrapHealth.ErrorMessage))
+        {
+            element.Add(new XElement("ErrorMessage", bootstrapHealth.ErrorMessage));
+        }
+
+        if (!string.IsNullOrWhiteSpace(bootstrapHealth.ServerVersion))
+        {
+            element.Add(new XElement("ServerVersion", bootstrapHealth.ServerVersion));
+        }
+
+        var protocolVersion = validationResult.ProtocolVersion ?? bootstrapHealth.ProtocolVersion;
+        if (!string.IsNullOrWhiteSpace(protocolVersion))
+        {
+            element.Add(new XElement("ProtocolVersion", protocolVersion));
+        }
+
+        if (bootstrapHealth.InitializationDetails?.Transport.StatusCode is int statusCode)
+        {
+            element.Add(new XElement("HandshakeHttpStatus", statusCode));
+        }
+
+        return element;
+    }
+
+    private static XElement? BuildClientCompatibilityElement(ValidationResult validationResult)
+    {
+        if (validationResult.ClientCompatibility?.Assessments.Count > 0 != true)
+        {
+            return null;
+        }
+
+        var element = new XElement("ClientCompatibility");
+
+        if (validationResult.ClientCompatibility.RequestedProfiles.Count > 0)
+        {
+            element.Add(new XElement("RequestedProfiles",
+                validationResult.ClientCompatibility.RequestedProfiles.Select(profileId => new XElement("ProfileId", profileId))));
+        }
+
+        element.Add(validationResult.ClientCompatibility.Assessments.Select(assessment =>
+        {
+            var profileElement = new XElement("Profile",
+                new XAttribute("id", assessment.ProfileId),
+                new XAttribute("status", assessment.Status.ToString()),
+                new XAttribute("passedRequirements", assessment.PassedRequirements),
+                new XAttribute("warningRequirements", assessment.WarningRequirements),
+                new XAttribute("failedRequirements", assessment.FailedRequirements),
+                new XElement("DisplayName", assessment.DisplayName),
+                new XElement("Revision", assessment.Revision),
+                new XElement("EvidenceBasis", assessment.EvidenceBasis.ToString()),
+                new XElement("Summary", assessment.Summary));
+
+            if (!string.IsNullOrWhiteSpace(assessment.DocumentationUrl))
+            {
+                profileElement.Add(new XElement("DocumentationUrl", assessment.DocumentationUrl));
+            }
+
+            if (assessment.Requirements.Count > 0)
+            {
+                profileElement.Add(new XElement("Requirements",
+                    assessment.Requirements.Select(requirement =>
+                    {
+                        var requirementElement = new XElement("Requirement",
+                            new XAttribute("id", requirement.RequirementId),
+                            new XAttribute("level", requirement.Level.ToString()),
+                            new XAttribute("outcome", requirement.Outcome.ToString()),
+                            new XElement("Title", requirement.Title),
+                            new XElement("Summary", requirement.Summary),
+                            new XElement("EvidenceBasis", requirement.EvidenceBasis.ToString()));
+
+                        if (requirement.RuleIds.Count > 0)
+                        {
+                            requirementElement.Add(new XElement("RuleIds", requirement.RuleIds.Select(ruleId => new XElement("RuleId", ruleId))));
+                        }
+
+                        if (requirement.ExampleComponents.Count > 0)
+                        {
+                            requirementElement.Add(new XElement("ExampleComponents", requirement.ExampleComponents.Select(component => new XElement("Component", component))));
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(requirement.Recommendation))
+                        {
+                            requirementElement.Add(new XElement("Recommendation", requirement.Recommendation));
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(requirement.DocumentationUrl))
+                        {
+                            requirementElement.Add(new XElement("DocumentationUrl", requirement.DocumentationUrl));
+                        }
+
+                        return requirementElement;
+                    })));
+            }
+
+            return profileElement;
+        }));
+
+        return element;
+    }
+
+    private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult validationResult)
+    {
+        if (validationResult.BootstrapHealth != null)
+        {
+            return validationResult.BootstrapHealth;
+        }
+
+        if (validationResult.InitializationHandshake == null)
+        {
+            return null;
+        }
+
+        return new HealthCheckResult
+        {
+            IsHealthy = validationResult.InitializationHandshake.IsSuccessful,
+            Disposition = ValidationReliability.ClassifyHealthCheck(validationResult.InitializationHandshake),
+            ResponseTimeMs = validationResult.InitializationHandshake.Transport.Duration.TotalMilliseconds,
+            ServerVersion = validationResult.InitializationHandshake.Payload?.ServerInfo?.Version,
+            ProtocolVersion = validationResult.InitializationHandshake.Payload?.ProtocolVersion,
+            ErrorMessage = validationResult.InitializationHandshake.IsSuccessful ? null : validationResult.InitializationHandshake.Error,
+            InitializationDetails = validationResult.InitializationHandshake
+        };
+    }
+
+    private static string GetBootstrapHeadline(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "Validation started from a clean initialize handshake.",
+        HealthCheckDisposition.Protected => "Validation crossed an expected authentication boundary during bootstrap.",
+        HealthCheckDisposition.TransientFailure => "Validation continued after a retry-worthy bootstrap constraint.",
+        HealthCheckDisposition.Inconclusive => "Validation continued despite an inconclusive bootstrap handshake.",
+        HealthCheckDisposition.Unhealthy => "Validation observed a definitive bootstrap failure.",
+        _ => "Validation bootstrap state is unknown."
+    };
+
+    private static string GetBootstrapNarrative(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "Connectivity, initialize negotiation, and readiness checks completed cleanly before category execution began.",
+        HealthCheckDisposition.Protected => "The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.",
+        HealthCheckDisposition.TransientFailure => "The preflight handshake matched a transient capacity or transport signal, so validation continued to gather evidence without treating the endpoint as hard down.",
+        HealthCheckDisposition.Inconclusive => "The server responded, but the initialize handshake did not fully establish readiness. Later categories provide the authoritative evidence.",
+        HealthCheckDisposition.Unhealthy => "Bootstrap failed definitively and subsequent evidence, if any, should be interpreted as partial.",
+        _ => "Bootstrap classification was not available."
+    };
+
+    private static string GetBootstrapStateLabel(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "Healthy",
+        HealthCheckDisposition.Protected => "Reachable (Protected)",
+        HealthCheckDisposition.TransientFailure => "Transient Failure",
+        HealthCheckDisposition.Inconclusive => "Inconclusive",
+        HealthCheckDisposition.Unhealthy => "Unhealthy",
+        _ => "Unknown"
+    };
 
     private string GenerateSecurityDetailsHtml(ValidationResult validationResult, bool verbose)
     {
@@ -1059,6 +1674,34 @@ public class ValidationReportRenderer : IValidationReportRenderer
             return string.Empty;
         }
 
+        if (!PerformanceMeasurementEvaluator.HasObservedMetrics(perf))
+        {
+            var unavailableReason = PerformanceMeasurementEvaluator.GetUnavailableReason(
+                perf,
+                "Performance measurements were not captured before the run ended.");
+            var sbUnavailable = new StringBuilder();
+            sbUnavailable.AppendLine("<div class=\"section\">");
+            sbUnavailable.AppendLine("  <h2>Performance Metrics</h2>");
+            sbUnavailable.AppendLine("  <div class=\"detailed-section\">");
+            sbUnavailable.AppendLine($"    <p><strong>Status:</strong> {System.Net.WebUtility.HtmlEncode(perf.Status.ToString())}</p>");
+            sbUnavailable.AppendLine("    <p><strong>Measurements:</strong> Unavailable</p>");
+            sbUnavailable.AppendLine($"    <p><strong>Reason:</strong> {System.Net.WebUtility.HtmlEncode(unavailableReason)}</p>");
+
+            if (perf.CriticalErrors.Any())
+            {
+                sbUnavailable.AppendLine("    <div class=\"error-list\">");
+                foreach (var error in perf.CriticalErrors)
+                {
+                    sbUnavailable.AppendLine($"      <div class=\"error-item\">• {System.Net.WebUtility.HtmlEncode(error)}</div>");
+                }
+                sbUnavailable.AppendLine("    </div>");
+            }
+
+            sbUnavailable.AppendLine("  </div>");
+            sbUnavailable.AppendLine("</div>");
+            return sbUnavailable.ToString();
+        }
+
         var avgLatency = perf.LoadTesting.AverageResponseTimeMs;
         var p95Latency = perf.LoadTesting.P95ResponseTimeMs;
         var errorRate = perf.LoadTesting.ErrorRate;
@@ -1093,6 +1736,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
         sb.AppendLine("<div class=\"section\">");
         sb.AppendLine("  <h2>Performance Metrics</h2>");
         sb.AppendLine("  <div class=\"detailed-section\">");
+
+        if (perf.Status != TestStatus.Passed && !string.IsNullOrWhiteSpace(perf.Message))
+        {
+            sb.AppendLine($"    <p class=\"capability-footnote subtle\"><strong>Status:</strong> {System.Net.WebUtility.HtmlEncode(perf.Status.ToString())}. {System.Net.WebUtility.HtmlEncode(perf.Message)}</p>");
+        }
+
         sb.AppendLine("    <div class=\"metric-grid\">");
         sb.AppendLine($"      <div class=\"{avgLatencyClass}\"><div class=\"metric-value\">{perf.LoadTesting.AverageResponseTimeMs:F2} ms</div><div class=\"metric-label\">Average Latency</div></div>");
         sb.AppendLine($"      <div class=\"{p95LatencyClass}\"><div class=\"metric-value\">{perf.LoadTesting.P95ResponseTimeMs:F2} ms</div><div class=\"metric-label\">P95 Latency</div></div>");
@@ -1139,17 +1788,18 @@ public class ValidationReportRenderer : IValidationReportRenderer
             var specHeader = includeSpec ? "<th align=\"left\">Spec</th>" : string.Empty;
             sb.AppendLine("  <div class=\"detailed-section\">");
             sb.AppendLine("    <h3>Protocol & Policy Violations</h3>");
-            sb.AppendLine($"    <table class=\"data-table rule-table\"><thead><tr><th align=\"left\">Rule</th><th align=\"left\">Severity</th><th align=\"left\">Category</th><th align=\"left\">Details</th>{specHeader}</tr></thead><tbody>");
+            sb.AppendLine($"    <table class=\"data-table rule-table\"><thead><tr><th align=\"left\">Rule</th><th align=\"left\">Source</th><th align=\"left\">Severity</th><th align=\"left\">Category</th><th align=\"left\">Details</th>{specHeader}</tr></thead><tbody>");
             foreach (var violation in trimmed)
             {
                 var ruleCell = BuildRuleIdentifierCell(violation.CheckId, violation.Rule);
+                var sourceCell = BuildSourceBadge(ValidationRuleSourceClassifier.GetLabel(violation));
                 var severityBadge = BuildSeverityBadge(MapViolationSeverity(violation.Severity));
                 var categoryCell = string.IsNullOrWhiteSpace(violation.Category)
                     ? "<span class=\"spec-placeholder\">—</span>"
                     : System.Net.WebUtility.HtmlEncode(violation.Category);
                 var detailsCell = BuildDetailsCell(violation.Description, violation.Recommendation);
                 var specCell = includeSpec ? $"<td>{BuildSpecReferenceCell(violation.SpecReference)}</td>" : string.Empty;
-                sb.AppendLine($"      <tr><td>{ruleCell}</td><td>{severityBadge}</td><td>{categoryCell}</td><td>{detailsCell}</td>{specCell}</tr>");
+                sb.AppendLine($"      <tr><td>{ruleCell}</td><td>{sourceCell}</td><td>{severityBadge}</td><td>{categoryCell}</td><td>{detailsCell}</td>{specCell}</tr>");
             }
             sb.AppendLine("    </tbody></table>");
             if (violations.Count > trimmed.Count)
@@ -1164,16 +1814,17 @@ public class ValidationReportRenderer : IValidationReportRenderer
             var trimmedVulns = vulnerabilities.Take(maxRows).ToList();
             sb.AppendLine("  <div class=\"detailed-section\">");
             sb.AppendLine("    <h3>Security Vulnerabilities</h3>");
-            sb.AppendLine("    <table class=\"data-table rule-table\"><thead><tr><th align=\"left\">Issue</th><th align=\"left\">Severity</th><th align=\"left\">Component</th><th align=\"left\">Details</th></tr></thead><tbody>");
+            sb.AppendLine("    <table class=\"data-table rule-table\"><thead><tr><th align=\"left\">Issue</th><th align=\"left\">Source</th><th align=\"left\">Severity</th><th align=\"left\">Component</th><th align=\"left\">Details</th></tr></thead><tbody>");
             foreach (var vulnerability in trimmedVulns)
             {
                 var issueCell = BuildVulnerabilityIssueCell(vulnerability);
+                var sourceCell = BuildSourceBadge(ValidationRuleSourceClassifier.GetLabel(vulnerability));
                 var severityBadge = BuildSeverityBadge(MapVulnerabilitySeverity(vulnerability.Severity));
                 var componentCell = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent)
                     ? "<span class=\"spec-placeholder\">—</span>"
                     : System.Net.WebUtility.HtmlEncode(vulnerability.AffectedComponent);
                 var detailsCell = BuildDetailsCell(vulnerability.Description, vulnerability.Remediation);
-                sb.AppendLine($"      <tr><td>{issueCell}</td><td>{severityBadge}</td><td>{componentCell}</td><td>{detailsCell}</td></tr>");
+                sb.AppendLine($"      <tr><td>{issueCell}</td><td>{sourceCell}</td><td>{severityBadge}</td><td>{componentCell}</td><td>{detailsCell}</td></tr>");
             }
             sb.AppendLine("    </tbody></table>");
             if (vulnerabilities.Count > trimmedVulns.Count)
@@ -1206,6 +1857,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var cssToken = SeverityCssToken(trimmed);
         var safeLabel = System.Net.WebUtility.HtmlEncode(trimmed);
         return $"<span class=\"severity-badge severity-badge--{cssToken}\">{safeLabel}</span>";
+    }
+
+    private static string BuildSourceBadge(string sourceLabel)
+    {
+        var safeLabel = System.Net.WebUtility.HtmlEncode(sourceLabel);
+        return $"<span class=\"pill pill--info\">{safeLabel}</span>";
     }
 
     private static string BuildRuleIdentifierCell(string? checkId, string? rule)
@@ -1441,4 +2098,576 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var text = succeeded ? successText : failureText;
         return $"{icon} {text}";
     }
+
+    private static IReadOnlyList<SarifEntry> BuildSarifEntries(ValidationResult validationResult)
+    {
+        var entries = new List<SarifEntry>();
+
+        AddFindingRange(entries, validationResult.ProtocolCompliance?.Findings, "protocol");
+        AddFindingRange(entries, validationResult.ToolValidation?.Findings, "tools");
+        AddFindingRange(entries, validationResult.ToolValidation?.AiReadinessFindings, "tools/ai-readiness");
+        AddFindingRange(entries, validationResult.ResourceTesting?.Findings, "resources");
+        AddFindingRange(entries, validationResult.PromptTesting?.Findings, "prompts");
+        AddFindingRange(entries, validationResult.SecurityTesting?.Findings, "security");
+        AddFindingRange(entries, validationResult.PerformanceTesting?.Findings, "performance");
+        AddFindingRange(entries, validationResult.ErrorHandling?.Findings, "error-handling");
+
+        if (validationResult.ToolValidation?.AuthenticationSecurity?.StructuredFindings is { Count: > 0 } authFindings)
+        {
+            AddFindingRange(entries, authFindings, "auth");
+        }
+
+        if (validationResult.ProtocolCompliance?.Violations is { Count: > 0 } violations)
+        {
+            entries.AddRange(violations.Select(violation => CreateSarifEntry(violation)));
+        }
+
+        if (validationResult.ToolValidation?.ToolResults is { Count: > 0 } toolResults)
+        {
+            foreach (var tool in toolResults)
+            {
+                AddFindingRange(entries, tool.Findings, tool.ToolName);
+            }
+        }
+
+        if (validationResult.ResourceTesting?.ResourceResults is { Count: > 0 } resourceResults)
+        {
+            foreach (var resource in resourceResults)
+            {
+                AddFindingRange(entries, resource.Findings, string.IsNullOrWhiteSpace(resource.ResourceUri) ? resource.ResourceName : resource.ResourceUri);
+            }
+        }
+
+        if (validationResult.PromptTesting?.PromptResults is { Count: > 0 } promptResults)
+        {
+            foreach (var prompt in promptResults)
+            {
+                AddFindingRange(entries, prompt.Findings, prompt.PromptName);
+            }
+        }
+
+        if (validationResult.SecurityTesting?.Vulnerabilities is { Count: > 0 } vulnerabilities)
+        {
+            entries.AddRange(vulnerabilities.Select(CreateSarifEntry));
+        }
+
+        return entries;
+    }
+
+    private static void AddFindingRange(List<SarifEntry> entries, IEnumerable<ValidationFinding>? findings, string defaultComponent)
+    {
+        if (findings == null)
+        {
+            return;
+        }
+
+        foreach (var finding in findings)
+        {
+            entries.Add(CreateSarifEntry(finding, defaultComponent));
+        }
+    }
+
+    private static SarifEntry CreateSarifEntry(ValidationFinding finding, string defaultComponent)
+    {
+        var component = string.IsNullOrWhiteSpace(finding.Component) ? defaultComponent : finding.Component;
+        var properties = new Dictionary<string, object?>
+        {
+            ["source"] = "structured-finding",
+            ["authority"] = finding.EffectiveSourceLabel,
+            ["category"] = finding.Category,
+            ["component"] = component,
+            ["severity"] = finding.Severity.ToString()
+        };
+
+        if (!string.IsNullOrWhiteSpace(finding.Recommendation))
+        {
+            properties["recommendation"] = finding.Recommendation;
+        }
+
+        if (finding.Metadata.Count > 0)
+        {
+            properties["metadata"] = finding.Metadata;
+        }
+
+        return new SarifEntry(
+            RuleId: finding.RuleId,
+            Category: string.IsNullOrWhiteSpace(finding.Category) ? "validation" : finding.Category,
+            Component: component,
+            Level: MapFindingLevel(finding.Severity),
+            Message: finding.Summary,
+            ShortDescription: finding.Summary,
+            FullDescription: finding.Summary,
+            Recommendation: finding.Recommendation,
+            HelpUri: TryGetHelpUri(finding.Metadata),
+            Properties: properties,
+                Source: finding.EffectiveSourceLabel,
+            Fingerprint: $"finding|{finding.RuleId}|{component}|{finding.Summary}");
+    }
+
+    private static SarifEntry CreateSarifEntry(ComplianceViolation violation)
+    {
+        var ruleId = string.IsNullOrWhiteSpace(violation.CheckId)
+            ? BuildFallbackRuleId("MCP.PROTOCOL", violation.Category, violation.Rule, violation.Description)
+            : violation.CheckId;
+
+        var component = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category;
+        var properties = new Dictionary<string, object?>
+        {
+            ["source"] = "protocol-violation",
+            ["authority"] = ValidationRuleSourceClassifier.GetLabel(violation),
+            ["category"] = violation.Category,
+            ["component"] = component,
+            ["severity"] = violation.Severity.ToString(),
+            ["rule"] = violation.Rule
+        };
+
+        if (!string.IsNullOrWhiteSpace(violation.Recommendation))
+        {
+            properties["recommendation"] = violation.Recommendation;
+        }
+
+        if (violation.Context.Count > 0)
+        {
+            properties["context"] = violation.Context.ToDictionary(kvp => kvp.Key, kvp => kvp.Value?.ToString());
+        }
+
+        return new SarifEntry(
+            RuleId: ruleId,
+            Category: string.IsNullOrWhiteSpace(violation.Category) ? "ProtocolCompliance" : violation.Category,
+            Component: component,
+            Level: MapViolationLevel(violation.Severity),
+            Message: violation.Description,
+            ShortDescription: violation.Rule ?? violation.Description,
+            FullDescription: violation.Description,
+            Recommendation: violation.Recommendation,
+            HelpUri: violation.SpecReference,
+            Properties: properties,
+                Source: ValidationRuleSourceClassifier.GetLabel(violation),
+            Fingerprint: $"protocol|{ruleId}|{component}|{violation.Description}");
+    }
+
+    private static SarifEntry CreateSarifEntry(SecurityVulnerability vulnerability)
+    {
+        var ruleId = string.IsNullOrWhiteSpace(vulnerability.Id)
+            ? BuildFallbackRuleId("MCP.SECURITY", vulnerability.Category, vulnerability.Name, vulnerability.AffectedComponent)
+            : vulnerability.Id;
+
+        var component = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent)
+            ? (string.IsNullOrWhiteSpace(vulnerability.Category) ? "security" : vulnerability.Category)
+            : vulnerability.AffectedComponent;
+
+        var properties = new Dictionary<string, object?>
+        {
+            ["source"] = "security-vulnerability",
+            ["authority"] = ValidationRuleSourceClassifier.GetLabel(vulnerability),
+            ["category"] = vulnerability.Category,
+            ["component"] = component,
+            ["severity"] = vulnerability.Severity.ToString(),
+            ["isExploitable"] = vulnerability.IsExploitable
+        };
+
+        if (vulnerability.CvssScore.HasValue)
+        {
+            properties["cvssScore"] = vulnerability.CvssScore.Value;
+        }
+
+        if (!string.IsNullOrWhiteSpace(vulnerability.Remediation))
+        {
+            properties["recommendation"] = vulnerability.Remediation;
+        }
+
+        if (!string.IsNullOrWhiteSpace(vulnerability.ProofOfConcept))
+        {
+            properties["proofOfConcept"] = vulnerability.ProofOfConcept;
+        }
+
+        return new SarifEntry(
+            RuleId: ruleId,
+            Category: string.IsNullOrWhiteSpace(vulnerability.Category) ? "SecurityTesting" : vulnerability.Category,
+            Component: component,
+            Level: MapVulnerabilityLevel(vulnerability.Severity),
+            Message: vulnerability.Description,
+            ShortDescription: vulnerability.Name,
+            FullDescription: vulnerability.Description,
+            Recommendation: vulnerability.Remediation,
+            HelpUri: null,
+            Properties: properties,
+                Source: ValidationRuleSourceClassifier.GetLabel(vulnerability),
+            Fingerprint: $"vuln|{ruleId}|{component}|{vulnerability.Description}");
+    }
+
+    private static string MapFindingLevel(ValidationFindingSeverity severity)
+    {
+        return severity switch
+        {
+            ValidationFindingSeverity.Critical => "error",
+            ValidationFindingSeverity.High => "error",
+            ValidationFindingSeverity.Medium => "warning",
+            ValidationFindingSeverity.Low => "note",
+            _ => "note"
+        };
+    }
+
+    private static string MapViolationLevel(ViolationSeverity severity)
+    {
+        return severity switch
+        {
+            ViolationSeverity.Critical => "error",
+            ViolationSeverity.High => "error",
+            ViolationSeverity.Medium => "warning",
+            ViolationSeverity.Low => "note",
+            _ => "note"
+        };
+    }
+
+    private static string MapVulnerabilityLevel(VulnerabilitySeverity severity)
+    {
+        return severity switch
+        {
+            VulnerabilitySeverity.Critical => "error",
+            VulnerabilitySeverity.High => "error",
+            VulnerabilitySeverity.Medium => "warning",
+            VulnerabilitySeverity.Low => "note",
+            VulnerabilitySeverity.Informational => "note",
+            _ => "note"
+        };
+    }
+
+    private static string[] BuildSarifTags(string source, string category, string component)
+    {
+        var tags = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(source))
+        {
+            tags.Add(source);
+        }
+
+        if (!string.IsNullOrWhiteSpace(category))
+        {
+            tags.Add(category);
+        }
+
+        if (!string.IsNullOrWhiteSpace(component))
+        {
+            tags.Add(component);
+        }
+
+        return tags.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+    }
+
+    private static string? TryGetHelpUri(IReadOnlyDictionary<string, string> metadata)
+    {
+        if (metadata.TryGetValue("specReference", out var specReference) &&
+            Uri.TryCreate(specReference, UriKind.Absolute, out var absoluteUri) &&
+            (absoluteUri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) || absoluteUri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase)))
+        {
+            return absoluteUri.ToString();
+        }
+
+        return null;
+    }
+
+    private static string BuildFallbackRuleId(params string?[] parts)
+    {
+        var normalized = parts
+            .Where(part => !string.IsNullOrWhiteSpace(part))
+            .Select(part => new string(part!
+                .Trim()
+                .ToUpperInvariant()
+                .Select(ch => char.IsLetterOrDigit(ch) ? ch : '_')
+                .ToArray()).Trim('_'))
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+
+        var joined = string.Join('.', normalized);
+        return string.IsNullOrWhiteSpace(joined) ? "MCP.UNKNOWN" : joined;
+    }
+
+    private sealed record SarifEntry(
+        string RuleId,
+        string Category,
+        string Component,
+        string Level,
+        string Message,
+        string ShortDescription,
+        string FullDescription,
+        string? Recommendation,
+        string? HelpUri,
+        Dictionary<string, object?> Properties,
+        string Source,
+        string Fingerprint);
+
+    private static IReadOnlyList<JunitTestCase> BuildJunitTestCases(ValidationResult validationResult)
+    {
+        var testCases = new List<JunitTestCase>
+        {
+            CreateOverallJunitTestCase(validationResult)
+        };
+
+        if (validationResult.PolicyOutcome != null)
+        {
+            testCases.Add(CreatePolicyJunitTestCase(validationResult.PolicyOutcome, validationResult));
+        }
+
+        AddCategoryJunitTestCase(testCases, "protocol-compliance", "Protocol Compliance", validationResult.ProtocolCompliance, BuildProtocolDetails(validationResult.ProtocolCompliance));
+        AddCategoryJunitTestCase(testCases, "tool-validation", "Tool Validation", validationResult.ToolValidation, BuildToolDetails(validationResult.ToolValidation));
+        AddCategoryJunitTestCase(testCases, "resource-testing", "Resource Testing", validationResult.ResourceTesting, BuildResourceDetails(validationResult.ResourceTesting));
+        AddCategoryJunitTestCase(testCases, "prompt-testing", "Prompt Testing", validationResult.PromptTesting, BuildPromptDetails(validationResult.PromptTesting));
+        AddCategoryJunitTestCase(testCases, "security-testing", "Security Testing", validationResult.SecurityTesting, BuildSecurityDetails(validationResult.SecurityTesting));
+        AddCategoryJunitTestCase(testCases, "performance-testing", "Performance Testing", validationResult.PerformanceTesting, BuildPerformanceDetails(validationResult.PerformanceTesting));
+        AddCategoryJunitTestCase(testCases, "error-handling", "Error Handling", validationResult.ErrorHandling, BuildErrorHandlingDetails(validationResult.ErrorHandling));
+
+        return testCases;
+    }
+
+    private static JunitTestCase CreateOverallJunitTestCase(ValidationResult validationResult)
+    {
+        var details = new List<string>
+        {
+            $"Compliance Score: {validationResult.ComplianceScore:F1}%",
+            $"Summary: total={validationResult.Summary.TotalTests}, passed={validationResult.Summary.PassedTests}, failed={validationResult.Summary.FailedTests}, skipped={validationResult.Summary.SkippedTests}",
+            $"Endpoint: {validationResult.ServerConfig.Endpoint}",
+            $"Transport: {validationResult.ServerConfig.Transport}"
+        };
+
+        if (validationResult.CriticalErrors.Count > 0)
+        {
+            details.AddRange(validationResult.CriticalErrors.Select(error => $"Critical Error: {error}"));
+        }
+
+        if (validationResult.Recommendations.Count > 0)
+        {
+            details.AddRange(validationResult.Recommendations.Select(recommendation => $"Recommendation: {recommendation}"));
+        }
+
+        return CreateJunitTestCase(
+            suiteName: "overall-validation",
+            className: "validation.overall",
+            name: "Overall Validation Run",
+            status: MapValidationStatus(validationResult.OverallStatus),
+            duration: validationResult.Duration ?? TimeSpan.Zero,
+            message: $"Overall status: {validationResult.OverallStatus}",
+            details: string.Join(Environment.NewLine, details));
+    }
+
+    private static JunitTestCase CreatePolicyJunitTestCase(ValidationPolicyOutcome policyOutcome, ValidationResult validationResult)
+    {
+        var details = new List<string>
+        {
+            policyOutcome.Summary,
+            $"Recommended Exit Code: {policyOutcome.RecommendedExitCode}",
+            $"Suppressed Signals: {policyOutcome.SuppressedSignalCount}"
+        };
+
+        if (policyOutcome.Reasons.Count > 0)
+        {
+            details.AddRange(policyOutcome.Reasons.Select(reason => $"Reason: {reason}"));
+        }
+
+        if (policyOutcome.AppliedSuppressions.Count > 0)
+        {
+            details.AddRange(policyOutcome.AppliedSuppressions.Select(suppression => $"Applied Suppression: {suppression.Id} by {suppression.Owner} ({suppression.MatchedSignalCount} signal(s))"));
+        }
+
+        if (policyOutcome.IgnoredSuppressions.Count > 0)
+        {
+            details.AddRange(policyOutcome.IgnoredSuppressions.Select(suppression => $"Ignored Suppression: {suppression.Id} - {suppression.Reason}"));
+        }
+
+        return CreateJunitTestCase(
+            suiteName: "host-policy",
+            className: "validation.policy",
+            name: $"Policy Gate ({policyOutcome.Mode})",
+            status: policyOutcome.Passed ? TestStatus.Passed : TestStatus.Failed,
+            duration: validationResult.Duration ?? TimeSpan.Zero,
+            message: policyOutcome.Summary,
+            details: string.Join(Environment.NewLine, details));
+    }
+
+    private static void AddCategoryJunitTestCase(
+        ICollection<JunitTestCase> testCases,
+        string suiteName,
+        string name,
+        TestResultBase? result,
+        string? details)
+    {
+        if (result == null)
+        {
+            return;
+        }
+
+        testCases.Add(CreateJunitTestCase(
+            suiteName: suiteName,
+            className: $"validation.{suiteName.Replace('-', '.')}",
+            name: name,
+            status: result.Status,
+            duration: result.Duration,
+            message: result.Message ?? $"{name} finished with status {result.Status}.",
+            details: details));
+    }
+
+    private static JunitTestCase CreateJunitTestCase(
+        string suiteName,
+        string className,
+        string name,
+        TestStatus status,
+        TimeSpan duration,
+        string message,
+        string? details)
+    {
+        var normalizedDetails = string.IsNullOrWhiteSpace(details) ? null : details.Trim();
+        return status switch
+        {
+            TestStatus.Passed => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Passed, message, null, normalizedDetails),
+            TestStatus.Skipped => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Skipped, message, normalizedDetails, normalizedDetails),
+            TestStatus.Error or TestStatus.Cancelled or TestStatus.InProgress => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Error, message, normalizedDetails, normalizedDetails),
+            _ => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Failure, message, normalizedDetails, normalizedDetails)
+        };
+    }
+
+    private static TestStatus MapValidationStatus(ValidationStatus status)
+    {
+        return status switch
+        {
+            ValidationStatus.Passed => TestStatus.Passed,
+            ValidationStatus.Failed => TestStatus.Failed,
+            _ => TestStatus.Error
+        };
+    }
+
+    private static string? BuildProtocolDetails(ComplianceTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result, $"Compliance Score: {result.ComplianceScore:F1}%");
+        lines.AddRange(result.Violations.Select(violation => $"Violation [{violation.Severity}] {violation.CheckId ?? violation.Rule}: {violation.Description}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildToolDetails(ToolTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result,
+            $"Score: {result.Score:F1}%",
+            $"Tools Discovered: {result.ToolsDiscovered}",
+            $"Tool Pass Count: {result.ToolsTestPassed}",
+            $"Tool Fail Count: {result.ToolsTestFailed}");
+        lines.AddRange(result.ToolResults.Select(tool => $"Tool {tool.ToolName}: {tool.Status}"));
+        lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildResourceDetails(ResourceTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result,
+            $"Resources Discovered: {result.ResourcesDiscovered}",
+            $"Resources Accessible: {result.ResourcesAccessible}",
+            $"Resources Failed: {result.ResourcesTestFailed}");
+        lines.AddRange(result.ResourceResults.Select(resource => $"Resource {resource.ResourceName ?? resource.ResourceUri}: {resource.Status}"));
+        lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildPromptDetails(PromptTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result,
+            $"Prompts Discovered: {result.PromptsDiscovered}",
+            $"Prompts Passed: {result.PromptsTestPassed}",
+            $"Prompts Failed: {result.PromptsTestFailed}");
+        lines.AddRange(result.PromptResults.Select(prompt => $"Prompt {prompt.PromptName}: {prompt.Status}"));
+        lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildSecurityDetails(SecurityTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result, $"Security Score: {result.SecurityScore:F1}%");
+        lines.AddRange(result.Vulnerabilities.Select(vulnerability => $"Vulnerability [{vulnerability.Severity}] {vulnerability.Id}: {vulnerability.Description}"));
+        lines.AddRange(result.SecurityRecommendations.Select(recommendation => $"Recommendation: {recommendation}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildPerformanceDetails(PerformanceTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result,
+            $"Average Latency Ms: {result.LoadTesting.AverageResponseTimeMs:F2}",
+            $"P95 Latency Ms: {result.LoadTesting.P95ResponseTimeMs:F2}",
+            $"Requests Per Second: {result.LoadTesting.RequestsPerSecond:F2}",
+            $"Error Rate: {result.LoadTesting.ErrorRate:F2}");
+        lines.AddRange(result.PerformanceBottlenecks.Select(bottleneck => $"Bottleneck: {bottleneck}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static string? BuildErrorHandlingDetails(ErrorHandlingTestResult? result)
+    {
+        if (result == null)
+        {
+            return null;
+        }
+
+        var lines = BuildCommonDetailLines(result,
+            $"Error Scenarios Tested: {result.ErrorScenariosTestCount}",
+            $"Error Scenarios Handled Correctly: {result.ErrorScenariosHandledCorrectly}");
+        lines.AddRange(result.ErrorScenarioResults.Select(error =>
+            $"Scenario {error.ScenarioName}: {(error.HandledCorrectly ? "Handled correctly" : "Handling failed")}"));
+        return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
+    }
+
+    private static List<string> BuildCommonDetailLines(TestResultBase result, params string[] additionalLines)
+    {
+        var lines = new List<string>();
+        if (!string.IsNullOrWhiteSpace(result.Message))
+        {
+            lines.Add($"Message: {result.Message}");
+        }
+
+        lines.AddRange(additionalLines.Where(line => !string.IsNullOrWhiteSpace(line)));
+        lines.AddRange(result.CriticalErrors.Select(error => $"Critical Error: {error}"));
+        lines.AddRange(result.Findings.Select(finding => $"Finding [{finding.EffectiveSourceLabel}/{finding.Severity}] {finding.RuleId}: {finding.Summary}"));
+        return lines;
+    }
+
+    private enum JunitOutcome
+    {
+        Passed,
+        Failure,
+        Error,
+        Skipped
+    }
+
+    private sealed record JunitTestCase(
+        string SuiteName,
+        string ClassName,
+        string Name,
+        double TimeSeconds,
+        JunitOutcome Outcome,
+        string Message,
+        string? Details,
+        string? SystemOut);
 }

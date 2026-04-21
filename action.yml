@@ -1,0 +1,153 @@
+name: MCP Validator
+description: Validate an MCP server from GitHub Actions and publish summary plus workflow annotations.
+
+inputs:
+  server:
+    description: MCP server endpoint or STDIO command.
+    required: false
+  config-file:
+    description: Optional path to a validation config file.
+    required: false
+  access:
+    description: Access profile passed to mcpval.
+    required: false
+    default: public
+  token:
+    description: Optional bearer token for authenticated servers.
+    required: false
+  interactive:
+    description: Whether to allow interactive authentication.
+    required: false
+    default: "false"
+  output-dir:
+    description: Directory where validation artifacts will be written.
+    required: false
+    default: ./mcp-validation-results
+  mcpspec:
+    description: Optional MCP spec profile.
+    required: false
+  policy:
+    description: Validation policy mode.
+    required: false
+    default: balanced
+  max-concurrency:
+    description: Optional max in-flight request count.
+    required: false
+  version:
+    description: Optional McpVal NuGet version to install. Defaults to latest published version.
+    required: false
+  github-summary:
+    description: Emit GitHub step summary markdown.
+    required: false
+    default: "true"
+  github-annotations:
+    description: Emit GitHub workflow error, warning, and notice annotations.
+    required: false
+    default: "true"
+  upload-artifacts:
+    description: Upload the output directory as a workflow artifact.
+    required: false
+    default: "true"
+  artifact-name:
+    description: Artifact name used when uploading results.
+    required: false
+    default: mcpval-results
+  extra-args:
+    description: Additional raw arguments appended to the validate command.
+    required: false
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Install McpVal
+      shell: bash
+      run: |
+        set -euo pipefail
+        tool_path="$RUNNER_TEMP/mcpval-tool"
+        mkdir -p "$tool_path"
+
+        if [[ -n "${{ inputs.version }}" ]]; then
+          dotnet tool install --tool-path "$tool_path" McpVal --version "${{ inputs.version }}"
+        else
+          dotnet tool install --tool-path "$tool_path" McpVal
+        fi
+
+        echo "$tool_path" >> "$GITHUB_PATH"
+
+    - name: Run MCP validation
+      shell: bash
+      env:
+        INPUT_SERVER: ${{ inputs.server }}
+        INPUT_CONFIG_FILE: ${{ inputs.config-file }}
+        INPUT_ACCESS: ${{ inputs.access }}
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_INTERACTIVE: ${{ inputs.interactive }}
+        INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
+        INPUT_MCPSPEC: ${{ inputs.mcpspec }}
+        INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
+        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        MCPVAL_GITHUB_SUMMARY: ${{ inputs.github-summary }}
+        MCPVAL_GITHUB_ANNOTATIONS: ${{ inputs.github-annotations }}
+      run: |
+        set -euo pipefail
+
+        if [[ -z "$INPUT_SERVER" && -z "$INPUT_CONFIG_FILE" ]]; then
+          echo "Either 'server' or 'config-file' must be provided." >&2
+          exit 1
+        fi
+
+        mkdir -p "$INPUT_OUTPUT_DIR"
+
+        cmd=(mcpval validate --output "$INPUT_OUTPUT_DIR" --policy "$INPUT_POLICY")
+
+        if [[ -n "$INPUT_SERVER" ]]; then
+          cmd+=(--server "$INPUT_SERVER")
+        fi
+
+        if [[ -n "$INPUT_CONFIG_FILE" ]]; then
+          cmd+=(--config "$INPUT_CONFIG_FILE")
+        fi
+
+        if [[ -n "$INPUT_ACCESS" ]]; then
+          cmd+=(--access "$INPUT_ACCESS")
+        fi
+
+        if [[ -n "$INPUT_TOKEN" ]]; then
+          cmd+=(--token "$INPUT_TOKEN")
+        fi
+
+        if [[ "$INPUT_INTERACTIVE" == "true" ]]; then
+          cmd+=(--interactive)
+        fi
+
+        if [[ -n "$INPUT_MCPSPEC" ]]; then
+          cmd+=(--mcpspec "$INPUT_MCPSPEC")
+        fi
+
+        if [[ -n "$INPUT_MAX_CONCURRENCY" ]]; then
+          cmd+=(--max-concurrency "$INPUT_MAX_CONCURRENCY")
+        fi
+
+        if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
+          read -r -a extra_args <<< "$INPUT_EXTRA_ARGS"
+          cmd+=("${extra_args[@]}")
+        fi
+
+        printf 'Running:'
+        printf ' %q' "${cmd[@]}"
+        printf '\n'
+
+        "${cmd[@]}"
+
+    - name: Upload validation artifacts
+      if: ${{ inputs.upload-artifacts == 'true' && inputs.output-dir != '' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.artifact-name }}
+        path: ${{ inputs.output-dir }}

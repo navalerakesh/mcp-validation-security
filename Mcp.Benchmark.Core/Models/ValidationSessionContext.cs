@@ -32,6 +32,11 @@ public sealed class ValidationSessionContext
     public TransportResult<InitializeResult>? InitializationHandshake { get; set; }
 
     /// <summary>
+    /// Calibrated bootstrap health outcome captured before validators run.
+    /// </summary>
+    public HealthCheckResult? BootstrapHealth { get; set; }
+
+    /// <summary>
     /// Capability snapshot captured up-front so tool/resource/prompt validators can share the same data.
     /// </summary>
     public TransportResult<CapabilitySummary>? CapabilitySnapshot { get; set; }

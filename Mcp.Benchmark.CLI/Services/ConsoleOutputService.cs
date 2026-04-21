@@ -102,9 +102,23 @@ public class ConsoleOutputService : IConsoleOutputService
     {
         Console.WriteLine();
 
+        var statusLabel = GetHealthStatusLabel(result);
+
         if (result.IsHealthy)
         {
             WriteSuccess("Server is healthy");
+        }
+        else if (result.Disposition == HealthCheckDisposition.Protected)
+        {
+            WriteWarning("Server is reachable but protected");
+        }
+        else if (result.Disposition == HealthCheckDisposition.TransientFailure)
+        {
+            WriteWarning("Health check encountered transient capacity or transport constraints");
+        }
+        else if (result.Disposition == HealthCheckDisposition.Inconclusive)
+        {
+            WriteWarning("Server responded, but the health handshake was inconclusive");
         }
         else
         {
@@ -113,7 +127,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
         Console.WriteLine();
         WriteHeader("Health Check Results");
-        WriteInfo($"Status: {(result.IsHealthy ? "Healthy" : "Unhealthy")}");
+        WriteInfo($"Status: {statusLabel}");
         WriteInfo($"Response Time: {result.ResponseTimeMs:F1}ms");
         WriteInfo($"Total Check Time: {totalTime.TotalMilliseconds:F1}ms");
 
@@ -181,6 +195,19 @@ public class ConsoleOutputService : IConsoleOutputService
         }
 
         Console.WriteLine();
+    }
+
+    private static string GetHealthStatusLabel(HealthCheckResult result)
+    {
+        return result.Disposition switch
+        {
+            HealthCheckDisposition.Healthy => "Healthy",
+            HealthCheckDisposition.Protected => "Reachable (Protected)",
+            HealthCheckDisposition.TransientFailure => "Transient Failure",
+            HealthCheckDisposition.Inconclusive => "Inconclusive",
+            HealthCheckDisposition.Unhealthy => "Unhealthy",
+            _ => result.IsHealthy ? "Healthy" : "Unhealthy"
+        };
     }
 
     public void WriteHeader(string title, ConsoleColor color = ConsoleColor.Cyan)

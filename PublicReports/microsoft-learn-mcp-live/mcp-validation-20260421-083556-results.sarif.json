@@ -1,0 +1,798 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "logging/setLevel"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+              "name": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+              },
+              "help": {
+                "text": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "microsoft_docs_search"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "name": "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+              },
+              "help": {
+                "text": "Constrain string parameters with enum, pattern, or format metadata when possible."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "microsoft_docs_search"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "name": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+              },
+              "help": {
+                "text": "Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "microsoft_code_sample_search"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+              "name": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+              },
+              "help": {
+                "text": "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "microsoft_docs_fetch"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "shortDescription": {
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+              },
+              "help": {
+                "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "tools/list"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-ERR",
+              "name": "MCP-PROTO-ERR",
+              "shortDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "fullDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "help": null,
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-JSONRPC",
+              "name": "MCP-PROTO-JSONRPC",
+              "shortDescription": {
+                "text": "Batch processing implementation is inconsistent or incomplete"
+              },
+              "fullDescription": {
+                "text": "Batch processing implementation is inconsistent or incomplete"
+              },
+              "help": null,
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            },
+            {
+              "id": "MCP.TOOL.CALL.ISERROR_MISSING",
+              "name": "MCP.TOOL.CALL.ISERROR_MISSING",
+              "shortDescription": {
+                "text": "tools/call result.isError field not present"
+              },
+              "fullDescription": {
+                "text": "tools/call result.isError field not present"
+              },
+              "help": {
+                "text": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "spec",
+                "category": "ProtocolCompliance",
+                "tags": [
+                  "spec",
+                  "ProtocolCompliance",
+                  "microsoft_docs_search"
+                ]
+              }
+            },
+            {
+              "id": "MCP-SEC-002",
+              "name": "MCP-SEC-002",
+              "shortDescription": {
+                "text": "Metadata Enumeration"
+              },
+              "fullDescription": {
+                "text": "Potential enumeration: Different HTTP status codes for random vs common resources."
+              },
+              "help": {
+                "text": "Review MCP implementation against security best practices."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "Data Leakage",
+                "tags": [
+                  "heuristic",
+                  "Data Leakage",
+                  "MCP Protocol/Tooling"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "8d2a92ab-32bd-4915-9388-835c6638b439",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-04-21T08:35:35.1199490Z",
+          "endTimeUtc": "2026-04-21T08:35:56.1591360Z",
+          "properties": {
+            "validationId": "8d2a92ab-32bd-4915-9388-835c6638b439",
+            "endpoint": "https://learn.microsoft.com/api/mcp",
+            "transport": "http",
+            "overallStatus": "Passed",
+            "serverProfile": "Public",
+            "specProfile": "latest"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED|logging/setLevel|Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "logging/setLevel"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "logging/setLevel",
+            "severity": "Info",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "logging",
+              "method": "logging/setLevel",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_docs_search|Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "microsoft_docs_search",
+            "severity": "Low",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_code_sample_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_code_sample_search|Tool \u0027microsoft_code_sample_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "microsoft_code_sample_search",
+            "severity": "Low",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_fetch\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_docs_fetch|Tool \u0027microsoft_docs_fetch\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "microsoft_docs_fetch",
+            "severity": "Low",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_search\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING|microsoft_docs_search|Tool \u0027microsoft_docs_search\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "microsoft_docs_search",
+            "severity": "Medium",
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_code_sample_search\u0027: 2/2 string parameters have no enum/pattern/format constraint"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING|microsoft_code_sample_search|Tool \u0027microsoft_code_sample_search\u0027: 2/2 string parameters have no enum/pattern/format constraint"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "microsoft_code_sample_search",
+            "severity": "Medium",
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING|microsoft_code_sample_search|Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "microsoft_code_sample_search",
+            "severity": "Low",
+            "recommendation": "Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING|microsoft_docs_fetch|Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters have no enum/pattern/format constraint"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "microsoft_docs_fetch",
+            "severity": "Medium",
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.FORMAT_HINT_MISSING|microsoft_docs_fetch|Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "microsoft_docs_fetch",
+            "severity": "Low",
+            "recommendation": "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": "Info",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "metadata": {
+              "requests": "500",
+              "concurrency": "100",
+              "operation": "tools/list"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Parse Error"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Parse Error"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "Low",
+            "rule": null
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "Low",
+            "rule": null
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "Low",
+            "rule": null
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-JSONRPC",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Batch processing implementation is inconsistent or incomplete"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Batch processing implementation is inconsistent or incomplete"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "Medium",
+            "rule": null
+          }
+        },
+        {
+          "ruleId": "MCP.TOOL.CALL.ISERROR_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "tools/call result.isError field not present"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.TOOL.CALL.ISERROR_MISSING|microsoft_docs_search|tools/call result.isError field not present"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "ProtocolCompliance",
+            "component": "microsoft_docs_search",
+            "severity": "Low",
+            "recommendation": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
+          }
+        },
+        {
+          "ruleId": "MCP.TOOL.CALL.ISERROR_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "tools/call result.isError field not present"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.TOOL.CALL.ISERROR_MISSING|microsoft_code_sample_search|tools/call result.isError field not present"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "ProtocolCompliance",
+            "component": "microsoft_code_sample_search",
+            "severity": "Low",
+            "recommendation": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
+          }
+        },
+        {
+          "ruleId": "MCP.TOOL.CALL.ISERROR_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "tools/call result.isError field not present"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.TOOL.CALL.ISERROR_MISSING|microsoft_docs_fetch|tools/call result.isError field not present"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "ProtocolCompliance",
+            "component": "microsoft_docs_fetch",
+            "severity": "Low",
+            "recommendation": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
+          }
+        },
+        {
+          "ruleId": "MCP-SEC-002",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Potential enumeration: Different HTTP status codes for random vs common resources."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "vuln|MCP-SEC-002|MCP Protocol/Tooling|Potential enumeration: Different HTTP status codes for random vs common resources."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "MCP Protocol/Tooling"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "security-vulnerability",
+            "authority": "heuristic",
+            "category": "Data Leakage",
+            "component": "MCP Protocol/Tooling",
+            "severity": "High",
+            "isExploitable": true,
+            "recommendation": "Review MCP implementation against security best practices."
+          }
+        }
+      ]
+    }
+  ]
+}

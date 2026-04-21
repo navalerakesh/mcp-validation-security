@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
@@ -46,9 +47,7 @@ public class SdkMcpClient : IMcpClient
     {
         if (serverConfig == null) throw new ArgumentNullException(nameof(serverConfig));
 
-        var effectiveProtocolVersion = string.IsNullOrWhiteSpace(protocolVersion)
-            ? "2025-03-26"
-            : protocolVersion;
+        var effectiveProtocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
 
         _logger.LogInformation("Performing MCP initialize handshake for {Endpoint}", serverConfig.Endpoint);
 

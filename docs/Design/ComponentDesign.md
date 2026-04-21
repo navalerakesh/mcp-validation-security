@@ -1,98 +1,81 @@
-# MCP Benchmark – Component Design
+# MCP Validator Component Design
 
-This document shows how the main building blocks of MCP Benchmark fit together: the CLI entry point, orchestration services, HTTP client abstraction, and validators.
+This document focuses on the runtime components, their responsibilities, and how control flows between them during validation and reporting runs.
 
-The goal is to make it easy to understand "who talks to whom" without diving into every file in the repo.
-
-## High-Level Components
+## Component Map
 
 ```mermaid
-classDiagram
-    class Program {
-        +Main(args)
-        +BuildCommandLine()
-    }
+flowchart LR
+    subgraph Host[CLI host]
+        Program[Program and DI bootstrap]
+        Commands[Validate, health-check, discover, report commands]
+        Console[Console output and next-step guidance]
+    end
 
-    class ValidateCommand {
-        +InvokeAsync()
-    }
+    subgraph Orchestration[Execution orchestration]
+        Session[ValidationSessionBuilder]
+        Service[McpValidatorService]
+    end
 
-    class ReportCommand {
-        +InvokeAsync()
-    }
+    subgraph Engines[Infrastructure engines]
+        Transport[Transport clients]
+        Auth[Authentication strategies]
+        Validators[Validation engines]
+        Scoring[Trust, policy, and report generation]
+    end
 
-    class IMcpValidatorService {
-        +ValidateServerAsync(config)
-    }
+    subgraph Interpretation[Host interpretation]
+        Profiles[Client profile evaluator]
+    end
 
-    class McpValidatorService {
-        +ValidateServerAsync(config)
-    }
+    subgraph Assets[Shared assets]
+        Core[Core models and contracts]
+        Schemas[Schema registry]
+    end
 
-    class IValidationSessionBuilder {
-        +BuildAsync(config)
-    }
+    Target[(Target MCP server)]
+    Artifacts[(Artifacts and session data)]
 
-    class ValidationSessionBuilder {
-        +BuildAsync(config)
-    }
-
-    class IMcpHttpClient {
-        +SendRequestAsync(request)
-    }
-
-    class McpHttpClient {
-        +SendRequestAsync(request)
-    }
-
-    class IValidator {
-        +ValidateAsync(context)
-    }
-
-    class ProtocolComplianceValidator
-    class SecurityValidator
-    class ToolValidator
-    class ResourceValidator
-    class PromptValidator
-    class PerformanceValidator
-
-    class IAggregateScoringStrategy {
-        +Aggregate(results)
-    }
-
-    Program --> ValidateCommand
-    Program --> ReportCommand
-
-    ValidateCommand --> IMcpValidatorService
-    ReportCommand --> IMcpValidatorService
-
-    IMcpValidatorService <|.. McpValidatorService
-
-    McpValidatorService --> IValidationSessionBuilder
-    IValidationSessionBuilder <|.. ValidationSessionBuilder
-
-    ValidationSessionBuilder --> IMcpHttpClient
-    IMcpHttpClient <|.. McpHttpClient
-
-    McpValidatorService --> IValidator
-    IValidator <|.. ProtocolComplianceValidator
-    IValidator <|.. SecurityValidator
-    IValidator <|.. ToolValidator
-    IValidator <|.. ResourceValidator
-    IValidator <|.. PromptValidator
-    IValidator <|.. PerformanceValidator
-
-    McpValidatorService --> IAggregateScoringStrategy
+    Program --> Commands
+    Commands --> Session
+    Commands --> Console
+    Session --> Auth
+    Session --> Transport
+    Session --> Service
+    Transport --> Target
+    Service --> Validators
+    Schemas --> Validators
+    Core --> Session
+    Core --> Service
+    Validators --> Scoring
+    Scoring --> Profiles
+    Scoring --> Artifacts
+    Profiles --> Artifacts
 ```
 
-## How to Read This Diagram
+## Responsibility Matrix
 
-- **Program** is the CLI composition root. It wires up dependency injection and registers commands such as `ValidateCommand` and `ReportCommand`.
-- **ValidateCommand** and **ReportCommand** are thin shells. They parse arguments and delegate work to **IMcpValidatorService**, keeping business logic out of the CLI layer.
-- **McpValidatorService** is the main orchestrator. It builds a validation session, runs validators, and uses **IAggregateScoringStrategy** to turn raw findings into scores.
-- **ValidationSessionBuilder** prepares a shared **ValidationSessionContext** (not shown) using **IMcpHttpClient** to talk to the target MCP server and discover capabilities.
-- **IMcpHttpClient** and **McpHttpClient** abstract HTTP and JSON-RPC details so validators do not depend on a specific transport implementation.
-- **Validators** (protocol, security, tools, resources, prompts, performance) all implement the common **IValidator** interface and operate over the shared session context.
-- **IAggregateScoringStrategy** is pluggable, so you can change how scores are aggregated without changing validators.
+| Component | Owns | Does not own |
+| --- | --- | --- |
+| `Program` and DI bootstrap | Service registration, command wiring, startup composition | Validation logic, rule decisions |
+| Command handlers | Translate CLI input into config, call shared services, choose output paths | Transport implementation, scoring logic, client-profile rules |
+| `ValidationSessionBuilder` | Transport detection, bootstrap state, auth preparation, shared session context | Report rendering, CLI formatting |
+| `McpValidatorService` | Validator orchestration, result assembly, category coordination | Argument parsing, host-specific presentation |
+| Validators | Category-specific evidence collection and rule evaluation | Policy thresholds, client-specific compatibility mapping |
+| Trust and policy layers | Convert neutral evidence into trust level and exit behavior | Raw evidence collection |
+| Client profile evaluator | Interpret completed evidence against documented host expectations | Network calls or validator execution |
+| Report renderers | Produce Markdown, HTML, XML, SARIF, and JUnit from saved results | Live validation or transport activity |
 
-This structure keeps responsibilities focused and testable: commands are small, orchestration is centralized, transports are abstracted, and validators are pluggable units that can evolve as the MCP spec and best practices change.
+## Interaction Notes
+
+- `validate` and `health-check` share the same bootstrap concepts even though they produce different depths of evidence.
+- The canonical record of a run is the saved JSON result. Human-facing reports are renderings of that evidence.
+- Client profile interpretation is additive. It explains host compatibility without changing the evidence model that validators produced.
+- `report` is intentionally offline. It reads saved artifacts instead of contacting the target again.
+
+## Change Guidance
+
+- Add a new validator when you need new evidence collection or new rule coverage.
+- Add a new client profile when a host has documented compatibility expectations that can be derived from existing evidence.
+- Add a new report format in the shared reporting layer, then expose it through the CLI host.
+- Add a new transport behavior in infrastructure, not by branching command handlers.

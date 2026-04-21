@@ -1,10 +1,8 @@
-# MCP Schemas Folder
+# Embedded MCP Schemas
 
-This folder is the canonical home for versioned MCP JSON Schemas used by `Mcp.Compliance.Spec`.
+This folder is the canonical home for the versioned MCP JSON Schemas embedded by `Mcp.Compliance.Spec`.
 
 ## Layout
-
-Expected structure:
 
 ```text
 schema/
@@ -29,28 +27,39 @@ schema/
     prompts/
     logging/
     completions/
+  2025-11-25/
+    protocol/
+    tools/
+    resources/
+    prompts/
+    logging/
+    completions/
 ```
 
-All `*.json` files placed under `schema/**` are embedded as resources and automatically discovered by `EmbeddedSchemaRegistry`.
+All `*.json` files under `schema/**` are embedded as resources and discovered automatically by `EmbeddedSchemaRegistry`.
 
-## Source of Official Schemas
+## Source Of Truth
 
-For each supported protocol version, this project vendors the official MCP
-JSON Schema bundle from the MCP specification repository:
+For each supported protocol version, this project vendors the official JSON Schema bundle from the upstream MCP specification repository:
 
 - Repository: `modelcontextprotocol/modelcontextprotocol`
-- Path per version: `schema/<version>/schema.json`
+- Canonical source path: `schema/<version>/schema.json`
 
-These bundles are placed under:
+These assets are copied into the versioned folder structure used by this repository, primarily under `schema/<version>/protocol/schema.json`, along with the supporting area-specific files needed by validators.
 
-- `schema/<version>/protocol/schema.json`
+## Registry Behavior
 
-On build, the `EmbeddedSchemaRegistry` will:
+At build and runtime, `EmbeddedSchemaRegistry`:
 
-- Discover all embedded `*.json` resources under `schema/`.
-- Map each resource to `(protocolVersion, area, name)` based on its folder path.
-- Serve them via `ISchemaRegistry.GetSchema` and `ListSchemas`.
+- Discovers embedded `*.json` resources under `schema/`
+- Maps each resource to `(protocolVersion, area, name)` using its folder path
+- Serves deterministic streams through `ISchemaRegistry.GetSchema` and `ListSchemas`
 
-This ensures the validator uses **authentic upstream schemas** from the
-official MCP specification while keeping this repository deterministic and
-avoiding runtime network fetches.
+This design keeps validation runs offline, reproducible, and independent of network access to upstream specification repositories.
+
+## Rules For Adding A Version
+
+- Create a complete `schema/<version>/` directory rather than mutating older version folders.
+- Keep folder names aligned with the protocol version string.
+- Register the version in `ProtocolVersions` and expose it through the CLI profile catalog.
+- Add tests that prove the new assets are embedded and resolvable through the registry.

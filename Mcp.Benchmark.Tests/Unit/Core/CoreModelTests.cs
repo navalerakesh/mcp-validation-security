@@ -42,6 +42,63 @@ public class CoreModelTests
         clone.ServerConfig.Authentication!.Token.Should().NotBe("secret");
     }
 
+    [Fact]
+    public void ValidationResult_CloneWithoutSecrets_ShouldPreserveClientCompatibility()
+    {
+        var result = new ValidationResult
+        {
+            ClientCompatibility = new ClientCompatibilityReport
+            {
+                RequestedProfiles = new List<string> { "claude-code" },
+                Assessments = new List<ClientProfileAssessment>
+                {
+                    new()
+                    {
+                        ProfileId = "claude-code",
+                        DisplayName = "Claude Code",
+                        Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
+                        Summary = "Required checks passed, with 1 advisory gap."
+                    }
+                }
+            },
+            ServerConfig = new McpServerConfig
+            {
+                Endpoint = "test",
+                Authentication = new AuthenticationConfig { Token = "secret" }
+            }
+        };
+
+        var clone = result.CloneWithoutSecrets();
+
+        clone.ClientCompatibility.Should().NotBeNull();
+        clone.ClientCompatibility!.Assessments.Should().ContainSingle();
+        clone.ClientCompatibility.Assessments[0].ProfileId.Should().Be("claude-code");
+        clone.ServerConfig.Authentication!.Token.Should().NotBe("secret");
+    }
+
+    [Fact]
+    public void McpValidatorConfiguration_CloneWithoutSecrets_ShouldPreserveClientProfiles()
+    {
+        var configuration = new McpValidatorConfiguration
+        {
+            ClientProfiles = new ClientProfileOptions
+            {
+                Profiles = new List<string> { "claude-code", "github-copilot-cli" }
+            },
+            Server = new McpServerConfig
+            {
+                Endpoint = "https://test.com",
+                Authentication = new AuthenticationConfig { Token = "secret" }
+            }
+        };
+
+        var clone = configuration.CloneWithoutSecrets();
+
+        clone.ClientProfiles.Should().NotBeNull();
+        clone.ClientProfiles!.Profiles.Should().Equal("claude-code", "github-copilot-cli");
+        clone.Server.Authentication!.Token.Should().NotBe("secret");
+    }
+
     // ─── McpServerConfig ──────────────────────────────────────────
     [Fact]
     public void McpServerConfig_CloneWithoutSecrets_ShouldRedactAuthHeaders()

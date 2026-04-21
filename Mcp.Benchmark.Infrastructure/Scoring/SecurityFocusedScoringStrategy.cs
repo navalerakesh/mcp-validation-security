@@ -1,12 +1,14 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Scoring;
 
 /// <summary>
 /// Implements a scoring strategy that prioritizes security and protocol compliance.
-/// Uses a rule-based engine to distinguish between critical security breaches and protocol violations.
+/// Score is descriptive; blocking status is reserved for true protocol MUST failures,
+/// critical vulnerabilities, or exploitable unauthorized access.
 /// </summary>
 public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
 {
@@ -93,67 +95,77 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
     {
         _rules = new List<ScoringRule>
         {
-            // 1. CRITICAL: Data Breach (Unauthorized Access)
-            // If a test that expects rejection (e.g. "No Auth") gets a 200 OK, it's a breach.
+            // 1. BLOCKER: Unauthorized success on sensitive protected operations.
             new ScoringRule(
-                "Security Breach",
-                r => r.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Any(s => 
-                    s.TestType != "Valid Token" && 
-                    (s.StatusCode == "200" || s.StatusCode.StartsWith("2"))) == true,
+                "Blocking Authentication Exposure",
+                r => r.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Any(s =>
+                    ValidationCalibration.IsBlockingAuthenticationFailure(s, r.ServerProfile)) == true,
                 (ctx, r) =>
                 {
-                    if (RequiresStrictAuthentication(r))
-                    {
-                        ctx.Score = 0;
-                        ctx.IsCriticalFailure = true;
-                        ctx.Notes.Add($"CRITICAL: Security Breach - Unauthorized access allowed (HTTP 200 OK) for {r.ServerProfile} profile.");
-                    }
-                    else
-                    {
-                        ctx.Notes.Add("INFO: Security breach scenario observed but treated as informational for non-authenticated profile.");
-                    }
+                    ctx.HasBlockingFailure = true;
+                    ctx.Score = Math.Min(ctx.Score, 20);
+                    ctx.Notes.Add($"BLOCKER: Unauthorized success was observed on a sensitive operation for the {r.ServerProfile} profile.");
                 }
             ),
 
-            // 2. CRITICAL: High Severity Vulnerabilities
-            // For strict profiles (Authenticated/Enterprise), treat High+ as critical.
-            // For public/anonymous profiles, only Critical vulns are treated as hard-fail;
-            // High severity issues are reflected in the SecurityScore but do not zero the overall score.
+            // 2. BLOCKER: Critical vulnerabilities.
             new ScoringRule(
                 "Critical Vulnerabilities",
-                r => r.SecurityTesting?.Vulnerabilities.Any(v =>
-                        v.Severity >= VulnerabilitySeverity.Critical ||
-                        (v.Severity >= VulnerabilitySeverity.High && RequiresStrictAuthentication(r))) == true,
+                r => r.SecurityTesting?.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) == true,
                 (ctx, r) => {
-                    ctx.Score = 0;
-                    ctx.IsCriticalFailure = true;
-                    ctx.Notes.Add("CRITICAL: High/Critical security vulnerabilities detected.");
+                    ctx.HasBlockingFailure = true;
+                    ctx.Score = Math.Min(ctx.Score, 30);
+                    ctx.Notes.Add("BLOCKER: Critical security vulnerabilities detected.");
                 }
             ),
 
-            // 3. PENALTY: Auth Protocol Violations (Missing Headers)
-            // If a test failed compliance but was NOT a breach (i.e., it was rejected with 4xx), it's a protocol issue.
+            // 2b. BLOCKER: security posture collapsed to near-zero.
             new ScoringRule(
-                "Auth Protocol Violation",
-                r => r.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Any(s => !s.IsCompliant && s.StatusCode != "200") == true,
+                "Severe Security Degradation",
+                r => (r.SecurityTesting?.SecurityScore ?? 100) < 25,
                 (ctx, r) =>
                 {
-                    if (!RequiresStrictAuthentication(r))
+                    ctx.HasBlockingFailure = true;
+                    ctx.Score = Math.Min(ctx.Score, 25);
+                    ctx.Notes.Add("BLOCKER: Security posture score is critically low.");
+                }
+            ),
+
+            // 3. PENALTY: Secure-but-noncanonical auth challenge behavior.
+            new ScoringRule(
+                "Auth Guidance Gap",
+                r => r.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Any(s =>
+                    s.AssessmentDisposition == AuthenticationAssessmentDisposition.SecureCompatible) == true,
+                (ctx, r) =>
+                {
+                    if (!ValidationCalibration.RequiresStrictAuthentication(r.ServerProfile))
                     {
-                        ctx.Notes.Add("INFO: Authentication protocol violations reported for non-authenticated profile; no score impact.");
+                        ctx.Notes.Add("INFO: Authentication challenge behavior is informational for the declared public profile.");
                         return;
                     }
 
                     var failures = r.SecurityTesting!.AuthenticationTestResult!.TestScenarios
-                        .Count(s => !s.IsCompliant && s.StatusCode != "200");
+                        .Count(s => s.AssessmentDisposition == AuthenticationAssessmentDisposition.SecureCompatible);
 
                     var penalty = Math.Min(20, failures * 5);
                     ctx.Score -= penalty;
-                    ctx.Notes.Add($"WARNING: {failures} authentication protocol violations (missing headers). Score reduced by {penalty}%.");
+                    ctx.Notes.Add($"GUIDANCE: {failures} protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by {penalty}%.");
                 }
             ),
 
-            // 4. PENALTY: JSON-RPC Format Violations
+            // 4. BLOCKER/PENALTY: critical protocol violations.
+            new ScoringRule(
+                "Critical Protocol Violation",
+                r => r.ProtocolCompliance?.Violations.Any(v => v.Severity == ViolationSeverity.Critical) == true,
+                (ctx, r) =>
+                {
+                    ctx.HasBlockingFailure = true;
+                    ctx.Score = Math.Min(ctx.Score, 40);
+                    ctx.Notes.Add("BLOCKER: Critical MCP/JSON-RPC requirement violation detected.");
+                }
+            ),
+
+            // 5. PENALTY: JSON-RPC format deviations.
             new ScoringRule(
                 "JSON-RPC Violation",
                 r => r.ProtocolCompliance != null && 
@@ -161,7 +173,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                       !r.ProtocolCompliance.JsonRpcCompliance.ResponseFormatCompliant),
                 (ctx, r) => {
                     ctx.Score -= 15;
-                    ctx.Notes.Add("WARNING: JSON-RPC 2.0 format violations detected. Score reduced by 15%.");
+                    ctx.Notes.Add("SPEC: JSON-RPC 2.0 format deviations detected. Score reduced by 15%.");
                 }
             )
         };
@@ -235,13 +247,19 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
 
         // 3. Apply Rule Engine
         var context = new ScoringContext { Score = weightedScore * coverageRatio, Notes = notes };
+
+        if (!ValidationCalibration.RequiresStrictAuthentication(result.ServerProfile) &&
+            result.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Count > 0)
+        {
+            context.Notes.Add("INFO: Authentication challenge observations are informational for the declared public profile.");
+        }
         
         foreach (var rule in _rules)
         {
             if (rule.Condition(result))
             {
                 rule.Apply(context, result);
-                if (context.IsCriticalFailure) break; // Stop on critical failure
+                if (context.HasBlockingFailure) break;
             }
         }
 
@@ -251,7 +269,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         scoringResult.CoverageRatio = coverageRatio;
 
         // Determine Status
-        if (context.IsCriticalFailure)
+        if (context.HasBlockingFailure)
+        {
+            scoringResult.Status = ValidationStatus.Failed;
+        }
+        else if (evaluations.All(e => !e.Status.HasValue || e.Status == TestStatus.Skipped))
         {
             scoringResult.Status = ValidationStatus.Failed;
         }
@@ -259,15 +281,17 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         {
             scoringResult.Status = ValidationStatus.Passed;
         }
-        else if (scoringResult.OverallScore >= ScoringConstants.PassThreshold)
-        {
-            // Warning / Acceptable range
-            scoringResult.Status = ValidationStatus.Passed; 
-            notes.Add("Score meets minimum requirements but improvements are recommended.");
-        }
         else
         {
-            scoringResult.Status = ValidationStatus.Failed;
+            scoringResult.Status = ValidationStatus.Passed;
+            if (scoringResult.OverallScore < ScoringConstants.PassThreshold)
+            {
+                notes.Add("Score is below the preferred target, but no blocking failure was observed in this run.");
+            }
+            else
+            {
+                notes.Add("Score meets the preferred target with non-blocking improvement opportunities.");
+            }
         }
 
         return scoringResult;
@@ -277,7 +301,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
     {
         public double Score { get; set; }
         public List<string> Notes { get; set; } = new();
-        public bool IsCriticalFailure { get; set; }
+        public bool HasBlockingFailure { get; set; }
     }
 
     private static void AppendSkipNote(string categoryName, List<string> notes)
@@ -325,10 +349,5 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             var include = status.HasValue && status != TestStatus.Skipped;
             return new CategoryEvaluation(Name, Weight, score, status, include);
         }
-    }
-
-    private static bool RequiresStrictAuthentication(ValidationResult result)
-    {
-        return result.ServerProfile is McpServerProfile.Authenticated or McpServerProfile.Enterprise;
     }
 }

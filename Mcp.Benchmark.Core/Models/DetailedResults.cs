@@ -238,6 +238,11 @@ public class IndividualToolResult
     public string? DisplayTitle { get; set; }
 
     /// <summary>
+    /// Gets or sets the declared tool description, if available.
+    /// </summary>
+    public string? Description { get; set; }
+
+    /// <summary>
     /// Gets or sets the tool read-only hint, if declared.
     /// </summary>
     public bool? ReadOnlyHint { get; set; }
@@ -266,6 +271,11 @@ public class IndividualToolResult
     /// Gets or sets parameter validation results for this tool.
     /// </summary>
     public List<ParameterValidationResult> ParameterTests { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the declared input parameter names for this tool.
+    /// </summary>
+    public List<string> InputParameterNames { get; set; } = new();
 
     /// <summary>
     /// Gets or sets any issues found with this tool.

@@ -1,261 +1,143 @@
-# Quick Start Guide
+# MCP Validator Quick Start
 
-## 🚀 Get Started in 5 Minutes
+This guide gets you from installation to a first validation run and explains what the CLI produces.
 
-This guide shows you how to validate your first AI server in under 5 minutes.
+## 1. Install `mcpval`
 
-## Prerequisites
+Choose the distribution model that matches your environment.
 
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) installed
-- Windows, Linux, or macOS
-
-## Step 1: Install the Tool
-
-### Option A: Via dotnet tool (Recommended)
+### NuGet global tool
 
 ```bash
-# Will be available after NuGet publish
-dotnet tool install --global Mcp.Benchmark.CLI
-
-# Verify installation
-mcpval --version
+dotnet tool install --global McpVal
+mcpval --help
 ```
 
-### Option B: Build from source
+### Standalone release binary
+
+Download the platform-specific package from [GitHub Releases](https://github.com/navalerakesh/mcp-validation-security/releases). This option does not require a local .NET runtime.
+
+### Container image
 
 ```bash
-git clone https://github.com/navalerakesh/mcp-validation-security.git
-cd mcp-validation-security
-dotnet build
-dotnet run --project Mcp.Benchmark.CLI -- --version
+docker run --rm ghcr.io/navalerakesh/mcp-validation-security:latest --help
 ```
 
-## Step 2: Choose a Server to Test
+## 2. Validate A Remote MCP Server
 
-### Option A: Test a Public MCP Server
-
-**GitHub Copilot MCP** (requires GitHub authentication):
-```bash
-mcpval validate --server https://api.githubcopilot.com/mcp/
-```
-
-### Option B: Test a Local Example Server
-
-We provide example servers you can run locally:
+Start with a standard HTTP or HTTPS endpoint.
 
 ```bash
-# Coming soon: Python example server
-cd examples/simple-mcp-server
-python server.py
-
-# In another terminal:
-mcpval validate --server http://localhost:8000/mcp
-```
-
-### Option C: Test Your Own Server
-
-```bash
-mcpval validate --server https://your-server.com/mcp --output ./reports
-```
-
-## Step 3: Review Results
-
-The tool will:
-1. ✅ Check protocol compliance (JSON-RPC, MCP specification)
-2. 🔒 Test security posture (authentication, input validation, attacks)
-3. 🛠️ Validate tool/resource/prompt implementations
-4. ⚡ Measure performance and concurrency handling
-5. 📊 Generate a compliance score (0-100)
-
-### Console Output
-
-You'll see real-time progress:
-```
-🔍 Starting MCP Validation...
-✓ Health check passed (2.3s)
-✓ Protocol compliance: PASSED (98.5%)
-✓ Security assessment: PASSED (95.2%)
-✓ Tool validation: PASSED (100%)
-⚡ Performance test: PASSED (87.3%)
-
-📊 Overall Score: 95.3% - PASSED
-```
-
-### Report Files
-
-Reports are saved to your output directory:
-```
-./reports/
-  mcp-validation-20260115-143022-report.md    # Human-readable summary
-  mcp-validation-20260115-143022-result.json  # Machine-readable results
-```
-
-## Step 4: Understand Your Score
-
-### Score Ranges
-- **90-100**: Excellent - Production ready
-- **75-89**: Good - Minor improvements needed
-- **60-74**: Fair - Several issues to address
-- **Below 60**: Poor - Significant work required
-
-### What Gets Tested
-
-#### ✅ Protocol Compliance (25%)
-- JSON-RPC 2.0 format correctness
-- MCP specification adherence
-- Version negotiation
-- Schema validation
-
-#### 🔒 Security Testing (35%)
-- Authentication mechanisms
-- Authorization checks
-- Input validation
-- Injection attack resistance
-- Error message disclosure
-
-#### 🛠️ Functionality (25%)
-- Tool discovery and execution
-- Resource access
-- Prompt handling
-- Capability advertisement
-
-#### ⚡ Performance (15%)
-- Response time
-- Concurrent request handling
-- Rate limiting
-- Resource utilization
-
-## Common Validation Scenarios
-
-### Scenario 1: Pre-Deployment Check
-```bash
-# Run full validation before deploying to production
 mcpval validate \
-  --server https://staging-server.com/mcp \
+  --server https://example.test/mcp \
+  --access public \
+  --output ./mcp-reports
+```
+
+If you want host-specific compatibility interpretation in the same run, add a documented client profile:
+
+```bash
+mcpval validate \
+  --server https://example.test/mcp \
+  --access public \
+  --client-profile github-copilot-cloud-agent \
+  --output ./mcp-reports
+```
+
+## 3. Validate An Authenticated Server
+
+Use `--access authenticated` when the target is expected to require credentials.
+
+```bash
+mcpval validate \
+  --server https://example.test/mcp \
   --access authenticated \
-  --token $YOUR_TOKEN \
-  --output ./pre-deploy-reports \
-  --verbose
+  --token "$MCP_TOKEN" \
+  --output ./mcp-reports
 ```
 
-### Scenario 2: CI/CD Integration
-```bash
-# In your GitHub Actions / Azure Pipeline
-mcpval validate \
-  --server $SERVER_URL \
-  --max-concurrency 2 \
-  --output ./test-results
+When a strategy supports it, you can use an interactive login flow instead of passing a token directly.
 
-# Fails pipeline if score < 75
-```
-
-### Scenario 3: Security Audit
 ```bash
-# Focus on security testing only
 mcpval validate \
-  --server https://your-server.com/mcp \
+  --server https://example.test/mcp \
   --access authenticated \
-  --output ./security-audit \
-  --verbose
+  --interactive \
+  --output ./mcp-reports
 ```
 
-### Scenario 4: Comparing Servers
-```bash
-# Test multiple servers and compare
-mcpval validate --server https://server-a.com/mcp --output ./reports/server-a
-mcpval validate --server https://server-b.com/mcp --output ./reports/server-b
+## 4. Validate A Local STDIO Server
 
-# Compare the generated reports
-```
+`validate` and `health-check` both support process-backed STDIO targets.
 
-## Authentication Options
-
-### Public Server (No Auth)
-```bash
-mcpval validate --server https://public-server.com/mcp
-```
-
-### API Key Authentication
 ```bash
 mcpval validate \
-  --server https://api-server.com/mcp \
-  --token "sk-abc123..."
+  --server "npx -y @modelcontextprotocol/server-everything" \
+  --access public \
+  --output ./mcp-reports
 ```
 
-### OAuth / GitHub Auth
+The CLI automatically treats non-URL `--server` values as STDIO commands.
+
+`discover` is the one exception today: it is HTTP-first and returns a clear not-supported error when pointed at a STDIO command.
+
+## 5. Review The Generated Artifacts
+
+`validate --output <folder>` writes four files for every run:
+
+- `mcp-validation-<timestamp>-report.md` - Markdown report for people
+- `mcp-validation-<timestamp>-report.html` - HTML report for sharing
+- `mcp-validation-<timestamp>-result.json` - canonical machine-readable result object
+- `mcp-validation-<timestamp>-results.sarif.json` - SARIF feed for CI and code scanning
+
+Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. Use `--report-detail minimal` when you want the executive-only view.
+
+## 6. Render Additional Offline Formats
+
+Use the saved JSON result when you need a different artifact format for downstream systems.
+
 ```bash
-# Interactive authentication (opens browser)
-mcpval validate \
-  --server https://api.githubcopilot.com/mcp/ \
-  --access authenticated \
-  --interactive
-```
-
-## Generating HTML Reports
-
-Convert JSON results to shareable HTML:
-
-```bash
-# Generate HTML report
 mcpval report \
-  --input ./reports/mcp-validation-20260115-143022-result.json \
-  --format html \
-  --output ./reports/validation-report.html
-
-# Open in browser
-open ./reports/validation-report.html  # macOS
-start ./reports/validation-report.html # Windows
+  --input ./mcp-reports/mcp-validation-20260421-031745-result.json \
+  --format junit \
+  --output ./mcp-reports/mcp-validation-20260421-031745.junit.xml
 ```
+
+Supported offline formats are `html`, `xml`, `sarif`, and `junit`.
+
+## 7. Pick The Right Policy Mode
+
+| Policy | Intended use |
+| --- | --- |
+| `advisory` | Always complete the run and keep exit code `0` unless execution itself fails |
+| `balanced` | Default mode for most teams; fail on non-passing results, MUST failures, low trust, or critical findings |
+| `strict` | Enterprise gate; includes balanced conditions plus SHOULD failures, trust below `L4`, and high-severity findings |
+
+## 8. Use The Other Commands
+
+Run a fast connectivity probe before a full validation:
+
+```bash
+mcpval health-check --server https://example.test/mcp --access public
+```
+
+Capture a capability snapshot for a remote endpoint:
+
+```bash
+mcpval discover --server https://example.test/mcp --format json
+```
+
+Inside GitHub Actions, `mcpval` also writes a step summary and emits workflow annotations automatically. The repository root includes a reusable composite action if you want to standardize that workflow across multiple repositories.
 
 ## Troubleshooting
 
-### "Server not reachable"
-- Check the URL is correct
-- Verify the server is running
-- Check firewall/network settings
+- If the server is unreachable, verify the URL or STDIO command first, then rerun with `--verbose` for extra console diagnostics.
+- If authentication fails, confirm that `--access` matches the target's intended exposure model and that the supplied token has the right scopes.
+- If the run fails a policy gate, inspect the Markdown report and the JSON result before changing thresholds.
+- If you need deeper help, use [docs/Troubleshooting.md](docs/Troubleshooting.md).
 
-### "Authentication failed"
-- Verify your token is valid
-- Check --access flag matches server requirements
-- Try --interactive for OAuth flows
+## Next References
 
-### "STDIO transport not supported"
-- STDIO support is coming soon
-- Use HTTP/SSE endpoints for now
-- Track progress: [GitHub Issue #X]
-
-### "Validation failed"
-- Review the detailed report in output directory
-- Check server logs for errors
-- File an issue if you think it's a false positive
-
-## Next Steps
-
-### For Users
-- ✅ Test servers before using them
-- 📊 Compare different AI tools
-- 🔒 Verify security claims
-- 📝 Share reports with your team
-
-### For Developers
-- 🛠️ Fix issues found in validation
-- 🔄 Run in CI/CD pipelines
-- 📈 Track improvement over time
-- 🏆 Aim for 95+ score
-
-### For Contributors
-- 🐛 Report bugs or false positives
-- 💡 Suggest new security checks
-- 🌟 Star the repo if helpful
-- 📝 Write about your experience
-
-## Getting Help
-
-- 📖 [Full Documentation](../docs/README.md)
-- 🐛 [Report Issues](https://github.com/navalerakesh/mcp-validation-security/issues)
-- 💬 [Discussions](https://github.com/navalerakesh/mcp-validation-security/discussions)
-- 🔒 [Security Issues](SECURITY.md)
-
----
-
-**Ready to make AI safer? Start validating! 🚀**
+- [README.md](README.md) for the full product overview and package links
+- [docs/FeatureMatrix.md](docs/FeatureMatrix.md) for current support boundaries and artifact behavior
+- [docs/README.md](docs/README.md) for architecture, contributor, and operational documentation

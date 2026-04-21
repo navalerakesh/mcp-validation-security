@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
@@ -14,6 +15,9 @@ public class MarkdownReportGenerator : IReportGenerator
     {
         var sb = new StringBuilder();
         var sectionNumber = 1;
+        var bootstrapHealth = ResolveBootstrapHealth(result);
+        var includeDetailedSections = ShouldIncludeDetailedSections(result);
+        var actionHints = ReportActionHintBuilder.Build(result);
 
         // Header
         sb.AppendLine("# MCP Server Compliance & Validation Report");
@@ -32,6 +36,11 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
         sb.AppendLine($"| **Transport** | {result.ServerConfig.Transport?.ToUpper() ?? "HTTP"} |");
+        if (bootstrapHealth != null)
+        {
+            sb.AppendLine($"| **Session Bootstrap** | {FormatHealthDispositionLabel(bootstrapHealth)} |");
+            sb.AppendLine($"| **Deferred Validation** | {FormatDeferredValidationLabel(bootstrapHealth)} |");
+        }
         if (!string.IsNullOrWhiteSpace(result.ProtocolVersion))
         {
             sb.AppendLine($"| **MCP Protocol Version (Effective)** | `{result.ProtocolVersion}` |");
@@ -50,13 +59,17 @@ public class MarkdownReportGenerator : IReportGenerator
         }
         sb.AppendLine();
 
+        AppendBootstrapSection(sb, result, bootstrapHealth, ref sectionNumber);
+        AppendPriorityFindingsSection(sb, result, ref sectionNumber);
+        AppendActionHintsSection(sb, actionHints, ref sectionNumber);
+
         // MCP Trust Assessment (before compliance matrix)
         if (result.TrustAssessment != null)
         {
             sb.AppendLine($"## {sectionNumber++}. MCP Trust Assessment");
             sb.AppendLine();
             sb.AppendLine("Multi-dimensional evaluation of server trustworthiness for AI agent consumption.");
-            sb.AppendLine("Trust level is determined by the **weakest dimension** (security-first principle).");
+            sb.AppendLine("Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.");
             sb.AppendLine();
             sb.AppendLine("| Dimension | Score | What It Measures |");
             sb.AppendLine("| :--- | :---: | :--- |");
@@ -71,7 +84,7 @@ public class MarkdownReportGenerator : IReportGenerator
             }
             sb.AppendLine();
 
-            if (result.TrustAssessment.BoundaryFindings.Count > 0)
+            if (includeDetailedSections && result.TrustAssessment.BoundaryFindings.Count > 0)
             {
                 sb.AppendLine("### AI Boundary Findings");
                 sb.AppendLine();
@@ -89,13 +102,14 @@ public class MarkdownReportGenerator : IReportGenerator
 
             sb.AppendLine("### Summary");
             sb.AppendLine();
-            sb.AppendLine($"- Destructive tools: **{result.TrustAssessment.DestructiveToolCount}**");
-            sb.AppendLine($"- Data exfiltration risk: **{result.TrustAssessment.DataExfiltrationRiskCount}**");
-            sb.AppendLine($"- Prompt injection surface: **{result.TrustAssessment.PromptInjectionSurfaceCount}**");
+            var toolCatalogSize = ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation);
+            sb.AppendLine($"- Destructive tools: **{FormatCoverage(result.TrustAssessment.DestructiveToolCount, toolCatalogSize)}**");
+            sb.AppendLine($"- Data exfiltration risk: **{FormatCoverage(result.TrustAssessment.DataExfiltrationRiskCount, toolCatalogSize)}**");
+            sb.AppendLine($"- Prompt injection surface: **{FormatCoverage(result.TrustAssessment.PromptInjectionSurfaceCount, toolCatalogSize)}**");
             sb.AppendLine();
 
             // Compliance Tiers Table (MUST/SHOULD/MAY)
-            if (result.TrustAssessment.TierChecks.Count > 0)
+            if (includeDetailedSections && result.TrustAssessment.TierChecks.Count > 0)
             {
                 sb.AppendLine("### MCP Spec Compliance (RFC 2119 Tiers)");
                 sb.AppendLine();
@@ -148,7 +162,22 @@ public class MarkdownReportGenerator : IReportGenerator
             }
         }
 
+        AppendClientCompatibilitySection(sb, result, ref sectionNumber);
+
         AppendCapabilitySnapshotSection(sb, result, ref sectionNumber);
+
+        if (includeDetailedSections && result.ScoringNotes?.Any() == true)
+        {
+            sb.AppendLine($"## {sectionNumber++}. Scoring Methodology");
+            sb.AppendLine();
+            sb.AppendLine("These notes explain how the overall score and blocking decision were calibrated for this run.");
+            sb.AppendLine();
+            foreach (var note in result.ScoringNotes)
+            {
+                sb.AppendLine($"- {note}");
+            }
+            sb.AppendLine();
+        }
 
         // Compliance Matrix
         sb.AppendLine($"## {sectionNumber++}. Compliance Matrix");
@@ -156,7 +185,7 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine("| Category | Status | Score | Issues |");
         sb.AppendLine("| :--- | :---: | :---: | :---: |");
         
-        AddMatrixRow(sb, "Protocol Compliance", result.ProtocolCompliance?.Status, result.ProtocolCompliance?.ComplianceScore, result.ProtocolCompliance?.Violations?.Count);
+        AddMatrixRow(sb, "Protocol Compliance", result.ProtocolCompliance?.Status, result.ProtocolCompliance?.ComplianceScore, GetProtocolIssueCount(result.ProtocolCompliance));
         AddMatrixRow(sb, "Security Assessment", result.SecurityTesting?.Status, result.SecurityTesting?.SecurityScore, result.SecurityTesting?.Vulnerabilities?.Count);
         AddMatrixRow(sb, "Tool Validation", result.ToolValidation?.Status, result.ToolValidation?.Score, result.ToolValidation?.ToolsTestFailed);
         AddMatrixRow(sb, "Resource Capabilities", result.ResourceTesting?.Status, result.ResourceTesting?.Score, result.ResourceTesting?.ResourcesTestFailed);
@@ -164,8 +193,25 @@ public class MarkdownReportGenerator : IReportGenerator
         AddMatrixRow(sb, "Performance", result.PerformanceTesting?.Status, result.PerformanceTesting?.Score, 0); // Perf usually doesn't have "issues" count in same way
         sb.AppendLine();
 
+        if (includeDetailedSections && result.PerformanceTesting != null)
+        {
+            sb.AppendLine($"## {sectionNumber++}. Performance Calibration");
+            sb.AppendLine();
+            sb.AppendLine("Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.");
+            sb.AppendLine("For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.");
+            sb.AppendLine();
+            if (result.PerformanceTesting.Findings.Any())
+            {
+                foreach (var finding in result.PerformanceTesting.Findings)
+                {
+                    sb.AppendLine($"- {finding.Summary}");
+                }
+                sb.AppendLine();
+            }
+        }
+
         // Detailed Findings - Security
-        if (result.SecurityTesting != null)
+        if (includeDetailedSections && result.SecurityTesting != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Security Assessment");
             sb.AppendLine();
@@ -215,19 +261,35 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Detailed Findings - Protocol
-        if (result.ProtocolCompliance != null)
+        if (includeDetailedSections && result.ProtocolCompliance != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Protocol Compliance");
             sb.AppendLine();
+
+            if (result.ProtocolCompliance.CriticalErrors?.Any() == true)
+            {
+                sb.AppendLine("### Critical Errors");
+                foreach (var error in result.ProtocolCompliance.CriticalErrors)
+                {
+                    sb.AppendLine($"- {error}");
+                }
+                sb.AppendLine();
+            }
+
+            if (!string.IsNullOrWhiteSpace(result.ProtocolCompliance.Message))
+            {
+                sb.AppendLine($"**Status Detail:** {result.ProtocolCompliance.Message}");
+                sb.AppendLine();
+            }
             
             if (result.ProtocolCompliance.Violations?.Any() == true)
             {
                 sb.AppendLine("### Compliance Violations");
-                sb.AppendLine("| ID | Description | Severity |");
-                sb.AppendLine("| :--- | :--- | :---: |");
+                sb.AppendLine("| ID | Source | Description | Severity |");
+                sb.AppendLine("| :--- | :--- | :--- | :---: |");
                 foreach (var issue in result.ProtocolCompliance.Violations)
                 {
-                    sb.AppendLine($"| {issue.CheckId} | {issue.Description} | {issue.Severity} |");
+                    sb.AppendLine($"| {issue.CheckId} | `{ValidationRuleSourceClassifier.GetLabel(issue)}` | {issue.Description} | {issue.Severity} |");
                 }
                 sb.AppendLine();
             }
@@ -239,7 +301,7 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Detailed Findings - Tools
-        if (result.ToolValidation != null)
+        if (includeDetailedSections && result.ToolValidation != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Tool Validation");
             sb.AppendLine();
@@ -325,18 +387,20 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine();
                 }
 
-                var guidelineFindings = result.ToolValidation.ToolResults
-                    .SelectMany(tool => tool.Findings.Where(f => f.Category == "McpGuideline"))
-                    .ToList();
+                var guidelineFindings = ValidationFindingAggregator.SummarizeFindingsByRule(
+                    result.ToolValidation.ToolResults
+                        .SelectMany(tool => tool.Findings.Where(f => f.Category == "McpGuideline")),
+                    ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation));
 
                 if (guidelineFindings.Count > 0)
                 {
                     sb.AppendLine("### MCP Guideline Findings");
                     sb.AppendLine();
                     sb.AppendLine("These findings capture MCP guidance signals that improve agent safety and UX but are not strict protocol MUST failures.");
+                    sb.AppendLine("Coverage shows how prevalent each issue is across the discovered tool catalog so larger servers are judged by rate, not raw count alone.");
                     sb.AppendLine();
-                    sb.AppendLine("| Rule ID | Tool | Severity | Finding |");
-                    sb.AppendLine("| :--- | :--- | :---: | :--- |");
+                    sb.AppendLine("| Rule ID | Source | Coverage | Severity | Example Components | Finding |");
+                    sb.AppendLine("| :--- | :--- | :--- | :---: | :--- | :--- |");
                     foreach (var finding in guidelineFindings)
                     {
                         var severityIcon = finding.Severity switch
@@ -347,7 +411,8 @@ public class MarkdownReportGenerator : IReportGenerator
                             ValidationFindingSeverity.Low => "🔵 Low",
                             _ => "⚪ Info"
                         };
-                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.Component}` | {severityIcon} | {finding.Summary} |");
+                        var examples = finding.ExampleComponents.Count > 0 ? string.Join(", ", finding.ExampleComponents.Select(component => $"`{component}`")) : "-";
+                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severityIcon} | {examples} | {finding.Summary} |");
                     }
                     sb.AppendLine();
                 }
@@ -355,7 +420,7 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Detailed Findings - Resources
-        if (result.ResourceTesting != null)
+        if (includeDetailedSections && result.ResourceTesting != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Resource Capabilities");
             sb.AppendLine();
@@ -375,7 +440,7 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // AI Readiness Assessment
-        if (result.ToolValidation != null && result.ToolValidation.AiReadinessScore >= 0)
+        if (includeDetailedSections && result.ToolValidation != null && result.ToolValidation.AiReadinessScore >= 0)
         {
             sb.AppendLine($"## {sectionNumber++}. AI Readiness Assessment");
             sb.AppendLine();
@@ -397,7 +462,29 @@ public class MarkdownReportGenerator : IReportGenerator
             {
                 sb.AppendLine("### Findings");
                 sb.AppendLine();
-                foreach (var issue in result.ToolValidation.AiReadinessIssues)
+                if (result.ToolValidation.AiReadinessFindings?.Any() == true)
+                {
+                    var aiReadinessFindings = ValidationFindingAggregator.SummarizeFindingsByRule(
+                        result.ToolValidation.AiReadinessFindings,
+                        ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation));
+
+                    sb.AppendLine("| Rule ID | Source | Coverage | Severity | Finding |");
+                    sb.AppendLine("| :--- | :--- | :--- | :---: | :--- |");
+                    foreach (var finding in aiReadinessFindings)
+                    {
+                        var severity = finding.Severity switch
+                        {
+                            ValidationFindingSeverity.Critical => "🔴 Critical",
+                            ValidationFindingSeverity.High => "🟠 High",
+                            ValidationFindingSeverity.Medium => "🟡 Medium",
+                            ValidationFindingSeverity.Low => "🔵 Low",
+                            _ => "⚪ Info"
+                        };
+
+                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severity} | {finding.Summary} |");
+                    }
+                }
+                else foreach (var issue in result.ToolValidation.AiReadinessIssues)
                 {
                     sb.AppendLine($"- {issue}");
                 }
@@ -406,7 +493,7 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Protocol Capability Probes
-        if (result.ProtocolCompliance?.Message != null && result.ProtocolCompliance.Message.Contains("|"))
+        if (includeDetailedSections && result.ProtocolCompliance?.Message != null && result.ProtocolCompliance.Message.Contains("|"))
         {
             sb.AppendLine($"## {sectionNumber++}. Optional MCP Capabilities");
             sb.AppendLine();
@@ -430,19 +517,48 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Performance
-        if (result.PerformanceTesting != null)
+        if (includeDetailedSections && result.PerformanceTesting != null)
         {
+            var hasObservedPerformanceMetrics = PerformanceMeasurementEvaluator.HasObservedMetrics(result.PerformanceTesting);
             sb.AppendLine($"## {sectionNumber++}. Performance Metrics");
             sb.AppendLine();
 
-            if (result.PerformanceTesting.Status == TestStatus.Skipped)
+            if (!hasObservedPerformanceMetrics)
             {
-                sb.AppendLine($"**Status:** ➖ Skipped");
-                sb.AppendLine($"**Reason:** {result.PerformanceTesting.Message ?? "Performance testing was skipped (authentication required or not configured)."}");
+                var unavailableReason = PerformanceMeasurementEvaluator.GetUnavailableReason(
+                    result.PerformanceTesting,
+                    "Performance measurements were not captured before the run ended.");
+
+                sb.AppendLine($"**Status:** {GetStatusIcon(result.PerformanceTesting.Status)} {result.PerformanceTesting.Status}");
+                sb.AppendLine("**Measurements:** unavailable");
+                sb.AppendLine($"**Reason:** {unavailableReason}");
+
+                if (result.PerformanceTesting.CriticalErrors.Any())
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("**Critical Errors:**");
+                    foreach (var error in result.PerformanceTesting.CriticalErrors)
+                    {
+                        sb.AppendLine($"- {error}");
+                    }
+                }
+
                 sb.AppendLine();
             }
             else
             {
+                if (result.PerformanceTesting.Status != TestStatus.Passed)
+                {
+                    sb.AppendLine($"**Status:** {GetStatusIcon(result.PerformanceTesting.Status)} {result.PerformanceTesting.Status}");
+
+                    if (!string.IsNullOrWhiteSpace(result.PerformanceTesting.Message))
+                    {
+                        sb.AppendLine($"**Note:** {result.PerformanceTesting.Message}");
+                    }
+
+                    sb.AppendLine();
+                }
+
                 sb.AppendLine("| Metric | Result | Verdict |");
                 sb.AppendLine("| :--- | :--- | :--- |");
                 sb.AppendLine($"| **Avg Latency** | {result.PerformanceTesting.LoadTesting.AverageResponseTimeMs:F2}ms | {GetPerformanceVerdict(result.PerformanceTesting.LoadTesting.AverageResponseTimeMs)} |");
@@ -472,6 +588,43 @@ public class MarkdownReportGenerator : IReportGenerator
         return sb.ToString();
     }
 
+    private void AppendPriorityFindingsSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
+    {
+        var keyFindings = CollectPriorityFindings(result);
+        if (keyFindings.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Priority Findings");
+        sb.AppendLine();
+        sb.AppendLine("These are the highest-signal outcomes from this validation run.");
+        sb.AppendLine();
+        foreach (var finding in keyFindings)
+        {
+            sb.AppendLine($"- {finding}");
+        }
+        sb.AppendLine();
+    }
+
+    private void AppendActionHintsSection(StringBuilder sb, IReadOnlyList<string> actionHints, ref int sectionNumber)
+    {
+        if (actionHints.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Action Hints");
+        sb.AppendLine();
+        sb.AppendLine("Compact next-step guidance derived from the highest-signal evidence in this run.");
+        sb.AppendLine();
+        foreach (var hint in actionHints)
+        {
+            sb.AppendLine($"- {hint}");
+        }
+        sb.AppendLine();
+    }
+
     private static string FormatProfileLabel(ValidationResult result)
     {
         if (result.ServerProfile == McpServerProfile.Unspecified)
@@ -485,6 +638,57 @@ public class MarkdownReportGenerator : IReportGenerator
             : string.Empty;
 
         return profile + sourceSuffix;
+    }
+
+    private void AppendBootstrapSection(StringBuilder sb, ValidationResult result, HealthCheckResult? bootstrapHealth, ref int sectionNumber)
+    {
+        if (bootstrapHealth == null)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Connectivity & Session Bootstrap");
+        sb.AppendLine();
+        sb.AppendLine("This section explains how the validator established initial connectivity and whether validation started from a clean initialize handshake or a deferred advisory state.");
+        sb.AppendLine();
+        sb.AppendLine("| Bootstrap Signal | Value |");
+        sb.AppendLine("| :--- | :--- |");
+        sb.AppendLine($"| **Bootstrap State** | {FormatHealthDispositionLabel(bootstrapHealth)} |");
+        sb.AppendLine($"| **Validation Proceeded Under Deferment** | {FormatDeferredValidationLabel(bootstrapHealth)} |");
+        sb.AppendLine($"| **Initialize Handshake** | {FormatHandshakeOutcomeLabel(bootstrapHealth)} |");
+
+        if (bootstrapHealth.InitializationDetails?.Transport.StatusCode is int statusCode)
+        {
+            sb.AppendLine($"| **Handshake HTTP Status** | `HTTP {statusCode}` |");
+        }
+
+        if (bootstrapHealth.ResponseTimeMs > 0)
+        {
+            sb.AppendLine($"| **Handshake Duration** | {bootstrapHealth.ResponseTimeMs:F1} ms |");
+        }
+
+        var effectiveProtocolVersion = result.ProtocolVersion ?? bootstrapHealth.ProtocolVersion;
+        if (!string.IsNullOrWhiteSpace(effectiveProtocolVersion) && !string.Equals(effectiveProtocolVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine($"| **Negotiated Protocol** | `{effectiveProtocolVersion}` |");
+        }
+
+        if (!string.IsNullOrWhiteSpace(bootstrapHealth.ServerVersion) && !string.Equals(bootstrapHealth.ServerVersion, "Unknown", StringComparison.OrdinalIgnoreCase))
+        {
+            sb.AppendLine($"| **Observed Server Version** | `{bootstrapHealth.ServerVersion}` |");
+        }
+
+        sb.AppendLine($"| **Server Profile Resolution** | `{FormatProfileLabel(result)}` |");
+        sb.AppendLine();
+
+        if (!string.IsNullOrWhiteSpace(bootstrapHealth.ErrorMessage))
+        {
+            sb.AppendLine($"> **Bootstrap Note:** {bootstrapHealth.ErrorMessage}");
+            sb.AppendLine();
+        }
+
+        sb.AppendLine(GetBootstrapNarrative(bootstrapHealth));
+        sb.AppendLine();
     }
 
     private void AppendCapabilitySnapshotSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
@@ -519,6 +723,73 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine();
     }
 
+    private void AppendClientCompatibilitySection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
+    {
+        if (result.ClientCompatibility?.Assessments.Count > 0 != true)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Client Profile Compatibility");
+        sb.AppendLine();
+        sb.AppendLine("Documented host-side compatibility assessments derived from the neutral validation evidence collected during this run.");
+        sb.AppendLine();
+        sb.AppendLine("| Client Profile | Status | Requirements | Documentation |");
+        sb.AppendLine("| :--- | :--- | :--- | :--- |");
+
+        foreach (var assessment in result.ClientCompatibility.Assessments)
+        {
+            var requirementSummary = $"{assessment.PassedRequirements} passed / {assessment.WarningRequirements} warnings / {assessment.FailedRequirements} failed";
+            var documentation = string.IsNullOrWhiteSpace(assessment.DocumentationUrl)
+                ? "-"
+                : $"<{assessment.DocumentationUrl}>";
+            sb.AppendLine($"| **{assessment.DisplayName}** | {FormatClientCompatibilityStatus(assessment.Status)} | {requirementSummary} | {documentation} |");
+        }
+
+        sb.AppendLine();
+
+        foreach (var assessment in result.ClientCompatibility.Assessments)
+        {
+            sb.AppendLine($"### {assessment.DisplayName}");
+            sb.AppendLine();
+            sb.AppendLine($"**Status:** {FormatClientCompatibilityStatus(assessment.Status)}");
+            sb.AppendLine();
+            sb.AppendLine($"{assessment.Summary}");
+            sb.AppendLine();
+
+            var noteworthyRequirements = assessment.Requirements
+                .Where(requirement => requirement.Outcome is ClientProfileRequirementOutcome.Warning or ClientProfileRequirementOutcome.Failed)
+                .ToList();
+
+            if (noteworthyRequirements.Count == 0)
+            {
+                sb.AppendLine("- No client-specific compatibility gaps were detected.");
+                sb.AppendLine();
+                continue;
+            }
+
+            sb.AppendLine("| Requirement | Level | Outcome | Details |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            foreach (var requirement in noteworthyRequirements)
+            {
+                var detail = new StringBuilder(requirement.Summary);
+                if (requirement.ExampleComponents.Count > 0)
+                {
+                    detail.Append($" Examples: {string.Join(", ", requirement.ExampleComponents)}.");
+                }
+
+                if (requirement.RuleIds.Count > 0)
+                {
+                    detail.Append($" Rule IDs: {string.Join(", ", requirement.RuleIds)}.");
+                }
+
+                sb.AppendLine($"| {EscapeTableCell(requirement.Title)} | {requirement.Level} | {FormatRequirementOutcome(requirement.Outcome)} | {EscapeTableCell(detail.ToString())} |");
+            }
+
+            sb.AppendLine();
+        }
+    }
+
     private void AddMatrixRow(StringBuilder sb, string category, TestStatus? status, double? score, int? issues)
     {
         if (status == null) return;
@@ -529,6 +800,16 @@ public class MarkdownReportGenerator : IReportGenerator
         var icon = GetStatusIcon(status.Value);
 
         sb.AppendLine($"| {category} | {icon} {statusStr} | {scoreStr} | {issuesStr} |");
+    }
+
+    private static int GetProtocolIssueCount(ComplianceTestResult? result)
+    {
+        if (result == null)
+        {
+            return 0;
+        }
+
+        return (result.Violations?.Count ?? 0) + (result.CriticalErrors?.Count ?? 0);
     }
 
     private string GetStatusIcon(ValidationStatus status) => status switch
@@ -577,4 +858,156 @@ public class MarkdownReportGenerator : IReportGenerator
     {
         return statusCode.HasValue ? $"HTTP {statusCode}" : "n/a";
     }
+
+    private static string FormatCoverage(int affectedComponents, int totalComponents)
+    {
+        if (affectedComponents <= 0)
+        {
+            return "0";
+        }
+
+        if (totalComponents <= 0)
+        {
+            return affectedComponents.ToString();
+        }
+
+        return $"{affectedComponents}/{totalComponents} ({ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents):P0})";
+    }
+
+    private static string FormatClientCompatibilityStatus(ClientProfileCompatibilityStatus status) => status switch
+    {
+        ClientProfileCompatibilityStatus.Compatible => "✅ Compatible",
+        ClientProfileCompatibilityStatus.CompatibleWithWarnings => "⚠️ Compatible with warnings",
+        ClientProfileCompatibilityStatus.Incompatible => "❌ Incompatible",
+        _ => "ℹ️ Unknown"
+    };
+
+    private static string FormatRequirementOutcome(ClientProfileRequirementOutcome outcome) => outcome switch
+    {
+        ClientProfileRequirementOutcome.Satisfied => "✅ Satisfied",
+        ClientProfileRequirementOutcome.Warning => "⚠️ Warning",
+        ClientProfileRequirementOutcome.Failed => "❌ Failed",
+        ClientProfileRequirementOutcome.NotApplicable => "➖ Not applicable",
+        _ => "ℹ️ Unknown"
+    };
+
+    private static string EscapeTableCell(string value)
+    {
+        return value.Replace("|", "\\|").Replace("\n", " ").Replace("\r", " ");
+    }
+
+    private static bool ShouldIncludeDetailedSections(ValidationResult result)
+    {
+        return result.ValidationConfig.Reporting.IncludesDetailedSections();
+    }
+
+    private static IReadOnlyList<string> CollectPriorityFindings(ValidationResult result)
+    {
+        var findings = new List<string>();
+
+        if (result.PolicyOutcome is { Passed: false } policyOutcome)
+        {
+            findings.Add($"Policy {policyOutcome.Mode} blocked the run: {policyOutcome.Summary}");
+            findings.AddRange(policyOutcome.Reasons.Take(2));
+        }
+
+        if (result.ClientCompatibility?.Assessments.Count > 0)
+        {
+            findings.AddRange(result.ClientCompatibility.Assessments
+                .Where(assessment => assessment.Status != ClientProfileCompatibilityStatus.Compatible)
+                .Take(2)
+                .Select(assessment => $"Client profile {assessment.DisplayName}: {assessment.StatusLabel}. {assessment.Summary}"));
+        }
+
+        if (result.CriticalErrors.Count > 0)
+        {
+            findings.AddRange(result.CriticalErrors.Take(2));
+        }
+
+        if (result.SecurityTesting?.Vulnerabilities.Count > 0)
+        {
+            findings.AddRange(result.SecurityTesting.Vulnerabilities
+                .OrderByDescending(vulnerability => vulnerability.Severity)
+                .Take(2)
+                .Select(vulnerability => $"{vulnerability.Id}: {vulnerability.Description}"));
+        }
+
+        if (result.ProtocolCompliance?.Violations.Count > 0)
+        {
+            findings.AddRange(result.ProtocolCompliance.Violations
+                .OrderByDescending(violation => violation.Severity)
+                .Take(2)
+                .Select(violation => $"{violation.CheckId}: {violation.Description}"));
+        }
+
+        return findings
+            .Where(finding => !string.IsNullOrWhiteSpace(finding))
+            .Distinct(StringComparer.Ordinal)
+            .Take(5)
+            .ToList();
+    }
+
+    private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult result)
+    {
+        if (result.BootstrapHealth != null)
+        {
+            return result.BootstrapHealth;
+        }
+
+        if (result.InitializationHandshake == null)
+        {
+            return null;
+        }
+
+        return new HealthCheckResult
+        {
+            IsHealthy = result.InitializationHandshake.IsSuccessful,
+            Disposition = ValidationReliability.ClassifyHealthCheck(result.InitializationHandshake),
+            ResponseTimeMs = result.InitializationHandshake.Transport.Duration.TotalMilliseconds,
+            ServerVersion = result.InitializationHandshake.Payload?.ServerInfo?.Version,
+            ProtocolVersion = result.InitializationHandshake.Payload?.ProtocolVersion,
+            ErrorMessage = result.InitializationHandshake.IsSuccessful ? null : result.InitializationHandshake.Error,
+            InitializationDetails = result.InitializationHandshake
+        };
+    }
+
+    private static string FormatHealthDispositionLabel(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "✅ Healthy",
+        HealthCheckDisposition.Protected => "🔒 Reachable (Protected)",
+        HealthCheckDisposition.TransientFailure => "⚠️ Transient Failure",
+        HealthCheckDisposition.Inconclusive => "ℹ️ Inconclusive",
+        HealthCheckDisposition.Unhealthy => "❌ Unhealthy",
+        _ => bootstrapHealth.IsHealthy ? "✅ Healthy" : "ℹ️ Unknown"
+    };
+
+    private static string FormatDeferredValidationLabel(HealthCheckResult bootstrapHealth)
+    {
+        if (bootstrapHealth.AllowsDeferredValidation && !bootstrapHealth.IsHealthy)
+        {
+            return "Yes — validation continued with a calibrated advisory bootstrap state.";
+        }
+
+        return "No — validation started from a clean bootstrap state.";
+    }
+
+    private static string FormatHandshakeOutcomeLabel(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "✅ Initialize handshake succeeded.",
+        HealthCheckDisposition.Protected => "🔒 Initialize handshake confirmed a protected endpoint boundary.",
+        HealthCheckDisposition.TransientFailure => "⚠️ Initialize handshake encountered a transient capacity or transport constraint.",
+        HealthCheckDisposition.Inconclusive => "ℹ️ Initialize handshake responded, but could not fully establish readiness.",
+        HealthCheckDisposition.Unhealthy => "❌ Initialize handshake failed definitively.",
+        _ => bootstrapHealth.IsHealthy ? "✅ Initialize handshake succeeded." : "ℹ️ Initialize handshake outcome is unknown."
+    };
+
+    private static string GetBootstrapNarrative(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    {
+        HealthCheckDisposition.Healthy => "Validation began from a clean bootstrap with no deferred connectivity risk carried into later categories.",
+        HealthCheckDisposition.Protected => "Validation continued because the endpoint was classified as protected rather than unreachable; later authenticated checks provide the authoritative evidence.",
+        HealthCheckDisposition.TransientFailure => "Validation continued because the preflight issue matched a retry-worthy transient constraint rather than a hard endpoint failure.",
+        HealthCheckDisposition.Inconclusive => "Validation continued with caution because the bootstrap handshake was inconclusive but not definitively unhealthy.",
+        HealthCheckDisposition.Unhealthy => "Bootstrap did not establish a viable validation path; any subsequent output should be treated as partial evidence only.",
+        _ => "Bootstrap disposition was not available."
+    };
 }

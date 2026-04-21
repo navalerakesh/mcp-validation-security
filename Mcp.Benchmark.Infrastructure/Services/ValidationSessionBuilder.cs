@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Authentication;
 using Microsoft.Extensions.Logging;
 using CoreLogLevel = Mcp.Benchmark.Core.Models.LogLevel;
@@ -87,13 +88,17 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         _httpClient.SetAuthentication(server.Authentication);
 
         var healthCheck = await _healthCheckService.PerformHealthCheckAsync(server, cancellationToken);
+        context.BootstrapHealth = healthCheck;
         context.InitializationHandshake = healthCheck.InitializationDetails;
 
         if (!healthCheck.IsHealthy)
         {
-            if (IsSoftHealthFailure(healthCheck.ErrorMessage))
+            if (ValidationReliability.ShouldAllowDeferredValidation(healthCheck))
             {
-                _logger.LogInformation("Health check reported a soft failure that will be re-tried later: {Message}", healthCheck.ErrorMessage);
+                _logger.LogInformation(
+                    "Health check reported a deferred {Disposition} outcome that will be revisited during validation: {Message}",
+                    healthCheck.Disposition,
+                    healthCheck.ErrorMessage);
             }
             else
             {
@@ -171,55 +176,28 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
             var startTime = DateTime.UtcNow;
             var probeResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, method, null, cancellationToken);
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
+            var authChallenge = AuthenticationChallengeInterpreter.Inspect(probeResponse, duration);
 
-            if (probeResponse.StatusCode == 401 || probeResponse.StatusCode == 403)
+            if (authChallenge.IsAuthenticationChallenge)
             {
-                var discoveryInfo = new AuthDiscoveryInfo { DiscoveryTimeMs = duration };
-                string? headerValue = null;
-                if (probeResponse.Headers != null)
-                {
-                    if (probeResponse.Headers.TryGetValue("WWW-Authenticate", out var header)) headerValue = header.ToString();
-                    else if (probeResponse.Headers.TryGetValue("www-authenticate", out var lowerHeader)) headerValue = lowerHeader.ToString();
-                }
-
-                discoveryInfo.WwwAuthenticateHeader = headerValue;
+                var discoveryInfo = AuthenticationChallengeInterpreter.CreateDiscoveryInfo(authChallenge)
+                    ?? new AuthDiscoveryInfo { DiscoveryTimeMs = duration };
 
                 var isAzureHost = serverConfig.Endpoint?.Contains("azurecontainerapps.io", StringComparison.OrdinalIgnoreCase) == true ||
                                   serverConfig.Endpoint?.Contains("azurewebsites.net", StringComparison.OrdinalIgnoreCase) == true;
 
-                if (!string.IsNullOrEmpty(headerValue) || isAzureHost)
+                if (authChallenge.HasWwwAuthenticateHeader || isAzureHost)
                 {
-                    string? metadataUrl = null;
-                    var isStandardOAuth = false;
-                    var forceAzure = isAzureHost && string.IsNullOrEmpty(headerValue);
-
-                    if (!forceAzure && headerValue!.Contains("resource_metadata=\"", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var marker = "resource_metadata=\"";
-                        var start = headerValue.IndexOf(marker, StringComparison.OrdinalIgnoreCase) + marker.Length;
-                        var end = headerValue.IndexOf('\"', start);
-                        if (end > start)
-                        {
-                            metadataUrl = headerValue.Substring(start, end - start);
-                        }
-                    }
-                    else if (forceAzure || headerValue!.Contains("authorization_uri=\"", StringComparison.OrdinalIgnoreCase) || headerValue.Contains("Bearer", StringComparison.OrdinalIgnoreCase))
-                    {
-                        isStandardOAuth = true;
-                    }
+                    var metadataUrl = authChallenge.ResourceMetadataUrl;
+                    var forceAzure = isAzureHost && !authChallenge.HasWwwAuthenticateHeader;
+                    var isStandardOAuth = forceAzure || !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri) || authChallenge.UsesBearerChallenge;
 
                     if (isStandardOAuth)
                     {
                         var authUri = "https://login.microsoftonline.com/common/v2.0";
-                        if (!forceAzure && headerValue!.Contains("authorization_uri=\"", StringComparison.OrdinalIgnoreCase))
+                        if (!forceAzure && !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri))
                         {
-                            var marker = "authorization_uri=\"";
-                            var start = headerValue.IndexOf(marker, StringComparison.OrdinalIgnoreCase) + marker.Length;
-                            var end = headerValue.IndexOf('\"', start);
-                            if (end > start)
-                            {
-                                authUri = headerValue.Substring(start, end - start);
-                            }
+                            authUri = authChallenge.AuthorizationUri;
                         }
 
                         var syntheticMetadata = new AuthMetadata
@@ -413,17 +391,6 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         {
             _logger.LogDebug(ex, "Unable to refresh protocol version via post-auth initialize handshake for {Endpoint}.", serverConfig.Endpoint);
         }
-    }
-
-    private static bool IsSoftHealthFailure(string? errorMessage)
-    {
-        if (string.IsNullOrWhiteSpace(errorMessage))
-        {
-            return false;
-        }
-
-        var message = errorMessage.ToLowerInvariant();
-        return message.Contains("401") || message.Contains("403") || message.Contains("405") || message.Contains("method not allowed");
     }
 
     private static McpServerConfig CloneServerConfig(McpServerConfig source)

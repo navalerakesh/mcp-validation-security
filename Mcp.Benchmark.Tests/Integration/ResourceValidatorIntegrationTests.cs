@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Validators;
 using Mcp.Compliance.Spec;
@@ -79,6 +80,40 @@ public class ResourceValidatorIntegrationTests
     }
 
     [Fact]
+    public async Task ValidateResourceDiscovery_WithoutMimeType_ShouldEmitGuidelineFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[{\"uri\":\"file:///test.txt\",\"name\":\"test.txt\"}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig { TestResourceReading = false }, CancellationToken.None);
+
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceGuidelineMimeTypeMissing);
+    }
+
+    [Fact]
+    public async Task ValidateResourceDiscovery_WithNonAbsoluteUriScheme_ShouldEmitHeuristicFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[{\"uri\":\"docs/README.md\",\"name\":\"README.md\",\"mimeType\":\"text/markdown\"}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig { TestResourceReading = false }, CancellationToken.None);
+
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceUriSchemeUnclear);
+    }
+
+    [Fact]
     public async Task ValidateResourceDiscovery_WithResourceRead_ShouldValidateContents()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
@@ -139,6 +174,32 @@ public class ResourceValidatorIntegrationTests
         var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig(), CancellationToken.None);
 
         result.ResourcesDiscovered.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ValidateResourceDiscovery_WithTemplateIssues_ShouldEmitStructuredTemplateFindings()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[]},\"id\":1}"
+            });
+        _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ResourcesTemplatesList, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"resourceTemplates\":[{\"name\":\"broken-template\"},{\"name\":\"repo-file\",\"uriTemplate\":\"repo://{owner}/{repo}/{path}\"}]},\"id\":2}"
+            });
+
+        var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig { TestResourceReading = false }, CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Failed);
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate);
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ResourceTemplateDescriptionMissing);
     }
 
     [Fact]

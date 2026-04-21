@@ -1,12 +1,14 @@
 using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 
 using Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 using Mcp.Benchmark.Infrastructure.Authentication;
@@ -23,6 +25,26 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     private readonly IScoringStrategy<ToolTestResult> _scoringStrategy;
     private readonly IAuthenticationService _authenticationService;
     private readonly IContentSafetyAnalyzer _contentSafetyAnalyzer;
+    private readonly IToolAiReadinessAnalyzer _aiReadinessAnalyzer;
+    private static readonly string[] DestructiveConfirmationGuidanceCues =
+    [
+        "confirm",
+        "confirmation",
+        "approve",
+        "approval",
+        "review",
+        "warning",
+        "warn"
+    ];
+    private static readonly string[] DestructiveConfirmationNegations =
+    [
+        "without confirmation",
+        "no confirmation",
+        "without approval",
+        "no approval",
+        "without warning",
+        "no warning"
+    ];
 
     public ToolValidator(
         ILogger<ToolValidator> logger,
@@ -30,7 +52,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         ISchemaValidator schemaValidator,
         ISchemaRegistry schemaRegistry,
         IAuthenticationService authenticationService,
-        IContentSafetyAnalyzer contentSafetyAnalyzer)
+        IContentSafetyAnalyzer contentSafetyAnalyzer,
+        IToolAiReadinessAnalyzer aiReadinessAnalyzer)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -38,6 +61,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         _schemaRegistry = schemaRegistry ?? throw new ArgumentNullException(nameof(schemaRegistry));
         _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
         _contentSafetyAnalyzer = contentSafetyAnalyzer ?? throw new ArgumentNullException(nameof(contentSafetyAnalyzer));
+        _aiReadinessAnalyzer = aiReadinessAnalyzer ?? throw new ArgumentNullException(nameof(aiReadinessAnalyzer));
         _scoringStrategy = new ToolScoringStrategy();
     }
 
@@ -62,18 +86,17 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.AuthenticationProperlyEnforced = authSecurity.AuthenticationRequired && authSecurity.HasProperAuthHeaders;
             }
 
-            // Check for pre-discovered auth info
             if (config.PreDiscoveredAuth != null)
             {
                 var authInfo = config.PreDiscoveredAuth;
                 var authIssues = new List<string>(authInfo.Issues);
-                
+
                 if (!string.IsNullOrEmpty(authInfo.WwwAuthenticateHeader))
                 {
                     authIssues.Add("✅ Proper WWW-Authenticate header present");
                     authIssues.Add("ℹ️  Auth enforced correctly (discovered during pre-validation)");
                 }
-                
+
                 result.ToolResults.Add(new IndividualToolResult
                 {
                     ToolName = "Authentication Discovery",
@@ -88,7 +111,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 });
             }
 
-            // REAL MCP TOOL DISCOVERY TESTING
             Logger.LogDebug("Performing comprehensive tool discovery via MCP tools/list");
 
             var toolsListStartTime = DateTime.UtcNow;
@@ -100,16 +122,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 toolsListDuration = (DateTime.UtcNow - toolsListStartTime).TotalMilliseconds;
             }
 
-            // CASE 1: 401/403 = Auth required (validate it's done RIGHT)
-            if (toolsListResponse.StatusCode == 401 || toolsListResponse.StatusCode == 403)
+            if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).IsAuthenticationChallenge)
             {
                 result.Status = TestStatus.Passed;
                 result.Score = 100.0;
                 result.ToolsTestPassed = 1;
-                
+
                 var authIssues = new List<string>();
                 string? authHeaderValue = null;
-                
+
                 if (toolsListResponse.Headers != null)
                 {
                     if (toolsListResponse.Headers.TryGetValue("WWW-Authenticate", out var val)) authHeaderValue = val.ToString();
@@ -135,10 +156,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 {
                     authSecurity.ChallengeDurationMs = toolsListDuration;
                 }
+
                 if (hasWwwAuth)
                 {
                     authSecurity.WwwAuthenticateHeader = authHeaderValue;
                 }
+
                 authSecurity.SecurityScore = hasWwwAuth ? 100.0 : 85.0;
                 result.AuthenticationSecurity = authSecurity;
                 result.AuthenticationProperlyEnforced = authSecurity.AuthenticationRequired && authSecurity.HasProperAuthHeaders;
@@ -146,19 +169,18 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 AuthMetadata? authMetadata = null;
                 if (hasWwwAuth && authHeaderValue!.Contains("resource_metadata=\""))
                 {
-                    try 
+                    try
                     {
-                        // Extract URL: resource_metadata="https://..."
                         var start = authHeaderValue.IndexOf("resource_metadata=\"") + "resource_metadata=\"".Length;
                         var end = authHeaderValue.IndexOf("\"", start);
                         if (end > start)
                         {
                             var metadataUrl = authHeaderValue.Substring(start, end - start);
                             Logger.LogDebug($"Fetching auth metadata from: {metadataUrl}");
-                            
+
                             var json = await _httpClient.GetStringAsync(metadataUrl, ct);
                             authMetadata = JsonSerializer.Deserialize<AuthMetadata>(json);
-                            
+
                             if (authMetadata != null)
                             {
                                 authIssues.Add("✅ Successfully fetched and parsed OAuth 2.0 Metadata");
@@ -176,12 +198,10 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     }
                 }
 
-                // INTERACTIVE AUTH ATTEMPT
                 if (serverConfig.Authentication?.AllowInteractive == true && authMetadata != null)
                 {
                     Logger.LogInformation("Interactive auth enabled. Attempting to acquire token via authentication service...");
-                    
-                    // Use a longer timeout (5 min) for interactive auth, ignoring the default 30s operation timeout
+
                     using var authCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
                     authCts.CancelAfter(TimeSpan.FromMinutes(5));
 
@@ -199,12 +219,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         {
                             authSecurity.InteractiveLoginSucceeded = true;
                         }
-                        
-                        // Update HTTP client with new token
-                        _httpClient.SetAuthentication(new AuthenticationConfig 
-                        { 
-                            Type = "bearer", 
-                            Token = token 
+
+                        _httpClient.SetAuthentication(new AuthenticationConfig
+                        {
+                            Type = "bearer",
+                            Token = token
                         });
 
                         // Update server config so subsequent validators use the token
@@ -250,7 +269,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
                 
                 // If still 401/403 after retry (or no retry), return the Auth Check result
-                if (toolsListResponse.StatusCode == 401 || toolsListResponse.StatusCode == 403)
+                if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).IsAuthenticationChallenge)
                 {
                     // If interactive auth was requested but failed, mark as SKIPPED instead of PASSED
                     if (serverConfig.Authentication?.AllowInteractive == true)
@@ -329,8 +348,19 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 return result;
             }
 
-                // Parse tools from response
-                var toolsList = ParseTools(toolsListResponse.RawJson);
+            long toolsListPayloadChars = toolsListResponse.RawJson?.Length ?? 0;
+
+            // Parse tools from the first page, then continue through paginated discovery when the server exposes nextCursor.
+            var toolsList = ParseTools(toolsListResponse.RawJson);
+            if (cachedToolsListResponse == null && snapshotTools == null)
+            {
+                var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
+                toolsList = paginationFetch.Tools;
+                toolsListPayloadChars = paginationFetch.TotalPayloadChars;
+                result.Issues.AddRange(paginationFetch.Issues);
+                ApplyPaginationFindings(result, paginationFetch, toolsList, toolsListPayloadChars / 4);
+            }
+
             if (toolsList.Count == 0 && snapshotTools != null && snapshotTools.Count > 0)
             {
                 toolsList = snapshotTools;
@@ -339,7 +369,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.DiscoveredToolNames = toolsList.Select(t => t.Name).ToList();
 
                 // Schema-based validation of tools/list response shape (best-effort)
-                var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(serverConfig.ProtocolVersion);
+                var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
                 if (SchemaValidationHelpers.TryValidateListResult(
                     _schemaRegistry,
                     _schemaValidator,
@@ -446,153 +476,45 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.Status = result.ToolsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
 
             // AI Readiness Analysis
-            AnalyzeAiReadiness(result, toolsList, toolsListResponse.RawJson);
+            ApplyAiReadinessAnalysis(result, toolsList, toolsListResponse.RawJson, toolsListPayloadChars);
 
             return result;
         }, cancellationToken);
     }
 
-    /// <summary>
-    /// Analyzes tool schemas for AI agent consumption quality:
-    /// - Schema description completeness (hallucination risk)
-    /// - Type specificity (vague "string" without constraints)
-    /// - Token efficiency (payload size vs context window limits)
-    /// </summary>
-    private void AnalyzeAiReadiness(ToolTestResult result, List<ToolInfo> tools, string? rawJson)
+    private void ApplyAiReadinessAnalysis(ToolTestResult result, IReadOnlyCollection<ToolInfo> tools, string? rawJson, long? totalPayloadChars = null)
     {
-        if (tools.Count == 0)
+        var analysis = _aiReadinessAnalyzer.AnalyzeCatalog(
+            tools.Select(tool => new ToolAiReadinessTarget
+            {
+                Name = tool.Name,
+                InputSchema = tool.InputSchema
+            }).ToList(),
+            rawJson,
+            totalPayloadChars);
+
+        result.AiReadinessScore = analysis.Score;
+        result.EstimatedTokenCount = analysis.EstimatedTokenCount;
+
+        foreach (var finding in analysis.Findings)
         {
-            result.AiReadinessScore = -1; // N/A
-            return;
+            result.AddAiReadinessFinding(finding, finding.Summary);
         }
 
-        double totalScore = 0;
-        int scored = 0;
-
-        foreach (var tool in tools)
+        if (!string.IsNullOrWhiteSpace(analysis.SummaryIssue))
         {
-            double toolScore = 100.0;
-            var schema = tool.InputSchema;
-
-            // 1. Check for description on the tool level
-            // (We only have name in ToolInfo, but we can infer from schema)
-            if (schema.ValueKind == JsonValueKind.Undefined ||
-                !schema.TryGetProperty("properties", out var props) ||
-                props.EnumerateObject().Count() == 0)
-            {
-                // No input schema or no properties — acceptable but not great for AI
-                totalScore += 80.0;
-                scored++;
-                continue;
-            }
-
-            int paramCount = 0;
-            int undescribedParams = 0;
-            int vagueStringParams = 0;
-
-            foreach (var prop in props.EnumerateObject())
-            {
-                paramCount++;
-
-                // Check: does the parameter have a description?
-                if (!prop.Value.TryGetProperty("description", out _))
-                {
-                    undescribedParams++;
-                }
-
-                // Check: is it type:string with no enum/pattern/format constraint?
-                if (prop.Value.TryGetProperty("type", out var t) && t.GetString() == "string")
-                {
-                    bool hasConstraint = prop.Value.TryGetProperty("enum", out _) ||
-                                        prop.Value.TryGetProperty("pattern", out _) ||
-                                        prop.Value.TryGetProperty("format", out _);
-                    if (!hasConstraint) vagueStringParams++;
-                }
-            }
-
-            // Penalties
-            if (paramCount > 0)
-            {
-                double descPenalty = (undescribedParams / (double)paramCount) * 30.0;
-                double vaguePenalty = (vagueStringParams / (double)paramCount) * 20.0;
-                toolScore -= descPenalty;
-                toolScore -= vaguePenalty;
-            }
-
-            if (undescribedParams > 0)
-            {
-                var issue = $"Tool '{tool.Name}': {undescribedParams}/{paramCount} parameters lack descriptions (increases hallucination risk)";
-                result.AddAiReadinessFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
-                    Category = "AiReadiness",
-                    Component = tool.Name,
-                    Severity = ValidationFindingSeverity.Medium,
-                    Summary = issue,
-                    Recommendation = "Add clear descriptions to each parameter so agents can generate valid arguments without guessing."
-                }, issue);
-            }
-
-            if (vagueStringParams > 0)
-            {
-                var issue = $"Tool '{tool.Name}': {vagueStringParams}/{paramCount} string parameters have no enum/pattern/format constraint";
-                result.AddAiReadinessFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.AiReadinessVagueStringSchema,
-                    Category = "AiReadiness",
-                    Component = tool.Name,
-                    Severity = ValidationFindingSeverity.Medium,
-                    Summary = issue,
-                    Recommendation = "Constrain string parameters with enum, pattern, or format metadata when possible."
-                }, issue);
-            }
-
-            totalScore += Math.Max(0, toolScore);
-            scored++;
+            result.Issues.Add(analysis.SummaryIssue);
         }
+    }
 
-        result.AiReadinessScore = scored > 0 ? Math.Round(totalScore / scored, 1) : -1;
+    private void ApplyErrorAiReadinessAssessment(string toolName, string rawJson, int errorCode, string errorMessage, IndividualToolResult result)
+    {
+        var assessment = _aiReadinessAnalyzer.AnalyzeErrorResponse(toolName, rawJson, errorCode, errorMessage);
+        result.AddFinding(assessment.Finding, assessment.Finding.Summary);
 
-        // Token Efficiency: estimate token count from raw JSON size
-        // Rough heuristic: ~4 chars per token for JSON
-        if (!string.IsNullOrEmpty(rawJson))
+        foreach (var issue in assessment.SupportingIssues)
         {
-            result.EstimatedTokenCount = rawJson.Length / 4;
-            if (result.EstimatedTokenCount > 32000)
-            {
-                var issue = $"⚠️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — exceeds typical 32k context window. AI agents may truncate tool metadata.";
-                result.AddAiReadinessFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.AiReadinessTokenBudgetExceeded,
-                    Category = "AiReadiness",
-                    Component = "tools/list",
-                    Severity = ValidationFindingSeverity.High,
-                    Summary = issue,
-                    Recommendation = "Reduce tool discovery payload size or split metadata so large servers remain usable by agents.",
-                    Metadata = { ["tokenCount"] = result.EstimatedTokenCount.ToString() }
-                }, issue);
-                result.AiReadinessScore = Math.Max(0, result.AiReadinessScore - 10);
-            }
-            else if (result.EstimatedTokenCount > 8000)
-            {
-                var issue = $"ℹ️ tools/list response is ~{result.EstimatedTokenCount:N0} tokens — consider reducing descriptions for token efficiency.";
-                result.AddAiReadinessFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.AiReadinessTokenBudgetWarning,
-                    Category = "AiReadiness",
-                    Component = "tools/list",
-                    Severity = ValidationFindingSeverity.Low,
-                    Summary = issue,
-                    Recommendation = "Trim overly long descriptions and examples to improve agent discovery efficiency.",
-                    Metadata = { ["tokenCount"] = result.EstimatedTokenCount.ToString() }
-                }, issue);
-            }
-        }
-
-        if (result.AiReadinessScore >= 0)
-        {
-            var grade = result.AiReadinessScore >= 80 ? "Good" : result.AiReadinessScore >= 50 ? "Fair" : "Poor";
-            result.Issues.Add($"🤖 AI Readiness Score: {result.AiReadinessScore:F0}/100 ({grade})");
+            result.Issues.Add($"   ↳ {issue}");
         }
     }
 
@@ -604,10 +526,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             DiscoveredCorrectly = true,
             MetadataValid = true,
             DisplayTitle = tool.DisplayTitle,
+            Description = tool.Description,
             ReadOnlyHint = tool.ReadOnlyHint,
             DestructiveHint = tool.DestructiveHint,
             OpenWorldHint = tool.OpenWorldHint,
-            IdempotentHint = tool.IdempotentHint
+            IdempotentHint = tool.IdempotentHint,
+            InputParameterNames = GetInputParameterNames(tool)
         };
 
         try
@@ -617,7 +541,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             var toolCallDuration = (DateTime.UtcNow - toolCallStartTime).TotalMilliseconds;
             result.ExecutionTimeMs = toolCallDuration;
 
-            if (toolCallResponse.StatusCode == 401 || toolCallResponse.StatusCode == 403)
+            if (AuthenticationChallengeInterpreter.Inspect(toolCallResponse).IsAuthenticationChallenge)
             {
                 // Auth enforced on individual tool call — compliant
                 result.Status = TestStatus.Passed;
@@ -649,7 +573,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         }
 
                         // LLM-Friendliness: Grade the error response for AI self-correction
-                        GradeErrorForLlmFriendliness(toolCallResponse.RawJson, errorCode, errorMsg, tool.Name, result);
+                        ApplyErrorAiReadinessAssessment(tool.Name, toolCallResponse.RawJson, errorCode, errorMsg, result);
                     }
                     else
                     {
@@ -736,126 +660,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
         catch { /* Not valid JSON-RPC error format */ }
         return false;
-    }
-
-    /// <summary>
-    /// Grades an error response for LLM-friendliness — does the error help an AI agent
-    /// understand what went wrong and what to do next? This is critical for agentic AI
-    /// because a poor error response leads to:
-    /// - Hallucinated retry arguments (LLM guesses blindly)
-    /// - Infinite retry loops (LLM doesn't know it's the same error)
-    /// - Incorrect tool selection (LLM thinks tool doesn't work, tries another)
-    /// 
-    /// Scoring (0-100):
-    /// +20: Uses standard JSON-RPC error code (LLM can pattern-match on code)
-    /// +25: Error message mentions the specific parameter name (LLM knows WHAT to fix)
-    /// +20: Error message describes expected format/type (LLM knows HOW to fix)
-    /// +15: Error includes 'data' field with structured details (programmatic correction)
-    /// +10: Message is specific (>20 chars, not generic "Error" or "Internal Server Error")
-    /// +10: Error correctly uses isError:true in tool result (LLM knows it's a tool failure, not data)
-    /// </summary>
-    private void GradeErrorForLlmFriendliness(string rawJson, int errorCode, string errorMessage, string toolName, IndividualToolResult result)
-    {
-        int score = 0;
-        var insights = new List<string>();
-        var textLower = (errorMessage ?? "").ToLowerInvariant();
-
-        // 1. Standard JSON-RPC error code (+20)
-        if (errorCode is -32602 or -32600 or -32601 or -32603 or -32700)
-        {
-            score += 20;
-        }
-        else
-        {
-            insights.Add("Non-standard error code — LLM may not recognize the failure type");
-        }
-
-        // 2. Mentions parameter name (+25)
-        bool mentionsParam = false;
-        try
-        {
-            using var doc = JsonDocument.Parse(rawJson);
-            if (doc.RootElement.TryGetProperty("error", out var err))
-            {
-                var fullText = err.ToString().ToLowerInvariant();
-                // Check if any known parameter names appear in the error
-                if (fullText.Contains("param") || fullText.Contains("argument") || fullText.Contains("field") || 
-                    fullText.Contains("required") || fullText.Contains("missing"))
-                {
-                    mentionsParam = true;
-                    score += 25;
-                }
-
-                // 3. Describes expected type/format (+20) 
-                if (fullText.Contains("expected") || fullText.Contains("must be") || fullText.Contains("should be") ||
-                    fullText.Contains("type") || fullText.Contains("format") || fullText.Contains("valid"))
-                {
-                    score += 20;
-                }
-                else
-                {
-                    insights.Add("Error doesn't describe expected format — LLM can't self-correct");
-                }
-
-                // 4. Has structured 'data' field (+15)
-                if (err.TryGetProperty("data", out _))
-                {
-                    score += 15;
-                }
-
-                // 5. Message specificity (+10)
-                if ((errorMessage?.Length ?? 0) > 20)
-                {
-                    score += 10;
-                }
-                else
-                {
-                    insights.Add("Error message too short — LLM gets no useful context");
-                }
-            }
-        }
-        catch { /* ignore parse errors */ }
-
-        if (!mentionsParam)
-        {
-            insights.Add("Error doesn't mention which parameter is wrong — LLM will guess blindly");
-        }
-
-        // 6. Check isError in tool results (separate from JSON-RPC errors)
-        if (rawJson.Contains("\"isError\""))
-        {
-            score += 10;
-        }
-
-        score = Math.Min(100, score);
-
-        // Classify
-        var grade = score >= 70 ? "Pro-LLM" : score >= 40 ? "Neutral" : "Anti-LLM";
-        var gradeIcon = score >= 70 ? "🟢" : score >= 40 ? "🟡" : "🔴";
-
-        var llmIssue = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
-        result.AddFinding(new ValidationFinding
-        {
-            RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
-            Category = "AiReadiness",
-            Component = toolName,
-            Severity = score >= 70 ? ValidationFindingSeverity.Info : score >= 40 ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High,
-            Summary = llmIssue,
-            Recommendation = "Return specific, structured errors that identify the invalid argument and expected shape.",
-            Metadata =
-            {
-                ["score"] = score.ToString(),
-                ["grade"] = grade
-            }
-        }, llmIssue);
-
-        if (insights.Count > 0 && score < 70)
-        {
-            foreach (var insight in insights.Take(2))
-            {
-                result.Issues.Add($"   ↳ {insight}");
-            }
-        }
     }
 
     /// <summary>
@@ -1043,7 +847,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             // Discover tools first
             var listResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
-            if (listResponse.StatusCode == 401 || listResponse.StatusCode == 403)
+            if (AuthenticationChallengeInterpreter.Inspect(listResponse).IsAuthenticationChallenge)
             {
                 result.Status = TestStatus.Skipped;
                 result.Message = "Tool execution skipped: authentication required.";
@@ -1087,7 +891,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     sw.Stop();
                     toolResult.ExecutionTimeMs = sw.ElapsedMilliseconds;
 
-                    if (callResponse.StatusCode == 401 || callResponse.StatusCode == 403)
+                    if (AuthenticationChallengeInterpreter.Inspect(callResponse).IsAuthenticationChallenge)
                     {
                         toolResult.Status = TestStatus.Passed;
                         toolResult.ExecutionSuccessful = true;
@@ -1202,56 +1006,92 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     /// <summary>
     /// Fetches all tools with pagination support (handles nextCursor per MCP spec).
     /// </summary>
-    private async Task<(List<ToolInfo> Tools, List<string> Issues)> FetchAllToolsWithPaginationAsync(
-        string endpoint, AuthenticationConfig? auth, CancellationToken ct)
+    private async Task<ToolPaginationFetchResult> FetchAllToolsWithPaginationAsync(
+        string endpoint, AuthenticationConfig? auth, JsonRpcResponse initialResponse, CancellationToken ct)
     {
-        var allTools = new List<ToolInfo>();
+        var allTools = ParseTools(initialResponse.RawJson);
         var issues = new List<string>();
-        string? cursor = null;
-        int pageCount = 0;
+        var seenCursors = new HashSet<string>(StringComparer.Ordinal);
+        var totalPayloadChars = initialResponse.RawJson?.Length ?? 0;
+        var cursor = ExtractNextCursor(initialResponse.RawJson);
+        var paginationDetected = !string.IsNullOrWhiteSpace(cursor);
+        var cursorLoopDetected = false;
+        int pageCount = 1;
         const int maxPages = 50; // Safety limit
 
-        do
+        if (paginationDetected)
         {
+            issues.Add("ℹ️ Server uses pagination for tools/list (nextCursor detected)");
+        }
+
+        while (!string.IsNullOrWhiteSpace(cursor) && pageCount < maxPages)
+        {
+            if (!seenCursors.Add(cursor))
+            {
+                cursorLoopDetected = true;
+                issues.Add($"⚠️ Pagination warning: tools/list repeated cursor '{cursor}' across pages");
+                break;
+            }
+
             pageCount++;
             object? listParams = cursor != null ? new { cursor } : null;
             var response = await _httpClient.CallAsync(endpoint, ValidationConstants.Methods.ToolsList, listParams, auth, ct);
 
-            if (!response.IsSuccess) break;
+            if (!response.IsSuccess)
+            {
+                issues.Add($"⚠️ Pagination warning: tools/list page {pageCount} failed: HTTP {response.StatusCode}");
+                break;
+            }
 
             var tools = ParseTools(response.RawJson);
             allTools.AddRange(tools);
+            totalPayloadChars += response.RawJson?.Length ?? 0;
 
-            // Check for nextCursor (pagination)
-            cursor = null;
-            if (!string.IsNullOrEmpty(response.RawJson))
-            {
-                try
-                {
-                    using var doc = JsonDocument.Parse(response.RawJson);
-                    if (doc.RootElement.TryGetProperty("result", out var result) &&
-                        result.TryGetProperty("nextCursor", out var nextCursor) &&
-                        nextCursor.ValueKind == JsonValueKind.String)
-                    {
-                        cursor = nextCursor.GetString();
-                    }
-                }
-                catch { /* ignore parse errors */ }
-            }
-
-            if (cursor != null && pageCount == 1)
-            {
-                issues.Add($"ℹ️ Server uses pagination for tools/list (nextCursor detected)");
-            }
+            cursor = ExtractNextCursor(response.RawJson);
         }
-        while (cursor != null && pageCount < maxPages);
 
         if (pageCount > 1)
         {
             issues.Add($"✅ Pagination: Fetched {allTools.Count} tools across {pageCount} pages");
         }
 
-        return (allTools, issues);
+        if (!string.IsNullOrWhiteSpace(cursor) && pageCount >= maxPages)
+        {
+            issues.Add($"⚠️ Pagination warning: tools/list exceeded the validator safety limit of {maxPages} pages");
+        }
+
+        return new ToolPaginationFetchResult(
+            allTools,
+            issues,
+            pageCount,
+            paginationDetected,
+            cursorLoopDetected,
+            totalPayloadChars);
+    }
+
+    private static string? ExtractNextCursor(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(rawJson);
+            if (doc.RootElement.TryGetProperty("result", out var result) &&
+                result.TryGetProperty("nextCursor", out var nextCursor) &&
+                nextCursor.ValueKind == JsonValueKind.String)
+            {
+                return nextCursor.GetString();
+            }
+        }
+        catch
+        {
+            // Ignore malformed cursor payloads here and let schema validation surface the rest.
+        }
+
+        return null;
     }
 
     private object CreateSafeToolCallParams(ToolInfo tool)
@@ -1292,6 +1132,26 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             name = tool.Name,
             arguments = args
         };
+    }
+
+    private static List<string> GetInputParameterNames(ToolInfo tool)
+    {
+        var parameterNames = new List<string>();
+
+        try
+        {
+            if (tool.InputSchema.ValueKind != JsonValueKind.Undefined &&
+                tool.InputSchema.TryGetProperty("properties", out var props))
+            {
+                parameterNames.AddRange(props.EnumerateObject().Select(property => property.Name));
+            }
+        }
+        catch
+        {
+            // Ignore metadata extraction failures. Validation should continue with partial evidence.
+        }
+
+        return parameterNames;
     }
 
     private class ToolInfo
@@ -1370,6 +1230,75 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             toolResult.AddFinding(finding, finding.Summary);
             aggregateResult.Findings.Add(finding);
         }
+
+        if (tool.DestructiveHint == true && MissingDestructiveConfirmationGuidance(tool.Description))
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing,
+                Category = "McpGuideline",
+                Component = tool.Name,
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = $"Tool '{tool.Name}' is marked destructive but its description does not mention confirmation, approval, or warning guidance.",
+                Recommendation = "Add explicit confirmation, approval, or warning language so agents know human review is expected before destructive execution."
+            };
+
+            toolResult.AddFinding(finding, finding.Summary);
+            aggregateResult.Findings.Add(finding);
+        }
+    }
+
+    private static bool MissingDestructiveConfirmationGuidance(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return true;
+        }
+
+        return !HasDestructiveConfirmationGuidance(description);
+    }
+
+    private static bool HasDestructiveConfirmationGuidance(string description)
+    {
+        if (DestructiveConfirmationNegations.Any(phrase => description.Contains(phrase, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        return DestructiveConfirmationGuidanceCues.Any(phrase => description.Contains(phrase, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static void ApplyPaginationFindings(
+        ToolTestResult aggregateResult,
+        ToolPaginationFetchResult paginationFetch,
+        IReadOnlyCollection<ToolInfo> tools,
+        long estimatedTokenCount)
+    {
+        if (paginationFetch.CursorLoopDetected)
+        {
+            aggregateResult.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolListCursorLoopDetected,
+                Category = "AiReadiness",
+                Component = "tools/list",
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = "tools/list pagination repeated a cursor across pages, which can trap clients in unstable pagination loops.",
+                Recommendation = "Return a stable nextCursor progression and stop emitting cursors after the final page."
+            });
+        }
+
+        if (!paginationFetch.PaginationDetected && (tools.Count >= 100 || estimatedTokenCount > 8000))
+        {
+            aggregateResult.Findings.Add(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolListPaginationRecommended,
+                Category = "McpGuideline",
+                Component = "tools/list",
+                Severity = ValidationFindingSeverity.Low,
+                Summary = $"tools/list returned {tools.Count} tools (~{estimatedTokenCount:N0} tokens) without pagination support.",
+                Recommendation = "Add nextCursor pagination for large tool catalogs so clients can discover tools incrementally."
+            });
+        }
     }
 
     private static void AddGuidelineFindingIfMissing(
@@ -1402,24 +1331,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     private static AuthenticationSecurityResult? BuildAuthSecurityFromDiscovery(AuthDiscoveryInfo? discovery)
     {
-        if (discovery == null)
-        {
-            return null;
-        }
-
-        return new AuthenticationSecurityResult
-        {
-            AuthenticationRequired = true,
-            RejectsUnauthenticated = true,
-            CorrectStatusCodes = true,
-            ErrorResponsesCompliant = true,
-            HasProperAuthHeaders = !string.IsNullOrWhiteSpace(discovery.WwwAuthenticateHeader),
-            WwwAuthenticateHeader = discovery.WwwAuthenticateHeader,
-            AuthMetadata = discovery.Metadata,
-            ChallengeDurationMs = discovery.DiscoveryTimeMs,
-            SecurityScore = !string.IsNullOrWhiteSpace(discovery.WwwAuthenticateHeader) ? 100.0 : 85.0,
-            Findings = new List<string>(discovery.Issues)
-        };
+        return AuthenticationChallengeInterpreter.CreateSecurityResult(discovery);
     }
 
     private static void AppendAuthFindings(AuthenticationSecurityResult authSecurity, IEnumerable<string> findings)
@@ -1487,6 +1399,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         issues.Add("ℹ️ Initial 401 challenge (if any) succeeded; failure is due to schema non-compliance.");
         return issues;
     }
+
+    private sealed record ToolPaginationFetchResult(
+        List<ToolInfo> Tools,
+        List<string> Issues,
+        int PageCount,
+        bool PaginationDetected,
+        bool CursorLoopDetected,
+        long TotalPayloadChars);
 
     private static JsonRpcResponse? CreateResponseFromSnapshot(TransportResult<CapabilitySummary>? snapshot)
     {

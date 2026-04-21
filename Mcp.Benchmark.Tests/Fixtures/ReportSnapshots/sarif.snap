@@ -1,0 +1,294 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+              "name": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+              "shortDescription": {
+                "text": "One tool response omitted the outer result object."
+              },
+              "fullDescription": {
+                "text": "One tool response omitted the outer result object."
+              },
+              "help": null,
+              "helpUri": null,
+              "properties": {
+                "source": "spec",
+                "category": "ProtocolCompliance",
+                "tags": [
+                  "spec",
+                  "ProtocolCompliance",
+                  "tools/call"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+              "name": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
+              },
+              "fullDescription": {
+                "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
+              },
+              "help": null,
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "delete_repo"
+                ]
+              }
+            },
+            {
+              "id": "MCP.INIT.VERSION_NEGOTIATION",
+              "name": "MCP.INIT.VERSION_NEGOTIATION",
+              "shortDescription": {
+                "text": "initialize.result.protocolVersion must reflect negotiation."
+              },
+              "fullDescription": {
+                "text": "Server ignored the requested MCP protocol version."
+              },
+              "help": {
+                "text": "Echo the negotiated protocol version in initialize.result."
+              },
+              "helpUri": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+              "properties": {
+                "source": "spec",
+                "category": "Initialization",
+                "tags": [
+                  "spec",
+                  "Initialization"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "name": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+              },
+              "fullDescription": {
+                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+              },
+              "help": null,
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "delete_repo"
+                ]
+              }
+            },
+            {
+              "id": "MCP.SECURITY.PROMPT_INJECTION",
+              "name": "MCP.SECURITY.PROMPT_INJECTION",
+              "shortDescription": {
+                "text": "Prompt injection reflection"
+              },
+              "fullDescription": {
+                "text": "Server reflected untrusted prompt content without sanitization."
+              },
+              "help": {
+                "text": "Sanitize and label untrusted content before returning it."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "PromptInjection",
+                "tags": [
+                  "heuristic",
+                  "PromptInjection",
+                  "prompt:get"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "validation-snapshot-001",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-04-20T10:00:00.0000000Z",
+          "endTimeUtc": "2026-04-20T10:00:12.0000000Z",
+          "properties": {
+            "validationId": "validation-snapshot-001",
+            "endpoint": "https://snapshot.example.test/mcp",
+            "transport": "http",
+            "overallStatus": "Failed",
+            "serverProfile": "Authenticated",
+            "specProfile": "2025-11-25"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "One tool response omitted the outer result object."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.TOOL.CALL.RESULT_OBJECT_MISSING|tools/call|One tool response omitted the outer result object."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/call"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "ProtocolCompliance",
+            "component": "tools/call",
+            "severity": "Medium"
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING|delete_repo|Tool \u0027delete_repo\u0027 has parameters without descriptions."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "delete_repo"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "heuristic",
+            "category": "AiReadiness",
+            "component": "delete_repo",
+            "severity": "Medium"
+          }
+        },
+        {
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Server ignored the requested MCP protocol version."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP.INIT.VERSION_NEGOTIATION|Initialization|Server ignored the requested MCP protocol version."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "Initialization"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "Initialization",
+            "component": "Initialization",
+            "severity": "High",
+            "rule": "initialize.result.protocolVersion must reflect negotiation.",
+            "recommendation": "Echo the negotiated protocol version in initialize.result."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING|delete_repo|Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "delete_repo"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "delete_repo",
+            "severity": "High"
+          }
+        },
+        {
+          "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Server reflected untrusted prompt content without sanitization."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "vuln|MCP.SECURITY.PROMPT_INJECTION|prompt:get|Server reflected untrusted prompt content without sanitization."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "prompt:get"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "security-vulnerability",
+            "authority": "heuristic",
+            "category": "PromptInjection",
+            "component": "prompt:get",
+            "severity": "Critical",
+            "isExploitable": true,
+            "cvssScore": 9.1,
+            "recommendation": "Sanitize and label untrusted content before returning it."
+          }
+        }
+      ]
+    }
+  ]
+}

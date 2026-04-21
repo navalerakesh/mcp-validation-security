@@ -1,0 +1,178 @@
+<testsuites name="MCP Validator" tests="9" failures="4" errors="0" skipped="1" time="33.700">
+  <testsuite name="overall-validation" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.overall" name="Overall Validation Run" time="12.000">
+      <failure message="Overall status: Failed">Compliance Score: 81.4%
+Summary: total=7, passed=4, failed=2, skipped=1
+Endpoint: https://snapshot.example.test/mcp
+Transport: http
+Critical Error: Prompt validation hit an unsafe reflection path.
+Recommendation: Add destructive hints to write-capable tools.
+Recommendation: Return the negotiated protocol version explicitly during initialize.</failure>
+      <system-out>Compliance Score: 81.4%
+Summary: total=7, passed=4, failed=2, skipped=1
+Endpoint: https://snapshot.example.test/mcp
+Transport: http
+Critical Error: Prompt validation hit an unsafe reflection path.
+Recommendation: Add destructive hints to write-capable tools.
+Recommendation: Return the negotiated protocol version explicitly during initialize.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="host-policy" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.policy" name="Policy Gate (strict)" time="12.000">
+      <failure message="Strict policy blocked the validation result with 2 unsuppressed signal(s).">Strict policy blocked the validation result with 2 unsuppressed signal(s).
+Recommended Exit Code: 1
+Suppressed Signals: 0
+Reason: Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.</failure>
+      <system-out>Strict policy blocked the validation result with 2 unsuppressed signal(s).
+Recommended Exit Code: 1
+Suppressed Signals: 0
+Reason: Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.protocol.compliance" name="Protocol Compliance" time="2.100">
+      <failure message="Protocol negotiation had one blocking violation.">Message: Protocol negotiation had one blocking violation.
+Compliance Score: 84.0%
+Finding [spec/Medium] MCP.TOOL.CALL.RESULT_OBJECT_MISSING: One tool response omitted the outer result object.
+Violation [High] MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</failure>
+      <system-out>Message: Protocol negotiation had one blocking violation.
+Compliance Score: 84.0%
+Finding [spec/Medium] MCP.TOOL.CALL.RESULT_OBJECT_MISSING: One tool response omitted the outer result object.
+Violation [High] MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="tool-validation" tests="1" failures="0" errors="0" skipped="0" time="1.800" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.tool.validation" name="Tool Validation" time="1.800">
+      <system-out>Message: Tool catalog loaded and executed.
+Score: 91.0%
+Tools Discovered: 2
+Tool Pass Count: 2
+Tool Fail Count: 0
+Tool delete_repo: Passed
+Tool list_repos: Passed</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="resource-testing" tests="1" failures="0" errors="0" skipped="0" time="0.900" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.resource.testing" name="Resource Testing" time="0.900">
+      <system-out>Message: Resource access passed.
+Resources Discovered: 1
+Resources Accessible: 1
+Resources Failed: 0
+Resource repo://snapshot/README.md: Passed</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="prompt-testing" tests="1" failures="0" errors="0" skipped="1" time="0.400" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.prompt.testing" name="Prompt Testing" time="0.400">
+      <skipped message="Server does not advertise prompts capability.">Message: Server does not advertise prompts capability.
+Prompts Discovered: 0
+Prompts Passed: 0
+Prompts Failed: 0</skipped>
+      <system-out>Message: Server does not advertise prompts capability.
+Prompts Discovered: 0
+Prompts Passed: 0
+Prompts Failed: 0</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="security-testing" tests="1" failures="1" errors="0" skipped="0" time="2.600" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.security.testing" name="Security Testing" time="2.600">
+      <failure message="Security testing found one exploitable prompt reflection.">Message: Security testing found one exploitable prompt reflection.
+Security Score: 69.0%
+Vulnerability [Critical] MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
+Recommendation: Label or sanitize untrusted prompt content before returning it.</failure>
+      <system-out>Message: Security testing found one exploitable prompt reflection.
+Security Score: 69.0%
+Vulnerability [Critical] MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
+Recommendation: Label or sanitize untrusted prompt content before returning it.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="performance-testing" tests="1" failures="0" errors="0" skipped="0" time="1.200" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.performance.testing" name="Performance Testing" time="1.200">
+      <system-out>Message: Performance is acceptable under moderate load.
+Average Latency Ms: 120.50
+P95 Latency Ms: 210.40
+Requests Per Second: 18.20
+Error Rate: 0.00</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="error-handling" tests="1" failures="0" errors="0" skipped="0" time="0.700" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.error.handling" name="Error Handling" time="0.700">
+      <system-out>Message: Error scenarios were handled cleanly.
+Error Scenarios Tested: 3
+Error Scenarios Handled Correctly: 3</system-out>
+    </testcase>
+  </testsuite>
+</testsuites>

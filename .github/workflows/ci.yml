@@ -42,10 +42,14 @@ on:
 
 env:
   DOTNET_VERSION: '8.0.x'
+  NODE_VERSION: '20'
   PROJECT_PATH: 'Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj'
   # Version: MAJOR.MINOR comes from Directory.Build.props (VersionPrefix).
   # CI auto-increments PATCH from the latest git tag (v1.0.0 → v1.0.1 → v1.0.2).
   # To bump version: edit VersionPrefix in Directory.Build.props, commit, push.
+
+permissions:
+  contents: read
 
 jobs:
   # Build, Test, and Scan
@@ -59,9 +63,90 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: mcpval-mcp/package-lock.json
           
       - name: Restore dependencies
         run: dotnet restore
+
+      - name: Install npm dependencies
+        working-directory: mcpval-mcp
+        run: npm ci
+
+      - name: Build npm package
+        working-directory: mcpval-mcp
+        run: npm run build
+
+      - name: NuGet Audit
+        run: |
+          dotnet list mcp-benchmark-validation.sln package --vulnerable --include-transitive --format json > dotnet-audit.json
+          python3 - <<'PY'
+          import json
+          import sys
+
+          severities = {"low": 1, "moderate": 2, "high": 3, "critical": 4}
+          threshold = severities["high"]
+          findings = []
+
+          def scan(node, project=None, framework=None):
+              if isinstance(node, dict):
+                  project = node.get("path", project)
+                  framework = node.get("framework", framework)
+                  package_name = node.get("name")
+                  resolved_version = node.get("resolvedVersion") or node.get("requestedVersion")
+                  vulnerabilities = node.get("vulnerabilities")
+
+                  if package_name and isinstance(vulnerabilities, list):
+                      for vulnerability in vulnerabilities:
+                          severity = str(vulnerability.get("severity", "")).lower()
+                          if severities.get(severity, 0) >= threshold:
+                              findings.append({
+                                  "severity": severity,
+                                  "package": package_name,
+                                  "version": resolved_version,
+                                  "project": project,
+                                  "framework": framework
+                              })
+
+                  for value in node.values():
+                      scan(value, project, framework)
+              elif isinstance(node, list):
+                  for item in node:
+                      scan(item, project, framework)
+
+          with open("dotnet-audit.json", "r", encoding="utf-8") as handle:
+              payload = json.load(handle)
+
+          scan(payload)
+
+          if findings:
+              print("High or critical NuGet vulnerabilities detected:")
+              for finding in findings:
+                  print(f"- {finding['severity']}: {finding['package']} {finding['version']} ({finding['project']} / {finding['framework']})")
+              sys.exit(1)
+
+          print("No high or critical NuGet vulnerabilities detected.")
+          PY
+
+      - name: npm Audit
+        working-directory: mcpval-mcp
+        run: |
+          set +e
+          npm audit --audit-level=high --json > npm-audit.json
+          status=$?
+          set -e
+          node - <<'NODE'
+          const fs = require('fs');
+          const audit = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
+          const vulnerabilities = audit.metadata?.vulnerabilities ?? {};
+          console.log(`npm audit summary: critical=${vulnerabilities.critical ?? 0}, high=${vulnerabilities.high ?? 0}, moderate=${vulnerabilities.moderate ?? 0}, low=${vulnerabilities.low ?? 0}`);
+          NODE
+          exit $status
         
       - name: Build (Debug)
         run: dotnet build --no-restore --configuration Debug
@@ -76,8 +161,14 @@ jobs:
           name: test-results
           path: '**/test-results.trx'
 
-      - name: Security Audit
-        run: dotnet list package --vulnerable --include-transitive
+      - name: Upload Audit Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audit-results
+          path: |
+            dotnet-audit.json
+            mcpval-mcp/npm-audit.json
 
   # Create the self-contained EXE for multiple platforms
   package:
@@ -109,6 +200,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Set Version
+        id: package-version
         shell: bash
         run: |
           prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
@@ -122,7 +214,7 @@ jobs:
             patch=$((patch + 1))
           fi
           ver="${major_minor}.${patch}"
-          echo "VERSION=$ver" >> $GITHUB_ENV
+          echo "version=$ver" >> $GITHUB_OUTPUT
           echo "Building version $ver for ${{ matrix.rid }}"
 
       - name: Publish
@@ -134,8 +226,8 @@ jobs:
             -p:PublishSingleFile=true \
             -p:EnableCompressionInSingleFile=true \
             -p:IncludeNativeLibrariesForSelfExtract=true \
-            -p:VersionPrefix=${{ env.VERSION }} \
-            -p:Version=${{ env.VERSION }} \
+            -p:VersionPrefix=${{ steps.package-version.outputs.version }} \
+            -p:Version=${{ steps.package-version.outputs.version }} \
             -o publish/${{ matrix.rid }}
 
       # Rename to include architecture for the release asset
@@ -165,6 +257,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      attestations: write
+      id-token: write
     outputs:
       version: ${{ steps.tag.outputs.version }}
       tag: ${{ steps.tag.outputs.tag }}
@@ -192,19 +286,36 @@ jobs:
             patch=$(echo "$latest" | sed "s/v${major_minor}.//")
             patch=$((patch + 1))
           fi
-          echo "TAG=v${major_minor}.${patch}" >> $GITHUB_ENV
-          echo "RELEASE_VERSION=${major_minor}.${patch}" >> $GITHUB_ENV
           echo "version=${major_minor}.${patch}" >> $GITHUB_OUTPUT
           echo "tag=v${major_minor}.${patch}" >> $GITHUB_OUTPUT
 
       - name: Summary
-        run: echo "### 🚀 Release v${{ env.RELEASE_VERSION }}" >> $GITHUB_STEP_SUMMARY
+        run: echo "### 🚀 Release v${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Generate Checksums
+        shell: bash
+        run: |
+          cd release-assets
+          shasum -a 256 mcpval-* > SHA256SUMS.txt
+
+      - name: Generate Release SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: release-assets
+          format: spdx-json
+          output-file: release-assets/sbom-release-binaries.spdx.json
+
+      - name: Attest Release Binaries
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            release-assets/mcpval-*
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.TAG }}
-          name: Release ${{ env.TAG }}
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release ${{ steps.tag.outputs.tag }}
           files: release-assets/*
           generate_release_notes: true
           draft: false
@@ -214,7 +325,7 @@ jobs:
 
             **NuGet** (cross-platform, requires .NET 8):
             ```bash
-            dotnet tool install --global McpVal --version ${{ env.RELEASE_VERSION }}
+            dotnet tool install --global McpVal --version ${{ steps.tag.outputs.version }}
             ```
             [![NuGet](https://img.shields.io/nuget/v/McpVal?logo=nuget)](https://www.nuget.org/packages/McpVal)
 
@@ -223,6 +334,11 @@ jobs:
             npx mcpval-localmcp
             ```
             [![npm](https://img.shields.io/npm/v/mcpval-localmcp?logo=npm)](https://www.npmjs.com/package/mcpval-localmcp)
+
+            **Docker** (hardened non-root GHCR image):
+            ```bash
+            docker run --rm ghcr.io/${{ github.repository }}:${{ steps.tag.outputs.version }} --help
+            ```
 
             **Standalone binaries** (no runtime needed):
             Download the binary for your platform below.
@@ -234,6 +350,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: NuGet
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
     steps:
       - uses: actions/checkout@v6
         with:
@@ -244,25 +364,45 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Set Version
-        run: echo "RELEASE_VERSION=${{ needs.publish.outputs.version }}" >> $GITHUB_ENV
-
       - name: Summary
-        run: echo "### 📦 Publishing McpVal v${{ env.RELEASE_VERSION }} to NuGet" >> $GITHUB_STEP_SUMMARY
+        run: echo "### 📦 Publishing McpVal v${{ needs.publish.outputs.version }} to NuGet" >> $GITHUB_STEP_SUMMARY
 
       - name: Build & Pack NuGet Package
         run: |
           dotnet build Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj \
             --configuration Release \
-            -p:Version=${{ env.RELEASE_VERSION }}
+            -p:Version=${{ needs.publish.outputs.version }}
           dotnet pack Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj \
             --configuration Release \
             --no-build \
-            -p:PackageVersion=${{ env.RELEASE_VERSION }}
+            -p:PackageVersion=${{ needs.publish.outputs.version }} \
+            -o ./artifacts/nuget
+
+      - name: Generate NuGet SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: artifacts/nuget
+          format: spdx-json
+          output-file: artifacts/nuget/mcpval.nuget.spdx.json
+
+      - name: Attest NuGet Package
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            artifacts/nuget/*.nupkg
+
+      - name: Upload NuGet Package Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuget-package-artifacts
+          path: |
+            artifacts/nuget/*.nupkg
+            artifacts/nuget/*.snupkg
+            artifacts/nuget/mcpval.nuget.spdx.json
 
       - name: Publish to NuGet.org
         run: |
-          dotnet nuget push Mcp.Benchmark.CLI/bin/Release/*.nupkg \
+          dotnet nuget push artifacts/nuget/*.nupkg \
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
@@ -274,6 +414,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: Npm
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
     defaults:
       run:
         working-directory: mcpval-mcp
@@ -285,7 +429,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
 
       - name: Set Version
@@ -299,7 +443,83 @@ jobs:
           npm ci
           npm run build
 
+      - name: Pack npm Artifact
+        run: npm pack --pack-destination ./dist-pack
+
+      - name: Generate npm SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist-pack
+          format: spdx-json
+          output-file: /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
+
+      - name: Attest npm Package
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: |
+            mcpval-mcp/dist-pack/*.tgz
+
+      - name: Upload npm Package Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package-artifacts
+          path: |
+            mcpval-mcp/dist-pack/*.tgz
+            mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
+
       - name: Publish to npm
-        run: npm publish --access public
+        run: npm publish --access public --provenance ./dist-pack/*.tgz
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  docker-publish:
+    name: "Publish Docker Image (v${{ needs.publish.outputs.version }})"
+    needs: [build-and-test, publish]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=raw,value=latest
+            type=raw,value=${{ needs.publish.outputs.version }}
+            type=raw,value=${{ needs.publish.outputs.tag }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+
+      - name: Summary
+        run: |
+          echo "### 🐳 Published GHCR image ghcr.io/${{ github.repository }}:${{ needs.publish.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "Docker image includes OCI SBOM and provenance attestations." >> $GITHUB_STEP_SUMMARY

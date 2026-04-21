@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Mcp.Benchmark.CLI;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
@@ -132,6 +133,10 @@ internal class Program
         validate.AddOption(new Option<string>(new[] { "-o", "--output" }, "Output directory for reports"));
         validate.AddOption(new Option<string>("--mcpspec", "Target MCP spec profile (e.g., latest, 2025-11-25)"));
         validate.AddOption(new Option<string>("--access", "Access intent: public, authenticated, enterprise"));
+        validate.AddOption(new Option<string>("--policy", "Validation policy mode: advisory, balanced, strict"));
+        var clientProfileOption = new Option<string[]>(new[] { "--client-profile", "--client-profiles" }, BuildClientProfileOptionDescription());
+        clientProfileOption.AllowMultipleArgumentsPerToken = true;
+        validate.AddOption(clientProfileOption);
         validate.AddOption(new Option<string>(new[] { "-t", "--token" }, "Bearer token for authentication"));
         validate.AddOption(new Option<bool>(new[] { "-i", "--interactive" }, "Allow interactive authentication"));
         validate.AddOption(new Option<int?>("--max-concurrency", "Max in-flight HTTP requests (default: CPU count)"));
@@ -144,7 +149,7 @@ internal class Program
 
         var report = new Command("report", "Generate reports from previous validation results");
         report.AddOption(new Option<string>(new[] { "-i", "--input" }, "Input validation results file"));
-        report.AddOption(new Option<string>(new[] { "-f", "--format" }, "Report format: html, xml"));
+        report.AddOption(new Option<string>(new[] { "-f", "--format" }, "Report format: html, xml, sarif, junit"));
 
         root.AddCommand(validate);
         root.AddCommand(health);
@@ -232,8 +237,10 @@ internal class Program
 
                 // Register professional console output service
                 services.AddSingleton<IConsoleOutputService, ConsoleOutputService>();
+                services.AddSingleton<IGitHubActionsReporter, GitHubActionsReporter>();
                 services.AddSingleton<IReportGenerator, MarkdownReportGenerator>();
                 services.AddSingleton<IValidationReportRenderer, ValidationReportRenderer>();
+                services.AddSingleton<IClientProfileEvaluator, ClientProfileEvaluator>();
                 services.AddScoped<INextStepAdvisor, NextStepAdvisor>();
 
                 // Register Authentication Services
@@ -245,6 +252,7 @@ internal class Program
                 services.AddSingleton<ISchemaRegistry, EmbeddedSchemaRegistry>();
                 services.AddSingleton<ISchemaValidator, JsonSchemaValidator>();
                 services.AddSingleton<IContentSafetyAnalyzer, ContentSafetyAnalyzer>();
+                services.AddSingleton<IToolAiReadinessAnalyzer, ToolAiReadinessAnalyzer>();
                 services.AddSingleton<IAggregateScoringStrategy, SecurityFocusedScoringStrategy>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
                 services.AddSingleton<IValidationSessionBuilder, ValidationSessionBuilder>();
@@ -389,6 +397,25 @@ internal class Program
             name: "--max-concurrency",
             description: "Maximum in-flight HTTP requests the validator will issue (default: CPU count)");
 
+        var policyModeOption = new Option<string?>(
+            name: "--policy",
+            getDefaultValue: () => Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
+            description: "Validation policy mode (advisory, balanced, strict)");
+        policyModeOption.FromAmong(
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Advisory,
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Strict);
+
+        var clientProfileOption = new Option<string[]>(
+            aliases: new[] { "--client-profile", "--client-profiles" },
+            description: BuildClientProfileOptionDescription());
+        clientProfileOption.AllowMultipleArgumentsPerToken = true;
+
+        var reportDetailOption = new Option<string?>(
+            aliases: new[] { "--report-detail", "--report-mode" },
+            description: "Human report detail level (full, minimal). Default: full.");
+        reportDetailOption.FromAmong("full", "minimal");
+
 
         var outputOption = new Option<DirectoryInfo?>(
             aliases: new[] { "--output", "-o" },
@@ -401,6 +428,9 @@ internal class Program
         validateCommand.AddOption(tokenOption);
         validateCommand.AddOption(interactiveOption);
         validateCommand.AddOption(maxConcurrencyOption);
+        validateCommand.AddOption(policyModeOption);
+        validateCommand.AddOption(clientProfileOption);
+        validateCommand.AddOption(reportDetailOption);
 
         validateCommand.SetHandler(async (InvocationContext context) =>
         {
@@ -413,9 +443,12 @@ internal class Program
             var interactive = context.ParseResult.GetValueForOption(interactiveOption);
             var output = context.ParseResult.GetValueForOption(outputOption);
             var maxConcurrency = context.ParseResult.GetValueForOption(maxConcurrencyOption);
+            var policyMode = context.ParseResult.GetValueForOption(policyModeOption);
+            var clientProfiles = context.ParseResult.GetValueForOption(clientProfileOption);
+            var reportDetail = context.ParseResult.GetValueForOption(reportDetailOption);
 
             var command = serviceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail);
         });
 
         return validateCommand;
@@ -429,6 +462,11 @@ internal class Program
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         return infoVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
+    }
+
+    private static string BuildClientProfileOptionDescription()
+    {
+        return $"Evaluate documented client compatibility profiles. Supported values: {string.Join(", ", ClientProfileCatalog.SupportedProfileIds)}, {ClientProfileCatalog.AllProfilesToken}.";
     }
 
     /// <summary>
@@ -548,21 +586,27 @@ internal class Program
         var formatOption = new Option<string>(
             aliases: new[] { "--format", "-f" },
             getDefaultValue: () => "html",
-            description: "Report format (html, xml)");
+            description: "Report format (html, xml, sarif, junit)");
 
         var outputOption = new Option<FileInfo?>(
             aliases: new[] { "--output", "-o" },
             description: "Output report file path");
 
+        var reportDetailOption = new Option<string?>(
+            aliases: new[] { "--report-detail", "--report-mode" },
+            description: "Human report detail level (full, minimal). Default: reuse input result, otherwise full.");
+        reportDetailOption.FromAmong("full", "minimal");
+
         reportCommand.AddOption(inputOption);
         reportCommand.AddOption(formatOption);
         reportCommand.AddOption(outputOption);
+        reportCommand.AddOption(reportDetailOption);
 
-        reportCommand.SetHandler(async (input, format, output, config, verbose) =>
+        reportCommand.SetHandler(async (input, format, output, config, verbose, reportDetail) =>
         {
             var command = serviceProvider.GetRequiredService<ReportCommand>();
-            await command.ExecuteAsync(input, format, output, config, verbose);
-        }, inputOption, formatOption, outputOption, configOption, verboseOption);
+            await command.ExecuteAsync(input, format, output, config, verbose, reportDetail);
+        }, inputOption, formatOption, outputOption, configOption, verboseOption, reportDetailOption);
 
         return reportCommand;
     }

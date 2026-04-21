@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 
 using Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 using Mcp.Compliance.Spec;
@@ -13,6 +14,49 @@ namespace Mcp.Benchmark.Infrastructure.Validators;
 
 public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
 {
+    private static readonly string[] PromptSafetySensitiveTerms =
+    [
+        "delete",
+        "destroy",
+        "drop",
+        "remove",
+        "purge",
+        "wipe",
+        "reset",
+        "revoke",
+        "disable",
+        "overwrite"
+    ];
+
+    private static readonly string[] PromptSafetyGuidanceCues =
+    [
+        "confirm",
+        "confirmation",
+        "approve",
+        "approval",
+        "review",
+        "warning",
+        "warn",
+        "caution",
+        "danger",
+        "irreversible",
+        "authorized",
+        "authorization",
+        "human"
+    ];
+
+    private static readonly string[] PromptRequiredArgumentGuidanceCues =
+    [
+        "required",
+        "provide",
+        "include",
+        "supply",
+        "all arguments",
+        "all inputs",
+        "before running",
+        "before execution"
+    ];
+
     private readonly IMcpHttpClient _httpClient;
     private readonly ISchemaValidator _schemaValidator;
     private readonly IScoringStrategy<PromptTestResult> _scoringStrategy;
@@ -50,14 +94,12 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             }
             
             // MCP spec allows both public and auth-protected servers
-            if (response.StatusCode == 401 || response.StatusCode == 403)
+            var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
+            if (authChallenge.IsAuthenticationChallenge)
             {
-                var hasWwwAuth = response.Headers?.ContainsKey("WWW-Authenticate") == true || 
-                                 response.Headers?.ContainsKey("www-authenticate") == true;
-                
                 result.Status = TestStatus.Skipped;
                 result.PromptsDiscovered = 0;
-                result.Issues.Add(hasWwwAuth 
+                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
                     ? "✅ COMPLIANT: Server properly secured with authentication (OAuth 2.1)"
                     : "⚠️  ACCEPTED: Authentication required but missing WWW-Authenticate header");
                 return result;
@@ -110,6 +152,8 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     }
 
                     // Validate arguments structure if present
+                    var requiredArgumentsCount = 0;
+                    var argumentsMissingDescriptions = 0;
                     if (prompt.TryGetProperty("arguments", out var argsElement))
                     {
                         if (argsElement.ValueKind != JsonValueKind.Array)
@@ -122,14 +166,30 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                             promptResult.ArgumentsCount = argsElement.GetArrayLength();
                             foreach (var arg in argsElement.EnumerateArray())
                             {
+                                if (arg.TryGetProperty("required", out var requiredElement) &&
+                                    requiredElement.ValueKind is JsonValueKind.True or JsonValueKind.False &&
+                                    requiredElement.GetBoolean())
+                                {
+                                    requiredArgumentsCount++;
+                                }
+
                                 if (!arg.TryGetProperty("name", out _))
                                 {
                                     promptResult.MetadataValid = false;
                                     promptResult.Issues.Add("Argument missing 'name'");
                                 }
+
+                                if (!arg.TryGetProperty("description", out var argDescription) ||
+                                    argDescription.ValueKind != JsonValueKind.String ||
+                                    string.IsNullOrWhiteSpace(argDescription.GetString()))
+                                {
+                                    argumentsMissingDescriptions++;
+                                }
                             }
                         }
                     }
+
+                    ApplyPromptGuidelineFindings(result, promptResult, requiredArgumentsCount, argumentsMissingDescriptions);
 
                     promptResult.Status = promptResult.MetadataValid ? TestStatus.Passed : TestStatus.Failed;
 
@@ -289,7 +349,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             }
 
                     // Schema-based validation of prompts/list response shape (best-effort)
-                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(serverConfig.ProtocolVersion);
+                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
                     if (SchemaValidationHelpers.TryValidateListResult(
                     _schemaRegistry,
                     _schemaValidator,
@@ -328,5 +388,102 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
         // Discovery already includes prompts/get execution when TestPromptExecution is enabled.
         // This method provides a standalone entry point for execution-only testing.
         return await ValidatePromptDiscoveryAsync(serverConfig, config, cancellationToken);
+    }
+
+    private static void ApplyPromptGuidelineFindings(
+        PromptTestResult aggregateResult,
+        IndividualPromptResult promptResult,
+        int requiredArgumentsCount,
+        int argumentsMissingDescriptions)
+    {
+        AddPromptFindingIf(
+            aggregateResult,
+            promptResult,
+            !string.IsNullOrWhiteSpace(promptResult.PromptName) && string.IsNullOrWhiteSpace(promptResult.Description),
+            ValidationFindingRuleIds.PromptGuidelineDescriptionMissing,
+            ValidationFindingSeverity.Low,
+            $"Prompt '{promptResult.PromptName}' does not include a description.",
+            "Add a concise prompt description so clients and agents can understand when to use this prompt.");
+
+        AddPromptFindingIf(
+            aggregateResult,
+            promptResult,
+            promptResult.ArgumentsCount > 0 && argumentsMissingDescriptions > 0,
+            ValidationFindingRuleIds.PromptGuidelineArgumentDescriptionMissing,
+            ValidationFindingSeverity.Low,
+            $"Prompt '{promptResult.PromptName}' has {argumentsMissingDescriptions}/{promptResult.ArgumentsCount} arguments without descriptions.",
+            "Describe each prompt argument so agents can populate required inputs without guessing.");
+
+        AddPromptFindingIf(
+            aggregateResult,
+            promptResult,
+            requiredArgumentsCount >= 3 && MissingPromptArgumentComplexityGuidance(promptResult.Description),
+            ValidationFindingRuleIds.PromptArgumentComplexityGuidanceMissing,
+            ValidationFindingSeverity.Low,
+            $"Prompt '{promptResult.PromptName}' requires {requiredArgumentsCount} inputs but its description does not explain that callers must supply multiple required arguments.",
+            "Mention when a prompt expects multiple required inputs so callers can prepare the full argument set before execution.");
+
+        AddPromptFindingIf(
+            aggregateResult,
+            promptResult,
+            PromptLooksSafetySensitive(promptResult) && MissingPromptSafetyGuidance(promptResult.Description),
+            ValidationFindingRuleIds.PromptSafetyGuidanceMissing,
+            ValidationFindingSeverity.Medium,
+            $"Prompt '{promptResult.PromptName}' appears to describe destructive or high-impact actions but does not mention confirmation, approval, or warning guidance.",
+            "Add explicit confirmation, approval, or warning language when a prompt can guide destructive or high-impact operations.");
+    }
+
+    private static void AddPromptFindingIf(
+        PromptTestResult aggregateResult,
+        IndividualPromptResult promptResult,
+        bool condition,
+        string ruleId,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation)
+    {
+        if (!condition)
+        {
+            return;
+        }
+
+        var finding = new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "McpGuideline",
+            Component = string.IsNullOrWhiteSpace(promptResult.PromptName) ? "prompt" : promptResult.PromptName,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation
+        };
+
+        promptResult.Findings.Add(finding);
+        aggregateResult.Findings.Add(finding);
+    }
+
+    private static bool MissingPromptArgumentComplexityGuidance(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return true;
+        }
+
+        return !PromptRequiredArgumentGuidanceCues.Any(cue => description.Contains(cue, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool PromptLooksSafetySensitive(IndividualPromptResult promptResult)
+    {
+        var candidateText = $"{promptResult.PromptName} {promptResult.Description}";
+        return PromptSafetySensitiveTerms.Any(term => candidateText.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool MissingPromptSafetyGuidance(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return true;
+        }
+
+        return !PromptSafetyGuidanceCues.Any(cue => description.Contains(cue, StringComparison.OrdinalIgnoreCase));
     }
 }

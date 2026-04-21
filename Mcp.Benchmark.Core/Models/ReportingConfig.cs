@@ -19,9 +19,18 @@ public class ReportingConfig
     public List<ReportFormat> Formats { get; set; } = new() { ReportFormat.Json, ReportFormat.Html };
 
     /// <summary>
-    /// Gets or sets whether to include detailed test execution logs.
+    /// Gets or sets the human-facing report detail level.
+    /// Full remains compact, but includes all report sections.
+    /// Minimal keeps the executive-only view.
     /// </summary>
-    public bool IncludeDetailedLogs { get; set; } = true;
+    [JsonPropertyName("detailLevel")]
+    public ReportDetailLevel DetailLevel { get; set; } = ReportDetailLevel.Full;
+
+    /// <summary>
+    /// Gets or sets whether to include detailed test execution logs.
+    /// Legacy switch retained for compatibility; explicit detail level is preferred.
+    /// </summary>
+    public bool IncludeDetailedLogs { get; set; } = false;
 
     /// <summary>
     /// Gets or sets whether to include performance metrics in reports.
@@ -59,6 +68,49 @@ public class ReportingConfig
     /// </summary>
     [JsonPropertyName("includeSpecReferences")]
     public bool IncludeSpecReferences { get; set; } = true;
+
+    /// <summary>
+    /// Resolves the effective human-facing report detail level.
+    /// </summary>
+    public ReportDetailLevel GetEffectiveDetailLevel()
+    {
+        return IncludeDetailedLogs ? ReportDetailLevel.Full : DetailLevel;
+    }
+
+    /// <summary>
+    /// Returns whether rendered reports should include all major sections.
+    /// </summary>
+    public bool IncludesDetailedSections()
+    {
+        return GetEffectiveDetailLevel() == ReportDetailLevel.Full;
+    }
+
+    /// <summary>
+    /// Applies an explicit report detail level and keeps the legacy detailed flag aligned.
+    /// </summary>
+    public void ApplyDetailLevel(ReportDetailLevel detailLevel)
+    {
+        DetailLevel = detailLevel;
+        IncludeDetailedLogs = detailLevel == ReportDetailLevel.Full;
+    }
+
+    /// <summary>
+    /// Normalizes legacy and current detail flags after configuration loading.
+    /// </summary>
+    public void NormalizeDetailLevel()
+    {
+        IncludeDetailedLogs = IncludesDetailedSections();
+    }
+}
+
+/// <summary>
+/// High-level detail level for generated human-facing reports.
+/// </summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum ReportDetailLevel
+{
+    Minimal,
+    Full
 }
 
 /// <summary>
@@ -94,7 +146,12 @@ public enum ReportFormat
     /// <summary>
     /// JUnit XML format for test result integration.
     /// </summary>
-    JUnit
+    JUnit,
+
+    /// <summary>
+    /// SARIF format for code scanning and CI integration.
+    /// </summary>
+    Sarif
 }
 
 /// <summary>

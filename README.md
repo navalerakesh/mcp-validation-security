@@ -1,156 +1,211 @@
 ![MCP Validator Logo](https://raw.githubusercontent.com/navalerakesh/mcp-validation-security/main/assets/mcpval-icon.png)
 
-# MCP Validator (`mcpval`)
+## MCP Validator (`mcpval`)
 
 [![CI](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/navalerakesh/mcp-validation-security/badge)](https://securityscorecards.dev/viewer/?uri=github.com/navalerakesh/mcp-validation-security)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/McpVal?label=nuget&logo=nuget)](https://www.nuget.org/packages/McpVal)
 [![npm](https://img.shields.io/npm/v/mcpval-localmcp?label=npm&logo=npm)](https://www.npmjs.com/package/mcpval-localmcp)
+[![Docker](https://img.shields.io/badge/ghcr-image-blue?logo=docker)](https://github.com/navalerakesh/mcp-validation-security/pkgs/container/mcp-validation-security)
 
-> Validate that your MCP server is safe for AI agents. Checks protocol compliance, security posture, AI safety, and assigns a trust level (L1–L5).
+> Validate that an MCP server is safe and usable for AI agents. MCP Validator checks protocol compliance, security posture, AI safety, and operational readiness, then produces a trust assessment plus shareable artifacts for engineering and governance workflows.
 
 ![MCP Validator](https://raw.githubusercontent.com/navalerakesh/mcp-validation-security/main/docs/Resources/mcp-benchmark-intro.png)
 
 ## Install
 
-```bash
-# Install from NuGet
-dotnet tool install --global McpVal
+Install from NuGet:
 
-# Verify installation
+```bash
+dotnet tool install --global McpVal
 mcpval --help
 ```
 
-Or download a self-contained exe from [Releases](https://github.com/navalerakesh/mcp-validation-security/releases) — no .NET runtime needed.
+Or download a self-contained executable from [Releases](https://github.com/navalerakesh/mcp-validation-security/releases) if you do not want a local .NET runtime.
 
-## CLI Usage
+For container-based environments:
 
-### Validate
+```bash
+docker run --rm ghcr.io/navalerakesh/mcp-validation-security:latest --help
+```
 
-Run the full compliance suite (protocol, tools, prompts, resources, performance, security):
+Each GitHub release includes SHA-256 checksums plus an SPDX SBOM for the standalone binaries. NuGet, npm, and GHCR publishes include provenance and SBOM metadata.
+
+## Run Your First Validation
+
+Validate a remote MCP endpoint:
 
 ```bash
 mcpval validate \
-	--server https://api.githubcopilot.com/mcp/ \
-	--access authenticated \
-	--max-concurrency 2 \
-	--output ./TEMP/reports \
-	--mcpspec latest \
-	--verbose
+  --server https://example.test/mcp \
+  --access public \
+  --output ./mcp-reports
 ```
 
-| Option | Description |
-| --- | --- |
-| `-s, --server <url>` | MCP endpoint or discovery URL. Required unless supplied via config file. |
-| `-o, --output <folder>` | Writes Markdown + JSON artifacts for offline reporting. |
-| `--mcpspec <profile>` | Overrides the embedded spec profile (e.g., `latest`, `2025-06-18`). |
-| `--access <profile>` | Declares server intent (`public`, `authenticated`, `enterprise`) so the validator enforces the right auth gates. |
-| `-t, --token <value>` | Injects a bearer token. Pair with `--access authenticated` for enterprise servers. |
-| `-i, --interactive` | Launches interactive auth (e.g., browser login) when strategies support it. |
-| `--max-concurrency <n>` | Caps concurrent requests to avoid rate limits. |
-| `-c, --config <file>` | Supplies a JSON `McpValidatorConfiguration` for advanced scenarios. |
-| `-v, --verbose` | Streams detailed progress, transport fallbacks, and scoring notes to the console. |
-
-### Validate a Local STDIO Server
-
-For servers using stdin/stdout transport, pass the command directly:
+Validate an authenticated server and interpret the result for a documented client profile:
 
 ```bash
 mcpval validate \
-	--server "npx -y @modelcontextprotocol/server-everything" \
-	--access public \
-	--output ./reports
+  --server https://example.test/mcp \
+  --access authenticated \
+  --token "$MCP_TOKEN" \
+  --client-profile github-copilot-cloud-agent \
+  --output ./mcp-reports
 ```
 
-The CLI auto-detects STDIO transport when the server argument is not an HTTP URL.
-
-### Report
-
-Transform saved validation results into polished HTML or XML reports:
+Validate a local STDIO server:
 
 ```bash
-mcpval report \
-	--input ./reports/secure/mcp-validation-20260101-004312-result.json \
-	--format html \
-	--output ./reports/share/mcp-validation-20260101-004312-report.html
+mcpval validate \
+  --server "npx -y @modelcontextprotocol/server-everything" \
+  --access public \
+  --output ./mcp-reports
 ```
+
+`validate` and `health-check` support STDIO targets today. `discover` is currently HTTP-first and returns a clear not-supported error when pointed at a STDIO command.
+
+## CLI Surface
+
+### `validate`
+
+Runs the full suite across protocol, tools, prompts, resources, security, and performance.
 
 | Option | Description |
 | --- | --- |
-| `-i, --input <file>` | Required. Accepts either the JSON snapshot or the Markdown file created by `validate`. |
-| `-f, --format <html|xml>` | Chooses the offline artifact type (HTML default). |
-| `-o, --output <file>` | Overrides the destination path; defaults to `<input>-report.<ext>`. |
-| `-c, --config <file>` | Optional configuration to tweak branding/report metadata. |
-| `-v, --verbose` | Enables verbose logging for troubleshooting offline report rendering. |
+| `-s, --server <url-or-command>` | MCP endpoint or STDIO command. Required unless supplied through config. |
+| `-o, --output <folder>` | Writes Markdown, HTML, JSON, and SARIF artifacts for the run. |
+| `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest` or `2025-11-25`. |
+| `--access <public|authenticated|enterprise>` | Declares the intended exposure model so auth expectations are evaluated correctly. |
+| `--policy <advisory|balanced|strict>` | Applies host-side gating without mutating raw findings. |
+| `--client-profile <id>` | Adds host-specific compatibility interpretation for profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. |
+| `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
+| `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
+| `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. |
+| `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
+| `--report-detail <full|minimal>` | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
+| `-v, --verbose` | Increases console and diagnostic logging detail. |
+
+Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings.
+
+The standard artifact set is:
+
+- `mcp-validation-<timestamp>-report.md` - full Markdown report with compact action hints
+- `mcp-validation-<timestamp>-report.html` - full HTML report for sharing
+- `mcp-validation-<timestamp>-result.json` - canonical machine-readable validation object
+- `mcp-validation-<timestamp>-results.sarif.json` - SARIF findings feed for CI and code scanning
 
 ### Other Commands
 
-- `mcpval health-check` — fast connectivity probe with auth hints.
-- `mcpval discover` — capability snapshot in JSON/YAML/table form for docs or debugging.
+- `mcpval health-check` - fast connectivity and initialization probe with auth hints
+- `mcpval discover` - capability snapshot for remote endpoints in JSON, YAML, or table form
+- `mcpval report` - offline rendering from a saved result into `html`, `xml`, `sarif`, or `junit`
+- `mcpval --list-spec-profiles` - list embedded protocol profiles supported by the current build
 
-## Introduction
+Example offline rendering:
 
-- **Purpose**: verify that an MCP server follows the spec, handles errors correctly, resists attacks, and produces responses that AI agents can reason about safely.
-- **What it does**: connects via HTTP or STDIO, validates JSON-RPC compliance and response structures, tests authentication enforcement, injects payloads into real tool arguments, grades error clarity for LLM self-correction, and reports a trust level.
-- **Who it is for**: anyone building, deploying, or consuming MCP servers — developers, security teams, platform engineers, and AI agent builders.
+```bash
+mcpval report \
+  --input ./mcp-reports/mcp-validation-20260421-031745-result.json \
+  --format junit \
+  --output ./mcp-reports/mcp-validation-20260421-031745.junit.xml
+```
 
-## Why Run MCP Validator
+Use `--report-detail minimal` on either `validate` or `report` when you only want the executive view.
 
-- **MCP Trust Levels (L1–L5)**: every run produces a multi-dimensional trust assessment measuring Protocol Compliance, Security Posture, AI Safety, and Operational Readiness. Trust level is determined by the weakest dimension (security-first principle).
-- **RFC 2119 Compliance Tiers**: checks are classified as MUST (hard compliance gates), SHOULD (weighted penalties), or MAY (informational). A single MUST failure caps the trust level at L2.
-- **AI Safety Scoring**: hallucination risk from vague schemas, destructive tool detection, data exfiltration surface analysis, prompt injection resistance, and LLM-friendliness grading of error responses.
-- **Real Security Testing**: injection attacks target actual tool arguments via `tools/call` (not the harmless `tools/list` endpoint). 9 auth scenarios per endpoint including revoked tokens and wrong audience (RFC 8707).
-- **Deep MCP Response Validation**: validates `tools/call` returns `content[]` with typed items, `resources/read` returns `contents[]` with `uri`+`text/blob`, `prompts/get` returns `messages[]` with `role`+`content` — all per MCP spec requirements.
-- **Dual Transport**: HTTP Streamable + STDIO (spawns local MCP servers as child processes). Auto-detects transport from endpoint format.
-- **Actionable reporting**: one command produces console summaries plus Markdown, JSON, HTML, and XML outputs ready for tickets or dashboards.
+## GitHub Actions
+
+When `mcpval` runs inside GitHub Actions, it writes a step summary and emits workflow annotations automatically. The repository root also includes a reusable composite action.
+
+```yaml
+name: Validate MCP Server
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate-mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate MCP server
+        uses: navalerakesh/mcp-validation-security@main
+        with:
+          server: https://example.test/mcp
+          access: authenticated
+          token: ${{ secrets.MCP_TOKEN }}
+          policy: strict
+          output-dir: ./mcp-validation-results
+```
+
+The composite action installs the published `McpVal` tool, runs `mcpval validate`, writes the standard artifact set, and uploads the output directory by default.
+
+## Why Teams Use MCP Validator
+
+- Weighted trust assessment with hard caps for critical blockers such as confirmed security failures or MCP MUST failures
+- RFC 2119 compliance tiers that distinguish MUST, SHOULD, and MAY semantics
+- AI safety analysis covering schema quality, destructive actions, exfiltration risk, and error quality for self-correcting agents
+- Real auth and security testing against the target surface instead of purely static metadata review
+- Structured findings with stable rule IDs, remediation guidance, and machine-readable outputs for CI workflows
+- Shared evidence model that can be interpreted against documented client profiles without forking validator logic
 
 ## MCP Trust Levels
 
-Every validation run produces a trust level based on 4 dimensions:
+Every validation run scores four dimensions: Protocol Compliance, Security Posture, AI Safety, and Operational Readiness.
 
-| Level | Label | Criteria |
-|:------|:------|:---------|
-| 🟢 **L5** | Certified Secure | ≥90% on ALL dimensions |
-| 🔵 **L4** | Trusted | ≥75% on ALL dimensions |
-| 🟡 **L3** | Acceptable | ≥50% on ALL dimensions |
-| 🟠 **L2** | Caution | ≥25% or any MUST failure |
-| 🔴 **L1** | Untrusted | Critical failures |
+Trust level is determined by a weighted multi-dimensional score and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
 
-**Dimensions measured:**
-- **Protocol Compliance** — MCP spec adherence, JSON-RPC 2.0, response structures
-- **Security Posture** — Auth compliance, injection resistance, attack surface
-- **AI Safety** — Schema quality, destructive tool detection, exfiltration risk, LLM-friendliness
-- **Operational Readiness** — Latency, throughput, error rate (informational, does not impact compliance score)
+| Level | Label | Meaning |
+| --- | --- | --- |
+| `L5` | Certified Secure | Weighted trust score is at least 90 with no blocking caps |
+| `L4` | Trusted | Weighted trust score is at least 75 with no blocking caps |
+| `L3` | Acceptable | Weighted trust score is at least 50 after applying caps |
+| `L2` | Caution | Weighted trust score is at least 25 or the result is capped by protocol or security blockers |
+| `L1` | Untrusted | Critical blockers are present or the score falls below the L2 threshold |
 
 ## Architecture
 
-Clean Architecture: domain abstractions in `Mcp.Benchmark.Core`, transport/rule/scoring engines in `Mcp.Benchmark.Infrastructure`, and the CLI composition root in `Mcp.Benchmark.CLI`. See [docs/Design/Architecture.md](docs/Design/Architecture.md) for diagrams and flow details.
+MCP Validator follows a clean boundary model:
 
-### Build from Source
+- `Mcp.Benchmark.Core` holds neutral domain models and abstraction contracts.
+- `Mcp.Benchmark.ClientProfiles` maps neutral evidence onto documented host expectations.
+- `Mcp.Benchmark.Infrastructure` owns transport, auth, validators, scoring, and reporting.
+- `Mcp.Benchmark.CLI` is the composition root and command host.
+- `Mcp.Compliance.Spec` vendors protocol schemas and version metadata.
+
+See [docs/Design/Architecture.md](docs/Design/Architecture.md) for the high-level system view and [docs/Design/TechnicalArchitecture.md](docs/Design/TechnicalArchitecture.md) for the internal lifecycle and extension points.
+
+## Build From Source
 
 ```bash
 git clone https://github.com/navalerakesh/mcp-validation-security.git
 cd mcp-validation-security
 dotnet build
-dotnet run --project Mcp.Benchmark.CLI -- validate -s https://your-mcp-server.com/mcp
+dotnet run --project Mcp.Benchmark.CLI -- --help
 ```
 
 ## Documentation
 
-- [docs/README.md](docs/README.md) — documentation index, contributor guide, and workflow links.
-- [docs/Design/Architecture.md](docs/Design/Architecture.md) — system overview, layers, and validator pipeline.
-- [docs/Design/ForwardArchitecturePlan.md](docs/Design/ForwardArchitecturePlan.md) — target boundary ownership, future host strategy, and execution order.
-- [docs/Design/Schemas.md](docs/Design/Schemas.md) — spec registry, schema layout, and versioning guidelines.
-- [docs/Resources/GitHub-MCP-Remote-Run.md](docs/Resources/GitHub-MCP-Remote-Run.md) — example CLI run against GitHub MCP remote and the generated output artifacts.
-- [ToDo.md](ToDo.md) — living roadmap tied to feature gaps, priority, and delivery sequence.
+- [docs/README.md](docs/README.md) - documentation index
+- [QUICKSTART.md](QUICKSTART.md) - fast path to the first successful run
+- [docs/FeatureMatrix.md](docs/FeatureMatrix.md) - current command surface and support boundaries
+- [docs/Troubleshooting.md](docs/Troubleshooting.md) - operational troubleshooting guide
+- [docs/Design/Architecture.md](docs/Design/Architecture.md) - high-level architecture and runtime flow
+- [docs/Design/ComponentDesign.md](docs/Design/ComponentDesign.md) - component responsibilities and interactions
+- [docs/Design/ForwardArchitecturePlan.md](docs/Design/ForwardArchitecturePlan.md) - target-state boundary roadmap
+- [docs/Design/Schemas.md](docs/Design/Schemas.md) - schema registry and version-management model
+- [docs/Resources/GitHub-MCP-Remote-Run.md](docs/Resources/GitHub-MCP-Remote-Run.md) - representative remote validation run
+- [CHANGELOG.md](CHANGELOG.md) - release-facing history
 
 ## Contributing
 
-- Fork, branch, and submit PRs following the steps in [docs/README.md#contributing](docs/README.md#contributing).
-- Run `dotnet test` before opening a PR and include documentation updates for user-facing changes.
+- Follow the workflow in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Run `dotnet test` before opening a pull request.
+- Update the relevant user-facing documentation whenever product behavior changes.
 
 ## License
 
 Distributed under the [MIT](LICENSE) License.
-

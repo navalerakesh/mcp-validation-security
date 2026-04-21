@@ -27,10 +27,23 @@ public class McpValidatorConfiguration
     public ReportingConfig Reporting { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the CI/host policy used to translate validation results into pass/fail outcomes.
+    /// </summary>
+    [JsonPropertyName("policy")]
+    public ValidationPolicyConfig Policy { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the test execution settings.
     /// </summary>
     [JsonPropertyName("testExecution")]
     public TestExecutionConfig TestExecution { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the optional client profile selection used for host-side compatibility evaluation.
+    /// </summary>
+    [JsonPropertyName("clientProfiles")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ClientProfileOptions? ClientProfiles { get; set; }
 
     /// <summary>
     /// Creates a copy of this validator configuration with server configuration
@@ -43,9 +56,102 @@ public class McpValidatorConfiguration
             Server = Server.CloneWithoutSecrets(),
             Validation = Validation,
             Reporting = Reporting,
-            TestExecution = TestExecution
+            Policy = Policy,
+            TestExecution = TestExecution,
+            ClientProfiles = ClientProfiles
         };
     }
+}
+
+/// <summary>
+/// Configuration for host-level pass/fail policy decisions.
+/// This is intentionally separate from validation logic so different hosts can
+/// apply the same validation evidence with different enforcement levels.
+/// </summary>
+public class ValidationPolicyConfig
+{
+    /// <summary>
+    /// Gets or sets the policy mode. Supported values: advisory, balanced, strict.
+    /// </summary>
+    [JsonPropertyName("mode")]
+    public string Mode { get; set; } = ValidationPolicyModes.Balanced;
+
+    /// <summary>
+    /// Gets or sets suppression entries applied only at the policy layer.
+    /// Raw validation findings remain unchanged; suppressions only affect the final gate decision.
+    /// </summary>
+    [JsonPropertyName("suppressions")]
+    public List<ValidationPolicySuppression> Suppressions { get; set; } = new();
+}
+
+/// <summary>
+/// A host-level suppression entry used to mute specific policy signals without altering raw findings.
+/// </summary>
+public class ValidationPolicySuppression
+{
+    /// <summary>
+    /// Optional identifier for the suppression entry.
+    /// </summary>
+    [JsonPropertyName("id")]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// Stable policy signal identifier to match, e.g. POLICY.TRUST.L3_MINIMUM.
+    /// </summary>
+    [JsonPropertyName("signalId")]
+    public string? SignalId { get; set; }
+
+    /// <summary>
+    /// Stable rule identifier to match, e.g. MCP.TOOL.CALL.CONTENT_ARRAY_MISSING.
+    /// </summary>
+    [JsonPropertyName("ruleId")]
+    public string? RuleId { get; set; }
+
+    /// <summary>
+    /// Optional component selector, such as a tool/resource/prompt name.
+    /// </summary>
+    [JsonPropertyName("component")]
+    public string? Component { get; set; }
+
+    /// <summary>
+    /// Optional rule-source selector: spec, guideline, or heuristic.
+    /// </summary>
+    [JsonPropertyName("source")]
+    public string? Source { get; set; }
+
+    /// <summary>
+    /// Optional category selector.
+    /// </summary>
+    [JsonPropertyName("category")]
+    public string? Category { get; set; }
+
+    /// <summary>
+    /// Owner responsible for the suppression.
+    /// </summary>
+    [JsonPropertyName("owner")]
+    public string? Owner { get; set; }
+
+    /// <summary>
+    /// Reason the suppression exists.
+    /// </summary>
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
+
+    /// <summary>
+    /// Expiry timestamp in UTC. Expired suppressions are ignored automatically.
+    /// </summary>
+    [JsonPropertyName("expiresOn")]
+    public DateTimeOffset? ExpiresOn { get; set; }
+}
+
+/// <summary>
+/// Stable names for validation policy modes.
+/// </summary>
+public static class ValidationPolicyModes
+{
+    public const string Advisory = "advisory";
+    public const string Balanced = "balanced";
+    public const string Strict = "strict";
 }
 
 /// <summary>

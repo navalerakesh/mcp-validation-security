@@ -511,6 +511,29 @@ public class AuthenticationScenario
     public bool IsCompliant { get; set; } = false;
 
     /// <summary>
+    /// Gets or sets whether the observed outcome was secure for the tested context,
+    /// even if it did not follow the preferred MCP/OAuth interaction pattern.
+    /// </summary>
+    public bool IsSecure { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets whether the observed outcome aligned with the preferred
+    /// MCP/OAuth HTTP challenge pattern.
+    /// </summary>
+    public bool IsStandardsAligned { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the calibrated score contribution for this scenario.
+    /// Negative values indicate informational or inconclusive scenarios excluded from scoring.
+    /// </summary>
+    public double AssessmentScore { get; set; } = -1.0;
+
+    /// <summary>
+    /// Gets or sets the calibrated disposition used by higher-level scoring and trust logic.
+    /// </summary>
+    public AuthenticationAssessmentDisposition AssessmentDisposition { get; set; } = AuthenticationAssessmentDisposition.Unknown;
+
+    /// <summary>
     /// Gets or sets the reason for compliance/non-compliance.
     /// </summary>
     public string ComplianceReason { get; set; } = string.Empty;
@@ -519,4 +542,17 @@ public class AuthenticationScenario
     /// Gets or sets the WWW-Authenticate header value if present.
     /// </summary>
     public string? WwwAuthenticateHeader { get; set; }
+}
+
+/// <summary>
+/// High-level calibrated interpretation of an authentication scenario.
+/// </summary>
+public enum AuthenticationAssessmentDisposition
+{
+    Unknown = 0,
+    Inconclusive = 1,
+    Informational = 2,
+    StandardsAligned = 3,
+    SecureCompatible = 4,
+    Insecure = 5
 }

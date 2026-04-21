@@ -79,6 +79,87 @@ public class PromptValidatorIntegrationTests
     }
 
     [Fact]
+    public async Task ValidatePromptDiscovery_WithMissingDescription_ShouldEmitGuidelineFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"summarize_repo\"}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.PromptResults[0].MetadataValid.Should().BeTrue();
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptGuidelineDescriptionMissing);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscovery_WithUndescribedArguments_ShouldEmitGuidelineFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"search_docs\",\"description\":\"Search docs\",\"arguments\":[{\"name\":\"query\",\"required\":true}]}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptGuidelineArgumentDescriptionMissing);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscovery_WithManyRequiredArgumentsAndNoGuidance_ShouldEmitComplexityFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"batch_operation\",\"description\":\"Run the batch operation.\",\"arguments\":[{\"name\":\"targets\",\"required\":true,\"description\":\"Targets\"},{\"name\":\"mode\",\"required\":true,\"description\":\"Mode\"},{\"name\":\"owner\",\"required\":true,\"description\":\"Owner\"}]}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptArgumentComplexityGuidanceMissing);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscovery_WithSafetySensitivePromptAndNoWarning_ShouldEmitSafetyFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"delete_user_data\",\"description\":\"Delete the selected user data.\"}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.PromptResults[0].Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PromptSafetyGuidanceMissing);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscovery_WithSafetySensitivePromptAndConfirmationGuidance_ShouldNotEmitSafetyFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"delete_user_data\",\"description\":\"Delete the selected user data only after human approval and confirmation.\"}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.PromptResults[0].Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.PromptSafetyGuidanceMissing);
+    }
+
+    [Fact]
     public async Task ValidatePromptDiscovery_WithPromptsGet_ShouldValidateMessages()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };

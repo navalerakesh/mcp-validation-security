@@ -1,39 +1,57 @@
-# MCP Validator — Documentation
+# MCP Validator Documentation
 
-Index for project documentation. Each document is scoped and self-contained.
+This directory contains the durable product, architecture, and contributor documentation for MCP Validator. Start with the user guides, then move into the design references when you need implementation detail.
 
-## Blog / Technical Analysis
+## Start Here
 
-| Topic | Document | Description |
-| --- | --- | --- |
-| MCP compliance costs | [The-Hidden-Cost-of-Non-Compliant-MCP-Servers.md](The-Hidden-Cost-of-Non-Compliant-MCP-Servers.md) | Token economics, hallucination cascades, security attack vectors, and cost modeling for non-compliant MCP servers |
-
-## Architecture & Design
-
-| Topic | Document | Description |
-| --- | --- | --- |
-| System design | [Design/Architecture.md](Design/Architecture.md) | Clean Architecture layers, validator pipeline, transport strategy |
-| Component details | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Service boundaries, DI registration, validator lifecycle |
-| Technical reference | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Code map, execution pipeline, key services |
-| Schema registry | [Design/Schemas.md](Design/Schemas.md) | Versioned schema layout, registry APIs |
-
-## Resources
-
-| Item | Location |
+| Document | Purpose |
 | --- | --- |
-| Sample HTML reports | [Resources/](Resources/) |
-| GitHub MCP remote run | [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) |
+| [../README.md](../README.md) | Product overview, installation options, command summary, and package links |
+| [../QUICKSTART.md](../QUICKSTART.md) | Fast path from installation to the first validation run |
+| [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
+| [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
+| [../CHANGELOG.md](../CHANGELOG.md) | Release-facing history for behavior, packaging, and reporting changes |
 
-## Contributing
+## Product And Operations
 
-1. Clone and create a feature branch
-2. Build: `dotnet build` | Test: `dotnet test`
-3. Keep docs in sync with code changes
-4. Open a PR against `master`
+| Document | Purpose |
+| --- | --- |
+| [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) | Representative remote validation run and artifact walkthrough |
+| [../SECURITY.md](../SECURITY.md) | Vulnerability reporting process and safe usage guidance |
+| [../mcpval-mcp/README.md](../mcpval-mcp/README.md) | Local STDIO wrapper package for MCP-compatible desktop tooling |
 
-## Issues
+## Architecture And Design
 
-Open issues at [GitHub Issues](https://github.com/navalerakesh/mcp-validation-security/issues) with:
-- Server endpoint and CLI version
-- Command and arguments used
-- Logs or report snippet
+| Document | Purpose |
+| --- | --- |
+| [Design/Architecture.md](Design/Architecture.md) | High-level system boundaries, runtime flow, and artifact model |
+| [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
+| [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, and extension points |
+| [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
+| [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
+| [../Mcp.Compliance.Spec/schema/README.md](../Mcp.Compliance.Spec/schema/README.md) | Embedded schema folder layout used by the spec project |
+
+## Contribution And Development
+
+| Document | Purpose |
+| --- | --- |
+| [ContributorEnvironment.md](ContributorEnvironment.md) | Local setup expectations for contributors |
+| [../CONTRIBUTING.md](../CONTRIBUTING.md) | Branching, testing, review, and pull request workflow |
+| [../Mcp.Benchmark.CLI/README.md](../Mcp.Benchmark.CLI/README.md) | Responsibilities of the CLI host project |
+| [../Mcp.Benchmark.Tests/README.md](../Mcp.Benchmark.Tests/README.md) | Test suite layout, fixtures, and execution guidance |
+
+## Documentation Rules
+
+- Keep docs aligned with current CLI behavior, supported transports, and released artifact formats.
+- Prefer durable references over time-bound task tracking or historical delivery notes.
+- Keep generated example artifacts under `PublicReports/`; explain them from docs instead of duplicating their content in multiple places.
+- Do not keep roadmap or task-tracking markdown files in the shipping documentation set.
+
+## When Opening An Issue
+
+Include the following so a report can be reproduced quickly:
+
+- The exact command and arguments used
+- The MCP endpoint or STDIO command that was tested
+- The `mcpval` version or release source
+- A sanitized Markdown report, JSON result, or relevant session-log excerpt

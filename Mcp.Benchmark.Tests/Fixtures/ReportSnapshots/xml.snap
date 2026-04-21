@@ -1,0 +1,129 @@
+<ValidationReport>
+  <Report>
+    <Title>MCP Server Validation Report</Title>
+    <GeneratedAt><normalized-timestamp></GeneratedAt>
+    <ValidationId>validation-snapshot-001</ValidationId>
+  </Report>
+  <Server>
+    <Endpoint>https://snapshot.example.test/mcp</Endpoint>
+    <Transport>http</Transport>
+  </Server>
+  <Results>
+    <OverallStatus>Failed</OverallStatus>
+    <ComplianceScore>81.4</ComplianceScore>
+    <DurationSeconds>12.0</DurationSeconds>
+    <StartTime>2026-04-20T10:00:00Z</StartTime>
+    <EndTime>2026-04-20T10:00:12Z</EndTime>
+  </Results>
+  <Summary>
+    <TotalTests>7</TotalTests>
+    <PassedTests>4</PassedTests>
+    <FailedTests>2</FailedTests>
+    <SkippedTests>1</SkippedTests>
+    <PassRate>57.1</PassRate>
+    <CriticalIssues>1</CriticalIssues>
+    <Warnings>2</Warnings>
+    <CoverageRatio>0.875</CoverageRatio>
+  </Summary>
+  <Profiles>
+    <ServerProfile>Authenticated</ServerProfile>
+    <ServerProfileSource>UserDeclared</ServerProfileSource>
+    <SpecProfile>2025-11-25</SpecProfile>
+  </Profiles>
+  <BootstrapHealth disposition="Protected" isHealthy="false" allowsDeferredValidation="true">
+    <ResponseTimeMs>84.2</ResponseTimeMs>
+    <ErrorMessage>401 Unauthorized — bootstrap encountered an authentication challenge.</ErrorMessage>
+    <ServerVersion>2.4.1</ServerVersion>
+    <ProtocolVersion>2025-11-25</ProtocolVersion>
+    <HandshakeHttpStatus>401</HandshakeHttpStatus>
+  </BootstrapHealth>
+  <SeverityBreakdown>
+    <Severity level="Critical" count="1" />
+    <Severity level="High" count="1" />
+    <Severity level="Medium" count="0" />
+    <Severity level="Low" count="0" />
+    <Severity level="Informational" count="0" />
+  </SeverityBreakdown>
+  <TestCategories>
+    <ProtocolCompliance status="Failed" score="84.0" durationSeconds="2.1">
+      <ViolationsCount>1</ViolationsCount>
+      <Violations>
+        <Violation severity="High" source="spec" category="Initialization" checkId="MCP.INIT.VERSION_NEGOTIATION" rule="initialize.result.protocolVersion must reflect negotiation.">
+          <Description>Server ignored the requested MCP protocol version.</Description>
+          <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
+          <Recommendation>Echo the negotiated protocol version in initialize.result.</Recommendation>
+        </Violation>
+      </Violations>
+    </ProtocolCompliance>
+    <SecurityTesting status="Failed" securityScore="69.0" durationSeconds="2.6">
+      <VulnerabilitiesCount>1</VulnerabilitiesCount>
+      <Vulnerabilities>
+        <Vulnerability severity="Critical" source="heuristic" category="PromptInjection" id="MCP.SECURITY.PROMPT_INJECTION">
+          <Name>Prompt injection reflection</Name>
+          <Description>Server reflected untrusted prompt content without sanitization.</Description>
+          <AffectedComponent>prompt:get</AffectedComponent>
+          <CvssScore>9.1</CvssScore>
+          <IsExploitable>true</IsExploitable>
+          <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
+        </Vulnerability>
+      </Vulnerabilities>
+    </SecurityTesting>
+    <ToolValidation status="Passed" durationSeconds="1.8">
+      <ToolsDiscovered>2</ToolsDiscovered>
+      <ToolsPassed>2</ToolsPassed>
+      <ToolsFailed>0</ToolsFailed>
+      <ToolResults>
+        <ToolResult>
+          <ToolName>delete_repo</ToolName>
+          <Status>Passed</Status>
+          <ExecutionTimeMs>140.00</ExecutionTimeMs>
+        </ToolResult>
+        <ToolResult>
+          <ToolName>list_repos</ToolName>
+          <Status>Passed</Status>
+          <ExecutionTimeMs>80.00</ExecutionTimeMs>
+        </ToolResult>
+      </ToolResults>
+      <AuthenticationSecurity enforced="false">
+        <AuthenticationRequired>true</AuthenticationRequired>
+        <RejectsUnauthenticated>true</RejectsUnauthenticated>
+        <HasProperAuthHeaders>true</HasProperAuthHeaders>
+        <SecurityScore>95.0</SecurityScore>
+      </AuthenticationSecurity>
+    </ToolValidation>
+    <PerformanceTesting status="Passed" durationSeconds="1.2">
+      <LoadTesting>
+        <AverageLatencyMs>120.50</AverageLatencyMs>
+        <P95LatencyMs>210.40</P95LatencyMs>
+        <RequestsPerSecond>18.20</RequestsPerSecond>
+        <ErrorRate>0.00</ErrorRate>
+      </LoadTesting>
+    </PerformanceTesting>
+    <ResourceTesting status="Passed" durationSeconds="0.9">
+      <ResourcesDiscovered>1</ResourcesDiscovered>
+      <ResourcesAccessible>1</ResourcesAccessible>
+      <ResourceResults>
+        <Resource>
+          <ResourceName>repo://snapshot/README.md</ResourceName>
+          <ResourceUri>repo://snapshot/README.md</ResourceUri>
+          <MimeType>text/markdown</MimeType>
+          <ContentSize></ContentSize>
+          <Status>Passed</Status>
+        </Resource>
+      </ResourceResults>
+    </ResourceTesting>
+    <PromptTesting status="Skipped" durationSeconds="0.4">
+      <PromptsDiscovered>0</PromptsDiscovered>
+      <PromptsPassed>0</PromptsPassed>
+    </PromptTesting>
+  </TestCategories>
+  <Issues>
+    <CriticalErrors>
+      <Error>Prompt validation hit an unsafe reflection path.</Error>
+    </CriticalErrors>
+    <Recommendations>
+      <Recommendation>Add destructive hints to write-capable tools.</Recommendation>
+      <Recommendation>Return the negotiated protocol version explicitly during initialize.</Recommendation>
+    </Recommendations>
+  </Issues>
+</ValidationReport>

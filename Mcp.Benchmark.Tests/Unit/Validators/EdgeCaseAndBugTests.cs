@@ -2,6 +2,7 @@ using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Authentication;
+using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
 using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
@@ -29,7 +30,8 @@ public class EdgeCaseAndBugTests
             new Mock<ISchemaValidator>().Object,
             new Mock<ISchemaRegistry>().Object,
             new Mock<IAuthenticationService>().Object,
-            CreateSafeContentAnalyzer().Object);
+            CreateSafeContentAnalyzer().Object,
+            new ToolAiReadinessAnalyzer());
     }
 
     // ─── BUG #2: Empty content[] accepted as valid ───────────────
@@ -216,6 +218,7 @@ public class EdgeCaseAndBugTests
 
         result.EstimatedTokenCount.Should().BeGreaterThan(32000);
         result.AiReadinessIssues.Should().Contain(i => i.Contains("32k") || i.Contains("tokens") || i.Contains("context window"));
+        result.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolListPaginationRecommended);
     }
 
     // ─── Tool with all annotation fields ─────────────────────────

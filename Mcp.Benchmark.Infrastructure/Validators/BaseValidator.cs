@@ -71,6 +71,7 @@ public abstract class BaseValidator<T> where T : class
         {
             Logger.LogWarning("{Operation} timed out or was cancelled", operationName);
             result.Status = TestStatus.Failed; // Or Error?
+            result.Message = "Operation timed out or was cancelled";
             result.CriticalErrors.Add("Operation timed out or was cancelled");
             result.Duration = DateTime.UtcNow - startTime;
             return result;
@@ -79,6 +80,7 @@ public abstract class BaseValidator<T> where T : class
         {
             Logger.LogError(ex, "{Operation} failed unexpectedly", operationName);
             result.Status = TestStatus.Error;
+            result.Message = ex.Message;
             result.CriticalErrors.Add($"Unexpected error: {ex.Message}");
             result.Duration = DateTime.UtcNow - startTime;
             return result;
