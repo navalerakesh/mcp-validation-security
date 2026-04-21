@@ -34,6 +34,7 @@ nupkg/
 # Node
 mcpval-mcp/node_modules/
 mcpval-mcp/dist/
+mcpval-mcp/dist-pack/
 
 # Build results
 [Dd]ebug/
