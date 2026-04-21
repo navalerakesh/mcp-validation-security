@@ -60,6 +60,7 @@ jobs:
             --no-progress
             --max-retries 2
             --accept 200,429
+            --root-dir .
             --exclude-path node_modules
             --exclude-path PublicReports
             --exclude-path test-output
@@ -67,6 +68,4 @@ jobs:
             --exclude-path Mcp.Benchmark.Tests/bin
             --exclude-path Mcp.Benchmark.Tests/obj
             --exclude-path Mcp.Benchmark.Tests/TestResults
-            --exclude-glob '**/*.sarif.json'
-            --exclude-file .lycheeignore
-            README.md QUICKSTART.md SECURITY.md CONTRIBUTING.md docs/**/*.md Mcp.Benchmark.CLI/README.md Mcp.Benchmark.Tests/**/*.md Mcp.Compliance.Spec/schema/README.md mcpval-mcp/README.md
+            'README.md' 'QUICKSTART.md' 'SECURITY.md' 'CONTRIBUTING.md' 'docs/**/*.md' 'Mcp.Benchmark.CLI/README.md' 'Mcp.Benchmark.Tests/README.md' 'Mcp.Benchmark.Tests/Fixtures/**/*.md' 'Mcp.Compliance.Spec/schema/README.md' 'mcpval-mcp/README.md'

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using FluentAssertions;
@@ -190,41 +191,57 @@ public class MarkdownReportGeneratorTests
     [Fact]
     public void GenerateReport_WithRepeatedAiReadinessFindings_ShouldShowCoverageInsteadOfRawRows()
     {
-        var result = BuildMinimalResult();
-        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
-        result.ToolValidation = new ToolTestResult
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        var testCulture = CultureInfo.GetCultureInfo("fr-FR");
+
+        CultureInfo.CurrentCulture = testCulture;
+        CultureInfo.CurrentUICulture = testCulture;
+
+        try
         {
-            Status = TestStatus.Passed,
-            Score = 100,
-            ToolsDiscovered = 5,
-            AiReadinessScore = 72,
-            AiReadinessIssues = new List<string> { "placeholder" },
-            AiReadinessFindings = new List<ValidationFinding>
+            var result = BuildMinimalResult();
+            result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
+            result.ToolValidation = new ToolTestResult
             {
-                new()
+                Status = TestStatus.Passed,
+                Score = 100,
+                ToolsDiscovered = 5,
+                AiReadinessScore = 72,
+                AiReadinessIssues = new List<string> { "placeholder" },
+                AiReadinessFindings = new List<ValidationFinding>
                 {
-                    RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
-                    Category = "AiReadiness",
-                    Component = "tool_1",
-                    Severity = ValidationFindingSeverity.Medium,
-                    Summary = "Tool 'tool_1': 1/2 parameters lack descriptions (increases hallucination risk)"
-                },
-                new()
-                {
-                    RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
-                    Category = "AiReadiness",
-                    Component = "tool_2",
-                    Severity = ValidationFindingSeverity.Medium,
-                    Summary = "Tool 'tool_2': 1/2 parameters lack descriptions (increases hallucination risk)"
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
+                        Category = "AiReadiness",
+                        Component = "tool_1",
+                        Severity = ValidationFindingSeverity.Medium,
+                        Summary = "Tool 'tool_1': 1/2 parameters lack descriptions (increases hallucination risk)"
+                    },
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions,
+                        Category = "AiReadiness",
+                        Component = "tool_2",
+                        Severity = ValidationFindingSeverity.Medium,
+                        Summary = "Tool 'tool_2': 1/2 parameters lack descriptions (increases hallucination risk)"
+                    }
                 }
-            }
-        };
+            };
 
-        var report = _generator.GenerateReport(result);
+            var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("AI Readiness Assessment");
-        report.Should().Contain("2/5 (40%)");
-        report.Should().Contain(ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
+            report.Should().Contain("AI Readiness Assessment");
+            report.Should().Contain("2/5 (40%)");
+            report.Should().NotContain("2/5 (40 %)");
+            report.Should().Contain(ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
     }
 
     [Fact]

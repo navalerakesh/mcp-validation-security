@@ -210,7 +210,8 @@ jobs:
           if [ -z "$latest" ]; then
             patch=0
           else
-            patch="${latest#v${major_minor}.}"
+            tag_prefix="v${major_minor}."
+            patch="${latest#"$tag_prefix"}"
             patch=$((patch + 1))
           fi
           ver="${major_minor}.${patch}"
@@ -283,7 +284,8 @@ jobs:
           if [ -z "$latest" ]; then
             patch=0
           else
-            patch="${latest#v${major_minor}.}"
+            tag_prefix="v${major_minor}."
+            patch="${latest#"$tag_prefix"}"
             patch=$((patch + 1))
           fi
           echo "version=${major_minor}.${patch}" >> "$GITHUB_OUTPUT"

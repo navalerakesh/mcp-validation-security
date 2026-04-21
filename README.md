@@ -8,7 +8,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/McpVal?label=nuget&logo=nuget)](https://www.nuget.org/packages/McpVal)
 [![npm](https://img.shields.io/npm/v/mcpval-localmcp?label=npm&logo=npm)](https://www.npmjs.com/package/mcpval-localmcp)
-[![Docker](https://img.shields.io/badge/ghcr-image-blue?logo=docker)](https://github.com/navalerakesh/mcp-validation-security/pkgs/container/mcp-validation-security)
 
 > Validate that an MCP server is safe and usable for AI agents. MCP Validator checks protocol compliance, security posture, AI safety, and operational readiness, then produces a trust assessment plus shareable artifacts for engineering and governance workflows.
 

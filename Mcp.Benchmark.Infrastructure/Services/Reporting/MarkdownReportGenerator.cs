@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
@@ -871,7 +872,8 @@ public class MarkdownReportGenerator : IReportGenerator
             return affectedComponents.ToString();
         }
 
-        return $"{affectedComponents}/{totalComponents} ({ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents):P0})";
+        var percentage = ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents) * 100;
+        return $"{affectedComponents}/{totalComponents} ({percentage.ToString("0", CultureInfo.InvariantCulture)}%)";
     }
 
     private static string FormatClientCompatibilityStatus(ClientProfileCompatibilityStatus status) => status switch
