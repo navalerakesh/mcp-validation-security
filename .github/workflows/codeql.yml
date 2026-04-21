@@ -21,7 +21,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'csharp', 'javascript-typescript' ]
+        include:
+          - language: 'csharp'
+            build-mode: manual
+          - language: 'javascript-typescript'
+            build-mode: none
 
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +48,7 @@ jobs:
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          build-mode: manual
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Restore .NET dependencies
         if: matrix.language == 'csharp'

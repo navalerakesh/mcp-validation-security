@@ -77,14 +77,14 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `-s, --server <url-or-command>` | MCP endpoint or STDIO command. Required unless supplied through config. |
 | `-o, --output <folder>` | Writes Markdown, HTML, JSON, and SARIF artifacts for the run. |
 | `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest` or `2025-11-25`. |
-| `--access <public|authenticated|enterprise>` | Declares the intended exposure model so auth expectations are evaluated correctly. |
-| `--policy <advisory|balanced|strict>` | Applies host-side gating without mutating raw findings. |
+| <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
+| <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
 | `--client-profile <id>` | Adds host-specific compatibility interpretation for profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. |
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
 | `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. |
 | `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
-| `--report-detail <full|minimal>` | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
+| <code>--report-detail &lt;full&#124;minimal&gt;</code> | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
 | `-v, --verbose` | Increases console and diagnostic logging detail. |
 
 Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings.

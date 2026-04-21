@@ -22,6 +22,7 @@ npm install -g mcpval-localmcp
 ```
 
 **Prerequisite:** The `mcpval` CLI must be installed:
+
 ```bash
 # Option 1: NuGet global tool (cross-platform, requires .NET 8)
 dotnet tool install --global McpVal
@@ -105,7 +106,7 @@ npx -y mcpval-localmcp
 
 ## Troubleshooting
 
-**"mcpval CLI is not installed or not on PATH"**
+### "mcpval CLI is not installed or not on PATH"
 
 The MCP server needs the `mcpval` CLI accessible on PATH. If you installed via `dotnet tool install --global McpVal` but the MCP server can't find it, add `env` to your MCP config:
 
@@ -148,7 +149,7 @@ On Windows, use the full path to `mcpval.exe`.
 ## Tools
 
 | Tool | Description |
-|:-----|:------------|
+| --- | --- |
 | `validate` | Validate an MCP server for compliance, security, AI safety, and trust level (L1-L5) |
 | `health_check` | Quick connectivity check — verifies initialize handshake |
 | `discover` | List tools, resources, and prompts exposed by a remote MCP server |
@@ -159,8 +160,8 @@ On Windows, use the full path to `mcpval.exe`.
 
 Once configured, ask your AI agent:
 
-- "Validate the MCP server at https://my-server.com/mcp"
-- "Check if https://api.example.com/mcp is healthy"
+- "Validate the MCP server at <https://my-server.com/mcp>"
+- "Check if <https://api.example.com/mcp> is healthy"
 - "What tools does this MCP server expose?"
 
 ## Links

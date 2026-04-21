@@ -79,4 +79,3 @@ If you discover a vulnerability in this repository itself:
 - [Open issues](https://github.com/navalerakesh/mcp-validation-security/issues)
 
 By contributing, you agree that your contributions are licensed under the MIT License.
-

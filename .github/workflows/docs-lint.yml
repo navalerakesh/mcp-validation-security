@@ -39,7 +39,8 @@ jobs:
             CONTRIBUTING.md
             docs/**/*.md
             Mcp.Benchmark.CLI/README.md
-            Mcp.Benchmark.Tests/**/*.md
+            Mcp.Benchmark.Tests/README.md
+            Mcp.Benchmark.Tests/Fixtures/**/*.md
             Mcp.Compliance.Spec/schema/README.md
             mcpval-mcp/README.md
 
@@ -58,12 +59,13 @@ jobs:
             --verbose
             --no-progress
             --max-retries 2
-            --exclude-mail
             --accept 200,429
             --exclude-path node_modules
             --exclude-path PublicReports
             --exclude-path test-output
             --exclude-path Mcp.Benchmark.CLI/bin
+            --exclude-path Mcp.Benchmark.Tests/bin
+            --exclude-path Mcp.Benchmark.Tests/obj
             --exclude-path Mcp.Benchmark.Tests/TestResults
             --exclude-glob '**/*.sarif.json'
             --exclude-file .lycheeignore

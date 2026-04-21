@@ -204,17 +204,17 @@ jobs:
         shell: bash
         run: |
           prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
-          major_minor=$(echo $prefix | cut -d. -f1,2)
+          major_minor="${prefix%.*}"
           # Find latest tag for this major.minor, increment patch by 1
           latest=$(git tag --list "v${major_minor}.*" --sort=-v:refname | head -n1)
           if [ -z "$latest" ]; then
             patch=0
           else
-            patch=$(echo "$latest" | sed "s/v${major_minor}.//")
+            patch="${latest#v${major_minor}.}"
             patch=$((patch + 1))
           fi
           ver="${major_minor}.${patch}"
-          echo "version=$ver" >> $GITHUB_OUTPUT
+          echo "version=$ver" >> "$GITHUB_OUTPUT"
           echo "Building version $ver for ${{ matrix.rid }}"
 
       - name: Publish
@@ -278,25 +278,31 @@ jobs:
         id: tag
         run: |
           prefix=$(grep -oP '(?<=<VersionPrefix>)[^<]+' Directory.Build.props)
-          major_minor=$(echo $prefix | cut -d. -f1,2)
+          major_minor="${prefix%.*}"
           latest=$(git tag --list "v${major_minor}.*" --sort=-v:refname | head -n1)
           if [ -z "$latest" ]; then
             patch=0
           else
-            patch=$(echo "$latest" | sed "s/v${major_minor}.//")
+            patch="${latest#v${major_minor}.}"
             patch=$((patch + 1))
           fi
-          echo "version=${major_minor}.${patch}" >> $GITHUB_OUTPUT
-          echo "tag=v${major_minor}.${patch}" >> $GITHUB_OUTPUT
+          echo "version=${major_minor}.${patch}" >> "$GITHUB_OUTPUT"
+          echo "tag=v${major_minor}.${patch}" >> "$GITHUB_OUTPUT"
 
       - name: Summary
-        run: echo "### 🚀 Release v${{ steps.tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        run: echo "### 🚀 Release v${{ steps.tag.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate Checksums
         shell: bash
         run: |
           cd release-assets
-          shasum -a 256 mcpval-* > SHA256SUMS.txt
+          shopt -s nullglob
+          artifacts=(mcpval-*)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No release artifacts found to checksum." >&2
+            exit 1
+          fi
+          shasum -a 256 "${artifacts[@]}" > SHA256SUMS.txt
 
       - name: Generate Release SBOM
         uses: anchore/sbom-action@v0
@@ -365,7 +371,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Summary
-        run: echo "### 📦 Publishing McpVal v${{ needs.publish.outputs.version }} to NuGet" >> $GITHUB_STEP_SUMMARY
+        run: echo "### 📦 Publishing McpVal v${{ needs.publish.outputs.version }} to NuGet" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build & Pack NuGet Package
         run: |
@@ -402,7 +408,13 @@ jobs:
 
       - name: Publish to NuGet.org
         run: |
-          dotnet nuget push artifacts/nuget/*.nupkg \
+          shopt -s nullglob
+          packages=(artifacts/nuget/*.nupkg)
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo "No NuGet packages found to publish." >&2
+            exit 1
+          fi
+          dotnet nuget push "${packages[@]}" \
             --api-key ${{ secrets.NUGET_API_KEY }} \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
@@ -433,10 +445,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
 
       - name: Set Version
-        run: npm version ${{ needs.publish.outputs.version }} --no-git-tag-version --allow-same-version
+        run: npm version "${{ needs.publish.outputs.version }}" --no-git-tag-version --allow-same-version
 
       - name: Summary
-        run: echo "### 📦 Publishing mcpval-localmcp v${{ needs.publish.outputs.version }} to npm" >> $GITHUB_STEP_SUMMARY
+        run: echo "### 📦 Publishing mcpval-localmcp v${{ needs.publish.outputs.version }} to npm" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Install & Build
         run: |
@@ -449,9 +461,9 @@ jobs:
       - name: Generate npm SBOM
         uses: anchore/sbom-action@v0
         with:
-          path: /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist-pack
+          path: ./mcpval-mcp/dist-pack
           format: spdx-json
-          output-file: /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
+          output-file: ./mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
 
       - name: Attest npm Package
         uses: actions/attest-build-provenance@v2
@@ -468,7 +480,14 @@ jobs:
             mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
 
       - name: Publish to npm
-        run: npm publish --access public --provenance ./dist-pack/*.tgz
+        run: |
+          shopt -s nullglob
+          packages=(./dist-pack/*.tgz)
+          if [ "${#packages[@]}" -eq 0 ]; then
+            echo "No npm package tarball found to publish." >&2
+            exit 1
+          fi
+          npm publish "${packages[0]}" --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -521,5 +540,5 @@ jobs:
 
       - name: Summary
         run: |
-          echo "### 🐳 Published GHCR image ghcr.io/${{ github.repository }}:${{ needs.publish.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "Docker image includes OCI SBOM and provenance attestations." >> $GITHUB_STEP_SUMMARY
+          echo "### 🐳 Published GHCR image ghcr.io/${{ github.repository }}:${{ needs.publish.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Docker image includes OCI SBOM and provenance attestations." >> "$GITHUB_STEP_SUMMARY"

@@ -14,7 +14,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Detect dependency review support
+        id: support
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set +e
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${{ github.repository }}/dependency-graph/compare/${BASE_REF}...${BASE_REF}" \
+            >/dev/null 2>&1
+          status=$?
+          set -e
+
+          if [ "$status" -eq 0 ]; then
+            echo "supported=true" >> "$GITHUB_OUTPUT"
+            echo "Dependency review is supported for this repository." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "supported=false" >> "$GITHUB_OUTPUT"
+            echo "Dependency review is not available for this repository because dependency graph support is disabled or unavailable. Skipping the PR dependency review gate." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Review dependency changes
+        if: steps.support.outputs.supported == 'true'
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
