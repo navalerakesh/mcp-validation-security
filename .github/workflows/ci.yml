@@ -458,7 +458,9 @@ jobs:
           npm run build
 
       - name: Pack npm Artifact
-        run: npm pack --pack-destination ./dist-pack
+        run: |
+          mkdir -p dist-pack
+          npm pack --pack-destination ./dist-pack
 
       - name: Generate npm SBOM
         uses: anchore/sbom-action@v0

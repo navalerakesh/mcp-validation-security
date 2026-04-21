@@ -22,6 +22,7 @@ RUN dotnet publish "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj" \
 	-p:PublishSingleFile=true \
 	-p:EnableCompressionInSingleFile=true \
 	-p:UseAppHost=true \
+	-p:PackAsTool=false \
 	-o /app/publish
 
 FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-jammy-chiseled AS final
