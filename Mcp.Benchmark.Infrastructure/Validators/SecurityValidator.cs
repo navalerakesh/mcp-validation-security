@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Infrastructure.Attacks;
 using Mcp.Benchmark.Infrastructure.Abstractions;
@@ -67,25 +68,51 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 return result;
             }
             
-            // Map auth failures to vulnerabilities
-            var failedScenarios = authTestResult.TestScenarios.Where(s => !s.IsCompliant).ToList();
-            foreach (var failedScenario in failedScenarios)
+            // Map calibrated auth outcomes into either exploitable vulnerabilities
+            // or non-blocking structured findings.
+            var strictProfile = ValidationCalibration.RequiresStrictAuthentication(serverConfig.Profile);
+            var blockingAuthScenarios = new List<AuthenticationScenario>();
+            foreach (var scenario in authTestResult.TestScenarios)
             {
-                result.Vulnerabilities.Add(new SecurityVulnerability
+                if (ValidationCalibration.IsBlockingAuthenticationFailure(scenario, serverConfig.Profile))
                 {
-                    Id = $"SEC-AUTH-{failedScenario.Method.Replace("/", "-").ToUpper()}-{Guid.NewGuid()}", // Use Guid instead of Ticks
-                    Name = string.Format(ValidationMessages.Security.AuthenticationIssue, failedScenario.ScenarioName),
-                    Description = $"{failedScenario.ComplianceReason}: {failedScenario.ActualBehavior}",
-                    Severity = failedScenario.TestType == "Valid Authentication" ? VulnerabilitySeverity.High : VulnerabilitySeverity.Medium,
-                    Category = ValidationConstants.Categories.AuthenticationSecurity,
-                    AffectedComponent = failedScenario.Method,
-                    IsExploitable = failedScenario.TestType != "Valid Authentication",
-                    Remediation = ValidationMessages.Security.RemediationAuth
-                });
+                    blockingAuthScenarios.Add(scenario);
+                    result.Vulnerabilities.Add(new SecurityVulnerability
+                    {
+                        Id = $"SEC-AUTH-{scenario.Method.Replace("/", "-").ToUpper()}-{Guid.NewGuid()}",
+                        Name = string.Format(ValidationMessages.Security.AuthenticationIssue, scenario.ScenarioName),
+                        Description = $"{scenario.ComplianceReason}: {scenario.ActualBehavior}",
+                        Severity = ValidationCalibration.GetAuthenticationVulnerabilitySeverity(scenario, serverConfig.Profile),
+                        Category = ValidationConstants.Categories.AuthenticationSecurity,
+                        AffectedComponent = scenario.Method,
+                        IsExploitable = true,
+                        Remediation = ValidationMessages.Security.RemediationAuth
+                    });
+                    continue;
+                }
+
+                if (strictProfile && scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.SecureCompatible)
+                {
+                    result.Findings.Add(new ValidationFinding
+                    {
+                        RuleId = "MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION",
+                        Category = ValidationConstants.Categories.AuthenticationSecurity,
+                        Component = scenario.Method,
+                        Severity = ValidationFindingSeverity.Medium,
+                        Summary = $"{scenario.ScenarioName}: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.",
+                        Recommendation = "Prefer RFC 6750 + MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
+                        Source = ValidationRuleSource.Guideline,
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["actualBehavior"] = scenario.ActualBehavior,
+                            ["analysis"] = scenario.Analysis
+                        }
+                    });
+                }
             }
 
             Logger.LogInformation(ValidationMessages.Security.SmartAuthCompleted,
-                authTestResult.ComplianceScore, failedScenarios.Count, authTestResult.TestScenarios.Count);
+                authTestResult.ComplianceScore, blockingAuthScenarios.Count, authTestResult.TestScenarios.Count);
 
             // 2. Input Validation
             if (config.TestInputValidation)
@@ -156,8 +183,14 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             result.SecurityScore = CalculateSecurityScore(result.Vulnerabilities);
             result.SecurityRecommendations = GenerateSecurityRecommendations(result);
 
-            // Fail if any High/Critical vulnerabilities OR if the overall security score is too low (e.g. < 50%)
-            result.Status = (result.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.High) || result.SecurityScore < 50.0) 
+            // Security status is reserved for blocking, exploitable outcomes.
+            // Non-canonical but secure behavior reduces score and emits findings, but does not fail the section.
+            result.Status = (result.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) ||
+                             ValidationCalibration.HasBlockingSecurityFailure(new ValidationResult
+                             {
+                                 ServerProfile = serverConfig.Profile,
+                                 SecurityTesting = result
+                             }))
                 ? TestStatus.Failed 
                 : TestStatus.Passed;
 

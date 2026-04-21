@@ -30,4 +30,9 @@ public abstract class TestResultBase
     /// Gets or sets any critical errors encountered during execution.
     /// </summary>
     public List<string> CriticalErrors { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets structured validation findings emitted during execution.
+    /// </summary>
+    public List<ValidationFinding> Findings { get; set; } = new();
 }

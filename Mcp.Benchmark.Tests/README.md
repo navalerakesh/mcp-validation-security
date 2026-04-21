@@ -1,58 +1,59 @@
 # Mcp.Benchmark.Tests
 
-This project contains the automated test suite for the MCP Benchmark. It follows industry best practices for structure, naming, and coverage.
+This project contains the automated test suite for MCP Validator. It verifies architectural boundaries, isolated business logic, integration flows, report rendering, and fixture-backed STDIO behavior.
 
-## Project Structure
-
-The test project mirrors the structure of the source code to ensure discoverability and separation of concerns.
+## Project Layout
 
 ```text
 Mcp.Benchmark.Tests/
-├── Architecture/               # Tests that enforce architectural rules (e.g., Dependency direction)
-├── Unit/                       # Fast, isolated tests that do not require external resources
-│   ├── Services/               # Tests for Core and Infrastructure services
-│   ├── Validators/             # Tests for specific validation logic
-│   └── Scoring/                # Tests for scoring algorithms
-├── Integration/                # Tests that verify interactions between components (uses WireMock)
-└── Fixtures/                   # Shared test setup and data (e.g., Mock Servers)
+├── Architecture/   # Dependency and layering rules
+├── Unit/           # Fast isolated tests for services, validators, scoring, and commands
+├── Integration/    # Cross-component and transport-aware tests
+└── Fixtures/       # Reusable MCP responses, sample servers, and snapshots
 ```
+
+Key fixture assets:
+
+- `Fixtures/McpFixtureProfiles.cs` provides reusable compliant, partially compliant, and unsafe MCP response sets.
+- `Fixtures/Servers/` contains runnable STDIO sample servers for process-backed validation scenarios.
+- `Fixtures/ReportSnapshots/` protects executive report output from unintended regressions.
 
 ## Running Tests
 
-You can run the tests using the .NET CLI or Visual Studio.
+Run the full suite:
 
-### Run All Tests
 ```bash
 dotnet test
 ```
 
-### Run Specific Categories
-Tests are categorized using Traits. You can filter by category:
+Run a filtered slice:
 
 ```bash
-# Run only Unit tests
 dotnet test --filter Category=Unit
-
-# Run only Integration tests
 dotnet test --filter Category=Integration
 ```
 
-## Key Technologies
+## Adding Coverage
 
-*   **xUnit**: The testing framework.
-*   **Moq**: For mocking dependencies in Unit tests.
-*   **FluentAssertions**: For readable and expressive assertions.
-*   **WireMock.Net**: For mocking the MCP server in Integration tests.
-*   **NetArchTest.Rules**: For enforcing architectural constraints.
+- Add unit tests under `Unit/` when the behavior is deterministic and dependency boundaries can be isolated.
+- Add integration tests under `Integration/` when transport behavior, serialization, or orchestration matters.
+- Add architecture tests under `Architecture/` when a dependency rule or boundary must stay enforced.
+- Update snapshots when a report change is intentional and reviewed, not as a shortcut around a regression.
 
-## Adding New Tests
+## Fixture Servers
 
-1.  **Unit Tests**: Place in `Unit/{Folder}` matching the source file location. Mock all dependencies.
-2.  **Integration Tests**: Place in `Integration/`. Use `McpServerTestFixture` to spin up a mock MCP server.
-3.  **Architecture Tests**: Add to `Architecture/` if you need to enforce new design rules.
+You can run the local STDIO fixture servers directly for manual validation and debugging:
 
-## Best Practices
+```bash
+node Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-compliant.cjs
+node Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-partial.cjs
+node Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-unsafe.cjs
+```
 
-*   **Naming**: Use `MethodName_StateUnderTesting_ExpectedBehavior` (e.g., `CalculateScore_WithNoResults_ReturnsZero`).
-*   **Arrange-Act-Assert**: Structure all tests clearly with these three sections.
-*   **Mocking**: Only mock immediate dependencies. Do not mock data objects (DTOs).
+## Tooling
+
+- `xUnit` for test execution
+- `FluentAssertions` for readable assertions
+- `Moq` for mocking direct dependencies in unit tests
+- `WireMock.Net` for HTTP-backed integration scenarios
+- `NetArchTest.Rules` for architectural guardrails

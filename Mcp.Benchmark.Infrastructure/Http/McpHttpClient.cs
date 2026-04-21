@@ -1,4 +1,6 @@
+using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -7,6 +9,8 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Compliance.Spec;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -137,9 +141,8 @@ public class McpHttpClient : IMcpHttpClient
 
     private async Task<ValidatorJsonRpcResponse> ExecuteWithRetryAsync(string endpoint, string jsonPayload, AuthenticationConfig? authentication, CancellationToken cancellationToken)
     {
-        // Retry loop for 429 Too Many Requests
-        int maxRetries = 3;
-        int retryCount = 0;
+        var maxAttempts = ValidationReliability.DefaultRpcMaxAttempts;
+        var attempt = 0;
         double? lastAttemptElapsedMs = null;
 
         var throttle = _requestSemaphore ?? throw new InvalidOperationException("HTTP concurrency limiter not initialized.");
@@ -149,7 +152,8 @@ public class McpHttpClient : IMcpHttpClient
 
             while (true)
             {
-                var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+                attempt++;
+                var content = CreateJsonContent(jsonPayload);
 
                 // Create a new HttpRequestMessage to set authentication headers
                 var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
@@ -199,35 +203,43 @@ public class McpHttpClient : IMcpHttpClient
                     _logger.LogDebug("No authentication provided - making unauthenticated request");
                 }
 
-                // Create a fresh HttpClient to avoid any DI configuration issues
-                // NOTE: In a real production scenario, we should use IHttpClientFactory.
-                // However, for this specific method where we need to override auth per-request without affecting the global client,
-                // creating a new client or using a named client is necessary.
-                // Given the context of a validator tool, this is acceptable but could be optimized.
-                using var freshHttpClient = new HttpClient();
-                freshHttpClient.Timeout = TimeSpan.FromSeconds(DefaultRequestTimeoutSeconds);
-
                 // Measure only the actual HTTP request/response cycle for
                 // latency metrics. This intentionally excludes validator
                 // backoff delays between retries and any external
                 // scheduling overhead.
-                var sw = System.Diagnostics.Stopwatch.StartNew();
-                var httpResponse = await freshHttpClient.SendAsync(requestMessage, cancellationToken);
-                sw.Stop();
-                lastAttemptElapsedMs = sw.Elapsed.TotalMilliseconds;
-
-                // Handle Rate Limiting (429)
-                if ((int)httpResponse.StatusCode == 429 && retryCount < maxRetries)
+                HttpResponseMessage httpResponse;
+                try
                 {
-                    retryCount++;
-                    var delay = TimeSpan.FromSeconds(2 * retryCount); // Default backoff
-                    
-                    if (httpResponse.Headers.RetryAfter?.Delta.HasValue == true)
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
+                    sw.Stop();
+                    lastAttemptElapsedMs = sw.Elapsed.TotalMilliseconds;
+                }
+                catch (Exception ex) when (ValidationReliability.ShouldRetryException(ex, cancellationToken) && attempt < maxAttempts)
+                {
+                    var delay = ValidationReliability.GetRetryDelay(attempt);
+                    _logger.LogWarning(ex, "Transient transport failure. Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", delay.TotalSeconds, attempt, maxAttempts);
+                    await Task.Delay(delay, cancellationToken);
+                    continue;
+                }
+
+                if (ValidationReliability.IsRetryableHttpStatusCode((int)httpResponse.StatusCode) && attempt < maxAttempts)
+                {
+                    var responseHeaders = httpResponse.Headers.ToDictionary(
+                        header => header.Key,
+                        header => string.Join(",", header.Value),
+                        StringComparer.OrdinalIgnoreCase);
+                    var delay = httpResponse.Headers.RetryAfter?.Delta ?? ValidationReliability.GetRetryDelay(attempt, responseHeaders);
+
+                    if ((int)httpResponse.StatusCode == (int)HttpStatusCode.TooManyRequests)
                     {
-                        delay = httpResponse.Headers.RetryAfter.Delta.Value;
+                        _logger.LogWarning("Rate limited (429). Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", delay.TotalSeconds, attempt, maxAttempts);
                     }
-                    
-                    _logger.LogWarning("Rate limited (429). Retrying in {Delay}s (Attempt {Retry}/{Max})...", delay.TotalSeconds, retryCount, maxRetries);
+                    else
+                    {
+                        _logger.LogWarning("Transient HTTP {StatusCode}. Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", (int)httpResponse.StatusCode, delay.TotalSeconds, attempt, maxAttempts);
+                    }
+
                     await Task.Delay(delay, cancellationToken);
                     continue;
                 }
@@ -383,7 +395,7 @@ public class McpHttpClient : IMcpHttpClient
 
             var initializeResponse = await CallAsync(endpoint, "initialize", new
             {
-                protocolVersion = string.IsNullOrWhiteSpace(_protocolVersion) ? "2025-03-26" : _protocolVersion,
+                protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(_protocolVersion),
                 capabilities = new { },
                 clientInfo = new
                 {
@@ -668,10 +680,10 @@ public class McpHttpClient : IMcpHttpClient
     {
         try
         {
-            StringContent content;
+            HttpContent content;
             if (setContentType)
             {
-                content = new StringContent(rawJson, Encoding.UTF8, "application/json");
+                content = CreateJsonContent(rawJson);
             }
             else
             {
@@ -731,6 +743,13 @@ public class McpHttpClient : IMcpHttpClient
         return await _httpClient.PostAsync(endpoint, content, cancellationToken);
     }
 
+    private static ByteArrayContent CreateJsonContent(string jsonPayload)
+    {
+        var content = new ByteArrayContent(Encoding.UTF8.GetBytes(jsonPayload));
+        content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        return content;
+    }
+
     /// <summary>
     /// Tests basic connectivity to the server endpoint.
     /// </summary>
@@ -769,7 +788,7 @@ public class McpHttpClient : IMcpHttpClient
                 // Healthy - standard success or POST-only endpoint
                 _logger.LogInformation("Health check passed: {StatusCode}", response.StatusCode);
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized || response.StatusCode == System.Net.HttpStatusCode.Forbidden)
+            else if (ValidationReliability.IsAuthenticationStatusCode((int)response.StatusCode))
             {
                 // Healthy but protected - this confirms the server is reachable and responding
                 _logger.LogInformation("Health check passed (Protected): {StatusCode}", response.StatusCode);
@@ -779,10 +798,10 @@ public class McpHttpClient : IMcpHttpClient
                 result.OverallStatus = ValidationStatus.Failed;
                 result.CriticalErrors.Add($"Endpoint not found (HTTP 404). Please check the URL: {endpoint}");
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+            else if (ValidationReliability.IsTransientHealthStatusCode((int)response.StatusCode))
             {
                 result.OverallStatus = ValidationStatus.Failed;
-                result.CriticalErrors.Add($"Server is rate limiting requests (HTTP 429). Validation aborted to prevent abuse.");
+                result.CriticalErrors.Add($"Health check hit a transient server constraint ({(int)response.StatusCode} {response.StatusCode}). Retry later or continue with advisory validation if appropriate.");
             }
             else
             {
@@ -798,7 +817,7 @@ public class McpHttpClient : IMcpHttpClient
         catch (TaskCanceledException)
         {
             result.OverallStatus = ValidationStatus.Failed;
-            result.CriticalErrors.Add("Connection timed out");
+            result.CriticalErrors.Add("Health check timed out after retry attempts");
         }
         catch (Exception ex)
         {

@@ -47,7 +47,8 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
             _schemaValidatorMock.Object,
             _schemaRegistryMock.Object,
             _authServiceMock.Object,
-            _contentSafetyAnalyzerMock.Object);
+            _contentSafetyAnalyzerMock.Object,
+            new ToolAiReadinessAnalyzer());
         
         // Reset mock server state before each test
         _testFixture.ResetMockServer();

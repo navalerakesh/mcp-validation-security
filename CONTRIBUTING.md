@@ -1,136 +1,81 @@
-# Contributing to AI Security & Compliance Scanner
+# Contributing to MCP Validator
 
-Thank you for your interest in contributing! This project aims to make AI integrations safer and more trustworthy for everyone.
+Thank you for contributing. This repository validates MCP servers for protocol compliance, security posture, AI safety, and trust-level assessment.
 
-## \ud83c\udfaf Our Mission
+## Before You Start
 
-Help users and organizations **evaluate the security and compliance** of AI tools, LLM servers, and Model Context Protocol implementations through automated testing.
+- Read the contributor environment guide in [docs/ContributorEnvironment.md](docs/ContributorEnvironment.md).
+- Keep changes aligned with the architecture notes in `docs/Design/`.
+- Prefer root-cause fixes over compatibility shims or duplicated logic.
 
-## \ud83d\udc65 How to Contribute
+## Local Setup
 
-### For Security Researchers
-- Add new attack vectors and security test scenarios
-- Improve vulnerability detection accuracy
-- Report security findings in AI protocols
+Prerequisites:
 
-### For Developers
-- Implement missing features (see [Issues](https://github.com/navalerakesh/mcp-validation-security/issues))
-- Improve test coverage
-- Add support for new protocols and standards
-- Enhance documentation
+- `.NET 8 SDK`
+- `Node.js 20`
+- `Git`
+- `PowerShell 7` or `Bash` if you want to use the tracked validation scripts
 
-### For AI Users
-- Report false positives/negatives
-- Share real-world validation scenarios
-- Suggest new compliance checks
-- Provide feedback on reports
+Quick start:
 
-## \ud83d\udee0\ufe0f Development Setup
+```bash
+git clone https://github.com/YOUR-USERNAME/mcp-validation-security.git
+cd mcp-validation-security
 
-### Prerequisites
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- Git
-- Your favorite IDE (VS Code, Visual Studio, Rider)
+dotnet restore ./mcp-benchmark-validation.sln
+cd mcpval-mcp && npm ci && cd ..
+```
 
-### Getting Started
+Validate the repository before opening a PR:
 
-1. **Fork the repository**
-   ```bash
-   # Click "Fork" on GitHub, then:
-   git clone https://github.com/YOUR-USERNAME/mcp-validation-security.git
-   cd mcp-validation-security
-   ```
+```bash
+./scripts/validate-repo.sh
+```
 
-2. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+On Windows PowerShell:
 
-3. **Build and test**
-   ```bash
-   dotnet build
-   dotnet test
-   ```
+```powershell
+./scripts/validate-repo.ps1
+```
 
-4. **Run the tool locally**
-   ```bash
-   dotnet run --project Mcp.Benchmark.CLI -- validate --help
-   ```
-   > Note: The project folder is `Mcp.Benchmark.CLI` but the NuGet package is published as `McpVal`.
+## Pull Requests
 
-## \ud83d\udcdd Pull Request Process
+1. Create a branch from `main`.
+2. Keep the change set focused.
+3. Add or update tests when behavior changes.
+4. Update docs when CLI, workflows, reporting, policy, or fixture behavior changes.
+5. Record user-visible or adopter-relevant changes in [CHANGELOG.md](CHANGELOG.md) under `Unreleased`.
+6. Open the PR against `main` and fill out the template.
 
-1. **Write clear commit messages**
-   ```
-   Add SQL injection detection for tool parameters
-   
-   - Implement pattern matching for common SQL injection attempts
-   - Add test cases for false positive reduction
-   - Update security validator documentation
-   ```
+## Release Notes Discipline
 
-2. **Update tests**
-   - Add unit tests for new functionality
-   - Add integration tests for end-to-end scenarios
-   - Ensure all tests pass: `dotnet test`
+- Add changelog entries for new rules, scoring changes, policy behavior changes, new output formats, and packaging or distribution changes.
+- Call out breaking changes explicitly.
+- Avoid silent rule or policy shifts that would surprise downstream CI adopters.
 
-3. **Update documentation**
-   - Update README.md if adding new features
-   - Add XML documentation to public APIs
-   - Update architecture docs if changing design
+## Standards
 
-4. **Submit PR**
-   - Push to your fork
-   - Open a Pull Request against `master`
-   - Fill out the PR template
-   - Link to related issues
+- Core models and contracts belong in `Mcp.Benchmark.Core`.
+- Infrastructure integrations belong in `Mcp.Benchmark.Infrastructure`.
+- CLI host behavior belongs in `Mcp.Benchmark.CLI`.
+- Do not blur spec failures, guideline findings, and heuristic signals.
+- Keep host policy behavior separate from raw validation evidence.
 
-## \ud83d\udcca Code Standards
+## Security Reporting
 
-### Architecture
-- Follow Clean Architecture principles
-- Core domain logic in `Mcp.Benchmark.Core`
-- Infrastructure in `Mcp.Benchmark.Infrastructure`
-- Keep dependencies pointing inward
+If you discover a vulnerability in this repository itself:
 
-### Code Style
-- Follow C# conventions
-- Use nullable reference types
-- Add XML documentation to public APIs
-- TreatWarningsAsErrors is enabled
+1. Do not open a public issue.
+2. Follow the process in [SECURITY.md](SECURITY.md).
+3. Include reproduction details and impact.
 
-### Testing
-- Unit tests for business logic
-- Integration tests for validators
-- Architecture tests for dependency rules
-- Aim for >80% coverage on new code
+## Useful References
 
-## \ud83d\udd12 Security Disclosures
+- [Project docs index](docs/README.md)
+- [Changelog](CHANGELOG.md)
+- [Quick start](QUICKSTART.md)
+- [Security policy](SECURITY.md)
+- [Open issues](https://github.com/navalerakesh/mcp-validation-security/issues)
 
-If you discover a security vulnerability in this tool itself, please:
-
-1. **DO NOT** open a public issue
-2. Email the maintainer privately (see GitHub profile)
-3. Include steps to reproduce
-4. Allow 90 days for fix before public disclosure
-
-## \ud83c\udf93 Learning Resources
-
-New to AI security testing? Check out:
-
-- [OWASP LLM Top 10](https://owasp.org/www-project-top-10-for-large-language-model-applications/)
-- [Model Context Protocol Specification](https://modelcontextprotocol.io/)
-- [JSON-RPC 2.0 Specification](https://www.jsonrpc.org/specification)
-- [OAuth 2.1 Security Best Practices](https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics)
-
-## \u2753 Questions?
-
-- Open a [GitHub Discussion](https://github.com/navalerakesh/mcp-validation-security/discussions)
-- Check existing [Issues](https://github.com/navalerakesh/mcp-validation-security/issues)
-- Read the [Documentation](docs/README.md)
-
-## \ud83d\udcdc License
-
-By contributing, you agree that your contributions will be licensed under the MIT License.
-
----
+By contributing, you agree that your contributions are licensed under the MIT License.

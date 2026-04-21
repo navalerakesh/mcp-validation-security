@@ -14,42 +14,18 @@ internal static class SchemaValidationHelpers
 
     /// <summary>
     /// Resolves a protocol version string (as negotiated during initialization
-    /// or configured) into a well-known <see cref="ProtocolVersion"/>. If the
+    /// or configured) into an embedded <see cref="ProtocolVersion"/>. If the
     /// value is null, empty, or unknown, this method falls back to the
-    /// backwards-compatible default defined by the MCP spec (2025-03-26).
+    /// backwards-compatible embedded schema profile.
     /// </summary>
-    public static ProtocolVersion ResolveProtocolVersion(string? negotiatedVersion)
+    public static ProtocolVersion ResolveProtocolVersion(ISchemaRegistry schemaRegistry, string? negotiatedVersion)
     {
-        if (string.IsNullOrWhiteSpace(negotiatedVersion))
+        if (schemaRegistry == null)
         {
-            // Per MCP spec, when the protocol version is not otherwise known,
-            // servers SHOULD assume 2025-03-26 for backwards compatibility.
-            return ProtocolVersions.V2025_03_26;
+            throw new ArgumentNullException(nameof(schemaRegistry));
         }
 
-        if (string.Equals(negotiatedVersion, ProtocolVersions.V2024_11_05.Value, StringComparison.Ordinal))
-        {
-            return ProtocolVersions.V2024_11_05;
-        }
-
-        if (string.Equals(negotiatedVersion, ProtocolVersions.V2025_03_26.Value, StringComparison.Ordinal))
-        {
-            return ProtocolVersions.V2025_03_26;
-        }
-
-        if (string.Equals(negotiatedVersion, ProtocolVersions.V2025_06_18.Value, StringComparison.Ordinal))
-        {
-            return ProtocolVersions.V2025_06_18;
-        }
-
-        if (string.Equals(negotiatedVersion, ProtocolVersions.V2025_11_25.Value, StringComparison.Ordinal))
-        {
-            return ProtocolVersions.V2025_11_25;
-        }
-
-        // Unknown version: use the MCP spec's backwards-compatible default
-        // so we still have a concrete schema bundle to validate against.
-        return ProtocolVersions.V2025_03_26;
+        return SchemaRegistryProtocolVersions.ResolveSchemaVersion(negotiatedVersion, schemaRegistry);
     }
 
     /// <summary>

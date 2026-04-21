@@ -14,7 +14,7 @@ namespace Mcp.Benchmark.Core.Models;
 public class McpTrustAssessment
 {
     /// <summary>
-    /// Overall trust level (L1-L5). Determined by the lowest dimension score.
+    /// Overall trust level (L1-L5). Derived from a weighted multi-dimensional score and capped by confirmed blockers.
     /// </summary>
     public McpTrustLevel TrustLevel { get; set; } = McpTrustLevel.Unknown;
 
@@ -169,7 +169,7 @@ public class ComplianceTierCheck
 
 /// <summary>
 /// Trust levels derived from multi-dimensional assessment.
-/// The level is determined by the LOWEST dimension score (weakest link).
+/// The level is determined by weighted dimension scores and then capped by confirmed blockers.
 /// </summary>
 public enum McpTrustLevel
 {

@@ -62,6 +62,7 @@ public class HealthCheckServiceUnitTests
 
         // Assert
         result.IsHealthy.Should().BeTrue();
+        result.Disposition.Should().Be(HealthCheckDisposition.Healthy);
         result.ProtocolVersion.Should().Be("2024-11-05");
         result.ServerVersion.Should().Be("1.0.0");
         result.InitializationDetails.Should().NotBeNull();
@@ -93,6 +94,7 @@ public class HealthCheckServiceUnitTests
 
         // Assert
         result.IsHealthy.Should().BeFalse();
+        result.Disposition.Should().Be(HealthCheckDisposition.Unhealthy);
         result.ErrorMessage.Should().Be("Connection refused");
         result.InitializationDetails.Should().NotBeNull();
     }

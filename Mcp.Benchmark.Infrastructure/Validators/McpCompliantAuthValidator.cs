@@ -4,6 +4,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Validators;
 
@@ -213,22 +215,29 @@ public class McpCompliantAuthValidator
             }
 
             // Step 5: Calculate final compliance score
-            // Only count scenarios with a valid, non-negative HTTP status code so that
-            // environment/network issues (represented with negative codes) are treated
-            // as inconclusive rather than compliance failures or passes.
+            // Scenario scoring is calibrated instead of binary:
+            // - 100: secure and standards-aligned
+            // - 75: secure but non-canonical / guidance gap
+            // - 0: insecure for the declared profile
+            // - <0: informational or inconclusive, excluded from scoring
             var scoredScenarios = result.TestScenarios
-                .Where(s => int.TryParse(s.StatusCode, out var code) && code >= 0)
+                .Where(s => s.AssessmentScore >= 0)
                 .ToList();
 
             var totalScenarios = scoredScenarios.Count;
-            var passedScenarios = scoredScenarios.Count(s => s.IsCompliant);
+            var secureScenarios = scoredScenarios.Count(s => s.IsSecure);
 
-            result.ComplianceScore = totalScenarios > 0 ? (double)passedScenarios / totalScenarios * 100.0 : 100.0;
-            result.Status = result.ComplianceScore >= 80.0 ? TestStatus.Passed : TestStatus.Failed;
+            result.ComplianceScore = totalScenarios > 0
+                ? scoredScenarios.Average(s => s.AssessmentScore)
+                : 100.0;
+
+            result.Status = scoredScenarios.Any(s => ValidationCalibration.IsBlockingAuthenticationFailure(s, profile))
+                ? TestStatus.Failed
+                : TestStatus.Passed;
             result.Duration = DateTime.UtcNow - startTime;
 
-            _logger.LogInformation("Authentication validation completed: {Score:F1}% ({Passed}/{Total} scenarios passed)",
-                result.ComplianceScore, passedScenarios, totalScenarios);
+            _logger.LogInformation("Authentication validation completed: {Score:F1}% ({Secure}/{Total} scored scenarios secure)",
+                result.ComplianceScore, secureScenarios, totalScenarios);
 
             return result;
         }
@@ -308,21 +317,23 @@ public class McpCompliantAuthValidator
     /// <summary>
     /// Tests if any method follows MCP authentication patterns
     /// 
-    /// SIMPLIFIED OAUTH 2.1 ONLY COMPLIANCE:
-    /// - All authentication errors MUST return 401/400 + WWW-Authenticate header
-    /// - No JSON-RPC 2.0 errors for authentication (these are at application layer)
+    /// Calibrated OAuth/MCP authentication assessment:
+    /// - Public profiles treat auth challenges as informational.
+    /// - Protected HTTP profiles prefer RFC 6750 / MCP challenge behavior.
+    /// - Secure but non-canonical rejection patterns reduce score but do not fail.
+    /// - Only genuine unauthorized success on sensitive operations is treated as blocking.
     /// 
     /// Authentication Test Matrix:
     /// ┌─────────────────────┬─────────────────────────────────────────────────────────┐
     /// │ Test Scenario       │ Expected Response (OAuth 2.1 Only)                     │
     /// ├─────────────────────┼─────────────────────────────────────────────────────────┤
-    /// │ No Auth             │ 400/401 + WWW-Authenticate (REQUIRED)                  │
-    /// │ Malformed Token     │ 400/401 + WWW-Authenticate                             │
-    /// │ Invalid Token       │ 400/401 + WWW-Authenticate                             │
-    /// │ Token Expired       │ 400/401 + WWW-Authenticate                             │
-    /// │ Invalid Scope       │ 403 + WWW-Authenticate (insufficient_scope)            │
-    /// │ Insufficient Perms  │ 403 + WWW-Authenticate (insufficient_scope)            │
-    /// │ Valid Token         │ 200 + JSON-RPC success                                 │
+    /// │ No Auth             │ 401/4xx challenge preferred; secure rejection accepted │
+    /// │ Malformed Token     │ 401/4xx challenge preferred; secure rejection accepted │
+    /// │ Invalid Token       │ 401/4xx challenge preferred; secure rejection accepted │
+    /// │ Token Expired       │ 401/4xx challenge preferred; secure rejection accepted │
+    /// │ Invalid Scope       │ 403 challenge preferred; secure rejection accepted     │
+    /// │ Insufficient Perms  │ 403 challenge preferred; secure rejection accepted     │
+    /// │ Valid Token         │ 2xx JSON-RPC processing                                │
     /// └─────────────────────┴─────────────────────────────────────────────────────────┘
     /// 
     /// Special Case: initialize method can return 401 OR 200 (both acceptable)
@@ -361,10 +372,12 @@ public class McpCompliantAuthValidator
             // Treat transport-level failures (timeouts, cancellations, DNS issues, etc.) as
             // environment/network issues rather than direct authentication non-compliance.
             scenario.StatusCode = "-1";
+            MarkScenarioInconclusive(
+                scenario,
+                actualBehavior: $"⏱️ Request failed: {ex.Message}",
+                analysis: "ℹ️ INFO: Authentication test inconclusive due to validator/network error.",
+                complianceReason: "INFO: Environment or network issue during authentication testing; excluded from compliance scoring.");
             scenario.IsCompliant = true;
-            scenario.ActualBehavior = $"⏱️ Request failed: {ex.Message}";
-            scenario.Analysis = "ℹ️ INFO: Authentication test inconclusive due to validator/network error.";
-            scenario.ComplianceReason = "INFO: Environment or network issue during authentication testing; excluded from compliance scoring.";
         }
 
         return scenario;
@@ -376,7 +389,7 @@ public class McpCompliantAuthValidator
         {
             "initialize" => new
             {
-                protocolVersion = "2024-11-05",
+                protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(null),
                 capabilities = new { },
                 clientInfo = new { name = "Visual Studio Code", version = "1.96.0" }
             },
@@ -442,10 +455,11 @@ public class McpCompliantAuthValidator
         // issues: they should not count as authentication failures or passes.
         if (response.StatusCode < 0)
         {
-            scenario.IsCompliant = true;
-            scenario.ActualBehavior = "⏱️ Request canceled or timed out (validator/network)";
-            scenario.Analysis = "ℹ️ INFO: Authentication test inconclusive due to validator/network timeout or cancellation.";
-            scenario.ComplianceReason = "INFO: Environment/network issue during auth testing; excluded from compliance scoring.";
+            MarkScenarioInconclusive(
+                scenario,
+                actualBehavior: "⏱️ Request canceled or timed out (validator/network)",
+                analysis: "ℹ️ INFO: Authentication test inconclusive due to validator/network timeout or cancellation.",
+                complianceReason: "INFO: Environment/network issue during auth testing; excluded from compliance scoring.");
             return;
         }
 
@@ -453,14 +467,22 @@ public class McpCompliantAuthValidator
         switch (response.StatusCode)
         {
             case 400:
-                // OAuth 2.1 RFC 6750: 400 is valid for authentication errors (invalid_request pattern)
-                // Both GitHub and Microsoft Graph MCP servers use this pattern successfully
-                scenario.IsCompliant = true; // PRACTICAL: Accept 400 even without header as secure
-                scenario.ActualBehavior = hasWWWAuth ? "400 + WWW-Auth" : "400 (missing WWW-Auth)";
-                scenario.Analysis = hasWWWAuth
-                    ? "✅ COMPLIANT: OAuth 2.1 authentication error with proper headers"
-                    : "⚠️ PRACTICAL: Secure rejection (missing WWW-Authenticate header)";
-                scenario.ComplianceReason = "PASS: Access denied (Secure)";
+                if (hasWWWAuth)
+                {
+                    MarkScenarioStandardsAligned(
+                        scenario,
+                        actualBehavior: "400 + WWW-Auth",
+                        analysis: "✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.",
+                        complianceReason: "PASS: Access denied with challenge metadata.");
+                }
+                else
+                {
+                    MarkScenarioSecureCompatible(
+                        scenario,
+                        actualBehavior: "400 (missing WWW-Auth)",
+                        analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
+                        complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
+                }
                 break;
 
             case 401:
@@ -469,24 +491,30 @@ public class McpCompliantAuthValidator
                 
                 if (testType == "Valid Token")
                 {
-                    // If we sent a valid token but got 401, that's a failure of the "Valid Token" test
-                    // UNLESS the token itself was actually invalid/expired (which shouldn't happen in this test case)
-                    scenario.IsCompliant = false;
-                    scenario.ActualBehavior = hasWWWAuth ? "401 + WWW-Auth" : "401 (missing WWW-Auth)";
-                    scenario.Analysis = "❌ VIOLATION: Valid token was rejected with 401";
-                    scenario.ComplianceReason = "FAIL: Server rejected a valid token";
+                    MarkScenarioInsecure(
+                        scenario,
+                        actualBehavior: hasWWWAuth ? "401 + WWW-Auth" : "401 (missing WWW-Auth)",
+                        analysis: "❌ INSECURE: A valid token was rejected.",
+                        complianceReason: "FAIL: Server rejected the valid token.");
                 }
                 else
                 {
-                    // PRACTICAL UPDATE: Accept 401 even without header as secure
-                    scenario.IsCompliant = true;
-                    scenario.ActualBehavior = hasWWWAuth ? "401 + WWW-Auth" : "401 (missing WWW-Auth)";
-                    scenario.Analysis = hasWWWAuth
-                        ? "✅ COMPLIANT: OAuth 2.1 authentication error with proper headers"
-                        : "⚠️ PRACTICAL: Secure rejection (missing WWW-Authenticate header)";
-                    scenario.ComplianceReason = hasWWWAuth
-                        ? "PASS: Spec compliant authentication response"
-                        : "PASS: Access denied (Practical Security)";
+                    if (hasWWWAuth)
+                    {
+                        MarkScenarioStandardsAligned(
+                            scenario,
+                            actualBehavior: "401 + WWW-Auth",
+                            analysis: "✅ ALIGNED: OAuth/MCP challenge returned with HTTP 401.",
+                            complianceReason: "PASS: Access denied with challenge metadata.");
+                    }
+                    else
+                    {
+                        MarkScenarioSecureCompatible(
+                            scenario,
+                            actualBehavior: "401 (missing WWW-Auth)",
+                            analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
+                            complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
+                    }
                 }
                 break;
 
@@ -494,47 +522,57 @@ public class McpCompliantAuthValidator
                 // OAuth 2.1: 403 for insufficient_scope
                 // STRICT SPEC COMPLIANCE: Must have WWW-Authenticate header
                 
-                // PRACTICAL UPDATE: Accept 403 even without header as secure
-                scenario.IsCompliant = true;
-                scenario.ActualBehavior = hasWWWAuth ? "403 + WWW-Auth" : "403 (missing WWW-Auth)";
-                scenario.Analysis = hasWWWAuth
-                    ? "✅ COMPLIANT: OAuth 2.1 insufficient_scope with proper headers"
-                    : "⚠️ PRACTICAL: Secure rejection (missing WWW-Authenticate header)";
-                scenario.ComplianceReason = hasWWWAuth
-                    ? "PASS: Spec compliant insufficient_scope response"
-                    : "PASS: Access denied (Practical Security)";
+                if (hasWWWAuth)
+                {
+                    MarkScenarioStandardsAligned(
+                        scenario,
+                        actualBehavior: "403 + WWW-Auth",
+                        analysis: "✅ ALIGNED: Secure insufficient-scope rejection returned with challenge metadata.",
+                        complianceReason: "PASS: Access denied with challenge metadata.");
+                }
+                else
+                {
+                    MarkScenarioSecureCompatible(
+                        scenario,
+                        actualBehavior: "403 (missing WWW-Auth)",
+                        analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
+                        complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
+                }
                 break;
 
             case 429:
                 // Rate Limiting - Not an auth violation
-                scenario.IsCompliant = true;
-                scenario.ActualBehavior = "429 Too Many Requests";
-                scenario.Analysis = "⚠️ SKIPPED: Rate limiting active (Secure)";
-                scenario.ComplianceReason = "PASS: Transport layer protection (Rate Limit)";
+                MarkScenarioInconclusive(
+                    scenario,
+                    actualBehavior: "429 Too Many Requests",
+                    analysis: "ℹ️ INFO: Rate limiting observed; auth semantics inconclusive.",
+                    complianceReason: "INFO: Request was throttled and excluded from auth scoring.");
                 break;
 
             case 406:
                 // Content Negotiation - Not an auth violation
-                scenario.IsCompliant = true;
-                scenario.ActualBehavior = "406 Not Acceptable";
-                scenario.Analysis = "⚠️ SKIPPED: Content negotiation failed (Secure)";
-                scenario.ComplianceReason = "PASS: Transport layer protection (Content-Type)";
+                MarkScenarioInconclusive(
+                    scenario,
+                    actualBehavior: "406 Not Acceptable",
+                    analysis: "ℹ️ INFO: Content negotiation failed before auth semantics could be evaluated.",
+                    complianceReason: "INFO: Content negotiation prevented a conclusive auth assessment.");
                 break;
 
             case 503:
                 // Service Unavailable - Not an auth violation
-                scenario.IsCompliant = true;
-                scenario.ActualBehavior = "503 Service Unavailable";
-                scenario.Analysis = "⚠️ SKIPPED: Service unavailable (Secure)";
-                scenario.ComplianceReason = "PASS: Transport layer protection (Availability)";
+                MarkScenarioInconclusive(
+                    scenario,
+                    actualBehavior: "503 Service Unavailable",
+                    analysis: "ℹ️ INFO: Service availability issue made auth semantics inconclusive.",
+                    complianceReason: "INFO: Service was unavailable during auth assessment.");
                 break;
 
             case 405:
-                // PRACTICAL: 405 Method Not Allowed is a valid way to reject requests
-                scenario.IsCompliant = true;
-                scenario.ActualBehavior = hasWWWAuth ? "405 + WWW-Auth" : "405 (missing WWW-Auth)";
-                scenario.Analysis = "⚠️ PRACTICAL: Server rejected request (Secure but Non-Standard)";
-                scenario.ComplianceReason = "PASS: Access denied (Practical Security)";
+                MarkScenarioSecureCompatible(
+                    scenario,
+                    actualBehavior: hasWWWAuth ? "405 + WWW-Auth" : "405 (missing WWW-Auth)",
+                    analysis: "⚠️ COMPATIBLE: Request was rejected, but the server used a non-canonical HTTP method outcome.",
+                    complianceReason: "SECURE: Request was rejected using a non-canonical transport response.");
                 break;
 
             case 200:
@@ -542,32 +580,40 @@ public class McpCompliantAuthValidator
 
                 if (testType == "Valid Token")
                 {
-                    // Valid tokens should be accepted by the server (HTTP 200).
-                    // Even if the specific operation fails (e.g. tool not found), the AUTHENTICATION succeeded.
-                    // So we accept both Success and Error results, as long as it's a valid JSON-RPC response.
-                    scenario.IsCompliant = true;
-                    scenario.ActualBehavior = jsonRpcResult.IsSuccess ? "200 + JSON-RPC success" : "200 + JSON-RPC error";
-                    scenario.Analysis = "✅ COMPLIANT: Valid authentication accepted by server";
-                    scenario.ComplianceReason = "PASS: Server accepted the valid token and processed the request";
+                    MarkScenarioStandardsAligned(
+                        scenario,
+                        actualBehavior: jsonRpcResult.IsSuccess ? "200 + JSON-RPC success" : "200 + JSON-RPC error",
+                        analysis: "✅ ALIGNED: Valid authentication was accepted and request processing proceeded.",
+                        complianceReason: "PASS: Server accepted the valid token and processed the request.");
                 }
                 else
                 {
-                    // MCP allows both HTTP-level (401/403) and application-level (JSON-RPC error) auth
-                    // 200 + JSON-RPC error is a valid pattern for application-layer authentication
                     if (!jsonRpcResult.IsSuccess)
                     {
-                        scenario.IsCompliant = true;
-                        scenario.ActualBehavior = "200 + JSON-RPC Error";
-                        scenario.Analysis = "✅ COMPLIANT: Application-layer authentication rejection";
-                        scenario.ComplianceReason = "PASS: JSON-RPC error is valid auth rejection pattern";
+                        MarkScenarioSecureCompatible(
+                            scenario,
+                            actualBehavior: "200 + JSON-RPC error",
+                            analysis: "⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
+                            complianceReason: "SECURE: Request was rejected, but not through the preferred HTTP challenge flow.");
                     }
                     else
                     {
-                        // 200 + success for invalid auth is non-compliant
-                        scenario.IsCompliant = false;
-                        scenario.ActualBehavior = "200 + JSON-RPC success";
-                        scenario.Analysis = "❌ VIOLATION: Auth failure should return error";
-                        scenario.ComplianceReason = "FAIL: Invalid auth accepted";
+                        if (ValidationCalibration.IsDiscoveryMethod(method))
+                        {
+                            MarkScenarioSecureCompatible(
+                                scenario,
+                                actualBehavior: "200 + JSON-RPC success",
+                                analysis: "⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.",
+                                complianceReason: "SECURE: Discovery surface is public, but challenge-based auth was not enforced.");
+                        }
+                        else
+                        {
+                            MarkScenarioInsecure(
+                                scenario,
+                                actualBehavior: "200 + JSON-RPC success",
+                                analysis: "❌ INSECURE: Sensitive operation succeeded without valid authentication.",
+                                complianceReason: "FAIL: Invalid authentication was accepted.");
+                        }
                     }
                 }
                 break;
@@ -575,19 +621,19 @@ public class McpCompliantAuthValidator
             default:
                 if (response.StatusCode >= 400 && response.StatusCode < 500)
                 {
-                    // Accept any 4xx as secure rejection in practical mode
-                    scenario.IsCompliant = true;
-                    scenario.ActualBehavior = $"HTTP {response.StatusCode}";
-                    scenario.Analysis = $"⚠️ PRACTICAL: Server rejected request with {response.StatusCode}";
-                    scenario.ComplianceReason = "PASS: Access denied (Practical Security)";
+                    MarkScenarioSecureCompatible(
+                        scenario,
+                        actualBehavior: $"HTTP {response.StatusCode}",
+                        analysis: $"⚠️ COMPATIBLE: Server rejected the request with HTTP {response.StatusCode}, but without the preferred challenge semantics.",
+                        complianceReason: "SECURE: Request was rejected using a non-canonical HTTP pattern.");
                 }
                 else
                 {
-                    // Unexpected status codes (5xx, etc)
-                    scenario.IsCompliant = false;
-                    scenario.ActualBehavior = $"HTTP {response.StatusCode}";
-                    scenario.Analysis = $"❌ VIOLATION: Unexpected HTTP {response.StatusCode} status";
-                    scenario.ComplianceReason = $"FAIL: Invalid status code for authentication scenario";
+                    MarkScenarioInconclusive(
+                        scenario,
+                        actualBehavior: $"HTTP {response.StatusCode}",
+                        analysis: $"ℹ️ INFO: Unexpected HTTP {response.StatusCode} prevented a reliable auth assessment.",
+                        complianceReason: "INFO: Response was excluded from auth scoring due to inconclusive transport behavior.");
                 }
                 break;
         }
@@ -595,7 +641,7 @@ public class McpCompliantAuthValidator
 
     private static void ApplyProfileSemantics(AuthenticationScenario scenario, McpServerProfile profile)
     {
-        if (RequiresStrictAuthentication(profile))
+        if (ValidationCalibration.RequiresStrictAuthentication(profile))
         {
             return;
         }
@@ -606,22 +652,65 @@ public class McpCompliantAuthValidator
         }
 
         scenario.ExpectedBehavior = "Informational (public profile)";
+        scenario.AssessmentDisposition = AuthenticationAssessmentDisposition.Informational;
+        scenario.AssessmentScore = -1.0;
+        scenario.IsCompliant = true;
+        scenario.IsSecure = true;
 
-        if (!scenario.IsCompliant)
+        if (!string.IsNullOrWhiteSpace(scenario.Analysis))
         {
             scenario.Analysis = $"ℹ️ INFO (Public profile): {scenario.Analysis}";
-            scenario.ComplianceReason = "INFO: Auth findings are informational for public profile.";
-            scenario.IsCompliant = true;
         }
-        else
-        {
-            scenario.Analysis = $"{scenario.Analysis} (ℹ️ Public profile observation)";
-        }
+
+        scenario.ComplianceReason = "INFO: Authentication challenge behavior is informational for public profiles.";
     }
 
-    private static bool RequiresStrictAuthentication(McpServerProfile profile)
+    private static void MarkScenarioStandardsAligned(AuthenticationScenario scenario, string actualBehavior, string analysis, string complianceReason)
     {
-        return profile == McpServerProfile.Authenticated || profile == McpServerProfile.Enterprise;
+        scenario.ActualBehavior = actualBehavior;
+        scenario.Analysis = analysis;
+        scenario.ComplianceReason = complianceReason;
+        scenario.IsCompliant = true;
+        scenario.IsSecure = true;
+        scenario.IsStandardsAligned = true;
+        scenario.AssessmentScore = ValidationCalibration.StandardsAlignedScenarioScore;
+        scenario.AssessmentDisposition = AuthenticationAssessmentDisposition.StandardsAligned;
+    }
+
+    private static void MarkScenarioSecureCompatible(AuthenticationScenario scenario, string actualBehavior, string analysis, string complianceReason)
+    {
+        scenario.ActualBehavior = actualBehavior;
+        scenario.Analysis = analysis;
+        scenario.ComplianceReason = complianceReason;
+        scenario.IsCompliant = true;
+        scenario.IsSecure = true;
+        scenario.IsStandardsAligned = false;
+        scenario.AssessmentScore = ValidationCalibration.SecureCompatibleScenarioScore;
+        scenario.AssessmentDisposition = AuthenticationAssessmentDisposition.SecureCompatible;
+    }
+
+    private static void MarkScenarioInsecure(AuthenticationScenario scenario, string actualBehavior, string analysis, string complianceReason)
+    {
+        scenario.ActualBehavior = actualBehavior;
+        scenario.Analysis = analysis;
+        scenario.ComplianceReason = complianceReason;
+        scenario.IsCompliant = false;
+        scenario.IsSecure = false;
+        scenario.IsStandardsAligned = false;
+        scenario.AssessmentScore = 0.0;
+        scenario.AssessmentDisposition = AuthenticationAssessmentDisposition.Insecure;
+    }
+
+    private static void MarkScenarioInconclusive(AuthenticationScenario scenario, string actualBehavior, string analysis, string complianceReason)
+    {
+        scenario.ActualBehavior = actualBehavior;
+        scenario.Analysis = analysis;
+        scenario.ComplianceReason = complianceReason;
+        scenario.IsCompliant = true;
+        scenario.IsSecure = false;
+        scenario.IsStandardsAligned = false;
+        scenario.AssessmentScore = -1.0;
+        scenario.AssessmentDisposition = AuthenticationAssessmentDisposition.Inconclusive;
     }
 
     private JsonRpcResponseType ParseJsonRpcResponse(JsonRpcResponse response)
@@ -694,7 +783,7 @@ public class McpCompliantAuthValidator
             var response = await _httpClient.CallAsync(serverConfig.Endpoint!, "initialize",
                 new
                 {
-                    protocolVersion = "2024-11-05",
+                    protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(null),
                     capabilities = new { },
                     clientInfo = new { name = "Visual Studio Code", version = "1.96.0" }
                 }, serverConfig.Authentication, cancellationToken);

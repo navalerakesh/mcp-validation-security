@@ -1,10 +1,10 @@
 using System.CommandLine;
-using System.CommandLine.Invocation;
 using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using Mcp.Benchmark.CLI;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
@@ -59,7 +59,7 @@ internal class Program
                     ShowCliName();
                     ShowCliDescriptionText();
                 }
-                return await CreateLightweightRootCommand().InvokeAsync(args);
+                return await CreateLightweightRootCommand().Parse(args).InvokeAsync();
             }
 
             if (args.Length == 1 && args[0] == "--version")
@@ -78,7 +78,7 @@ internal class Program
             var rootCommand = CreateRootCommand(host.Services);
 
             // Execute the command
-            return await rootCommand.InvokeAsync(args);
+            return await rootCommand.Parse(args).InvokeAsync();
         }
         catch (CliExceptionBase cliEx)
         {
@@ -128,32 +128,39 @@ internal class Program
         var root = new RootCommand("MCP Validator — validate MCP servers for compliance, security, and AI safety");
 
         var validate = new Command("validate", "Validate an MCP server for compliance, security, and AI safety");
-        validate.AddOption(new Option<string>(new[] { "-s", "--server" }, "MCP server endpoint (URL or STDIO command)"));
-        validate.AddOption(new Option<string>(new[] { "-o", "--output" }, "Output directory for reports"));
-        validate.AddOption(new Option<string>("--mcpspec", "Target MCP spec profile (e.g., latest, 2025-11-25)"));
-        validate.AddOption(new Option<string>("--access", "Access intent: public, authenticated, enterprise"));
-        validate.AddOption(new Option<string>(new[] { "-t", "--token" }, "Bearer token for authentication"));
-        validate.AddOption(new Option<bool>(new[] { "-i", "--interactive" }, "Allow interactive authentication"));
-        validate.AddOption(new Option<int?>("--max-concurrency", "Max in-flight HTTP requests (default: CPU count)"));
+        validate.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint (URL or STDIO command)" });
+        validate.Options.Add(new Option<string>("--output", "-o") { Description = "Output directory for reports" });
+        validate.Options.Add(new Option<string>("--mcpspec") { Description = "Target MCP spec profile (e.g., latest, 2025-11-25)" });
+        validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
+        validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
+        var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles") { Description = BuildClientProfileOptionDescription() };
+        clientProfileOption.AllowMultipleArgumentsPerToken = true;
+        validate.Options.Add(clientProfileOption);
+        validate.Options.Add(new Option<string>("--token", "-t") { Description = "Bearer token for authentication" });
+        validate.Options.Add(new Option<bool>("--interactive", "-i") { Description = "Allow interactive authentication" });
+        validate.Options.Add(new Option<int?>("--max-concurrency") { Description = "Max in-flight HTTP requests (default: CPU count)" });
 
         var health = new Command("health-check", "Quick connectivity check on an MCP server");
-        health.AddOption(new Option<string>(new[] { "-s", "--server" }, "MCP server endpoint"));
+        health.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint" });
 
         var discover = new Command("discover", "Discover MCP server capabilities and features");
-        discover.AddOption(new Option<string>(new[] { "-s", "--server" }, "MCP server endpoint"));
+        discover.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint" });
 
         var report = new Command("report", "Generate reports from previous validation results");
-        report.AddOption(new Option<string>(new[] { "-i", "--input" }, "Input validation results file"));
-        report.AddOption(new Option<string>(new[] { "-f", "--format" }, "Report format: html, xml"));
+        report.Options.Add(new Option<string>("--input", "-i") { Description = "Input validation results file" });
+        report.Options.Add(new Option<string>("--format", "-f") { Description = "Report format: html, xml, sarif, junit" });
 
-        root.AddCommand(validate);
-        root.AddCommand(health);
-        root.AddCommand(discover);
-        root.AddCommand(report);
+        root.Subcommands.Add(validate);
+        root.Subcommands.Add(health);
+        root.Subcommands.Add(discover);
+        root.Subcommands.Add(report);
 
-        root.AddGlobalOption(new Option<bool>(new[] { "-v", "--verbose" }, "Enable verbose output"));
-        root.AddGlobalOption(new Option<string>(new[] { "-c", "--config" }, "Path to configuration file"));
-        root.AddGlobalOption(new Option<bool>("--list-spec-profiles", "List supported MCP spec profiles"));
+        var verboseOpt = new Option<bool>("--verbose", "-v") { Description = "Enable verbose output", Recursive = true };
+        var configOpt = new Option<string>("--config", "-c") { Description = "Path to configuration file", Recursive = true };
+        var listSpecOpt = new Option<bool>("--list-spec-profiles") { Description = "List supported MCP spec profiles", Recursive = true };
+        root.Options.Add(verboseOpt);
+        root.Options.Add(configOpt);
+        root.Options.Add(listSpecOpt);
 
         return root;
     }
@@ -232,8 +239,10 @@ internal class Program
 
                 // Register professional console output service
                 services.AddSingleton<IConsoleOutputService, ConsoleOutputService>();
+                services.AddSingleton<IGitHubActionsReporter, GitHubActionsReporter>();
                 services.AddSingleton<IReportGenerator, MarkdownReportGenerator>();
                 services.AddSingleton<IValidationReportRenderer, ValidationReportRenderer>();
+                services.AddSingleton<IClientProfileEvaluator, ClientProfileEvaluator>();
                 services.AddScoped<INextStepAdvisor, NextStepAdvisor>();
 
                 // Register Authentication Services
@@ -245,6 +254,7 @@ internal class Program
                 services.AddSingleton<ISchemaRegistry, EmbeddedSchemaRegistry>();
                 services.AddSingleton<ISchemaValidator, JsonSchemaValidator>();
                 services.AddSingleton<IContentSafetyAnalyzer, ContentSafetyAnalyzer>();
+                services.AddSingleton<IToolAiReadinessAnalyzer, ToolAiReadinessAnalyzer>();
                 services.AddSingleton<IAggregateScoringStrategy, SecurityFocusedScoringStrategy>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
                 services.AddSingleton<IValidationSessionBuilder, ValidationSessionBuilder>();
@@ -293,13 +303,15 @@ internal class Program
     private static RootCommand CreateRootCommand(IServiceProvider serviceProvider)
     {
         // Add global options
-        var verboseOption = new Option<bool>(
-            aliases: new[] { "--verbose", "-v" },
-            description: "Enable verbose logging output");
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Enable verbose logging output"
+        };
 
-        var configOption = new Option<FileInfo?>(
-            aliases: new[] { "--config", "-c" },
-            description: "Path to the configuration file");
+        var configOption = new Option<FileInfo?>("--config", "-c")
+        {
+            Description = "Path to the configuration file"
+        };
 
         var rootCommand = new RootCommand("MCP Validator — validate MCP servers for compliance, security, and AI safety")
         {
@@ -309,16 +321,22 @@ internal class Program
             CreateReportCommand(serviceProvider, configOption, verboseOption)
         };
 
-        rootCommand.AddGlobalOption(verboseOption);
-        rootCommand.AddGlobalOption(configOption);
+        verboseOption.Recursive = true;
+        rootCommand.Options.Add(verboseOption);
+        configOption.Recursive = true;
+        rootCommand.Options.Add(configOption);
 
         // Global option to list supported spec profiles
-        var listProfilesOption = new Option<bool>("--list-spec-profiles", "List supported MCP spec profiles and exit");
-        rootCommand.AddGlobalOption(listProfilesOption);
-
-        rootCommand.SetHandler((InvocationContext context) =>
+        var listProfilesOption = new Option<bool>("--list-spec-profiles")
         {
-            var listProfiles = context.ParseResult.GetValueForOption(listProfilesOption);
+            Description = "List supported MCP spec profiles and exit",
+            Recursive = true
+        };
+        rootCommand.Options.Add(listProfilesOption);
+
+        rootCommand.SetAction((ParseResult parseResult) =>
+        {
+            var listProfiles = parseResult.GetValue(listProfilesOption);
             if (listProfiles)
             {
                 var version = GetValidatorVersion();
@@ -340,7 +358,6 @@ internal class Program
                         Console.WriteLine($"- {profile.Name}{aliasSuffix}: {profile.Description}");
                     }
                 }
-                context.ExitCode = 0;
                 return;
             }
 
@@ -364,58 +381,93 @@ internal class Program
     {
         var validateCommand = new Command("validate", "Perform comprehensive MCP server validation");
 
-        var serverOption = new Option<string>(
-            aliases: new[] { "--server", "-s" },
-            description: "MCP server endpoint or configuration");
-
-        var specProfileOption = new Option<string?>(
-            name: "--mcpspec",
-            description: "Target MCP spec profile (e.g., latest, 2025-11-25, 2025-06-18)");
-
-        var serverProfileOption = new Option<string?>(
-            name: "--access",
-            description: "Declared server access intent (public, authenticated, enterprise)");
-        serverProfileOption.FromAmong("public", "authenticated", "enterprise", "unspecified");
-
-        var tokenOption = new Option<string?>(
-            aliases: new[] { "--token", "-t" },
-            description: "Bearer token for authentication");
-
-        var interactiveOption = new Option<bool>(
-            aliases: new[] { "--interactive", "-i" },
-            description: "Allow interactive authentication (e.g. browser login) if required");
-
-        var maxConcurrencyOption = new Option<int?>(
-            name: "--max-concurrency",
-            description: "Maximum in-flight HTTP requests the validator will issue (default: CPU count)");
-
-
-        var outputOption = new Option<DirectoryInfo?>(
-            aliases: new[] { "--output", "-o" },
-            description: "Output directory for validation reports");
-            
-        validateCommand.AddOption(serverOption);
-        validateCommand.AddOption(outputOption);
-        validateCommand.AddOption(specProfileOption);
-        validateCommand.AddOption(serverProfileOption);
-        validateCommand.AddOption(tokenOption);
-        validateCommand.AddOption(interactiveOption);
-        validateCommand.AddOption(maxConcurrencyOption);
-
-        validateCommand.SetHandler(async (InvocationContext context) =>
+        var serverOption = new Option<string>("--server", "-s")
         {
-            var server = context.ParseResult.GetValueForOption(serverOption);
-            var specProfile = context.ParseResult.GetValueForOption(specProfileOption);
-            var serverProfile = context.ParseResult.GetValueForOption(serverProfileOption);
-            var config = context.ParseResult.GetValueForOption(configOption);
-            var verbose = context.ParseResult.GetValueForOption(verboseOption);
-            var token = context.ParseResult.GetValueForOption(tokenOption);
-            var interactive = context.ParseResult.GetValueForOption(interactiveOption);
-            var output = context.ParseResult.GetValueForOption(outputOption);
-            var maxConcurrency = context.ParseResult.GetValueForOption(maxConcurrencyOption);
+            Description = "MCP server endpoint or configuration"
+        };
+
+        var specProfileOption = new Option<string?>("--mcpspec")
+        {
+            Description = "Target MCP spec profile (e.g., latest, 2025-11-25, 2025-06-18)"
+        };
+
+        var serverProfileOption = new Option<string?>("--access")
+        {
+            Description = "Declared server access intent (public, authenticated, enterprise)"
+        };
+        serverProfileOption.AcceptOnlyFromAmong("public", "authenticated", "enterprise", "unspecified");
+
+        var tokenOption = new Option<string?>("--token", "-t")
+        {
+            Description = "Bearer token for authentication"
+        };
+
+        var interactiveOption = new Option<bool>("--interactive", "-i")
+        {
+            Description = "Allow interactive authentication (e.g. browser login) if required"
+        };
+
+        var maxConcurrencyOption = new Option<int?>("--max-concurrency")
+        {
+            Description = "Maximum in-flight HTTP requests the validator will issue (default: CPU count)"
+        };
+
+        var policyModeOption = new Option<string?>("--policy")
+        {
+            Description = "Validation policy mode (advisory, balanced, strict)",
+            DefaultValueFactory = _ => Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced
+        };
+        policyModeOption.AcceptOnlyFromAmong(
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Advisory,
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
+            Mcp.Benchmark.Core.Models.ValidationPolicyModes.Strict);
+
+        var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles")
+        {
+            Description = BuildClientProfileOptionDescription()
+        };
+        clientProfileOption.AllowMultipleArgumentsPerToken = true;
+
+        var reportDetailOption = new Option<string?>("--report-detail", "--report-mode")
+        {
+            Description = "Human report detail level (full, minimal). Default: full."
+        };
+        reportDetailOption.AcceptOnlyFromAmong("full", "minimal");
+
+
+        var outputOption = new Option<DirectoryInfo?>("--output", "-o")
+        {
+            Description = "Output directory for validation reports"
+        };
+            
+        validateCommand.Options.Add(serverOption);
+        validateCommand.Options.Add(outputOption);
+        validateCommand.Options.Add(specProfileOption);
+        validateCommand.Options.Add(serverProfileOption);
+        validateCommand.Options.Add(tokenOption);
+        validateCommand.Options.Add(interactiveOption);
+        validateCommand.Options.Add(maxConcurrencyOption);
+        validateCommand.Options.Add(policyModeOption);
+        validateCommand.Options.Add(clientProfileOption);
+        validateCommand.Options.Add(reportDetailOption);
+
+        validateCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var server = parseResult.GetValue(serverOption);
+            var specProfile = parseResult.GetValue(specProfileOption);
+            var serverProfile = parseResult.GetValue(serverProfileOption);
+            var config = parseResult.GetValue(configOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var token = parseResult.GetValue(tokenOption);
+            var interactive = parseResult.GetValue(interactiveOption);
+            var output = parseResult.GetValue(outputOption);
+            var maxConcurrency = parseResult.GetValue(maxConcurrencyOption);
+            var policyMode = parseResult.GetValue(policyModeOption);
+            var clientProfiles = parseResult.GetValue(clientProfileOption);
+            var reportDetail = parseResult.GetValue(reportDetailOption);
 
             var command = serviceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail);
         });
 
         return validateCommand;
@@ -431,6 +483,11 @@ internal class Program
         return infoVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
+    private static string BuildClientProfileOptionDescription()
+    {
+        return $"Evaluate documented client compatibility profiles. Supported values: {string.Join(", ", ClientProfileCatalog.SupportedProfileIds)}, {ClientProfileCatalog.AllProfilesToken}.";
+    }
+
     /// <summary>
     /// Creates the health-check subcommand for quick server connectivity testing.
     /// </summary>
@@ -443,39 +500,52 @@ internal class Program
     {
         var healthCommand = new Command("health-check", "Perform a quick health check on the MCP server");
 
-        var serverOption = new Option<string>(
-            aliases: new[] { "--server", "-s" },
-            description: "MCP server endpoint or configuration");
-
-        var timeoutOption = new Option<int>(
-            aliases: new[] { "--timeout", "-T" },
-            getDefaultValue: () => 30000,
-            description: "Timeout for the health check in milliseconds");
-
-        var serverProfileOption = new Option<string?>(
-            name: "--access",
-            description: "Declared server access intent (public, authenticated, enterprise)");
-        serverProfileOption.FromAmong("public", "authenticated", "enterprise", "unspecified");
-
-        var tokenOption = new Option<string?>(
-            aliases: new[] { "--token", "-t" },
-            description: "Bearer token for authentication");
-
-        var interactiveOption = new Option<bool>(
-            aliases: new[] { "--interactive", "-i" },
-            description: "Allow interactive authentication (e.g. browser login) if required");
-
-        healthCommand.AddOption(serverOption);
-        healthCommand.AddOption(timeoutOption);
-        healthCommand.AddOption(serverProfileOption);
-        healthCommand.AddOption(tokenOption);
-        healthCommand.AddOption(interactiveOption);
-
-        healthCommand.SetHandler(async (string? server, int timeout, FileInfo? config, bool verbose, string? token, bool interactive, string? serverProfile) =>
+        var serverOption = new Option<string>("--server", "-s")
         {
+            Description = "MCP server endpoint or configuration"
+        };
+
+        var timeoutOption = new Option<int>("--timeout", "-T")
+        {
+            Description = "Timeout for the health check in milliseconds",
+            DefaultValueFactory = _ => 30000
+        };
+
+        var serverProfileOption = new Option<string?>("--access")
+        {
+            Description = "Declared server access intent (public, authenticated, enterprise)"
+        };
+        serverProfileOption.AcceptOnlyFromAmong("public", "authenticated", "enterprise", "unspecified");
+
+        var tokenOption = new Option<string?>("--token", "-t")
+        {
+            Description = "Bearer token for authentication"
+        };
+
+        var interactiveOption = new Option<bool>("--interactive", "-i")
+        {
+            Description = "Allow interactive authentication (e.g. browser login) if required"
+        };
+
+        healthCommand.Options.Add(serverOption);
+        healthCommand.Options.Add(timeoutOption);
+        healthCommand.Options.Add(serverProfileOption);
+        healthCommand.Options.Add(tokenOption);
+        healthCommand.Options.Add(interactiveOption);
+
+        healthCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var server = parseResult.GetValue(serverOption);
+            var timeout = parseResult.GetValue(timeoutOption);
+            var config = parseResult.GetValue(configOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var token = parseResult.GetValue(tokenOption);
+            var interactive = parseResult.GetValue(interactiveOption);
+            var serverProfile = parseResult.GetValue(serverProfileOption);
+
             var command = serviceProvider.GetRequiredService<HealthCheckCommand>();
             await command.ExecuteAsync(server, timeout, config, verbose, token, interactive, serverProfile);
-        }, serverOption, timeoutOption, configOption, verboseOption, tokenOption, interactiveOption, serverProfileOption);
+        });
 
         return healthCommand;
     }
@@ -492,39 +562,52 @@ internal class Program
     {
         var discoverCommand = new Command("discover", "Discover MCP server capabilities and features");
 
-        var serverOption = new Option<string>(
-            aliases: new[] { "--server", "-s" },
-            description: "MCP server endpoint or configuration");
-
-        var formatOption = new Option<string>(
-            aliases: new[] { "--format", "-f" },
-            getDefaultValue: () => "json",
-            description: "Output format (json, yaml, table)");
-
-        var serverProfileOption = new Option<string?>(
-            name: "--access",
-            description: "Declared server access intent (public, authenticated, enterprise)");
-        serverProfileOption.FromAmong("public", "authenticated", "enterprise", "unspecified");
-
-        var tokenOption = new Option<string?>(
-            aliases: new[] { "--token", "-t" },
-            description: "Bearer token for authentication");
-
-        var interactiveOption = new Option<bool>(
-            aliases: new[] { "--interactive", "-i" },
-            description: "Allow interactive authentication (e.g. browser login) if required");
-
-        discoverCommand.AddOption(serverOption);
-        discoverCommand.AddOption(formatOption);
-        discoverCommand.AddOption(serverProfileOption);
-        discoverCommand.AddOption(tokenOption);
-        discoverCommand.AddOption(interactiveOption);
-
-        discoverCommand.SetHandler(async (string? server, string format, FileInfo? config, bool verbose, string? token, bool interactive, string? serverProfile) =>
+        var serverOption = new Option<string>("--server", "-s")
         {
+            Description = "MCP server endpoint or configuration"
+        };
+
+        var formatOption = new Option<string>("--format", "-f")
+        {
+            Description = "Output format (json, yaml, table)",
+            DefaultValueFactory = _ => "json"
+        };
+
+        var serverProfileOption = new Option<string?>("--access")
+        {
+            Description = "Declared server access intent (public, authenticated, enterprise)"
+        };
+        serverProfileOption.AcceptOnlyFromAmong("public", "authenticated", "enterprise", "unspecified");
+
+        var tokenOption = new Option<string?>("--token", "-t")
+        {
+            Description = "Bearer token for authentication"
+        };
+
+        var interactiveOption = new Option<bool>("--interactive", "-i")
+        {
+            Description = "Allow interactive authentication (e.g. browser login) if required"
+        };
+
+        discoverCommand.Options.Add(serverOption);
+        discoverCommand.Options.Add(formatOption);
+        discoverCommand.Options.Add(serverProfileOption);
+        discoverCommand.Options.Add(tokenOption);
+        discoverCommand.Options.Add(interactiveOption);
+
+        discoverCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var server = parseResult.GetValue(serverOption);
+            var format = parseResult.GetValue(formatOption)!;
+            var config = parseResult.GetValue(configOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var token = parseResult.GetValue(tokenOption);
+            var interactive = parseResult.GetValue(interactiveOption);
+            var serverProfile = parseResult.GetValue(serverProfileOption);
+
             var command = serviceProvider.GetRequiredService<DiscoverCommand>();
             await command.ExecuteAsync(server, format, config, verbose, token, interactive, serverProfile);
-        }, serverOption, formatOption, configOption, verboseOption, tokenOption, interactiveOption, serverProfileOption);
+        });
 
         return discoverCommand;
     }
@@ -541,28 +624,45 @@ internal class Program
     {
         var reportCommand = new Command("report", "Generate reports from previous validation results");
 
-        var inputOption = new Option<FileInfo>(
-            aliases: new[] { "--input", "-i" },
-            description: "Input validation results file");
-
-        var formatOption = new Option<string>(
-            aliases: new[] { "--format", "-f" },
-            getDefaultValue: () => "html",
-            description: "Report format (html, xml)");
-
-        var outputOption = new Option<FileInfo?>(
-            aliases: new[] { "--output", "-o" },
-            description: "Output report file path");
-
-        reportCommand.AddOption(inputOption);
-        reportCommand.AddOption(formatOption);
-        reportCommand.AddOption(outputOption);
-
-        reportCommand.SetHandler(async (input, format, output, config, verbose) =>
+        var inputOption = new Option<FileInfo>("--input", "-i")
         {
+            Description = "Input validation results file"
+        };
+
+        var formatOption = new Option<string>("--format", "-f")
+        {
+            Description = "Report format (html, xml, sarif, junit)",
+            DefaultValueFactory = _ => "html"
+        };
+
+        var outputOption = new Option<FileInfo?>("--output", "-o")
+        {
+            Description = "Output report file path"
+        };
+
+        var reportDetailOption = new Option<string?>("--report-detail", "--report-mode")
+        {
+            Description = "Human report detail level (full, minimal). Default: reuse input result, otherwise full."
+        };
+        reportDetailOption.AcceptOnlyFromAmong("full", "minimal");
+
+        reportCommand.Options.Add(inputOption);
+        reportCommand.Options.Add(formatOption);
+        reportCommand.Options.Add(outputOption);
+        reportCommand.Options.Add(reportDetailOption);
+
+        reportCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
+        {
+            var input = parseResult.GetValue(inputOption)!;
+            var format = parseResult.GetValue(formatOption)!;
+            var output = parseResult.GetValue(outputOption);
+            var config = parseResult.GetValue(configOption);
+            var verbose = parseResult.GetValue(verboseOption);
+            var reportDetail = parseResult.GetValue(reportDetailOption);
+
             var command = serviceProvider.GetRequiredService<ReportCommand>();
-            await command.ExecuteAsync(input, format, output, config, verbose);
-        }, inputOption, formatOption, outputOption, configOption, verboseOption);
+            await command.ExecuteAsync(input, format, output, config, verbose, reportDetail);
+        });
 
         return reportCommand;
     }

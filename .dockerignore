@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/TestResults/
+**/*.user
+**/*.swp
+**/.DS_Store
+.git/
+.github/
+_ranavale/
+PublicReports/
+TEMP/
+test-output/
+artifacts/
+nupkg/
+node_modules/
+mcpval-mcp/node_modules/
+temp_generator/

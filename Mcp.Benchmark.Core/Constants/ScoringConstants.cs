@@ -1,28 +1,35 @@
 namespace Mcp.Benchmark.Core.Constants;
 
 /// <summary>
-/// Centralized scoring constants for the MCP Benchmark.
+/// Centralized scoring constants for MCP Validator.
 /// All magic numbers, thresholds, and weights live here — nowhere else.
 /// Change these values to adjust scoring sensitivity.
 /// </summary>
 public static class ScoringConstants
 {
     // ─── Trust Level Thresholds ──────────────────────────────────────
-    // The trust level is determined by the LOWEST dimension score.
+    // The weighted trust score maps to a level and may then be capped by blocking findings.
     
-    /// <summary>Score >= 90 on ALL dimensions → L5 Certified Secure</summary>
+    /// <summary>Weighted trust score >= 90 before any blocking caps → L5 Certified Secure</summary>
     public const double TrustL5Threshold = 90.0;
     
-    /// <summary>Score >= 75 on ALL dimensions → L4 Trusted</summary>
+    /// <summary>Weighted trust score >= 75 before any blocking caps → L4 Trusted</summary>
     public const double TrustL4Threshold = 75.0;
     
-    /// <summary>Score >= 50 on ALL dimensions → L3 Acceptable</summary>
+    /// <summary>Weighted trust score >= 50 after applying caps → L3 Acceptable</summary>
     public const double TrustL3Threshold = 50.0;
     
-    /// <summary>Score >= 25 on ALL dimensions → L2 Caution</summary>
+    /// <summary>Weighted trust score >= 25 or capped into caution range → L2 Caution</summary>
     public const double TrustL2Threshold = 25.0;
     
     // Below L2 → L1 Untrusted
+
+    // ─── Trust Dimension Weights ───────────────────────────────────
+
+    public const double TrustWeightProtocol = 0.30;
+    public const double TrustWeightSecurity = 0.35;
+    public const double TrustWeightAiSafety = 0.20;
+    public const double TrustWeightOperations = 0.15;
 
     // ─── Category Weights (Aggregate Scoring) ────────────────────────
     

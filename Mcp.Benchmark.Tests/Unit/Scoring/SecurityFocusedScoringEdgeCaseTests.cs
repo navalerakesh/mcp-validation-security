@@ -66,12 +66,24 @@ public class SecurityFocusedScoringEdgeCaseTests
         result.ServerProfile = McpServerProfile.Enterprise;
         result.SecurityTesting!.AuthenticationTestResult = new AuthenticationTestResult
         {
-            TestScenarios = { new AuthenticationScenario { TestType = "No Auth", StatusCode = "200", IsCompliant = false } }
+            TestScenarios =
+            {
+                new AuthenticationScenario
+                {
+                    TestType = "No Auth",
+                    Method = "tools/call",
+                    StatusCode = "200",
+                    IsCompliant = false,
+                    IsSecure = false,
+                    AssessmentScore = 0,
+                    AssessmentDisposition = AuthenticationAssessmentDisposition.Insecure
+                }
+            }
         };
 
         var score = _strategy.CalculateScore(result);
 
-        score.OverallScore.Should().Be(0);
+        score.OverallScore.Should().Be(20);
         score.Status.Should().Be(ValidationStatus.Failed);
     }
 
@@ -122,6 +134,22 @@ public class SecurityFocusedScoringEdgeCaseTests
         score1.OverallScore.Should().Be(score2.OverallScore);
     }
 
+    [Fact]
+    public void CalculateScore_WithRepeatedGuidelineFindingsAcrossDifferentCatalogSizes_ShouldRemainEqual()
+    {
+        var fiveToolResult = BuildFullResult(TestStatus.Passed, 100, 100, 100, 100, 100);
+        fiveToolResult.ToolValidation = BuildToolValidationWithGuidelineFindings(5);
+
+        var fortyToolResult = BuildFullResult(TestStatus.Passed, 100, 100, 100, 100, 100);
+        fortyToolResult.ToolValidation = BuildToolValidationWithGuidelineFindings(40);
+
+        var fiveToolScore = _strategy.CalculateScore(fiveToolResult);
+        var fortyToolScore = _strategy.CalculateScore(fortyToolResult);
+
+        fiveToolScore.OverallScore.Should().Be(fortyToolScore.OverallScore);
+        fiveToolScore.Status.Should().Be(fortyToolScore.Status);
+    }
+
     private static ValidationResult BuildFullResult(TestStatus perfStatus, double proto, double sec, double tools, double res, double prompts)
     {
         return new ValidationResult
@@ -132,6 +160,37 @@ public class SecurityFocusedScoringEdgeCaseTests
             ResourceTesting = new ResourceTestResult { Status = TestStatus.Passed, Score = res, ResourcesDiscovered = 1, ResourcesAccessible = 1 },
             PromptTesting = new PromptTestResult { Status = TestStatus.Passed, Score = prompts, PromptsDiscovered = 1, PromptsTestPassed = 1 },
             PerformanceTesting = new PerformanceTestResult { Status = perfStatus, Score = perfStatus == TestStatus.Passed ? 100 : 0 }
+        };
+    }
+
+    private static ToolTestResult BuildToolValidationWithGuidelineFindings(int toolCount)
+    {
+        var toolResults = Enumerable.Range(1, toolCount)
+            .Select(index => new IndividualToolResult
+            {
+                ToolName = $"tool_{index}",
+                Status = TestStatus.Passed,
+                Findings = new List<ValidationFinding>
+                {
+                    new()
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
+                        Category = "McpGuideline",
+                        Component = $"tool_{index}",
+                        Severity = ValidationFindingSeverity.Low,
+                        Summary = $"Tool 'tool_{index}' does not declare annotations.destructiveHint."
+                    }
+                }
+            })
+            .ToList();
+
+        return new ToolTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 100,
+            ToolsDiscovered = toolCount,
+            ToolsTestPassed = toolCount,
+            ToolResults = toolResults
         };
     }
 }

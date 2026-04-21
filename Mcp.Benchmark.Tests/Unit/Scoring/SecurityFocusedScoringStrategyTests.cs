@@ -86,9 +86,9 @@ public class SecurityFocusedScoringStrategyTests
         var score = _strategy.CalculateScore(results);
 
         // Assert
-        score.OverallScore.Should().Be(0);
+        score.OverallScore.Should().Be(20);
         score.Status.Should().Be(ValidationStatus.Failed);
-        score.ScoringNotes.Should().Contain(note => note.Contains("CRITICAL", StringComparison.OrdinalIgnoreCase));
+        score.ScoringNotes.Should().Contain(note => note.Contains("BLOCKER", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
@@ -132,8 +132,12 @@ public class SecurityFocusedScoringStrategyTests
                         new AuthenticationScenario
                         {
                             TestType = "No Auth",
+                            Method = "tools/call",
                             StatusCode = "200",
-                            IsCompliant = false
+                            IsCompliant = false,
+                            IsSecure = false,
+                            AssessmentScore = 0,
+                            AssessmentDisposition = AuthenticationAssessmentDisposition.Insecure
                         }
                     }
                 }

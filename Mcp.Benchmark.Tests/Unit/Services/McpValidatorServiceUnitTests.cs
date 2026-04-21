@@ -172,6 +172,8 @@ public class McpValidatorServiceUnitTests
         result.Should().NotBeNull();
         result.OverallStatus.Should().Be(ValidationStatus.Passed);
         result.ComplianceScore.Should().BeGreaterThan(0);
+        result.ScoringDetails.Should().NotBeNull();
+        result.ScoringDetails!.OverallScore.Should().Be(result.ComplianceScore);
         config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
@@ -230,5 +232,78 @@ public class McpValidatorServiceUnitTests
         config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         result.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_ShouldRunPerformanceAfterCoreCategories()
+    {
+        var protocolCompleted = false;
+
+        var config = new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
+            Validation = new ValidationConfig
+            {
+                Categories = new ValidationScenarios
+                {
+                    ProtocolCompliance = new ProtocolComplianceConfig
+                    {
+                        TestJsonRpcCompliance = true
+                    },
+                    PerformanceTesting = new PerformanceTestingConfig
+                    {
+                        TestConcurrentRequests = true
+                    }
+                }
+            }
+        };
+
+        _protocolValidatorMock
+            .Setup(x => x.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                protocolCompleted = true;
+                return new ComplianceTestResult { Status = TestStatus.Passed, ComplianceScore = 100.0 };
+            });
+
+        _performanceValidatorMock
+            .Setup(x => x.PerformLoadTestingAsync(It.IsAny<McpServerConfig>(), It.IsAny<PerformanceTestingConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() =>
+            {
+                protocolCompleted.Should().BeTrue();
+                return new PerformanceTestResult { Status = TestStatus.Passed, Score = 100.0 };
+            });
+
+        await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        protocolCompleted.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_ShouldKeepScoringNotesSeparateFromRecommendations()
+    {
+        var config = new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
+            Validation = new ValidationConfig
+            {
+                Categories = new ValidationScenarios()
+            }
+        };
+
+        const string scoringNote = "Coverage-weighted score preserved for reporting only.";
+
+        _scoringStrategyMock.Setup(x => x.CalculateScore(It.IsAny<ValidationResult>()))
+            .Returns(new ScoringResult
+            {
+                OverallScore = 100.0,
+                Status = ValidationStatus.Passed,
+                ScoringNotes = new List<string> { scoringNote }
+            });
+
+        var result = await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        result.ScoringNotes.Should().Contain(scoringNote);
+        result.Recommendations.Should().NotContain(scoringNote);
     }
 }

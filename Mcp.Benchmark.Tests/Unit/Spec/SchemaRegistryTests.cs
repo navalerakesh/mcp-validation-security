@@ -1,6 +1,7 @@
 using Mcp.Compliance.Spec;
 using FluentAssertions;
 using Xunit;
+using Moq;
 
 namespace Mcp.Benchmark.Tests.Unit.Spec;
 
@@ -26,6 +27,52 @@ public class SchemaRegistryTests
         ProtocolVersions.V2025_03_26.Value.Should().Be("2025-03-26");
         ProtocolVersions.V2025_06_18.Value.Should().Be("2025-06-18");
         ProtocolVersions.V2025_11_25.Value.Should().Be("2025-11-25");
+    }
+
+    [Fact]
+    public void SchemaRegistryProtocolVersions_ShouldReturnLatestEmbeddedVersion()
+    {
+        var latest = SchemaRegistryProtocolVersions.GetLatestVersion(_registry);
+
+        latest.Value.Should().Be("2025-11-25");
+    }
+
+    [Fact]
+    public void SchemaRegistryProtocolVersions_NormalizeRequestedVersion_ShouldResolveLatestAlias()
+    {
+        var resolved = SchemaRegistryProtocolVersions.NormalizeRequestedVersion("latest", _registry);
+
+        resolved.Should().Be("2025-11-25");
+    }
+
+    [Fact]
+    public void SchemaRegistryProtocolVersions_ResolveSchemaVersion_ShouldFallbackForUnknownVersion()
+    {
+        var resolved = SchemaRegistryProtocolVersions.ResolveSchemaVersion("2099-01-01", _registry);
+
+        resolved.Should().Be(ProtocolVersions.V2025_03_26);
+    }
+
+    [Fact]
+    public void SchemaRegistryProtocolVersions_GetAvailableVersions_WithNullRegistryResponse_ShouldReturnEmpty()
+    {
+        var registry = new Mock<ISchemaRegistry>();
+        registry.Setup(x => x.ListSchemas()).Returns((IReadOnlyCollection<SchemaDescriptor>)null!);
+
+        var versions = SchemaRegistryProtocolVersions.GetAvailableVersions(registry.Object);
+
+        versions.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void SchemaRegistryProtocolVersions_ResolveSchemaVersion_WithThrowingRegistry_ShouldFallbackSafely()
+    {
+        var registry = new Mock<ISchemaRegistry>();
+        registry.Setup(x => x.ListSchemas()).Throws(new InvalidOperationException("boom"));
+
+        var resolved = SchemaRegistryProtocolVersions.ResolveSchemaVersion("latest", registry.Object);
+
+        resolved.Should().Be(ProtocolVersions.V2025_03_26);
     }
 
     [Fact]

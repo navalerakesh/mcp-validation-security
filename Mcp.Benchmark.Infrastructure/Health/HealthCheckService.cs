@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Health;
 
@@ -46,6 +47,7 @@ public class HealthCheckService : IHealthCheckService
                     var stdioInit = await _httpClient.ValidateInitializeAsync(serverConfig.Endpoint!, cancellationToken);
                     result.InitializationDetails = stdioInit;
                     result.IsHealthy = stdioInit.IsSuccessful;
+                    result.Disposition = ValidationReliability.ClassifyHealthCheck(stdioInit);
                     result.ResponseTimeMs = stdioInit.Transport.Duration.TotalMilliseconds;
                     result.ErrorMessage = stdioInit.IsSuccessful ? null : (stdioInit.Error ?? "STDIO initialize failed");
                     result.ServerVersion = stdioInit.Payload?.ServerInfo?.Version ?? "Unknown";
@@ -58,6 +60,7 @@ public class HealthCheckService : IHealthCheckService
                 catch (Exception ex)
                 {
                     result.IsHealthy = false;
+                    result.Disposition = ValidationReliability.ClassifyHealthCheck(ex, cancellationToken);
                     result.ErrorMessage = $"STDIO health check failed: {ex.Message}";
                     result.ResponseTimeMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
                     _logger.LogWarning(ex, "STDIO health check failed");
@@ -68,6 +71,7 @@ public class HealthCheckService : IHealthCheckService
             if (string.IsNullOrEmpty(serverConfig.Endpoint))
             {
                 result.IsHealthy = false;
+                result.Disposition = HealthCheckDisposition.Unhealthy;
                 result.ErrorMessage = "No endpoint specified for HTTP transport health check";
                 result.ResponseTimeMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
                 return result;
@@ -81,6 +85,7 @@ public class HealthCheckService : IHealthCheckService
 
             result.InitializationDetails = initResult;
             result.IsHealthy = initResult.IsSuccessful;
+            result.Disposition = ValidationReliability.ClassifyHealthCheck(initResult);
             result.ResponseTimeMs = responseTime;
             result.ErrorMessage = initResult.IsSuccessful ? null : initResult.Error;
             result.ServerVersion = initPayload?.ServerInfo?.Version ?? "Unknown";
@@ -101,6 +106,7 @@ public class HealthCheckService : IHealthCheckService
         catch (OperationCanceledException)
         {
             result.IsHealthy = false;
+            result.Disposition = HealthCheckDisposition.TransientFailure;
             result.ErrorMessage = "Health check timed out";
             _logger.LogWarning("Health check timed out");
             _telemetryService.TrackEvent("HealthCheckCancelled");
@@ -109,6 +115,7 @@ public class HealthCheckService : IHealthCheckService
         catch (Exception ex)
         {
             result.IsHealthy = false;
+            result.Disposition = ValidationReliability.ClassifyHealthCheck(ex, cancellationToken);
             result.ErrorMessage = ex.Message;
             result.ResponseTimeMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
             _logger.LogError(ex, "Health check failed");

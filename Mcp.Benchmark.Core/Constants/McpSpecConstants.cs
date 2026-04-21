@@ -12,7 +12,7 @@ public static class McpSpecConstants
     /// Current MCP protocol version as defined by the official specification.
     /// Reference: https://modelcontextprotocol.io/specification/basic/protocol
     /// </summary>
-    public const string CurrentProtocolVersion = "2024-11-05";
+    public const string CurrentProtocolVersion = "2025-11-25";
 
     /// <summary>
     /// Supported MCP protocol versions for backward compatibility.
@@ -21,7 +21,9 @@ public static class McpSpecConstants
     public static readonly FrozenSet<string> SupportedProtocolVersions = new[]
     {
         "2024-11-05",
-        "2024-10-07"
+        "2025-03-26",
+        "2025-06-18",
+        "2025-11-25"
     }.ToFrozenSet();
 
     /// <summary>
@@ -46,6 +48,7 @@ public static class McpSpecConstants
         public const string Resources = "resources";
         public const string Prompts = "prompts";
         public const string Logging = "logging";
+        public const string Completions = "completions";
         public const string Roots = "roots";
         public const string Sampling = "sampling";
     }
@@ -90,6 +93,11 @@ public static class McpSpecConstants
     public static class LoggingMethods
     {
         public const string SetLevel = "logging/setLevel";
+    }
+
+    public static class CompletionMethods
+    {
+        public const string Complete = "completion/complete";
     }
 
     /// <summary>

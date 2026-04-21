@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using ModelContextProtocol.Protocol;
 
 namespace Mcp.Benchmark.Core.Models;
@@ -37,6 +38,17 @@ public class ValidationResult
     /// Gets or sets the overall compliance score (0-100).
     /// </summary>
     public double ComplianceScore { get; set; } = 0.0;
+
+    /// <summary>
+    /// Gets or sets transparent notes explaining how the aggregate score and status were derived.
+    /// </summary>
+    public List<string> ScoringNotes { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the canonical aggregate scoring contract for this validation run.
+    /// This is the preferred machine-readable score object for CI/CD consumers.
+    /// </summary>
+    public ScoringResult? ScoringDetails { get; set; }
 
     /// <summary>
     /// Gets or sets the server configuration that was tested.
@@ -134,11 +146,28 @@ public class ValidationResult
     public TransportResult<CapabilitySummary>? CapabilitySnapshot { get; set; }
 
     /// <summary>
+    /// Gets or sets the calibrated bootstrap health outcome used to decide whether
+    /// validation could proceed after the initial connectivity and initialize checks.
+    /// </summary>
+    public HealthCheckResult? BootstrapHealth { get; set; }
+
+    /// <summary>
     /// Gets or sets the MCP Trust Assessment — a multi-dimensional evaluation
     /// of how trustworthy this MCP server is for AI agent consumption.
     /// Computed after all validators complete.
     /// </summary>
     public McpTrustAssessment? TrustAssessment { get; set; }
+
+    /// <summary>
+    /// Gets or sets the host-level policy decision derived from the validation result.
+    /// </summary>
+    public ValidationPolicyOutcome? PolicyOutcome { get; set; }
+
+    /// <summary>
+    /// Gets or sets the optional host-side client compatibility interpretation derived from the validation result.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ClientCompatibilityReport? ClientCompatibility { get; set; }
 
     /// <summary>
     /// Creates a shallow copy of this validation result with server and validation
@@ -154,6 +183,8 @@ public class ValidationResult
             EndTime = EndTime,
             OverallStatus = OverallStatus,
             ComplianceScore = ComplianceScore,
+            ScoringNotes = ScoringNotes,
+            ScoringDetails = ScoringDetails,
             ServerConfig = ServerConfig.CloneWithoutSecrets(),
             ValidationConfig = ValidationConfig.CloneWithoutSecrets(),
             ServerProfile = ServerProfile,
@@ -172,7 +203,10 @@ public class ValidationResult
             ProtocolVersion = ProtocolVersion,
             InitializationHandshake = InitializationHandshake,
             CapabilitySnapshot = CapabilitySnapshot,
-            TrustAssessment = TrustAssessment
+            BootstrapHealth = BootstrapHealth,
+            TrustAssessment = TrustAssessment,
+            PolicyOutcome = PolicyOutcome,
+            ClientCompatibility = ClientCompatibility
         };
     }
 }
@@ -186,6 +220,11 @@ public class HealthCheckResult
     /// Gets or sets whether the server is healthy and responsive.
     /// </summary>
     public bool IsHealthy { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the calibrated health disposition used by CLI rendering and session bootstrap decisions.
+    /// </summary>
+    public HealthCheckDisposition Disposition { get; set; } = HealthCheckDisposition.Unknown;
 
     /// <summary>
     /// Gets or sets the response time for the health check in milliseconds.
@@ -216,6 +255,25 @@ public class HealthCheckResult
     /// Gets or sets the initialize handshake used during the health check.
     /// </summary>
     public TransportResult<InitializeResult>? InitializationDetails { get; set; }
+
+    /// <summary>
+    /// Gets a value indicating whether validation may continue even though the health check did not complete cleanly.
+    /// </summary>
+    public bool AllowsDeferredValidation =>
+        Disposition is HealthCheckDisposition.Healthy or HealthCheckDisposition.Protected or HealthCheckDisposition.TransientFailure or HealthCheckDisposition.Inconclusive;
+}
+
+/// <summary>
+/// High-level interpretation of a health check outcome.
+/// </summary>
+public enum HealthCheckDisposition
+{
+    Unknown = 0,
+    Healthy = 1,
+    Protected = 2,
+    TransientFailure = 3,
+    Inconclusive = 4,
+    Unhealthy = 5
 }
 
 /// <summary>

@@ -9,7 +9,7 @@ Local MCP server that wraps the [mcpval CLI](https://github.com/navalerakesh/mcp
 ## Quick Start (npx — no install needed)
 
 ```bash
-npx mcpval-localmcp
+npx -y mcpval-localmcp
 ```
 
 This starts the MCP server via stdio. Any MCP-compatible AI agent can connect to it.
@@ -22,6 +22,7 @@ npm install -g mcpval-localmcp
 ```
 
 **Prerequisite:** The `mcpval` CLI must be installed:
+
 ```bash
 # Option 1: NuGet global tool (cross-platform, requires .NET 8)
 dotnet tool install --global McpVal
@@ -29,6 +30,8 @@ dotnet tool install --global McpVal
 # Option 2: Download standalone binary (no .NET needed)
 # → https://github.com/navalerakesh/mcp-validation-security/releases
 ```
+
+If the CLI is installed outside your default `PATH`, set `MCPVAL_CLI_PATH` to the full executable path in your MCP client configuration.
 
 ## Configure Your MCP Client
 
@@ -103,7 +106,7 @@ npx -y mcpval-localmcp
 
 ## Troubleshooting
 
-**"mcpval CLI is not installed or not on PATH"**
+### "mcpval CLI is not installed or not on PATH"
 
 The MCP server needs the `mcpval` CLI accessible on PATH. If you installed via `dotnet tool install --global McpVal` but the MCP server can't find it, add `env` to your MCP config:
 
@@ -124,20 +127,41 @@ The MCP server needs the `mcpval` CLI accessible on PATH. If you installed via `
 
 Alternatively, download a standalone binary from [Releases](https://github.com/navalerakesh/mcp-validation-security/releases) and place it on your PATH.
 
+If you prefer not to modify `PATH`, point directly at the CLI executable:
+
+```jsonc
+{
+  "servers": {
+    "mcpval": {
+      "command": "npx",
+      "args": ["-y", "mcpval-localmcp"],
+      "type": "stdio",
+      "env": {
+        "MCPVAL_CLI_PATH": "/absolute/path/to/mcpval"
+      }
+    }
+  }
+}
+```
+
+On Windows, use the full path to `mcpval.exe`.
+
 ## Tools
 
 | Tool | Description |
-|:-----|:------------|
+| --- | --- |
 | `validate` | Validate an MCP server for compliance, security, AI safety, and trust level (L1-L5) |
 | `health_check` | Quick connectivity check — verifies initialize handshake |
-| `discover` | List tools, resources, and prompts exposed by a server |
+| `discover` | List tools, resources, and prompts exposed by a remote MCP server |
+
+`discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints. Use `validate` when you need richer evidence for a local STDIO target.
 
 ## Examples
 
 Once configured, ask your AI agent:
 
-- "Validate the MCP server at https://my-server.com/mcp"
-- "Check if https://api.example.com/mcp is healthy"
+- "Validate the MCP server at <https://my-server.com/mcp>"
+- "Check if <https://api.example.com/mcp> is healthy"
 - "What tools does this MCP server expose?"
 
 ## Links

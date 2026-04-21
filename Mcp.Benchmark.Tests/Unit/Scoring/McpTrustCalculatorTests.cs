@@ -80,7 +80,7 @@ public class McpTrustCalculatorTests
 
         var trust = McpTrustCalculator.Calculate(result);
 
-        trust.OperationalReadiness.Should().Be(50.0);
+        trust.OperationalReadiness.Should().Be(70.0);
     }
 
     [Fact]

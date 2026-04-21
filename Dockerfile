@@ -1,29 +1,34 @@
-# Use the official .NET SDK image for building
+# syntax=docker/dockerfile:1.7
+
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and project files first to cache restore
-COPY ["Mcp.Compliance.Validator.sln", "./"]
-COPY ["Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj", "Mcp.Benchmark.CLI/"]
+# Copy project metadata first for better restore caching.
+COPY ["Directory.Build.props", "./"]
+COPY ["mcp-benchmark-validation.sln", "./"]
+COPY ["Mcp.Compliance.Spec/Mcp.Compliance.Spec.csproj", "Mcp.Compliance.Spec/"]
 COPY ["Mcp.Benchmark.Core/Mcp.Benchmark.Core.csproj", "Mcp.Benchmark.Core/"]
 COPY ["Mcp.Benchmark.Infrastructure/Mcp.Benchmark.Infrastructure.csproj", "Mcp.Benchmark.Infrastructure/"]
-COPY ["Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj", "Mcp.Benchmark.Tests/"]
-COPY ["Directory.Build.props", "./"]
+COPY ["Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj", "Mcp.Benchmark.CLI/"]
 
-# Restore dependencies
-RUN dotnet restore
+RUN dotnet restore "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj"
 
-# Copy the rest of the source code
 COPY . .
 
-# Build and publish the CLI
-WORKDIR "/src/Mcp.Benchmark.CLI"
-RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj" \
+	-c Release \
+	-r linux-x64 \
+	--self-contained true \
+	-p:PublishSingleFile=true \
+	-p:EnableCompressionInSingleFile=true \
+	-p:UseAppHost=true \
+	-o /app/publish
 
-# Use the runtime image for the final stage
-FROM mcr.microsoft.com/dotnet/runtime:8.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-jammy-chiseled AS final
 WORKDIR /app
-COPY --from=build /app/publish .
 
-# Set the entry point
-ENTRYPOINT ["dotnet", "mcpval.dll"]
+COPY --from=build /app/publish/mcpval /app/mcpval
+
+USER 1654:1654
+
+ENTRYPOINT ["/app/mcpval"]

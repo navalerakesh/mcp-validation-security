@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 
 using Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 using Mcp.Benchmark.Infrastructure.Utilities;
@@ -37,7 +38,6 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         {
             var result = new PerformanceTestResult();
             var concurrentConnections = Math.Clamp(config.MaxConcurrentConnections, 1, 512);
-            var totalRequests = Math.Max(20, concurrentConnections * 5);
 
             // Check connectivity and auth status - use provided auth if available
             var authCheckResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
@@ -45,13 +45,11 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             // If we get 401/403, it means either:
             // 1. No auth provided and server requires it -> Skip (Compliant)
             // 2. Auth provided but invalid -> Skip (with warning)
-            if (authCheckResponse.StatusCode == 401 || authCheckResponse.StatusCode == 403)
+            var authChallenge = AuthenticationChallengeInterpreter.Inspect(authCheckResponse);
+            if (authChallenge.IsAuthenticationChallenge)
             {
-                var hasWwwAuth = authCheckResponse.Headers?.ContainsKey("WWW-Authenticate") == true || 
-                                 authCheckResponse.Headers?.ContainsKey("www-authenticate") == true;
-                
                 result.Status = TestStatus.Skipped;
-                result.Score = 0.0;
+                result.Score = ValidationCalibration.AdvisoryPerformanceScore;
                 
                 // Determine if this is a failure (bad token) or just enforcement (no token)
                 bool isAuthFailure = serverConfig.Authentication != null && 
@@ -59,83 +57,106 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
 
                 string message = isAuthFailure
                     ? "SKIPPED: Authentication failed (invalid token) during performance test initialization"
-                    : (hasWwwAuth 
+                    : (authChallenge.HasWwwAuthenticateHeader 
                         ? "Server properly secured — performance testing deferred (requires authentication)"
                         : "Server requires authentication — performance testing skipped");
 
                 result.Message = message;
                 result.PerformanceBottlenecks.Add(message);
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PERFORMANCE.AUTH_REQUIRED_ADVISORY",
+                    Category = "Performance",
+                    Component = "load-testing",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = "Performance score is advisory because the endpoint requires authentication before a synthetic load probe can be run safely.",
+                    Recommendation = "Run a workload-specific performance benchmark with appropriate credentials if operational capacity must be measured.",
+                    Source = ValidationRuleSource.Guideline
+                });
                 Logger.LogInformation("Performance testing skipped: {Message}", message);
                 return result;
             }
             
-            // Perform basic load testing
-            var successfulRequests = 0;
-            var failedRequests = 0;
-            var responseTimes = new List<long>();
-
-            Logger.LogInformation("Starting load test with {Requests} requests, {Connections} concurrent connections", totalRequests, concurrentConnections);
-
-            var loadTestStart = DateTime.UtcNow;
-            var tasks = new List<Task>();
-            var semaphore = new SemaphoreSlim(concurrentConnections);
-
-            for (int i = 0; i < totalRequests; i++)
+            LoadProbeRound? round = null;
+            var calibrationAttempt = 1;
+            while (true)
             {
-                tasks.Add(Task.Run(async () =>
+                round = await ExecuteLoadProbeRoundAsync(serverConfig, concurrentConnections, ct);
+
+                if (!ValidationReliability.ShouldRetryPerformanceCalibration(
+                        calibrationAttempt,
+                        ValidationReliability.DefaultPerformanceCalibrationAttempts,
+                        round.TotalRequests,
+                        round.SuccessfulRequests,
+                        round.RateLimitedRequests,
+                        round.TransientFailures))
                 {
-                    await semaphore.WaitAsync(ct);
-                    try
-                    {
-                        var response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
+                    break;
+                }
 
-                        // Use HTTP-layer latency recorded by the client; fall
-                        // back to 0 when unavailable. This excludes validator
-                        // backoff delays and concurrency queueing.
-                        var elapsed = (long)Math.Round(response.ElapsedMs ?? 0);
+                var nextConcurrency = ValidationReliability.GetReducedConcurrency(concurrentConnections);
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PERFORMANCE.RECALIBRATED_AFTER_TRANSIENT_LIMITS",
+                    Category = "Performance",
+                    Component = "load-testing",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = $"Synthetic load probe observed transient limits at concurrency {concurrentConnections}; retrying calibration at reduced concurrency {nextConcurrency}.",
+                    Recommendation = "Interpret the final performance result using the stabilized calibration round rather than the initial throttled probe.",
+                    Source = ValidationRuleSource.Guideline,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["attempt"] = calibrationAttempt.ToString(),
+                        ["previousConcurrency"] = concurrentConnections.ToString(),
+                        ["nextConcurrency"] = nextConcurrency.ToString(),
+                        ["rateLimitedRequests"] = round.RateLimitedRequests.ToString(),
+                        ["transientFailures"] = round.TransientFailures.ToString()
+                    }
+                });
 
-                        lock (responseTimes)
-                        {
-                            responseTimes.Add(elapsed);
-                            if (response.IsSuccess) successfulRequests++;
-                            else failedRequests++;
-                        }
-                    }
-                    catch
-                    {
-                        lock (responseTimes) { failedRequests++; }
-                    }
-                    finally
-                    {
-                        semaphore.Release();
-                    }
-                }, ct));
+                concurrentConnections = nextConcurrency;
+                calibrationAttempt++;
             }
 
-            await Task.WhenAll(tasks);
-            var loadTestDuration = DateTime.UtcNow - loadTestStart;
-
             // Calculate metrics using the shared calculator
-            var avgResponseTime = responseTimes.Count > 0 ? responseTimes.Average() : 0;
-            var requestsPerSecond = PerformanceMetricsCalculator.CalculateThroughput(successfulRequests, loadTestDuration);
-            var p95 = PerformanceMetricsCalculator.GetPercentile(responseTimes, 0.95);
-            var p99 = PerformanceMetricsCalculator.GetPercentile(responseTimes, 0.99);
+            var finalRound = round ?? throw new InvalidOperationException("Load probe did not execute.");
+            var avgResponseTime = finalRound.ResponseTimes.Count > 0 ? finalRound.ResponseTimes.Average() : 0;
+            var requestsPerSecond = PerformanceMetricsCalculator.CalculateThroughput(finalRound.SuccessfulRequests, finalRound.Duration);
+            var p95 = PerformanceMetricsCalculator.GetPercentile(finalRound.ResponseTimes, 0.95);
+            var p99 = PerformanceMetricsCalculator.GetPercentile(finalRound.ResponseTimes, 0.99);
 
             result.LoadTesting = new LoadTestResult
             {
                 MaxConcurrentConnections = concurrentConnections,
-                TotalRequests = totalRequests,
-                SuccessfulRequests = successfulRequests,
-                FailedRequests = failedRequests,
+                TotalRequests = finalRound.TotalRequests,
+                SuccessfulRequests = finalRound.SuccessfulRequests,
+                FailedRequests = finalRound.FailedRequests,
                 AverageResponseTimeMs = avgResponseTime,
-                MedianResponseTimeMs = responseTimes.Count > 0 ? responseTimes.OrderBy(x => x).ElementAt(responseTimes.Count / 2) : 0,
+                MedianResponseTimeMs = finalRound.ResponseTimes.Count > 0 ? finalRound.ResponseTimes.OrderBy(x => x).ElementAt(finalRound.ResponseTimes.Count / 2) : 0,
                 P95ResponseTimeMs = p95,
                 P99ResponseTimeMs = p99,
-                MaxResponseTimeMs = responseTimes.Count > 0 ? responseTimes.Max() : 0,
-                MinResponseTimeMs = responseTimes.Count > 0 ? responseTimes.Min() : 0,
+                MaxResponseTimeMs = finalRound.ResponseTimes.Count > 0 ? finalRound.ResponseTimes.Max() : 0,
+                MinResponseTimeMs = finalRound.ResponseTimes.Count > 0 ? finalRound.ResponseTimes.Min() : 0,
                 RequestsPerSecond = requestsPerSecond,
-                ServerStabilityMaintained = failedRequests < totalRequests * 0.05
+                ServerStabilityMaintained = finalRound.FailedRequests < finalRound.TotalRequests * 0.05
             };
+
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+                Category = "Performance",
+                Component = ValidationConstants.Methods.ToolsList,
+                Severity = ValidationFindingSeverity.Info,
+                Summary = $"Synthetic load probe executed against {ValidationConstants.Methods.ToolsList} using {finalRound.TotalRequests} requests at concurrency {concurrentConnections}.",
+                Recommendation = "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+                Source = ValidationRuleSource.Guideline,
+                Metadata = new Dictionary<string, string>
+                {
+                    ["requests"] = finalRound.TotalRequests.ToString(),
+                    ["concurrency"] = concurrentConnections.ToString(),
+                    ["operation"] = ValidationConstants.Methods.ToolsList
+                }
+            });
 
             result.ResourceUsage = new ResourceUsageMetrics { WithinAcceptableLimits = true };
             result.Throughput = new ThroughputMetrics
@@ -146,6 +167,16 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 PeakThroughput = requestsPerSecond,
                 MeetsPerformanceTargets = avgResponseTime < 2000
             };
+
+            if (ShouldTreatAsRateLimitedProfile(serverConfig, finalRound.SuccessfulRequests, finalRound.FailedRequests, finalRound.RateLimitedRequests))
+            {
+                result.Status = TestStatus.Skipped;
+                result.Score = ValidationCalibration.AdvisoryPerformanceScore;
+                result.Message = $"Load testing remained constrained by transient rate limits or transport capacity after {calibrationAttempt} calibration round(s); performance assessment skipped to avoid classifying remote controls as instability.";
+                result.PerformanceBottlenecks.Add(result.Message);
+                Logger.LogInformation("Performance testing skipped after rate limiting was observed for {Profile} profile", serverConfig.Profile);
+                return result;
+            }
 
             // Identify bottlenecks
             result.PerformanceBottlenecks.AddRange(
@@ -190,6 +221,25 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
+            if (ValidationCalibration.ShouldTreatPerformanceAsAdvisory(serverConfig, result))
+            {
+                result.Status = TestStatus.Skipped;
+                result.Score = Math.Max(result.Score, ValidationCalibration.AdvisoryPerformanceScore);
+                result.Message = "Synthetic load probe hit remote capacity limits or edge protections; results are reported as advisory and excluded from pass/fail decisions.";
+                result.PerformanceBottlenecks.Add(result.Message);
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY",
+                    Category = "Performance",
+                    Component = "load-testing",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = "Remote public endpoint showed partial failures under synthetic pressure, so the performance result is treated as advisory rather than a readiness failure.",
+                    Recommendation = "Use endpoint-specific benchmarks or production telemetry for final capacity judgments.",
+                    Source = ValidationRuleSource.Guideline
+                });
+                return result;
+            }
+
             result.Status = result.PerformanceBottlenecks.Count == 0 ? TestStatus.Passed : TestStatus.Failed;
 
             Logger.LogInformation("Load testing completed: {Requests} requests, {RPS:F1} RPS, {AvgTime:F1}ms avg response time",
@@ -198,6 +248,129 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             return result;
         }, cancellationToken);
     }
+
+    private static bool ShouldTreatAsRateLimitedProfile(
+        McpServerConfig serverConfig,
+        int successfulRequests,
+        int failedRequests,
+        int rateLimitedRequests)
+    {
+        if (rateLimitedRequests == 0)
+        {
+            return false;
+        }
+
+        if (serverConfig.Profile is not (McpServerProfile.Public or McpServerProfile.Authenticated or McpServerProfile.Enterprise))
+        {
+            return false;
+        }
+
+        var totalRequests = successfulRequests + failedRequests;
+        if (totalRequests == 0)
+        {
+            return false;
+        }
+
+        if (rateLimitedRequests == totalRequests)
+        {
+            return true;
+        }
+
+        return (double)rateLimitedRequests / totalRequests >= 0.2;
+    }
+
+    private async Task<LoadProbeRound> ExecuteLoadProbeRoundAsync(McpServerConfig serverConfig, int concurrentConnections, CancellationToken ct)
+    {
+        var totalRequests = Math.Max(20, concurrentConnections * 5);
+        var successfulRequests = 0;
+        var failedRequests = 0;
+        var rateLimitedRequests = 0;
+        var transientFailures = 0;
+        var responseTimes = new List<long>();
+
+        Logger.LogInformation("Starting load test with {Requests} requests, {Connections} concurrent connections", totalRequests, concurrentConnections);
+
+        var loadTestStart = DateTime.UtcNow;
+        var tasks = new List<Task>();
+        var semaphore = new SemaphoreSlim(concurrentConnections);
+
+        for (int i = 0; i < totalRequests; i++)
+        {
+            tasks.Add(Task.Run(async () =>
+            {
+                await semaphore.WaitAsync(ct);
+                try
+                {
+                    var response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
+
+                    // Use HTTP-layer latency recorded by the client; fall
+                    // back to 0 when unavailable. This excludes validator
+                    // backoff delays and concurrency queueing.
+                    var elapsed = (long)Math.Round(response.ElapsedMs ?? 0);
+
+                    lock (responseTimes)
+                    {
+                        responseTimes.Add(elapsed);
+                        if (response.IsSuccess)
+                        {
+                            successfulRequests++;
+                        }
+                        else
+                        {
+                            failedRequests++;
+                            if (response.StatusCode == 429)
+                            {
+                                rateLimitedRequests++;
+                            }
+
+                            if (ValidationReliability.ShouldRetryRpcResponse(response))
+                            {
+                                transientFailures++;
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex) when (ValidationReliability.ShouldRetryException(ex, ct))
+                {
+                    lock (responseTimes)
+                    {
+                        failedRequests++;
+                        transientFailures++;
+                    }
+                }
+                catch
+                {
+                    lock (responseTimes)
+                    {
+                        failedRequests++;
+                    }
+                }
+                finally
+                {
+                    semaphore.Release();
+                }
+            }, ct));
+        }
+
+        await Task.WhenAll(tasks);
+        return new LoadProbeRound(
+            totalRequests,
+            successfulRequests,
+            failedRequests,
+            rateLimitedRequests,
+            transientFailures,
+            responseTimes,
+            DateTime.UtcNow - loadTestStart);
+    }
+
+    private sealed record LoadProbeRound(
+        int TotalRequests,
+        int SuccessfulRequests,
+        int FailedRequests,
+        int RateLimitedRequests,
+        int TransientFailures,
+        List<long> ResponseTimes,
+        TimeSpan Duration);
 
     /// <summary>
     /// Measures response time performance for various operations.

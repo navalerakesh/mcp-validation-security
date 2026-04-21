@@ -35,6 +35,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Mcp.Benchmark.ClientProfiles\Mcp.Benchmark.ClientProfiles.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.Core\Mcp.Benchmark.Core.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.Infrastructure\Mcp.Benchmark.Infrastructure.csproj" />
   </ItemGroup>

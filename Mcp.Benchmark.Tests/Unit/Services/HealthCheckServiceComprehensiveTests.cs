@@ -48,6 +48,7 @@ public class HealthCheckServiceComprehensiveTests
         var result = await _service.PerformHealthCheckAsync(config);
 
         result.IsHealthy.Should().BeTrue();
+        result.Disposition.Should().Be(HealthCheckDisposition.Healthy);
         result.ResponseTimeMs.Should().BeGreaterThan(0);
         result.ServerVersion.Should().Be("1.0");
     }
@@ -67,7 +68,57 @@ public class HealthCheckServiceComprehensiveTests
         var result = await _service.PerformHealthCheckAsync(config);
 
         result.IsHealthy.Should().BeFalse();
+        result.Disposition.Should().Be(HealthCheckDisposition.Unhealthy);
+        result.AllowsDeferredValidation.Should().BeFalse();
         result.ErrorMessage.Should().Contain("Connection refused");
+    }
+
+    [Fact]
+    public async Task HealthCheck_WithProtectedEndpoint_ShouldBeDeferredProtected()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransportResult<InitializeResult>
+            {
+                IsSuccessful = false,
+                Error = "401 Unauthorized",
+                Transport = new TransportMetadata
+                {
+                    Duration = TimeSpan.FromMilliseconds(40),
+                    StatusCode = 401
+                }
+            });
+
+        var result = await _service.PerformHealthCheckAsync(config);
+
+        result.IsHealthy.Should().BeFalse();
+        result.Disposition.Should().Be(HealthCheckDisposition.Protected);
+        result.AllowsDeferredValidation.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("401");
+    }
+
+    [Fact]
+    public async Task HealthCheck_WithRateLimit_ShouldBeDeferredTransientFailure()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransportResult<InitializeResult>
+            {
+                IsSuccessful = false,
+                Error = "HTTP 429 Too Many Requests",
+                Transport = new TransportMetadata
+                {
+                    Duration = TimeSpan.FromMilliseconds(60),
+                    StatusCode = 429
+                }
+            });
+
+        var result = await _service.PerformHealthCheckAsync(config);
+
+        result.IsHealthy.Should().BeFalse();
+        result.Disposition.Should().Be(HealthCheckDisposition.TransientFailure);
+        result.AllowsDeferredValidation.Should().BeTrue();
+        result.ErrorMessage.Should().Contain("429");
     }
 
     [Fact]
@@ -126,6 +177,8 @@ public class HealthCheckServiceComprehensiveTests
         var result = await _service.PerformHealthCheckAsync(config);
 
         result.IsHealthy.Should().BeFalse();
+        result.Disposition.Should().Be(HealthCheckDisposition.TransientFailure);
+        result.AllowsDeferredValidation.Should().BeTrue();
         result.ErrorMessage.Should().Contain("timed out");
     }
 

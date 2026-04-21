@@ -10,8 +10,6 @@ namespace Mcp.Benchmark.CLI.Utilities;
 /// </summary>
 internal static class SpecProfileCatalog
 {
-    private static readonly StringComparer Comparer = StringComparer.OrdinalIgnoreCase;
-
     public static IReadOnlyList<SpecProfileInfo> GetProfiles(ISchemaRegistry schemaRegistry)
     {
         if (schemaRegistry == null)
@@ -21,12 +19,9 @@ internal static class SpecProfileCatalog
 
         try
         {
-            var versions = schemaRegistry
-                .ListSchemas()
-                .Select(s => s.Version.Value)
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Distinct(Comparer)
-                .OrderByDescending(v => v)
+            var versions = SchemaRegistryProtocolVersions
+                .GetAvailableVersions(schemaRegistry)
+                .Select(v => v.Value)
                 .ToList();
 
             if (versions.Count == 0)
@@ -37,7 +32,7 @@ internal static class SpecProfileCatalog
             var profiles = new List<SpecProfileInfo>();
 
             // Add "latest" alias so users can always target the newest profile easily.
-            var newest = versions[0];
+            var newest = SchemaRegistryProtocolVersions.GetLatestVersion(schemaRegistry).Value;
             profiles.Add(new SpecProfileInfo(
                 Name: "latest",
                 Description: $"Alias of {newest}",

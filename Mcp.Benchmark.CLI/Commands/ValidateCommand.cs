@@ -1,12 +1,15 @@
 using System;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Resources;
+using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.CLI.Utilities;
 
@@ -21,7 +24,10 @@ public class ValidateCommand
 {
     private readonly IMcpValidatorService _validatorService;
     private readonly IConsoleOutputService _consoleOutput;
+    private readonly IClientProfileEvaluator _clientProfileEvaluator;
     private readonly IReportGenerator _reportGenerator;
+    private readonly IValidationReportRenderer _reportRenderer;
+    private readonly IGitHubActionsReporter _gitHubActionsReporter;
     private readonly ILogger<ValidateCommand> _logger;
     private readonly INextStepAdvisor _nextStepAdvisor;
         private readonly ISessionArtifactStore _artifactStore;
@@ -30,7 +36,10 @@ public class ValidateCommand
     public ValidateCommand(
         IMcpValidatorService validatorService,
         IConsoleOutputService consoleOutput,
+        IClientProfileEvaluator clientProfileEvaluator,
         IReportGenerator reportGenerator,
+        IValidationReportRenderer reportRenderer,
+        IGitHubActionsReporter gitHubActionsReporter,
         ILogger<ValidateCommand> logger,
             INextStepAdvisor nextStepAdvisor,
             ISessionArtifactStore artifactStore,
@@ -38,7 +47,10 @@ public class ValidateCommand
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
+        _clientProfileEvaluator = clientProfileEvaluator ?? throw new ArgumentNullException(nameof(clientProfileEvaluator));
         _reportGenerator = reportGenerator ?? throw new ArgumentNullException(nameof(reportGenerator));
+        _reportRenderer = reportRenderer ?? throw new ArgumentNullException(nameof(reportRenderer));
+        _gitHubActionsReporter = gitHubActionsReporter ?? throw new ArgumentNullException(nameof(gitHubActionsReporter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _nextStepAdvisor = nextStepAdvisor ?? throw new ArgumentNullException(nameof(nextStepAdvisor));
             _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
@@ -58,7 +70,10 @@ public class ValidateCommand
         string? token = null,
         bool interactive = false,
         string? serverProfile = null,
-        int? maxConcurrency = null)
+        int? maxConcurrency = null,
+        string? policyMode = null,
+        string[]? clientProfiles = null,
+        string? reportDetail = null)
     {
         _consoleOutput.SetVerbose(verbose);
         _nextStepAdvisor.Reset();
@@ -81,6 +96,9 @@ public class ValidateCommand
             var profileOverride = ParseServerProfile(serverProfile);
             configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride);
             ApplyTestExecutionOverrides(configuration, maxConcurrency);
+            ApplyPolicyOverride(configuration, policyMode);
+            ApplyClientProfileOverride(configuration, clientProfiles);
+            ApplyReportingOverrides(configuration, reportDetail);
             targetEndpoint = configuration.Server.Endpoint ?? targetEndpoint;
             var effectiveProfile = configuration.Server.Profile;
 
@@ -120,15 +138,31 @@ public class ValidateCommand
 
             var result = await _validatorService.ValidateServerAsync(configuration, cts.Token);
             result.ValidationId = _sessionContext.SessionId;
+            result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
+            try
+            {
+                result.ClientCompatibility = _clientProfileEvaluator.Evaluate(result, configuration.ClientProfiles);
+            }
+            catch (ArgumentException ex)
+            {
+                throw new CliUsageException(ex.Message);
+            }
+
+            result.ValidationConfig = configuration.CloneWithoutSecrets();
+
             var safeConfig = configuration.CloneWithoutSecrets();
             var safeResult = result.CloneWithoutSecrets();
 
             // Display main results; verbose turns on additional console output via ConsoleOutputService
             _consoleOutput.DisplayValidationResults(result, showDetails: verbose);
+            DisplayPolicyOutcome(result.PolicyOutcome);
+            DisplayClientCompatibility(result.ClientCompatibility);
 
             PersistSessionArtifact(safeConfig, safeResult, verbose);
 
-            if (result.OverallStatus != ValidationStatus.Passed)
+            IReadOnlyList<string> artifactPaths = Array.Empty<string>();
+
+            if (result.PolicyOutcome is { Passed: false } || result.OverallStatus != ValidationStatus.Passed)
             {
                 _consoleOutput.WriteSessionLogHint("Validation log");
                 _nextStepAdvisor.SuggestSessionLogReview("Validation log");
@@ -141,10 +175,12 @@ public class ValidateCommand
             // Persist Markdown report if requested
             if (outputDirectory != null)
             {
-                await SaveValidationResultsAsync(result, configuration.Reporting.OutputDirectory);
+                artifactPaths = await SaveValidationResultsAsync(result, configuration.Reporting.OutputDirectory, verbose);
             }
 
-            Environment.ExitCode = result.OverallStatus == ValidationStatus.Passed ? 0 : 1;
+            _gitHubActionsReporter.PublishValidationResult(safeResult, artifactPaths);
+
+            Environment.ExitCode = result.PolicyOutcome?.RecommendedExitCode ?? (result.OverallStatus == ValidationStatus.Passed ? 0 : 1);
         }
         catch (CliExceptionBase cliEx)
         {
@@ -196,6 +232,61 @@ public class ValidateCommand
             configuration.TestExecution.MaxParallelThreads = normalized;
             configuration.Validation.Categories.PerformanceTesting.MaxConcurrentConnections = normalized;
         }
+    }
+
+    private static void ApplyPolicyOverride(McpValidatorConfiguration configuration, string? policyMode)
+    {
+        configuration.Policy ??= new ValidationPolicyConfig();
+        configuration.Policy.Mode = ValidationPolicyEvaluator.NormalizeMode(string.IsNullOrWhiteSpace(policyMode)
+            ? configuration.Policy.Mode
+            : policyMode);
+    }
+
+    private static void ApplyClientProfileOverride(McpValidatorConfiguration configuration, string[]? clientProfiles)
+    {
+        if (clientProfiles == null || clientProfiles.Length == 0)
+        {
+            return;
+        }
+
+        var normalizedProfiles = clientProfiles
+            .SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedProfiles.Count == 0)
+        {
+            return;
+        }
+
+        configuration.ClientProfiles = new ClientProfileOptions
+        {
+            Profiles = normalizedProfiles
+        };
+    }
+
+    private static void ApplyReportingOverrides(McpValidatorConfiguration configuration, string? reportDetail)
+    {
+        configuration.Reporting ??= new ReportingConfig();
+        if (TryParseReportDetailLevel(reportDetail, out var detailLevel))
+        {
+            configuration.Reporting.ApplyDetailLevel(detailLevel);
+            return;
+        }
+
+        configuration.Reporting.NormalizeDetailLevel();
+    }
+
+    private static bool TryParseReportDetailLevel(string? rawDetailLevel, out ReportDetailLevel detailLevel)
+    {
+        if (!string.IsNullOrWhiteSpace(rawDetailLevel) &&
+            Enum.TryParse(rawDetailLevel, ignoreCase: true, out detailLevel))
+        {
+            return true;
+        }
+
+        detailLevel = default;
+        return false;
     }
 
     private static void ApplyAuthenticationOverrides(
@@ -333,22 +424,80 @@ public class ValidateCommand
             : null;
     }
 
-    private static bool IsAuthenticationFailure(Exception exception)
+    private void DisplayPolicyOutcome(ValidationPolicyOutcome? policyOutcome)
     {
-        var current = exception;
-        while (current != null)
+        if (policyOutcome == null)
         {
-            if (current is HttpRequestException httpEx &&
-                (httpEx.Message.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-                 httpEx.Message.Contains("403", StringComparison.OrdinalIgnoreCase)))
-            {
-                return true;
-            }
-
-            current = current.InnerException;
+            return;
         }
 
-        return false;
+        var modeLabel = policyOutcome.Mode.ToUpperInvariant();
+        if (policyOutcome.Passed)
+        {
+            _consoleOutput.WriteSuccess($"Policy {modeLabel}: {policyOutcome.Summary}");
+        }
+        else
+        {
+            _consoleOutput.WriteError($"Policy {modeLabel}: {policyOutcome.Summary}");
+        }
+
+        foreach (var reason in policyOutcome.Reasons.Take(3))
+        {
+            _consoleOutput.WriteWarning($"Policy reason: {reason}");
+        }
+
+        if (policyOutcome.AppliedSuppressions.Count > 0)
+        {
+            _consoleOutput.WriteSuccess($"Applied suppressions: {policyOutcome.AppliedSuppressions.Count} entry(ies), muting {policyOutcome.SuppressedSignalCount} signal(s).");
+        }
+
+        foreach (var suppression in policyOutcome.AppliedSuppressions.Take(3))
+        {
+            _consoleOutput.WriteWarning($"Suppressed by {suppression.Owner}: {suppression.Id} ({suppression.MatchedSignalCount} signal(s))");
+        }
+
+        foreach (var ignored in policyOutcome.IgnoredSuppressions.Take(3))
+        {
+            _consoleOutput.WriteWarning($"Ignored suppression {ignored.Id}: {ignored.Reason}");
+        }
+    }
+
+    private void DisplayClientCompatibility(ClientCompatibilityReport? compatibilityReport)
+    {
+        if (compatibilityReport?.Assessments.Count > 0 != true)
+        {
+            return;
+        }
+
+        _consoleOutput.WriteInfo("Client profile compatibility:");
+        foreach (var assessment in compatibilityReport.Assessments)
+        {
+            var message = $"{assessment.DisplayName} ({assessment.ProfileId}): {assessment.StatusLabel}. {assessment.Summary}";
+            switch (assessment.Status)
+            {
+                case ClientProfileCompatibilityStatus.Compatible:
+                    _consoleOutput.WriteSuccess(message);
+                    break;
+                case ClientProfileCompatibilityStatus.CompatibleWithWarnings:
+                    _consoleOutput.WriteWarning(message);
+                    break;
+                default:
+                    _consoleOutput.WriteError(message);
+                    break;
+            }
+
+            foreach (var requirement in assessment.Requirements
+                         .Where(item => item.Outcome is ClientProfileRequirementOutcome.Warning or ClientProfileRequirementOutcome.Failed)
+                         .Take(2))
+            {
+                _consoleOutput.WriteWarning($"{assessment.ProfileId}/{requirement.RequirementId}: {requirement.Summary}");
+            }
+        }
+    }
+
+    private static bool IsAuthenticationFailure(Exception exception)
+    {
+        return ValidationReliability.IsAuthenticationFailure(exception);
     }
 
     private static bool RequiresStrictAuthentication(McpServerProfile profile)
@@ -370,10 +519,11 @@ public class ValidateCommand
     }
 
     /// <summary>
-    /// Saves validation results to disk: a primary Markdown report plus a JSON
-    /// snapshot that can be used later with the offline <c>report</c> command.
+    /// Saves validation results to disk: a primary Markdown report, a JSON
+    /// snapshot that can be used later with the offline <c>report</c> command,
+    /// and a SARIF artifact for CI/code scanning integrations.
     /// </summary>
-    private async Task SaveValidationResultsAsync(ValidationResult result, string outputDirectory)
+    private async Task<IReadOnlyList<string>> SaveValidationResultsAsync(ValidationResult result, string outputDirectory, bool verbose)
     {
         if (!Directory.Exists(outputDirectory))
         {
@@ -392,6 +542,11 @@ public class ValidateCommand
         var reportContent = _reportGenerator.GenerateReport(safeResult);
         await File.WriteAllTextAsync(markdownPath, reportContent);
 
+        var htmlPath = Path.Combine(outputDirectory, $"{baseName}-report.html");
+        var includeDetailedSections = safeResult.ValidationConfig.Reporting.IncludesDetailedSections();
+        var html = _reportRenderer.GenerateHtmlReport(safeResult, safeResult.ValidationConfig.Reporting, includeDetailedSections);
+        await File.WriteAllTextAsync(htmlPath, html);
+
         // Machine‑readable JSON snapshot for offline reporting (mcpval report).
         var jsonPath = Path.Combine(outputDirectory, $"{baseName}-result.json");
         var jsonOptions = new JsonSerializerOptions
@@ -400,11 +555,46 @@ public class ValidateCommand
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
 
-        var json = JsonSerializer.Serialize(safeResult, jsonOptions);
+        var jsonRoot = JsonSerializer.SerializeToNode(safeResult, jsonOptions) as JsonObject
+            ?? throw new InvalidOperationException("Failed to serialize validation result to JSON.");
+        AnnotatePerformanceMeasurementState(jsonRoot, safeResult.PerformanceTesting);
+        var json = jsonRoot.ToJsonString(jsonOptions);
         await File.WriteAllTextAsync(jsonPath, json);
 
+        var sarifPath = Path.Combine(outputDirectory, $"{baseName}-results.sarif.json");
+        var sarif = _reportRenderer.GenerateSarifReport(safeResult);
+        await File.WriteAllTextAsync(sarifPath, sarif);
+
         _logger.LogInformation("Markdown report saved: {MarkdownPath}", markdownPath);
+        _logger.LogInformation("HTML report saved: {HtmlPath}", htmlPath);
         _logger.LogInformation("Validation result JSON saved: {JsonPath}", jsonPath);
-        _consoleOutput.WriteSuccess($"Report generated: {markdownPath}");
+        _logger.LogInformation("SARIF report saved: {SarifPath}", sarifPath);
+        _consoleOutput.WriteSuccess($"Reports generated: {markdownPath} and {htmlPath}");
+        return new[]
+        {
+            markdownPath,
+            htmlPath,
+            jsonPath,
+            sarifPath
+        };
+    }
+
+    private static void AnnotatePerformanceMeasurementState(JsonObject root, PerformanceTestResult? performance)
+    {
+        if (performance == null || root["performanceTesting"] is not JsonObject performanceObject)
+        {
+            return;
+        }
+
+        var measurementsCaptured = PerformanceMeasurementEvaluator.HasObservedMetrics(performance);
+        performanceObject["measurementsCaptured"] = measurementsCaptured;
+        performanceObject["measurementStatus"] = measurementsCaptured ? "Captured" : "Unavailable";
+
+        if (!measurementsCaptured)
+        {
+            performanceObject["measurementReason"] = PerformanceMeasurementEvaluator.GetUnavailableReason(
+                performance,
+                "Performance measurements were not captured before the run ended.");
+        }
     }
 }

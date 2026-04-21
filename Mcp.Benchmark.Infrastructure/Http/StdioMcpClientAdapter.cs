@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Compliance.Spec;
 using ModelContextProtocol.Protocol;
 using ValidatorJsonRpcRequest = Mcp.Benchmark.Core.Models.JsonRpcRequest;
 using ValidatorJsonRpcResponse = Mcp.Benchmark.Core.Models.JsonRpcResponse;
@@ -199,7 +200,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         var sw = System.Diagnostics.Stopwatch.StartNew();
         var response = await CallAsync(endpoint, "initialize", new
         {
-            protocolVersion = "2025-03-26",
+            protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(null),
             capabilities = new { },
             clientInfo = new { name = "mcp-benchmark", version = "1.0.0" }
         }, cancellationToken);

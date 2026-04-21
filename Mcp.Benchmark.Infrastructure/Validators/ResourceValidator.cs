@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 
 using Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 using Mcp.Compliance.Spec;
@@ -36,6 +37,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             var result = new ResourceTestResult();
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.ResourceListResponse);
+            var templateSpecFailure = false;
 
             // Test resources/list
             var response = cachedResponse;
@@ -45,14 +47,12 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             }
             
             // MCP spec allows both public and auth-protected servers
-            if (response.StatusCode == 401 || response.StatusCode == 403)
+            var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
+            if (authChallenge.IsAuthenticationChallenge)
             {
-                var hasWwwAuth = response.Headers?.ContainsKey("WWW-Authenticate") == true || 
-                                 response.Headers?.ContainsKey("www-authenticate") == true;
-                
                 result.Status = TestStatus.Skipped;
                 result.ResourcesDiscovered = 0;
-                result.Issues.Add(hasWwwAuth 
+                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
                     ? "✅ COMPLIANT: Server properly secured with authentication (OAuth 2.1)"
                     : "⚠️  ACCEPTED: Authentication required but missing WWW-Authenticate header");
                 return result;
@@ -88,7 +88,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     else
                     {
                         resourceResult.MetadataValid = false;
-                        resourceResult.Issues.Add("Missing 'uri' property");
+                        resourceResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.ResourceMissingUri,
+                            Category = "ProtocolCompliance",
+                            Component = resourceResult.ResourceName,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Resource is missing 'uri' property",
+                            Recommendation = "Include a stable uri for every resource returned by resources/list."
+                        }, "Missing 'uri' property");
                     }
 
                     if (resource.TryGetProperty("name", out var nameElement))
@@ -98,9 +106,23 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     else
                     {
                         resourceResult.MetadataValid = false;
-                        resourceResult.Issues.Add("Missing 'name' property");
+                        resourceResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.ResourceMissingName,
+                            Category = "ProtocolCompliance",
+                            Component = resourceResult.ResourceUri,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Resource is missing 'name' property",
+                            Recommendation = "Include a human-readable name for every resource returned by resources/list."
+                        }, "Missing 'name' property");
                     }
 
+                    if (resource.TryGetProperty("mimeType", out var mimeTypeElement) && mimeTypeElement.ValueKind == JsonValueKind.String)
+                    {
+                        resourceResult.MimeType = mimeTypeElement.GetString();
+                    }
+
+                    ApplyResourceGuidelineFindings(result, resourceResult);
                     resourceResult.Status = resourceResult.MetadataValid ? TestStatus.Passed : TestStatus.Failed;
 
                     // Static, metadata-only content safety analysis
@@ -128,6 +150,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             if (readResponse.IsSuccess)
                             {
                                 resourceResult.AccessSuccessful = true;
+                                result.ResourcesAccessible++;
                                 
                                 // MCP Spec Compliance: Validate resources/read response structure
                                 using var readDoc = JsonDocument.Parse(readResponse.RawJson ?? "{}");
@@ -147,7 +170,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                                     }
                                     else
                                     {
-                                        resourceResult.Issues.Add("❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
+                                        resourceResult.AddFinding(new ValidationFinding
+                                        {
+                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
+                                            Category = "ProtocolCompliance",
+                                            Component = resourceResult.ResourceUri,
+                                            Severity = ValidationFindingSeverity.Critical,
+                                            Summary = "resources/read contents[0] missing 'uri' field",
+                                            Recommendation = "Return uri on each resource content item."
+                                        }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
                                     }
 
                                     if (firstContent.TryGetProperty("mimeType", out var mime)) 
@@ -159,11 +190,27 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                                     else if (firstContent.TryGetProperty("blob", out var blob))
                                         resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
                                     else
-                                        resourceResult.Issues.Add("❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                        resourceResult.AddFinding(new ValidationFinding
+                                        {
+                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
+                                            Category = "ProtocolCompliance",
+                                            Component = resourceResult.ResourceUri,
+                                            Severity = ValidationFindingSeverity.Critical,
+                                            Summary = "resources/read contents[0] missing both text and blob",
+                                            Recommendation = "Return either text or blob in each resource content item."
+                                        }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
                                 }
                                 else
                                 {
-                                    resourceResult.Issues.Add("❌ MCP Compliance: resources/read response missing result.contents[] array");
+                                    resourceResult.AddFinding(new ValidationFinding
+                                    {
+                                        RuleId = ValidationFindingRuleIds.ResourceReadMissingContentArray,
+                                        Category = "ProtocolCompliance",
+                                        Component = resourceResult.ResourceUri,
+                                        Severity = ValidationFindingSeverity.Critical,
+                                        Summary = "resources/read response missing result.contents[] array",
+                                        Recommendation = "Return result.contents as an array for resources/read responses."
+                                    }, "❌ MCP Compliance: resources/read response missing result.contents[] array");
                                     resourceResult.AccessSuccessful = false;
                                 }
                             }
@@ -183,7 +230,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             }
 
                     // Schema-based validation of resources/list response shape (best-effort)
-                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(serverConfig.ProtocolVersion);
+                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
                     if (SchemaValidationHelpers.TryValidateListResult(
                     _schemaRegistry,
                     _schemaValidator,
@@ -225,14 +272,62 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                         // Validate each template has uriTemplate and name
                         foreach (var template in templates.EnumerateArray())
                         {
-                            if (!template.TryGetProperty("uriTemplate", out _))
+                            var component = GetTemplateComponent(template);
+                            var hasUriTemplate = template.TryGetProperty("uriTemplate", out var uriTemplateElement) &&
+                                uriTemplateElement.ValueKind == JsonValueKind.String &&
+                                !string.IsNullOrWhiteSpace(uriTemplateElement.GetString());
+                            var hasName = template.TryGetProperty("name", out var nameElement) &&
+                                nameElement.ValueKind == JsonValueKind.String &&
+                                !string.IsNullOrWhiteSpace(nameElement.GetString());
+                            var hasDescription = template.TryGetProperty("description", out var descriptionElement) &&
+                                descriptionElement.ValueKind == JsonValueKind.String &&
+                                !string.IsNullOrWhiteSpace(descriptionElement.GetString());
+
+                            if (!hasUriTemplate)
+                            {
                                 result.Issues.Add("❌ MCP Compliance: Resource template missing 'uriTemplate' field (MUST per spec)");
-                            if (!template.TryGetProperty("name", out _))
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate,
+                                    Category = "ProtocolCompliance",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.High,
+                                    Summary = $"Resource template '{component}' is missing uriTemplate.",
+                                    Recommendation = "Return a valid uriTemplate for every item in resources/templates/list."
+                                });
+                                templateSpecFailure = true;
+                            }
+
+                            if (!hasName)
+                            {
                                 result.Issues.Add("⚠️ MCP Compliance: Resource template missing 'name' field");
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateNameMissing,
+                                    Category = "McpGuideline",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.Low,
+                                    Summary = $"Resource template '{component}' does not include a name.",
+                                    Recommendation = "Add a stable name so clients can present resource templates clearly."
+                                });
+                            }
+
+                            if (hasUriTemplate && UriTemplateLooksParameterized(uriTemplateElement.GetString()) && !hasDescription)
+                            {
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateDescriptionMissing,
+                                    Category = "McpGuideline",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.Low,
+                                    Summary = $"Resource template '{component}' accepts URI parameters but does not describe how callers should populate them.",
+                                    Recommendation = "Add a description for parameterized resource templates so clients know how to form valid URIs."
+                                });
+                            }
                         }
                     }
                 }
-                else if (templatesResponse.StatusCode == 401 || templatesResponse.StatusCode == 403)
+                else if (AuthenticationChallengeInterpreter.Inspect(templatesResponse).IsAuthenticationChallenge)
                 {
                     result.Issues.Add("🔒 Resource templates: Auth required");
                 }
@@ -245,11 +340,23 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 Logger.LogWarning(ex, "Resource templates validation failed");
             }
+
+            if (templateSpecFailure)
+            {
+                result.Status = TestStatus.Failed;
+            }
             
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
-            result.Issues.Add($"✅ COMPLIANT: {result.ResourcesDiscovered} resources discovered and validated");
+            if (result.Status == TestStatus.Passed)
+            {
+                result.Issues.Add($"✅ COMPLIANT: {result.ResourcesDiscovered} resources discovered and validated");
+            }
+            else
+            {
+                result.Issues.Add($"⚠️ Resource validation found {result.Findings.Count} structured finding(s) across resources and templates");
+            }
             
             return result;
         }, cancellationToken);
@@ -259,5 +366,65 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
     {
         // Reuse discovery validation since both test the same capability
         return await ValidateResourceDiscoveryAsync(serverConfig, config, cancellationToken);
+    }
+
+    private static void ApplyResourceGuidelineFindings(ResourceTestResult aggregateResult, IndividualResourceResult resourceResult)
+    {
+        if (resourceResult.MetadataValid && string.IsNullOrWhiteSpace(resourceResult.MimeType))
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ResourceGuidelineMimeTypeMissing,
+                Category = "McpGuideline",
+                Component = string.IsNullOrWhiteSpace(resourceResult.ResourceUri) ? resourceResult.ResourceName : resourceResult.ResourceUri,
+                Severity = ValidationFindingSeverity.Low,
+                Summary = $"Resource '{resourceResult.ResourceName}' does not declare mimeType.",
+                Recommendation = "Add mimeType metadata so clients can render or route resources correctly."
+            };
+
+            resourceResult.Findings.Add(finding);
+            aggregateResult.Findings.Add(finding);
+        }
+
+        if (!string.IsNullOrWhiteSpace(resourceResult.ResourceUri) && !HasAbsoluteUriScheme(resourceResult.ResourceUri))
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ResourceUriSchemeUnclear,
+                Category = "AiReadiness",
+                Component = resourceResult.ResourceUri,
+                Severity = ValidationFindingSeverity.Low,
+                Summary = $"Resource URI '{resourceResult.ResourceUri}' does not expose a clear absolute URI scheme.",
+                Recommendation = "Use absolute URIs with stable schemes so clients can reason about resource provenance and handlers."
+            };
+
+            resourceResult.Findings.Add(finding);
+            aggregateResult.Findings.Add(finding);
+        }
+    }
+
+    private static bool HasAbsoluteUriScheme(string resourceUri)
+    {
+        return Uri.TryCreate(resourceUri, UriKind.Absolute, out var parsed) && !string.IsNullOrWhiteSpace(parsed.Scheme);
+    }
+
+    private static string GetTemplateComponent(JsonElement template)
+    {
+        if (template.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(name.GetString()))
+        {
+            return name.GetString()!;
+        }
+
+        if (template.TryGetProperty("uriTemplate", out var uriTemplate) && uriTemplate.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(uriTemplate.GetString()))
+        {
+            return uriTemplate.GetString()!;
+        }
+
+        return "resource-template";
+    }
+
+    private static bool UriTemplateLooksParameterized(string? uriTemplate)
+    {
+        return !string.IsNullOrWhiteSpace(uriTemplate) && uriTemplate.Contains('{') && uriTemplate.Contains('}');
     }
 }

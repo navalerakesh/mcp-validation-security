@@ -56,6 +56,11 @@ public class IndividualResourceResult
     public List<string> Issues { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets structured findings for this resource.
+    /// </summary>
+    public List<ValidationFinding> Findings { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets static content safety findings for this resource
     /// based on metadata-only analysis (no live calls).
     /// </summary>
@@ -152,6 +157,11 @@ public class IndividualPromptResult
     /// Gets or sets any issues found with this prompt.
     /// </summary>
     public List<string> Issues { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets structured findings for this prompt.
+    /// </summary>
+    public List<ValidationFinding> Findings { get; set; } = new();
 
     /// <summary>
     /// Gets or sets static content safety findings for this prompt

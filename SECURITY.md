@@ -1,73 +1,65 @@
 # Security Policy
 
-## Reporting Security Vulnerabilities
+## Reporting A Vulnerability
 
-If you discover a security vulnerability in the AI Security & Compliance Scanner itself, we appreciate your responsible disclosure.
+If you discover a security issue in MCP Validator itself, do not open a public GitHub issue.
 
-### \ud83d\udea8 How to Report
+Report it privately to the maintainer by email using the contact details listed on the GitHub profile.
 
-**DO NOT** create a public GitHub issue for security vulnerabilities.
+Include the following information:
 
-Instead:
+- A clear description of the issue
+- Steps to reproduce it
+- The expected versus actual behavior
+- The potential impact
+- Any suggested mitigation or fix, if you already have one
 
-1. **Email the maintainer** directly (see GitHub profile)
-2. **Include** the following information:
-   - Description of the vulnerability
-   - Steps to reproduce
-   - Potential impact
-   - Suggested fix (if any)
+## Response Expectations
 
-3. **Response timeline**:
-   - Initial response: Within 48 hours
-   - Status update: Within 7 days
-   - Fix timeline: Within 90 days (depending on severity)
+- Initial acknowledgement within 48 hours
+- Status update within 7 days
+- Fix target within 90 days, depending on severity and exploitability
 
-### \ud83d\udd12 Disclosure Policy
+## Disclosure Policy
 
-- We follow **coordinated vulnerability disclosure**
-- We will acknowledge your contribution in release notes (unless you prefer anonymity)
-- Please allow us **90 days** to fix critical issues before public disclosure
-- We will credit security researchers who report responsibly
+- This project follows coordinated vulnerability disclosure.
+- Please allow time for investigation and remediation before making the issue public.
+- Contributors who report issues responsibly can be credited in release notes unless they prefer to remain anonymous.
 
-### \u2705 Supported Versions
+## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.3.x   | \u2705 Yes             |
-| < 1.3   | \u274c No              |
+| Version | Supported |
+| --- | --- |
+| `1.1.x` | Yes |
+| `< 1.1` | No |
 
-### \ud83d\udee1\ufe0f Security Best Practices for Users
+## Safe Use Guidance
 
-When using this tool to validate MCP servers for AI agent consumption:
+When using MCP Validator against third-party or production-adjacent systems:
 
-- **Run in isolated environments** first (don't test production directly)
-- **Review reports** before sharing (they may contain sensitive info like OAuth metadata)
-- **Use authentication** (`--token` or `--interactive`) when validating authenticated servers
-- **Respect rate limits** (`--max-concurrency`) to avoid DoS on target servers
-- **Follow responsible disclosure** when finding vulnerabilities in tested servers
-- **Review Trust Level findings** — L1/L2 servers should NOT be used by AI agents without remediation
-- **Check AI Boundary Findings** for destructive tool exposure and data exfiltration risks
+- Run first against a non-production environment whenever possible.
+- Review generated reports before sharing them externally because they may contain operational metadata.
+- Use `--token` or `--interactive` only when the target is expected to require authentication.
+- Set `--max-concurrency` conservatively for shared or rate-limited services.
+- Treat low-trust results as a signal for review, not as a reason to probe a server more aggressively.
+- Follow responsible disclosure practices when the validator surfaces weaknesses in a target server.
 
-### ⚠️ AI Safety Considerations
+## AI Safety Scope
 
-This tool assesses MCP servers specifically for **AI agent safety**:
+MCP Validator evaluates more than transport and protocol mechanics. It also examines AI-agent-facing risks such as:
 
-- **LLM-Friendliness scoring** grades whether error responses help AI agents self-correct (Pro-LLM vs Anti-LLM)
-- **Injection reflection detection** identifies tools that echo back malicious payloads, which AI agents could then process
-- **Destructive tool detection** flags tools that could cause harm when invoked by AI without human confirmation
-- **Schema quality scoring** measures hallucination risk — poor schemas cause AI to generate incorrect tool calls
+- Destructive tool exposure without adequate confirmation signals
+- Prompt injection or instruction-reflection surface area
+- Data exfiltration opportunities exposed through tools or resources
+- Error quality and schema clarity that influence AI self-correction behavior
 
-Servers rated below L3 (Acceptable) should be reviewed before granting AI agent access.
+Servers rated below `L3` should be reviewed before being granted autonomous agent access.
 
-### \ud83d\udcdd Out of Scope
+## Out Of Scope
 
-The following are **not** security vulnerabilities in this tool:
+The following should not be reported as security vulnerabilities in this repository:
 
-- Vulnerabilities found in **target servers** being tested (report those to server owners)
-- False positives/negatives in security scans (report as bugs)
-- Performance issues (report as bugs)
-- Missing features (report as feature requests)
-
----
-
-**Thank you for helping keep this project and the AI ecosystem secure!**
+- Security issues in target servers being tested by the validator
+- False positives or false negatives in validation results
+- General performance issues
+- Feature requests or missing integrations

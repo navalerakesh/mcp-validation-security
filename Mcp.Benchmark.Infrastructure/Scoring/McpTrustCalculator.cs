@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Scoring;
 
@@ -11,9 +12,10 @@ namespace Mcp.Benchmark.Infrastructure.Scoring;
 /// - SHOULD checks: Weighted penalties. Reduce dimension scores.
 /// - MAY checks: Informational only. Zero scoring impact.
 ///
-/// Trust level = WEAKEST dimension (security-first: one gap drops the whole level).
-/// MUST failures override everything — even if all dimensions score 100%, a single MUST
-/// failure caps the trust level.
+/// Trust is derived from a weighted multi-dimensional score with explicit caps:
+/// - Blocking security failures force L1.
+/// - Protocol MUST failures cap at L2.
+/// - Otherwise, the weighted score determines the level.
 /// </summary>
 public static class McpTrustCalculator
 {
@@ -36,22 +38,22 @@ public static class McpTrustCalculator
         assessment.AiSafety = CalculateAiSafety(result, assessment);
 
         // ─── Dimension 4: Operational Readiness ──────────────────────
-        assessment.OperationalReadiness = CalculateOperationalReadiness(result);
+        assessment.OperationalReadiness = ValidationCalibration.GetOperationalReadinessScore(result.PerformanceTesting);
 
         // ─── Determine Trust Level ───────────────────────────────────
-        // MUST failures are a hard gate: cap at L2 regardless of dimension scores.
-        if (assessment.MustFailCount > 0)
+        if (ValidationCalibration.HasBlockingSecurityFailure(result) || result.CriticalErrors.Count > 0)
         {
-            assessment.TrustLevel = McpTrustLevel.L2_Caution;
+            assessment.TrustLevel = McpTrustLevel.L1_Untrusted;
             return assessment;
         }
 
-        // Otherwise, weakest dimension determines the level.
-        var lowestDimension = Math.Min(
-            Math.Min(assessment.ProtocolCompliance, assessment.SecurityPosture),
-            Math.Min(assessment.AiSafety, assessment.OperationalReadiness));
+        var weightedTrustScore =
+            assessment.ProtocolCompliance * ScoringConstants.TrustWeightProtocol +
+            assessment.SecurityPosture * ScoringConstants.TrustWeightSecurity +
+            assessment.AiSafety * ScoringConstants.TrustWeightAiSafety +
+            assessment.OperationalReadiness * ScoringConstants.TrustWeightOperations;
 
-        assessment.TrustLevel = lowestDimension switch
+        var calculatedLevel = weightedTrustScore switch
         {
             >= ScoringConstants.TrustL5Threshold => McpTrustLevel.L5_CertifiedSecure,
             >= ScoringConstants.TrustL4Threshold => McpTrustLevel.L4_Trusted,
@@ -59,6 +61,22 @@ public static class McpTrustCalculator
             >= ScoringConstants.TrustL2Threshold => McpTrustLevel.L2_Caution,
             _ => McpTrustLevel.L1_Untrusted
         };
+
+        var protocolSecurityCap = GetProtocolSecurityCap(assessment);
+        if (protocolSecurityCap.HasValue && calculatedLevel > protocolSecurityCap.Value)
+        {
+            calculatedLevel = protocolSecurityCap.Value;
+        }
+
+        if (assessment.MustFailCount > 0)
+        {
+            assessment.TrustLevel = calculatedLevel > McpTrustLevel.L2_Caution
+                ? McpTrustLevel.L2_Caution
+                : calculatedLevel;
+            return assessment;
+        }
+
+        assessment.TrustLevel = calculatedLevel;
 
         return assessment;
     }
@@ -97,8 +115,10 @@ public static class McpTrustCalculator
 
             // Check if any tool result flagged missing content[] array
             var hasMissingContent = result.ToolValidation.ToolResults?.Any(t =>
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray) ||
                 t.Issues.Any(i => i.Contains("missing 'content' array"))) == true;
-            if (result.ToolValidation.ToolResults?.Any(t => t.ExecutionSuccessful) == true)
+            if (result.ToolValidation.ToolResults?.Any(t =>
+                t.ExecutionSuccessful || HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.ToolCallReturnsContent, "tools/call",
                     !hasMissingContent, hasMissingContent ? "tools/call result missing content[] array" : null);
@@ -109,6 +129,7 @@ public static class McpTrustCalculator
         if (result.ResourceTesting != null && result.ResourceTesting.Status != TestStatus.Skipped)
         {
             var missingUri = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceMissingUri) ||
                 r.Issues.Any(i => i.Contains("missing 'uri'"))) == true;
 
             if (result.ResourceTesting.ResourceResults?.Count > 0)
@@ -118,11 +139,17 @@ public static class McpTrustCalculator
             }
 
             var missingContentUri = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri) ||
                 r.Issues.Any(i => i.Contains("contents[0] missing 'uri'"))) == true;
             var missingTextBlob = result.ResourceTesting.ResourceResults?.Any(r =>
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob) ||
                 r.Issues.Any(i => i.Contains("missing both 'text' and 'blob'"))) == true;
 
-            if (result.ResourceTesting.ResourceResults?.Any(r => r.AccessSuccessful) == true)
+            if (result.ResourceTesting.ResourceResults?.Any(r =>
+                r.AccessSuccessful ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri) ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob) ||
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentArray)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.ResourceContentHasUri, "resources/read",
                     !missingContentUri, missingContentUri ? "contents[] missing 'uri'" : null);
@@ -136,11 +163,16 @@ public static class McpTrustCalculator
         if (result.PromptTesting != null && result.PromptTesting.Status != TestStatus.Skipped)
         {
             var missingMessages = result.PromptTesting.PromptResults?.Any(p =>
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray) ||
                 p.Issues.Any(i => i.Contains("missing 'messages'"))) == true;
             var missingRole = result.PromptTesting.PromptResults?.Any(p =>
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole) ||
                 p.Issues.Any(i => i.Contains("missing 'role'"))) == true;
 
-            if (result.PromptTesting.PromptResults?.Any(p => p.ExecutionSuccessful) == true)
+            if (result.PromptTesting.PromptResults?.Any(p =>
+                p.ExecutionSuccessful ||
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray) ||
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole)) == true)
             {
                 AddMustCheck(assessment, McpComplianceTiers.Must.PromptsGetReturnsMessages, "prompts/get",
                     !missingMessages, missingMessages ? "prompts/get missing messages[] array" : null);
@@ -178,10 +210,12 @@ public static class McpTrustCalculator
         // Tool descriptions
         if (result.ToolValidation?.AiReadinessIssues != null)
         {
-            var hasUndescribed = result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("lack descriptions"));
+            var hasUndescribed = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions) ||
+                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("lack descriptions"));
             AddShouldCheck(assessment, McpComplianceTiers.Should.ToolHasDescription, "tools/list", !hasUndescribed);
 
-            var hasVagueTypes = result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("no enum/pattern"));
+            var hasVagueTypes = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema) ||
+                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("no enum/pattern"));
             AddShouldCheck(assessment, McpComplianceTiers.Should.DescriptiveParameterTypes, "tools/list", !hasVagueTypes);
         }
 
@@ -189,6 +223,7 @@ public static class McpTrustCalculator
         if (result.ToolValidation?.ToolResults != null)
         {
             var missingIsError = result.ToolValidation.ToolResults.Any(t =>
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingIsError) ||
                 t.Issues.Any(i => i.Contains("isError field not present")));
             AddShouldCheck(assessment, McpComplianceTiers.Should.IsErrorFieldPresent, "tools/call", !missingIsError);
         }
@@ -242,10 +277,15 @@ public static class McpTrustCalculator
             AddMayCheck(assessment, McpComplianceTiers.May.ResourceTemplates, "resources", hasTemplates);
         }
 
-        // Tool annotations
-        // We can't check directly without extending ToolInfo exposure, so check if capabilities declare it
+        var hasToolAnnotations = result.ToolValidation?.ToolResults?.Any(t =>
+            !string.IsNullOrWhiteSpace(t.DisplayTitle) ||
+            t.ReadOnlyHint.HasValue ||
+            t.DestructiveHint.HasValue ||
+            t.OpenWorldHint.HasValue ||
+            t.IdempotentHint.HasValue) == true;
+
         AddMayCheck(assessment, McpComplianceTiers.May.ToolAnnotations, "tools",
-            probeMessage.Contains("Capabilities:") && result.ToolValidation?.ToolsDiscovered > 0);
+            hasToolAnnotations);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────
@@ -288,6 +328,7 @@ public static class McpTrustCalculator
     private static double CalculateAiSafety(ValidationResult result, McpTrustAssessment assessment)
     {
         double score = 100.0;
+        var toolCatalogSize = ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation);
 
         // Start from AI Readiness score if available
         if (result.ToolValidation?.AiReadinessScore >= 0)
@@ -301,21 +342,28 @@ public static class McpTrustCalculator
             foreach (var tool in result.ToolValidation.ToolResults)
             {
                 var name = tool.ToolName?.ToLowerInvariant() ?? "";
-                var isLikelyDestructive = name.Contains("delete") || name.Contains("remove") ||
-                                          name.Contains("drop") || name.Contains("destroy") ||
-                                          name.Contains("write") || name.Contains("update") ||
-                                          name.Contains("create") || name.Contains("execute") ||
-                                          name.Contains("run") || name.Contains("send");
+                var isLikelyDestructive = tool.DestructiveHint == true ||
+                                          (tool.ReadOnlyHint != true &&
+                                           (name.Contains("delete") || name.Contains("remove") ||
+                                            name.Contains("drop") || name.Contains("destroy") ||
+                                            name.Contains("write") || name.Contains("update") ||
+                                            name.Contains("create") || name.Contains("execute") ||
+                                            name.Contains("run") || name.Contains("send")));
 
                 if (isLikelyDestructive)
                 {
                     assessment.DestructiveToolCount++;
+                    var severity = tool.DestructiveHint == true ? "High" : "Medium";
+                    var description = tool.DestructiveHint == true
+                        ? $"Tool '{tool.ToolName}' declares destructiveHint=true. AI agents SHOULD require human confirmation before invocation."
+                        : $"Tool '{tool.ToolName}' appears to perform write/destructive operations. AI agents SHOULD require human confirmation.";
+
                     assessment.BoundaryFindings.Add(new AiBoundaryFinding
                     {
                         Category = "Destructive",
                         Component = tool.ToolName ?? "unknown",
-                        Severity = "Medium",
-                        Description = $"Tool '{tool.ToolName}' appears to perform write/destructive operations. AI agents SHOULD require human confirmation.",
+                        Severity = severity,
+                        Description = description,
                         Mitigation = "Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition."
                     });
                 }
@@ -328,9 +376,14 @@ public static class McpTrustCalculator
             foreach (var tool in result.ToolValidation.ToolResults)
             {
                 var name = tool.ToolName?.ToLowerInvariant() ?? "";
+                var parameterNames = tool.InputParameterNames.Select(p => p.ToLowerInvariant()).ToList();
+                var descriptionText = string.Join(' ', new[] { tool.DisplayTitle, tool.Description }.Where(text => !string.IsNullOrWhiteSpace(text))).ToLowerInvariant();
                 foreach (var pattern in ScoringConstants.ExfiltrationRiskPatterns)
                 {
-                    if (name.Contains(pattern))
+                    var hasParameterEvidence = parameterNames.Any(p => p.Contains(pattern));
+                    var hasBehaviorEvidence = name.Contains(pattern) || descriptionText.Contains(pattern) || tool.OpenWorldHint == true;
+
+                    if (hasParameterEvidence && hasBehaviorEvidence)
                     {
                         assessment.DataExfiltrationRiskCount++;
                         assessment.BoundaryFindings.Add(new AiBoundaryFinding
@@ -338,7 +391,7 @@ public static class McpTrustCalculator
                             Category = "Exfiltration",
                             Component = tool.ToolName ?? "unknown",
                             Severity = "High",
-                            Description = $"Tool '{tool.ToolName}' accepts parameters that could be used for data exfiltration (pattern: '{pattern}').",
+                            Description = $"Tool '{tool.ToolName}' accepts URI-like or outbound-target parameters that could be used for data exfiltration (evidence: '{pattern}').",
                             Mitigation = "Validate all URIs/URLs server-side. Restrict outbound connections to allowlisted domains."
                         });
                         break;
@@ -352,13 +405,16 @@ public static class McpTrustCalculator
         {
             foreach (var tool in result.ToolValidation.ToolResults)
             {
-                // Check tool issues for descriptions that could be injection vectors
-                foreach (var issue in tool.Issues)
+                var promptSurfaceTexts = new[] { tool.DisplayTitle, tool.Description }
+                    .Where(text => !string.IsNullOrWhiteSpace(text))
+                    .Select(text => text!.ToLowerInvariant())
+                    .ToList();
+
+                foreach (var surfaceText in promptSurfaceTexts)
                 {
-                    var lower = issue.ToLowerInvariant();
                     foreach (var pattern in ScoringConstants.PromptInjectionPatterns)
                     {
-                        if (lower.Contains(pattern))
+                        if (surfaceText.Contains(pattern))
                         {
                             assessment.PromptInjectionSurfaceCount++;
                             assessment.BoundaryFindings.Add(new AiBoundaryFinding
@@ -395,9 +451,17 @@ public static class McpTrustCalculator
         }
 
         // ─── Penalties ──────────────────────────────────────────────
-        if (assessment.DestructiveToolCount > 3) score -= 5;
-        if (assessment.DataExfiltrationRiskCount > 0) score -= assessment.DataExfiltrationRiskCount * 5;
-        if (assessment.PromptInjectionSurfaceCount > 0) score -= assessment.PromptInjectionSurfaceCount * 15;
+        score -= ValidationCalibration.CalculateRelativeExposurePenalty(
+            assessment.DataExfiltrationRiskCount,
+            toolCatalogSize,
+            maxPenalty: 15,
+            minimumPenaltyIfAny: 3);
+
+        score -= ValidationCalibration.CalculateRelativeExposurePenalty(
+            assessment.PromptInjectionSurfaceCount,
+            toolCatalogSize,
+            maxPenalty: 18,
+            minimumPenaltyIfAny: 4);
 
         // ─── LLM-Friendliness: Extract from tool issues ─────────────
         // Parse LLM-Friendliness scores from tool result issues and average them.
@@ -407,11 +471,23 @@ public static class McpTrustCalculator
             var llmScores = new List<int>();
             foreach (var tool in result.ToolValidation.ToolResults)
             {
+                foreach (var finding in tool.Findings.Where(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
+                {
+                    if (finding.Metadata.TryGetValue("score", out var scoreText) && int.TryParse(scoreText, out var llmScore))
+                    {
+                        llmScores.Add(llmScore);
+                    }
+                }
+
+                if (tool.Findings.Any(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
+                {
+                    continue;
+                }
+
                 foreach (var issue in tool.Issues)
                 {
                     if (issue.Contains("LLM-Friendliness:"))
                     {
-                        // Parse "LLM-Friendliness: XX/100" from the issue string
                         var start = issue.IndexOf("LLM-Friendliness:") + "LLM-Friendliness:".Length;
                         var end = issue.IndexOf("/100", start);
                         if (end > start && int.TryParse(issue.Substring(start, end - start).Trim(), out var llmScore))
@@ -449,14 +525,35 @@ public static class McpTrustCalculator
         return Math.Max(0, Math.Min(100, Math.Round(score, 1)));
     }
 
-    private static double CalculateOperationalReadiness(ValidationResult result)
+    private static bool HasFinding(IEnumerable<ValidationFinding>? findings, string ruleId)
     {
-        if (result.PerformanceTesting == null || result.PerformanceTesting.Status == TestStatus.Skipped)
+        return findings?.Any(f => f.RuleId == ruleId) == true;
+    }
+
+    private static McpTrustLevel? GetProtocolSecurityCap(McpTrustAssessment assessment)
+    {
+        var anchor = Math.Min(assessment.ProtocolCompliance, assessment.SecurityPosture);
+
+        if (anchor < ScoringConstants.TrustL2Threshold)
         {
-            // If performance was skipped (auth required), give neutral score
-            return 50.0;
+            return McpTrustLevel.L1_Untrusted;
         }
 
-        return result.PerformanceTesting.Score;
+        if (anchor < ScoringConstants.TrustL3Threshold)
+        {
+            return McpTrustLevel.L2_Caution;
+        }
+
+        if (anchor < ScoringConstants.TrustL4Threshold)
+        {
+            return McpTrustLevel.L3_Acceptable;
+        }
+
+        if (anchor < ScoringConstants.TrustL5Threshold)
+        {
+            return McpTrustLevel.L4_Trusted;
+        }
+
+        return null;
     }
 }
