@@ -164,7 +164,9 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
         return status switch
         {
             ClientProfileCompatibilityStatus.Compatible => $"All applicable compatibility checks passed ({passed} satisfied).",
-            ClientProfileCompatibilityStatus.CompatibleWithWarnings => $"Required compatibility checks passed, with {warnings} advisory gap(s).",
+            ClientProfileCompatibilityStatus.CompatibleWithWarnings => warnings == 1
+                ? "Required compatibility checks passed; 1 advisory requirement still needs follow-up."
+                : $"Required compatibility checks passed; {warnings} advisory requirements still need follow-up.",
             ClientProfileCompatibilityStatus.Incompatible => $"{failed} required compatibility check(s) failed; review the affected surfaces before relying on this client profile.",
             _ => "Compatibility outcome unavailable."
         };
@@ -174,7 +176,7 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
     {
         if (options?.Profiles == null || options.Profiles.Count == 0)
         {
-            return new List<string>();
+            return ClientProfileCatalog.SupportedProfileIds.ToList();
         }
 
         var requested = options.Profiles
@@ -184,7 +186,7 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
 
         if (requested.Count == 0)
         {
-            return new List<string>();
+            return ClientProfileCatalog.SupportedProfileIds.ToList();
         }
 
         if (requested.Any(value => string.Equals(value, ClientProfileCatalog.AllProfilesToken, StringComparison.OrdinalIgnoreCase)))

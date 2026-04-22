@@ -518,7 +518,7 @@
         }
       },
       "automationDetails": {
-        "id": "bb508aa2-cfbe-4505-af6b-374d7b8d0b39",
+        "id": "dfdd05e3-92e4-4204-8c2c-4f3be39576ed",
         "description": {
           "text": "MCP validation run"
         }
@@ -526,10 +526,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-22T12:44:39.7073780Z",
-          "endTimeUtc": "2026-04-22T12:46:46.8988360Z",
+          "startTimeUtc": "2026-04-22T13:44:05.4324050Z",
+          "endTimeUtc": "2026-04-22T13:46:17.7132220Z",
           "properties": {
-            "validationId": "bb508aa2-cfbe-4505-af6b-374d7b8d0b39",
+            "validationId": "dfdd05e3-92e4-4204-8c2c-4f3be39576ed",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
             "overallStatus": "Passed",

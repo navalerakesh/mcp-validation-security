@@ -418,7 +418,7 @@ public class MarkdownReportGeneratorTests
                     ProfileId = "claude-code",
                     DisplayName = "Claude Code",
                     Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                    Summary = "Required compatibility checks passed, with 1 advisory gap.",
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
                     PassedRequirements = 2,
                     WarningRequirements = 1,
                     Requirements = new List<ClientProfileRequirementAssessment>
@@ -460,7 +460,7 @@ public class MarkdownReportGeneratorTests
                     ProfileId = "claude-code",
                     DisplayName = "Claude Code",
                     Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                    Summary = "Required compatibility checks passed, with 1 advisory gap.",
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
                     PassedRequirements = 2,
                     WarningRequirements = 1,
                     Requirements = new List<ClientProfileRequirementAssessment>

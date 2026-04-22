@@ -159,16 +159,9 @@
       "capabilityComplianceScore": 0
     },
     "notificationHandling": {
-      "notificationFormatCorrect": false,
-      "subscriptionMechanismWorking": false,
-      "unsubscriptionWorking": false,
-      "notificationsReceived": 0,
       "notificationIssues": []
     },
     "messageFormat": {
-      "requestFormatValid": false,
-      "responseFormatValid": false,
-      "errorFormatValid": false,
       "formatViolations": []
     },
     "violations": [

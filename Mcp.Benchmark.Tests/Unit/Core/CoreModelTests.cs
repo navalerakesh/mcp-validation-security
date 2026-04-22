@@ -57,7 +57,7 @@ public class CoreModelTests
                         ProfileId = "claude-code",
                         DisplayName = "Claude Code",
                         Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                        Summary = "Required checks passed, with 1 advisory gap."
+                        Summary = "Required checks passed; 1 advisory requirement still needs follow-up."
                     }
                 }
             },

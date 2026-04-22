@@ -129,10 +129,10 @@
               "id": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
               "name": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
               "shortDescription": {
-                "text": "Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10."
+                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
               },
               "fullDescription": {
-                "text": "Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10."
+                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
               },
               "help": {
                 "text": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe."
@@ -152,10 +152,10 @@
               "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "shortDescription": {
-                "text": "Synthetic load probe executed against tools/list using 50 requests at concurrency 10."
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
               },
               "fullDescription": {
-                "text": "Synthetic load probe executed against tools/list using 50 requests at concurrency 10."
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
               },
               "help": {
                 "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
@@ -265,7 +265,7 @@
         }
       },
       "automationDetails": {
-        "id": "bd5c2c3a-12f9-499c-9985-63858f65e7f4",
+        "id": "218f4501-4d25-4385-9bf1-7cdacba726f6",
         "description": {
           "text": "MCP validation run"
         }
@@ -273,10 +273,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-22T09:08:20.9969230Z",
-          "endTimeUtc": "2026-04-22T09:08:35.3985610Z",
+          "startTimeUtc": "2026-04-22T13:42:59.0731250Z",
+          "endTimeUtc": "2026-04-22T13:44:01.2111300Z",
           "properties": {
-            "validationId": "bd5c2c3a-12f9-499c-9985-63858f65e7f4",
+            "validationId": "218f4501-4d25-4385-9bf1-7cdacba726f6",
             "endpoint": "https://learn.microsoft.com/api/mcp",
             "transport": "http",
             "overallStatus": "Passed",
@@ -557,10 +557,10 @@
           "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10."
+            "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP|load-testing|Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10."
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP|load-testing|Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
           },
           "locations": [
             {
@@ -580,8 +580,8 @@
             "severity": "Info",
             "recommendation": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe.",
             "metadata": {
-              "initialConcurrency": "2",
-              "targetConcurrency": "10"
+              "initialConcurrency": "20",
+              "targetConcurrency": "100"
             }
           }
         },
@@ -590,10 +590,10 @@
           "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Synthetic load probe executed against tools/list using 50 requests at concurrency 10."
+            "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 50 requests at concurrency 10."
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
           },
           "locations": [
             {
@@ -613,8 +613,8 @@
             "severity": "Info",
             "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
             "metadata": {
-              "requests": "50",
-              "concurrency": "10",
+              "requests": "500",
+              "concurrency": "100",
               "operation": "tools/list"
             }
           }

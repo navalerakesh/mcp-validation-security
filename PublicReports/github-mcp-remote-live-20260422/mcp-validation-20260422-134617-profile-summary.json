@@ -1,8 +1,8 @@
 {
-  "generatedUtc": "2026-04-22T12:46:47.0719360Z",
-  "validationId": "bb508aa2-cfbe-4505-af6b-374d7b8d0b39",
+  "generatedUtc": "2026-04-22T13:46:17.8964550Z",
+  "validationId": "dfdd05e3-92e4-4204-8c2c-4f3be39576ed",
   "serverEndpoint": "https://api.githubcopilot.com/mcp/",
-  "complianceScore": 68.44,
+  "complianceScore": 73.44,
   "trustLevel": "L4: Trusted \u2014 Meets enterprise AI safety requirements",
   "profileCount": 5,
   "compatibleCount": 0,

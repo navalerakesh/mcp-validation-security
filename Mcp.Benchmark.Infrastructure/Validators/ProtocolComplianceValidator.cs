@@ -232,6 +232,41 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             result.Violations = violations;
             result.Status = violations.Any(v => v.Severity == ViolationSeverity.Critical) ? TestStatus.Failed : TestStatus.Passed;
 
+            result.NotificationHandling = new NotificationTestResult
+            {
+                NotificationFormatCorrect = notificationProbe.IsCompliant,
+                NotificationsReceived = notificationProbe.IsCompliant == false ? 1 : null,
+                NotificationIssues = notificationProbe.IsCompliant switch
+                {
+                    null when !string.IsNullOrWhiteSpace(notificationProbe.Reason) => new List<string> { notificationProbe.Reason! },
+                    false => new List<string> { "Server responded to a JSON-RPC notification, which is non-compliant." },
+                    _ => new List<string>()
+                }
+            };
+
+            result.MessageFormat = new MessageFormatTestResult
+            {
+                RequestFormatValid = requestFormatCompliant,
+                ResponseFormatValid = responseFormatCompliant,
+                ErrorFormatValid = errorValidation.IsCompliant,
+                FormatViolations = new List<string>()
+            };
+
+            if (!requestFormatCompliant)
+            {
+                result.MessageFormat.FormatViolations.Add("Request format does not comply with JSON-RPC 2.0 requirements.");
+            }
+
+            if (!responseFormatCompliant)
+            {
+                result.MessageFormat.FormatViolations.Add("Response format does not comply with JSON-RPC 2.0 requirements.");
+            }
+
+            if (!errorValidation.IsCompliant)
+            {
+                result.MessageFormat.FormatViolations.Add("Error responses did not consistently satisfy the validator's JSON-RPC error expectations.");
+            }
+
             result.JsonRpcCompliance = new JsonRpcComplianceResult
             {
                 RequestFormatCompliant = requestFormatCompliant,

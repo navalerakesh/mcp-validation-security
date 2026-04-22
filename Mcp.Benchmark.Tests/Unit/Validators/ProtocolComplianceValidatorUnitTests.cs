@@ -269,6 +269,22 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared);
     }
 
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ShouldPopulateProtocolDetailSnapshots()
+    {
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig());
+
+        result.NotificationHandling.NotificationFormatCorrect.Should().BeTrue();
+        result.NotificationHandling.SubscriptionMechanismWorking.Should().BeNull();
+        result.NotificationHandling.UnsubscriptionWorking.Should().BeNull();
+        result.NotificationHandling.NotificationsReceived.Should().BeNull();
+        result.MessageFormat.RequestFormatValid.Should().BeTrue();
+        result.MessageFormat.ResponseFormatValid.Should().BeTrue();
+        result.MessageFormat.ErrorFormatValid.Should().BeTrue();
+    }
+
     private ProtocolComplianceValidator CreateValidator() =>
         new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry);
 

@@ -329,7 +329,6 @@ internal sealed class ValidationHtmlReportComposer
             };
             var noteworthyRequirements = assessment.Requirements
                 .Where(requirement => requirement.Outcome is ClientProfileRequirementOutcome.Warning or ClientProfileRequirementOutcome.Failed)
-                .Take(2)
                 .ToList();
 
             sb.AppendLine($"            <article class=\"ledger-entry ledger-entry--{ValidationHtmlReportTheme.ToCssTone(tone)}\">");
@@ -912,17 +911,47 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              </div>");
         sb.AppendLine($"              {RenderToneChip(toolCountLabel, HtmlReportTone.Info)}");
         sb.AppendLine("            </div>");
-        sb.AppendLine("            <div class=\"table-shell\">");
-        sb.AppendLine("              <table class=\"data-table\">");
-        sb.AppendLine("                <thead><tr><th>Authority</th><th>Active Rules</th><th>Coverage</th><th>Highest Severity</th><th>Representative Gaps</th></tr></thead><tbody>");
+        sb.AppendLine("            <div class=\"authority-summary-grid\">");
         foreach (var summary in summaries)
         {
             var severityLabel = summary.HighestSeverity?.ToString() ?? "None";
-            var severityTone = summary.HighestSeverity.HasValue ? MapFindingSeverityTone(summary.HighestSeverity.Value) : HtmlReportTone.Success;
-            var highlights = string.Join(" · ", summary.Highlights.Select(Encode));
-            sb.AppendLine($"                  <tr><td>{Encode(FormatAuthorityLabel(summary.SourceLabel))}</td><td>{summary.ActiveRuleCount}</td><td>{Encode(FormatAuthorityCoverage(summary.AffectedComponents, summary.TotalComponents))}</td><td>{RenderToneChip(severityLabel, severityTone)}</td><td>{highlights}</td></tr>");
+            var severityTone = summary.ActiveRuleCount == 0
+                ? HtmlReportTone.Neutral
+                : summary.HighestSeverity.HasValue
+                    ? MapFindingSeverityTone(summary.HighestSeverity.Value)
+                    : HtmlReportTone.Info;
+            var cssTone = ValidationHtmlReportTheme.ToCssTone(severityTone);
+            var activeRuleLabel = summary.ActiveRuleCount == 1
+                ? "1 active rule"
+                : $"{summary.ActiveRuleCount} active rules";
+            sb.AppendLine($"              <article class=\"authority-card authority-card--{cssTone}\">");
+            sb.AppendLine("                <div class=\"authority-card__header\">");
+            sb.AppendLine("                  <div>");
+            sb.AppendLine("                    <div class=\"authority-card__eyebrow\">Authority</div>");
+            sb.AppendLine($"                    <div class=\"authority-card__title\">{Encode(FormatAuthorityLabel(summary.SourceLabel))}</div>");
+            sb.AppendLine("                  </div>");
+            sb.AppendLine($"                  {RenderToneChip(activeRuleLabel, severityTone)}");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class=\"authority-card__metrics\">");
+            sb.AppendLine($"                  <div class=\"authority-card__metric\"><div class=\"authority-card__metric-label\">Coverage</div><div class=\"authority-card__metric-value\">{Encode(FormatAuthorityCoverage(summary.AffectedComponents, summary.TotalComponents))}</div></div>");
+            sb.AppendLine($"                  <div class=\"authority-card__metric\"><div class=\"authority-card__metric-label\">Highest Severity</div><div class=\"authority-card__metric-value\">{Encode(severityLabel)}</div></div>");
+            sb.AppendLine("                </div>");
+            sb.AppendLine("                <div class=\"authority-card__label\">Representative gaps</div>");
+            if (summary.Highlights.Count == 0)
+            {
+                sb.AppendLine("                <p class=\"authority-card__empty\">No active gaps in this authority group.</p>");
+            }
+            else
+            {
+                sb.AppendLine("                <ul class=\"compact-list compact-list--tight\">");
+                foreach (var highlight in summary.Highlights)
+                {
+                    sb.AppendLine($"                  <li>{Encode(highlight)}</li>");
+                }
+                sb.AppendLine("                </ul>");
+            }
+            sb.AppendLine("              </article>");
         }
-        sb.AppendLine("                </tbody></table>");
         sb.AppendLine("            </div>");
         sb.AppendLine("          </div>");
         return sb.ToString();

@@ -236,7 +236,7 @@ public class ValidationReportRendererTests
                     DisplayName = "GitHub Copilot Cloud Agent",
                     Revision = "2026-04",
                     Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                    Summary = "Required compatibility checks passed, with 1 advisory gap.",
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
                     PassedRequirements = 2,
                     WarningRequirements = 1,
                     Requirements = new List<ClientProfileRequirementAssessment>
@@ -260,6 +260,42 @@ public class ValidationReportRendererTests
         html.Should().Contain("Client Compatibility");
         html.Should().Contain("GitHub Copilot Cloud Agent");
         html.Should().Contain("tools only");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithMultipleCompatibilityWarnings_ShouldRenderAllAdvisoryRequirements()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ClientCompatibility = new ClientCompatibilityReport
+        {
+            RequestedProfiles = new List<string> { "claude-code" },
+            Assessments = new List<ClientProfileAssessment>
+            {
+                new()
+                {
+                    ProfileId = "claude-code",
+                    DisplayName = "Claude Code",
+                    Revision = "2026-04",
+                    Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
+                    Summary = "Required compatibility checks passed; 3 advisory requirements still need follow-up.",
+                    PassedRequirements = 3,
+                    WarningRequirements = 3,
+                    Requirements = new List<ClientProfileRequirementAssessment>
+                    {
+                        new() { RequirementId = "tool-tool-metadata", Title = "Tool presentation and approval metadata is complete", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory tool guidance gaps affect 1/1 tool(s)." },
+                        new() { RequirementId = "tool-tool-schema", Title = "Tool schemas are clear enough for agent planning", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory schema guidance gaps affect 1/1 tool(s)." },
+                        new() { RequirementId = "prompt-prompt-metadata", Title = "Prompt guidance is explicit enough for callers", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory prompt guidance gaps affect 1/1 prompt(s)." }
+                    }
+                }
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("3 advisory requirements still need follow-up.");
+        html.Should().Contain("Tool presentation and approval metadata is complete");
+        html.Should().Contain("Tool schemas are clear enough for agent planning");
+        html.Should().Contain("Prompt guidance is explicit enough for callers");
     }
 
     [Fact]
@@ -318,9 +354,12 @@ public class ValidationReportRendererTests
 
         html.Should().Contain("Tool Catalog Advisory Breakdown");
         html.Should().Contain("Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.");
-        html.Should().Contain("<td>Spec</td><td>0</td><td>0/2 (0%)</td>");
-        html.Should().Contain("<td>Guideline</td><td>1</td><td>1/2 (50%)</td>");
-        html.Should().Contain("<td>Heuristic</td><td>1</td><td>1/2 (50%)</td>");
+    html.Should().Contain("authority-summary-grid");
+    html.Should().Contain("authority-card__title\">Spec");
+        html.Should().Contain("authority-card__metric-label\">Coverage");
+    html.Should().Contain("authority-card__title\">Guideline");
+    html.Should().Contain("authority-card__metric-value\">1/2 (50%)");
+    html.Should().Contain("authority-card__title\">Heuristic");
     }
 
     [Fact]

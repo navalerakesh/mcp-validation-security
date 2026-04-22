@@ -8,6 +8,18 @@ public class ClientProfileEvaluatorTests
     private readonly ClientProfileEvaluator _evaluator = new();
 
     [Fact]
+    public void Evaluate_WithoutExplicitProfiles_ShouldDefaultToAllSupportedProfiles()
+    {
+        var result = CreateToolOnlyValidationResult();
+
+        var compatibility = _evaluator.Evaluate(result, options: null);
+
+        compatibility.Should().NotBeNull();
+        compatibility!.Assessments.Select(assessment => assessment.ProfileId)
+            .Should().Equal(ClientProfileCatalog.SupportedProfileIds);
+    }
+
+    [Fact]
     public void Evaluate_WithAllProfiles_ShouldReturnCatalogProfilesInOrder()
     {
         var result = CreateToolOnlyValidationResult();
@@ -54,6 +66,7 @@ public class ClientProfileEvaluatorTests
         compatibility.Should().NotBeNull();
         var assessment = compatibility!.Assessments.Should().ContainSingle().Subject;
         assessment.Status.Should().Be(ClientProfileCompatibilityStatus.CompatibleWithWarnings);
+        assessment.Summary.Should().Be("Required compatibility checks passed; 1 advisory requirement still needs follow-up.");
         assessment.Requirements.Should().Contain(requirement =>
             requirement.RequirementId == "surface-tools-only-surface" &&
             requirement.Outcome == ClientProfileRequirementOutcome.Warning);

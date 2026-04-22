@@ -729,6 +729,15 @@ body {
     line-height: 1.56;
     max-width: 920px;
 }
+.section-shell > .section-kicker,
+.section-shell > .section-title,
+.section-shell > .section-intro {
+    text-align: center;
+}
+.section-shell > .section-intro {
+    margin-left: auto;
+    margin-right: auto;
+}
 .distribution-summary {
     margin-top: 14px;
     padding: 12px 14px;
@@ -896,6 +905,84 @@ body {
     border-radius: 18px;
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.82);
+.authority-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.authority-card {
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.88);
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(24,34,49,0.04);
+}
+.authority-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.82)); }
+.authority-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,241,230,0.78)); }
+.authority-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,236,239,0.78)); }
+.authority-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(237,242,251,0.82)); }
+.authority-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(242,245,248,0.88)); }
+.authority-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+.authority-card__eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__title {
+    margin-top: 6px;
+    font-size: 1.05rem;
+    line-height: 1.2;
+    color: var(--text-strong);
+    font-weight: 700;
+}
+.authority-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+.authority-card__metric {
+    border-radius: 12px;
+    border: 1px solid rgba(174, 187, 201, 0.45);
+    background: rgba(255,255,255,0.7);
+    padding: 8px 10px;
+}
+.authority-card__metric-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__metric-value {
+    margin-top: 6px;
+    color: var(--text-strong);
+    font-size: 0.94rem;
+    line-height: 1.4;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.authority-card__label {
+    margin-top: 12px;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__empty {
+    margin: 10px 0 0;
+    color: var(--text-muted);
+    line-height: 1.56;
+}
     padding: 14px;
     box-shadow: 0 8px 24px rgba(24,34,49,0.04);
 }
@@ -1134,6 +1221,12 @@ a:hover {
     .section-heading-row {
         flex-direction: column;
     }
+    .authority-card__header {
+        flex-direction: column;
+    }
+    .authority-card__metrics {
+        grid-template-columns: 1fr;
+    }
 }
 @media print {
     @page {
@@ -1222,11 +1315,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">bd5c2c3a-12f9-499c-9985-63858f65e7f4</div>
+                <div class="fact-item__value">218f4501-4d25-4385-9bf1-7cdacba726f6</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">14.4s</div>
+                <div class="fact-item__value">62.1s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1247,7 +1340,7 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Run Status</span>
     <div class="focus-value">Passed</div>
-    <div class="focus-label">Generated on 2026-04-22 10:02:31 UTC</div>
+    <div class="focus-label">Generated on 2026-04-22 13:44:01 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Trust Posture</span>
@@ -1290,7 +1383,7 @@ a:hover {
                 <ul class="compact-list">
                   <li>Protocol: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure ba....</li>
                   <li>Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse e....</li>
-                  <li>Ensure full compliance with MCP protocol specification.</li>
+                  <li>Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch....</li>
                 </ul>
               </section>
 
@@ -1382,7 +1475,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">629.6 ms</div>
+                <div class="fact-item__value">761.1 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -1394,6 +1487,113 @@ a:hover {
               </div>
             </div>
 
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-shell">
+          <div class="section-kicker">Host Compatibility</div>
+          <h2 class="section-title">Client Compatibility</h2>
+          <p class="section-intro">5 profiles evaluated. The summary bar highlights leadership-level distribution first, followed by durable per-profile notes.</p>
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Compatibility Distribution</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--warning">
+                <div class="distribution-card__label">Warnings</div>
+                <div class="distribution-card__value">5</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--warning" style="flex:5;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Warnings 5 (100%)</span>
+            </div>
+          </div>
+
+          <div class="ledger-list">
+            <article class="ledger-entry ledger-entry--warning">
+              <div class="ledger-rail">
+                <div class="ledger-title">Claude Code</div>
+                <div class="ledger-subtle">claude-code · 2026-04</div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://docs.anthropic.com/en/docs/claude-code/mcp">Profile documentation</a></div>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--warning">
+              <div class="ledger-rail">
+                <div class="ledger-title">VS Code Copilot Agent</div>
+                <div class="ledger-subtle">vscode-copilot-agent · 2026-04</div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers">Profile documentation</a></div>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--warning">
+              <div class="ledger-rail">
+                <div class="ledger-title">GitHub Copilot CLI</div>
+                <div class="ledger-subtle">github-copilot-cli · 2026-04</div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers">Profile documentation</a></div>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--warning">
+              <div class="ledger-rail">
+                <div class="ledger-title">GitHub Copilot Cloud Agent</div>
+                <div class="ledger-subtle">github-copilot-cloud-agent · 2026-04</div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 3</span><span>W 2</span><span>F 0</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp">Profile documentation</a></div>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--warning">
+              <div class="ledger-rail">
+                <div class="ledger-title">Visual Studio Copilot</div>
+                <div class="ledger-subtle">visual-studio-copilot · 2026-04</div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 3/3 tool(s).</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio">Profile documentation</a></div>
+              </div>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -1428,7 +1628,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 3</span>
-        <span class="probe-metric"><strong>Duration</strong> 75.5 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 68.8 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool microsoft_docs_search responded successfully.</div>
 </article>
@@ -1440,7 +1640,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 54.0 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 63.9 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -1452,7 +1652,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 69.4 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 63.3 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -1594,7 +1794,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1622,7 +1822,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1636,7 +1836,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1650,7 +1850,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1664,7 +1864,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1678,7 +1878,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1692,7 +1892,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1706,7 +1906,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1720,7 +1920,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1748,7 +1948,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1762,7 +1962,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1776,7 +1976,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1790,7 +1990,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1804,7 +2004,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1818,7 +2018,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1832,7 +2032,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1846,7 +2046,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1874,7 +2074,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1888,7 +2088,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1902,7 +2102,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1916,7 +2116,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1930,7 +2130,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1944,7 +2144,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1958,7 +2158,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -1972,7 +2172,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2000,7 +2200,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2014,7 +2214,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2028,7 +2228,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2042,7 +2242,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2056,7 +2256,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2070,7 +2270,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2084,7 +2284,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2098,7 +2298,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2126,7 +2326,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2140,7 +2340,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2154,7 +2354,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2168,7 +2368,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2182,7 +2382,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2196,7 +2396,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2210,7 +2410,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2224,7 +2424,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2252,7 +2452,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2266,7 +2466,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2280,7 +2480,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2294,7 +2494,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2308,7 +2508,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2322,7 +2522,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2336,7 +2536,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2350,7 +2550,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC error</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2378,7 +2578,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2392,7 +2592,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2406,7 +2606,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2420,7 +2620,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2434,7 +2634,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2448,7 +2648,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2462,7 +2662,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2476,7 +2676,7 @@ a:hover {
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">200 + JSON-RPC success</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
                       <span class="probe-metric"><strong>HTTP</strong> 200</span>
@@ -2521,7 +2721,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d9e74 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d9e74&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadbeeb &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadbeeb&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2531,7 +2731,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d8f81 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d8f81&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadc149 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadc149&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2541,7 +2741,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d8de0 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776848907&amp;#46;f80d8de0&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadc3b1 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;43d02e17&amp;#46;1776865388&amp;#46;faadc3b1&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2594,13 +2794,77 @@ a:hover {
           <div class="section-kicker">Tool Surface</div>
           <h2 class="section-title">Tool Validation Details</h2>
           <p class="section-intro">Tools Discovered: 3 · Passed: 3 · Failed: 0</p>
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
+                <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+              </div>
+              <span class="tone-chip tone-info">3 tools</span>
+            </div>
+            <div class="authority-summary-grid">
+              <article class="authority-card authority-card--info">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Spec</div>
+                  </div>
+                  <span class="tone-chip tone-info">1 active rule</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">3/3 (100%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Low</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>tools/call result.isError field not present</li>
+                </ul>
+              </article>
+              <article class="authority-card authority-card--info">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Guideline</div>
+                  </div>
+                  <span class="tone-chip tone-info">1 active rule</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">3/3 (100%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Low</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>Tool &#39;microsoft_code_sample_search&#39; does not declare annotations.openWorldHint.</li>
+                </ul>
+              </article>
+              <article class="authority-card authority-card--warning">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Heuristic</div>
+                  </div>
+                  <span class="tone-chip tone-warning">3 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">3/3 (100%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Medium</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>Tool &#39;microsoft_code_sample_search&#39;: 2/2 string parameters have no enum/pattern/format constraint</li>
+                  <li>Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>75.55 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>microsoft_docs_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>749.41 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
-                <tr><td><code>microsoft_code_sample_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>674.88 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
-                <tr><td><code>microsoft_docs_fetch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>68.27 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>68.80 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>microsoft_docs_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1016.32 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>microsoft_code_sample_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1076.18 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>microsoft_docs_fetch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>224.42 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
               </tbody></table>
           </div>
         </div>
@@ -2615,17 +2879,17 @@ a:hover {
           <div class="score-strip">
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">108.6 ms</div>
+              <div class="score-pill__value">75.6 ms</div>
               <div class="score-pill__meta">Target ≤ 300 ms</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">245.0 ms</div>
+              <div class="score-pill__value">94.0 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">85.82</div>
+              <div class="score-pill__value">13.20</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -2635,7 +2899,7 @@ a:hover {
             </div>
           </div>
 
-          <div class="evidence-note">Requests: 50/50 successful.</div>
+          <div class="evidence-note">Requests: 500/500 successful.</div>
           <ul class="compact-list">
             <li>Probe rounds executed: 2</li>
           </ul>
@@ -2657,7 +2921,12 @@ a:hover {
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
-                <li>Ensure full compliance with MCP protocol specification</li>
+                <li>Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch</li>
+                <li>Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
+                <li>Heuristic: Constrain string parameters with enum, pattern, or format metadata when possible Gap affects 3/3 tools</li>
+                <li>Guideline: Declare openWorldHint so agents can reason about whether execution can affect unknown external systems Gap affects 3/3 tools</li>
+                <li>Spec: Include result.isError in tool responses so clients can distinguish failures from normal payloads Gap affects 3/3 tools</li>
+                <li>Heuristic: Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing Gap affects 1/3 tool</li>
               </ul>
             </div>
           </div>

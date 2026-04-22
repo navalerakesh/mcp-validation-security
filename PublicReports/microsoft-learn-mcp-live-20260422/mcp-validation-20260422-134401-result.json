@@ -5,10 +5,10 @@
     "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
     "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
   },
-  "validationId": "bd5c2c3a-12f9-499c-9985-63858f65e7f4",
-  "startTime": "2026-04-22T09:08:20.996923Z",
-  "endTime": "2026-04-22T09:08:35.398561Z",
-  "duration": "00:00:14.4016380",
+  "validationId": "218f4501-4d25-4385-9bf1-7cdacba726f6",
+  "startTime": "2026-04-22T13:42:59.073125Z",
+  "endTime": "2026-04-22T13:44:01.21113Z",
+  "duration": "00:01:02.1380050",
   "overallStatus": 1,
   "complianceScore": 92.34,
   "scoringNotes": [
@@ -99,7 +99,7 @@
           "testResponseTimes": true,
           "testMemoryUsage": true,
           "testThroughput": true,
-          "maxConcurrentConnections": 10,
+          "maxConcurrentConnections": 100,
           "loadTestDurationSeconds": 60,
           "responseTimeThresholdMs": 1000,
           "customScenarios": []
@@ -206,7 +206,7 @@
       "handshakeSuccessful": true,
       "serverInfoProvided": true,
       "clientInfoAccepted": true,
-      "initializationTimeMs": 629.642,
+      "initializationTimeMs": 761.142,
       "initializationErrors": []
     },
     "capabilityNegotiation": {
@@ -227,17 +227,16 @@
       "capabilityComplianceScore": 100
     },
     "notificationHandling": {
-      "notificationFormatCorrect": false,
-      "subscriptionMechanismWorking": false,
-      "unsubscriptionWorking": false,
-      "notificationsReceived": 0,
+      "notificationFormatCorrect": true,
       "notificationIssues": []
     },
     "messageFormat": {
-      "requestFormatValid": false,
-      "responseFormatValid": false,
+      "requestFormatValid": true,
+      "responseFormatValid": true,
       "errorFormatValid": false,
-      "formatViolations": []
+      "formatViolations": [
+        "Error responses did not consistently satisfy the validator\u0027s JSON-RPC error expectations."
+      ]
     },
     "violations": [
       {
@@ -282,7 +281,7 @@
       }
     ],
     "status": 2,
-    "duration": "00:00:01.8418610",
+    "duration": "00:00:04.5691710",
     "message": "declared capabilities: logging, prompts, resources, resources.listChanged, tools | roots/list: not supported | logging/setLevel: supported | sampling/createMessage: not supported | completion/complete: not supported",
     "score": 78.125,
     "criticalErrors": [],
@@ -329,12 +328,12 @@
         "destructiveHint": null,
         "openWorldHint": null,
         "idempotentHint": null,
-        "executionTimeMs": 75.548,
+        "executionTimeMs": 68.801,
         "parameterTests": [],
         "inputParameterNames": [],
         "issues": [
           "\u26A0\uFE0F Schema validation warning: tools/list schema could not be fully processed",
-          "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/cb92a98e9c494fea90e7934b985f4ef1#/definitions/Tool\u0027",
+          "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/f545898b705042a2bc5b7d9895899793#/definitions/Tool\u0027",
           "\u2139\uFE0F Initial 401 challenge (if any) succeeded; failure is due to schema non-compliance."
         ],
         "findings": [],
@@ -354,7 +353,7 @@
         "destructiveHint": false,
         "openWorldHint": null,
         "idempotentHint": true,
-        "executionTimeMs": 749.407,
+        "executionTimeMs": 1016.323,
         "parameterTests": [],
         "inputParameterNames": [
           "query"
@@ -409,7 +408,7 @@
         "destructiveHint": false,
         "openWorldHint": null,
         "idempotentHint": true,
-        "executionTimeMs": 674.883,
+        "executionTimeMs": 1076.176,
         "parameterTests": [],
         "inputParameterNames": [
           "query",
@@ -465,7 +464,7 @@
         "destructiveHint": false,
         "openWorldHint": null,
         "idempotentHint": true,
-        "executionTimeMs": 68.265,
+        "executionTimeMs": 224.416,
         "parameterTests": [],
         "inputParameterNames": [
           "url"
@@ -512,7 +511,7 @@
     "parameterValidation": [],
     "issues": [
       "\u26A0\uFE0F Schema validation warning: tools/list schema could not be fully processed",
-      "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/cb92a98e9c494fea90e7934b985f4ef1#/definitions/Tool\u0027",
+      "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/f545898b705042a2bc5b7d9895899793#/definitions/Tool\u0027",
       "\u2705 SDK invocation of the first discovered tool succeeded",
       "\uD83E\uDD16 AI Readiness Score: 74/100 (Fair)"
     ],
@@ -602,7 +601,7 @@
     ],
     "estimatedTokenCount": 1241,
     "status": 2,
-    "duration": "00:00:01.5694750",
+    "duration": "00:00:02.4043440",
     "message": null,
     "score": 100,
     "criticalErrors": [],
@@ -733,7 +732,7 @@
     ],
     "contentSafetyFindings": [],
     "status": 2,
-    "duration": "00:00:00.1885310",
+    "duration": "00:00:00.2390050",
     "message": null,
     "score": 100,
     "criticalErrors": [],
@@ -745,11 +744,11 @@
     "promptsTestFailed": 0,
     "promptResults": [],
     "issues": [
-      "\u2705 COMPLIANT: 0 prompts discovered and validated"
+      "\u2705 COMPLIANT: No prompts were advertised; no prompt executions were required"
     ],
     "contentSafetyFindings": [],
     "status": 2,
-    "duration": "00:00:00.0652010",
+    "duration": "00:00:00.0662470",
     "message": null,
     "score": 100,
     "criticalErrors": [],
@@ -765,8 +764,8 @@
         "description": "Simulated INJ-001 (Input Validation) attack on microsoft_docs_search",
         "attackSuccessful": false,
         "defenseSuccessful": true,
-        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d9e74\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d9e74\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-        "executionTimeMs": 31,
+        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadbeeb\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadbeeb\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+        "executionTimeMs": 30,
         "evidence": {
           "outcome": "Blocked",
           "target": "tools/call (microsoft_docs_search)",
@@ -774,8 +773,8 @@
           "isSuccess": false,
           "statusCode": 403,
           "defenseMechanism": "Authentication/Authorization",
-          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d9e74\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d9e74\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-          "actualExecutionTimeMs": 31
+          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadbeeb\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadbeeb\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+          "actualExecutionTimeMs": 30
         }
       },
       {
@@ -783,8 +782,8 @@
         "description": "Simulated INJ-002 (Input Validation) attack on microsoft_docs_search",
         "attackSuccessful": false,
         "defenseSuccessful": true,
-        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8f81\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8f81\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-        "executionTimeMs": 29,
+        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc149\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc149\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+        "executionTimeMs": 92,
         "evidence": {
           "outcome": "Blocked",
           "target": "tools/call (microsoft_docs_search)",
@@ -792,8 +791,8 @@
           "isSuccess": false,
           "statusCode": 403,
           "defenseMechanism": "Authentication/Authorization",
-          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8f81\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8f81\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-          "actualExecutionTimeMs": 29
+          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc149\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc149\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+          "actualExecutionTimeMs": 92
         }
       },
       {
@@ -801,8 +800,8 @@
         "description": "Simulated INJ-003 (Input Validation) attack on microsoft_docs_search",
         "attackSuccessful": false,
         "defenseSuccessful": true,
-        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8de0\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8de0\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-        "executionTimeMs": 29,
+        "serverResponse": "\u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc3b1\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc3b1\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+        "executionTimeMs": 88,
         "evidence": {
           "outcome": "Blocked",
           "target": "tools/call (microsoft_docs_search)",
@@ -810,8 +809,8 @@
           "isSuccess": false,
           "statusCode": 403,
           "defenseMechanism": "Authentication/Authorization",
-          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8de0\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776848907\u0026#46;f80d8de0\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
-          "actualExecutionTimeMs": 29
+          "error": "HTTP 403 Forbidden. Body: \u003CHTML\u003E\u003CHEAD\u003E\n\u003CTITLE\u003EAccess Denied\u003C/TITLE\u003E\n\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EAccess Denied\u003C/H1\u003E\n \nYou don\u0027t have permission to access \u0022http\u0026#58;\u0026#47;\u0026#47;learn\u0026#46;microsoft\u0026#46;com\u0026#47;api\u0026#47;mcp\u0022 on this server.\u003CP\u003E\nReference\u0026#32;\u0026#35;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc3b1\n\u003CP\u003Ehttps\u0026#58;\u0026#47;\u0026#47;errors\u0026#46;edgesuite\u0026#46;net\u0026#47;18\u0026#46;43d02e17\u0026#46;1776865388\u0026#46;faadc3b1\u003C/P\u003E\n\u003C/BODY\u003E\n\u003C/HTML\u003E\n",
+          "actualExecutionTimeMs": 88
         }
       },
       {
@@ -858,7 +857,7 @@
         "serverResponse": "Error clarity: 55/100 (Fair). Error messages partially helpful for AI.",
         "executionTimeMs": 0,
         "evidence": {
-          "evidence": "Tool: microsoft_code_sample_search, Param: query, Expected: required-field, Sent: null, Response: {\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022An error occurred invoking \\u0027microsoft_code_sample_search\\u0027.\u0022}],\u0022isError\u0022:true},\u0022id\u0022:\u00223f6800ad-d433-4ce5-bfb3-e5927568f96a\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
+          "evidence": "Tool: microsoft_code_sample_search, Param: query, Expected: required-field, Sent: null, Response: {\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022An error occurred invoking \\u0027microsoft_code_sample_search\\u0027.\u0022}],\u0022isError\u0022:true},\u0022id\u0022:\u002218948b78-5ff1-4e98-a0f6-fb63fec1feca\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
           "outcome": "Blocked"
         }
       }
@@ -867,14 +866,14 @@
     "authenticationTestResult": {
       "status": 2,
       "complianceScore": 100,
-      "duration": "00:00:04.5438340",
+      "duration": "00:00:07.6445490",
       "testScenarios": [
         {
           "scenarioName": "No Auth - initialize",
           "testType": "No Auth",
           "method": "initialize",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -890,7 +889,7 @@
           "testType": "No Auth",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -906,7 +905,7 @@
           "testType": "Malformed Token",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -922,7 +921,7 @@
           "testType": "Invalid Token",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -938,7 +937,7 @@
           "testType": "Token Expired",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -954,7 +953,7 @@
           "testType": "Invalid Scope",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -970,7 +969,7 @@
           "testType": "Insufficient Permissions",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -986,7 +985,7 @@
           "testType": "Revoked Token",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -1002,7 +1001,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "logging/setLevel",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Sensitive operation succeeded",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u274C INSECURE: Sensitive operation succeeded without valid authentication.",
           "isCompliant": true,
@@ -1018,7 +1017,7 @@
           "testType": "No Auth",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1034,7 +1033,7 @@
           "testType": "Malformed Token",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1050,7 +1049,7 @@
           "testType": "Invalid Token",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1066,7 +1065,7 @@
           "testType": "Token Expired",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1082,7 +1081,7 @@
           "testType": "Invalid Scope",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1098,7 +1097,7 @@
           "testType": "Insufficient Permissions",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1114,7 +1113,7 @@
           "testType": "Revoked Token",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1130,7 +1129,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "prompts/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1146,7 +1145,7 @@
           "testType": "No Auth",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1162,7 +1161,7 @@
           "testType": "Malformed Token",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1178,7 +1177,7 @@
           "testType": "Invalid Token",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1194,7 +1193,7 @@
           "testType": "Token Expired",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1210,7 +1209,7 @@
           "testType": "Invalid Scope",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1226,7 +1225,7 @@
           "testType": "Insufficient Permissions",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1242,7 +1241,7 @@
           "testType": "Revoked Token",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1258,7 +1257,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "prompts/get",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1274,7 +1273,7 @@
           "testType": "No Auth",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1290,7 +1289,7 @@
           "testType": "Malformed Token",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1306,7 +1305,7 @@
           "testType": "Invalid Token",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1322,7 +1321,7 @@
           "testType": "Token Expired",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1338,7 +1337,7 @@
           "testType": "Invalid Scope",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1354,7 +1353,7 @@
           "testType": "Insufficient Permissions",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1370,7 +1369,7 @@
           "testType": "Revoked Token",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1386,7 +1385,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "resources/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1402,7 +1401,7 @@
           "testType": "No Auth",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1418,7 +1417,7 @@
           "testType": "Malformed Token",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1434,7 +1433,7 @@
           "testType": "Invalid Token",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1450,7 +1449,7 @@
           "testType": "Token Expired",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1466,7 +1465,7 @@
           "testType": "Invalid Scope",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1482,7 +1481,7 @@
           "testType": "Insufficient Permissions",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1498,7 +1497,7 @@
           "testType": "Revoked Token",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1514,7 +1513,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "resources/read",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1530,7 +1529,7 @@
           "testType": "No Auth",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1546,7 +1545,7 @@
           "testType": "Malformed Token",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1562,7 +1561,7 @@
           "testType": "Invalid Token",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1578,7 +1577,7 @@
           "testType": "Token Expired",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1594,7 +1593,7 @@
           "testType": "Invalid Scope",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1610,7 +1609,7 @@
           "testType": "Insufficient Permissions",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1626,7 +1625,7 @@
           "testType": "Revoked Token",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1642,7 +1641,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "tools/list",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC success",
+          "actualBehavior": "Discovery metadata returned",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication.",
           "isCompliant": true,
@@ -1658,7 +1657,7 @@
           "testType": "No Auth",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1674,7 +1673,7 @@
           "testType": "Malformed Token",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1690,7 +1689,7 @@
           "testType": "Invalid Token",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1706,7 +1705,7 @@
           "testType": "Token Expired",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1722,7 +1721,7 @@
           "testType": "Invalid Scope",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1738,7 +1737,7 @@
           "testType": "Insufficient Permissions",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1754,7 +1753,7 @@
           "testType": "Revoked Token",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1770,7 +1769,7 @@
           "testType": "Wrong Audience (RFC 8707)",
           "method": "tools/call",
           "expectedBehavior": "Informational (public profile)",
-          "actualBehavior": "200 \u002B JSON-RPC error",
+          "actualBehavior": "Request rejected in JSON-RPC layer",
           "statusCode": "200",
           "analysis": "\u2139\uFE0F INFO (Public profile): \u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
           "isCompliant": true,
@@ -1784,7 +1783,7 @@
       ]
     },
     "status": 2,
-    "duration": "00:00:11.4940850",
+    "duration": "00:00:14.7203560",
     "message": null,
     "score": 100,
     "criticalErrors": [],
@@ -1792,21 +1791,21 @@
   },
   "performanceTesting": {
     "loadTesting": {
-      "maxConcurrentConnections": 10,
-      "totalRequests": 50,
-      "successfulRequests": 50,
+      "maxConcurrentConnections": 100,
+      "totalRequests": 500,
+      "successfulRequests": 500,
       "failedRequests": 0,
       "rateLimitedRequests": 0,
       "probeRoundsExecuted": 2,
       "observedRateLimitedRequests": 0,
       "observedTransientFailures": 0,
-      "averageResponseTimeMs": 108.6,
-      "medianResponseTimeMs": 86,
-      "p95ResponseTimeMs": 245,
-      "p99ResponseTimeMs": 324,
-      "maxResponseTimeMs": 324,
-      "minResponseTimeMs": 60,
-      "requestsPerSecond": 85.8204087797711,
+      "averageResponseTimeMs": 75.584,
+      "medianResponseTimeMs": 72,
+      "p95ResponseTimeMs": 94,
+      "p99ResponseTimeMs": 144,
+      "maxResponseTimeMs": 220,
+      "minResponseTimeMs": 59,
+      "requestsPerSecond": 13.198548349740625,
       "errorRate": 0,
       "nonRateLimitedFailedRequests": 0,
       "pressureSignalsObserved": true,
@@ -1843,15 +1842,15 @@
       "resourceExhaustionEvents": []
     },
     "throughput": {
-      "requestsPerSecond": 85.8204087797711,
+      "requestsPerSecond": 13.198548349740625,
       "bytesPerSecond": 0,
-      "transactionsPerMinute": 5149.224526786266,
-      "peakThroughput": 85.8204087797711,
+      "transactionsPerMinute": 791.9129009844374,
+      "peakThroughput": 13.198548349740625,
       "meetsPerformanceTargets": true
     },
     "performanceBottlenecks": [],
     "status": 2,
-    "duration": "00:00:01.6357350",
+    "duration": "00:00:45.8634310",
     "message": null,
     "score": 100,
     "criticalErrors": [],
@@ -1861,13 +1860,13 @@
         "category": "Performance",
         "component": "load-testing",
         "severity": 0,
-        "summary": "Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10.",
+        "summary": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100.",
         "recommendation": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe.",
         "source": 2,
         "specReference": null,
         "metadata": {
-          "initialConcurrency": "2",
-          "targetConcurrency": "10"
+          "initialConcurrency": "20",
+          "targetConcurrency": "100"
         },
         "effectiveSource": 2,
         "effectiveSourceLabel": "guideline",
@@ -1878,13 +1877,13 @@
         "category": "Performance",
         "component": "tools/list",
         "severity": 0,
-        "summary": "Synthetic load probe executed against tools/list using 50 requests at concurrency 10.",
+        "summary": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100.",
         "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
         "source": 2,
         "specReference": null,
         "metadata": {
-          "requests": "50",
-          "concurrency": "10",
+          "requests": "500",
+          "concurrency": "100",
           "operation": "tools/list"
         },
         "effectiveSource": 2,
@@ -1916,7 +1915,7 @@
   "errorHandling": null,
   "executionLogs": [
     {
-      "timestamp": "2026-04-22T09:08:20.998113Z",
+      "timestamp": "2026-04-22T13:42:59.0744Z",
       "level": 2,
       "category": null,
       "message": "Server profile resolved to Public (Inferred).",
@@ -1926,7 +1925,12 @@
   ],
   "criticalErrors": [],
   "recommendations": [
-    "Ensure full compliance with MCP protocol specification"
+    "Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch",
+    "Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+    "Heuristic: Constrain string parameters with enum, pattern, or format metadata when possible Gap affects 3/3 tools",
+    "Guideline: Declare openWorldHint so agents can reason about whether execution can affect unknown external systems Gap affects 3/3 tools",
+    "Spec: Include result.isError in tool responses so clients can distinguish failures from normal payloads Gap affects 3/3 tools",
+    "Heuristic: Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing Gap affects 1/3 tool"
   ],
   "summary": {
     "totalTests": 6,
@@ -1976,14 +1980,14 @@
       "statusCode": 200,
       "headers": {
         "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
-        "mcp-session-id": "eyJjbGllbnRJbmZvIjp7Im5hbWUiOiJtY3AtYmVuY2htYXJrIiwidGl0bGUiOm51bGwsInZlcnNpb24iOiIxLjAuMCIsImljb25zIjpudWxsLCJ3ZWJzaXRlVXJsIjpudWxsfSwidXNlcklkQ2xhaW0iOiIxZDIzMmQzOC1hNDY5LTQ2ZWMtYmU0NS0zMzAyYmRlODliNmQifQ==",
+        "mcp-session-id": "eyJjbGllbnRJbmZvIjp7Im5hbWUiOiJtY3AtYmVuY2htYXJrIiwidGl0bGUiOm51bGwsInZlcnNpb24iOiIxLjAuMCIsImljb25zIjpudWxsLCJ3ZWJzaXRlVXJsIjpudWxsfSwidXNlcklkQ2xhaW0iOiJmNjk1YTg3NS1kYWVhLTRlMTUtODMxOS0wMmU1MGI0NmM3NmQifQ==",
         "X-Powered-By": "ASP.NET",
-        "x-azure-ref": "20260422T090821Z-1544cdc69f8gxz7shC1WSTqz300000000arg000000000zhu",
+        "x-azure-ref": "20260422T134259Z-1544cdc69f8gfdxqhC1WST7tns0000000y6000000000953v",
         "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
         "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "no-store, no-cache",
-        "Date": "Wed, 22 Apr 2026 09:08:21 GMT",
+        "Date": "Wed, 22 Apr 2026 13:42:59 GMT",
         "Connection": "keep-alive",
         "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
         "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -1991,10 +1995,10 @@
         "Content-Type": "text/event-stream",
         "Content-Encoding": "identity",
         "Content-Length": "1987",
-        "Expires": "Wed, 22 Apr 2026 09:08:21 GMT"
+        "Expires": "Wed, 22 Apr 2026 13:42:59 GMT"
       },
-      "duration": "00:00:00.6296420",
-      "rawContent": "{\u0022result\u0022:{\u0022protocolVersion\u0022:\u00222025-06-18\u0022,\u0022capabilities\u0022:{\u0022logging\u0022:{},\u0022prompts\u0022:{\u0022listChanged\u0022:true},\u0022resources\u0022:{\u0022listChanged\u0022:true},\u0022tools\u0022:{\u0022listChanged\u0022:true}},\u0022serverInfo\u0022:{\u0022name\u0022:\u0022Microsoft Learn MCP Server\u0022,\u0022version\u0022:\u00221.0.0\u0022},\u0022instructions\u0022:\u0022# Microsoft Learn MCP Server\\r\\n\\r\\nThis server gives structured access to official Microsoft and Azure documentation via three tools:\\r\\n\\r\\n## Tools\\r\\n\\r\\n### microsoft_docs_search\\r\\nSearch official documentation and return up to 10 concise, high-quality content chunks (max 500 tokens each), including title, URL, and excerpt.\\r\\n\\r\\n- Use first to get a quick, reliable overview\\r\\n- Ideal for grounding answers in Microsoft knowledge\\r\\n\\r\\n### microsoft_code_sample_search\\r\\nSearch for code snippets and examples in official Microsoft Learn documentation and return up to 20 relevant, high-quality code samples.\\r\\n\\r\\n- Use when you need to provide sample Microsoft/Azure related code in your answers.  \\r\\n- Ideal for generating code snippets or practical implementation examples.  \\r\\n- Optional parameter \\u0060language\\u0060 can filter results. \\r\\n\\r\\n### microsoft_docs_fetch\\r\\nFetch and convert full Microsoft documentation pages to markdown.\\r\\n\\r\\n- Use after search when you need full content from a specific URL\\r\\n- Required for detailed tutorials, troubleshooting, prerequisites, code samples, or when search results are incomplete or outdated\\r\\n\\r\\n## Workflow\\r\\n\\r\\n1. Use \\u0060microsoft_docs_search\\u0060 to find relevant documents.\\r\\n2. If you need code examples or practical snippets, use \\u0060microsoft_code_sample_search\\u0060.\\r\\n3. If deeper or complete information is needed, use \\u0060microsoft_docs_fetch\\u0060.\\r\\n\\r\\n**Search gives breadth. Code Sample Search gives practical examples. Fetch gives depth.**\\r\\n\\r\\nAll content comes from Microsoft Learn or official sources, returned in clean markdown format.\u0022},\u0022id\u0022:\u00229fe1d05f-be6c-47a3-ae44-288b40df456f\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
+      "duration": "00:00:00.7611420",
+      "rawContent": "{\u0022result\u0022:{\u0022protocolVersion\u0022:\u00222025-06-18\u0022,\u0022capabilities\u0022:{\u0022logging\u0022:{},\u0022prompts\u0022:{\u0022listChanged\u0022:true},\u0022resources\u0022:{\u0022listChanged\u0022:true},\u0022tools\u0022:{\u0022listChanged\u0022:true}},\u0022serverInfo\u0022:{\u0022name\u0022:\u0022Microsoft Learn MCP Server\u0022,\u0022version\u0022:\u00221.0.0\u0022},\u0022instructions\u0022:\u0022# Microsoft Learn MCP Server\\r\\n\\r\\nThis server gives structured access to official Microsoft and Azure documentation via three tools:\\r\\n\\r\\n## Tools\\r\\n\\r\\n### microsoft_docs_search\\r\\nSearch official documentation and return up to 10 concise, high-quality content chunks (max 500 tokens each), including title, URL, and excerpt.\\r\\n\\r\\n- Use first to get a quick, reliable overview\\r\\n- Ideal for grounding answers in Microsoft knowledge\\r\\n\\r\\n### microsoft_code_sample_search\\r\\nSearch for code snippets and examples in official Microsoft Learn documentation and return up to 20 relevant, high-quality code samples.\\r\\n\\r\\n- Use when you need to provide sample Microsoft/Azure related code in your answers.  \\r\\n- Ideal for generating code snippets or practical implementation examples.  \\r\\n- Optional parameter \\u0060language\\u0060 can filter results. \\r\\n\\r\\n### microsoft_docs_fetch\\r\\nFetch and convert full Microsoft documentation pages to markdown.\\r\\n\\r\\n- Use after search when you need full content from a specific URL\\r\\n- Required for detailed tutorials, troubleshooting, prerequisites, code samples, or when search results are incomplete or outdated\\r\\n\\r\\n## Workflow\\r\\n\\r\\n1. Use \\u0060microsoft_docs_search\\u0060 to find relevant documents.\\r\\n2. If you need code examples or practical snippets, use \\u0060microsoft_code_sample_search\\u0060.\\r\\n3. If deeper or complete information is needed, use \\u0060microsoft_docs_fetch\\u0060.\\r\\n\\r\\n**Search gives breadth. Code Sample Search gives practical examples. Fetch gives depth.**\\r\\n\\r\\nAll content comes from Microsoft Learn or official sources, returned in clean markdown format.\u0022},\u0022id\u0022:\u002275e0de92-4fd3-4d34-b2a3-8e8aa117bca5\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
     }
   },
   "capabilitySnapshot": {
@@ -2416,17 +2420,17 @@
       "toolListResponse": {
         "statusCode": 200,
         "isSuccess": true,
-        "rawJson": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022microsoft_docs_search\u0022,\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022description\u0022:\u0022Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user\\u0027s query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\\n\\n## Follow-up Pattern\\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}}},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022id\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022title\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022contentUrl\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022extensionData\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022]}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_code_sample_search\u0022,\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022description\u0022:\u0022Search for code snippets and examples in official Microsoft Learn documentation. This tool retrieves relevant code samples from Microsoft documentation pages providing developers with practical implementation examples and best practices for Microsoft/Azure products and services related coding tasks. This tool will help you use the **LATEST OFFICIAL** code snippets to empower coding capabilities.\\n\\n## When to Use This Tool\\n- When you are going to provide sample Microsoft/Azure related code snippets in your answers.\\n- When you are **generating any Microsoft/Azure related code**.\\n\\n## Usage Pattern\\nInput a descriptive query, or SDK/class/method name to retrieve related code samples. The optional parameter \\u0060language\\u0060 can help to filter results.\\n\\nEligible values for \\u0060language\\u0060 parameter include: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs\u0022,\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022description\u0022:\u0022Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}},\u0022required\u0022:[\u0022query\u0022]},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022description\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022codeSnippet\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022link\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_docs_fetch\u0022,\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022description\u0022:\u0022Fetch and convert a Microsoft Learn documentation webpage to markdown format. This tool retrieves the latest complete content of Microsoft documentation webpages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\\n\\n## When to Use This Tool\\n- When search results provide incomplete information or truncated content\\n- When you need complete step-by-step procedures or tutorials\\n- When you need troubleshooting sections, prerequisites, or detailed explanations\\n- When search results reference a specific page that seems highly relevant\\n- For comprehensive guides that require full context\\n\\n## Usage Pattern\\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\\n\\n## URL Requirements\\n- The URL must be a valid HTML documentation webpage from the microsoft.com domain\\n- Binary files (PDF, DOCX, images, etc.) are not supported\\n\\n## Output Format\\nmarkdown with headings, code blocks, tables, and links preserved.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022url\u0022:{\u0022description\u0022:\u0022URL of the Microsoft documentation page to read\u0022,\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022url\u0022]},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}}]},\u0022id\u0022:\u002283d756b1-08a0-4f5a-9c7e-459c2b9e1fda\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
+        "rawJson": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022microsoft_docs_search\u0022,\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022description\u0022:\u0022Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user\\u0027s query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\\n\\n## Follow-up Pattern\\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}}},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022id\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022title\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022contentUrl\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022extensionData\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022]}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_code_sample_search\u0022,\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022description\u0022:\u0022Search for code snippets and examples in official Microsoft Learn documentation. This tool retrieves relevant code samples from Microsoft documentation pages providing developers with practical implementation examples and best practices for Microsoft/Azure products and services related coding tasks. This tool will help you use the **LATEST OFFICIAL** code snippets to empower coding capabilities.\\n\\n## When to Use This Tool\\n- When you are going to provide sample Microsoft/Azure related code snippets in your answers.\\n- When you are **generating any Microsoft/Azure related code**.\\n\\n## Usage Pattern\\nInput a descriptive query, or SDK/class/method name to retrieve related code samples. The optional parameter \\u0060language\\u0060 can help to filter results.\\n\\nEligible values for \\u0060language\\u0060 parameter include: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs\u0022,\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022description\u0022:\u0022Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}},\u0022required\u0022:[\u0022query\u0022]},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022description\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022codeSnippet\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022link\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_docs_fetch\u0022,\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022description\u0022:\u0022Fetch and convert a Microsoft Learn documentation webpage to markdown format. This tool retrieves the latest complete content of Microsoft documentation webpages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\\n\\n## When to Use This Tool\\n- When search results provide incomplete information or truncated content\\n- When you need complete step-by-step procedures or tutorials\\n- When you need troubleshooting sections, prerequisites, or detailed explanations\\n- When search results reference a specific page that seems highly relevant\\n- For comprehensive guides that require full context\\n\\n## Usage Pattern\\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\\n\\n## URL Requirements\\n- The URL must be a valid HTML documentation webpage from the microsoft.com domain\\n- Binary files (PDF, DOCX, images, etc.) are not supported\\n\\n## Output Format\\nmarkdown with headings, code blocks, tables, and links preserved.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022url\u0022:{\u0022description\u0022:\u0022URL of the Microsoft documentation page to read\u0022,\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022url\u0022]},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}}]},\u0022id\u0022:\u002285c7be9a-38b3-4c1a-b9ca-55c1bb257ace\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
         "error": null,
         "headers": {
           "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
           "X-Powered-By": "ASP.NET",
-          "x-azure-ref": "20260422T090822Z-1544cdc69f88lp62hC1WSTnkgn0000000wx0000000002d8c",
+          "x-azure-ref": "20260422T134300Z-1544cdc69f8gfdxqhC1WST7tns0000000y60000000009554",
           "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
           "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
           "X-Content-Type-Options": "nosniff",
           "Cache-Control": "no-store, no-cache",
-          "Date": "Wed, 22 Apr 2026 09:08:22 GMT",
+          "Date": "Wed, 22 Apr 2026 13:43:00 GMT",
           "Connection": "keep-alive",
           "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
           "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -2434,24 +2438,24 @@
           "Content-Type": "text/event-stream",
           "Content-Encoding": "identity",
           "Content-Length": "4987",
-          "Expires": "Wed, 22 Apr 2026 09:08:22 GMT"
+          "Expires": "Wed, 22 Apr 2026 13:43:00 GMT"
         },
-        "elapsedMs": 74.9136
+        "elapsedMs": 68.1919
       },
       "resourceListResponse": {
         "statusCode": 200,
         "isSuccess": true,
-        "rawJson": "{\u0022result\u0022:{\u0022resources\u0022:[]},\u0022id\u0022:\u002274adb0d8-efcd-423a-aa11-d636f729b92f\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
+        "rawJson": "{\u0022result\u0022:{\u0022resources\u0022:[]},\u0022id\u0022:\u0022d686b626-35df-4aef-84db-df92c5c5cb58\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
         "error": null,
         "headers": {
           "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
           "X-Powered-By": "ASP.NET",
-          "x-azure-ref": "20260422T090822Z-1544cdc69f88lp62hC1WSTnkgn0000000wx0000000002d8f",
+          "x-azure-ref": "20260422T134300Z-1544cdc69f8vzd4jhC1WSTmk980000000yzg000000006tya",
           "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
           "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
           "X-Content-Type-Options": "nosniff",
           "Cache-Control": "no-store, no-cache",
-          "Date": "Wed, 22 Apr 2026 09:08:22 GMT",
+          "Date": "Wed, 22 Apr 2026 13:43:00 GMT",
           "Connection": "keep-alive",
           "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
           "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -2459,24 +2463,24 @@
           "Content-Type": "text/event-stream",
           "Content-Encoding": "identity",
           "Content-Length": "110",
-          "Expires": "Wed, 22 Apr 2026 09:08:22 GMT"
+          "Expires": "Wed, 22 Apr 2026 13:43:00 GMT"
         },
-        "elapsedMs": 53.8007
+        "elapsedMs": 63.6275
       },
       "promptListResponse": {
         "statusCode": 200,
         "isSuccess": true,
-        "rawJson": "{\u0022result\u0022:{\u0022prompts\u0022:[]},\u0022id\u0022:\u00228dca6b91-4331-47d6-987e-ff0ade6bf44a\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
+        "rawJson": "{\u0022result\u0022:{\u0022prompts\u0022:[]},\u0022id\u0022:\u00220d97366d-b9de-402c-a3fc-7a111aae6f0f\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}",
         "error": null,
         "headers": {
           "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
           "X-Powered-By": "ASP.NET",
-          "x-azure-ref": "20260422T090822Z-1544cdc69f88lp62hC1WSTnkgn0000000wx0000000002d8h",
+          "x-azure-ref": "20260422T134300Z-1544cdc69f8vzd4jhC1WSTmk980000000yzg000000006tyd",
           "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
           "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
           "X-Content-Type-Options": "nosniff",
           "Cache-Control": "no-store, no-cache",
-          "Date": "Wed, 22 Apr 2026 09:08:22 GMT",
+          "Date": "Wed, 22 Apr 2026 13:43:00 GMT",
           "Connection": "keep-alive",
           "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
           "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -2484,13 +2488,13 @@
           "Content-Type": "text/event-stream",
           "Content-Encoding": "identity",
           "Content-Length": "108",
-          "Expires": "Wed, 22 Apr 2026 09:08:22 GMT"
+          "Expires": "Wed, 22 Apr 2026 13:43:00 GMT"
         },
-        "elapsedMs": 69.1539
+        "elapsedMs": 62.8291
       },
-      "toolListDurationMs": 75.548,
-      "resourceListDurationMs": 53.978,
-      "promptListDurationMs": 69.413,
+      "toolListDurationMs": 68.801,
+      "resourceListDurationMs": 63.918,
+      "promptListDurationMs": 63.333,
       "resourceListingSucceeded": true,
       "promptListingSucceeded": true,
       "discoveredResourcesCount": 0,
@@ -2501,12 +2505,12 @@
       "headers": {
         "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
         "X-Powered-By": "ASP.NET",
-        "x-azure-ref": "20260422T090822Z-1544cdc69f88lp62hC1WSTnkgn0000000wx0000000002d8c",
+        "x-azure-ref": "20260422T134300Z-1544cdc69f8gfdxqhC1WST7tns0000000y60000000009554",
         "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
         "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
         "X-Content-Type-Options": "nosniff",
         "Cache-Control": "no-store, no-cache",
-        "Date": "Wed, 22 Apr 2026 09:08:22 GMT",
+        "Date": "Wed, 22 Apr 2026 13:43:00 GMT",
         "Connection": "keep-alive",
         "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
         "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -2514,16 +2518,16 @@
         "Content-Type": "text/event-stream",
         "Content-Encoding": "identity",
         "Content-Length": "4987",
-        "Expires": "Wed, 22 Apr 2026 09:08:22 GMT"
+        "Expires": "Wed, 22 Apr 2026 13:43:00 GMT"
       },
-      "duration": "00:00:00.0755480",
-      "rawContent": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022microsoft_docs_search\u0022,\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022description\u0022:\u0022Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user\\u0027s query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\\n\\n## Follow-up Pattern\\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}}},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022id\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022title\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022contentUrl\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022extensionData\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022]}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_code_sample_search\u0022,\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022description\u0022:\u0022Search for code snippets and examples in official Microsoft Learn documentation. This tool retrieves relevant code samples from Microsoft documentation pages providing developers with practical implementation examples and best practices for Microsoft/Azure products and services related coding tasks. This tool will help you use the **LATEST OFFICIAL** code snippets to empower coding capabilities.\\n\\n## When to Use This Tool\\n- When you are going to provide sample Microsoft/Azure related code snippets in your answers.\\n- When you are **generating any Microsoft/Azure related code**.\\n\\n## Usage Pattern\\nInput a descriptive query, or SDK/class/method name to retrieve related code samples. The optional parameter \\u0060language\\u0060 can help to filter results.\\n\\nEligible values for \\u0060language\\u0060 parameter include: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs\u0022,\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022description\u0022:\u0022Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}},\u0022required\u0022:[\u0022query\u0022]},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022description\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022codeSnippet\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022link\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_docs_fetch\u0022,\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022description\u0022:\u0022Fetch and convert a Microsoft Learn documentation webpage to markdown format. This tool retrieves the latest complete content of Microsoft documentation webpages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\\n\\n## When to Use This Tool\\n- When search results provide incomplete information or truncated content\\n- When you need complete step-by-step procedures or tutorials\\n- When you need troubleshooting sections, prerequisites, or detailed explanations\\n- When search results reference a specific page that seems highly relevant\\n- For comprehensive guides that require full context\\n\\n## Usage Pattern\\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\\n\\n## URL Requirements\\n- The URL must be a valid HTML documentation webpage from the microsoft.com domain\\n- Binary files (PDF, DOCX, images, etc.) are not supported\\n\\n## Output Format\\nmarkdown with headings, code blocks, tables, and links preserved.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022url\u0022:{\u0022description\u0022:\u0022URL of the Microsoft documentation page to read\u0022,\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022url\u0022]},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}}]},\u0022id\u0022:\u002283d756b1-08a0-4f5a-9c7e-459c2b9e1fda\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
+      "duration": "00:00:00.0688010",
+      "rawContent": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022microsoft_docs_search\u0022,\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022description\u0022:\u0022Search official Microsoft/Azure documentation to find the most relevant and trustworthy content for a user\\u0027s query. This tool returns up to 10 high-quality content chunks (each max 500 tokens), extracted from Microsoft Learn and other official sources. Each result includes the article title, URL, and a self-contained content excerpt optimized for fast retrieval and reasoning. Always use this tool to quickly ground your answers in accurate, first-party Microsoft/Azure knowledge.\\n\\n## Follow-up Pattern\\nTo ensure completeness, use microsoft_docs_fetch when high-value pages are identified by search. The fetch tool complements search by providing the full detail. This is a required step for comprehensive results.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a query or topic about Microsoft/Azure products, services, platforms, developer tools, frameworks, or APIs\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}}},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022id\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022title\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022contentUrl\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022},\u0022extensionData\u0022:{\u0022type\u0022:[\u0022object\u0022,\u0022null\u0022]}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_code_sample_search\u0022,\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022description\u0022:\u0022Search for code snippets and examples in official Microsoft Learn documentation. This tool retrieves relevant code samples from Microsoft documentation pages providing developers with practical implementation examples and best practices for Microsoft/Azure products and services related coding tasks. This tool will help you use the **LATEST OFFICIAL** code snippets to empower coding capabilities.\\n\\n## When to Use This Tool\\n- When you are going to provide sample Microsoft/Azure related code snippets in your answers.\\n- When you are **generating any Microsoft/Azure related code**.\\n\\n## Usage Pattern\\nInput a descriptive query, or SDK/class/method name to retrieve related code samples. The optional parameter \\u0060language\\u0060 can help to filter results.\\n\\nEligible values for \\u0060language\\u0060 parameter include: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022query\u0022:{\u0022description\u0022:\u0022a descriptive query, SDK name, method name or code snippet related to Microsoft/Azure products, services, platforms, developer tools, frameworks, APIs or SDKs\u0022,\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022description\u0022:\u0022Optional parameter specifying the programming language of code snippets to retrieve. Can significantly improve search quality if provided. Eligible values: csharp javascript typescript python powershell azurecli al sql java kusto cpp go rust ruby php\u0022,\u0022type\u0022:\u0022string\u0022,\u0022default\u0022:null}},\u0022required\u0022:[\u0022query\u0022]},\u0022outputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022results\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022description\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022codeSnippet\u0022:{\u0022type\u0022:[\u0022string\u0022,\u0022null\u0022]},\u0022link\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022language\u0022:{\u0022type\u0022:\u0022string\u0022},\u0022content_omitted\u0022:{\u0022type\u0022:\u0022boolean\u0022}}}}}},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Code Sample Search\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}},{\u0022name\u0022:\u0022microsoft_docs_fetch\u0022,\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022description\u0022:\u0022Fetch and convert a Microsoft Learn documentation webpage to markdown format. This tool retrieves the latest complete content of Microsoft documentation webpages including Azure, .NET, Microsoft 365, and other Microsoft technologies.\\n\\n## When to Use This Tool\\n- When search results provide incomplete information or truncated content\\n- When you need complete step-by-step procedures or tutorials\\n- When you need troubleshooting sections, prerequisites, or detailed explanations\\n- When search results reference a specific page that seems highly relevant\\n- For comprehensive guides that require full context\\n\\n## Usage Pattern\\nUse this tool AFTER microsoft_docs_search when you identify specific high-value pages that need complete content. The search tool gives you an overview; this tool gives you the complete picture.\\n\\n## URL Requirements\\n- The URL must be a valid HTML documentation webpage from the microsoft.com domain\\n- Binary files (PDF, DOCX, images, etc.) are not supported\\n\\n## Output Format\\nmarkdown with headings, code blocks, tables, and links preserved.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022url\u0022:{\u0022description\u0022:\u0022URL of the Microsoft documentation page to read\u0022,\u0022type\u0022:\u0022string\u0022}},\u0022required\u0022:[\u0022url\u0022]},\u0022annotations\u0022:{\u0022title\u0022:\u0022Microsoft Docs Fetch\u0022,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022readOnlyHint\u0022:true}}]},\u0022id\u0022:\u002285c7be9a-38b3-4c1a-b9ca-55c1bb257ace\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
     }
   },
   "bootstrapHealth": {
     "isHealthy": true,
     "disposition": 1,
-    "responseTimeMs": 629.642,
+    "responseTimeMs": 761.142,
     "serverVersion": "1.0.0",
     "protocolVersion": "2025-06-18",
     "errorMessage": null,
@@ -2565,14 +2569,14 @@
         "statusCode": 200,
         "headers": {
           "Request-Context": "appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f",
-          "mcp-session-id": "eyJjbGllbnRJbmZvIjp7Im5hbWUiOiJtY3AtYmVuY2htYXJrIiwidGl0bGUiOm51bGwsInZlcnNpb24iOiIxLjAuMCIsImljb25zIjpudWxsLCJ3ZWJzaXRlVXJsIjpudWxsfSwidXNlcklkQ2xhaW0iOiIxZDIzMmQzOC1hNDY5LTQ2ZWMtYmU0NS0zMzAyYmRlODliNmQifQ==",
+          "mcp-session-id": "eyJjbGllbnRJbmZvIjp7Im5hbWUiOiJtY3AtYmVuY2htYXJrIiwidGl0bGUiOm51bGwsInZlcnNpb24iOiIxLjAuMCIsImljb25zIjpudWxsLCJ3ZWJzaXRlVXJsIjpudWxsfSwidXNlcklkQ2xhaW0iOiJmNjk1YTg3NS1kYWVhLTRlMTUtODMxOS0wMmU1MGI0NmM3NmQifQ==",
           "X-Powered-By": "ASP.NET",
-          "x-azure-ref": "20260422T090821Z-1544cdc69f8gxz7shC1WSTqz300000000arg000000000zhu",
+          "x-azure-ref": "20260422T134259Z-1544cdc69f8gfdxqhC1WST7tns0000000y6000000000953v",
           "nel": "{\u0022report_to\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022success_fraction\u0022:0.01,\u0022failure_fraction\u0022:1.0}",
           "report-to": "{\u0022group\u0022:\u0022network-errors\u0022,\u0022max_age\u0022:604800,\u0022endpoints\u0022:[{\u0022url\u0022:\u0022https://mdec.nelreports.net/api/report?cat=mdocs\u0022}]}",
           "X-Content-Type-Options": "nosniff",
           "Cache-Control": "no-store, no-cache",
-          "Date": "Wed, 22 Apr 2026 09:08:21 GMT",
+          "Date": "Wed, 22 Apr 2026 13:42:59 GMT",
           "Connection": "keep-alive",
           "Set-Cookie": "ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;,ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;",
           "Akamai-Cache-Status": "Miss from child, Miss from parent",
@@ -2580,10 +2584,10 @@
           "Content-Type": "text/event-stream",
           "Content-Encoding": "identity",
           "Content-Length": "1987",
-          "Expires": "Wed, 22 Apr 2026 09:08:21 GMT"
+          "Expires": "Wed, 22 Apr 2026 13:42:59 GMT"
         },
-        "duration": "00:00:00.6296420",
-        "rawContent": "{\u0022result\u0022:{\u0022protocolVersion\u0022:\u00222025-06-18\u0022,\u0022capabilities\u0022:{\u0022logging\u0022:{},\u0022prompts\u0022:{\u0022listChanged\u0022:true},\u0022resources\u0022:{\u0022listChanged\u0022:true},\u0022tools\u0022:{\u0022listChanged\u0022:true}},\u0022serverInfo\u0022:{\u0022name\u0022:\u0022Microsoft Learn MCP Server\u0022,\u0022version\u0022:\u00221.0.0\u0022},\u0022instructions\u0022:\u0022# Microsoft Learn MCP Server\\r\\n\\r\\nThis server gives structured access to official Microsoft and Azure documentation via three tools:\\r\\n\\r\\n## Tools\\r\\n\\r\\n### microsoft_docs_search\\r\\nSearch official documentation and return up to 10 concise, high-quality content chunks (max 500 tokens each), including title, URL, and excerpt.\\r\\n\\r\\n- Use first to get a quick, reliable overview\\r\\n- Ideal for grounding answers in Microsoft knowledge\\r\\n\\r\\n### microsoft_code_sample_search\\r\\nSearch for code snippets and examples in official Microsoft Learn documentation and return up to 20 relevant, high-quality code samples.\\r\\n\\r\\n- Use when you need to provide sample Microsoft/Azure related code in your answers.  \\r\\n- Ideal for generating code snippets or practical implementation examples.  \\r\\n- Optional parameter \\u0060language\\u0060 can filter results. \\r\\n\\r\\n### microsoft_docs_fetch\\r\\nFetch and convert full Microsoft documentation pages to markdown.\\r\\n\\r\\n- Use after search when you need full content from a specific URL\\r\\n- Required for detailed tutorials, troubleshooting, prerequisites, code samples, or when search results are incomplete or outdated\\r\\n\\r\\n## Workflow\\r\\n\\r\\n1. Use \\u0060microsoft_docs_search\\u0060 to find relevant documents.\\r\\n2. If you need code examples or practical snippets, use \\u0060microsoft_code_sample_search\\u0060.\\r\\n3. If deeper or complete information is needed, use \\u0060microsoft_docs_fetch\\u0060.\\r\\n\\r\\n**Search gives breadth. Code Sample Search gives practical examples. Fetch gives depth.**\\r\\n\\r\\nAll content comes from Microsoft Learn or official sources, returned in clean markdown format.\u0022},\u0022id\u0022:\u00229fe1d05f-be6c-47a3-ae44-288b40df456f\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
+        "duration": "00:00:00.7611420",
+        "rawContent": "{\u0022result\u0022:{\u0022protocolVersion\u0022:\u00222025-06-18\u0022,\u0022capabilities\u0022:{\u0022logging\u0022:{},\u0022prompts\u0022:{\u0022listChanged\u0022:true},\u0022resources\u0022:{\u0022listChanged\u0022:true},\u0022tools\u0022:{\u0022listChanged\u0022:true}},\u0022serverInfo\u0022:{\u0022name\u0022:\u0022Microsoft Learn MCP Server\u0022,\u0022version\u0022:\u00221.0.0\u0022},\u0022instructions\u0022:\u0022# Microsoft Learn MCP Server\\r\\n\\r\\nThis server gives structured access to official Microsoft and Azure documentation via three tools:\\r\\n\\r\\n## Tools\\r\\n\\r\\n### microsoft_docs_search\\r\\nSearch official documentation and return up to 10 concise, high-quality content chunks (max 500 tokens each), including title, URL, and excerpt.\\r\\n\\r\\n- Use first to get a quick, reliable overview\\r\\n- Ideal for grounding answers in Microsoft knowledge\\r\\n\\r\\n### microsoft_code_sample_search\\r\\nSearch for code snippets and examples in official Microsoft Learn documentation and return up to 20 relevant, high-quality code samples.\\r\\n\\r\\n- Use when you need to provide sample Microsoft/Azure related code in your answers.  \\r\\n- Ideal for generating code snippets or practical implementation examples.  \\r\\n- Optional parameter \\u0060language\\u0060 can filter results. \\r\\n\\r\\n### microsoft_docs_fetch\\r\\nFetch and convert full Microsoft documentation pages to markdown.\\r\\n\\r\\n- Use after search when you need full content from a specific URL\\r\\n- Required for detailed tutorials, troubleshooting, prerequisites, code samples, or when search results are incomplete or outdated\\r\\n\\r\\n## Workflow\\r\\n\\r\\n1. Use \\u0060microsoft_docs_search\\u0060 to find relevant documents.\\r\\n2. If you need code examples or practical snippets, use \\u0060microsoft_code_sample_search\\u0060.\\r\\n3. If deeper or complete information is needed, use \\u0060microsoft_docs_fetch\\u0060.\\r\\n\\r\\n**Search gives breadth. Code Sample Search gives practical examples. Fetch gives depth.**\\r\\n\\r\\nAll content comes from Microsoft Learn or official sources, returned in clean markdown format.\u0022},\u0022id\u0022:\u002275e0de92-4fd3-4d34-b2a3-8e8aa117bca5\u0022,\u0022jsonrpc\u0022:\u00222.0\u0022}"
       }
     },
     "allowsDeferredValidation": true
@@ -2769,5 +2773,560 @@
     "suppressedSignalCount": 0,
     "appliedSuppressions": [],
     "ignoredSuppressions": []
+  },
+  "clientCompatibility": {
+    "requestedProfiles": [
+      "claude-code",
+      "vscode-copilot-agent",
+      "github-copilot-cli",
+      "github-copilot-cloud-agent",
+      "visual-studio-copilot"
+    ],
+    "assessments": [
+      {
+        "profileId": "claude-code",
+        "displayName": "Claude Code",
+        "revision": "2026-04",
+        "documentationUrl": "https://docs.anthropic.com/en/docs/claude-code/mcp",
+        "evidenceBasis": 0,
+        "status": 1,
+        "summary": "Required compatibility checks passed; 2 advisory requirements still need follow-up.",
+        "passedRequirements": 2,
+        "warningRequirements": 2,
+        "failedRequirements": 0,
+        "requirements": [
+          {
+            "requirementId": "interactive-surfaces",
+            "title": "At least one interactive MCP surface is available",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Server exposes 3 tool(s).",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tools-contract",
+            "title": "Tool call contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed tools without blocking tool-call contract gaps.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompts-contract",
+            "title": "Prompt get/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resources-contract",
+            "title": "Resource read/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-metadata",
+            "title": "Tool presentation and approval metadata is complete",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-schema",
+            "title": "Tool schemas are clear enough for agent planning",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompt-metadata",
+            "title": "Prompt metadata is descriptive enough for guided use",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resource-metadata",
+            "title": "Resource metadata is descriptive enough for attachment and browsing flows",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          }
+        ],
+        "statusLabel": "Compatible with warnings"
+      },
+      {
+        "profileId": "vscode-copilot-agent",
+        "displayName": "VS Code Copilot Agent",
+        "revision": "2026-04",
+        "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers",
+        "evidenceBasis": 0,
+        "status": 1,
+        "summary": "Required compatibility checks passed; 2 advisory requirements still need follow-up.",
+        "passedRequirements": 2,
+        "warningRequirements": 2,
+        "failedRequirements": 0,
+        "requirements": [
+          {
+            "requirementId": "interactive-surfaces",
+            "title": "At least one interactive MCP surface is available",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Server exposes 3 tool(s).",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tools-contract",
+            "title": "Tool call contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed tools without blocking tool-call contract gaps.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompts-contract",
+            "title": "Prompt get/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resources-contract",
+            "title": "Resource read/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-metadata",
+            "title": "Tool presentation and approval metadata is complete",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-schema",
+            "title": "Tool schemas are clear enough for agent planning",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompt-metadata",
+            "title": "Prompt metadata is descriptive enough for guided use",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resource-metadata",
+            "title": "Resource metadata is descriptive enough for attachment and browsing flows",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          }
+        ],
+        "statusLabel": "Compatible with warnings"
+      },
+      {
+        "profileId": "github-copilot-cli",
+        "displayName": "GitHub Copilot CLI",
+        "revision": "2026-04",
+        "documentationUrl": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers",
+        "evidenceBasis": 0,
+        "status": 1,
+        "summary": "Required compatibility checks passed; 2 advisory requirements still need follow-up.",
+        "passedRequirements": 2,
+        "warningRequirements": 2,
+        "failedRequirements": 0,
+        "requirements": [
+          {
+            "requirementId": "tool-tools-present",
+            "title": "Tool surface is available",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed 3 tool(s) for this client profile.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tools-contract",
+            "title": "Tool call contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed tools without blocking tool-call contract gaps.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-metadata",
+            "title": "Tool presentation and approval metadata is complete",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-schema",
+            "title": "Tool schemas are clear enough for agent planning",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible.",
+            "documentationUrl": null
+          }
+        ],
+        "statusLabel": "Compatible with warnings"
+      },
+      {
+        "profileId": "github-copilot-cloud-agent",
+        "displayName": "GitHub Copilot Cloud Agent",
+        "revision": "2026-04",
+        "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp",
+        "evidenceBasis": 0,
+        "status": 1,
+        "summary": "Required compatibility checks passed; 2 advisory requirements still need follow-up.",
+        "passedRequirements": 3,
+        "warningRequirements": 2,
+        "failedRequirements": 0,
+        "requirements": [
+          {
+            "requirementId": "tool-tools-present",
+            "title": "Tool surface is available",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed 3 tool(s) for this client profile.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tools-contract",
+            "title": "Tool call contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed tools without blocking tool-call contract gaps.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "surface-tools-only-surface",
+            "title": "Only the tool surface is currently consumed",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Server exposes tools only, which aligns cleanly with this profile\u0027s current surface support.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-metadata",
+            "title": "Tool presentation and approval metadata is complete",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-schema",
+            "title": "Tool schemas are clear enough for agent planning",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible.",
+            "documentationUrl": null
+          }
+        ],
+        "statusLabel": "Compatible with warnings"
+      },
+      {
+        "profileId": "visual-studio-copilot",
+        "displayName": "Visual Studio Copilot",
+        "revision": "2026-04",
+        "documentationUrl": "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio",
+        "evidenceBasis": 0,
+        "status": 1,
+        "summary": "Required compatibility checks passed; 2 advisory requirements still need follow-up.",
+        "passedRequirements": 2,
+        "warningRequirements": 2,
+        "failedRequirements": 0,
+        "requirements": [
+          {
+            "requirementId": "interactive-surfaces",
+            "title": "At least one interactive MCP surface is available",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Server exposes 3 tool(s).",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tools-contract",
+            "title": "Tool call contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 0,
+            "summary": "Observed tools without blocking tool-call contract gaps.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompts-contract",
+            "title": "Prompt get/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resources-contract",
+            "title": "Resource read/list contract is structurally valid",
+            "level": 0,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource contract validation was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-metadata",
+            "title": "Tool presentation and approval metadata is complete",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "tool-tool-schema",
+            "title": "Tool schemas are clear enough for agent planning",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 1,
+            "summary": "Advisory tool guidance gaps affect 3/3 tool(s).",
+            "ruleIds": [
+              "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING",
+              "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING"
+            ],
+            "exampleComponents": [
+              "microsoft_docs_search",
+              "microsoft_code_sample_search",
+              "microsoft_docs_fetch"
+            ],
+            "recommendation": "Constrain string parameters with enum, pattern, or format metadata when possible.",
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "prompt-prompt-metadata",
+            "title": "Prompt metadata is descriptive enough for guided use",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No prompts were discovered, so prompt metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          },
+          {
+            "requirementId": "resource-resource-metadata",
+            "title": "Resource metadata is descriptive enough for attachment and browsing flows",
+            "level": 1,
+            "evidenceBasis": 0,
+            "outcome": 3,
+            "summary": "No resources were discovered, so resource metadata guidance was not applicable.",
+            "ruleIds": [],
+            "exampleComponents": [],
+            "recommendation": null,
+            "documentationUrl": null
+          }
+        ],
+        "statusLabel": "Compatible with warnings"
+      }
+    ],
+    "compatibleCount": 0,
+    "warningCount": 5,
+    "incompatibleCount": 0
   }
 }

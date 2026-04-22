@@ -40,9 +40,10 @@ Tracks report quality, scoring correctness, and architectural improvements ident
 
 ### Latest Evidence Snapshot
 
-- **Artifact set:** `PublicReports/microsoft-learn-mcp-live-20260422/mcp-validation-20260422-090835-*`
-- **Live outcome:** `Passed`, `92.3%`, `L4`, `Balanced policy requirements satisfied.`
-- **Truthfulness checks holding:** `promptInjectionSurfaceCount = 0`, `Resource templates: 0 templates discovered`, and `MCP-SEC-002` now renders as `SKIPPED` rather than a vulnerability.
+- **Artifact sets:** `PublicReports/github-mcp-remote-live-20260422/mcp-validation-20260422-134617-*` and `PublicReports/microsoft-learn-mcp-live-20260422/mcp-validation-20260422-134401-*`
+- **Live outcomes:** GitHub remote `Passed`, `73.44%`, `L4`, `Balanced policy requirements satisfied`; Microsoft Learn `Passed`, `92.34%`, `L4`, `Balanced policy requirements satisfied.`
+- **Truthfulness checks holding:** GitHub keeps prompt scoring aligned with `2/2` successful prompt executions and reports `Tools/list = 41` consistently across capability snapshot and tool validation; Microsoft Learn renders the zero-prompt path as `No prompts were advertised; no prompt executions were required`; `MCP-SEC-002` still renders as `SKIPPED` rather than a vulnerability.
+- **Client compatibility reporting:** `validate` now evaluates all documented host profiles by default; `--client-profile` narrows the evaluated set instead of acting as an enable switch, and both live runs now emit `*-profile-summary.json` by default.
 - **Remaining live findings are protocol-only:** `MCP-PROTO-ERR` (parse error, missing `jsonrpc`, invalid params) and `MCP-PROTO-JSONRPC` (batch handling).
 
 ### Milestone Closure
@@ -97,7 +98,7 @@ Tracks report quality, scoring correctness, and architectural improvements ident
 #### 13. Phase synthetic load for public remotes instead of starting at 100-way concurrency
 
 - **Outcome:** Public remote probing now ramps safely instead of opening with the most aggressive concurrency.
-- **Evidence:** The latest report records stabilization at concurrency `2` before ramping to target concurrency `10`.
+- **Evidence:** The latest Microsoft Learn report records stabilization at concurrency `20` before ramping to target concurrency `100`.
 
 #### 14. Narrow MUST trust caps to protocol-blocking spec failures only
 
@@ -170,7 +171,7 @@ These items are intentionally parked outside the closed correctness milestone. T
 
 ### External Endpoint Observations
 
-These are current Microsoft Learn server findings from the `2026-04-22 09:08:35 UTC` artifact set. They are external endpoint issues, not current validator truthfulness defects or open repo backlog.
+These are current Microsoft Learn server findings from the `2026-04-22 13:44:01 UTC` artifact set. They are external endpoint issues, not current validator truthfulness defects or open repo backlog.
 
 #### A. `MCP-PROTO-ERR` (3 instances)
 

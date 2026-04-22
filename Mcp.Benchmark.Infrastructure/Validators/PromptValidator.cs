@@ -377,13 +377,17 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             
             if (result.Status != TestStatus.Failed)
             {
-                result.Status = result.PromptResults.All(r => r.Status == TestStatus.Passed) ? TestStatus.Passed : TestStatus.Failed;
+                result.PromptsTestPassed = result.PromptResults.Count(r => r.Status == TestStatus.Passed);
+                result.PromptsTestFailed = result.PromptResults.Count(r => r.Status == TestStatus.Failed);
+                result.Status = result.PromptsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
             }
             
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
-            result.Issues.Add($"✅ COMPLIANT: {result.PromptsDiscovered} prompts discovered and validated");
+            result.Issues.Add(result.PromptsDiscovered == 0
+                ? "✅ COMPLIANT: No prompts were advertised; no prompt executions were required"
+                : $"✅ COMPLIANT: {result.PromptsDiscovered} prompts discovered and validated");
             
             return result;
         }, cancellationToken);

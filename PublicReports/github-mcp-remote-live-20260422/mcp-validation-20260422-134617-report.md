@@ -1,16 +1,16 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-22 12:46:47 UTC
+**Generated:** 2026-04-22 13:46:17 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://api.githubcopilot.com/mcp/` |
-| **Validation ID** | `bb508aa2-cfbe-4505-af6b-374d7b8d0b39` |
+| **Validation ID** | `dfdd05e3-92e4-4204-8c2c-4f3be39576ed` |
 | **Overall Status** | ✅ **Passed** |
-| **Compliance Score** | **68.4%** |
+| **Compliance Score** | **73.4%** |
 | **Compliance Profile** | `Authenticated (Inferred)` |
-| **Duration** | 127.19s |
+| **Duration** | 132.28s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -27,7 +27,7 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 1520.7 ms |
+| **Handshake Duration** | 1474.2 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `github-mcp-server/remote-b9dba86b94750c395d41a8068b6602ee7068025d` |
 | **Server Profile Resolution** | `Authenticated (Inferred)` |
@@ -125,7 +125,7 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 3 advisory gap(s).
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -143,7 +143,7 @@ Required compatibility checks passed, with 3 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 3 advisory gap(s).
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -161,7 +161,7 @@ Required compatibility checks passed, with 3 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 2 advisory gap(s).
+Required compatibility checks passed; 2 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -177,7 +177,7 @@ Required compatibility checks passed, with 2 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 3 advisory gap(s).
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -194,7 +194,7 @@ Required compatibility checks passed, with 3 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 3 advisory gap(s).
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -212,9 +212,9 @@ Required compatibility checks passed, with 3 advisory gap(s).
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 0 | HTTP 200 | 357.4 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 145.0 ms | ✅ Listed |
-| Prompts/list | 2 | HTTP 200 | 188.3 ms | ✅ Listed |
+| Tools/list | 41 | HTTP 200 | 350.1 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 134.6 ms | ✅ Listed |
+| Prompts/list | 2 | HTTP 200 | 184.4 ms | ✅ Listed |
 
 - **First Tool Probed:** `add_comment_to_pending_review`
 
@@ -223,7 +223,7 @@ Required compatibility checks passed, with 3 advisory gap(s).
 These notes explain how the overall score and blocking decision were calibrated for this run.
 
 - GUIDANCE: 7 protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by 20%.
-- Score is below the preferred target, but no blocking failure was observed in this run.
+- Score meets the preferred target with non-blocking improvement opportunities.
 
 ## 9. Compliance Matrix
 
@@ -315,9 +315,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"489afed1-8b51-46e3-bf71-79d4908daa08","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"9f912f8f-63e9-456a-b96a-6b6fd2ab5ad2","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"2f51fc82-66d6-4cd5-9b66-f39d9995ad90","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"f60c0425-046c-468e-8530-62dd9f2f5ee3","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"e0bc12b8-05d7-4c6b-8b91-69148d6ed079","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"8579ff2b-409d-46b0-9ff4-7d48cdf6c2d6","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
@@ -391,13 +391,13 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 357.36ms
+**Execution Time:** 350.14ms
 ---
 
 ### Tool: `add_comment_to_pending_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 935.55ms
+**Execution Time:** 848.18ms
 
 #### Tool Metadata
 | Property | Value |
@@ -409,7 +409,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_issue_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 819.30ms
+**Execution Time:** 809.18ms
 
 #### Tool Metadata
 | Property | Value |
@@ -421,7 +421,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_reply_to_pull_request_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 616.67ms
+**Execution Time:** 627.28ms
 
 #### Tool Metadata
 | Property | Value |
@@ -433,7 +433,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 532.33ms
+**Execution Time:** 721.39ms
 
 #### Tool Metadata
 | Property | Value |
@@ -445,7 +445,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_or_update_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 535.44ms
+**Execution Time:** 556.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -457,7 +457,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 518.80ms
+**Execution Time:** 497.19ms
 
 #### Tool Metadata
 | Property | Value |
@@ -469,7 +469,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 433.77ms
+**Execution Time:** 282.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -481,7 +481,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `delete_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 782.82ms
+**Execution Time:** 646.59ms
 
 #### Tool Metadata
 | Property | Value |
@@ -494,7 +494,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `fork_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 455.39ms
+**Execution Time:** 590.97ms
 
 #### Tool Metadata
 | Property | Value |
@@ -506,7 +506,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_commit`
 
 **Status:** ✅ Passed
-**Execution Time:** 554.24ms
+**Execution Time:** 557.36ms
 
 #### Tool Metadata
 | Property | Value |
@@ -519,7 +519,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_file_contents`
 
 **Status:** ✅ Passed
-**Execution Time:** 634.55ms
+**Execution Time:** 665.56ms
 
 #### Tool Metadata
 | Property | Value |
@@ -532,7 +532,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_label`
 
 **Status:** ✅ Passed
-**Execution Time:** 426.49ms
+**Execution Time:** 633.43ms
 
 #### Tool Metadata
 | Property | Value |
@@ -545,7 +545,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_latest_release`
 
 **Status:** ✅ Passed
-**Execution Time:** 377.15ms
+**Execution Time:** 419.38ms
 
 #### Tool Metadata
 | Property | Value |
@@ -558,7 +558,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_me`
 
 **Status:** ✅ Passed
-**Execution Time:** 345.09ms
+**Execution Time:** 357.87ms
 
 #### Tool Metadata
 | Property | Value |
@@ -571,7 +571,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_release_by_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 395.67ms
+**Execution Time:** 412.52ms
 
 #### Tool Metadata
 | Property | Value |
@@ -584,7 +584,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 428.04ms
+**Execution Time:** 408.97ms
 
 #### Tool Metadata
 | Property | Value |
@@ -597,7 +597,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_team_members`
 
 **Status:** ✅ Passed
-**Execution Time:** 343.68ms
+**Execution Time:** 335.25ms
 
 #### Tool Metadata
 | Property | Value |
@@ -610,7 +610,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_teams`
 
 **Status:** ✅ Passed
-**Execution Time:** 370.07ms
+**Execution Time:** 388.58ms
 
 #### Tool Metadata
 | Property | Value |
@@ -623,7 +623,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 288.10ms
+**Execution Time:** 315.57ms
 
 #### Tool Metadata
 | Property | Value |
@@ -636,7 +636,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 620.84ms
+**Execution Time:** 409.16ms
 
 #### Tool Metadata
 | Property | Value |
@@ -648,7 +648,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_branches`
 
 **Status:** ✅ Passed
-**Execution Time:** 399.36ms
+**Execution Time:** 460.80ms
 
 #### Tool Metadata
 | Property | Value |
@@ -661,7 +661,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_commits`
 
 **Status:** ✅ Passed
-**Execution Time:** 314.35ms
+**Execution Time:** 289.58ms
 
 #### Tool Metadata
 | Property | Value |
@@ -674,7 +674,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issue_types`
 
 **Status:** ✅ Passed
-**Execution Time:** 265.64ms
+**Execution Time:** 287.32ms
 
 #### Tool Metadata
 | Property | Value |
@@ -687,7 +687,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 301.53ms
+**Execution Time:** 296.67ms
 
 #### Tool Metadata
 | Property | Value |
@@ -700,7 +700,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 476.29ms
+**Execution Time:** 434.48ms
 
 #### Tool Metadata
 | Property | Value |
@@ -713,7 +713,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_releases`
 
 **Status:** ✅ Passed
-**Execution Time:** 382.95ms
+**Execution Time:** 405.04ms
 
 #### Tool Metadata
 | Property | Value |
@@ -726,7 +726,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_tags`
 
 **Status:** ✅ Passed
-**Execution Time:** 418.10ms
+**Execution Time:** 403.34ms
 
 #### Tool Metadata
 | Property | Value |
@@ -739,7 +739,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `merge_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 408.95ms
+**Execution Time:** 412.39ms
 
 #### Tool Metadata
 | Property | Value |
@@ -751,7 +751,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 307.80ms
+**Execution Time:** 371.91ms
 
 #### Tool Metadata
 | Property | Value |
@@ -764,7 +764,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_review_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 315.59ms
+**Execution Time:** 352.84ms
 
 #### Tool Metadata
 | Property | Value |
@@ -776,7 +776,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `push_files`
 
 **Status:** ✅ Passed
-**Execution Time:** 442.21ms
+**Execution Time:** 506.56ms
 
 #### Tool Metadata
 | Property | Value |
@@ -788,7 +788,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `request_copilot_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 387.17ms
+**Execution Time:** 366.54ms
 
 #### Tool Metadata
 | Property | Value |
@@ -800,7 +800,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `run_secret_scanning`
 
 **Status:** ✅ Passed
-**Execution Time:** 234.48ms
+**Execution Time:** 300.31ms
 
 #### Tool Metadata
 | Property | Value |
@@ -814,7 +814,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_code`
 
 **Status:** ✅ Passed
-**Execution Time:** 2052.96ms
+**Execution Time:** 5992.57ms
 
 #### Tool Metadata
 | Property | Value |
@@ -827,7 +827,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 455.48ms
+**Execution Time:** 478.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -840,7 +840,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 492.99ms
+**Execution Time:** 476.91ms
 
 #### Tool Metadata
 | Property | Value |
@@ -853,7 +853,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_repositories`
 
 **Status:** ✅ Passed
-**Execution Time:** 487.66ms
+**Execution Time:** 536.24ms
 
 #### Tool Metadata
 | Property | Value |
@@ -866,7 +866,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_users`
 
 **Status:** ✅ Passed
-**Execution Time:** 405.20ms
+**Execution Time:** 453.52ms
 
 #### Tool Metadata
 | Property | Value |
@@ -879,7 +879,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `sub_issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 520.05ms
+**Execution Time:** 380.79ms
 
 #### Tool Metadata
 | Property | Value |
@@ -891,7 +891,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 424.44ms
+**Execution Time:** 376.31ms
 
 #### Tool Metadata
 | Property | Value |
@@ -903,7 +903,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 360.74ms
+**Execution Time:** 335.35ms
 
 #### Tool Metadata
 | Property | Value |
@@ -977,9 +977,9 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 151.62ms | ✅ Good |
-| **P95 Latency** | 221.00ms | - |
-| **Throughput** | 5.05 req/sec | - |
+| **Avg Latency** | 153.12ms | ✅ Good |
+| **P95 Latency** | 230.00ms | - |
+| **Throughput** | 5.01 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 500/500 successful | - |
 

@@ -729,6 +729,15 @@ body {
     line-height: 1.56;
     max-width: 920px;
 }
+.section-shell > .section-kicker,
+.section-shell > .section-title,
+.section-shell > .section-intro {
+    text-align: center;
+}
+.section-shell > .section-intro {
+    margin-left: auto;
+    margin-right: auto;
+}
 .distribution-summary {
     margin-top: 14px;
     padding: 12px 14px;
@@ -896,6 +905,84 @@ body {
     border-radius: 18px;
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.82);
+.authority-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+.authority-card {
+    border-radius: 18px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,0.88);
+    padding: 14px;
+    box-shadow: 0 8px 24px rgba(24,34,49,0.04);
+}
+.authority-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.82)); }
+.authority-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,241,230,0.78)); }
+.authority-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,236,239,0.78)); }
+.authority-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(237,242,251,0.82)); }
+.authority-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(242,245,248,0.88)); }
+.authority-card__header {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    align-items: flex-start;
+}
+.authority-card__eyebrow {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__title {
+    margin-top: 6px;
+    font-size: 1.05rem;
+    line-height: 1.2;
+    color: var(--text-strong);
+    font-weight: 700;
+}
+.authority-card__metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+.authority-card__metric {
+    border-radius: 12px;
+    border: 1px solid rgba(174, 187, 201, 0.45);
+    background: rgba(255,255,255,0.7);
+    padding: 8px 10px;
+}
+.authority-card__metric-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__metric-value {
+    margin-top: 6px;
+    color: var(--text-strong);
+    font-size: 0.94rem;
+    line-height: 1.4;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+.authority-card__label {
+    margin-top: 12px;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-soft);
+    font-weight: 700;
+}
+.authority-card__empty {
+    margin: 10px 0 0;
+    color: var(--text-muted);
+    line-height: 1.56;
+}
     padding: 14px;
     box-shadow: 0 8px 24px rgba(24,34,49,0.04);
 }
@@ -1134,6 +1221,12 @@ a:hover {
     .section-heading-row {
         flex-direction: column;
     }
+    .authority-card__header {
+        flex-direction: column;
+    }
+    .authority-card__metrics {
+        grid-template-columns: 1fr;
+    }
 }
 @media print {
     @page {
@@ -1222,11 +1315,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">bb508aa2-cfbe-4505-af6b-374d7b8d0b39</div>
+                <div class="fact-item__value">dfdd05e3-92e4-4204-8c2c-4f3be39576ed</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">127.2s</div>
+                <div class="fact-item__value">132.3s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1247,7 +1340,7 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Run Status</span>
     <div class="focus-value">Passed</div>
-    <div class="focus-label">Generated on 2026-04-22 12:46:47 UTC</div>
+    <div class="focus-label">Generated on 2026-04-22 13:46:17 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Trust Posture</span>
@@ -1303,10 +1396,10 @@ a:hover {
           <h2 class="section-title">Compliance Summary</h2>
           <p class="section-intro">Core outcome metrics are compact. Domain calibration is kept in a single stable table.</p>
           <div class="score-strip">
-            <div class="score-pill score-pill--warning">
+            <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">68.4%</div>
-              <div class="score-pill__meta">Usable, but review blockers remain</div>
+              <div class="score-pill__value">73.4%</div>
+              <div class="score-pill__meta">Strong with targeted follow-up</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Pass Rate</div>
@@ -1382,7 +1475,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">1520.7 ms</div>
+                <div class="fact-item__value">1474.2 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -1428,10 +1521,11 @@ a:hover {
                 <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                   <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
+                  <li><strong>Prompt metadata is descriptive enough for guided use</strong>: Advisory prompt guidance gaps affect 1/2 prompt(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.anthropic.com/en/docs/claude-code/mcp">Profile documentation</a></div>
               </div>
@@ -1444,10 +1538,11 @@ a:hover {
                 <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                   <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
+                  <li><strong>Prompt metadata is descriptive enough for guided use</strong>: Advisory prompt guidance gaps affect 1/2 prompt(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers">Profile documentation</a></div>
               </div>
@@ -1460,7 +1555,7 @@ a:hover {
                 <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 2 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                   <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
@@ -1476,10 +1571,11 @@ a:hover {
                 <div class="check-summary"><span>P 2</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
                   <li><strong>Only the tool surface is currently consumed</strong>: This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility.</li>
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
+                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp">Profile documentation</a></div>
               </div>
@@ -1492,10 +1588,11 @@ a:hover {
                 <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                   <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
+                  <li><strong>Prompt metadata is descriptive enough for guided use</strong>: Advisory prompt guidance gaps affect 1/2 prompt(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio">Profile documentation</a></div>
               </div>
@@ -1534,8 +1631,8 @@ a:hover {
     </div>
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
-        <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 357.4 ms</span>
+        <span class="probe-metric"><strong>Discovered</strong> 41</span>
+        <span class="probe-metric"><strong>Duration</strong> 350.1 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool add_comment_to_pending_review responded successfully.</div>
 </article>
@@ -1547,7 +1644,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 145.0 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 134.6 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -1559,7 +1656,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 2</span>
-        <span class="probe-metric"><strong>Duration</strong> 188.3 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 184.4 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -2628,7 +2725,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;489afed1-8b51-46e3-bf71-79d4908daa08&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;f60c0425-046c-468e-8530-62dd9f2f5ee3&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2638,7 +2735,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;9f912f8f-63e9-456a-b96a-6b6fd2ab5ad2&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;e0bc12b8-05d7-4c6b-8b91-69148d6ed079&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2648,7 +2745,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2f51fc82-66d6-4cd5-9b66-f39d9995ad90&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;8579ff2b-409d-46b0-9ff4-7d48cdf6c2d6&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2709,61 +2806,108 @@ a:hover {
               </div>
               <span class="tone-chip tone-info">41 tools</span>
             </div>
-            <div class="table-shell">
-              <table class="data-table">
-                <thead><tr><th>Authority</th><th>Active Rules</th><th>Coverage</th><th>Highest Severity</th><th>Representative Gaps</th></tr></thead><tbody>
-                  <tr><td>Spec</td><td>1</td><td>5/41 (12%)</td><td><span class="tone-chip tone-info">Low</span></td><td>tools/call result.isError field not present</td></tr>
-                  <tr><td>Guideline</td><td>4</td><td>41/41 (100%)</td><td><span class="tone-chip tone-info">Low</span></td><td>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.idempotentHint. · Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.destructiveHint.</td></tr>
-                  <tr><td>Heuristic</td><td>7</td><td>41/41 (100%)</td><td><span class="tone-chip tone-danger">High</span></td><td>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops · Tool &#39;add_comment_to_pending_review&#39;: 4/10 string parameters have no enum/pattern/format constraint</td></tr>
-                </tbody></table>
+            <div class="authority-summary-grid">
+              <article class="authority-card authority-card--info">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Spec</div>
+                  </div>
+                  <span class="tone-chip tone-info">1 active rule</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">5/41 (12%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Low</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>tools/call result.isError field not present</li>
+                </ul>
+              </article>
+              <article class="authority-card authority-card--info">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Guideline</div>
+                  </div>
+                  <span class="tone-chip tone-info">4 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">41/41 (100%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Low</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.idempotentHint.</li>
+                  <li>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.destructiveHint.</li>
+                </ul>
+              </article>
+              <article class="authority-card authority-card--danger">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Heuristic</div>
+                  </div>
+                  <span class="tone-chip tone-danger">7 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">41/41 (100%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">High</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</li>
+                  <li>Tool &#39;add_comment_to_pending_review&#39;: 4/10 string parameters have no enum/pattern/format constraint</li>
+                </ul>
+              </article>
             </div>
           </div>
 
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>357.36 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>935.55 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>819.30 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>616.67 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>532.33 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>535.44 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>518.80 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>433.77 ms</td><td>title, description</td></tr>
-                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>782.82 ms</td><td>title, description, destructiveHint</td></tr>
-                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>455.39 ms</td><td>title, description</td></tr>
-                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>554.24 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>634.55 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>426.49 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>377.15 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>345.09 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>395.67 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>428.04 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>343.68 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>370.07 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>288.10 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>620.84 ms</td><td>title, description</td></tr>
-                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>399.36 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>314.35 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>265.64 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>301.53 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>476.29 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>382.95 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>418.10 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>408.95 ms</td><td>title, description</td></tr>
-                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>307.80 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>315.59 ms</td><td>title, description</td></tr>
-                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>442.21 ms</td><td>title, description</td></tr>
-                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>387.17 ms</td><td>title, description</td></tr>
-                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>234.48 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
-                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2052.96 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>455.48 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>492.99 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>487.66 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>405.20 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>520.05 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>424.44 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>360.74 ms</td><td>title, description</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>350.14 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>848.18 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>809.18 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>627.28 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>721.39 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>556.10 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>497.19 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>282.53 ms</td><td>title, description</td></tr>
+                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>646.59 ms</td><td>title, description, destructiveHint</td></tr>
+                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>590.97 ms</td><td>title, description</td></tr>
+                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>557.36 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>665.56 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>633.43 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>419.38 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>357.87 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>412.52 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>408.97 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>335.25 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>388.58 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>315.57 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>409.16 ms</td><td>title, description</td></tr>
+                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>460.80 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>289.58 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>287.32 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>296.67 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>434.48 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>405.04 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>403.34 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>412.39 ms</td><td>title, description</td></tr>
+                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>371.91 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>352.84 ms</td><td>title, description</td></tr>
+                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>506.56 ms</td><td>title, description</td></tr>
+                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>366.54 ms</td><td>title, description</td></tr>
+                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>300.31 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
+                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>5992.57 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>478.10 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>476.91 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>536.24 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>453.52 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>380.79 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>376.31 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>335.35 ms</td><td>title, description</td></tr>
               </tbody></table>
           </div>
         </div>
@@ -2778,17 +2922,17 @@ a:hover {
           <div class="score-strip">
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">151.6 ms</div>
+              <div class="score-pill__value">153.1 ms</div>
               <div class="score-pill__meta">Target ≤ 300 ms</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">221.0 ms</div>
+              <div class="score-pill__value">230.0 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">5.05</div>
+              <div class="score-pill__value">5.01</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -2812,7 +2956,7 @@ a:hover {
               <h3 class="minor-title">Methodology</h3>
               <ul class="compact-list">
                 <li>GUIDANCE: 7 protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by 20%.</li>
-                <li>Score is below the preferred target, but no blocking failure was observed in this run.</li>
+                <li>Score meets the preferred target with non-blocking improvement opportunities.</li>
               </ul>
             </div>
             <div>
