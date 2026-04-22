@@ -436,6 +436,37 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             It.IsAny<bool>()), Times.AtLeastOnce);
     }
 
+    [Fact]
+    public async Task ValidateNotificationHandlingAsync_WithTransientRateLimit_ShouldSkip()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 429,
+                IsSuccess = false,
+                Error = "HTTP 429 Too Many Requests",
+                RawJson = "too many requests"
+            });
+
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "http://localhost:8080/mcp",
+            Transport = "http"
+        };
+
+        var result = await validator.ValidateNotificationHandlingAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.Violations.Should().BeEmpty();
+        result.Message.Should().Contain("transient transport pressure");
+    }
+
     public void Dispose()
     {
         _loggerMock.Reset();

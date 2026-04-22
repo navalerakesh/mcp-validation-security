@@ -184,6 +184,28 @@ public class McpValidatorServiceUnitTests
     }
 
     [Fact]
+    public async Task ValidateServerAsync_WithAuthenticatedProfile_ShouldClampFunctionalProbeConcurrency()
+    {
+        var config = new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig
+            {
+                Endpoint = "https://test-server.com/mcp",
+                Profile = McpServerProfile.Authenticated,
+                Authentication = new AuthenticationConfig { Type = "bearer", Token = "token" }
+            },
+            Validation = new ValidationConfig
+            {
+                Categories = new ValidationScenarios()
+            }
+        };
+
+        await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        _httpClientMock.Verify(client => client.SetConcurrencyLimit(1), Times.AtLeastOnce);
+    }
+
+    [Fact]
     public async Task ValidateServerAsync_WithProtocolFailure_ShouldReturnFailedResult()
     {
         // Arrange

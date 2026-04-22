@@ -8,6 +8,16 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public class ValidationCalibrationTests
 {
     [Fact]
+    public void GetFunctionalProbeConcurrency_WithAuthenticatedProfile_ShouldSerializeFunctionalProbes()
+    {
+        var serverConfig = new McpServerConfig { Profile = McpServerProfile.Authenticated };
+
+        var concurrency = ValidationCalibration.GetFunctionalProbeConcurrency(serverConfig, 10);
+
+        concurrency.Should().Be(1);
+    }
+
+    [Fact]
     public void GetInitialPerformanceProbeConcurrency_WithPublicProfile_ShouldStartAtReducedCalibrationLevel()
     {
         var serverConfig = new McpServerConfig { Profile = McpServerProfile.Public };

@@ -83,7 +83,8 @@ public class McpValidatorService : IMcpValidatorService
         var requestedConcurrency = configuration.TestExecution?.EnableParallelExecution == false
             ? 1
             : configuration.TestExecution?.MaxParallelThreads ?? Environment.ProcessorCount;
-        _httpClient.SetConcurrencyLimit(requestedConcurrency);
+        var calibratedConcurrency = ValidationCalibration.GetFunctionalProbeConcurrency(configuration.Server, requestedConcurrency);
+        _httpClient.SetConcurrencyLimit(calibratedConcurrency);
 
         ValidationSessionContext session;
         try
@@ -112,6 +113,12 @@ public class McpValidatorService : IMcpValidatorService
         result.BootstrapHealth = session.BootstrapHealth;
         result.ServerProfile = session.ServerProfile;
         result.ServerProfileSource = session.ServerProfileSource;
+
+        var effectiveConcurrency = ValidationCalibration.GetFunctionalProbeConcurrency(session.EffectiveServer, requestedConcurrency);
+        if (effectiveConcurrency != calibratedConcurrency)
+        {
+            _httpClient.SetConcurrencyLimit(effectiveConcurrency);
+        }
 
         if (session.CapabilitySnapshot != null)
         {

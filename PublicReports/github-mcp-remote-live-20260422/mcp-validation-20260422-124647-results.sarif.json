@@ -126,29 +126,6 @@
               }
             },
             {
-              "id": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
-              "name": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
-              "shortDescription": {
-                "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
-              },
-              "fullDescription": {
-                "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
-              },
-              "help": {
-                "text": "Declare completions in initialize when completion/complete is supported."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "guideline",
-                "category": "McpGuideline",
-                "tags": [
-                  "guideline",
-                  "McpGuideline",
-                  "completion/complete"
-                ]
-              }
-            },
-            {
               "id": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "name": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "shortDescription": {
@@ -405,10 +382,10 @@
               "id": "MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION",
               "name": "MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION",
               "shortDescription": {
-                "text": "No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+                "text": "No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
               },
               "fullDescription": {
-                "text": "No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+                "text": "No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
               },
               "help": {
                 "text": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected."
@@ -420,6 +397,29 @@
                 "tags": [
                   "guideline",
                   "Authentication Security",
+                  "initialize"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "shortDescription": {
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+              },
+              "help": {
+                "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
                   "tools/list"
                 ]
               }
@@ -428,10 +428,10 @@
               "id": "MCP-PROTO-ERR",
               "name": "MCP-PROTO-ERR",
               "shortDescription": {
-                "text": "JSON-RPC Error Code Violation: Parse Error"
+                "text": "JSON-RPC Error Code Violation: Method Not Found"
               },
               "fullDescription": {
-                "text": "JSON-RPC Error Code Violation: Parse Error"
+                "text": "JSON-RPC Error Code Violation: Method Not Found"
               },
               "help": {
                 "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
@@ -513,35 +513,12 @@
                   "get_me"
                 ]
               }
-            },
-            {
-              "id": "SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7",
-              "name": "SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7",
-              "shortDescription": {
-                "text": "Authentication Issue: No Auth - logging/setLevel"
-              },
-              "fullDescription": {
-                "text": "FAIL: Invalid authentication was accepted.: Sensitive operation succeeded"
-              },
-              "help": {
-                "text": "Review authentication implementation to ensure proper security behavior"
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "heuristic",
-                "category": "Authentication Security",
-                "tags": [
-                  "heuristic",
-                  "Authentication Security",
-                  "logging/setLevel"
-                ]
-              }
             }
           ]
         }
       },
       "automationDetails": {
-        "id": "92f0ab4c-203d-471d-9a02-07e5ae8bcccd",
+        "id": "bb508aa2-cfbe-4505-af6b-374d7b8d0b39",
         "description": {
           "text": "MCP validation run"
         }
@@ -549,13 +526,13 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-22T12:18:25.7900060Z",
-          "endTimeUtc": "2026-04-22T12:21:04.3627960Z",
+          "startTimeUtc": "2026-04-22T12:44:39.7073780Z",
+          "endTimeUtc": "2026-04-22T12:46:46.8988360Z",
           "properties": {
-            "validationId": "92f0ab4c-203d-471d-9a02-07e5ae8bcccd",
+            "validationId": "bb508aa2-cfbe-4505-af6b-374d7b8d0b39",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
-            "overallStatus": "Failed",
+            "overallStatus": "Passed",
             "serverProfile": "Authenticated",
             "specProfile": "latest"
           }
@@ -728,41 +705,6 @@
             "metadata": {
               "capability": "logging",
               "method": "logging/setLevel",
-              "declared": "false",
-              "supported": "true"
-            }
-          }
-        },
-        {
-          "ruleId": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
-          "level": "note",
-          "kind": "fail",
-          "message": {
-            "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED|completion/complete|Server responds to completion/complete but does not advertise the completions capability during initialize."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "completion/complete"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "structured-finding",
-            "authority": "guideline",
-            "category": "McpGuideline",
-            "component": "completion/complete",
-            "severity": "Low",
-            "recommendation": "Declare completions in initialize when completion/complete is supported.",
-            "metadata": {
-              "capability": "completions",
-              "method": "completion/complete",
               "declared": "false",
               "supported": "true"
             }
@@ -6315,17 +6257,17 @@
           "level": "warning",
           "kind": "fail",
           "message": {
-            "text": "No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "text": "No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|tools/list|No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|initialize|No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "tools/list"
+                  "name": "initialize"
                 }
               ]
             }
@@ -6334,7 +6276,7 @@
             "source": "structured-finding",
             "authority": "guideline",
             "category": "Authentication Security",
-            "component": "tools/list",
+            "component": "initialize",
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
@@ -6348,17 +6290,17 @@
           "level": "warning",
           "kind": "fail",
           "message": {
-            "text": "No Auth - tools/call: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "text": "No Auth - prompts/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|tools/call|No Auth - tools/call: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|prompts/list|No Auth - prompts/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "tools/call"
+                  "name": "prompts/list"
                 }
               ]
             }
@@ -6367,7 +6309,40 @@
             "source": "structured-finding",
             "authority": "guideline",
             "category": "Authentication Security",
-            "component": "tools/call",
+            "component": "prompts/list",
+            "severity": "Medium",
+            "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
+            "metadata": {
+              "actualBehavior": "Discovery metadata returned",
+              "analysis": "\u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication."
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "No Auth - prompts/get: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|prompts/get|No Auth - prompts/get: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "prompts/get"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Authentication Security",
+            "component": "prompts/get",
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
@@ -6447,17 +6422,17 @@
           "level": "warning",
           "kind": "fail",
           "message": {
-            "text": "No Auth - prompts/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "text": "No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|prompts/list|No Auth - prompts/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|tools/list|No Auth - tools/list: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "prompts/list"
+                  "name": "tools/list"
                 }
               ]
             }
@@ -6466,7 +6441,7 @@
             "source": "structured-finding",
             "authority": "guideline",
             "category": "Authentication Security",
-            "component": "prompts/list",
+            "component": "tools/list",
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
@@ -6480,17 +6455,17 @@
           "level": "warning",
           "kind": "fail",
           "message": {
-            "text": "No Auth - prompts/get: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "text": "No Auth - tools/call: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|prompts/get|No Auth - prompts/get: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
+            "logicalIdentity": "finding|MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION|tools/call|No Auth - tools/call: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "prompts/get"
+                  "name": "tools/call"
                 }
               ]
             }
@@ -6499,7 +6474,7 @@
             "source": "structured-finding",
             "authority": "guideline",
             "category": "Authentication Security",
-            "component": "prompts/get",
+            "component": "tools/call",
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
@@ -6509,33 +6484,37 @@
           }
         },
         {
-          "ruleId": "MCP-PROTO-ERR",
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
           "level": "note",
           "kind": "fail",
           "message": {
-            "text": "JSON-RPC Error Code Violation: Parse Error"
+            "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
           },
           "partialFingerprints": {
-            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Parse Error"
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "JSON-RPC Compliance"
+                  "name": "tools/list"
                 }
               ]
             }
           ],
           "properties": {
-            "source": "protocol-violation",
-            "authority": "spec",
-            "category": "JSON-RPC Compliance",
-            "component": "JSON-RPC Compliance",
-            "severity": "Low",
-            "rule": null,
-            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": "Info",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "metadata": {
+              "requests": "500",
+              "concurrency": "100",
+              "operation": "tools/list"
+            }
           }
         },
         {
@@ -6626,66 +6605,6 @@
             "severity": "Medium",
             "rule": null,
             "recommendation": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
-          }
-        },
-        {
-          "ruleId": "MCP-PROTO-JSONRPC",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications"
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "JSON-RPC Compliance"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "protocol-violation",
-            "authority": "spec",
-            "category": "JSON-RPC Compliance",
-            "component": "JSON-RPC Compliance",
-            "severity": "Critical",
-            "rule": null,
-            "recommendation": "The server MUST NOT send a response to a notification (a request without an \u0022id\u0022 field). Remove any response logic that triggers for notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications"
-          }
-        },
-        {
-          "ruleId": "MCP-PROTO-ERR",
-          "level": "note",
-          "kind": "fail",
-          "message": {
-            "text": "Error codes do not comply with JSON-RPC 2.0 standard error codes"
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|Error codes do not comply with JSON-RPC 2.0 standard error codes"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "JSON-RPC Compliance"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "protocol-violation",
-            "authority": "spec",
-            "category": "JSON-RPC Compliance",
-            "component": "JSON-RPC Compliance",
-            "severity": "Low",
-            "rule": null,
-            "recommendation": "Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -6933,36 +6852,6 @@
             "component": "search_users",
             "severity": "Low",
             "recommendation": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
-          }
-        },
-        {
-          "ruleId": "SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "FAIL: Invalid authentication was accepted.: Sensitive operation succeeded"
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "vuln|SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7|logging/setLevel|FAIL: Invalid authentication was accepted.: Sensitive operation succeeded"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "logging/setLevel"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "security-vulnerability",
-            "authority": "heuristic",
-            "category": "Authentication Security",
-            "component": "logging/setLevel",
-            "severity": "Critical",
-            "isExploitable": true,
-            "recommendation": "Review authentication implementation to ensure proper security behavior"
           }
         }
       ]

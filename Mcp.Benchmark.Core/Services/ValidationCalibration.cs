@@ -22,6 +22,19 @@ public static class ValidationCalibration
         return profile == McpServerProfile.Public;
     }
 
+    public static int GetFunctionalProbeConcurrency(McpServerConfig serverConfig, int requestedConcurrency)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(requestedConcurrency);
+
+        var requiresRemoteCalibration = serverConfig.Profile != McpServerProfile.Unspecified || serverConfig.Authentication != null;
+        if (!requiresRemoteCalibration)
+        {
+            return requestedConcurrency;
+        }
+
+        return 1;
+    }
+
     public static int GetInitialPerformanceProbeConcurrency(McpServerConfig serverConfig, int targetConcurrency)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(targetConcurrency);

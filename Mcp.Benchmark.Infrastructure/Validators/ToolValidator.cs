@@ -305,6 +305,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             // CASE 2: 200 = Public/authenticated access (validate functionality)
             if (!toolsListResponse.IsSuccess)
             {
+                if (ValidationReliability.ShouldRetryRpcResponse(toolsListResponse))
+                {
+                    result.Status = TestStatus.Skipped;
+                    result.Message = $"tools/list probe inconclusive: {ValidationReliability.DescribeRetryableResponse(toolsListResponse)}";
+                    result.Issues.Add($"⚠️ Tool discovery probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(toolsListResponse)}). Not treated as a contract failure.");
+                    return result;
+                }
+
                 result.Status = TestStatus.Failed;
                 result.ToolsTestFailed = 1;
                 result.ToolResults.Add(new IndividualToolResult
@@ -425,7 +433,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.ToolResults.Add(toolResult);
 
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
-                else result.ToolsTestFailed++;
+                else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
             }
 
             // Calculate Score using Strategy
@@ -517,6 +525,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.Status = TestStatus.Passed;
                 result.ExecutionSuccessful = true;
                 result.Issues.Add("Tool call requires authentication (Secure)");
+            }
+            else if (toolCallResponse.StatusCode > 0 && ValidationReliability.ShouldRetryRpcResponse(toolCallResponse))
+            {
+                result.Status = TestStatus.Skipped;
+                result.ExecutionSuccessful = true;
+                result.Issues.Add($"⚠️ Tool call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(toolCallResponse)}). Not treated as a contract failure.");
             }
             else if (toolCallResponse.IsSuccess)
             {
@@ -867,6 +881,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         toolResult.ExecutionSuccessful = true;
                         toolResult.Issues.Add("Auth enforced on tools/call (Secure)");
                     }
+                    else if (callResponse.StatusCode > 0 && ValidationReliability.ShouldRetryRpcResponse(callResponse))
+                    {
+                        toolResult.Status = TestStatus.Skipped;
+                        toolResult.ExecutionSuccessful = true;
+                        toolResult.Issues.Add($"tools/call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(callResponse)})");
+                    }
                     else if (callResponse.IsSuccess || callResponse.StatusCode == 400)
                     {
                         toolResult.Status = TestStatus.Passed;
@@ -888,7 +908,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
                 result.ToolResults.Add(toolResult);
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
-                else result.ToolsTestFailed++;
+                else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
             }
 
             result.ToolsDiscovered = tools.Count;

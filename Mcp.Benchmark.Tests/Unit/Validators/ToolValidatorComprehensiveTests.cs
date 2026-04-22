@@ -129,6 +129,20 @@ public class ToolValidatorComprehensiveTests
         result.Status.Should().Be(TestStatus.Failed);
     }
 
+    [Fact]
+    public async Task ValidateToolDiscovery_WithRateLimitedToolsList_ShouldSkipAsTransientProbe()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 429, IsSuccess = false, Error = "HTTP 429 Too Many Requests", RawJson = "too many requests" });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.ToolsTestFailed.Should().Be(0);
+        result.Message.Should().Contain("tools/list probe inconclusive");
+    }
+
     // ─── Tool Call Response Structure ─────────────────────────────
 
     [Fact]
@@ -201,6 +215,24 @@ public class ToolValidatorComprehensiveTests
         var toolResult = result.ToolResults.FirstOrDefault(t => t.ToolName == "slow_tool");
         toolResult!.Status.Should().Be(TestStatus.Passed);
         toolResult.Issues.Should().Contain(i => i.Contains("Network/timeout"));
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithRateLimitedToolCall_ShouldSkipToolWithoutFailingDiscovery()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"rate_limited_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 429, IsSuccess = false, Error = "HTTP 429 Too Many Requests", RawJson = "too many requests" });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.ToolsTestFailed.Should().Be(0);
+        var toolResult = result.ToolResults.FirstOrDefault(t => t.ToolName == "rate_limited_tool");
+        toolResult.Should().NotBeNull();
+        toolResult!.Status.Should().Be(TestStatus.Skipped);
+        toolResult.Issues.Should().Contain(i => i.Contains("transient transport pressure"));
     }
 
     // ─── AI Readiness Scoring ────────────────────────────────────

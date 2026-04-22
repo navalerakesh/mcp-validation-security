@@ -1,21 +1,21 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-22 12:21:04 UTC
+**Generated:** 2026-04-22 12:46:47 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://api.githubcopilot.com/mcp/` |
-| **Validation ID** | `92f0ab4c-203d-471d-9a02-07e5ae8bcccd` |
-| **Overall Status** | ❌ **Failed** |
-| **Compliance Score** | **20.0%** |
+| **Validation ID** | `bb508aa2-cfbe-4505-af6b-374d7b8d0b39` |
+| **Overall Status** | ✅ **Passed** |
+| **Compliance Score** | **68.4%** |
 | **Compliance Profile** | `Authenticated (Inferred)` |
-| **Duration** | 158.57s |
+| **Duration** | 127.19s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
 | **MCP Protocol Version (Effective)** | `2025-11-25` |
-| **MCP Trust Level** | 🔴 **L1: Untrusted — Critical failures, not safe for AI agents** |
+| **MCP Trust Level** | 🔵 **L4: Trusted — Meets enterprise AI safety requirements** |
 
 ## 2. Connectivity & Session Bootstrap
 
@@ -27,7 +27,7 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 2263.2 ms |
+| **Handshake Duration** | 1520.7 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `github-mcp-server/remote-b9dba86b94750c395d41a8068b6602ee7068025d` |
 | **Server Profile Resolution** | `Authenticated (Inferred)` |
@@ -38,20 +38,17 @@ Validation began from a clean bootstrap with no deferred connectivity risk carri
 
 These are the highest-signal outcomes from this validation run.
 
-- Policy balanced blocked the run: Balanced policy blocked the validation result with 5 unsuppressed signal(s).
-- MUST requirement failed: MUST: tools/list result has 'tools' array — tools/list returned an invalid response
-- MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes
-- SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7: FAIL: Invalid authentication was accepted.: Sensitive operation succeeded
-- MCP-PROTO-JSONRPC: Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications
+- MCP-PROTO-JSONRPC: Batch processing implementation is inconsistent or incomplete
+- MCP-PROTO-ERR: JSON-RPC Error Code Violation: Method Not Found
 
 ## 4. Action Hints
 
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
-- Balanced policy blocked the validation result with 5 unsuppressed signal(s).
-- Protocol: The server MUST NOT send a response to a notification (a request without an "id" field). Remove any response logic that triggers for noti....
 - Protocol: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure ba....
-- Security: Review authentication implementation to ensure proper security behavior.
+- Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse e....
+- Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch....
+- Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error....
 
 ## 5. MCP Trust Assessment
 
@@ -60,10 +57,10 @@ Trust level is determined by a **weighted multi-dimensional score** and then cap
 
 | Dimension | Score | What It Measures |
 | :--- | :---: | :--- |
-| **Protocol Compliance** | 53% | MCP spec adherence, JSON-RPC compliance, response structures |
-| **Security Posture** | 75% | Auth compliance, injection resistance, attack surface |
+| **Protocol Compliance** | 81% | MCP spec adherence, JSON-RPC compliance, response structures |
+| **Security Posture** | 100% | Auth compliance, injection resistance, attack surface |
 | **AI Safety** | 71% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
-| **Operational Readiness** | 0% | Latency, throughput, error rate, stability |
+| **Operational Readiness** | 100% | Latency, throughput, error rate, stability |
 | **LLM-Friendliness** | 10% | 🔴 Anti-LLM — Do error responses help AI agents self-correct? |
 
 ### AI Boundary Findings
@@ -94,14 +91,9 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 
 | Tier | Passed | Failed | Total | Impact |
 | :--- | :---: | :---: | :---: | :--- |
-| **MUST** | 9 | 2 | 11 | ❌ Non-compliant (trust capped at L2) |
+| **MUST** | 11 | 0 | 11 | ✅ Fully compliant |
 | **SHOULD** | 3 | 2 | 5 | ⚠️ 2 penalties applied |
-| **MAY** | 5 | 1 | 6 | ℹ️ Informational (no score impact) |
-
-#### ❌ MUST Failures (Compliance Blockers)
-
-- **MUST: tools/list result has 'tools' array** (tools/list) — tools/list returned an invalid response
-- **MUST: Use standard JSON-RPC error codes** (errors) — Non-standard error codes
+| **MAY** | 6 | 0 | 6 | ℹ️ Informational (no score impact) |
 
 #### ⚠️ SHOULD Gaps (Score Penalties)
 
@@ -114,7 +106,7 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 - ✅ MAY: Server supports sampling/createMessage
 - ✅ MAY: Server supports roots/list
 - ✅ MAY: Server supports completion/complete
-- ➖ MAY: Server supports resources/templates/list
+- ✅ MAY: Server supports resources/templates/list
 - ✅ MAY: Tools include 'annotations' (readOnlyHint, destructiveHint)
 
 ## 6. Client Profile Compatibility
@@ -123,21 +115,20 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ⚠️ Compatible with warnings | 2 passed / 4 warnings / 0 failed | <https://docs.anthropic.com/en/docs/claude-code/mcp> |
-| **VS Code Copilot Agent** | ⚠️ Compatible with warnings | 2 passed / 4 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ⚠️ Compatible with warnings | 1 passed / 3 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 1 passed / 4 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 2 passed / 4 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio> |
+| **Claude Code** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://docs.anthropic.com/en/docs/claude-code/mcp> |
+| **VS Code Copilot Agent** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ⚠️ Compatible with warnings | 2 passed / 2 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 2 passed / 3 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio> |
 
 ### Claude Code
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 4 advisory gap(s).
+Required compatibility checks passed, with 3 advisory gap(s).
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool call contract is structurally valid | Required | ⚠️ Warning | - | - | The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output. |
 | Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
@@ -152,11 +143,10 @@ Required compatibility checks passed, with 4 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 4 advisory gap(s).
+Required compatibility checks passed, with 3 advisory gap(s).
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool call contract is structurally valid | Required | ⚠️ Warning | - | - | The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output. |
 | Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
@@ -171,11 +161,10 @@ Required compatibility checks passed, with 4 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 3 advisory gap(s).
+Required compatibility checks passed, with 2 advisory gap(s).
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool call contract is structurally valid | Required | ⚠️ Warning | - | - | The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output. |
 | Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 
@@ -188,11 +177,10 @@ Required compatibility checks passed, with 3 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 4 advisory gap(s).
+Required compatibility checks passed, with 3 advisory gap(s).
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool call contract is structurally valid | Required | ⚠️ Warning | - | - | The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output. |
 | Only the tool surface is currently consumed | Recommended | ⚠️ Warning | - | - | This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility. |
 | Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
@@ -206,11 +194,10 @@ Required compatibility checks passed, with 4 advisory gap(s).
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed, with 4 advisory gap(s).
+Required compatibility checks passed, with 3 advisory gap(s).
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool call contract is structurally valid | Required | ⚠️ Warning | - | - | The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output. |
 | Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
 | Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
@@ -225,9 +212,9 @@ Required compatibility checks passed, with 4 advisory gap(s).
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 0 | HTTP 200 | 1432.1 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 127.7 ms | ✅ Listed |
-| Prompts/list | 2 | HTTP 200 | 128.5 ms | ✅ Listed |
+| Tools/list | 0 | HTTP 200 | 357.4 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 145.0 ms | ✅ Listed |
+| Prompts/list | 2 | HTTP 200 | 188.3 ms | ✅ Listed |
 
 - **First Tool Probed:** `add_comment_to_pending_review`
 
@@ -235,68 +222,35 @@ Required compatibility checks passed, with 4 advisory gap(s).
 
 These notes explain how the overall score and blocking decision were calibrated for this run.
 
-- BLOCKER: Unauthorized success was observed on a sensitive operation for the Authenticated profile.
+- GUIDANCE: 7 protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by 20%.
+- Score is below the preferred target, but no blocking failure was observed in this run.
 
 ## 9. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
-| Protocol Compliance | ❌ Failed | 53.1% | **6** |
-| Security Assessment | ❌ Failed | 75.0% | **1** |
-| Tool Validation | ❌ Failed | 95.1% | **2** |
+| Protocol Compliance | ✅ Passed | 81.2% | **3** |
+| Security Assessment | ✅ Passed | 100.0% | - |
+| Tool Validation | ✅ Passed | 100.0% | - |
 | Resource Capabilities | ✅ Passed | 100.0% | - |
 | Prompt Capabilities | ✅ Passed | 100.0% | - |
-| Performance | ❌ Failed | Unavailable | - |
+| Performance | ✅ Passed | 100.0% | - |
 
 ## 10. Performance Calibration
 
 Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
 For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
 
+- Synthetic load probe executed against tools/list using 500 requests at concurrency 100.
+
 ## 11. Security Assessment
 
-**Security Score:** 75.0%
+**Security Score:** 100.0%
 
 ### Authentication Analysis
 | Scenario | Method | Expected | Actual | HTTP | Analysis | Status |
 | :--- | :--- | :--- | :--- | :---: | :--- | :---: |
-| No Auth - initialize | `initialize` | 4xx (Secure Rejection) | Rate limited | 429 | ℹ️ INFO: Rate limiting observed; auth semantics inconclusive. | ✅ |
-| No Auth - tools/list | `tools/list` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
-| Malformed Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Token Expired - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Scope - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Insufficient Permissions - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Revoked Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Wrong Audience (RFC 8707) - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Valid Token - tools/list | `tools/list` | 200 + JSON-RPC Response | Authenticated request succeeded | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
-| No Auth - tools/call | `tools/call` | 4xx (Secure Rejection) | Request rejected in JSON-RPC layer | 200 | ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. | ✅ |
-| Malformed Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Token Expired - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Scope - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Insufficient Permissions - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Revoked Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Wrong Audience (RFC 8707) - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Valid Token - tools/call | `tools/call` | 200 + JSON-RPC Response | Authenticated request returned JSON-RPC error | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
-| No Auth - resources/list | `resources/list` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
-| Malformed Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Token Expired - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Scope - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Insufficient Permissions - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Revoked Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Wrong Audience (RFC 8707) - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Valid Token - resources/list | `resources/list` | 200 + JSON-RPC Response | Authenticated request succeeded | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
-| No Auth - resources/read | `resources/read` | 4xx (Secure Rejection) | Request rejected in JSON-RPC layer | 200 | ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. | ✅ |
-| Malformed Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Token Expired - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Scope - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Insufficient Permissions - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Revoked Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Wrong Audience (RFC 8707) - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Valid Token - resources/read | `resources/read` | 200 + JSON-RPC Response | Authenticated request returned JSON-RPC error | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
+| No Auth - initialize | `initialize` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
 | No Auth - prompts/list | `prompts/list` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
 | Malformed Token - prompts/list | `prompts/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
 | Invalid Token - prompts/list | `prompts/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
@@ -315,15 +269,42 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 | Revoked Token - prompts/get | `prompts/get` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
 | Wrong Audience (RFC 8707) - prompts/get | `prompts/get` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
 | Valid Token - prompts/get | `prompts/get` | 200 + JSON-RPC Response | Authenticated request returned JSON-RPC error | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
-| No Auth - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Sensitive operation succeeded | 200 | ❌ INSECURE: Sensitive operation succeeded without valid authentication. | ❌ |
-| Malformed Token - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Token - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Token Expired - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Invalid Scope - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Insufficient Permissions - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Revoked Token - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Wrong Audience (RFC 8707) - logging/setLevel | `logging/setLevel` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
-| Valid Token - logging/setLevel | `logging/setLevel` | 200 + JSON-RPC Response | Authenticated request succeeded | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
+| No Auth - resources/list | `resources/list` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
+| Malformed Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Token Expired - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Scope - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Insufficient Permissions - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Revoked Token - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Wrong Audience (RFC 8707) - resources/list | `resources/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Valid Token - resources/list | `resources/list` | 200 + JSON-RPC Response | Authenticated request succeeded | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
+| No Auth - resources/read | `resources/read` | 4xx (Secure Rejection) | Request rejected in JSON-RPC layer | 200 | ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. | ✅ |
+| Malformed Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Token Expired - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Scope - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Insufficient Permissions - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Revoked Token - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Wrong Audience (RFC 8707) - resources/read | `resources/read` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Valid Token - resources/read | `resources/read` | 200 + JSON-RPC Response | Authenticated request returned JSON-RPC error | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
+| No Auth - tools/list | `tools/list` | 4xx (Secure Rejection) | Discovery metadata returned | 200 | ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication. | ✅ |
+| Malformed Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Token Expired - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Scope - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Insufficient Permissions - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Revoked Token - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Wrong Audience (RFC 8707) - tools/list | `tools/list` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Valid Token - tools/list | `tools/list` | 200 + JSON-RPC Response | Authenticated request succeeded | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
+| No Auth - tools/call | `tools/call` | 4xx (Secure Rejection) | Request rejected in JSON-RPC layer | 200 | ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. | ✅ |
+| Malformed Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Token Expired - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Invalid Scope - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Insufficient Permissions - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Revoked Token - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Wrong Audience (RFC 8707) - tools/call | `tools/call` | 4xx (Secure Rejection) | Challenge returned | 400 | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. | ✅ |
+| Valid Token - tools/call | `tools/call` | 200 + JSON-RPC Response | Authenticated request returned JSON-RPC error | 200 | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. | ✅ |
 
 ### Adversarial Input Handling
 
@@ -334,9 +315,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"721999da-4d3f-4ce5-877b-82bc98e531a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"2fa8b896-5c40-483c-bf86-e96b59b8e099","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"9745e93f-90f4-452a-9224-218f8e3257a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"489afed1-8b51-46e3-bf71-79d4908daa08","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"9f912f8f-63e9-456a-b96a-6b6fd2ab5ad2","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"2f51fc82-66d6-4cd5-9b66-f39d9995ad90","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
@@ -344,17 +325,14 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 ## 12. Protocol Compliance
 
-**Status Detail:** roots/list: supported | logging/setLevel: supported | sampling/createMessage: supported | completion/complete: supported
+**Status Detail:** declared capabilities: completions, prompts, resources, tools | roots/list: supported | logging/setLevel: supported | sampling/createMessage: supported | completion/complete: supported
 
 ### Compliance Violations
 | ID | Source | Description | Severity | Recommendation |
 | :--- | :--- | :--- | :---: | :--- |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Parse Error | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
 | MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Method Not Found | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
 | MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
 | MCP-PROTO-JSONRPC | `spec` | Batch processing implementation is inconsistent or incomplete | Medium | If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch |
-| MCP-PROTO-JSONRPC | `spec` | Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications | Critical | The server MUST NOT send a response to a notification (a request without an "id" field). Remove any response logic that triggers for notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications |
-| MCP-PROTO-ERR | `spec` | Error codes do not comply with JSON-RPC 2.0 standard error codes | Low | Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
 
 ## 13. Tool Validation
 
@@ -413,13 +391,13 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 1432.11ms
+**Execution Time:** 357.36ms
 ---
 
 ### Tool: `add_comment_to_pending_review`
 
-**Status:** ❌ Failed
-**Execution Time:** 3621.36ms
+**Status:** ✅ Passed
+**Execution Time:** 935.55ms
 
 #### Tool Metadata
 | Property | Value |
@@ -431,7 +409,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_issue_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 1388.70ms
+**Execution Time:** 819.30ms
 
 #### Tool Metadata
 | Property | Value |
@@ -443,7 +421,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_reply_to_pull_request_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 270.80ms
+**Execution Time:** 616.67ms
 
 #### Tool Metadata
 | Property | Value |
@@ -455,7 +433,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 300.61ms
+**Execution Time:** 532.33ms
 
 #### Tool Metadata
 | Property | Value |
@@ -467,7 +445,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_or_update_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 3626.77ms
+**Execution Time:** 535.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -479,7 +457,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 1393.74ms
+**Execution Time:** 518.80ms
 
 #### Tool Metadata
 | Property | Value |
@@ -491,7 +469,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 203.99ms
+**Execution Time:** 433.77ms
 
 #### Tool Metadata
 | Property | Value |
@@ -503,7 +481,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `delete_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 311.62ms
+**Execution Time:** 782.82ms
 
 #### Tool Metadata
 | Property | Value |
@@ -516,7 +494,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `fork_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 258.04ms
+**Execution Time:** 455.39ms
 
 #### Tool Metadata
 | Property | Value |
@@ -527,8 +505,8 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 
 ### Tool: `get_commit`
 
-**Status:** ❌ Failed
-**Execution Time:** 3386.95ms
+**Status:** ✅ Passed
+**Execution Time:** 554.24ms
 
 #### Tool Metadata
 | Property | Value |
@@ -541,7 +519,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_file_contents`
 
 **Status:** ✅ Passed
-**Execution Time:** 2626.80ms
+**Execution Time:** 634.55ms
 
 #### Tool Metadata
 | Property | Value |
@@ -554,7 +532,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_label`
 
 **Status:** ✅ Passed
-**Execution Time:** 316.21ms
+**Execution Time:** 426.49ms
 
 #### Tool Metadata
 | Property | Value |
@@ -567,7 +545,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_latest_release`
 
 **Status:** ✅ Passed
-**Execution Time:** 288.99ms
+**Execution Time:** 377.15ms
 
 #### Tool Metadata
 | Property | Value |
@@ -580,7 +558,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_me`
 
 **Status:** ✅ Passed
-**Execution Time:** 275.24ms
+**Execution Time:** 345.09ms
 
 #### Tool Metadata
 | Property | Value |
@@ -593,7 +571,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_release_by_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 1428.77ms
+**Execution Time:** 395.67ms
 
 #### Tool Metadata
 | Property | Value |
@@ -606,7 +584,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 1390.14ms
+**Execution Time:** 428.04ms
 
 #### Tool Metadata
 | Property | Value |
@@ -619,7 +597,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_team_members`
 
 **Status:** ✅ Passed
-**Execution Time:** 228.64ms
+**Execution Time:** 343.68ms
 
 #### Tool Metadata
 | Property | Value |
@@ -632,7 +610,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_teams`
 
 **Status:** ✅ Passed
-**Execution Time:** 272.36ms
+**Execution Time:** 370.07ms
 
 #### Tool Metadata
 | Property | Value |
@@ -645,7 +623,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 198.28ms
+**Execution Time:** 288.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -658,7 +636,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 3465.02ms
+**Execution Time:** 620.84ms
 
 #### Tool Metadata
 | Property | Value |
@@ -670,7 +648,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_branches`
 
 **Status:** ✅ Passed
-**Execution Time:** 1397.72ms
+**Execution Time:** 399.36ms
 
 #### Tool Metadata
 | Property | Value |
@@ -683,7 +661,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_commits`
 
 **Status:** ✅ Passed
-**Execution Time:** 192.59ms
+**Execution Time:** 314.35ms
 
 #### Tool Metadata
 | Property | Value |
@@ -696,7 +674,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issue_types`
 
 **Status:** ✅ Passed
-**Execution Time:** 188.22ms
+**Execution Time:** 265.64ms
 
 #### Tool Metadata
 | Property | Value |
@@ -709,7 +687,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 188.50ms
+**Execution Time:** 301.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -722,7 +700,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 293.48ms
+**Execution Time:** 476.29ms
 
 #### Tool Metadata
 | Property | Value |
@@ -735,7 +713,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_releases`
 
 **Status:** ✅ Passed
-**Execution Time:** 300.71ms
+**Execution Time:** 382.95ms
 
 #### Tool Metadata
 | Property | Value |
@@ -748,7 +726,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_tags`
 
 **Status:** ✅ Passed
-**Execution Time:** 309.60ms
+**Execution Time:** 418.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -761,7 +739,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `merge_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 289.36ms
+**Execution Time:** 408.95ms
 
 #### Tool Metadata
 | Property | Value |
@@ -773,7 +751,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 232.54ms
+**Execution Time:** 307.80ms
 
 #### Tool Metadata
 | Property | Value |
@@ -786,7 +764,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_review_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 230.39ms
+**Execution Time:** 315.59ms
 
 #### Tool Metadata
 | Property | Value |
@@ -798,7 +776,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `push_files`
 
 **Status:** ✅ Passed
-**Execution Time:** 393.81ms
+**Execution Time:** 442.21ms
 
 #### Tool Metadata
 | Property | Value |
@@ -810,7 +788,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `request_copilot_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 278.33ms
+**Execution Time:** 387.17ms
 
 #### Tool Metadata
 | Property | Value |
@@ -822,7 +800,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `run_secret_scanning`
 
 **Status:** ✅ Passed
-**Execution Time:** 121.70ms
+**Execution Time:** 234.48ms
 
 #### Tool Metadata
 | Property | Value |
@@ -836,7 +814,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_code`
 
 **Status:** ✅ Passed
-**Execution Time:** 432.52ms
+**Execution Time:** 2052.96ms
 
 #### Tool Metadata
 | Property | Value |
@@ -849,7 +827,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 1530.53ms
+**Execution Time:** 455.48ms
 
 #### Tool Metadata
 | Property | Value |
@@ -862,7 +840,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 386.77ms
+**Execution Time:** 492.99ms
 
 #### Tool Metadata
 | Property | Value |
@@ -875,7 +853,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_repositories`
 
 **Status:** ✅ Passed
-**Execution Time:** 376.50ms
+**Execution Time:** 487.66ms
 
 #### Tool Metadata
 | Property | Value |
@@ -888,7 +866,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_users`
 
 **Status:** ✅ Passed
-**Execution Time:** 256.12ms
+**Execution Time:** 405.20ms
 
 #### Tool Metadata
 | Property | Value |
@@ -901,7 +879,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `sub_issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 220.10ms
+**Execution Time:** 520.05ms
 
 #### Tool Metadata
 | Property | Value |
@@ -913,7 +891,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 272.35ms
+**Execution Time:** 424.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -925,7 +903,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 271.38ms
+**Execution Time:** 360.74ms
 
 #### Tool Metadata
 | Property | Value |
@@ -989,6 +967,7 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Capability | Status |
 | :--- | :--- |
+| `declared capabilities` | ➖ completions, prompts, resources, tools |
 | `roots/list` | ✅ supported |
 | `logging/setLevel` | ✅ supported |
 | `sampling/createMessage` | ✅ supported |
@@ -996,21 +975,22 @@ These probes check whether the server supports optional MCP features beyond the 
 
 ## 17. Performance Metrics
 
-**Status:** ❌ Failed
-**Measurements:** unavailable
-**Reason:** Operation timed out or was cancelled
-
-**Critical Errors:**
-- Operation timed out or was cancelled
+| Metric | Result | Verdict |
+| :--- | :--- | :--- |
+| **Avg Latency** | 151.62ms | ✅ Good |
+| **P95 Latency** | 221.00ms | - |
+| **Throughput** | 5.05 req/sec | - |
+| **Error Rate** | 0.00% | ✅ Clean |
+| **Requests** | 500/500 successful | - |
 
 ## 18. Recommendations
 
-- 💡 Spec: The server MUST NOT send a response to a notification (a request without an "id" field). Remove any response logic that triggers for notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications
 - 💡 Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch
 - 💡 Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- 💡 Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- 💡 Security: Review authentication implementation to ensure proper security behavior
-- 💡 Operational: Investigate why the performance probe ended without captured measurements (Operation timed out or was cancelled) before treating runtime behavior as representative
+- 💡 Heuristic: Return specific, structured errors that identify the invalid argument and expected shape Gap affects 3/41 tools
+- 💡 Heuristic: Constrain string parameters with enum, pattern, or format metadata when possible Gap affects 40/41 tools
+- 💡 Heuristic: Add explicit confirmation, approval, or warning language so agents know human review is expected before destructive execution Gap affects 1/41 tool
+- 💡 Heuristic: Required array parameters should declare items schemas and minItems when empty arrays are not meaningful Gap affects 1/41 tool
 
 ---
 *Produced with [MCP Validator](https://github.com/navalerakesh/mcp-validation-security) · [McpVal on NuGet](https://www.nuget.org/packages/McpVal#versions-body-tab)*

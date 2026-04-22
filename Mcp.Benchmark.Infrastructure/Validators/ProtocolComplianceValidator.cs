@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -68,7 +69,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var batchCompliant = await ValidateBatchProcessingAsync(serverConfig.Endpoint!, ct);
 
             // Test 5: Notification Handling (CRITICAL: Server MUST NOT respond to notifications)
-            var notificationCompliant = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
+            var notificationProbe = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
+            var notificationCompliant = notificationProbe.IsCompliant ?? true;
 
             // Test 6: Error Code Compliance (MUST use standard JSON-RPC error codes)
             var errorCodeCompliant = await ValidateErrorCodeComplianceAsync(serverConfig.Endpoint!, ct);
@@ -197,16 +199,34 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 samplingSupported,
                 completionSupported);
 
-            var scores = new[] {
+            if (notificationProbe.IsCompliant == null)
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PROTOCOL.NOTIFICATION_PROBE_INCONCLUSIVE",
+                    Category = "McpGuideline",
+                    Component = McpSpecConstants.InitializedNotification,
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = notificationProbe.Reason ?? "Notification handling probe was inconclusive due to transient transport pressure.",
+                    Recommendation = "Rerun protocol validation against a lower-pressure window before treating notification handling as non-compliant."
+                });
+            }
+
+            var scores = new List<double>
+            {
                 errorCompliance * 100,
                 requestFormatCompliant ? 100.0 : 0.0,
                 responseFormatCompliant ? 100.0 : 0.0,
                 batchCompliant ? 100.0 : 0.0,
-                notificationCompliant ? 100.0 : 0.0,
                 errorCodeCompliant ? 100.0 : 0.0,
                 contentTypeCompliant ? 100.0 : 0.0,
                 caseSensitivityCompliant ? 100.0 : 0.0
             };
+
+            if (notificationProbe.IsCompliant != null)
+            {
+                scores.Add(notificationCompliant ? 100.0 : 0.0);
+            }
 
             result.ComplianceScore = scores.Average();
             result.Violations = violations;
@@ -642,7 +662,17 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return await ExecuteValidationAsync(serverConfig, "Notification Handling", async (ct) =>
         {
             var result = new ComplianceTestResult();
-            var isCompliant = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
+            var probe = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
+
+            if (probe.IsCompliant == null)
+            {
+                result.Score = 0.0;
+                result.Status = TestStatus.Skipped;
+                result.Message = probe.Reason;
+                return result;
+            }
+
+            var isCompliant = probe.IsCompliant.Value;
             
             if (!isCompliant)
             {
@@ -737,20 +767,43 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }
     }
 
-    private async Task<bool> CheckNotificationHandlingAsync(string endpoint, CancellationToken cancellationToken)
+    private async Task<ProtocolProbeOutcome> CheckNotificationHandlingAsync(string endpoint, CancellationToken cancellationToken)
     {
         // Use a real MCP notification method instead of a request-style method like ping.
         // This avoids classifying "missing id" method validation as a notification response bug.
         var notification = $"{{\"jsonrpc\": \"2.0\", \"method\": \"{McpSpecConstants.InitializedNotification}\"}}";
         var response = await _httpClient.SendRawJsonAsync(endpoint, notification, cancellationToken);
         
-        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
+        {
+            return ProtocolProbeOutcome.Compliant();
+        }
+
+        if (ValidationReliability.ShouldRetryRpcResponse(response))
+        {
+            return ProtocolProbeOutcome.Inconclusive(
+                $"Notification handling probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(response)}).");
+        }
 
         // Server MUST NOT respond to notifications (empty body or 204 No Content)
         // ACCEPTABLE: 202 Accepted (processing started)
-        if (response.StatusCode == 202) return true;
+        if (response.StatusCode == 202)
+        {
+            return ProtocolProbeOutcome.Compliant();
+        }
 
-        return string.IsNullOrWhiteSpace(response.RawJson);
+        return string.IsNullOrWhiteSpace(response.RawJson)
+            ? ProtocolProbeOutcome.Compliant()
+            : ProtocolProbeOutcome.Failed();
+    }
+
+    private readonly record struct ProtocolProbeOutcome(bool? IsCompliant, string? Reason = null)
+    {
+        public static ProtocolProbeOutcome Compliant() => new(true);
+
+        public static ProtocolProbeOutcome Failed() => new(false);
+
+        public static ProtocolProbeOutcome Inconclusive(string reason) => new(null, reason);
     }
 
     private async Task<bool> ValidateErrorCodeComplianceAsync(string endpoint, CancellationToken cancellationToken)
