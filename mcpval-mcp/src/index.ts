@@ -22,10 +22,26 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { config } from "./config.js";
 import { ValidateInputSchema, HealthCheckInputSchema, DiscoverInputSchema } from "./tools.js";
 import { handleValidate, handleHealthCheck, handleDiscover } from "./handlers.js";
 import { getCliVersion } from "./cli-runner.js";
+
+const validateAnnotations: ToolAnnotations = {
+  title: "Validate MCP Server",
+  readOnlyHint: false,
+  destructiveHint: false,
+  idempotentHint: false,
+  openWorldHint: true,
+};
+
+const inspectionAnnotations: ToolAnnotations = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+};
 
 async function main(): Promise<void> {
   const cliVersion = await getCliVersion();
@@ -37,13 +53,27 @@ async function main(): Promise<void> {
 
   // ─── Register Tools ──────────────────────────────────────────
 
-  server.tool(
+  server.registerTool(
     "validate",
-    "Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.",
-    ValidateInputSchema.shape,
-    async ({ server: endpoint, access, token, mcpspec, verbose }) => {
+    {
+      title: "Validate MCP Server",
+      description: "Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.",
+      inputSchema: ValidateInputSchema.shape,
+      annotations: validateAnnotations,
+    },
+    async ({ server: endpoint, access, token, interactive, mcpspec, policy, clientProfile, reportDetail, verbose }) => {
       try {
-        const result = await handleValidate({ server: endpoint, access, token, mcpspec, verbose });
+        const result = await handleValidate({
+          server: endpoint,
+          access,
+          token,
+          interactive,
+          mcpspec,
+          policy,
+          clientProfile,
+          reportDetail,
+          verbose,
+        });
         return { content: [{ type: "text" as const, text: result }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Validation failed: ${(err as Error).message}` }], isError: true };
@@ -51,13 +81,17 @@ async function main(): Promise<void> {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "health_check",
-    "Quick connectivity check — verifies MCP initialize handshake and protocol version.",
-    HealthCheckInputSchema.shape,
-    async ({ server: endpoint, token }) => {
+    {
+      title: "Health Check MCP Server",
+      description: "Quick connectivity check — verifies MCP initialize handshake and protocol version.",
+      inputSchema: HealthCheckInputSchema.shape,
+      annotations: { ...inspectionAnnotations, title: "Health Check MCP Server" },
+    },
+    async ({ server: endpoint, access, token, interactive }) => {
       try {
-        const result = await handleHealthCheck({ server: endpoint, token });
+        const result = await handleHealthCheck({ server: endpoint, access, token, interactive });
         return { content: [{ type: "text" as const, text: result }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Health check failed: ${(err as Error).message}` }], isError: true };
@@ -65,13 +99,17 @@ async function main(): Promise<void> {
     },
   );
 
-  server.tool(
+  server.registerTool(
     "discover",
-    "Discover MCP server capabilities — lists tools, resources, and prompts.",
-    DiscoverInputSchema.shape,
-    async ({ server: endpoint, token }) => {
+    {
+      title: "Discover MCP Server Capabilities",
+      description: "Discover MCP server capabilities — lists tools, resources, and prompts.",
+      inputSchema: DiscoverInputSchema.shape,
+      annotations: { ...inspectionAnnotations, title: "Discover MCP Server Capabilities" },
+    },
+    async ({ server: endpoint, access, token, interactive, format }) => {
       try {
-        const result = await handleDiscover({ server: endpoint, token });
+        const result = await handleDiscover({ server: endpoint, access, token, interactive, format });
         return { content: [{ type: "text" as const, text: result }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Discovery failed: ${(err as Error).message}` }], isError: true };

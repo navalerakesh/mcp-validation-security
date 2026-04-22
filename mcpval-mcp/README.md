@@ -154,6 +154,18 @@ On Windows, use the full path to `mcpval.exe`.
 | `health_check` | Quick connectivity check — verifies initialize handshake |
 | `discover` | List tools, resources, and prompts exposed by a remote MCP server |
 
+### Input Highlights
+
+- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `policy`, `clientProfile`, `reportDetail`, and `verbose`.
+- `health_check`: supports `server`, `access`, `token`, and `interactive`.
+- `discover`: supports `server`, `access`, `token`, `interactive`, and `format` (`json`, `yaml`, or `table`).
+
+## Security Behavior
+
+- Authentication tokens are passed to the CLI through a temporary config file instead of command-line arguments.
+- Temporary config and artifact directories are removed after each tool execution.
+- `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
+
 `discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints. Use `validate` when you need richer evidence for a local STDIO target.
 
 ## Examples

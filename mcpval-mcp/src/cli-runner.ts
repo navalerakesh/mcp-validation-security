@@ -4,7 +4,7 @@
  */
 import { execFile } from "node:child_process";
 import { existsSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
@@ -18,8 +18,13 @@ export interface CliResult {
   stderr: string;
   /** Parsed JSON result from the output directory, if available */
   resultJson?: Record<string, unknown>;
-  /** Path to the generated report, if available */
-  reportPath?: string;
+}
+
+export interface CliInvocation {
+  command: "validate" | "health-check" | "discover";
+  args?: string[];
+  configJson?: Record<string, unknown>;
+  captureResultJson?: boolean;
 }
 
 /**
@@ -74,16 +79,26 @@ export async function getCliVersion(): Promise<string> {
 }
 
 /**
- * Runs mcpval with the given arguments and returns structured results.
- * @param args CLI arguments
- * @param extraEnv Additional environment variables (e.g., for secure token passing)
+ * Runs mcpval with the given command payload and returns structured results.
+ * @param invocation Command-specific invocation payload
+ * @param extraEnv Additional environment variables
  */
-export async function runCli(args: string[], extraEnv?: Record<string, string>): Promise<CliResult> {
+export async function runCli(invocation: CliInvocation, extraEnv?: Record<string, string>): Promise<CliResult> {
   const cliPath = resolveCliPath();
-  const outputDir = join(tmpdir(), `mcpval-mcp-${Date.now()}`);
+  const tempRoot = await mkdtemp(join(tmpdir(), "mcpval-mcp-"));
+  const outputDir = join(tempRoot, "artifacts");
+  const configPath = invocation.configJson ? join(tempRoot, "config.json") : undefined;
 
-  // Always add --output for structured results
-  const fullArgs = [...args, "--output", outputDir];
+  const fullArgs = [invocation.command, ...(invocation.args ?? [])];
+
+  if (configPath && invocation.configJson) {
+    await writeFile(configPath, `${JSON.stringify(invocation.configJson, null, 2)}\n`, "utf-8");
+    fullArgs.push("--config", configPath);
+  }
+
+  if (invocation.captureResultJson) {
+    fullArgs.push("--output", outputDir);
+  }
 
   try {
     const { stdout, stderr } = await execFileAsync(cliPath, fullArgs, {
@@ -92,19 +107,23 @@ export async function runCli(args: string[], extraEnv?: Record<string, string>):
       env: { ...process.env, ...extraEnv },
     });
 
-    const resultJson = await loadResultJson(outputDir);
-    const reportPath = await findReport(outputDir);
+    const resultJson = invocation.captureResultJson ? await loadResultJson(outputDir) : undefined;
 
-    return { exitCode: 0, stdout, stderr, resultJson, reportPath };
+    return { exitCode: 0, stdout, stderr, resultJson };
   } catch (error: unknown) {
     const err = error as { code?: number; stdout?: string; stderr?: string; message?: string };
+    const resultJson = invocation.captureResultJson ? await loadResultJson(outputDir) : undefined;
+
     // Log to stderr for debugging (STDIO safe)
     console.error(`mcpval CLI execution failed: ${err.message ?? "unknown error"}`);
     return {
       exitCode: err.code ?? 1,
       stdout: err.stdout ?? "",
       stderr: err.stderr ?? (err.message ?? "CLI execution failed"),
+      resultJson,
     };
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
   }
 }
 
@@ -121,12 +140,3 @@ async function loadResultJson(dir: string): Promise<Record<string, unknown> | un
   }
 }
 
-async function findReport(dir: string): Promise<string | undefined> {
-  try {
-    const files = await readdir(dir);
-    const report = files.find((f) => f.endsWith("-report.md"));
-    return report ? join(dir, report) : undefined;
-  } catch {
-    return undefined;
-  }
-}
