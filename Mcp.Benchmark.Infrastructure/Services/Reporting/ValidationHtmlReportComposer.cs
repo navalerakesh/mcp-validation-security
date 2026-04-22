@@ -810,6 +810,8 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("          </div>");
         }
 
+        sb.AppendLine(RenderToolAuthorityBreakdown(tools));
+
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
         sb.AppendLine("              <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>");
@@ -889,6 +891,40 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderTag($"idempotentHint {idempotentCount}/{total}"));
         sb.AppendLine("              </div>");
         sb.AppendLine("            </div>");
+        return sb.ToString();
+    }
+
+    private static string RenderToolAuthorityBreakdown(ToolTestResult tools)
+    {
+        var summaries = ToolCatalogAuthoritySummaryBuilder.Build(tools);
+        if (summaries.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var toolCountLabel = $"{tools.ToolsDiscovered} tools";
+        var sb = new StringBuilder();
+        sb.AppendLine("          <div class=\"evidence-card\">");
+        sb.AppendLine("            <div class=\"evidence-card__header\">");
+        sb.AppendLine("              <div>");
+        sb.AppendLine("                <div class=\"evidence-card__title\">Tool Catalog Advisory Breakdown</div>");
+        sb.AppendLine("                <div class=\"evidence-card__subtle\">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>");
+        sb.AppendLine("              </div>");
+        sb.AppendLine($"              {RenderToneChip(toolCountLabel, HtmlReportTone.Info)}");
+        sb.AppendLine("            </div>");
+        sb.AppendLine("            <div class=\"table-shell\">");
+        sb.AppendLine("              <table class=\"data-table\">");
+        sb.AppendLine("                <thead><tr><th>Authority</th><th>Active Rules</th><th>Coverage</th><th>Highest Severity</th><th>Representative Gaps</th></tr></thead><tbody>");
+        foreach (var summary in summaries)
+        {
+            var severityLabel = summary.HighestSeverity?.ToString() ?? "None";
+            var severityTone = summary.HighestSeverity.HasValue ? MapFindingSeverityTone(summary.HighestSeverity.Value) : HtmlReportTone.Success;
+            var highlights = string.Join(" · ", summary.Highlights.Select(Encode));
+            sb.AppendLine($"                  <tr><td>{Encode(FormatAuthorityLabel(summary.SourceLabel))}</td><td>{summary.ActiveRuleCount}</td><td>{Encode(FormatAuthorityCoverage(summary.AffectedComponents, summary.TotalComponents))}</td><td>{RenderToneChip(severityLabel, severityTone)}</td><td>{highlights}</td></tr>");
+        }
+        sb.AppendLine("                </tbody></table>");
+        sb.AppendLine("            </div>");
+        sb.AppendLine("          </div>");
         return sb.ToString();
     }
 
@@ -1392,6 +1428,18 @@ internal sealed class ValidationHtmlReportComposer
         };
     }
 
+    private static HtmlReportTone MapFindingSeverityTone(ValidationFindingSeverity severity)
+    {
+        return severity switch
+        {
+            ValidationFindingSeverity.Critical => HtmlReportTone.Danger,
+            ValidationFindingSeverity.High => HtmlReportTone.Danger,
+            ValidationFindingSeverity.Medium => HtmlReportTone.Warning,
+            ValidationFindingSeverity.Low => HtmlReportTone.Info,
+            _ => HtmlReportTone.Success
+        };
+    }
+
     private static HtmlReportTone MapTestTone(TestStatus status)
     {
         return status switch
@@ -1421,6 +1469,27 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         return HtmlReportTone.Danger;
+    }
+
+    private static string FormatAuthorityCoverage(int affectedComponents, int totalComponents)
+    {
+        if (totalComponents > 0)
+        {
+            var percentage = ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents) * 100;
+            return $"{affectedComponents}/{totalComponents} ({percentage:0}%)";
+        }
+
+        return affectedComponents.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatAuthorityLabel(string authority)
+    {
+        if (string.IsNullOrWhiteSpace(authority))
+        {
+            return "Unspecified";
+        }
+
+        return char.ToUpperInvariant(authority[0]) + authority[1..].ToLowerInvariant();
     }
 
     private static HtmlReportTone MapErrorRateTone(double errorRate)

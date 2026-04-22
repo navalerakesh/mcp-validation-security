@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using FluentAssertions;
 using Xunit;
@@ -242,6 +243,19 @@ public class MarkdownReportGeneratorTests
             CultureInfo.CurrentCulture = originalCulture;
             CultureInfo.CurrentUICulture = originalUiCulture;
         }
+    }
+
+    [Fact]
+    public void GenerateReport_WithToolCatalogAdvisories_ShouldSeparateAuthorityBreakdown()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Tool Catalog Advisory Breakdown");
+        report.Should().Contain("| Spec | 0 | 0/2 (0%) | - | No current catalog-wide tool advisories. |");
+        report.Should().Contain("| Guideline | 1 | 1/2 (50%) | 🟠 High |");
+        report.Should().Contain("| Heuristic | 1 | 1/2 (50%) | 🟡 Medium |");
     }
 
     [Fact]

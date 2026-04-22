@@ -149,6 +149,16 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 
 ---
 
+### Tool Catalog Advisory Breakdown
+
+Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or AI-oriented heuristics.
+
+| Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |
+| :--- | :---: | :--- | :---: | :--- |
+| Spec | 0 | 0/2 (0%) | - | No current catalog-wide tool advisories. |
+| Guideline | 1 | 1/2 (50%) | 🟠 High | Tool 'delete_repo' does not declare annotations.destructiveHint. |
+| Heuristic | 1 | 1/2 (50%) | 🟡 Medium | Tool 'delete_repo' has parameters without descriptions. |
+
 ### MCP Guideline Findings
 
 These findings capture MCP guidance signals that improve agent safety and UX but are not strict protocol MUST failures.

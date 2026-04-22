@@ -1213,8 +1213,8 @@ a:hover {
         <div class="hero-grid">
           <div class="hero-main">
             <div class="eyebrow">MCP Validation Report</div>
-            <h1 class="hero-title">Validation Ready</h1>
-            <p class="hero-subtitle">Protocol, security, AI safety, and operational evidence are summarized below.</p>
+            <h1 class="hero-title">Validation Review Required</h1>
+            <p class="hero-subtitle">Balanced policy blocked release readiness on 5 unsuppressed signal(s).</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1222,11 +1222,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">603cf222-beda-4f4c-a2ab-76f08f7a02d3</div>
+                <div class="fact-item__value">92f0ab4c-203d-471d-9a02-07e5ae8bcccd</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">135.0s</div>
+                <div class="fact-item__value">158.6s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1244,14 +1244,14 @@ a:hover {
 
           </div>
           <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-success">
-    <span class="status-chip status-chip--success">Run Status</span>
-    <div class="focus-value">Passed</div>
-    <div class="focus-label">Generated on 2026-04-22 11:33:44 UTC</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Run Status</span>
+    <div class="focus-value">Failed</div>
+    <div class="focus-label">Generated on 2026-04-22 12:21:04 UTC</div>
 </div>
-<div class="panel status-panel panel--soft panel--tone-info">
-    <span class="status-chip status-chip--info">Trust Posture</span>
-    <div class="focus-value">L3: Acceptable — Compliant with known limitations</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Trust Posture</span>
+    <div class="focus-value">L1: Untrusted — Critical failures, not safe for AI agents</div>
     <div class="focus-label">Human decision signal</div>
 </div>
           </div>
@@ -1264,13 +1264,14 @@ a:hover {
           <h2 class="section-title">Decision & Reading Path</h2>
           <p class="section-intro">Start here, then move only to the evidence sections referenced by the highlighted signals.</p>
           <div class="brief-grid">
-            <div class="decision-brief decision-brief--tone-info">
+            <div class="decision-brief decision-brief--tone-danger">
               <div class="section-kicker">Immediate Decision</div>
-              <h3 class="decision-title">Proceed with focused follow-up</h3>
-              <p class="decision-summary">Core requirements passed. Use the follow-up items to close remaining advisory gaps.</p>
+              <h3 class="decision-title">Release decision requires review</h3>
+              <p class="decision-summary">Balanced policy blocked the validation result with 5 unsuppressed signal(s).</p>
               <ul class="compact-list">
-                <li>MCP-PROTO-JSONRPC: Batch processing implementation is inconsistent or incomplete</li>
-                <li>MCP-PROTO-ERR: JSON-RPC Error Code Violation: Method Not Found</li>
+                <li>MUST requirement failed: MUST: tools/list result has &#39;tools&#39; array — tools/list returned an invalid response</li>
+                <li>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</li>
+                <li>Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications</li>
               </ul>
             </div>
 
@@ -1279,8 +1280,9 @@ a:hover {
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
                 <ul class="compact-list">
-                  <li>MCP-PROTO-JSONRPC: Batch processing implementation is inconsistent or incomplete</li>
-                  <li>MCP-PROTO-ERR: JSON-RPC Error Code Violation: Method Not Found</li>
+                  <li>Policy balanced blocked the run: Balanced policy blocked the validation result with 5 unsuppressed signal(s).</li>
+                  <li>MUST requirement failed: MUST: tools/list result has &#39;tools&#39; array — tools/list returned an invalid response</li>
+                  <li>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</li>
                 </ul>
               </section>
 
@@ -1288,9 +1290,9 @@ a:hover {
                 <div class="report-note__eyebrow">Then review</div>
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
+                  <li>Balanced policy blocked the validation result with 5 unsuppressed signal(s).</li>
+                  <li>Protocol: The server MUST NOT send a response to a notification (a request without an &quot;id&quot; field). Remove any response logic that triggers for noti....</li>
                   <li>Protocol: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure ba....</li>
-                  <li>Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse e....</li>
-                  <li>Consider improving overall compliance score to meet industry standards.</li>
                 </ul>
               </section>
 
@@ -1303,20 +1305,20 @@ a:hover {
           <h2 class="section-title">Compliance Summary</h2>
           <p class="section-intro">Core outcome metrics are compact. Domain calibration is kept in a single stable table.</p>
           <div class="score-strip">
-            <div class="score-pill score-pill--warning">
+            <div class="score-pill score-pill--danger">
               <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">68.4%</div>
-              <div class="score-pill__meta">Usable, but review blockers remain</div>
+              <div class="score-pill__value">20.0%</div>
+              <div class="score-pill__meta">High review pressure</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Pass Rate</div>
-              <div class="score-pill__value">97.7%</div>
-              <div class="score-pill__meta">43/44 checks passed</div>
+              <div class="score-pill__value">88.6%</div>
+              <div class="score-pill__meta">39/44 checks passed</div>
             </div>
-            <div class="score-pill score-pill--info">
+            <div class="score-pill score-pill--danger">
               <div class="score-pill__eyebrow">Trust Level</div>
-              <div class="score-pill__value">L3</div>
-              <div class="score-pill__meta">L3: Acceptable — Compliant with known limitations</div>
+              <div class="score-pill__value">L1</div>
+              <div class="score-pill__meta">L1: Untrusted — Critical failures, not safe for AI agents</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Rule Coverage</div>
@@ -1331,12 +1333,12 @@ a:hover {
               <tbody>
                 <tr>
                   <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-info">81%</span></td>
+                  <td><span class="tone-chip tone-warning">53%</span></td>
                   <td>Spec adherence and response structure</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Security</div></td>
-                  <td><span class="tone-chip tone-success">100%</span></td>
+                  <td><span class="tone-chip tone-info">75%</span></td>
                   <td>Auth boundaries and exploit resistance</td>
                 </tr>
                 <tr>
@@ -1382,7 +1384,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">1362.6 ms</div>
+                <div class="fact-item__value">2263.2 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -1425,13 +1427,13 @@ a:hover {
                 <div class="ledger-title">Claude Code</div>
                 <div class="ledger-subtle">claude-code · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 2</span><span>W 4</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed, with 4 advisory gap(s).</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool call contract is structurally valid</strong>: The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.</li>
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
-                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.anthropic.com/en/docs/claude-code/mcp">Profile documentation</a></div>
               </div>
@@ -1441,13 +1443,13 @@ a:hover {
                 <div class="ledger-title">VS Code Copilot Agent</div>
                 <div class="ledger-subtle">vscode-copilot-agent · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 2</span><span>W 4</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed, with 4 advisory gap(s).</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool call contract is structurally valid</strong>: The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.</li>
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
-                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers">Profile documentation</a></div>
               </div>
@@ -1457,13 +1459,13 @@ a:hover {
                 <div class="ledger-title">GitHub Copilot CLI</div>
                 <div class="ledger-subtle">github-copilot-cli · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 2</span><span>W 2</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 1</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 2 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool call contract is structurally valid</strong>: The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.</li>
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
-                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers">Profile documentation</a></div>
               </div>
@@ -1473,13 +1475,13 @@ a:hover {
                 <div class="ledger-title">GitHub Copilot Cloud Agent</div>
                 <div class="ledger-subtle">github-copilot-cloud-agent · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 2</span><span>W 3</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 1</span><span>W 4</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed, with 4 advisory gap(s).</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool call contract is structurally valid</strong>: The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.</li>
                   <li><strong>Only the tool surface is currently consumed</strong>: This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility.</li>
-                  <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp">Profile documentation</a></div>
               </div>
@@ -1489,13 +1491,13 @@ a:hover {
                 <div class="ledger-title">Visual Studio Copilot</div>
                 <div class="ledger-subtle">visual-studio-copilot · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 3</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 2</span><span>W 4</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed, with 3 advisory gap(s).</p>
+                <p class="ledger-copy">Required compatibility checks passed, with 4 advisory gap(s).</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tool call contract is structurally valid</strong>: The tool validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.</li>
                   <li><strong>Tool presentation and approval metadata is complete</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
-                  <li><strong>Tool schemas are clear enough for agent planning</strong>: Advisory tool guidance gaps affect 41/41 tool(s).</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio">Profile documentation</a></div>
               </div>
@@ -1535,7 +1537,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 348.0 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 1432.1 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool add_comment_to_pending_review responded successfully.</div>
 </article>
@@ -1547,7 +1549,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 121.1 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 127.7 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -1559,7 +1561,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 2</span>
-        <span class="probe-metric"><strong>Duration</strong> 114.4 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 128.5 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -1575,30 +1577,50 @@ a:hover {
           <div class="distribution-summary">
             <div class="distribution-summary__title">Finding Distribution</div>
             <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--danger">
+                <div class="distribution-card__label">Critical</div>
+                <div class="distribution-card__value">2</div>
+                <div class="distribution-card__meta">29% of observed outcomes</div>
+              </div>
               <div class="distribution-card distribution-card--warning">
                 <div class="distribution-card__label">Medium</div>
                 <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">33% of observed outcomes</div>
+                <div class="distribution-card__meta">14% of observed outcomes</div>
               </div>
               <div class="distribution-card distribution-card--info">
                 <div class="distribution-card__label">Low</div>
-                <div class="distribution-card__value">2</div>
-                <div class="distribution-card__meta">67% of observed outcomes</div>
+                <div class="distribution-card__value">4</div>
+                <div class="distribution-card__meta">57% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--danger" style="flex:2;"></span>
               <span class="distribution-segment distribution-segment--warning" style="flex:1;"></span>
-              <span class="distribution-segment distribution-segment--info" style="flex:2;"></span>
+              <span class="distribution-segment distribution-segment--info" style="flex:4;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Medium 1 (33%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Low 2 (67%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Critical 2 (29%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Medium 1 (14%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Low 4 (57%)</span>
             </div>
           </div>
 
           <div class="ledger-group">
             <h3 class="minor-title">Protocol and Compliance Findings</h3>
             <div class="ledger-list">
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-PROTO-ERR</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-info">Low</span></div>
+                  <div class="ledger-subtle">JSON-RPC Compliance</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">JSON-RPC Error Code Violation: Parse Error</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                </div>
+              </article>
               <article class="ledger-entry ledger-entry--info">
                 <div class="ledger-rail">
                   <div class="ledger-kicker">Rule</div>
@@ -1638,6 +1660,51 @@ a:hover {
                   <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
                 </div>
               </article>
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-PROTO-JSONRPC</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">Critical</span></div>
+                  <div class="ledger-subtle">JSON-RPC Compliance</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> The server MUST NOT send a response to a notification (a request without an &quot;id&quot; field). Remove any response logic that triggers for notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-PROTO-ERR</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-info">Low</span></div>
+                  <div class="ledger-subtle">JSON-RPC Compliance</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Error codes do not comply with JSON-RPC 2.0 standard error codes</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                </div>
+              </article>
+          </div>
+          </div>
+
+          <div class="ledger-group">
+            <h3 class="minor-title">Security Vulnerabilities</h3>
+            <div class="ledger-list">
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Issue</div>
+                  <div class="ledger-code"><code>SEC-AUTH-LOGGING-SETLEVEL-ada1c52d-81d7-4a1e-a82c-3a842b11bdd7</code></div>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">heuristic</span> <span class="tone-chip tone-danger">Critical</span></div>
+                  <div class="ledger-subtle">logging/setLevel</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Authentication Issue: No Auth - logging/setLevel</div>
+                  <p class="ledger-copy">FAIL: Invalid authentication was accepted.: Sensitive operation succeeded</p>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Review authentication implementation to ensure proper security behavior</p>
+                </div>
+              </article>
           </div>
           </div>
 
@@ -1645,33 +1712,47 @@ a:hover {
       </section>
 
       <section class="section">
-        <div class="section-shell panel--tone-success">
+        <div class="section-shell panel--tone-info">
           <div class="section-kicker">Security Evidence</div>
           <h2 class="section-title">Security Assessment Details</h2>
-          <p class="section-intro">Security Score: 100.0% · Vulnerabilities: 0</p>
+          <p class="section-intro">Security Score: 75.0% · Vulnerabilities: 1</p>
           <div class="ledger-group">
             <h3 class="minor-title">Authentication Scenarios</h3>
           <div class="distribution-summary">
             <div class="distribution-summary__title">Authentication Outcome Distribution</div>
             <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--info">
+                <div class="distribution-card__label">Observed</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">2% of observed outcomes</div>
+              </div>
               <div class="distribution-card distribution-card--warning">
                 <div class="distribution-card__label">Review</div>
-                <div class="distribution-card__value">7</div>
-                <div class="distribution-card__meta">13% of observed outcomes</div>
+                <div class="distribution-card__value">6</div>
+                <div class="distribution-card__meta">9% of observed outcomes</div>
               </div>
               <div class="distribution-card distribution-card--success">
                 <div class="distribution-card__label">Aligned</div>
-                <div class="distribution-card__value">48</div>
-                <div class="distribution-card__meta">87% of observed outcomes</div>
+                <div class="distribution-card__value">56</div>
+                <div class="distribution-card__meta">88% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--danger">
+                <div class="distribution-card__label">Insecure</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">2% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--warning" style="flex:7;"></span>
-              <span class="distribution-segment distribution-segment--success" style="flex:48;"></span>
+              <span class="distribution-segment distribution-segment--info" style="flex:1;"></span>
+              <span class="distribution-segment distribution-segment--warning" style="flex:6;"></span>
+              <span class="distribution-segment distribution-segment--success" style="flex:56;"></span>
+              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Review 7 (13%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Aligned 48 (87%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Observed 1 (2%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Review 6 (9%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Aligned 56 (88%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Insecure 1 (2%)</span>
             </div>
           </div>
 
@@ -1681,26 +1762,26 @@ a:hover {
                   <div>
                     <div class="ledger-kicker">Test surface</div>
                     <div class="auth-surface__title">initialize</div>
-                    <div class="auth-surface__meta">1 scenarios &#183; 1 review</div>
+                    <div class="auth-surface__meta">1 scenarios &#183; 1 observed</div>
                   </div>
                   <div class="ledger-chip-row">
-                    <span class="tone-chip tone-warning">1 review</span>
+                    <span class="tone-chip tone-info">1 observed</span>
                   </div>
                 </div>
                 <div class="auth-scenario-list">
-                  <article class="auth-scenario auth-scenario--warning">
+                  <article class="auth-scenario auth-scenario--info">
                     <div class="auth-scenario__header">
                       <div class="auth-scenario__title">No Auth</div>
-                      <span class="tone-chip tone-warning">Review</span>
+                      <span class="tone-chip tone-info">Observed</span>
                     </div>
                     <div class="auth-scenario__comparison">
                       <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">4xx (Secure Rejection)</div></div>
-                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Discovery metadata returned</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Rate limited</div></div>
                     </div>
                     <div class="auth-scenario__metrics">
-                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 429</span>
                     </div>
-                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Discovery metadata was exposed without authentication.</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">ℹ️ INFO: Rate limiting observed; auth semantics inconclusive.</div></div>
                   </article>
                 </div>
               </section>
@@ -2592,6 +2673,154 @@ a:hover {
                   </article>
                 </div>
               </section>
+              <section class="auth-surface">
+                <div class="auth-surface__header">
+                  <div>
+                    <div class="ledger-kicker">Test surface</div>
+                    <div class="auth-surface__title">logging/setLevel</div>
+                    <div class="auth-surface__meta">9 scenarios &#183; 8 aligned &#183; 1 review</div>
+                  </div>
+                  <div class="ledger-chip-row">
+                    <span class="tone-chip tone-success">8 aligned</span>
+                    <span class="tone-chip tone-warning">1 review</span>
+                  </div>
+                </div>
+                <div class="auth-scenario-list">
+                  <article class="auth-scenario auth-scenario--danger">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">No Auth</div>
+                      <span class="tone-chip tone-danger">Insecure</span>
+                    </div>
+                    <div class="auth-scenario__comparison">
+                      <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">4xx (Secure Rejection)</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
+                    </div>
+                    <div class="auth-scenario__metrics">
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">❌ INSECURE: Sensitive operation succeeded without valid authentication.</div></div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Malformed Token</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Invalid Token</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Token Expired</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Invalid Scope</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Insufficient Permissions</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Revoked Token</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Wrong Audience (RFC 8707)</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> Challenge returned</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 400</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer error=&quot;invalid_token&quot;, error_description=&quot;Invalid token&quot;, resource_metadata=&quot;https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Secure OAuth-style challenge returned with HTTP 400.</div></div>
+                    </div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Valid Token</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 200 + JSON-RPC Response</span>
+                      <span class="probe-metric"><strong>Observed</strong> Authenticated request succeeded</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Valid authentication was accepted and request processing proceeded.</div></div>
+                    </div>
+                  </article>
+                </div>
+              </section>
             </div>
           </div>
           <div class="ledger-group">
@@ -2628,7 +2857,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;ec93df9e-c659-4fa8-aa7e-4699932e590d&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;721999da-4d3f-4ce5-877b-82bc98e531a1&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2638,7 +2867,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;9482a891-e0d4-4ecc-bc69-c7a66447bb53&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2fa8b896-5c40-483c-bf86-e96b59b8e099&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2648,7 +2877,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;79e33544-dca7-4062-8eb1-8d4315f44b6c&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;9745e93f-90f4-452a-9224-218f8e3257a1&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2700,52 +2929,70 @@ a:hover {
         <div class="section-shell panel--tone-success">
           <div class="section-kicker">Tool Surface</div>
           <h2 class="section-title">Tool Validation Details</h2>
-          <p class="section-intro">Tools Discovered: 41 · Passed: 41 · Failed: 0</p>
+          <p class="section-intro">Tools Discovered: 41 · Passed: 39 · Failed: 2</p>
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
+                <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+              </div>
+              <span class="tone-chip tone-info">41 tools</span>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead><tr><th>Authority</th><th>Active Rules</th><th>Coverage</th><th>Highest Severity</th><th>Representative Gaps</th></tr></thead><tbody>
+                  <tr><td>Spec</td><td>1</td><td>5/41 (12%)</td><td><span class="tone-chip tone-info">Low</span></td><td>tools/call result.isError field not present</td></tr>
+                  <tr><td>Guideline</td><td>4</td><td>41/41 (100%)</td><td><span class="tone-chip tone-info">Low</span></td><td>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.idempotentHint. · Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.destructiveHint.</td></tr>
+                  <tr><td>Heuristic</td><td>7</td><td>41/41 (100%)</td><td><span class="tone-chip tone-danger">High</span></td><td>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops · Tool &#39;add_comment_to_pending_review&#39;: 4/10 string parameters have no enum/pattern/format constraint</td></tr>
+                </tbody></table>
+            </div>
+          </div>
+
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>347.98 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>617.43 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>271.35 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>271.01 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>350.81 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>365.56 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>260.51 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>197.21 ms</td><td>title, description</td></tr>
-                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>318.21 ms</td><td>title, description, destructiveHint</td></tr>
-                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>252.42 ms</td><td>title, description</td></tr>
-                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>315.74 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>371.38 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>283.84 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>305.68 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>235.56 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>357.70 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>296.17 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>232.87 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>285.88 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>245.23 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>215.19 ms</td><td>title, description</td></tr>
-                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>282.25 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>198.05 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>194.96 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>201.34 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>303.70 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>267.16 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>328.80 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>249.91 ms</td><td>title, description</td></tr>
-                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>183.71 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>227.41 ms</td><td>title, description</td></tr>
-                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>343.63 ms</td><td>title, description</td></tr>
-                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>240.97 ms</td><td>title, description</td></tr>
-                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>136.12 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
-                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>407.88 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>363.49 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>380.81 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>507.61 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>244.59 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>241.06 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>290.56 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>258.10 ms</td><td>title, description</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1432.11 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>3621.36 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1388.70 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>270.80 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>300.61 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>3626.77 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1393.74 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>203.99 ms</td><td>title, description</td></tr>
+                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>311.62 ms</td><td>title, description, destructiveHint</td></tr>
+                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>258.04 ms</td><td>title, description</td></tr>
+                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>3386.95 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2626.80 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>316.21 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>288.99 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>275.24 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1428.77 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1390.14 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>228.64 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>272.36 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>198.28 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>3465.02 ms</td><td>title, description</td></tr>
+                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1397.72 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>192.59 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>188.22 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>188.50 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>293.48 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>300.71 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>309.60 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>289.36 ms</td><td>title, description</td></tr>
+                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>232.54 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>230.39 ms</td><td>title, description</td></tr>
+                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>393.81 ms</td><td>title, description</td></tr>
+                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>278.33 ms</td><td>title, description</td></tr>
+                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>121.70 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
+                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>432.52 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1530.53 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>386.77 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>376.50 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>256.12 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>220.10 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>272.35 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>271.38 ms</td><td>title, description</td></tr>
               </tbody></table>
           </div>
         </div>
@@ -2775,16 +3022,18 @@ a:hover {
             <div>
               <h3 class="minor-title">Methodology</h3>
               <ul class="compact-list">
-                <li>GUIDANCE: 7 protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by 20%.</li>
-                <li>Score is below the preferred target, but no blocking failure was observed in this run.</li>
+                <li>BLOCKER: Unauthorized success was observed on a sensitive operation for the Authenticated profile.</li>
               </ul>
             </div>
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
-                <li>Consider improving overall compliance score to meet industry standards</li>
-                <li>Review and address failed test cases to improve server stability</li>
-                <li>Ensure full compliance with MCP protocol specification</li>
+                <li>Spec: The server MUST NOT send a response to a notification (a request without an &quot;id&quot; field). Remove any response logic that triggers for notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications</li>
+                <li>Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch</li>
+                <li>Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
+                <li>Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
+                <li>Security: Review authentication implementation to ensure proper security behavior</li>
+                <li>Operational: Investigate why the performance probe ended without captured measurements (Operation timed out or was cancelled) before treating runtime behavior as representative</li>
               </ul>
             </div>
           </div>

@@ -310,6 +310,20 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithToolCatalogAdvisories_ShouldShowAuthorityBreakdown()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Tool Catalog Advisory Breakdown");
+        html.Should().Contain("Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.");
+        html.Should().Contain("<td>Spec</td><td>0</td><td>0/2 (0%)</td>");
+        html.Should().Contain("<td>Guideline</td><td>1</td><td>1/2 (50%)</td>");
+        html.Should().Contain("<td>Heuristic</td><td>1</td><td>1/2 (50%)</td>");
+    }
+
+    [Fact]
     public void GenerateXmlReport_WithClientCompatibility_ShouldIncludeProfileAssessments()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();

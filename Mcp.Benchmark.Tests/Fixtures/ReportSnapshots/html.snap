@@ -1518,6 +1518,24 @@ a:hover {
             </div>
 
           </div>
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
+                <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+              </div>
+              <span class="tone-chip tone-info">2 tools</span>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead><tr><th>Authority</th><th>Active Rules</th><th>Coverage</th><th>Highest Severity</th><th>Representative Gaps</th></tr></thead><tbody>
+                  <tr><td>Spec</td><td>0</td><td>0/2 (0%)</td><td><span class="tone-chip tone-success">None</span></td><td>No current catalog-wide tool advisories.</td></tr>
+                  <tr><td>Guideline</td><td>1</td><td>1/2 (50%)</td><td><span class="tone-chip tone-danger">High</span></td><td>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</td></tr>
+                  <tr><td>Heuristic</td><td>1</td><td>1/2 (50%)</td><td><span class="tone-chip tone-warning">Medium</span></td><td>Tool &#39;delete_repo&#39; has parameters without descriptions.</td></tr>
+                </tbody></table>
+            </div>
+          </div>
+
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>

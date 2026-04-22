@@ -391,6 +391,23 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine();
                 }
 
+                var authoritySummaries = ToolCatalogAuthoritySummaryBuilder.Build(result.ToolValidation);
+                if (authoritySummaries.Count > 0)
+                {
+                    sb.AppendLine("### Tool Catalog Advisory Breakdown");
+                    sb.AppendLine();
+                    sb.AppendLine("Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or AI-oriented heuristics.");
+                    sb.AppendLine();
+                    sb.AppendLine("| Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |");
+                    sb.AppendLine("| :--- | :---: | :--- | :---: | :--- |");
+                    foreach (var summary in authoritySummaries)
+                    {
+                        var highlights = string.Join("<br />", summary.Highlights.Select(EscapeTableCell));
+                        sb.AppendLine($"| {FormatAuthorityLabel(summary.SourceLabel)} | {summary.ActiveRuleCount} | {FormatAuthorityCoverage(summary.AffectedComponents, summary.TotalComponents)} | {FormatFindingSeverity(summary.HighestSeverity)} | {highlights} |");
+                    }
+                    sb.AppendLine();
+                }
+
                 var guidelineFindings = ValidationFindingAggregator.SummarizeFindingsByRule(
                     result.ToolValidation.ToolResults
                         .SelectMany(tool => tool.Findings.Where(f => f.Category == "McpGuideline")),
@@ -971,6 +988,44 @@ public class MarkdownReportGenerator : IReportGenerator
 
         var percentage = ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents) * 100;
         return $"{affectedComponents}/{totalComponents} ({percentage.ToString("0", CultureInfo.InvariantCulture)}%)";
+    }
+
+    private static string FormatAuthorityCoverage(int affectedComponents, int totalComponents)
+    {
+        if (totalComponents > 0)
+        {
+            var percentage = ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents) * 100;
+            return $"{affectedComponents}/{totalComponents} ({percentage.ToString("0", CultureInfo.InvariantCulture)}%)";
+        }
+
+        return affectedComponents.ToString(CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatAuthorityLabel(string authority)
+    {
+        if (string.IsNullOrWhiteSpace(authority))
+        {
+            return "Unspecified";
+        }
+
+        return char.ToUpperInvariant(authority[0]) + authority[1..].ToLowerInvariant();
+    }
+
+    private static string FormatFindingSeverity(ValidationFindingSeverity? severity)
+    {
+        if (severity == null)
+        {
+            return "-";
+        }
+
+        return severity.Value switch
+        {
+            ValidationFindingSeverity.Critical => "🔴 Critical",
+            ValidationFindingSeverity.High => "🟠 High",
+            ValidationFindingSeverity.Medium => "🟡 Medium",
+            ValidationFindingSeverity.Low => "🔵 Low",
+            _ => "⚪ Info"
+        };
     }
 
     private static string FormatClientCompatibilityStatus(ClientProfileCompatibilityStatus status) => status switch
