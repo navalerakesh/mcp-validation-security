@@ -570,12 +570,57 @@ public class ValidateCommand
         _logger.LogInformation("Validation result JSON saved: {JsonPath}", jsonPath);
         _logger.LogInformation("SARIF report saved: {SarifPath}", sarifPath);
         _consoleOutput.WriteSuccess($"Reports generated: {markdownPath} and {htmlPath}");
-        return new[]
+
+        var savedPaths = new List<string> { markdownPath, htmlPath, jsonPath, sarifPath };
+
+        // Emit an aggregate profile summary artifact when client profiles are evaluated.
+        if (safeResult.ClientCompatibility?.Assessments.Count > 0)
         {
-            markdownPath,
-            htmlPath,
-            jsonPath,
-            sarifPath
+            var profileSummaryPath = Path.Combine(outputDirectory, $"{baseName}-profile-summary.json");
+            var profileSummary = BuildClientProfileSummary(safeResult);
+            var profileSummaryJson = JsonSerializer.Serialize(profileSummary, jsonOptions);
+            await File.WriteAllTextAsync(profileSummaryPath, profileSummaryJson);
+            _logger.LogInformation("Client profile summary saved: {Path}", profileSummaryPath);
+            savedPaths.Add(profileSummaryPath);
+        }
+
+        return savedPaths;
+    }
+
+    private static object BuildClientProfileSummary(ValidationResult result)
+    {
+        var assessments = result.ClientCompatibility!.Assessments;
+
+        return new
+        {
+            generatedUtc = DateTime.UtcNow.ToString("o"),
+            validationId = result.ValidationId,
+            serverEndpoint = result.ServerConfig.Endpoint,
+            complianceScore = result.ComplianceScore,
+            trustLevel = result.TrustAssessment?.TrustLabel,
+            profileCount = assessments.Count,
+            compatibleCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.Compatible),
+            warningCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.CompatibleWithWarnings),
+            incompatibleCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.Incompatible),
+            profiles = assessments.Select(a => new
+            {
+                profileId = a.ProfileId,
+                displayName = a.DisplayName,
+                status = a.StatusLabel,
+                passedRequirements = a.PassedRequirements,
+                warningRequirements = a.WarningRequirements,
+                failedRequirements = a.FailedRequirements,
+                topBlockers = a.Requirements
+                    .Where(r => r.Outcome == ClientProfileRequirementOutcome.Failed)
+                    .Select(r => new
+                    {
+                        requirementId = r.RequirementId,
+                        title = r.Title,
+                        ruleIds = r.RuleIds,
+                        recommendation = r.Recommendation
+                    })
+                    .ToList()
+            }).ToList()
         };
     }
 

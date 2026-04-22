@@ -43,6 +43,14 @@ public class ReportSnapshotTests
         };
 
         var normalizedActual = Normalize(snapshotName, actual).TrimEnd('\r', '\n');
+
+        // Allow snapshot regeneration via environment variable.
+        if (Environment.GetEnvironmentVariable("UPDATE_SNAPSHOTS") == "1")
+        {
+            File.WriteAllText(GetSnapshotSourcePath(snapshotName), normalizedActual);
+            return;
+        }
+
         var expected = File.ReadAllText(GetSnapshotPath(snapshotName)).Replace("\r\n", "\n").TrimEnd('\r', '\n');
 
         normalizedActual.Should().Be(expected);
@@ -51,6 +59,13 @@ public class ReportSnapshotTests
     private static string GetSnapshotPath(string snapshotName)
     {
         return Path.Combine(AppContext.BaseDirectory, "Fixtures", "ReportSnapshots", $"{snapshotName}.snap");
+    }
+
+    private static string GetSnapshotSourcePath(string snapshotName)
+    {
+        // Walk up from bin/Debug/net8.0 to project root, then into Fixtures/ReportSnapshots.
+        var projectDir = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", ".."));
+        return Path.Combine(projectDir, "Fixtures", "ReportSnapshots", $"{snapshotName}.snap");
     }
 
     private static string Normalize(string snapshotName, string value)

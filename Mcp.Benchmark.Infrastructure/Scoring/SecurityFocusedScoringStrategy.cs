@@ -82,10 +82,13 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         // Performance is INFORMATIONAL — does not impact compliance score.
         // A slow server is not a non-compliant server. Correctness > speed.
         // Performance data is still collected and reported in the Trust Assessment.
+        // Uses the nuanced score from PerformanceScoringStrategy (latency/error
+        // penalties) so the category score in JSON matches human-readable reports
+        // and TrustAssessment.OperationalReadiness.
         new(
             "Performance",
             0.00,
-            r => r.PerformanceTesting?.Status == TestStatus.Passed ? 100.0 : 0.0,
+            r => r.PerformanceTesting?.Score ?? 0,
             r => r.PerformanceTesting?.Status)
     };
 

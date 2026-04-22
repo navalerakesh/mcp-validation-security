@@ -99,98 +99,82 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             // Collect all violations (marked as warnings if score >= 80%)
             foreach (var test in errorValidation.Tests.Where(t => !t.IsValid))
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolErrorHandling,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling],
-                    Description = $"JSON-RPC Error Code Violation: {test.Name}",
-                    Severity = isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolErrorHandling,
+                    $"JSON-RPC Error Code Violation: {test.Name}",
+                    isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling]));
             }
 
             if (!requestFormatCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat],
-                    Description = "Request format does not comply with JSON-RPC 2.0 specification",
-                    Severity = ViolationSeverity.High, // Downgraded from Critical to avoid instant 0 score
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
+                    "Request format does not comply with JSON-RPC 2.0 specification",
+                    ViolationSeverity.High, // Downgraded from Critical to avoid instant 0 score
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
             if (!responseFormatCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat],
-                    Description = "Response format does not comply with JSON-RPC 2.0 specification",
-                    Severity = ViolationSeverity.High, // Downgraded from Critical to avoid instant 0 score
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
+                    "Response format does not comply with JSON-RPC 2.0 specification",
+                    ViolationSeverity.High, // Downgraded from Critical to avoid instant 0 score
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
             if (!batchCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat],
-                    Description = "Batch processing implementation is inconsistent or incomplete",
-                    Severity = ViolationSeverity.Medium,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
+                    "Batch processing implementation is inconsistent or incomplete",
+                    ViolationSeverity.Medium,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
             if (!notificationCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat],
-                    Description = "Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications",
-                    Severity = ViolationSeverity.Critical,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
+                    "Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications",
+                    ViolationSeverity.Critical,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
             if (!errorCodeCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolErrorHandling,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling],
-                    Description = "Error codes do not comply with JSON-RPC 2.0 standard error codes",
-                    Severity = isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolErrorHandling,
+                    "Error codes do not comply with JSON-RPC 2.0 standard error codes",
+                    isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling]));
             }
 
             if (!contentTypeCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.HttpContentType,
-                    SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http",
-                    Description = "Content-Type requirements not enforced (Server should reject non-JSON)",
-                    Severity = ViolationSeverity.Low,
-                    Category = ValidationConstants.Categories.Transport
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.HttpContentType,
+                    "Content-Type requirements not enforced (Server should reject non-JSON)",
+                    ViolationSeverity.Low,
+                    ValidationConstants.Categories.Transport,
+                    "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"));
             }
 
             if (!caseSensitivityCompliant)
             {
-                violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat],
-                    Description = "Case sensitivity not enforced: Member names MUST be case-sensitive",
-                    Severity = isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
+                    "Case sensitivity not enforced: Member names MUST be case-sensitive",
+                    isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
             var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
@@ -564,14 +548,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             var negotiatedVersion = serverVersion.GetString();
                             if (string.IsNullOrEmpty(negotiatedVersion))
                             {
-                                result.Violations.Add(new ComplianceViolation
-                                {
-                                    CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                                    Description = "Server did not return a protocolVersion in initialize response",
-                                    Severity = ViolationSeverity.High,
-                                    Category = ValidationConstants.Categories.ProtocolLifecycle
-                                });
+                                result.Violations.Add(CreateViolation(
+                                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                                    "Server did not return a protocolVersion in initialize response",
+                                    ViolationSeverity.High,
+                                    ValidationConstants.Categories.ProtocolLifecycle,
+                                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                                 result.Score = 60.0;
                             }
                             else
@@ -585,37 +567,31 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                                 // serverInfo MUST have 'name' (string) and 'version' (string)
                                 if (!serverInfo.TryGetProperty("name", out _))
                                 {
-                                    result.Violations.Add(new ComplianceViolation
-                                    {
-                                        CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                                        SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                                        Description = "serverInfo missing 'name' field (MUST per spec)",
-                                        Severity = ViolationSeverity.Medium,
-                                        Category = ValidationConstants.Categories.ProtocolLifecycle
-                                    });
+                                    result.Violations.Add(CreateViolation(
+                                        ValidationConstants.CheckIds.ProtocolLifecycle,
+                                        "serverInfo missing 'name' field (MUST per spec)",
+                                        ViolationSeverity.Medium,
+                                        ValidationConstants.Categories.ProtocolLifecycle,
+                                        ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                                 }
                                 if (!serverInfo.TryGetProperty("version", out _))
                                 {
-                                    result.Violations.Add(new ComplianceViolation
-                                    {
-                                        CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                                        SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                                        Description = "serverInfo missing 'version' field (MUST per spec)",
-                                        Severity = ViolationSeverity.Medium,
-                                        Category = ValidationConstants.Categories.ProtocolLifecycle
-                                    });
+                                    result.Violations.Add(CreateViolation(
+                                        ValidationConstants.CheckIds.ProtocolLifecycle,
+                                        "serverInfo missing 'version' field (MUST per spec)",
+                                        ViolationSeverity.Medium,
+                                        ValidationConstants.Categories.ProtocolLifecycle,
+                                        ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                                 }
                             }
                             else
                             {
-                                result.Violations.Add(new ComplianceViolation
-                                {
-                                    CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                                    Description = "Server did not return serverInfo in initialize response (SHOULD per spec)",
-                                    Severity = ViolationSeverity.Low,
-                                    Category = ValidationConstants.Categories.ProtocolLifecycle
-                                });
+                                result.Violations.Add(CreateViolation(
+                                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                                    "Server did not return serverInfo in initialize response (SHOULD per spec)",
+                                    ViolationSeverity.Low,
+                                    ValidationConstants.Categories.ProtocolLifecycle,
+                                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                             }
 
                             // Verify capabilities object is present (MUST per spec)
@@ -629,14 +605,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             }
                             else
                             {
-                                result.Violations.Add(new ComplianceViolation
-                                {
-                                    CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                                    Description = "Server did not return capabilities in initialize response (MUST per spec)",
-                                    Severity = ViolationSeverity.High,
-                                    Category = ValidationConstants.Categories.ProtocolLifecycle
-                                });
+                                result.Violations.Add(CreateViolation(
+                                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                                    "Server did not return capabilities in initialize response (MUST per spec)",
+                                    ViolationSeverity.High,
+                                    ValidationConstants.Categories.ProtocolLifecycle,
+                                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                                 result.Score = 50.0;
                             }
                         }
@@ -651,14 +625,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             {
                 result.Status = TestStatus.Failed;
                 result.Score = 0.0;
-                result.Violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle],
-                    Description = "Server failed to respond to initialize request",
-                    Severity = ViolationSeverity.Critical,
-                    Category = ValidationConstants.Categories.ProtocolLifecycle
-                });
+                result.Violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                    "Server failed to respond to initialize request",
+                    ViolationSeverity.Critical,
+                    ValidationConstants.Categories.ProtocolLifecycle,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
             }
             
             return result;
@@ -674,14 +646,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             
             if (!isCompliant)
             {
-                result.Violations.Add(new ComplianceViolation
-                {
-                    CheckId = ValidationConstants.CheckIds.ProtocolNotification,
-                    SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Notification],
-                    Description = "Server responded to a notification request (notifications must not generate responses)",
-                    Severity = ViolationSeverity.High,
-                    Category = ValidationConstants.Categories.JsonRpcCompliance
-                });
+                result.Violations.Add(CreateViolation(
+                    ValidationConstants.CheckIds.ProtocolNotification,
+                    "Server responded to a notification request (notifications must not generate responses)",
+                    ViolationSeverity.High,
+                    ValidationConstants.Categories.JsonRpcCompliance,
+                    ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Notification]));
             }
             
             result.Score = isCompliant ? 100.0 : 0.0;
@@ -822,6 +792,28 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         {
             return false;
         }
+    }
+
+    /// <summary>
+    /// Creates a <see cref="ComplianceViolation"/> with the <see cref="ComplianceViolation.Recommendation"/>
+    /// field auto-populated from <see cref="ComplianceRecommendations"/>.
+    /// </summary>
+    private static ComplianceViolation CreateViolation(
+        string checkId,
+        string description,
+        ViolationSeverity severity,
+        string category,
+        string? specReference = null)
+    {
+        return new ComplianceViolation
+        {
+            CheckId = checkId,
+            Description = description,
+            Severity = severity,
+            Category = category,
+            SpecReference = specReference,
+            Recommendation = ComplianceRecommendations.GetRecommendation(checkId, description)
+        };
     }
 
     // Old methods replaced by Rules

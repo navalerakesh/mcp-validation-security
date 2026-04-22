@@ -1,4 +1,10 @@
 {
+  "producer": {
+    "name": "MCP Validator",
+    "packageId": "McpVal",
+    "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
+    "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
+  },
   "validationId": "validation-snapshot-001",
   "startTime": "2026-04-20T10:00:00Z",
   "endTime": "2026-04-20T10:00:12Z",
@@ -441,7 +447,7 @@
     "status": 2,
     "duration": "00:00:01.2000000",
     "message": "Performance is acceptable under moderate load.",
-    "score": 0,
+    "score": 100,
     "criticalErrors": [],
     "findings": []
   },
