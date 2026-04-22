@@ -65,6 +65,8 @@ publish-package.bat
 .test/test-request.ps1
 .test/token.txt
 .test/*
+publish-exe.ps1
+run-validation-suite.ps1
 #.ignore/*
 TEMP/*
 publish/*
@@ -73,6 +75,8 @@ docs/.local/*
 docs/.private/*
 docs/Audit/*
 nupkg/*
+fix_file.py
+test_output.txt
 todo.md
 .github/prompts/
 _ranavale/*
