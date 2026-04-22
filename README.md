@@ -43,14 +43,13 @@ mcpval validate \
   --output ./mcp-reports
 ```
 
-Validate an authenticated server and interpret the result for a documented client profile:
+Validate an authenticated server and interpret the result for all documented client profiles:
 
 ```bash
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
   --token "$MCP_TOKEN" \
-  --client-profile github-copilot-cloud-agent \
   --output ./mcp-reports
 ```
 
@@ -78,15 +77,15 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest` or `2025-11-25`. |
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
-| `--client-profile <id>` | Adds host-specific compatibility interpretation for profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. |
+| `--client-profile <id>` | Narrows host-specific compatibility interpretation to profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. When omitted, `validate` evaluates every documented host profile by default. |
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
-| `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. |
+| `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. Remote functional probes may still self-calibrate below this cap so transient throttling does not become a false protocol or tool failure. |
 | `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
 | <code>--report-detail &lt;full&#124;minimal&gt;</code> | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
 | `-v, --verbose` | Increases console and diagnostic logging detail. |
 
-Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings.
+Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings. `validate` includes that interpretation by default; use `--client-profile` only when you want a smaller subset of host profiles.
 
 The standard artifact set is:
 
@@ -94,6 +93,8 @@ The standard artifact set is:
 - `mcp-validation-<timestamp>-report.html` - full HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable validation object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF findings feed for CI and code scanning
+
+When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
 ### Other Commands
 

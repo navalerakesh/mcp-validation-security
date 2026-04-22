@@ -9,7 +9,7 @@ DOTNET_ROLL_FORWARD=Major dotnet run --project Mcp.Benchmark.CLI -- validate \
   --server https://api.githubcopilot.com/mcp/ \
   --access authenticated \
   --token "$(gh auth token)" \
-  --output ./PublicReports/github-mcp-remote-live \
+  --output ./PublicReports/github-mcp-remote-live-20260422 \
   --verbose
 ```
 
@@ -26,13 +26,15 @@ For every successful `validate --output <folder>` run, the CLI writes the follow
 | `mcp-validation-<timestamp>-result.json` | Canonical machine-readable validation result |
 | `mcp-validation-<timestamp>-results.sarif.json` | SARIF findings feed for CI and code-scanning systems |
 
+`validate` now evaluates all documented host profiles by default, so the same run also emits `mcp-validation-<timestamp>-profile-summary.json` with a per-profile compatibility rollup. Use `--client-profile` only when you want to narrow the evaluated host set.
+
 Inside GitHub Actions, the same run also emits a step summary and workflow annotations derived from policy failures, structured findings, protocol violations, and security vulnerabilities.
 
 ## Example Output Directory
 
 A representative output set is kept under:
 
-- [../../PublicReports/github-mcp-remote-live](../../PublicReports/github-mcp-remote-live)
+- [../../PublicReports/github-mcp-remote-live-20260422](../../PublicReports/github-mcp-remote-live-20260422)
 
 The exact filenames change on every run because they are timestamped. The folder is preserved as an example of the default artifact contract rather than as a normative reference for scores or findings.
 
@@ -40,6 +42,7 @@ The exact filenames change on every run because they are timestamped. The folder
 
 - It demonstrates an authenticated remote validation flow against a widely recognized MCP endpoint.
 - It shows the full artifact set produced by `validate` without requiring a separate rendering step.
+- It demonstrates the all-profiles compatibility rollup that produces `*-profile-summary.json` alongside the core artifacts.
 - It provides a realistic example of the type of evidence teams can archive in CI or attach to change reviews.
 
 ## Reusable Action

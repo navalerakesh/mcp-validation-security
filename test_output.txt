@@ -1,0 +1,3244 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  Mcp.Benchmark.Core -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.Core/bin/Debug/net8.0/Mcp.Benchmark.Core.dll
+  Mcp.Compliance.Spec -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Compliance.Spec/bin/Debug/net8.0/Mcp.Compliance.Spec.dll
+  Mcp.Benchmark.ClientProfiles -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.ClientProfiles/bin/Debug/net8.0/Mcp.Benchmark.ClientProfiles.dll
+  Mcp.Benchmark.Infrastructure -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.Infrastructure/bin/Debug/net8.0/Mcp.Benchmark.Infrastructure.dll
+  Mcp.Benchmark.CLI -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.CLI/bin/Debug/net8.0/mcpval.dll
+  Mcp.Benchmark.Tests -> /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.Tests/bin/Debug/net8.0/Mcp.Benchmark.Tests.dll
+Test run for /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.Tests/bin/Debug/net8.0/Mcp.Benchmark.Tests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 18.0.1 (arm64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.15]     Mcp.Benchmark.Tests.Unit.Reporting.ReportSnapshotTests.Outputs_ShouldMatchApprovedSnapshots(snapshotName: "html") [FAIL]
+  Failed Mcp.Benchmark.Tests.Unit.Reporting.ReportSnapshotTests.Outputs_ShouldMatchApprovedSnapshots(snapshotName: "html") [36 ms]
+  Error Message:
+   **WARNING** failure message 'Expected normalizedActual to be a match with the expectation, but it differs at column 11 of line 443 (index 12922):
+             ↓ (actual)
+  "…   gap: 12px;\n    margin-top: 14px;\n}\n.auth-surface {\n    border: 1px solid…"
+  "…   gap: 16px;\n    margin-top: 16px;\n}\n.auth-surface {\n    border: 1px solid…"
+             ↑ (expected)
+
+Full expectation:
+
+    "<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MCP Server Validation Report - Full</title>
+        <style>
+    :root {
+        color-scheme: light;
+        --report-bg: #dde4eb;
+        --report-bg-glow-a: rgba(54, 95, 161, 0.08);
+        --report-bg-glow-b: rgba(168, 93, 25, 0.08);
+        --report-bg-glow-c: rgba(15, 23, 38, 0.05);
+        --surface: rgba(255, 255, 255, 0.96);
+        --surface-strong: #ffffff;
+        --surface-muted: #f5f7fa;
+        --surface-emphasis: #eef2f6;
+        --line: #c9d2dd;
+        --line-strong: #aebbc9;
+        --text: #223042;
+        --text-strong: #101827;
+        --text-muted: #4f5e72;
+        --text-soft: #6a7789;
+        --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
+        --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
+        --radius-shell: 22px;
+        --radius-panel: 16px;
+        --radius-card: 14px;
+        --tone-success: #1f6a52;
+        --tone-success-soft: #eef6f1;
+        --tone-success-line: #8fbca5;
+        --tone-warning: #a85d19;
+        --tone-warning-soft: #faf1e6;
+        --tone-warning-line: #dbb085;
+        --tone-danger: #a33446;
+        --tone-danger-soft: #f9ecef;
+        --tone-danger-line: #d7a1aa;
+        --tone-info: #365fa1;
+        --tone-info-soft: #edf2fb;
+        --tone-info-line: #9bb2dd;
+        --tone-neutral: #596577;
+        --tone-neutral-soft: #f2f5f8;
+        --tone-neutral-line: #c8d0d9;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Aptos", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background:
+            radial-gradient(circle at top left, var(--report-bg-glow-a), transparent 34%),
+            radial-gradient(circle at top right, var(--report-bg-glow-b), transparent 30%),
+            radial-gradient(circle at 50% 18%, var(--report-bg-glow-c), transparent 38%),
+            var(--report-bg);
+        color: var(--text);
+        padding: 24px;
+    }
+    .report-shell {
+        max-width: 1260px;
+        margin: 0 auto;
+        background: rgba(255,255,255,0.98);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-shell);
+        box-shadow: var(--shadow-panel);
+        overflow: hidden;
+        position: relative;
+    }
+    .report-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--tone-danger), var(--tone-warning), var(--tone-info));
+        opacity: 0.2;
+        pointer-events: none;
+    }
+    .report-content {
+        position: relative;
+        z-index: 1;
+        padding: 22px 24px 28px;
+    }
+    .hero {
+        border-radius: calc(var(--radius-shell) - 4px);
+        padding: 28px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-soft);
+    }
+    .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.85fr);
+        gap: 20px;
+        align-items: start;
+    }
+    .hero-main {
+        min-width: 0;
+    }
+    .eyebrow {
+        font-size: 0.74rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .hero-title {
+        margin: 10px 0 10px;
+        color: var(--text-strong);
+        font-size: clamp(2rem, 3vw, 3.05rem);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+    }
+    .hero-subtitle {
+        margin: 0;
+        max-width: 840px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1.58;
+    }
+    .hero-facts,
+    .fact-grid {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-top: 1px solid var(--line);
+        border-left: 1px solid var(--line);
+    }
+    .fact-item {
+        background: rgba(255,255,255,0.66);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 12px 14px;
+        min-height: 76px;
+    }
+    .fact-item__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .fact-item__value {
+        margin-top: 7px;
+        color: var(--text-strong);
+        font-size: 0.95rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .hero-meta {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+    }
+    .meta-card {
+        background: rgba(255,255,255,0.72);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
+    .meta-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .meta-value {
+        margin-top: 7px;
+        color: var(--text-strong);
+        font-size: 0.98rem;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+    .hero-side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        box-shadow: var(--shadow-soft);
+        padding: 18px;
+    }
+    .panel--soft {
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+    }
+    .status-panel {
+        min-width: 0;
+    }
+    .panel--tone-success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-success-soft)); }
+    .panel--tone-warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(250,241,230,0.82)); }
+    .panel--tone-danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(249,236,239,0.82)); }
+    .panel--tone-info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-info-soft)); }
+    .panel--tone-neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-neutral-soft)); }
+    .status-chip,
+    .tone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+    }
+    .status-chip::before,
+    .tone-chip::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.75;
+    }
+    .tone-success, .status-chip--success { color: var(--tone-success); background: var(--tone-success-soft); border-color: var(--tone-success-line); }
+    .tone-warning, .status-chip--warning { color: var(--tone-warning); background: var(--tone-warning-soft); border-color: var(--tone-warning-line); }
+    .tone-danger, .status-chip--danger { color: var(--tone-danger); background: var(--tone-danger-soft); border-color: var(--tone-danger-line); }
+    .tone-info, .status-chip--info { color: var(--tone-info); background: var(--tone-info-soft); border-color: var(--tone-info-line); }
+    .tone-neutral, .status-chip--neutral { color: var(--tone-neutral); background: var(--tone-neutral-soft); border-color: var(--tone-neutral-line); }
+    .focus-value {
+        font-size: clamp(1.55rem, 1.8vw, 2.15rem);
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        margin-top: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+    .focus-label {
+        margin-top: 6px;
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+    }
+    .section-heading-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    .brief-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+        gap: 18px;
+        margin-top: 18px;
+    }
+    .brief-side {
+        display: grid;
+        gap: 12px;
+    }
+    .decision-brief,
+    .report-note,
+    .status-callout {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: var(--surface-muted);
+        padding: 16px 18px;
+    }
+    .decision-brief--tone-success,
+    .report-note--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.88)); }
+    .decision-brief--tone-warning,
+    .report-note--warning,
+    .status-callout--warning { border-left-color: var(--tone-warning); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,230,0.88)); }
+    .decision-brief--tone-danger,
+    .report-note--danger { border-left-color: var(--tone-danger); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.88)); }
+    .decision-brief--tone-info,
+    .report-note--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
+    .decision-brief--tone-neutral,
+    .report-note--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); }
+    .decision-title {
+        margin: 8px 0 8px;
+        font-size: 1.28rem;
+        color: var(--text-strong);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+    }
+    .decision-summary {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.58;
+    }
+    .report-note__eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .report-note__title {
+        margin: 6px 0 0;
+        font-size: 1.08rem;
+        line-height: 1.22;
+        color: var(--text-strong);
+    }
+    .report-note__empty {
+        margin: 10px 0 0;
+        color: var(--text-muted);
+        line-height: 1.56;
+    }
+    .ledger-group {
+        margin-top: 18px;
+    }
+    .ledger-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+    }
+    .ledger-entry {
+        display: grid;
+        grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+        gap: 18px;
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 16px 18px;
+    }
+    .ledger-entry--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
+    .ledger-entry--warning { border-left-color: var(--tone-warning); }
+    .ledger-entry--danger { border-left-color: var(--tone-danger); }
+    .ledger-entry--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.72)); }
+    .ledger-entry--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.78)); }
+    .ledger-rail {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        min-width: 0;
+    }
+    .ledger-body {
+        min-width: 0;
+    }
+    .ledger-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .ledger-title {
+        font-size: 1rem;
+        line-height: 1.34;
+        color: var(--text-strong);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .ledger-subtle {
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+    .ledger-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .ledger-copy {
+        margin: 0;
+        color: var(--text);
+        line-height: 1.62;
+        overflow-wrap: anywhere;
+    }
+    .ledger-copy + .ledger-copy {
+        margin-top: 10px;
+    }
+    .ledger-links {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    .ledger-code,
+    .ledger-code-block {
+        overflow-wrap: anywhere;
+    }
+    .ledger-code code,
+    .ledger-code-block code {
+        display: inline-block;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .ledger-code-block {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+    .ledger-code-block code {
+        display: block;
+        margin-top: 6px;
+        padding: 8px 10px;
+        background: rgba(24,34,49,0.05);
+    }
+    .probe-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .probe-row {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 14px 16px;
+    }
+    .probe-row--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
+    .probe-row--warning { border-left-color: var(--tone-warning); }
+    .probe-row--danger { border-left-color: var(--tone-danger); }
+    .probe-row--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.72)); }
+    .probe-row__heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+    .probe-row__metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-top: 10px;
+    }
+    .probe-metric {
+        display: inline-flex;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: var(--surface-emphasis);
+        color: var(--text);
+        font-size: 0.84rem;
+    }
+    .probe-row__note {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.56;
+        overflow-wrap: anywhere;
+    }
+    .auth-surface-list {
+        display: grid;
+        gap: 16px;
+        margin-top: 16px;
+    }
+    .auth-surface {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 16px 18px;
+    }
+    .auth-surface__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: start;
+    }
+    .auth-surface__title {
+        margin-top: 4px;
+        font-size: 1.06rem;
+        line-height: 1.26;
+        color: var(--text-strong);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .auth-surface__meta {
+        margin-top: 6px;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+    .auth-scenario-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+    }
+    .auth-scenario {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: 12px;
+        background: var(--surface-muted);
+        padding: 12px 14px;
+    }
+    .auth-scenario--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.68)); }
+    .auth-scenario--warning { border-left-color: var(--tone-warning); }
+    .auth-scenario--danger { border-left-color: var(--tone-danger); }
+    .auth-scenario--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.68)); }
+    .auth-scenario--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.72)); }
+    .auth-scenario__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+    .auth-scenario__title {
+        font-size: 0.98rem;
+        line-height: 1.3;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .auth-scenario__comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .auth-fact {
+        border-radius: 10px;
+        background: rgba(255,255,255,0.76);
+        border: 1px solid rgba(174, 187, 201, 0.42);
+        padding: 10px 11px;
+    }
+    .auth-fact__label {
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .auth-fact__value {
+        margin-top: 6px;
+        color: var(--text);
+        line-height: 1.52;
+        font-size: 0.92rem;
+        overflow-wrap: anywhere;
+    }
+    .auth-scenario__metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 10px;
+    }
+    .auth-scenario__metrics--dense {
+        gap: 8px;
+    }
+    .auth-scenario__metrics--dense .probe-metric {
+        background: rgba(255,255,255,0.78);
+    }
+    .auth-scenario--compact {
+        padding-bottom: 10px;
+    }
+    .auth-scenario__detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 10px;
+    }
+    .auth-scenario__block {
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(174, 187, 201, 0.4);
+    }
+    .auth-scenario__block--emphasis {
+        padding: 10px 11px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.56);
+        border-top-color: transparent;
+    }
+    .auth-scenario__block-label {
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .auth-scenario__block-value {
+        margin-top: 6px;
+        color: var(--text);
+        line-height: 1.55;
+        font-size: 0.92rem;
+        overflow-wrap: anywhere;
+    }
+    .compact-list {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: var(--text);
+    }
+    .compact-list--tight {
+        margin-top: 10px;
+    }
+    .compact-list li {
+        margin-top: 8px;
+        line-height: 1.58;
+    }
+    .score-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+    }
+    .score-pill {
+        --score-pill-eyebrow: var(--text-soft);
+        --score-pill-meta: var(--text-muted);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94));
+        box-shadow: 0 8px 18px rgba(24,34,49,0.04);
+        padding: 14px 16px;
+    }
+    .score-pill--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.86)); --score-pill-eyebrow: var(--tone-success); --score-pill-meta: var(--tone-success); }
+    .score-pill--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,230,0.72)); }
+    .score-pill--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.72)); }
+    .score-pill--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.86)); --score-pill-eyebrow: var(--tone-info); --score-pill-meta: var(--tone-info); }
+    .score-pill--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); --score-pill-eyebrow: var(--tone-neutral); --score-pill-meta: var(--tone-neutral); }
+    .score-pill__eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--score-pill-eyebrow);
+        font-weight: 700;
+    }
+    .score-pill__value {
+        margin-top: 8px;
+        font-size: 1.65rem;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .score-pill__meta {
+        margin-top: 7px;
+        color: var(--score-pill-meta);
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+    .panel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+    .metric-card {
+        --metric-eyebrow-color: var(--text-soft);
+        --metric-support-color: var(--text-muted);
+        border-radius: var(--radius-card);
+        border: 1px solid var(--line);
+        padding: 18px 18px 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9));
+        min-height: 152px;
+        box-shadow: 0 10px 28px rgba(24,34,49,0.05);
+    }
+    .metric-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.84)); --metric-eyebrow-color: var(--tone-success); --metric-support-color: var(--tone-success); }
+    .metric-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,241,230,0.8)); }
+    .metric-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(249,236,239,0.8)); }
+    .metric-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(237,242,251,0.84)); --metric-eyebrow-color: var(--tone-info); --metric-support-color: var(--tone-info); }
+    .metric-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(242,245,248,0.88)); --metric-eyebrow-color: var(--tone-neutral); --metric-support-color: var(--tone-neutral); }
+    .metric-eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--metric-eyebrow-color);
+        font-weight: 700;
+    }
+    .metric-value {
+        margin-top: 12px;
+        font-size: 2rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .metric-label {
+        margin-top: 10px;
+        font-size: 1rem;
+        color: var(--text-strong);
+        font-weight: 600;
+    }
+    .metric-support {
+        margin-top: 8px;
+        color: var(--metric-support-color);
+        font-size: 0.9rem;
+        line-height: 1.55;
+    }
+    .stack-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+    }
+    .stack-list {
+        display: grid;
+        gap: 12px;
+    }
+    .stack-item {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.74);
+        padding: 14px 16px;
+    }
+    .stack-item__index {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .stack-item__text {
+        margin-top: 8px;
+        color: var(--text);
+        line-height: 1.62;
+        font-size: 0.95rem;
+    }
+    .section {
+        margin-top: 18px;
+    }
+    .section-shell {
+        border-radius: var(--radius-panel);
+        background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,250,252,0.86));
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-soft);
+        padding: 22px;
+    }
+    .section-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .section-title {
+        margin: 9px 0 6px;
+        font-size: 1.34rem;
+        line-height: 1.14;
+        letter-spacing: -0.03em;
+        color: var(--text-strong);
+    }
+    .section-intro {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.62;
+        max-width: 920px;
+    }
+    .distribution-summary {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.96);
+    }
+    .distribution-summary__title {
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .distribution-summary__cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .distribution-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92));
+        box-shadow: 0 6px 14px rgba(24,34,49,0.03);
+        padding: 10px 12px;
+    }
+    .distribution-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.78)); }
+    .distribution-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,241,230,0.72)); }
+    .distribution-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,236,239,0.72)); }
+    .distribution-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(237,242,251,0.78)); }
+    .distribution-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(242,245,248,0.84)); }
+    .distribution-card__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .distribution-card__value {
+        margin-top: 8px;
+        font-size: 1.34rem;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .distribution-card__meta {
+        margin-top: 6px;
+        color: var(--text-muted);
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+    .distribution-bar {
+        display: flex;
+        gap: 4px;
+        margin-top: 12px;
+        height: 10px;
+        padding: 1px;
+        border-radius: 999px;
+        background: var(--surface-emphasis);
+    }
+    .distribution-segment {
+        min-width: 14px;
+        border-radius: 999px;
+        opacity: 0.88;
+    }
+    .distribution-segment--success { background: var(--line-strong); }
+    .distribution-swatch--success { background: var(--tone-success); }
+    .distribution-segment--warning { background: var(--tone-warning-line); }
+    .distribution-swatch--warning { background: var(--tone-warning); }
+    .distribution-segment--danger { background: var(--tone-danger-line); }
+    .distribution-swatch--danger { background: var(--tone-danger); }
+    .distribution-segment--info { background: var(--line); }
+    .distribution-swatch--info { background: var(--tone-info); }
+    .distribution-segment--neutral { background: var(--tone-neutral-line); }
+    .distribution-swatch--neutral { background: var(--tone-neutral); }
+    .distribution-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        margin-top: 12px;
+    }
+    .distribution-legend__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+        font-size: 0.9rem;
+    }
+    .distribution-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: 0 0 auto;
+    }
+    .dual-grid {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 18px;
+    }
+    .list-panel {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+    }
+    .finding-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: start;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.76);
+        padding: 14px 16px;
+    }
+    .finding-bullet {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        margin-top: 7px;
+    }
+    .finding-row--success .finding-bullet { background: var(--tone-success); }
+    .finding-row--warning .finding-bullet { background: var(--tone-warning); }
+    .finding-row--danger .finding-bullet { background: var(--tone-danger); }
+    .finding-row--info .finding-bullet { background: var(--tone-info); }
+    .finding-row--neutral .finding-bullet { background: var(--tone-neutral); }
+    .finding-copy {
+        color: var(--text);
+        line-height: 1.64;
+        font-size: 0.95rem;
+    }
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+    .summary-card {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.78);
+        padding: 16px;
+    }
+    .summary-card__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .summary-card__value {
+        margin-top: 10px;
+        color: var(--text-strong);
+        font-size: 1.02rem;
+        line-height: 1.45;
+        font-weight: 600;
+    }
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+    }
+    .evidence-card {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.82);
+        padding: 18px;
+        box-shadow: 0 8px 24px rgba(24,34,49,0.04);
+    }
+    .evidence-card__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    .evidence-card__title {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .evidence-card__subtle {
+        margin-top: 4px;
+        color: var(--text-soft);
+        font-size: 0.84rem;
+    }
+    .evidence-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 16px;
+    }
+    .evidence-stat {
+        min-width: 110px;
+    }
+    .evidence-stat__label {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .evidence-stat__value {
+        margin-top: 6px;
+        font-size: 1.2rem;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .evidence-note {
+        margin-top: 14px;
+        font-size: 0.92rem;
+        line-height: 1.65;
+        color: var(--text-muted);
+    }
+    .table-shell {
+        margin-top: 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: auto;
+        background: rgba(255,255,255,0.98);
+    }
+    .table-shell--compact {
+        margin-top: 18px;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    .data-table thead {
+        background: var(--surface-emphasis);
+    }
+    .data-table th,
+    .data-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+    }
+    .data-table th {
+        color: var(--text-soft);
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .data-table tbody tr:nth-child(even) {
+        background: rgba(247,249,252,0.62);
+    }
+    .data-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+    code {
+        font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        font-size: 0.88em;
+        background: rgba(24,34,49,0.06);
+        padding: 2px 6px;
+        border-radius: 6px;
+    }
+    a {
+        color: var(--tone-info);
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    .inline-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+    }
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 11px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.82);
+        color: var(--text);
+        font-size: 0.82rem;
+    }
+    .rich-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text);
+    }
+    .rich-list li {
+        margin-top: 8px;
+        line-height: 1.64;
+    }
+    .cell-title {
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .table-subtle {
+        margin-top: 6px;
+        color: var(--text-muted);
+        font-size: 0.86rem;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    .check-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-variant-numeric: tabular-nums;
+    }
+    .check-summary span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--surface-emphasis);
+        color: var(--text);
+        font-size: 0.82rem;
+    }
+    .capability-note {
+        line-height: 1.55;
+        color: var(--text-muted);
+    }
+    .status-callout__title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .status-callout__body {
+        margin-top: 6px;
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
+    .minor-title {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--text-strong);
+    }
+    .appendix-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        margin-top: 18px;
+    }
+    .producer-signature {
+        margin-top: 24px;
+        color: var(--text-soft);
+        font-size: 0.86rem;
+        text-align: center;
+    }
+    .producer-signature a {
+        color: inherit;
+        text-decoration-line: underline;
+        text-decoration-color: rgba(106, 119, 137, 0.85);
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 0.18em;
+    }
+    .producer-signature a:hover {
+        text-decoration-color: currentColor;
+    }
+    .producer-signature__divider {
+        display: inline-block;
+        margin: 0 8px;
+        color: var(--line-strong);
+    }
+    .footer {
+        margin-top: 10px;
+        padding: 10px 6px 0;
+        color: var(--text-soft);
+        font-size: 0.84rem;
+        text-align: center;
+    }
+    @media (max-width: 960px) {
+        body { padding: 18px; }
+        .report-content { padding: 18px; }
+        .hero { padding: 22px; }
+        .hero-grid,
+        .dual-grid,
+        .brief-grid,
+        .appendix-grid {
+            grid-template-columns: 1fr;
+        }
+        .stack-grid {
+            align-items: start;
+            grid-template-columns: 1fr;
+        }
+        .hero-facts,
+        .fact-grid {
+            grid-template-columns: 1fr;
+        }
+        .ledger-entry {
+            grid-template-columns: 1fr;
+        }
+        .auth-surface__header,
+        .probe-row__heading {
+            flex-direction: column;
+        }
+        .auth-scenario__comparison {
+            grid-template-columns: 1fr;
+        }
+        .auth-scenario__detail-grid {
+            grid-template-columns: 1fr;
+        }
+        .section-heading-row {
+            flex-direction: column;
+        }
+    }
+    @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+        body {
+            background: #ffffff;
+            padding: 0;
+            color: #1b2431;
+        }
+        .report-shell {
+            max-width: none;
+            border: 0;
+            box-shadow: none;
+            background: #ffffff;
+        }
+        .report-shell::before {
+            display: none;
+        }
+        .report-content {
+            padding: 0;
+        }
+        .hero,
+        .panel,
+        .section-shell,
+        .distribution-summary,
+        .auth-surface,
+        .auth-scenario,
+        .ledger-entry,
+        .probe-row,
+        .metric-card,
+        .evidence-card,
+        .summary-card,
+        .table-shell,
+        .meta-card,
+        .stack-item,
+        .finding-row {
+            box-shadow: none;
+            background: #ffffff;
+        }
+        .hero,
+        .panel,
+        .section-shell,
+        .distribution-summary,
+        .auth-surface,
+        .auth-scenario,
+        .ledger-entry,
+        .probe-row,
+        .metric-card,
+        .evidence-card,
+        .summary-card,
+        .table-shell,
+        .meta-card,
+        .stack-item,
+        .finding-row,
+        .summary-grid,
+        .card-grid,
+        .panel-grid,
+        .hero-meta,
+        .table-shell,
+        .section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+        </style>
+    </head>
+    <body>
+      <div class="report-shell">
+        <div class="report-content">
+          <section class="hero">
+            <div class="hero-grid">
+              <div class="hero-main">
+                <div class="eyebrow">MCP Validation Report</div>
+                <h1 class="hero-title">Validation Review Required</h1>
+                <p class="hero-subtitle">Strict policy blocked release readiness on 2 unsuppressed signal(s).</p>
+                <div class="hero-facts">
+                  <div class="fact-item">
+                    <div class="fact-item__label">Endpoint</div>
+                    <div class="fact-item__value">https://snapshot.example.test/mcp</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Validation ID</div>
+                    <div class="fact-item__value">validation-snapshot-001</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Duration</div>
+                    <div class="fact-item__value">12.0s</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Spec Profile</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Server Profile</div>
+                    <div class="fact-item__value">Authenticated (UserDeclared)</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Protocol Version</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                </div>
+
+              </div>
+              <div class="hero-side">
+    <div class="panel status-panel panel--soft panel--tone-danger">
+        <span class="status-chip status-chip--danger">Run Status</span>
+        <div class="focus-value">Failed</div>
+        <div class="focus-label">Generated on <normalized-timestamp></div>
+    </div>
+    <div class="panel status-panel panel--soft panel--tone-info">
+        <span class="status-chip status-chip--info">Trust Posture</span>
+        <div class="focus-value">L3: Acceptable — Compliant with known limitations</div>
+        <div class="focus-label">Human decision signal</div>
+    </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell executive-shell">
+              <div class="section-kicker">Executive Summary</div>
+              <h2 class="section-title">Decision & Reading Path</h2>
+              <p class="section-intro">Start here, then move only to the evidence sections referenced by the highlighted signals.</p>
+              <div class="brief-grid">
+                <div class="decision-brief decision-brief--tone-danger">
+                  <div class="section-kicker">Immediate Decision</div>
+                  <h3 class="decision-title">Release decision requires review</h3>
+                  <p class="decision-summary">Strict policy blocked the validation result with 2 unsuppressed signal(s).</p>
+                  <ul class="compact-list">
+                    <li>Trust level L3_Acceptable is below the strict minimum of L4_Trusted.</li>
+                    <li>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                  </ul>
+                </div>
+
+                <div class="brief-side">
+                  <section class="report-note report-note--warning">
+                    <div class="report-note__eyebrow">Read first</div>
+                    <h3 class="report-note__title">Priority Findings</h3>
+                    <ul class="compact-list">
+                      <li>Policy strict blocked the run: Strict policy blocked the validation result with 2 unsuppressed signal(s).</li>
+                      <li>Trust level L3_Acceptable is below the strict minimum of L4_Trusted.</li>
+                      <li>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                    </ul>
+                  </section>
+
+                  <section class="report-note report-note--info">
+                    <div class="report-note__eyebrow">Then review</div>
+                    <h3 class="report-note__title">Next Actions</h3>
+                    <ul class="compact-list">
+                      <li>Strict policy blocked the validation result with 2 unsuppressed signal(s).</li>
+                      <li>Protocol: Echo the negotiated protocol version in initialize.result.</li>
+                      <li>Security: Sanitize and label untrusted content before returning it.</li>
+                    </ul>
+                  </section>
+
+                </div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Scorecard</div>
+              <h2 class="section-title">Compliance Summary</h2>
+              <p class="section-intro">Core outcome metrics are compact. Domain calibration is kept in a single stable table.</p>
+              <div class="score-strip">
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Compliance Score</div>
+                  <div class="score-pill__value">81.4%</div>
+                  <div class="score-pill__meta">Strong with targeted follow-up</div>
+                </div>
+                <div class="score-pill score-pill--warning">
+                  <div class="score-pill__eyebrow">Pass Rate</div>
+                  <div class="score-pill__value">57.1%</div>
+                  <div class="score-pill__meta">4/7 checks passed</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Trust Level</div>
+                  <div class="score-pill__value">L3</div>
+                  <div class="score-pill__meta">L3: Acceptable — Compliant with known limitations</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Rule Coverage</div>
+                  <div class="score-pill__value">87.5%</div>
+                  <div class="score-pill__meta">Collected evidence coverage across enabled checks</div>
+                </div>
+              </div>
+
+              <div class="table-shell table-shell--compact">
+                <table class="data-table calibration-table">
+                  <thead><tr><th>Domain</th><th>Score</th><th>Reading</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><div class="cell-title">Protocol</div></td>
+                      <td><span class="tone-chip tone-info">84%</span></td>
+                      <td>Spec adherence and response structure</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">Security</div></td>
+                      <td><span class="tone-chip tone-warning">69%</span></td>
+                      <td>Auth boundaries and exploit resistance</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">AI Safety</div></td>
+                      <td><span class="tone-chip tone-info">75%</span></td>
+                      <td>Schema quality and agent safety posture</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">Operations</div></td>
+                      <td><span class="tone-chip tone-success">88%</span></td>
+                      <td>Latency, throughput, and stability</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-info">
+              <div class="section-heading-row">
+                <div>
+                  <div class="section-kicker">Preflight Connectivity</div>
+                  <h2 class="section-title">Connectivity & Session Bootstrap</h2>
+                  <p class="section-intro">The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.</p>
+                </div>
+                <span class="tone-chip tone-info">Protected endpoint</span>
+              </div>
+              <div class="evidence-note"><strong>Assessment:</strong> Validation crossed an expected authentication boundary during bootstrap.</div>
+                <div class="fact-grid">
+                  <div class="fact-item">
+                    <div class="fact-item__label">Bootstrap State</div>
+                    <div class="fact-item__value">Reachable (Protected)</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Deferred Validation</div>
+                    <div class="fact-item__value">Yes</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Handshake HTTP</div>
+                    <div class="fact-item__value">HTTP 401</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Handshake Latency</div>
+                    <div class="fact-item__value">84.2 ms</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Negotiated Protocol</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Observed Server Version</div>
+                    <div class="fact-item__value">2.4.1</div>
+                  </div>
+                </div>
+
+              <div class="evidence-note"><strong>Bootstrap Note:</strong> 401 Unauthorized — bootstrap encountered an authentication challenge.</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Structured Evidence</div>
+              <h2 class="section-title">Rule & Severity Insights</h2>
+              <p class="section-intro">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
+              <div class="distribution-summary">
+                <div class="distribution-summary__title">Finding Distribution</div>
+                <div class="distribution-summary__cards">
+                  <div class="distribution-card distribution-card--danger">
+                    <div class="distribution-card__label">Critical</div>
+                    <div class="distribution-card__value">1</div>
+                    <div class="distribution-card__meta">50% of observed outcomes</div>
+                  </div>
+                  <div class="distribution-card distribution-card--danger">
+                    <div class="distribution-card__label">High</div>
+                    <div class="distribution-card__value">1</div>
+                    <div class="distribution-card__meta">50% of observed outcomes</div>
+                  </div>
+                </div>
+                <div class="distribution-bar">
+                  <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
+                  <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
+                </div>
+                <div class="distribution-legend">
+                  <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Critical 1 (50%)</span>
+                  <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 1 (50%)</span>
+                </div>
+              </div>
+
+              <div class="ledger-group">
+                <h3 class="minor-title">Protocol and Compliance Findings</h3>
+                <div class="ledger-list">
+                  <article class="ledger-entry ledger-entry--danger">
+                    <div class="ledger-rail">
+                      <div class="ledger-kicker">Rule</div>
+                      <code>MCP.INIT.VERSION_NEGOTIATION</code><div class="evidence-note">initialize.result.protocolVersion must reflect negotiation.</div>
+                      <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                      <div class="ledger-subtle">Initialization</div>
+                    </div>
+                    <div class="ledger-body">
+                      <div class="ledger-title">Server ignored the requested MCP protocol version.</div>
+                      <p class="ledger-copy"><strong>Remediation:</strong> Echo the negotiated protocol version in initialize.result.</p>
+                      <div class="ledger-links">Spec: <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+                    </div>
+                  </article>
+              </div>
+              </div>
+
+              <div class="ledger-group">
+                <h3 class="minor-title">Security Vulnerabilities</h3>
+                <div class="ledger-list">
+                  <article class="ledger-entry ledger-entry--danger">
+                    <div class="ledger-rail">
+                      <div class="ledger-kicker">Issue</div>
+                      <div class="ledger-code"><code>MCP.SECURITY.PROMPT_INJECTION</code></div>
+                      <div class="ledger-chip-row"><span class="tone-chip tone-info">heuristic</span> <span class="tone-chip tone-danger">Critical</span></div>
+                      <div class="ledger-subtle">prompt:get</div>
+                    </div>
+                    <div class="ledger-body">
+                      <div class="ledger-title">Prompt injection reflection</div>
+                      <p class="ledger-copy">Server reflected untrusted prompt content without sanitization.</p>
+                      <p class="ledger-copy"><strong>Remediation:</strong> Sanitize and label untrusted content before returning it.</p>
+                    </div>
+                  </article>
+              </div>
+              </div>
+
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-warning">
+              <div class="section-kicker">Security Evidence</div>
+              <h2 class="section-title">Security Assessment Details</h2>
+              <p class="section-intro">Security Score: 69.0% · Vulnerabilities: 1</p>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-success">
+              <div class="section-kicker">Tool Surface</div>
+              <h2 class="section-title">Tool Validation Details</h2>
+              <p class="section-intro">Tools Discovered: 2 · Passed: 2 · Failed: 0</p>
+              <div class="card-grid">
+                <div class="evidence-card">
+                  <div class="evidence-card__header">
+                    <div>
+                      <div class="evidence-card__title">Authentication Summary</div>
+                      <div class="evidence-card__subtle">Quiet evidence for the access boundary around tool invocation.</div>
+                    </div>
+                    <span class="tone-chip tone-warning">Open Gate</span>
+                  </div>
+                  <div class="evidence-stats">
+                    <div class="evidence-stat"><div class="evidence-stat__label">Required</div><div class="evidence-stat__value">Yes</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Challenge</div><div class="evidence-stat__value">n/a</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Latency</div><div class="evidence-stat__value">n/a</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Score</div><div class="evidence-stat__value">95.0%</div></div>
+                  </div>
+                </div>
+
+                <div class="evidence-card">
+                  <div class="evidence-card__header">
+                    <div>
+                      <div class="evidence-card__title">Tool Metadata Completeness</div>
+                      <div class="evidence-card__subtle">Coverage across titles, descriptions, and behavioral annotations.</div>
+                    </div>
+                    <span class="tone-chip tone-info">2 tools</span>
+                  </div>
+                  <div class="inline-list">
+    <span class="tag">title 2/2</span>
+    <span class="tag">description 0/2</span>
+    <span class="tag">readOnlyHint 0/2</span>
+    <span class="tag">destructiveHint 0/2</span>
+    <span class="tag">openWorldHint 0/2</span>
+    <span class="tag">idempotentHint 0/2</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="table-shell">
+                <table class="data-table">
+                  <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
+                    <tr><td><code>delete_repo</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>140.00 ms</td><td>title</td></tr>
+                    <tr><td><code>list_repos</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>80.00 ms</td><td>title</td></tr>
+                  </tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Resource Surface</div>
+              <h2 class="section-title">Resource Capabilities</h2>
+              <p class="section-intro">Resources Discovered: 1 · Accessible: 1</p>
+              <div class="table-shell">
+                <table class="data-table">
+                  <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Status</th></tr></thead><tbody>
+                    <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
+                  </tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Runtime Evidence</div>
+              <h2 class="section-title">Performance Metrics</h2>
+              <p class="section-intro">Observed values from the completed runtime probe.</p>
+              <div class="score-strip">
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">Average Latency</div>
+                  <div class="score-pill__value">120.5 ms</div>
+                  <div class="score-pill__meta">Target ≤ 300 ms</div>
+                </div>
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">P95 Latency</div>
+                  <div class="score-pill__value">210.4 ms</div>
+                  <div class="score-pill__meta">Tail latency under pressure</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Requests / Second</div>
+                  <div class="score-pill__value">18.20</div>
+                  <div class="score-pill__meta">Sustained throughput during probe</div>
+                </div>
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">Error Rate</div>
+                  <div class="score-pill__value">0.00%</div>
+                  <div class="score-pill__meta">Target ≤ 1%</div>
+                </div>
+              </div>
+
+              <div class="evidence-note">Requests: 120/120 successful.</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Appendix</div>
+              <h2 class="section-title">Method & Deferred Notes</h2>
+              <p class="section-intro">Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
+              <div class="appendix-grid">
+                <div>
+                  <h3 class="minor-title">Deferred Recommendations</h3>
+                  <ul class="compact-list">
+                    <li>Return the negotiated protocol version explicitly during initialize.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+
+    <div class="producer-signature">
+      <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>
+      <span class="producer-signature__divider">·</span>
+      <a href="https://www.nuget.org/packages/McpVal#versions-body-tab">McpVal on NuGet</a>
+    </div>
+          <div class="footer">Generated by MCP Validator · Full report · print-ready HTML for PDF export</div>
+        </div>
+      </div>
+    </body>
+    </html>",
+
+Full subject:
+
+    "<!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MCP Server Validation Report - Full</title>
+        <style>
+    :root {
+        color-scheme: light;
+        --report-bg: #dde4eb;
+        --report-bg-glow-a: rgba(54, 95, 161, 0.08);
+        --report-bg-glow-b: rgba(168, 93, 25, 0.08);
+        --report-bg-glow-c: rgba(15, 23, 38, 0.05);
+        --surface: rgba(255, 255, 255, 0.96);
+        --surface-strong: #ffffff;
+        --surface-muted: #f5f7fa;
+        --surface-emphasis: #eef2f6;
+        --line: #c9d2dd;
+        --line-strong: #aebbc9;
+        --text: #223042;
+        --text-strong: #101827;
+        --text-muted: #4f5e72;
+        --text-soft: #6a7789;
+        --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
+        --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
+        --radius-shell: 22px;
+        --radius-panel: 16px;
+        --radius-card: 14px;
+        --tone-success: #1f6a52;
+        --tone-success-soft: #eef6f1;
+        --tone-success-line: #8fbca5;
+        --tone-warning: #a85d19;
+        --tone-warning-soft: #faf1e6;
+        --tone-warning-line: #dbb085;
+        --tone-danger: #a33446;
+        --tone-danger-soft: #f9ecef;
+        --tone-danger-line: #d7a1aa;
+        --tone-info: #365fa1;
+        --tone-info-soft: #edf2fb;
+        --tone-info-line: #9bb2dd;
+        --tone-neutral: #596577;
+        --tone-neutral-soft: #f2f5f8;
+        --tone-neutral-line: #c8d0d9;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+        font-family: "Aptos", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+        background:
+            radial-gradient(circle at top left, var(--report-bg-glow-a), transparent 34%),
+            radial-gradient(circle at top right, var(--report-bg-glow-b), transparent 30%),
+            radial-gradient(circle at 50% 18%, var(--report-bg-glow-c), transparent 38%),
+            var(--report-bg);
+        color: var(--text);
+        padding: 24px;
+    }
+    .report-shell {
+        max-width: 1260px;
+        margin: 0 auto;
+        background: rgba(255,255,255,0.98);
+        border: 1px solid var(--line-strong);
+        border-radius: var(--radius-shell);
+        box-shadow: var(--shadow-panel);
+        overflow: hidden;
+        position: relative;
+    }
+    .report-shell::before {
+        content: "";
+        position: absolute;
+        inset: 0 0 auto 0;
+        height: 6px;
+        background: linear-gradient(90deg, var(--tone-danger), var(--tone-warning), var(--tone-info));
+        opacity: 0.2;
+        pointer-events: none;
+    }
+    .report-content {
+        position: relative;
+        z-index: 1;
+        padding: 22px 24px 28px;
+    }
+    .hero {
+        border-radius: calc(var(--radius-shell) - 4px);
+        padding: 28px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-soft);
+    }
+    .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.75fr) minmax(300px, 0.85fr);
+        gap: 20px;
+        align-items: start;
+    }
+    .hero-main {
+        min-width: 0;
+    }
+    .eyebrow {
+        font-size: 0.74rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .hero-title {
+        margin: 10px 0 10px;
+        color: var(--text-strong);
+        font-size: clamp(2rem, 3vw, 3.05rem);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+    }
+    .hero-subtitle {
+        margin: 0;
+        max-width: 840px;
+        color: var(--text-muted);
+        font-size: 1rem;
+        line-height: 1.58;
+    }
+    .hero-facts,
+    .fact-grid {
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        border-top: 1px solid var(--line);
+        border-left: 1px solid var(--line);
+    }
+    .fact-item {
+        background: rgba(255,255,255,0.66);
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+        padding: 12px 14px;
+        min-height: 76px;
+    }
+    .fact-item__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .fact-item__value {
+        margin-top: 7px;
+        color: var(--text-strong);
+        font-size: 0.95rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+    .hero-meta {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 14px;
+    }
+    .meta-card {
+        background: rgba(255,255,255,0.72);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 14px 16px;
+    }
+    .meta-label {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .meta-value {
+        margin-top: 7px;
+        color: var(--text-strong);
+        font-size: 0.98rem;
+        line-height: 1.45;
+        word-break: break-word;
+    }
+    .hero-side {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .panel {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-panel);
+        box-shadow: var(--shadow-soft);
+        padding: 18px;
+    }
+    .panel--soft {
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+    }
+    .status-panel {
+        min-width: 0;
+    }
+    .panel--tone-success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-success-soft)); }
+    .panel--tone-warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(250,241,230,0.82)); }
+    .panel--tone-danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), rgba(249,236,239,0.82)); }
+    .panel--tone-info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-info-soft)); }
+    .panel--tone-neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.99), var(--tone-neutral-soft)); }
+    .status-chip,
+    .tone-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        border: 1px solid transparent;
+    }
+    .status-chip::before,
+    .tone-chip::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.75;
+    }
+    .tone-success, .status-chip--success { color: var(--tone-success); background: var(--tone-success-soft); border-color: var(--tone-success-line); }
+    .tone-warning, .status-chip--warning { color: var(--tone-warning); background: var(--tone-warning-soft); border-color: var(--tone-warning-line); }
+    .tone-danger, .status-chip--danger { color: var(--tone-danger); background: var(--tone-danger-soft); border-color: var(--tone-danger-line); }
+    .tone-info, .status-chip--info { color: var(--tone-info); background: var(--tone-info-soft); border-color: var(--tone-info-line); }
+    .tone-neutral, .status-chip--neutral { color: var(--tone-neutral); background: var(--tone-neutral-soft); border-color: var(--tone-neutral-line); }
+    .focus-value {
+        font-size: clamp(1.55rem, 1.8vw, 2.15rem);
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        margin-top: 12px;
+        font-weight: 700;
+        line-height: 1.15;
+        overflow-wrap: anywhere;
+    }
+    .focus-label {
+        margin-top: 6px;
+        font-size: 0.88rem;
+        color: var(--text-muted);
+        line-height: 1.45;
+    }
+    .section-heading-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    .brief-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.9fr);
+        gap: 18px;
+        margin-top: 18px;
+    }
+    .brief-side {
+        display: grid;
+        gap: 12px;
+    }
+    .decision-brief,
+    .report-note,
+    .status-callout {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: var(--surface-muted);
+        padding: 16px 18px;
+    }
+    .decision-brief--tone-success,
+    .report-note--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.88)); }
+    .decision-brief--tone-warning,
+    .report-note--warning,
+    .status-callout--warning { border-left-color: var(--tone-warning); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,230,0.88)); }
+    .decision-brief--tone-danger,
+    .report-note--danger { border-left-color: var(--tone-danger); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.88)); }
+    .decision-brief--tone-info,
+    .report-note--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
+    .decision-brief--tone-neutral,
+    .report-note--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); }
+    .decision-title {
+        margin: 8px 0 8px;
+        font-size: 1.28rem;
+        color: var(--text-strong);
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+    }
+    .decision-summary {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.58;
+    }
+    .report-note__eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .report-note__title {
+        margin: 6px 0 0;
+        font-size: 1.08rem;
+        line-height: 1.22;
+        color: var(--text-strong);
+    }
+    .report-note__empty {
+        margin: 10px 0 0;
+        color: var(--text-muted);
+        line-height: 1.56;
+    }
+    .ledger-group {
+        margin-top: 18px;
+    }
+    .ledger-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+    }
+    .ledger-entry {
+        display: grid;
+        grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+        gap: 18px;
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 16px 18px;
+    }
+    .ledger-entry--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
+    .ledger-entry--warning { border-left-color: var(--tone-warning); }
+    .ledger-entry--danger { border-left-color: var(--tone-danger); }
+    .ledger-entry--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.72)); }
+    .ledger-entry--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.78)); }
+    .ledger-rail {
+        display: grid;
+        align-content: start;
+        gap: 8px;
+        min-width: 0;
+    }
+    .ledger-body {
+        min-width: 0;
+    }
+    .ledger-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .ledger-title {
+        font-size: 1rem;
+        line-height: 1.34;
+        color: var(--text-strong);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .ledger-subtle {
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+    }
+    .ledger-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    .ledger-copy {
+        margin: 0;
+        color: var(--text);
+        line-height: 1.62;
+        overflow-wrap: anywhere;
+    }
+    .ledger-copy + .ledger-copy {
+        margin-top: 10px;
+    }
+    .ledger-links {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    .ledger-code,
+    .ledger-code-block {
+        overflow-wrap: anywhere;
+    }
+    .ledger-code code,
+    .ledger-code-block code {
+        display: inline-block;
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+    .ledger-code-block {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.5;
+    }
+    .ledger-code-block code {
+        display: block;
+        margin-top: 6px;
+        padding: 8px 10px;
+        background: rgba(24,34,49,0.05);
+    }
+    .probe-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+    }
+    .probe-row {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 14px 16px;
+    }
+    .probe-row--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
+    .probe-row--warning { border-left-color: var(--tone-warning); }
+    .probe-row--danger { border-left-color: var(--tone-danger); }
+    .probe-row--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.72)); }
+    .probe-row__heading {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+    .probe-row__metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 12px;
+        margin-top: 10px;
+    }
+    .probe-metric {
+        display: inline-flex;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: var(--surface-emphasis);
+        color: var(--text);
+        font-size: 0.84rem;
+    }
+    .probe-row__note {
+        margin-top: 10px;
+        color: var(--text-muted);
+        line-height: 1.56;
+        overflow-wrap: anywhere;
+    }
+    .auth-surface-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+    }
+    .auth-surface {
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.98);
+        padding: 13px 15px;
+    }
+    .auth-surface__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+    }
+    .auth-surface__title {
+        margin-top: 2px;
+        font-size: 1.06rem;
+        line-height: 1.26;
+        color: var(--text-strong);
+        font-weight: 700;
+        overflow-wrap: anywhere;
+    }
+    .auth-surface__meta {
+        margin-top: 4px;
+        color: var(--text-muted);
+        font-size: 0.88rem;
+        line-height: 1.5;
+    }
+    .auth-scenario-list {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+    }
+    .auth-scenario {
+        border: 1px solid var(--line);
+        border-left-width: 4px;
+        border-radius: 12px;
+        background: var(--surface-muted);
+        padding: 10px 12px;
+    }
+    .auth-scenario--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.68)); }
+    .auth-scenario--warning { border-left-color: var(--tone-warning); }
+    .auth-scenario--danger { border-left-color: var(--tone-danger); }
+    .auth-scenario--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.68)); }
+    .auth-scenario--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.72)); }
+    .auth-scenario__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: start;
+    }
+    .auth-scenario__title {
+        font-size: 0.98rem;
+        line-height: 1.3;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .auth-scenario__comparison {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .auth-fact {
+        border-radius: 10px;
+        background: rgba(255,255,255,0.76);
+        border: 1px solid rgba(174, 187, 201, 0.42);
+        padding: 8px 10px;
+    }
+    .auth-fact__label {
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .auth-fact__value {
+        margin-top: 5px;
+        color: var(--text);
+        line-height: 1.46;
+        font-size: 0.92rem;
+        overflow-wrap: anywhere;
+    }
+    .auth-scenario__metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    .auth-scenario__metrics--dense {
+        gap: 6px;
+    }
+    .auth-scenario__metrics--dense .probe-metric {
+        background: rgba(255,255,255,0.78);
+    }
+    .auth-scenario--compact {
+        padding-bottom: 8px;
+    }
+    .auth-scenario__detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 8px;
+    }
+    .auth-scenario__block {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(174, 187, 201, 0.4);
+    }
+    .auth-scenario__block--emphasis {
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(255,255,255,0.56);
+        border-top-color: transparent;
+    }
+    .auth-scenario__block-label {
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .auth-scenario__block-value {
+        margin-top: 5px;
+        color: var(--text);
+        line-height: 1.48;
+        font-size: 0.92rem;
+        overflow-wrap: anywhere;
+    }
+    .compact-list {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: var(--text);
+    }
+    .compact-list--tight {
+        margin-top: 10px;
+    }
+    .compact-list li {
+        margin-top: 8px;
+        line-height: 1.58;
+    }
+    .score-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin-top: 18px;
+    }
+    .score-pill {
+        --score-pill-eyebrow: var(--text-soft);
+        --score-pill-meta: var(--text-muted);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94));
+        box-shadow: 0 8px 18px rgba(24,34,49,0.04);
+        padding: 14px 16px;
+    }
+    .score-pill--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.86)); --score-pill-eyebrow: var(--tone-success); --score-pill-meta: var(--tone-success); }
+    .score-pill--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,230,0.72)); }
+    .score-pill--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.72)); }
+    .score-pill--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.86)); --score-pill-eyebrow: var(--tone-info); --score-pill-meta: var(--tone-info); }
+    .score-pill--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); --score-pill-eyebrow: var(--tone-neutral); --score-pill-meta: var(--tone-neutral); }
+    .score-pill__eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--score-pill-eyebrow);
+        font-weight: 700;
+    }
+    .score-pill__value {
+        margin-top: 8px;
+        font-size: 1.65rem;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .score-pill__meta {
+        margin-top: 7px;
+        color: var(--score-pill-meta);
+        font-size: 0.88rem;
+        line-height: 1.45;
+    }
+    .panel-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 24px;
+    }
+    .metric-card {
+        --metric-eyebrow-color: var(--text-soft);
+        --metric-support-color: var(--text-muted);
+        border-radius: var(--radius-card);
+        border: 1px solid var(--line);
+        padding: 18px 18px 16px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.9));
+        min-height: 152px;
+        box-shadow: 0 10px 28px rgba(24,34,49,0.05);
+    }
+    .metric-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.84)); --metric-eyebrow-color: var(--tone-success); --metric-support-color: var(--tone-success); }
+    .metric-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(250,241,230,0.8)); }
+    .metric-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(249,236,239,0.8)); }
+    .metric-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(237,242,251,0.84)); --metric-eyebrow-color: var(--tone-info); --metric-support-color: var(--tone-info); }
+    .metric-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.95), rgba(242,245,248,0.88)); --metric-eyebrow-color: var(--tone-neutral); --metric-support-color: var(--tone-neutral); }
+    .metric-eyebrow {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--metric-eyebrow-color);
+        font-weight: 700;
+    }
+    .metric-value {
+        margin-top: 12px;
+        font-size: 2rem;
+        line-height: 1;
+        letter-spacing: -0.04em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .metric-label {
+        margin-top: 10px;
+        font-size: 1rem;
+        color: var(--text-strong);
+        font-weight: 600;
+    }
+    .metric-support {
+        margin-top: 8px;
+        color: var(--metric-support-color);
+        font-size: 0.9rem;
+        line-height: 1.55;
+    }
+    .stack-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+        margin-top: 22px;
+    }
+    .stack-list {
+        display: grid;
+        gap: 12px;
+    }
+    .stack-item {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.74);
+        padding: 14px 16px;
+    }
+    .stack-item__index {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .stack-item__text {
+        margin-top: 8px;
+        color: var(--text);
+        line-height: 1.62;
+        font-size: 0.95rem;
+    }
+    .section {
+        margin-top: 18px;
+    }
+    .section-shell {
+        border-radius: var(--radius-panel);
+        background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(248,250,252,0.86));
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow-soft);
+        padding: 22px;
+    }
+    .section-kicker {
+        font-size: 0.72rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .section-title {
+        margin: 9px 0 6px;
+        font-size: 1.34rem;
+        line-height: 1.14;
+        letter-spacing: -0.03em;
+        color: var(--text-strong);
+    }
+    .section-intro {
+        margin: 0;
+        color: var(--text-muted);
+        line-height: 1.62;
+        max-width: 920px;
+    }
+    .distribution-summary {
+        margin-top: 18px;
+        padding: 14px 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-card);
+        background: rgba(255,255,255,0.96);
+    }
+    .distribution-summary__title {
+        font-size: 0.8rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .distribution-summary__cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 10px;
+        margin-top: 12px;
+    }
+    .distribution-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(248,250,252,0.92));
+        box-shadow: 0 6px 14px rgba(24,34,49,0.03);
+        padding: 10px 12px;
+    }
+    .distribution-card--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(238,246,241,0.78)); }
+    .distribution-card--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(250,241,230,0.72)); }
+    .distribution-card--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(249,236,239,0.72)); }
+    .distribution-card--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(237,242,251,0.78)); }
+    .distribution-card--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(242,245,248,0.84)); }
+    .distribution-card__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+        font-weight: 700;
+    }
+    .distribution-card__value {
+        margin-top: 8px;
+        font-size: 1.34rem;
+        line-height: 1;
+        letter-spacing: -0.03em;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .distribution-card__meta {
+        margin-top: 6px;
+        color: var(--text-muted);
+        font-size: 0.84rem;
+        line-height: 1.4;
+    }
+    .distribution-bar {
+        display: flex;
+        gap: 4px;
+        margin-top: 12px;
+        height: 10px;
+        padding: 1px;
+        border-radius: 999px;
+        background: var(--surface-emphasis);
+    }
+    .distribution-segment {
+        min-width: 14px;
+        border-radius: 999px;
+        opacity: 0.88;
+    }
+    .distribution-segment--success { background: var(--line-strong); }
+    .distribution-swatch--success { background: var(--tone-success); }
+    .distribution-segment--warning { background: var(--tone-warning-line); }
+    .distribution-swatch--warning { background: var(--tone-warning); }
+    .distribution-segment--danger { background: var(--tone-danger-line); }
+    .distribution-swatch--danger { background: var(--tone-danger); }
+    .distribution-segment--info { background: var(--line); }
+    .distribution-swatch--info { background: var(--tone-info); }
+    .distribution-segment--neutral { background: var(--tone-neutral-line); }
+    .distribution-swatch--neutral { background: var(--tone-neutral); }
+    .distribution-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        margin-top: 12px;
+    }
+    .distribution-legend__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text);
+        font-size: 0.9rem;
+    }
+    .distribution-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex: 0 0 auto;
+    }
+    .dual-grid {
+        display: grid;
+        grid-template-columns: 1.25fr 1fr;
+        gap: 18px;
+    }
+    .list-panel {
+        display: grid;
+        gap: 12px;
+        margin-top: 18px;
+    }
+    .finding-row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: start;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.76);
+        padding: 14px 16px;
+    }
+    .finding-bullet {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        margin-top: 7px;
+    }
+    .finding-row--success .finding-bullet { background: var(--tone-success); }
+    .finding-row--warning .finding-bullet { background: var(--tone-warning); }
+    .finding-row--danger .finding-bullet { background: var(--tone-danger); }
+    .finding-row--info .finding-bullet { background: var(--tone-info); }
+    .finding-row--neutral .finding-bullet { background: var(--tone-neutral); }
+    .finding-copy {
+        color: var(--text);
+        line-height: 1.64;
+        font-size: 0.95rem;
+    }
+    .summary-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+    }
+    .summary-card {
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.78);
+        padding: 16px;
+    }
+    .summary-card__label {
+        font-size: 0.72rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .summary-card__value {
+        margin-top: 10px;
+        color: var(--text-strong);
+        font-size: 1.02rem;
+        line-height: 1.45;
+        font-weight: 600;
+    }
+    .card-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 14px;
+        margin-top: 16px;
+    }
+    .evidence-card {
+        border-radius: 18px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.82);
+        padding: 18px;
+        box-shadow: 0 8px 24px rgba(24,34,49,0.04);
+    }
+    .evidence-card__header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    .evidence-card__title {
+        font-size: 1.02rem;
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .evidence-card__subtle {
+        margin-top: 4px;
+        color: var(--text-soft);
+        font-size: 0.84rem;
+    }
+    .evidence-stats {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 16px;
+    }
+    .evidence-stat {
+        min-width: 110px;
+    }
+    .evidence-stat__label {
+        font-size: 0.7rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--text-soft);
+    }
+    .evidence-stat__value {
+        margin-top: 6px;
+        font-size: 1.2rem;
+        color: var(--text-strong);
+        font-weight: 700;
+    }
+    .evidence-note {
+        margin-top: 14px;
+        font-size: 0.92rem;
+        line-height: 1.65;
+        color: var(--text-muted);
+    }
+    .table-shell {
+        margin-top: 18px;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        overflow: auto;
+        background: rgba(255,255,255,0.98);
+    }
+    .table-shell--compact {
+        margin-top: 18px;
+    }
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+    }
+    .data-table thead {
+        background: var(--surface-emphasis);
+    }
+    .data-table th,
+    .data-table td {
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+        overflow-wrap: anywhere;
+    }
+    .data-table th {
+        color: var(--text-soft);
+        font-size: 0.74rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        font-weight: 700;
+    }
+    .data-table tbody tr:nth-child(even) {
+        background: rgba(247,249,252,0.62);
+    }
+    .data-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+    code {
+        font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+        font-size: 0.88em;
+        background: rgba(24,34,49,0.06);
+        padding: 2px 6px;
+        border-radius: 6px;
+    }
+    a {
+        color: var(--tone-info);
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+    .inline-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+    }
+    .tag {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 6px 11px;
+        border: 1px solid var(--line);
+        background: rgba(255,255,255,0.82);
+        color: var(--text);
+        font-size: 0.82rem;
+    }
+    .rich-list {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--text);
+    }
+    .rich-list li {
+        margin-top: 8px;
+        line-height: 1.64;
+    }
+    .cell-title {
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .table-subtle {
+        margin-top: 6px;
+        color: var(--text-muted);
+        font-size: 0.86rem;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+    }
+    .check-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        font-variant-numeric: tabular-nums;
+    }
+    .check-summary span {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--surface-emphasis);
+        color: var(--text);
+        font-size: 0.82rem;
+    }
+    .capability-note {
+        line-height: 1.55;
+        color: var(--text-muted);
+    }
+    .status-callout__title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--text-strong);
+    }
+    .status-callout__body {
+        margin-top: 6px;
+        color: var(--text-muted);
+        line-height: 1.55;
+    }
+    .minor-title {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--text-strong);
+    }
+    .appendix-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 20px;
+        margin-top: 18px;
+    }
+    .producer-signature {
+        margin-top: 24px;
+        color: var(--text-soft);
+        font-size: 0.86rem;
+        text-align: center;
+    }
+    .producer-signature a {
+        color: inherit;
+        text-decoration-line: underline;
+        text-decoration-color: rgba(106, 119, 137, 0.85);
+        text-decoration-thickness: 1.5px;
+        text-underline-offset: 0.18em;
+    }
+    .producer-signature a:hover {
+        text-decoration-color: currentColor;
+    }
+    .producer-signature__divider {
+        display: inline-block;
+        margin: 0 8px;
+        color: var(--line-strong);
+    }
+    .footer {
+        margin-top: 10px;
+        padding: 10px 6px 0;
+        color: var(--text-soft);
+        font-size: 0.84rem;
+        text-align: center;
+    }
+    @media (max-width: 960px) {
+        body { padding: 18px; }
+        .report-content { padding: 18px; }
+        .hero { padding: 22px; }
+        .hero-grid,
+        .dual-grid,
+        .brief-grid,
+        .appendix-grid {
+            grid-template-columns: 1fr;
+        }
+        .stack-grid {
+            align-items: start;
+            grid-template-columns: 1fr;
+        }
+        .hero-facts,
+        .fact-grid {
+            grid-template-columns: 1fr;
+        }
+        .ledger-entry {
+            grid-template-columns: 1fr;
+        }
+        .auth-surface__header,
+        .probe-row__heading {
+            flex-direction: column;
+        }
+        .auth-scenario__comparison {
+            grid-template-columns: 1fr;
+        }
+        .auth-scenario__detail-grid {
+            grid-template-columns: 1fr;
+        }
+        .section-heading-row {
+            flex-direction: column;
+        }
+    }
+    @media print {
+        @page {
+            size: A4;
+            margin: 12mm;
+        }
+        body {
+            background: #ffffff;
+            padding: 0;
+            color: #1b2431;
+        }
+        .report-shell {
+            max-width: none;
+            border: 0;
+            box-shadow: none;
+            background: #ffffff;
+        }
+        .report-shell::before {
+            display: none;
+        }
+        .report-content {
+            padding: 0;
+        }
+        .hero,
+        .panel,
+        .section-shell,
+        .distribution-summary,
+        .auth-surface,
+        .auth-scenario,
+        .ledger-entry,
+        .probe-row,
+        .metric-card,
+        .evidence-card,
+        .summary-card,
+        .table-shell,
+        .meta-card,
+        .stack-item,
+        .finding-row {
+            box-shadow: none;
+            background: #ffffff;
+        }
+        .hero,
+        .panel,
+        .section-shell,
+        .distribution-summary,
+        .auth-surface,
+        .auth-scenario,
+        .ledger-entry,
+        .probe-row,
+        .metric-card,
+        .evidence-card,
+        .summary-card,
+        .table-shell,
+        .meta-card,
+        .stack-item,
+        .finding-row,
+        .summary-grid,
+        .card-grid,
+        .panel-grid,
+        .hero-meta,
+        .table-shell,
+        .section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+    }
+        </style>
+    </head>
+    <body>
+      <div class="report-shell">
+        <div class="report-content">
+          <section class="hero">
+            <div class="hero-grid">
+              <div class="hero-main">
+                <div class="eyebrow">MCP Validation Report</div>
+                <h1 class="hero-title">Validation Review Required</h1>
+                <p class="hero-subtitle">Strict policy blocked release readiness on 2 unsuppressed signal(s).</p>
+                <div class="hero-facts">
+                  <div class="fact-item">
+                    <div class="fact-item__label">Endpoint</div>
+                    <div class="fact-item__value">https://snapshot.example.test/mcp</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Validation ID</div>
+                    <div class="fact-item__value">validation-snapshot-001</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Duration</div>
+                    <div class="fact-item__value">12.0s</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Spec Profile</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Server Profile</div>
+                    <div class="fact-item__value">Authenticated (UserDeclared)</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Protocol Version</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                </div>
+
+              </div>
+              <div class="hero-side">
+    <div class="panel status-panel panel--soft panel--tone-danger">
+        <span class="status-chip status-chip--danger">Run Status</span>
+        <div class="focus-value">Failed</div>
+        <div class="focus-label">Generated on <normalized-timestamp></div>
+    </div>
+    <div class="panel status-panel panel--soft panel--tone-info">
+        <span class="status-chip status-chip--info">Trust Posture</span>
+        <div class="focus-value">L3: Acceptable — Compliant with known limitations</div>
+        <div class="focus-label">Human decision signal</div>
+    </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell executive-shell">
+              <div class="section-kicker">Executive Summary</div>
+              <h2 class="section-title">Decision & Reading Path</h2>
+              <p class="section-intro">Start here, then move only to the evidence sections referenced by the highlighted signals.</p>
+              <div class="brief-grid">
+                <div class="decision-brief decision-brief--tone-danger">
+                  <div class="section-kicker">Immediate Decision</div>
+                  <h3 class="decision-title">Release decision requires review</h3>
+                  <p class="decision-summary">Strict policy blocked the validation result with 2 unsuppressed signal(s).</p>
+                  <ul class="compact-list">
+                    <li>Trust level L3_Acceptable is below the strict minimum of L4_Trusted.</li>
+                    <li>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                  </ul>
+                </div>
+
+                <div class="brief-side">
+                  <section class="report-note report-note--warning">
+                    <div class="report-note__eyebrow">Read first</div>
+                    <h3 class="report-note__title">Priority Findings</h3>
+                    <ul class="compact-list">
+                      <li>Policy strict blocked the run: Strict policy blocked the validation result with 2 unsuppressed signal(s).</li>
+                      <li>Trust level L3_Acceptable is below the strict minimum of L4_Trusted.</li>
+                      <li>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                    </ul>
+                  </section>
+
+                  <section class="report-note report-note--info">
+                    <div class="report-note__eyebrow">Then review</div>
+                    <h3 class="report-note__title">Next Actions</h3>
+                    <ul class="compact-list">
+                      <li>Strict policy blocked the validation result with 2 unsuppressed signal(s).</li>
+                      <li>Protocol: Echo the negotiated protocol version in initialize.result.</li>
+                      <li>Security: Sanitize and label untrusted content before returning it.</li>
+                    </ul>
+                  </section>
+
+                </div>
+            </div>
+          </section>
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Scorecard</div>
+              <h2 class="section-title">Compliance Summary</h2>
+              <p class="section-intro">Core outcome metrics are compact. Domain calibration is kept in a single stable table.</p>
+              <div class="score-strip">
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Compliance Score</div>
+                  <div class="score-pill__value">81.4%</div>
+                  <div class="score-pill__meta">Strong with targeted follow-up</div>
+                </div>
+                <div class="score-pill score-pill--warning">
+                  <div class="score-pill__eyebrow">Pass Rate</div>
+                  <div class="score-pill__value">57.1%</div>
+                  <div class="score-pill__meta">4/7 checks passed</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Trust Level</div>
+                  <div class="score-pill__value">L3</div>
+                  <div class="score-pill__meta">L3: Acceptable — Compliant with known limitations</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Rule Coverage</div>
+                  <div class="score-pill__value">87.5%</div>
+                  <div class="score-pill__meta">Collected evidence coverage across enabled checks</div>
+                </div>
+              </div>
+
+              <div class="table-shell table-shell--compact">
+                <table class="data-table calibration-table">
+                  <thead><tr><th>Domain</th><th>Score</th><th>Reading</th></tr></thead>
+                  <tbody>
+                    <tr>
+                      <td><div class="cell-title">Protocol</div></td>
+                      <td><span class="tone-chip tone-info">84%</span></td>
+                      <td>Spec adherence and response structure</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">Security</div></td>
+                      <td><span class="tone-chip tone-warning">69%</span></td>
+                      <td>Auth boundaries and exploit resistance</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">AI Safety</div></td>
+                      <td><span class="tone-chip tone-info">75%</span></td>
+                      <td>Schema quality and agent safety posture</td>
+                    </tr>
+                    <tr>
+                      <td><div class="cell-title">Operations</div></td>
+                      <td><span class="tone-chip tone-success">88%</span></td>
+                      <td>Latency, throughput, and stability</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-info">
+              <div class="section-heading-row">
+                <div>
+                  <div class="section-kicker">Preflight Connectivity</div>
+                  <h2 class="section-title">Connectivity & Session Bootstrap</h2>
+                  <p class="section-intro">The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.</p>
+                </div>
+                <span class="tone-chip tone-info">Protected endpoint</span>
+              </div>
+              <div class="evidence-note"><strong>Assessment:</strong> Validation crossed an expected authentication boundary during bootstrap.</div>
+                <div class="fact-grid">
+                  <div class="fact-item">
+                    <div class="fact-item__label">Bootstrap State</div>
+                    <div class="fact-item__value">Reachable (Protected)</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Deferred Validation</div>
+                    <div class="fact-item__value">Yes</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Handshake HTTP</div>
+                    <div class="fact-item__value">HTTP 401</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Handshake Latency</div>
+                    <div class="fact-item__value">84.2 ms</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Negotiated Protocol</div>
+                    <div class="fact-item__value">2025-11-25</div>
+                  </div>
+                  <div class="fact-item">
+                    <div class="fact-item__label">Observed Server Version</div>
+                    <div class="fact-item__value">2.4.1</div>
+                  </div>
+                </div>
+
+              <div class="evidence-note"><strong>Bootstrap Note:</strong> 401 Unauthorized — bootstrap encountered an authentication challenge.</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Structured Evidence</div>
+              <h2 class="section-title">Rule & Severity Insights</h2>
+              <p class="section-intro">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
+              <div class="distribution-summary">
+                <div class="distribution-summary__title">Finding Distribution</div>
+                <div class="distribution-summary__cards">
+                  <div class="distribution-card distribution-card--danger">
+                    <div class="distribution-card__label">Critical</div>
+                    <div class="distribution-card__value">1</div>
+                    <div class="distribution-card__meta">50% of observed outcomes</div>
+                  </div>
+                  <div class="distribution-card distribution-card--danger">
+                    <div class="distribution-card__label">High</div>
+                    <div class="distribution-card__value">1</div>
+                    <div class="distribution-card__meta">50% of observed outcomes</div>
+                  </div>
+                </div>
+                <div class="distribution-bar">
+                  <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
+                  <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
+                </div>
+                <div class="distribution-legend">
+                  <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Critical 1 (50%)</span>
+                  <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 1 (50%)</span>
+                </div>
+              </div>
+
+              <div class="ledger-group">
+                <h3 class="minor-title">Protocol and Compliance Findings</h3>
+                <div class="ledger-list">
+                  <article class="ledger-entry ledger-entry--danger">
+                    <div class="ledger-rail">
+                      <div class="ledger-kicker">Rule</div>
+                      <code>MCP.INIT.VERSION_NEGOTIATION</code><div class="evidence-note">initialize.result.protocolVersion must reflect negotiation.</div>
+                      <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                      <div class="ledger-subtle">Initialization</div>
+                    </div>
+                    <div class="ledger-body">
+                      <div class="ledger-title">Server ignored the requested MCP protocol version.</div>
+                      <p class="ledger-copy"><strong>Remediation:</strong> Echo the negotiated protocol version in initialize.result.</p>
+                      <div class="ledger-links">Spec: <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+                    </div>
+                  </article>
+              </div>
+              </div>
+
+              <div class="ledger-group">
+                <h3 class="minor-title">Security Vulnerabilities</h3>
+                <div class="ledger-list">
+                  <article class="ledger-entry ledger-entry--danger">
+                    <div class="ledger-rail">
+                      <div class="ledger-kicker">Issue</div>
+                      <div class="ledger-code"><code>MCP.SECURITY.PROMPT_INJECTION</code></div>
+                      <div class="ledger-chip-row"><span class="tone-chip tone-info">heuristic</span> <span class="tone-chip tone-danger">Critical</span></div>
+                      <div class="ledger-subtle">prompt:get</div>
+                    </div>
+                    <div class="ledger-body">
+                      <div class="ledger-title">Prompt injection reflection</div>
+                      <p class="ledger-copy">Server reflected untrusted prompt content without sanitization.</p>
+                      <p class="ledger-copy"><strong>Remediation:</strong> Sanitize and label untrusted content before returning it.</p>
+                    </div>
+                  </article>
+              </div>
+              </div>
+
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-warning">
+              <div class="section-kicker">Security Evidence</div>
+              <h2 class="section-title">Security Assessment Details</h2>
+              <p class="section-intro">Security Score: 69.0% · Vulnerabilities: 1</p>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell panel--tone-success">
+              <div class="section-kicker">Tool Surface</div>
+              <h2 class="section-title">Tool Validation Details</h2>
+              <p class="section-intro">Tools Discovered: 2 · Passed: 2 · Failed: 0</p>
+              <div class="card-grid">
+                <div class="evidence-card">
+                  <div class="evidence-card__header">
+                    <div>
+                      <div class="evidence-card__title">Authentication Summary</div>
+                      <div class="evidence-card__subtle">Quiet evidence for the access boundary around tool invocation.</div>
+                    </div>
+                    <span class="tone-chip tone-warning">Open Gate</span>
+                  </div>
+                  <div class="evidence-stats">
+                    <div class="evidence-stat"><div class="evidence-stat__label">Required</div><div class="evidence-stat__value">Yes</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Challenge</div><div class="evidence-stat__value">n/a</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Latency</div><div class="evidence-stat__value">n/a</div></div>
+                    <div class="evidence-stat"><div class="evidence-stat__label">Score</div><div class="evidence-stat__value">95.0%</div></div>
+                  </div>
+                </div>
+
+                <div class="evidence-card">
+                  <div class="evidence-card__header">
+                    <div>
+                      <div class="evidence-card__title">Tool Metadata Completeness</div>
+                      <div class="evidence-card__subtle">Coverage across titles, descriptions, and behavioral annotations.</div>
+                    </div>
+                    <span class="tone-chip tone-info">2 tools</span>
+                  </div>
+                  <div class="inline-list">
+    <span class="tag">title 2/2</span>
+    <span class="tag">description 0/2</span>
+    <span class="tag">readOnlyHint 0/2</span>
+    <span class="tag">destructiveHint 0/2</span>
+    <span class="tag">openWorldHint 0/2</span>
+    <span class="tag">idempotentHint 0/2</span>
+                  </div>
+                </div>
+
+              </div>
+              <div class="table-shell">
+                <table class="data-table">
+                  <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
+                    <tr><td><code>delete_repo</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>140.00 ms</td><td>title</td></tr>
+                    <tr><td><code>list_repos</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>80.00 ms</td><td>title</td></tr>
+                  </tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Resource Surface</div>
+              <h2 class="section-title">Resource Capabilities</h2>
+              <p class="section-intro">Resources Discovered: 1 · Accessible: 1</p>
+              <div class="table-shell">
+                <table class="data-table">
+                  <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Status</th></tr></thead><tbody>
+                    <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
+                  </tbody></table>
+              </div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Runtime Evidence</div>
+              <h2 class="section-title">Performance Metrics</h2>
+              <p class="section-intro">Observed values from the completed runtime probe.</p>
+              <div class="score-strip">
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">Average Latency</div>
+                  <div class="score-pill__value">120.5 ms</div>
+                  <div class="score-pill__meta">Target ≤ 300 ms</div>
+                </div>
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">P95 Latency</div>
+                  <div class="score-pill__value">210.4 ms</div>
+                  <div class="score-pill__meta">Tail latency under pressure</div>
+                </div>
+                <div class="score-pill score-pill--info">
+                  <div class="score-pill__eyebrow">Requests / Second</div>
+                  <div class="score-pill__value">18.20</div>
+                  <div class="score-pill__meta">Sustained throughput during probe</div>
+                </div>
+                <div class="score-pill score-pill--success">
+                  <div class="score-pill__eyebrow">Error Rate</div>
+                  <div class="score-pill__value">0.00%</div>
+                  <div class="score-pill__meta">Target ≤ 1%</div>
+                </div>
+              </div>
+
+              <div class="evidence-note">Requests: 120/120 successful.</div>
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-shell">
+              <div class="section-kicker">Appendix</div>
+              <h2 class="section-title">Method & Deferred Notes</h2>
+              <p class="section-intro">Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
+              <div class="appendix-grid">
+                <div>
+                  <h3 class="minor-title">Deferred Recommendations</h3>
+                  <ul class="compact-list">
+                    <li>Return the negotiated protocol version explicitly during initialize.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </section>
+
+
+    <div class="producer-signature">
+      <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>
+      <span class="producer-signature__divider">·</span>
+      <a href="https://www.nuget.org/packages/McpVal#versions-body-tab">McpVal on NuGet</a>
+    </div>
+          <div class="footer">Generated by MCP Validator · Full report · print-ready HTML for PDF export</div>
+        </div>
+      </div>
+    </body>
+    </html>"
+' could not be formatted with string.Format
+   at System.Text.ValueStringBuilder.AppendFormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at System.String.FormatHelper(IFormatProvider provider, String format, ReadOnlySpan`1 args)
+   at FluentAssertions.Execution.FailureMessageFormatter.FormatArgumentPlaceholders(String failureMessage, Object[] failureArgs)
+  Stack Trace:
+     at FluentAssertions.Primitives.StringAssertions`1.Be(String expected, String because, Object[] becauseArgs)
+   at Mcp.Benchmark.Tests.Unit.Reporting.ReportSnapshotTests.Outputs_ShouldMatchApprovedSnapshots(String snapshotName) in /Users/navalerakesh/Work/engineering/mcp-validation-security/Mcp.Benchmark.Tests/Unit/Reporting/ReportSnapshotTests.cs:line 56
+   at InvokeStub_ReportSnapshotTests.Outputs_ShouldMatchApprovedSnapshots(Object, Span`1)
+   at System.Reflection.MethodBaseInvoker.InvokeWithOneArg(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)
+
+Failed!  - Failed:     1, Passed:     5, Skipped:     0, Total:     6, Duration: 222 ms - Mcp.Benchmark.Tests.dll (net8.0)

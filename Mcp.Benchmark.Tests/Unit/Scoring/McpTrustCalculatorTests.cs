@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Infrastructure.Scoring;
 using FluentAssertions;
 using Xunit;
@@ -45,6 +46,7 @@ public class McpTrustCalculatorTests
         {
             new ComplianceViolation
             {
+                CheckId = ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities,
                 Description = "Server did not return capabilities in initialize response (MUST per spec)",
                 Severity = ViolationSeverity.High,
                 Category = "Protocol Lifecycle"
@@ -55,6 +57,30 @@ public class McpTrustCalculatorTests
 
         trust.MustFailCount.Should().BeGreaterThan(0);
         trust.TrustLevel.Should().Be(McpTrustLevel.L2_Caution);
+    }
+
+    [Fact]
+    public void Calculate_WithGenericLifecycleDescriptionOnly_ShouldNotTreatProseAsStructuredMustFailure()
+    {
+        var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 2, toolsDiscovered: 2);
+        result.PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Passed, Score = 100 };
+        result.ToolValidation!.AiReadinessScore = 100;
+        result.ToolValidation.ToolResults = new List<IndividualToolResult>();
+        result.ProtocolCompliance!.Violations = new List<ComplianceViolation>
+        {
+            new ComplianceViolation
+            {
+                CheckId = ValidationConstants.CheckIds.ProtocolLifecycle,
+                Description = "Server did not return capabilities in initialize response (MUST per spec)",
+                Severity = ViolationSeverity.High,
+                Category = "Protocol Lifecycle"
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.MustFailCount.Should().Be(0);
+        trust.TrustLevel.Should().BeOneOf(McpTrustLevel.L4_Trusted, McpTrustLevel.L5_CertifiedSecure);
     }
 
     [Fact]
@@ -81,6 +107,49 @@ public class McpTrustCalculatorTests
         var trust = McpTrustCalculator.Calculate(result);
 
         trust.OperationalReadiness.Should().Be(70.0);
+    }
+
+    [Fact]
+    public void Calculate_WithPublicTimeoutAndNoMeasurements_ShouldUseAdvisoryOperationalReadiness()
+    {
+        var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 1, toolsDiscovered: 1);
+        result.ServerConfig = new McpServerConfig { Profile = McpServerProfile.Public };
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Failed,
+            Message = "Operation timed out or was cancelled",
+            CriticalErrors = new List<string> { "Operation timed out or was cancelled" }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.OperationalReadiness.Should().Be(70.0);
+    }
+
+    [Fact]
+    public void Calculate_WithObservedCalibrationPressureButHealthyFinalRound_ShouldPreserveFinalOperationalReadiness()
+    {
+        var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 1, toolsDiscovered: 1);
+        result.ServerConfig = new McpServerConfig { Profile = McpServerProfile.Public };
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 88,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 20,
+                FailedRequests = 0,
+                AverageResponseTimeMs = 180,
+                ProbeRoundsExecuted = 2,
+                ObservedRateLimitedRequests = 3,
+                ObservedTransientFailures = 1
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.OperationalReadiness.Should().Be(88.0);
     }
 
     [Fact]

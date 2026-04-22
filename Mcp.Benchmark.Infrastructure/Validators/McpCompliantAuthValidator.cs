@@ -471,7 +471,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioStandardsAligned(
                         scenario,
-                        actualBehavior: "400 + WWW-Auth",
+                        actualBehavior: "Challenge returned",
                         analysis: "✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.",
                         complianceReason: "PASS: Access denied with challenge metadata.");
                 }
@@ -479,7 +479,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioSecureCompatible(
                         scenario,
-                        actualBehavior: "400 (missing WWW-Auth)",
+                        actualBehavior: "Challenge missing",
                         analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
                         complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
                 }
@@ -493,7 +493,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioInsecure(
                         scenario,
-                        actualBehavior: hasWWWAuth ? "401 + WWW-Auth" : "401 (missing WWW-Auth)",
+                        actualBehavior: hasWWWAuth ? "Valid token rejected with challenge" : "Valid token rejected without challenge",
                         analysis: "❌ INSECURE: A valid token was rejected.",
                         complianceReason: "FAIL: Server rejected the valid token.");
                 }
@@ -503,7 +503,7 @@ public class McpCompliantAuthValidator
                     {
                         MarkScenarioStandardsAligned(
                             scenario,
-                            actualBehavior: "401 + WWW-Auth",
+                            actualBehavior: "Challenge returned",
                             analysis: "✅ ALIGNED: OAuth/MCP challenge returned with HTTP 401.",
                             complianceReason: "PASS: Access denied with challenge metadata.");
                     }
@@ -511,7 +511,7 @@ public class McpCompliantAuthValidator
                     {
                         MarkScenarioSecureCompatible(
                             scenario,
-                            actualBehavior: "401 (missing WWW-Auth)",
+                            actualBehavior: "Challenge missing",
                             analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
                             complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
                     }
@@ -526,7 +526,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioStandardsAligned(
                         scenario,
-                        actualBehavior: "403 + WWW-Auth",
+                        actualBehavior: "Challenge returned",
                         analysis: "✅ ALIGNED: Secure insufficient-scope rejection returned with challenge metadata.",
                         complianceReason: "PASS: Access denied with challenge metadata.");
                 }
@@ -534,7 +534,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioSecureCompatible(
                         scenario,
-                        actualBehavior: "403 (missing WWW-Auth)",
+                        actualBehavior: "Challenge missing",
                         analysis: "⚠️ COMPATIBLE: Secure rejection without the preferred WWW-Authenticate challenge.",
                         complianceReason: "SECURE: Request was rejected, but challenge metadata was not provided.");
                 }
@@ -544,7 +544,7 @@ public class McpCompliantAuthValidator
                 // Rate Limiting - Not an auth violation
                 MarkScenarioInconclusive(
                     scenario,
-                    actualBehavior: "429 Too Many Requests",
+                    actualBehavior: "Rate limited",
                     analysis: "ℹ️ INFO: Rate limiting observed; auth semantics inconclusive.",
                     complianceReason: "INFO: Request was throttled and excluded from auth scoring.");
                 break;
@@ -553,7 +553,7 @@ public class McpCompliantAuthValidator
                 // Content Negotiation - Not an auth violation
                 MarkScenarioInconclusive(
                     scenario,
-                    actualBehavior: "406 Not Acceptable",
+                    actualBehavior: "Content negotiation rejected",
                     analysis: "ℹ️ INFO: Content negotiation failed before auth semantics could be evaluated.",
                     complianceReason: "INFO: Content negotiation prevented a conclusive auth assessment.");
                 break;
@@ -562,7 +562,7 @@ public class McpCompliantAuthValidator
                 // Service Unavailable - Not an auth violation
                 MarkScenarioInconclusive(
                     scenario,
-                    actualBehavior: "503 Service Unavailable",
+                    actualBehavior: "Service unavailable",
                     analysis: "ℹ️ INFO: Service availability issue made auth semantics inconclusive.",
                     complianceReason: "INFO: Service was unavailable during auth assessment.");
                 break;
@@ -570,7 +570,7 @@ public class McpCompliantAuthValidator
             case 405:
                 MarkScenarioSecureCompatible(
                     scenario,
-                    actualBehavior: hasWWWAuth ? "405 + WWW-Auth" : "405 (missing WWW-Auth)",
+                    actualBehavior: hasWWWAuth ? "Method rejected with challenge" : "Method rejected without challenge",
                     analysis: "⚠️ COMPATIBLE: Request was rejected, but the server used a non-canonical HTTP method outcome.",
                     complianceReason: "SECURE: Request was rejected using a non-canonical transport response.");
                 break;
@@ -582,7 +582,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioStandardsAligned(
                         scenario,
-                        actualBehavior: jsonRpcResult.IsSuccess ? "200 + JSON-RPC success" : "200 + JSON-RPC error",
+                        actualBehavior: jsonRpcResult.IsSuccess ? "Authenticated request succeeded" : "Authenticated request returned JSON-RPC error",
                         analysis: "✅ ALIGNED: Valid authentication was accepted and request processing proceeded.",
                         complianceReason: "PASS: Server accepted the valid token and processed the request.");
                 }
@@ -592,7 +592,7 @@ public class McpCompliantAuthValidator
                     {
                         MarkScenarioSecureCompatible(
                             scenario,
-                            actualBehavior: "200 + JSON-RPC error",
+                            actualBehavior: "Request rejected in JSON-RPC layer",
                             analysis: "⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.",
                             complianceReason: "SECURE: Request was rejected, but not through the preferred HTTP challenge flow.");
                     }
@@ -602,7 +602,7 @@ public class McpCompliantAuthValidator
                         {
                             MarkScenarioSecureCompatible(
                                 scenario,
-                                actualBehavior: "200 + JSON-RPC success",
+                                actualBehavior: "Discovery metadata returned",
                                 analysis: "⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.",
                                 complianceReason: "SECURE: Discovery surface is public, but challenge-based auth was not enforced.");
                         }
@@ -610,7 +610,7 @@ public class McpCompliantAuthValidator
                         {
                             MarkScenarioInsecure(
                                 scenario,
-                                actualBehavior: "200 + JSON-RPC success",
+                                actualBehavior: "Sensitive operation succeeded",
                                 analysis: "❌ INSECURE: Sensitive operation succeeded without valid authentication.",
                                 complianceReason: "FAIL: Invalid authentication was accepted.");
                         }
@@ -623,7 +623,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioSecureCompatible(
                         scenario,
-                        actualBehavior: $"HTTP {response.StatusCode}",
+                        actualBehavior: "HTTP rejection",
                         analysis: $"⚠️ COMPATIBLE: Server rejected the request with HTTP {response.StatusCode}, but without the preferred challenge semantics.",
                         complianceReason: "SECURE: Request was rejected using a non-canonical HTTP pattern.");
                 }
@@ -631,7 +631,7 @@ public class McpCompliantAuthValidator
                 {
                     MarkScenarioInconclusive(
                         scenario,
-                        actualBehavior: $"HTTP {response.StatusCode}",
+                        actualBehavior: "Unexpected transport response",
                         analysis: $"ℹ️ INFO: Unexpected HTTP {response.StatusCode} prevented a reliable auth assessment.",
                         complianceReason: "INFO: Response was excluded from auth scoring due to inconclusive transport behavior.");
                 }

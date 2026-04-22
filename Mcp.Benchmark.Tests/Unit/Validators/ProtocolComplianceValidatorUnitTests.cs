@@ -269,6 +269,22 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared);
     }
 
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ShouldPopulateProtocolDetailSnapshots()
+    {
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig());
+
+        result.NotificationHandling.NotificationFormatCorrect.Should().BeTrue();
+        result.NotificationHandling.SubscriptionMechanismWorking.Should().BeNull();
+        result.NotificationHandling.UnsubscriptionWorking.Should().BeNull();
+        result.NotificationHandling.NotificationsReceived.Should().BeNull();
+        result.MessageFormat.RequestFormatValid.Should().BeTrue();
+        result.MessageFormat.ResponseFormatValid.Should().BeTrue();
+        result.MessageFormat.ErrorFormatValid.Should().BeTrue();
+    }
+
     private ProtocolComplianceValidator CreateValidator() =>
         new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry);
 
@@ -363,7 +379,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         _mcpHttpClientMock
             .Setup(client => client.SendRawJsonAsync(
                 It.IsAny<string>(),
-                It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"ping\"}"),
+                It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"notifications/initialized\"}"),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(new JsonRpcResponse
@@ -413,6 +429,59 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         IsSuccess = true,
         RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Invalid Request\"},\"id\":1}"
     };
+
+    [Fact]
+    public async Task ValidateNotificationHandlingAsync_WithInitializedNotificationAccepted_ShouldPass()
+    {
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "http://localhost:8080/mcp",
+            Transport = "http"
+        };
+
+        var result = await validator.ValidateNotificationHandlingAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.Violations.Should().BeEmpty();
+
+        _mcpHttpClientMock.Verify(client => client.SendRawJsonAsync(
+            It.IsAny<string>(),
+            It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"notifications/initialized\"}"),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<bool>()), Times.AtLeastOnce);
+    }
+
+    [Fact]
+    public async Task ValidateNotificationHandlingAsync_WithTransientRateLimit_ShouldSkip()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 429,
+                IsSuccess = false,
+                Error = "HTTP 429 Too Many Requests",
+                RawJson = "too many requests"
+            });
+
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "http://localhost:8080/mcp",
+            Transport = "http"
+        };
+
+        var result = await validator.ValidateNotificationHandlingAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.Violations.Should().BeEmpty();
+        result.Message.Should().Contain("transient transport pressure");
+    }
 
     public void Dispose()
     {

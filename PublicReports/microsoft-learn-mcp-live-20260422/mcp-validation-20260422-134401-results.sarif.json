@@ -126,6 +126,29 @@
               }
             },
             {
+              "id": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
+              "name": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
+              "shortDescription": {
+                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
+              },
+              "fullDescription": {
+                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
+              },
+              "help": {
+                "text": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "load-testing"
+                ]
+              }
+            },
+            {
               "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "shortDescription": {
@@ -149,6 +172,29 @@
               }
             },
             {
+              "id": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
+              "name": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
+              "shortDescription": {
+                "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+              },
+              "help": {
+                "text": "Review rate-limit and retry telemetry alongside final latency before treating the probe as representative of steady-state performance."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "load-testing"
+                ]
+              }
+            },
+            {
               "id": "MCP-PROTO-ERR",
               "name": "MCP-PROTO-ERR",
               "shortDescription": {
@@ -157,7 +203,9 @@
               "fullDescription": {
                 "text": "JSON-RPC Error Code Violation: Parse Error"
               },
-              "help": null,
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
               "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
               "properties": {
                 "source": "spec",
@@ -177,7 +225,9 @@
               "fullDescription": {
                 "text": "Batch processing implementation is inconsistent or incomplete"
               },
-              "help": null,
+              "help": {
+                "text": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
+              },
               "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc",
               "properties": {
                 "source": "spec",
@@ -210,35 +260,12 @@
                   "microsoft_docs_search"
                 ]
               }
-            },
-            {
-              "id": "MCP-SEC-002",
-              "name": "MCP-SEC-002",
-              "shortDescription": {
-                "text": "Metadata Enumeration"
-              },
-              "fullDescription": {
-                "text": "Potential enumeration: Different HTTP status codes for random vs common resources."
-              },
-              "help": {
-                "text": "Review MCP implementation against security best practices."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "heuristic",
-                "category": "Data Leakage",
-                "tags": [
-                  "heuristic",
-                  "Data Leakage",
-                  "MCP Protocol/Tooling"
-                ]
-              }
             }
           ]
         }
       },
       "automationDetails": {
-        "id": "8d2a92ab-32bd-4915-9388-835c6638b439",
+        "id": "218f4501-4d25-4385-9bf1-7cdacba726f6",
         "description": {
           "text": "MCP validation run"
         }
@@ -246,10 +273,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-21T08:35:35.1199490Z",
-          "endTimeUtc": "2026-04-21T08:35:56.1591360Z",
+          "startTimeUtc": "2026-04-22T13:42:59.0731250Z",
+          "endTimeUtc": "2026-04-22T13:44:01.2111300Z",
           "properties": {
-            "validationId": "8d2a92ab-32bd-4915-9388-835c6638b439",
+            "validationId": "218f4501-4d25-4385-9bf1-7cdacba726f6",
             "endpoint": "https://learn.microsoft.com/api/mcp",
             "transport": "http",
             "overallStatus": "Passed",
@@ -526,6 +553,39 @@
           }
         },
         {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP|load-testing|Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "load-testing"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "load-testing",
+            "severity": "Info",
+            "recommendation": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe.",
+            "metadata": {
+              "initialConcurrency": "20",
+              "targetConcurrency": "100"
+            }
+          }
+        },
+        {
           "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
           "level": "note",
           "kind": "fail",
@@ -560,6 +620,40 @@
           }
         },
         {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED|load-testing|Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "load-testing"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "load-testing",
+            "severity": "Info",
+            "recommendation": "Review rate-limit and retry telemetry alongside final latency before treating the probe as representative of steady-state performance.",
+            "metadata": {
+              "probeRoundsExecuted": "2",
+              "observedRateLimitedRequests": "0",
+              "observedTransientFailures": "0"
+            }
+          }
+        },
+        {
           "ruleId": "MCP-PROTO-ERR",
           "level": "note",
           "kind": "fail",
@@ -585,7 +679,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Low",
-            "rule": null
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -614,7 +709,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Low",
-            "rule": null
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -643,7 +739,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Low",
-            "rule": null
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -672,7 +769,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Medium",
-            "rule": null
+            "rule": null,
+            "recommendation": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
           }
         },
         {
@@ -760,36 +858,6 @@
             "component": "microsoft_docs_fetch",
             "severity": "Low",
             "recommendation": "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
-          }
-        },
-        {
-          "ruleId": "MCP-SEC-002",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "Potential enumeration: Different HTTP status codes for random vs common resources."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "vuln|MCP-SEC-002|MCP Protocol/Tooling|Potential enumeration: Different HTTP status codes for random vs common resources."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "MCP Protocol/Tooling"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "security-vulnerability",
-            "authority": "heuristic",
-            "category": "Data Leakage",
-            "component": "MCP Protocol/Tooling",
-            "severity": "High",
-            "isExploitable": true,
-            "recommendation": "Review MCP implementation against security best practices."
           }
         }
       ]

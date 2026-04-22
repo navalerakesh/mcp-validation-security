@@ -18,12 +18,24 @@ export async function handleValidate(input: ValidateInput): Promise<string> {
   const available = await isCliAvailable();
   if (!available) return cliNotInstalledMessage();
 
-  const args = ["validate", "-s", input.server, "--access", input.access];
-  if (input.token) args.push("-t", input.token);
+  const args: string[] = [];
+  if (input.policy) args.push("--policy", input.policy);
   if (input.mcpspec) args.push("--mcpspec", input.mcpspec);
+  if (input.reportDetail) args.push("--report-detail", input.reportDetail);
+  if (input.interactive) args.push("--interactive");
   if (input.verbose) args.push("-v");
+  if (input.clientProfile?.length) {
+    for (const profile of input.clientProfile) {
+      args.push("--client-profile", profile);
+    }
+  }
 
-  const result = await runCli(args);
+  const result = await runCli({
+    command: "validate",
+    args,
+    captureResultJson: true,
+    configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
+  });
 
   if (result.resultJson) {
     return cleanOutput(formatValidationResult(result.resultJson));
@@ -39,10 +51,14 @@ export async function handleHealthCheck(input: HealthCheckInput): Promise<string
   const available = await isCliAvailable();
   if (!available) return cliNotInstalledMessage();
 
-  const args = ["health-check", "-s", input.server];
-  if (input.token) args.push("-t", input.token);
+  const args: string[] = [];
+  if (input.interactive) args.push("--interactive");
 
-  const result = await runCli(args);
+  const result = await runCli({
+    command: "health-check",
+    args,
+    configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
+  });
   return cleanOutput(result.stdout || result.stderr || "Health check completed.");
 }
 
@@ -53,10 +69,14 @@ export async function handleDiscover(input: DiscoverInput): Promise<string> {
   const available = await isCliAvailable();
   if (!available) return cliNotInstalledMessage();
 
-  const args = ["discover", "-s", input.server, "--format", "json"];
-  if (input.token) args.push("-t", input.token);
+  const args = ["--format", input.format];
+  if (input.interactive) args.push("--interactive");
 
-  const result = await runCli(args);
+  const result = await runCli({
+    command: "discover",
+    args,
+    configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
+  });
   return cleanOutput(result.stdout || result.stderr || "Discovery completed.");
 }
 
@@ -95,12 +115,59 @@ function cliNotInstalledMessage(): string {
   ].join("\n");
 }
 
+function buildServerConfig(
+  server: string,
+  access: "public" | "authenticated" | "enterprise" | "unspecified",
+  token?: string,
+  interactive = false,
+): Record<string, unknown> {
+  const authentication = token || interactive
+    ? {
+        type: token ? "bearer" : "none",
+        required: access === "authenticated" || access === "enterprise",
+        token,
+        allowInteractive: interactive,
+      }
+    : undefined;
+
+  return {
+    server: {
+      endpoint: server,
+      transport: inferTransport(server),
+      profile: mapAccessProfile(access),
+      authentication,
+    },
+  };
+}
+
+function inferTransport(server: string): "http" | "websocket" | "stdio" {
+  const trimmed = server.trim();
+  if (/^https?:\/\//i.test(trimmed)) return "http";
+  if (/^wss?:\/\//i.test(trimmed)) return "websocket";
+  return "stdio";
+}
+
+function mapAccessProfile(access: "public" | "authenticated" | "enterprise" | "unspecified"): number {
+  switch (access) {
+    case "public":
+      return 1;
+    case "authenticated":
+      return 2;
+    case "enterprise":
+      return 3;
+    default:
+      return 0;
+  }
+}
+
 function formatValidationResult(json: Record<string, unknown>): string {
   const lines: string[] = [];
 
   const score = json.complianceScore ?? json.ComplianceScore;
   const status = json.overallStatus ?? json.OverallStatus;
   const trust = json.trustAssessment as Record<string, unknown> | undefined;
+  const recommendations = json.recommendations as unknown[] | undefined;
+  const summary = json.summary as Record<string, unknown> | undefined;
 
   lines.push(`Status: ${status}`);
   lines.push(`Compliance Score: ${score}%`);
@@ -111,6 +178,20 @@ function formatValidationResult(json: Record<string, unknown>): string {
     lines.push(`  Security: ${trust.securityPosture ?? trust.SecurityPosture}%`);
     lines.push(`  AI Safety: ${trust.aiSafety ?? trust.AiSafety}%`);
     lines.push(`  Operations: ${trust.operationalReadiness ?? trust.OperationalReadiness}%`);
+  }
+
+  if (summary) {
+    lines.push(`Tests: ${summary.passedTests ?? summary.PassedTests}/${summary.totalTests ?? summary.TotalTests} passed`);
+    lines.push(`Warnings: ${summary.warnings ?? summary.Warnings ?? 0}`);
+  }
+
+  if (Array.isArray(recommendations) && recommendations.length > 0) {
+    lines.push("Top Recommendations:");
+    for (const recommendation of recommendations.slice(0, 3)) {
+      if (typeof recommendation === "string") {
+        lines.push(`- ${recommendation}`);
+      }
+    }
   }
 
   return lines.join("\n");

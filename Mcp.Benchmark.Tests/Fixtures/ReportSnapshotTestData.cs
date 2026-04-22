@@ -224,6 +224,7 @@ public static class ReportSnapshotTestData
             PerformanceTesting = new PerformanceTestResult
             {
                 Status = TestStatus.Passed,
+                Score = 100,
                 Duration = TimeSpan.FromSeconds(1.2),
                 Message = "Performance is acceptable under moderate load.",
                 LoadTesting = new LoadTestResult

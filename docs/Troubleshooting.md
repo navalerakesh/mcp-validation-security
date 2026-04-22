@@ -18,6 +18,22 @@ Recommended actions:
 - Confirm that the endpoint is the actual MCP entry point, not just a product landing URL.
 - For STDIO targets, run the command directly outside `mcpval` once to confirm it starts cleanly.
 
+### The server returns `429 Too Many Requests`
+
+Remote MCP endpoints often protect discovery and tool surfaces with throttling.
+
+Current validator behavior:
+
+- Retryable `429`-style protocol or tool probes are treated as inconclusive transport pressure, not as hard spec failures.
+- Remote functional probes self-calibrate concurrency downward before the full validator fan-out begins.
+- Performance probes still measure pressure separately; those results remain visible in the performance section.
+
+Recommended actions:
+
+- Re-run the same command once before treating a transient probe note as a product defect.
+- Lower `--max-concurrency` if the endpoint is known to be sensitive to burst traffic.
+- Read the Markdown or HTML report to distinguish inconclusive probe notes from actual protocol violations.
+
 ## Authentication Failures
 
 ### The server returns `401` or `403`
@@ -63,6 +79,16 @@ Recommended actions:
 - Read the executive summary in the Markdown report first.
 - Inspect `PolicyOutcome` in the JSON result if you need machine-readable gating detail.
 - Only relax policy thresholds deliberately; do not treat policy failures as transport failures.
+
+### The run shows an inconclusive probe note
+
+This means the validator saw retryable transport pressure while testing a specific probe, such as notification handling or `tools/call`.
+
+Recommended actions:
+
+- Treat the note as operational context, not as confirmed MCP non-compliance.
+- Re-run during a lower-pressure window if you need a cleaner protocol-only read.
+- Check whether the underlying raw finding is labeled as `guideline` or `heuristic` before escalating it as a spec defect.
 
 ## Report Rendering Issues
 

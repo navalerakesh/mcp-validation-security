@@ -20,6 +20,9 @@ public static class McpComplianceTiers
         public const string InitializeResponse = "MUST: Server responds to 'initialize' with valid JSON-RPC";
         public const string ProtocolVersionInResponse = "MUST: Initialize response includes 'protocolVersion'";
         public const string CapabilitiesInResponse = "MUST: Initialize response includes 'capabilities' object";
+        public const string ServerInfoPresent = "MUST: Initialize response includes 'serverInfo'";
+        public const string ServerInfoHasName = "MUST: serverInfo includes 'name'";
+        public const string ServerInfoHasVersion = "MUST: serverInfo includes 'version'";
         public const string JsonRpc20Format = "MUST: All messages follow JSON-RPC 2.0 format";
         public const string NotificationNoResponse = "MUST: Server does NOT respond to notifications";
 
@@ -61,9 +64,6 @@ public static class McpComplianceTiers
     public static class Should
     {
         // Protocol
-        public const string ServerInfoPresent = "SHOULD: Initialize response includes 'serverInfo'";
-        public const string ServerInfoHasName = "SHOULD: serverInfo includes 'name'";
-        public const string ServerInfoHasVersion = "SHOULD: serverInfo includes 'version'";
         public const string WwwAuthenticateHeader = "SHOULD: Auth rejection includes WWW-Authenticate header (RFC 9110)";
         public const string ValidateArgumentsBeforeProcessing = "SHOULD: Servers validate prompt arguments before processing";
 

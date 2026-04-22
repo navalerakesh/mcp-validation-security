@@ -485,7 +485,7 @@ internal class Program
 
     private static string BuildClientProfileOptionDescription()
     {
-        return $"Evaluate documented client compatibility profiles. Supported values: {string.Join(", ", ClientProfileCatalog.SupportedProfileIds)}, {ClientProfileCatalog.AllProfilesToken}.";
+        return $"Evaluate documented client compatibility profiles. Defaults to all supported profiles when omitted; use this option to narrow the set. Supported values: {string.Join(", ", ClientProfileCatalog.SupportedProfileIds)}, {ClientProfileCatalog.AllProfilesToken}.";
     }
 
     /// <summary>

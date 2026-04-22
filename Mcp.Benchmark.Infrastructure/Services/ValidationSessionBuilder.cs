@@ -178,24 +178,25 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
             var duration = (DateTime.UtcNow - startTime).TotalMilliseconds;
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(probeResponse, duration);
 
-            if (authChallenge.IsAuthenticationChallenge)
+            if (authChallenge.RequiresAuthentication)
             {
                 var discoveryInfo = AuthenticationChallengeInterpreter.CreateDiscoveryInfo(authChallenge)
                     ?? new AuthDiscoveryInfo { DiscoveryTimeMs = duration };
 
-                var isAzureHost = serverConfig.Endpoint?.Contains("azurecontainerapps.io", StringComparison.OrdinalIgnoreCase) == true ||
-                                  serverConfig.Endpoint?.Contains("azurewebsites.net", StringComparison.OrdinalIgnoreCase) == true;
-
-                if (authChallenge.HasWwwAuthenticateHeader || isAzureHost)
+                if (!authChallenge.IsAuthenticationChallenge)
                 {
                     var metadataUrl = authChallenge.ResourceMetadataUrl;
-                    var forceAzure = isAzureHost && !authChallenge.HasWwwAuthenticateHeader;
-                    var isStandardOAuth = forceAzure || !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri) || authChallenge.UsesBearerChallenge;
+                    return discoveryInfo;
+                }
+
+                {
+                    var metadataUrl = authChallenge.ResourceMetadataUrl;
+                    var isStandardOAuth = !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri) || authChallenge.UsesBearerChallenge;
 
                     if (isStandardOAuth)
                     {
                         var authUri = "https://login.microsoftonline.com/common/v2.0";
-                        if (!forceAzure && !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri))
+                        if (!string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri))
                         {
                             authUri = authChallenge.AuthorizationUri;
                         }

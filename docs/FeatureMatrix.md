@@ -33,7 +33,7 @@ When you need discovery-like evidence for a local STDIO server, use `validate`; 
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
-| Reporting | Console summaries plus Markdown, HTML, JSON, and SARIF from `validate`; HTML, XML, SARIF, and JUnit from `report` |
+| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, and client-profile summary JSON from `validate`; HTML, XML, SARIF, and JUnit from `report` |
 | CI gating | Advisory, balanced, and strict policy modes with structured policy outcomes |
 
 ## Result And Finding Model
@@ -45,6 +45,7 @@ When you need discovery-like evidence for a local STDIO server, use `validate`; 
 | Remediation guidance | Findings include remediation text suitable for reports and CI output |
 | Structured evidence | Capability checks and interpretation layers attach explicit evidence instead of only free-form text |
 | Canonical result object | `ValidationResult` preserves raw category results, policy outcome, trust assessment, and client compatibility interpretation |
+| Transient probe calibration | Retryable protocol and tool probe responses are preserved as inconclusive operational evidence instead of being overstated as hard spec failures |
 
 ## Client Compatibility Profiles
 
@@ -58,6 +59,8 @@ When you need discovery-like evidence for a local STDIO server, use `validate`; 
 - `all`
 
 These profiles do not mutate the underlying findings. They provide an additional host-specific interpretation layer on top of the same raw evidence set.
+
+When profile evaluation is enabled, `validate` also emits `*-profile-summary.json` for dashboards and CI systems that only need the compatibility rollup.
 
 ## Known Product Limitation
 

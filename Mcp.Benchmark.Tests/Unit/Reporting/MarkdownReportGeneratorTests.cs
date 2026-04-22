@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using FluentAssertions;
 using Xunit;
@@ -245,6 +246,19 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithToolCatalogAdvisories_ShouldSeparateAuthorityBreakdown()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Tool Catalog Advisory Breakdown");
+        report.Should().Contain("| Spec | 0 | 0/2 (0%) | - | No current catalog-wide tool advisories. |");
+        report.Should().Contain("| Guideline | 1 | 1/2 (50%) | 🟠 High |");
+        report.Should().Contain("| Heuristic | 1 | 1/2 (50%) | 🟡 Medium |");
+    }
+
+    [Fact]
     public void GenerateReport_WithProtocolCriticalErrors_ShouldIncludeThemEvenWithoutViolations()
     {
         var result = BuildMinimalResult();
@@ -279,7 +293,65 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Performance Metrics");
         report.Should().Contain("**Measurements:** unavailable");
         report.Should().Contain("Operation timed out or was cancelled");
+        report.Should().Contain("| Performance | ❌ Failed | Unavailable | - |");
         report.Should().NotContain("0.00ms | 🚀 Excellent");
+    }
+
+    [Fact]
+    public void GenerateReport_WithRateLimitedFailures_ShouldExplainTheyDoNotDriveFailurePenalty()
+    {
+        var result = BuildMinimalResult();
+        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Failed,
+            Score = 95,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 10,
+                SuccessfulRequests = 7,
+                FailedRequests = 3,
+                RateLimitedRequests = 3,
+                AverageResponseTimeMs = 300,
+                P95ResponseTimeMs = 420,
+                RequestsPerSecond = 12
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Rate limiting | surfaced separately | 3 rate-limited requests | −0 points");
+        report.Should().NotContain("3 failed | −15 points");
+    }
+
+    [Fact]
+    public void GenerateReport_WithObservedProbePressureSignals_ShouldShowCalibrationTelemetry()
+    {
+        var result = BuildMinimalResult();
+        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 92,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 180,
+                P95ResponseTimeMs = 350,
+                RequestsPerSecond = 14,
+                ProbeRoundsExecuted = 3,
+                ObservedRateLimitedRequests = 4,
+                ObservedTransientFailures = 2
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("**Probe Rounds** | 3 | ℹ️ Calibrated");
+        report.Should().Contain("**Observed Rate Limits** | 4 request(s) | ⚠️ Throttling observed");
+        report.Should().Contain("**Observed Transient Failures** | 2 request(s) | ⚠️ Retry pressure observed");
     }
 
     [Fact]
@@ -346,7 +418,7 @@ public class MarkdownReportGeneratorTests
                     ProfileId = "claude-code",
                     DisplayName = "Claude Code",
                     Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                    Summary = "Required compatibility checks passed, with 1 advisory gap.",
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
                     PassedRequirements = 2,
                     WarningRequirements = 1,
                     Requirements = new List<ClientProfileRequirementAssessment>
@@ -372,6 +444,45 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Claude Code");
         report.Should().Contain("Compatible with warnings");
         report.Should().Contain("Tool presentation and approval metadata is complete");
+    }
+
+    [Fact]
+    public void GenerateReport_WithWarningsOnlyClientCompatibility_ShouldKeepExecutiveSummaryFocusedOnBlockers()
+    {
+        var result = BuildMinimalResult();
+        result.ClientCompatibility = new ClientCompatibilityReport
+        {
+            RequestedProfiles = new List<string> { "claude-code" },
+            Assessments = new List<ClientProfileAssessment>
+            {
+                new()
+                {
+                    ProfileId = "claude-code",
+                    DisplayName = "Claude Code",
+                    Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
+                    PassedRequirements = 2,
+                    WarningRequirements = 1,
+                    Requirements = new List<ClientProfileRequirementAssessment>
+                    {
+                        new()
+                        {
+                            RequirementId = "tool-tool-metadata",
+                            Title = "Tool presentation and approval metadata is complete",
+                            Outcome = ClientProfileRequirementOutcome.Warning,
+                            Level = ClientProfileRequirementLevel.Recommended,
+                            Summary = "Advisory tool guidance gaps affect 1/1 tool(s)."
+                        }
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().NotContain("- Client profile Claude Code:");
+        report.Should().NotContain("Client compatibility: Claude Code");
+        report.Should().Contain("Client Profile Compatibility");
     }
 
     private static ValidationResult BuildMinimalResult()

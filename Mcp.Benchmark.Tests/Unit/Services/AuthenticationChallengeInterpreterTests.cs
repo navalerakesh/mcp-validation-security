@@ -21,6 +21,7 @@ public class AuthenticationChallengeInterpreterTests
 
         var observation = AuthenticationChallengeInterpreter.Inspect(response);
 
+        observation.RequiresAuthentication.Should().BeTrue();
         observation.IsAuthenticationChallenge.Should().BeTrue();
         observation.HasWwwAuthenticateHeader.Should().BeTrue();
         observation.WwwAuthenticateHeader.Should().Contain("Bearer");
@@ -56,5 +57,30 @@ public class AuthenticationChallengeInterpreterTests
         result.AuthMetadata.Should().BeSameAs(metadata);
         result.ChallengeDurationMs.Should().Be(12.5);
         result.Findings.Should().ContainSingle().Which.Should().Be("challenge observed");
+    }
+
+    [Fact]
+    public void Inspect_WithBare403_ShouldRequireAuthenticationWithoutClaimingChallenge()
+    {
+        var response = new JsonRpcResponse
+        {
+            StatusCode = 403,
+            Headers = new Dictionary<string, string>()
+        };
+
+        var observation = AuthenticationChallengeInterpreter.Inspect(response);
+        var discovery = AuthenticationChallengeInterpreter.CreateDiscoveryInfo(observation);
+        var security = AuthenticationChallengeInterpreter.CreateSecurityResult(discovery);
+
+        observation.RequiresAuthentication.Should().BeTrue();
+        observation.IsAuthenticationChallenge.Should().BeFalse();
+        observation.IsBareAuthenticationRejection.Should().BeTrue();
+        observation.HasWwwAuthenticateHeader.Should().BeFalse();
+        observation.SecurityScore.Should().Be(85.0);
+        discovery.Should().NotBeNull();
+        discovery!.Issues.Should().Contain(note => note.Contains("no WWW-Authenticate challenge", StringComparison.OrdinalIgnoreCase));
+        security.Should().NotBeNull();
+        security!.AuthenticationRequired.Should().BeTrue();
+        security.HasProperAuthHeaders.Should().BeFalse();
     }
 }

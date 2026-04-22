@@ -16,10 +16,13 @@ public static class AuthenticationChallengeInterpreter
         }
 
         var headerValue = TryGetHeaderValue(response.Headers, "WWW-Authenticate");
+        var requiresAuthentication = ValidationReliability.IsAuthenticationStatusCode(response.StatusCode);
+        var hasChallengeHeader = !string.IsNullOrWhiteSpace(headerValue);
 
         return new AuthenticationChallengeObservation(
             response.StatusCode,
-            ValidationReliability.IsAuthenticationStatusCode(response.StatusCode),
+            requiresAuthentication,
+            requiresAuthentication && hasChallengeHeader,
             headerValue,
             durationMs ?? response.ElapsedMs ?? 0.0,
             ExtractQuotedParameter(headerValue, "resource_metadata"),
@@ -29,19 +32,26 @@ public static class AuthenticationChallengeInterpreter
 
     public static AuthDiscoveryInfo? CreateDiscoveryInfo(AuthenticationChallengeObservation observation, IEnumerable<string>? issues = null)
     {
-        if (!observation.IsAuthenticationChallenge)
+        if (!observation.RequiresAuthentication)
         {
             return null;
+        }
+
+        var discoveredIssues = issues?
+            .Where(note => !string.IsNullOrWhiteSpace(note))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        if (!observation.HasWwwAuthenticateHeader)
+        {
+            discoveredIssues.Add("Authentication required but no WWW-Authenticate challenge was provided.");
         }
 
         return new AuthDiscoveryInfo
         {
             WwwAuthenticateHeader = observation.WwwAuthenticateHeader,
             DiscoveryTimeMs = observation.DurationMs,
-            Issues = issues?
-                .Where(note => !string.IsNullOrWhiteSpace(note))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList() ?? new List<string>()
+            Issues = discoveredIssues
         };
     }
 
@@ -79,7 +89,7 @@ public static class AuthenticationChallengeInterpreter
     {
         ArgumentNullException.ThrowIfNull(target);
 
-        if (!observation.IsAuthenticationChallenge)
+        if (!observation.RequiresAuthentication)
         {
             return;
         }
@@ -145,6 +155,7 @@ public static class AuthenticationChallengeInterpreter
 
 public sealed record AuthenticationChallengeObservation(
     int StatusCode,
+    bool RequiresAuthentication,
     bool IsAuthenticationChallenge,
     string? WwwAuthenticateHeader,
     double DurationMs,
@@ -152,9 +163,11 @@ public sealed record AuthenticationChallengeObservation(
     string? AuthorizationUri,
     bool UsesBearerChallenge)
 {
-    public static readonly AuthenticationChallengeObservation None = new(0, false, null, 0.0, null, null, false);
+    public static readonly AuthenticationChallengeObservation None = new(0, false, false, null, 0.0, null, null, false);
 
     public bool HasWwwAuthenticateHeader => !string.IsNullOrWhiteSpace(WwwAuthenticateHeader);
+
+    public bool IsBareAuthenticationRejection => RequiresAuthentication && !HasWwwAuthenticateHeader;
 
     public double SecurityScore => HasWwwAuthenticateHeader ? 100.0 : 85.0;
 }

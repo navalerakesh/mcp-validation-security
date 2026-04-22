@@ -5,6 +5,7 @@ using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using Moq;
 using FluentAssertions;
+using System.Text;
 using Xunit;
 
 namespace Mcp.Benchmark.Tests.Integration;
@@ -13,19 +14,27 @@ public class PromptValidatorIntegrationTests
 {
     private readonly PromptValidator _validator;
     private readonly Mock<IMcpHttpClient> _httpClient;
+    private readonly Mock<ISchemaValidator> _schemaValidator;
+    private readonly Mock<ISchemaRegistry> _schemaRegistry;
 
     public PromptValidatorIntegrationTests()
     {
         _httpClient = new Mock<IMcpHttpClient>();
+        _schemaValidator = new Mock<ISchemaValidator>();
+        _schemaRegistry = new Mock<ISchemaRegistry>();
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
         contentSafety.Setup(x => x.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .Returns(new List<ContentSafetyFinding>());
 
+        _schemaRegistry
+            .Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Throws(new FileNotFoundException("Schema not found"));
+
         _validator = new PromptValidator(
             new Mock<ILogger<PromptValidator>>().Object,
             _httpClient.Object,
-            new Mock<ISchemaValidator>().Object,
-            new Mock<ISchemaRegistry>().Object,
+            _schemaValidator.Object,
+            _schemaRegistry.Object,
             contentSafety.Object);
     }
 
@@ -231,5 +240,36 @@ public class PromptValidatorIntegrationTests
         var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig(), CancellationToken.None);
 
         result.PromptsDiscovered.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscovery_WithSchemaProcessingError_ShouldWarnWithoutFailingCategory()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[{\"name\":\"triage_issue\",\"description\":\"Triage an issue\"}]},\"id\":1}"
+            });
+
+        _schemaRegistry
+            .Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), "protocol", "schema"))
+            .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("{\"$defs\":{\"ListPromptsResult\":{\"type\":\"object\"}}}")));
+
+        _schemaValidator
+            .Setup(validator => validator.Validate(It.IsAny<System.Text.Json.Nodes.JsonNode>(), It.IsAny<System.Text.Json.Nodes.JsonNode>()))
+            .Returns(new SchemaValidationResult
+            {
+                IsValid = false,
+                Errors = new List<string> { "Schema processing error: Could not resolve 'https://example.test/$defs/Prompt'" }
+            });
+
+        var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig { TestPromptExecution = false }, CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.Issues.Should().Contain(issue => issue.Contains("Schema validation warning: prompts/list schema could not be fully processed"));
+        result.Issues.Should().NotContain(issue => issue.Contains("NON-COMPLIANT", StringComparison.OrdinalIgnoreCase));
     }
 }

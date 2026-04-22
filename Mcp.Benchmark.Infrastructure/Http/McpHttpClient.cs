@@ -490,10 +490,16 @@ public class McpHttpClient : IMcpHttpClient
         var (resourceListResponse, resourceListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken);
         var (promptListResponse, promptListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken);
 
+        var rawDiscoveredToolCount = CountCollectionItems(toolListResponse, "tools");
+
         if (!toolListingSucceeded && toolListResponse?.IsSuccess == true)
         {
             toolListingSucceeded = true;
-            firstToolName = TryGetFirstToolName(toolListResponse.RawJson);
+        }
+
+        if (toolListingSucceeded && string.IsNullOrWhiteSpace(firstToolName) && rawDiscoveredToolCount > 0)
+        {
+            firstToolName = TryGetFirstToolName(toolListResponse?.RawJson);
         }
 
         if (toolListingSucceeded && !string.IsNullOrWhiteSpace(firstToolName))
@@ -535,13 +541,17 @@ public class McpHttpClient : IMcpHttpClient
 
         CapabilitySummary BuildSummary()
         {
+            var discoveredToolCount = discoveredTools.Count > 0
+                ? discoveredTools.Count
+                : rawDiscoveredToolCount;
+
             return new CapabilitySummary
             {
                 Tools = discoveredTools,
                 ToolListingSucceeded = toolListingSucceeded,
                 ToolInvocationSucceeded = toolInvocationSucceeded,
                 FirstToolName = firstToolName,
-                DiscoveredToolsCount = discoveredTools.Count,
+                DiscoveredToolsCount = discoveredToolCount,
                 Score = CalculateCapabilityScore(toolListingSucceeded, toolInvocationSucceeded),
                 ToolListResponse = toolListResponse,
                 ResourceListResponse = resourceListResponse,

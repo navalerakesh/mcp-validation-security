@@ -150,6 +150,31 @@ public static class ValidationReliability
         return IsRetryableHttpStatusCode(response.StatusCode);
     }
 
+    public static string DescribeRetryableResponse(ValidatorJsonRpcResponse? response, string fallback = "Transient transport failure")
+    {
+        if (response == null)
+        {
+            return fallback;
+        }
+
+        if (!string.IsNullOrWhiteSpace(response.Error))
+        {
+            return response.Error!;
+        }
+
+        if (response.StatusCode > 0)
+        {
+            return $"HTTP {response.StatusCode}";
+        }
+
+        if (!string.IsNullOrWhiteSpace(response.RawJson))
+        {
+            return response.RawJson!;
+        }
+
+        return fallback;
+    }
+
     public static bool ShouldRetryException(Exception exception, CancellationToken cancellationToken)
     {
         if (cancellationToken.IsCancellationRequested)

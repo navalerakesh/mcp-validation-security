@@ -10,6 +10,11 @@ namespace Mcp.Benchmark.Core.Models;
 public class ValidationResult
 {
     /// <summary>
+    /// Gets or sets metadata about the tool that produced this validation artifact.
+    /// </summary>
+    public ValidationProducerInfo Producer { get; set; } = ValidationProducerInfo.CreateDefault();
+
+    /// <summary>
     /// Gets or sets the unique identifier for this validation run.
     /// </summary>
     public string ValidationId { get; set; } = Guid.NewGuid().ToString();
@@ -178,6 +183,7 @@ public class ValidationResult
     {
         return new ValidationResult
         {
+            Producer = Producer,
             ValidationId = ValidationId,
             StartTime = StartTime,
             EndTime = EndTime,
@@ -207,6 +213,28 @@ public class ValidationResult
             TrustAssessment = TrustAssessment,
             PolicyOutcome = PolicyOutcome,
             ClientCompatibility = ClientCompatibility
+        };
+    }
+}
+
+public class ValidationProducerInfo
+{
+    public string Name { get; set; } = string.Empty;
+
+    public string PackageId { get; set; } = string.Empty;
+
+    public string RepositoryUrl { get; set; } = string.Empty;
+
+    public string PackageUrl { get; set; } = string.Empty;
+
+    public static ValidationProducerInfo CreateDefault()
+    {
+        return new ValidationProducerInfo
+        {
+            Name = "MCP Validator",
+            PackageId = "McpVal",
+            RepositoryUrl = "https://github.com/navalerakesh/mcp-validation-security",
+            PackageUrl = "https://www.nuget.org/packages/McpVal#versions-body-tab"
         };
     }
 }

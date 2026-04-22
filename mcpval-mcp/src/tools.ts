@@ -6,25 +6,41 @@ import { z } from "zod";
 
 // ─── Input Schemas (Zod) ─────────────────────────────────────
 
+const AccessIntentSchema = z
+  .enum(["public", "authenticated", "enterprise", "unspecified"])
+  .default("public")
+  .describe("Declared server access intent so the CLI interprets auth expectations correctly.");
+
+const ServerTargetSchema = z
+  .string()
+  .min(1)
+  .describe("MCP server endpoint URL or STDIO command, for example https://example.test/mcp or npx -y @modelcontextprotocol/server-everything.");
+
 export const ValidateInputSchema = z.object({
-  server: z.string().describe("MCP server endpoint URL or STDIO command to validate"),
-  access: z
-    .enum(["public", "authenticated"])
-    .default("public")
-    .describe("Server access intent — public (no auth) or authenticated (requires token)"),
+  server: ServerTargetSchema,
+  access: AccessIntentSchema,
   token: z.string().optional().describe("Bearer token for authenticated servers"),
+  interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
   mcpspec: z.string().optional().describe("Target MCP spec profile (e.g., latest, 2025-11-25)"),
+  policy: z.enum(["advisory", "balanced", "strict"]).optional().describe("Host-side gating mode. Does not change raw findings."),
+  clientProfile: z.array(z.string()).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
+  reportDetail: z.enum(["full", "minimal"]).optional().describe("Human report detail level."),
   verbose: z.boolean().default(false).describe("Include detailed output"),
 });
 
 export const HealthCheckInputSchema = z.object({
-  server: z.string().describe("MCP server endpoint URL to check"),
+  server: ServerTargetSchema,
+  access: AccessIntentSchema,
   token: z.string().optional().describe("Bearer token if authentication is required"),
+  interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
 });
 
 export const DiscoverInputSchema = z.object({
-  server: z.string().describe("MCP server endpoint URL to discover"),
+  server: ServerTargetSchema,
+  access: AccessIntentSchema,
   token: z.string().optional().describe("Bearer token if authentication is required"),
+  interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
+  format: z.enum(["json", "yaml", "table"]).default("json").describe("Discovery output format. json is usually easiest for agents to consume."),
 });
 
 // ─── Tool Metadata ───────────────────────────────────────────

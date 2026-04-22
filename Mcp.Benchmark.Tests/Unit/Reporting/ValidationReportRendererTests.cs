@@ -236,7 +236,7 @@ public class ValidationReportRendererTests
                     DisplayName = "GitHub Copilot Cloud Agent",
                     Revision = "2026-04",
                     Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
-                    Summary = "Required compatibility checks passed, with 1 advisory gap.",
+                    Summary = "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
                     PassedRequirements = 2,
                     WarningRequirements = 1,
                     Requirements = new List<ClientProfileRequirementAssessment>
@@ -263,6 +263,42 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithMultipleCompatibilityWarnings_ShouldRenderAllAdvisoryRequirements()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ClientCompatibility = new ClientCompatibilityReport
+        {
+            RequestedProfiles = new List<string> { "claude-code" },
+            Assessments = new List<ClientProfileAssessment>
+            {
+                new()
+                {
+                    ProfileId = "claude-code",
+                    DisplayName = "Claude Code",
+                    Revision = "2026-04",
+                    Status = ClientProfileCompatibilityStatus.CompatibleWithWarnings,
+                    Summary = "Required compatibility checks passed; 3 advisory requirements still need follow-up.",
+                    PassedRequirements = 3,
+                    WarningRequirements = 3,
+                    Requirements = new List<ClientProfileRequirementAssessment>
+                    {
+                        new() { RequirementId = "tool-tool-metadata", Title = "Tool presentation and approval metadata is complete", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory tool guidance gaps affect 1/1 tool(s)." },
+                        new() { RequirementId = "tool-tool-schema", Title = "Tool schemas are clear enough for agent planning", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory schema guidance gaps affect 1/1 tool(s)." },
+                        new() { RequirementId = "prompt-prompt-metadata", Title = "Prompt guidance is explicit enough for callers", Outcome = ClientProfileRequirementOutcome.Warning, Summary = "Advisory prompt guidance gaps affect 1/1 prompt(s)." }
+                    }
+                }
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("3 advisory requirements still need follow-up.");
+        html.Should().Contain("Tool presentation and approval metadata is complete");
+        html.Should().Contain("Tool schemas are clear enough for agent planning");
+        html.Should().Contain("Prompt guidance is explicit enough for callers");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_WithTimedOutPerformanceAndNoMeasurements_ShouldShowUnavailableReason()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
@@ -278,6 +314,52 @@ public class ValidationReportRendererTests
         html.Should().Contain("Measurements:</strong> Unavailable");
         html.Should().Contain("Operation timed out or was cancelled");
         html.Should().NotContain("<div class=\"metric-value\">0.00 ms</div><div class=\"metric-label\">Average Latency</div>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithObservedProbePressureSignals_ShouldShowCalibrationTelemetry()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 91,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 125,
+                P95ResponseTimeMs = 240,
+                RequestsPerSecond = 15,
+                ProbeRoundsExecuted = 2,
+                ObservedRateLimitedRequests = 3,
+                ObservedTransientFailures = 1
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Probe rounds executed: 2");
+        html.Should().Contain("Rate-limited requests observed across calibration: 3");
+        html.Should().Contain("Retryable transient failures observed across calibration: 1");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithToolCatalogAdvisories_ShouldShowAuthorityBreakdown()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Tool Catalog Advisory Breakdown");
+        html.Should().Contain("Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.");
+    html.Should().Contain("authority-summary-grid");
+    html.Should().Contain("authority-card__title\">Spec");
+        html.Should().Contain("authority-card__metric-label\">Coverage");
+    html.Should().Contain("authority-card__title\">Guideline");
+    html.Should().Contain("authority-card__metric-value\">1/2 (50%)");
+    html.Should().Contain("authority-card__title\">Heuristic");
     }
 
     [Fact]

@@ -2,6 +2,8 @@ namespace Mcp.Benchmark.Core.Models;
 
 /// <summary>
 /// Represents JSON-RPC 2.0 compliance test results.
+using System.Text.Json.Serialization;
+
 /// </summary>
 public class JsonRpcComplianceResult
 {
@@ -106,22 +108,26 @@ public class NotificationTestResult
     /// <summary>
     /// Gets or sets whether notifications are properly formatted.
     /// </summary>
-    public bool NotificationFormatCorrect { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? NotificationFormatCorrect { get; set; }
 
     /// <summary>
     /// Gets or sets whether subscription mechanisms work correctly.
     /// </summary>
-    public bool SubscriptionMechanismWorking { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? SubscriptionMechanismWorking { get; set; }
 
     /// <summary>
     /// Gets or sets whether unsubscription works correctly.
     /// </summary>
-    public bool UnsubscriptionWorking { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? UnsubscriptionWorking { get; set; }
 
     /// <summary>
     /// Gets or sets the number of notifications received during testing.
     /// </summary>
-    public int NotificationsReceived { get; set; } = 0;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? NotificationsReceived { get; set; }
 
     /// <summary>
     /// Gets or sets notification-related issues found.
@@ -137,17 +143,20 @@ public class MessageFormatTestResult
     /// <summary>
     /// Gets or sets whether request messages are properly formatted.
     /// </summary>
-    public bool RequestFormatValid { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? RequestFormatValid { get; set; }
 
     /// <summary>
     /// Gets or sets whether response messages are properly formatted.
     /// </summary>
-    public bool ResponseFormatValid { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ResponseFormatValid { get; set; }
 
     /// <summary>
     /// Gets or sets whether error messages follow the correct format.
     /// </summary>
-    public bool ErrorFormatValid { get; set; } = false;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ErrorFormatValid { get; set; }
 
     /// <summary>
     /// Gets or sets message format violations found.

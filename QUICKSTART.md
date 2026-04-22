@@ -34,13 +34,12 @@ mcpval validate \
   --output ./mcp-reports
 ```
 
-If you want host-specific compatibility interpretation in the same run, add a documented client profile:
+Host-specific compatibility interpretation is included by default. Add `--client-profile` only when you want to narrow the report to a smaller documented host subset.
 
 ```bash
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
-  --client-profile github-copilot-cloud-agent \
   --output ./mcp-reports
 ```
 
@@ -89,6 +88,8 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 - `mcp-validation-<timestamp>-report.html` - HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable result object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF feed for CI and code scanning
+
+The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
 Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. Use `--report-detail minimal` when you want the executive-only view.
 

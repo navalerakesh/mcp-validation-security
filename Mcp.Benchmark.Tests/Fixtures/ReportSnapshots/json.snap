@@ -1,4 +1,10 @@
 {
+  "producer": {
+    "name": "MCP Validator",
+    "packageId": "McpVal",
+    "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
+    "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
+  },
   "validationId": "validation-snapshot-001",
   "startTime": "2026-04-20T10:00:00Z",
   "endTime": "2026-04-20T10:00:12Z",
@@ -153,16 +159,9 @@
       "capabilityComplianceScore": 0
     },
     "notificationHandling": {
-      "notificationFormatCorrect": false,
-      "subscriptionMechanismWorking": false,
-      "unsubscriptionWorking": false,
-      "notificationsReceived": 0,
       "notificationIssues": []
     },
     "messageFormat": {
-      "requestFormatValid": false,
-      "responseFormatValid": false,
-      "errorFormatValid": false,
       "formatViolations": []
     },
     "violations": [
@@ -390,6 +389,10 @@
       "totalRequests": 120,
       "successfulRequests": 120,
       "failedRequests": 0,
+      "rateLimitedRequests": 0,
+      "probeRoundsExecuted": 0,
+      "observedRateLimitedRequests": 0,
+      "observedTransientFailures": 0,
       "averageResponseTimeMs": 120.5,
       "medianResponseTimeMs": 0,
       "p95ResponseTimeMs": 210.4,
@@ -398,6 +401,8 @@
       "minResponseTimeMs": 0,
       "requestsPerSecond": 18.2,
       "errorRate": 0,
+      "nonRateLimitedFailedRequests": 0,
+      "pressureSignalsObserved": false,
       "connectionErrors": [],
       "serverStabilityMaintained": false
     },
@@ -441,7 +446,7 @@
     "status": 2,
     "duration": "00:00:01.2000000",
     "message": "Performance is acceptable under moderate load.",
-    "score": 0,
+    "score": 100,
     "criticalErrors": [],
     "findings": []
   },

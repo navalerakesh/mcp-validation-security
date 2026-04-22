@@ -40,7 +40,7 @@ internal static partial class ReportActionHintBuilder
         if (result.ClientCompatibility?.Assessments.Count > 0)
         {
             foreach (var assessment in result.ClientCompatibility.Assessments
-                         .Where(item => item.Status != ClientProfileCompatibilityStatus.Compatible)
+                         .Where(item => item.Status == ClientProfileCompatibilityStatus.Incompatible)
                          .Take(1))
             {
                 hints.Add(Compact($"Client compatibility: {assessment.DisplayName} - {assessment.Summary}"));
