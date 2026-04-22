@@ -73,4 +73,6 @@ docs/.local/*
 docs/.private/*
 docs/Audit/*
 nupkg/*
+todo.md
+.github/prompts/
 _ranavale/*
