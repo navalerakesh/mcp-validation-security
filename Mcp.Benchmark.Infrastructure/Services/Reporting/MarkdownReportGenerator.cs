@@ -191,7 +191,7 @@ public class MarkdownReportGenerator : IReportGenerator
         AddMatrixRow(sb, "Tool Validation", result.ToolValidation?.Status, result.ToolValidation?.Score, result.ToolValidation?.ToolsTestFailed);
         AddMatrixRow(sb, "Resource Capabilities", result.ResourceTesting?.Status, result.ResourceTesting?.Score, result.ResourceTesting?.ResourcesTestFailed);
         AddMatrixRow(sb, "Prompt Capabilities", result.PromptTesting?.Status, result.PromptTesting?.Score, result.PromptTesting?.PromptsTestFailed);
-        AddMatrixRow(sb, "Performance", result.PerformanceTesting?.Status, result.PerformanceTesting?.Score, 0); // Perf usually doesn't have "issues" count in same way
+        AddMatrixRow(sb, "Performance", result.PerformanceTesting?.Status, result.PerformanceTesting?.Score, 0, FormatPerformanceMatrixScore(result.PerformanceTesting)); // Perf usually doesn't have "issues" count in same way
         sb.AppendLine();
 
         if (includeDetailedSections && result.PerformanceTesting != null)
@@ -222,11 +222,11 @@ public class MarkdownReportGenerator : IReportGenerator
             if (result.SecurityTesting.AuthenticationTestResult?.TestScenarios?.Any() == true)
             {
                 sb.AppendLine("### Authentication Analysis");
-                sb.AppendLine("| Scenario | Method | Expected | Actual | Analysis | Status |");
-                sb.AppendLine("| :--- | :--- | :--- | :--- | :--- | :---: |");
+                sb.AppendLine("| Scenario | Method | Expected | Actual | HTTP | Analysis | Status |");
+                sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- | :---: |");
                 foreach (var test in result.SecurityTesting.AuthenticationTestResult.TestScenarios)
                 {
-                    sb.AppendLine($"| {test.ScenarioName} | `{test.Method}` | {test.ExpectedBehavior} | {test.ActualBehavior} | {test.Analysis} | {GetStatusIcon(test.IsCompliant ? TestStatus.Passed : TestStatus.Failed)} |");
+                    sb.AppendLine($"| {test.ScenarioName} | `{test.Method}` | {test.ExpectedBehavior} | {test.ActualBehavior} | {test.StatusCode} | {test.Analysis} | {GetStatusIcon(test.IsCompliant ? TestStatus.Passed : TestStatus.Failed)} |");
                 }
                 sb.AppendLine();
             }
@@ -244,12 +244,12 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine("| :--- | :--- | :---: | :--- |");
                 foreach (var attack in result.SecurityTesting.AttackSimulations)
                 {
-                    var analysisText = attack.ServerResponse ?? "";
-                    var isSkipped = analysisText.Contains("Skipped", StringComparison.OrdinalIgnoreCase);
-                    string status;
-                    if (isSkipped) status = "⏭️ SKIPPED";
-                    else if (attack.DefenseSuccessful) status = "🛡️ BLOCKED";
-                    else status = "⚠️ REFLECTED / UNSAFE ECHO";
+                    var status = AttackSimulationOutcomeResolver.Resolve(attack) switch
+                    {
+                        AttackSimulationOutcome.Skipped => "⏭️ SKIPPED",
+                        AttackSimulationOutcome.Blocked => "🛡️ BLOCKED",
+                        _ => "⚠️ REFLECTED / UNSAFE ECHO"
+                    };
 
                     var response = string.IsNullOrEmpty(attack.ServerResponse) 
                         ? "-" 
@@ -570,6 +570,18 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine($"| **Throughput** | {result.PerformanceTesting.LoadTesting.RequestsPerSecond:F2} req/sec | - |");
                 sb.AppendLine($"| **Error Rate** | {result.PerformanceTesting.LoadTesting.ErrorRate:F2}% | {(result.PerformanceTesting.LoadTesting.ErrorRate > 0 ? "⚠️ Check Logs" : "✅ Clean")} |");
                 sb.AppendLine($"| **Requests** | {result.PerformanceTesting.LoadTesting.SuccessfulRequests}/{result.PerformanceTesting.LoadTesting.TotalRequests} successful | - |");
+                if (result.PerformanceTesting.LoadTesting.ProbeRoundsExecuted > 1)
+                {
+                    sb.AppendLine($"| **Probe Rounds** | {result.PerformanceTesting.LoadTesting.ProbeRoundsExecuted} | ℹ️ Calibrated |");
+                }
+                if (result.PerformanceTesting.LoadTesting.ObservedRateLimitedRequests > 0)
+                {
+                    sb.AppendLine($"| **Observed Rate Limits** | {result.PerformanceTesting.LoadTesting.ObservedRateLimitedRequests} request(s) | ⚠️ Throttling observed |");
+                }
+                if (result.PerformanceTesting.LoadTesting.ObservedTransientFailures > 0)
+                {
+                    sb.AppendLine($"| **Observed Transient Failures** | {result.PerformanceTesting.LoadTesting.ObservedTransientFailures} request(s) | ⚠️ Retry pressure observed |");
+                }
                 sb.AppendLine();
 
                 // Score breakdown — show why the performance score is what it is
@@ -580,11 +592,17 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine("| Factor | Threshold | Observed | Penalty |");
                     sb.AppendLine("| :--- | :--- | :--- | :--- |");
 
-                    var failedRequests = result.PerformanceTesting.LoadTesting.FailedRequests;
-                    if (failedRequests > 0)
+                    var nonRateLimitedFailures = result.PerformanceTesting.LoadTesting.NonRateLimitedFailedRequests;
+                    if (nonRateLimitedFailures > 0)
                     {
-                        var errorPenalty = failedRequests * 5;
-                        sb.AppendLine($"| Error rate | 0 failed requests | {failedRequests} failed | −{errorPenalty} points |");
+                        var errorPenalty = nonRateLimitedFailures * 5;
+                        sb.AppendLine($"| Server failures | 0 non-rate-limited failures | {nonRateLimitedFailures} non-rate-limited failures | −{errorPenalty} points |");
+                    }
+
+                    var rateLimitedRequests = result.PerformanceTesting.LoadTesting.RateLimitedRequests;
+                    if (rateLimitedRequests > 0)
+                    {
+                        sb.AppendLine($"| Rate limiting | surfaced separately | {rateLimitedRequests} rate-limited requests | −0 points |");
                     }
 
                     var avgLatency = result.PerformanceTesting.LoadTesting.AverageResponseTimeMs;
@@ -858,16 +876,28 @@ public class MarkdownReportGenerator : IReportGenerator
         }
     }
 
-    private void AddMatrixRow(StringBuilder sb, string category, TestStatus? status, double? score, int? issues)
+    private void AddMatrixRow(StringBuilder sb, string category, TestStatus? status, double? score, int? issues, string? scoreOverride = null)
     {
         if (status == null) return;
         
         var statusStr = status == TestStatus.Skipped ? "Skipped" : status.ToString();
-        var scoreStr = status == TestStatus.Skipped ? "-" : $"{score:F1}%";
+        var scoreStr = status == TestStatus.Skipped ? "-" : scoreOverride ?? $"{score:F1}%";
         var issuesStr = issues.HasValue && issues > 0 ? $"**{issues}**" : "-";
         var icon = GetStatusIcon(status.Value);
 
         sb.AppendLine($"| {category} | {icon} {statusStr} | {scoreStr} | {issuesStr} |");
+    }
+
+    private static string? FormatPerformanceMatrixScore(PerformanceTestResult? performance)
+    {
+        if (performance == null || performance.Status == TestStatus.Skipped)
+        {
+            return null;
+        }
+
+        return PerformanceMeasurementEvaluator.HasObservedMetrics(performance)
+            ? null
+            : "Unavailable";
     }
 
     private static int GetProtocolIssueCount(ComplianceTestResult? result)
@@ -1019,7 +1049,7 @@ public class MarkdownReportGenerator : IReportGenerator
         if (result.ClientCompatibility?.Assessments.Count > 0)
         {
             findings.AddRange(result.ClientCompatibility.Assessments
-                .Where(assessment => assessment.Status != ClientProfileCompatibilityStatus.Compatible)
+                .Where(assessment => assessment.Status == ClientProfileCompatibilityStatus.Incompatible)
                 .Take(2)
                 .Select(assessment => $"Client profile {assessment.DisplayName}: {assessment.StatusLabel}. {assessment.Summary}"));
         }

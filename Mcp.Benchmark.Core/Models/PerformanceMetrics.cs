@@ -26,6 +26,31 @@ public class LoadTestResult
     public int FailedRequests { get; set; } = 0;
 
     /// <summary>
+    /// Gets or sets the number of failed requests caused by upstream rate limiting or backoff controls.
+    /// These requests remain part of the observed failure rate, but they are scored separately from
+    /// genuine server-side failures.
+    /// </summary>
+    public int RateLimitedRequests { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the number of probe rounds executed before a final calibrated result was produced.
+    /// Values greater than one indicate the validator had to ramp up or recalibrate before settling.
+    /// </summary>
+    public int ProbeRoundsExecuted { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the total number of rate-limited requests observed across all probe rounds,
+    /// including discarded calibration attempts.
+    /// </summary>
+    public int ObservedRateLimitedRequests { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the total number of retryable transient failures observed across all probe rounds,
+    /// including discarded calibration attempts.
+    /// </summary>
+    public int ObservedTransientFailures { get; set; } = 0;
+
+    /// <summary>
     /// Gets or sets the average response time in milliseconds.
     /// </summary>
     public double AverageResponseTimeMs { get; set; } = 0.0;
@@ -64,6 +89,18 @@ public class LoadTestResult
     /// Gets or sets the error rate as a percentage.
     /// </summary>
     public double ErrorRate => TotalRequests > 0 ? (double)FailedRequests / TotalRequests * 100 : 0.0;
+
+    /// <summary>
+    /// Gets the number of failed requests that were not caused by upstream rate limiting.
+    /// This is the failure bucket used for readiness scoring.
+    /// </summary>
+    public int NonRateLimitedFailedRequests => Math.Max(0, FailedRequests - RateLimitedRequests);
+
+    /// <summary>
+    /// Gets a value indicating whether throttling or retryable transport pressure was observed
+    /// during any probe round, even if the final calibrated round completed cleanly.
+    /// </summary>
+    public bool PressureSignalsObserved => ObservedRateLimitedRequests > 0 || ObservedTransientFailures > 0 || ProbeRoundsExecuted > 1;
 
     /// <summary>
     /// Gets or sets connection-related errors encountered.

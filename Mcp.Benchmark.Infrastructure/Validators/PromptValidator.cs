@@ -95,7 +95,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             
             // MCP spec allows both public and auth-protected servers
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
-            if (authChallenge.IsAuthenticationChallenge)
+            if (authChallenge.RequiresAuthentication)
             {
                 result.Status = TestStatus.Skipped;
                 result.PromptsDiscovered = 0;
@@ -361,9 +361,15 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                 schemaValidationResult is not null &&
                 !schemaValidationResult.IsValid)
             {
-                result.Status = TestStatus.Failed;
-                result.Issues.Add("❌ NON-CPLIANT: prompts/list response does not conform to MCP JSON Schema");
-                foreach (var error in schemaValidationResult.Errors)
+                var schemaErrors = schemaValidationResult.Errors ?? new List<string>();
+                var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(schemaValidationResult);
+                if (!hasProcessingError)
+                {
+                    result.Status = TestStatus.Failed;
+                }
+
+                result.Issues.Add(SchemaValidationHelpers.FormatListSchemaIssueHeader(ValidationConstants.Methods.PromptsList, hasProcessingError));
+                foreach (var error in schemaErrors)
                 {
                     result.Issues.Add($"   • {error}");
                 }

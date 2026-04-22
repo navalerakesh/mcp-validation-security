@@ -363,7 +363,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         _mcpHttpClientMock
             .Setup(client => client.SendRawJsonAsync(
                 It.IsAny<string>(),
-                It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"ping\"}"),
+                It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"notifications/initialized\"}"),
                 It.IsAny<CancellationToken>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(new JsonRpcResponse
@@ -413,6 +413,28 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         IsSuccess = true,
         RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Invalid Request\"},\"id\":1}"
     };
+
+    [Fact]
+    public async Task ValidateNotificationHandlingAsync_WithInitializedNotificationAccepted_ShouldPass()
+    {
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "http://localhost:8080/mcp",
+            Transport = "http"
+        };
+
+        var result = await validator.ValidateNotificationHandlingAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.Violations.Should().BeEmpty();
+
+        _mcpHttpClientMock.Verify(client => client.SendRawJsonAsync(
+            It.IsAny<string>(),
+            It.Is<string>(raw => raw == "{\"jsonrpc\": \"2.0\", \"method\": \"notifications/initialized\"}"),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<bool>()), Times.AtLeastOnce);
+    }
 
     public void Dispose()
     {

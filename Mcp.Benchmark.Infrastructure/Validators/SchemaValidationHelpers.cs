@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Mcp.Compliance.Spec;
 using Mcp.Benchmark.Core.Abstractions;
 using Microsoft.Extensions.Logging;
+using System.Globalization;
 
 namespace Mcp.Benchmark.Infrastructure.Validators;
 
@@ -92,5 +93,23 @@ internal static class SchemaValidationHelpers
                 listResultDefinitionName);
             return false;
         }
+    }
+
+    public static bool HasSchemaProcessingError(SchemaValidationResult? validationResult)
+    {
+        return validationResult?.Errors?.Any(error =>
+            error.Contains("Schema processing error", StringComparison.OrdinalIgnoreCase)) == true;
+    }
+
+    public static string FormatListSchemaIssueHeader(string methodName, bool hasProcessingError)
+    {
+        if (string.IsNullOrWhiteSpace(methodName))
+        {
+            methodName = "list result";
+        }
+
+        return hasProcessingError
+            ? $"⚠️ Schema validation warning: {methodName} schema could not be fully processed"
+            : string.Format(CultureInfo.InvariantCulture, "❌ NON-COMPLIANT: {0} response does not conform to MCP JSON Schema", methodName);
     }
 }

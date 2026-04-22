@@ -410,7 +410,9 @@
               "fullDescription": {
                 "text": "JSON-RPC Error Code Violation: Method Not Found"
               },
-              "help": null,
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
               "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
               "properties": {
                 "source": "spec",
@@ -430,7 +432,9 @@
               "fullDescription": {
                 "text": "Batch processing implementation is inconsistent or incomplete"
               },
-              "help": null,
+              "help": {
+                "text": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
+              },
               "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc",
               "properties": {
                 "source": "spec",
@@ -491,7 +495,7 @@
         }
       },
       "automationDetails": {
-        "id": "aa6de268-e40d-49d8-a654-203789259723",
+        "id": "603cf222-beda-4f4c-a2ab-76f08f7a02d3",
         "description": {
           "text": "MCP validation run"
         }
@@ -499,13 +503,13 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-21T09:09:36.8656420Z",
-          "endTimeUtc": "2026-04-21T09:11:56.9812730Z",
+          "startTimeUtc": "2026-04-22T11:31:28.8715640Z",
+          "endTimeUtc": "2026-04-22T11:33:43.8834400Z",
           "properties": {
-            "validationId": "aa6de268-e40d-49d8-a654-203789259723",
+            "validationId": "603cf222-beda-4f4c-a2ab-76f08f7a02d3",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
-            "overallStatus": "Failed",
+            "overallStatus": "Passed",
             "serverProfile": "Authenticated",
             "specProfile": "latest"
           }
@@ -6253,7 +6257,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC success",
+              "actualBehavior": "Discovery metadata returned",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication."
             }
           }
@@ -6286,7 +6290,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC success",
+              "actualBehavior": "Discovery metadata returned",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication."
             }
           }
@@ -6319,7 +6323,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC error",
+              "actualBehavior": "Request rejected in JSON-RPC layer",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge."
             }
           }
@@ -6352,7 +6356,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC success",
+              "actualBehavior": "Discovery metadata returned",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication."
             }
           }
@@ -6385,7 +6389,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC error",
+              "actualBehavior": "Request rejected in JSON-RPC layer",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge."
             }
           }
@@ -6418,7 +6422,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC success",
+              "actualBehavior": "Discovery metadata returned",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Discovery metadata was exposed without authentication."
             }
           }
@@ -6451,7 +6455,7 @@
             "severity": "Medium",
             "recommendation": "Prefer RFC 6750 \u002B MCP challenge behavior with WWW-Authenticate and protected resource metadata when the server is intentionally protected.",
             "metadata": {
-              "actualBehavior": "200 \u002B JSON-RPC error",
+              "actualBehavior": "Request rejected in JSON-RPC layer",
               "analysis": "\u26A0\uFE0F COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge."
             }
           }
@@ -6482,7 +6486,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Low",
-            "rule": null
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -6511,7 +6516,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Low",
-            "rule": null
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
@@ -6540,36 +6546,8 @@
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
             "severity": "Medium",
-            "rule": null
-          }
-        },
-        {
-          "ruleId": "MCP-PROTO-JSONRPC",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications"
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Notification handling violates JSON-RPC 2.0: Server MUST NOT respond to notifications"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "JSON-RPC Compliance"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "protocol-violation",
-            "authority": "spec",
-            "category": "JSON-RPC Compliance",
-            "component": "JSON-RPC Compliance",
-            "severity": "Critical",
-            "rule": null
+            "rule": null,
+            "recommendation": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
           }
         },
         {

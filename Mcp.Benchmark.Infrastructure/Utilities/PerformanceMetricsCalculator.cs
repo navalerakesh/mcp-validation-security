@@ -50,11 +50,9 @@ public static class PerformanceMetricsCalculator
         if (p99ResponseTimeMs > 5000)
             findings.Add($"P99 latency ({p99ResponseTimeMs:F0}ms) exceeds 5000ms — tail latency concern");
 
-        if (toolCallLatencyMs.HasValue && toolName != null)
+        if (toolCallLatencyMs.HasValue && toolName != null && toolCallLatencyMs > 5000)
         {
-            findings.Add($"tools/call latency ({toolName}): {toolCallLatencyMs:F0}ms");
-            if (toolCallLatencyMs > 5000)
-                findings.Add($"tools/call latency exceeds 5000ms SLO ({toolCallLatencyMs:F0}ms)");
+            findings.Add($"tools/call latency ({toolName}) exceeds 5000ms SLO ({toolCallLatencyMs:F0}ms)");
         }
 
         return findings;

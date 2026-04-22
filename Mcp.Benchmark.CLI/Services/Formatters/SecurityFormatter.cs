@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.CLI.Services.Formatters;
 
@@ -52,15 +53,12 @@ public static class SecurityFormatter
 
             foreach (var scenario in sortedScenarios)
             {
-                var (expected, serverResponse) = scenario.TestType switch
-                {
-                    "No Auth" => ("400/401 + WWW-Auth", GetServerResponseText(scenario)),
-                    "Malformed Token" => ("400/401 + WWW-Auth", GetServerResponseText(scenario)),
-                    "Invalid Token" => ("400/401 + WWW-Auth", GetServerResponseText(scenario)),
-                    "Token Expired" => ("400/401 + WWW-Auth", GetServerResponseText(scenario)),
-                    "Valid Token" => ("200 OK + Success Response", GetServerResponseText(scenario)),
-                    _ => ("Check Protocol Spec", GetServerResponseText(scenario))
-                };
+                var expected = string.IsNullOrWhiteSpace(scenario.ExpectedBehavior)
+                    ? GetExpectedBehaviorText(scenario)
+                    : scenario.ExpectedBehavior;
+                var serverResponse = string.IsNullOrWhiteSpace(scenario.ActualBehavior)
+                    ? GetServerResponseText(scenario)
+                    : scenario.ActualBehavior;
 
                 var expectedText = FormatterUtils.TruncateAndPad(expected, 28);
                 var serverResponseText = FormatterUtils.TruncateAndPad(serverResponse, 18);
@@ -109,10 +107,20 @@ public static class SecurityFormatter
         // list is typically small and this avoids hiding details.
         foreach (var attack in attacks)
         {
-            var (result, resultColor) = attack.AttackSuccessful ? ("DETECTED", ConsoleColor.Red) : ("BLOCKED", ConsoleColor.Green);
+            var outcome = AttackSimulationOutcomeResolver.Resolve(attack);
+            var (result, resultColor) = outcome switch
+            {
+                AttackSimulationOutcome.Detected => ("DETECTED", ConsoleColor.Red),
+                AttackSimulationOutcome.Skipped => ("SKIPPED", ConsoleColor.Yellow),
+                _ => ("BLOCKED", ConsoleColor.Green)
+            };
 
             var analysis = "System-level protection";
-            if (attack.Evidence != null && attack.Evidence.TryGetValue("defenseMechanism", out var mechanismObj))
+            if (outcome == AttackSimulationOutcome.Skipped)
+            {
+                analysis = attack.ServerResponse;
+            }
+            else if (attack.Evidence != null && attack.Evidence.TryGetValue("defenseMechanism", out var mechanismObj))
             {
                 analysis = mechanismObj?.ToString() ?? "System-level protection";
             }
@@ -142,6 +150,19 @@ public static class SecurityFormatter
             "Token Expired" => $"{statusCode}{(hasActualJsonResponse ? " + JSON-RPC Error" : hasWwwAuth ? " + WWW-Auth" : "")}",
             "Valid Token" => $"{statusCode} + Response",
             _ => statusCode
+        };
+    }
+
+    private static string GetExpectedBehaviorText(AuthenticationScenario scenario)
+    {
+        return scenario.TestType switch
+        {
+            "No Auth" => "400/401 + WWW-Auth",
+            "Malformed Token" => "400/401 + WWW-Auth",
+            "Invalid Token" => "400/401 + WWW-Auth",
+            "Token Expired" => "400/401 + WWW-Auth",
+            "Valid Token" => "200 OK + Success Response",
+            _ => "Check Protocol Spec"
         };
     }
 

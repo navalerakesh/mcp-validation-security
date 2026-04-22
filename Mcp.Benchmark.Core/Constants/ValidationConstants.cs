@@ -20,6 +20,12 @@ public static class ValidationConstants
         public const string ProtocolErrorHandling = "MCP-PROTO-ERR";
         public const string ProtocolJsonRpcFormat = "MCP-PROTO-JSONRPC";
         public const string ProtocolLifecycle = "MCP-PROTO-LIFE";
+        public const string ProtocolInitializeResponse = "MCP-PROTO-INIT-RESP";
+        public const string ProtocolInitializeMissingProtocolVersion = "MCP-PROTO-INIT-PROTOCOL-VERSION";
+        public const string ProtocolInitializeMissingCapabilities = "MCP-PROTO-INIT-CAPABILITIES";
+        public const string ProtocolInitializeMissingServerInfo = "MCP-PROTO-INIT-SERVERINFO";
+        public const string ProtocolInitializeMissingServerInfoName = "MCP-PROTO-INIT-SERVERINFO-NAME";
+        public const string ProtocolInitializeMissingServerInfoVersion = "MCP-PROTO-INIT-SERVERINFO-VERSION";
         public const string ProtocolNotification = "MCP-PROTO-NOTIF";
     }
 
@@ -37,6 +43,7 @@ public static class ValidationConstants
         public const string StdioNotImplemented = "STDIO transport requires process-based tool discovery - not implemented in HTTP validator";
         public const string NoHttpEndpoint = "No HTTP endpoint provided for validation";
         public const string ProcessSpawningNotImplemented = "Process spawning and stdin/stdout communication not implemented";
+        public const string OperationTimedOutOrWasCancelled = "Operation timed out or was cancelled";
     }
 
     public static class Methods

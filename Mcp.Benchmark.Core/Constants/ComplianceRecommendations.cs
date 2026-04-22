@@ -48,6 +48,30 @@ public static class ComplianceRecommendations
                 "The initialize response MUST include protocolVersion, serverInfo (with name and version), and a capabilities object. Review the lifecycle handshake requirements at https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle"
             },
             {
+                ValidationConstants.CheckIds.ProtocolInitializeResponse,
+                "The server must respond to the \"initialize\" request with a valid JSON-RPC result. Verify that the initialize handler is registered and the endpoint remains available during the MCP handshake. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
+                ValidationConstants.CheckIds.ProtocolInitializeMissingProtocolVersion,
+                "Include a \"protocolVersion\" string in the initialize response indicating the protocol version the server supports. This is required for version negotiation. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
+                ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities,
+                "The initialize response MUST include a \"capabilities\" object declaring which MCP features the server supports (tools, resources, prompts, etc.). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
+                ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfo,
+                "Include a \"serverInfo\" object in the initialize response. This field is required by the current MCP initialize schema and must describe the server implementation. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
+                ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoName,
+                "The serverInfo object in the initialize response MUST include a \"name\" string identifying the server. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
+                ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoVersion,
+                "The serverInfo object in the initialize response MUST include a \"version\" string. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
+            },
+            {
                 ValidationConstants.CheckIds.ProtocolNotification,
                 "Notifications are one-way messages and MUST NOT produce a response. If the server sends a response to a notification, it violates JSON-RPC 2.0 §4.1. Remove response logic for notification handlers. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#notifications"
             },
@@ -85,33 +109,6 @@ public static class ComplianceRecommendations
             ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
             "Case sensitivity",
             "JSON-RPC member names (\"jsonrpc\", \"method\", \"params\", \"id\", \"result\", \"error\") are case-sensitive. The server must reject or ignore requests with incorrect casing. See https://www.jsonrpc.org/specification"),
-
-        // ProtocolLifecycle variants
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "protocolVersion",
-            "Include a \"protocolVersion\" string in the initialize response indicating the protocol version the server supports. This is required for version negotiation. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "serverInfo missing 'name'",
-            "The serverInfo object in the initialize response MUST include a \"name\" string identifying the server. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "serverInfo missing 'version'",
-            "The serverInfo object in the initialize response MUST include a \"version\" string. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "did not return serverInfo",
-            "Include a \"serverInfo\" object with at least \"name\" and \"version\" in the initialize response. This helps clients identify and log server details. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "capabilities",
-            "The initialize response MUST include a \"capabilities\" object declaring which MCP features the server supports (tools, resources, prompts, etc.). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-        new SpecificEntry(
-            ValidationConstants.CheckIds.ProtocolLifecycle,
-            "failed to respond",
-            "The server must respond to the \"initialize\" request. Verify the server is listening, the endpoint URL is correct, and the server handles the initialize method. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"),
-
         // ProtocolErrorHandling variants
         new SpecificEntry(
             ValidationConstants.CheckIds.ProtocolErrorHandling,

@@ -1,16 +1,16 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-21 08:35:56 UTC
+**Generated:** 2026-04-22 09:08:35 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://learn.microsoft.com/api/mcp` |
-| **Validation ID** | `8d2a92ab-32bd-4915-9388-835c6638b439` |
+| **Validation ID** | `bd5c2c3a-12f9-499c-9985-63858f65e7f4` |
 | **Overall Status** | ✅ **Passed** |
-| **Compliance Score** | **85.6%** |
+| **Compliance Score** | **92.3%** |
 | **Compliance Profile** | `Public (Inferred)` |
-| **Duration** | 21.04s |
+| **Duration** | 14.40s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -27,7 +27,7 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 623.0 ms |
+| **Handshake Duration** | 629.6 ms |
 | **Negotiated Protocol** | `2025-06-18` |
 | **Observed Server Version** | `1.0.0` |
 | **Server Profile Resolution** | `Public (Inferred)` |
@@ -38,7 +38,6 @@ Validation began from a clean bootstrap with no deferred connectivity risk carri
 
 These are the highest-signal outcomes from this validation run.
 
-- MCP-SEC-002: Potential enumeration: Different HTTP status codes for random vs common resources.
 - MCP-PROTO-JSONRPC: Batch processing implementation is inconsistent or incomplete
 - MCP-PROTO-ERR: JSON-RPC Error Code Violation: Parse Error
 
@@ -46,10 +45,9 @@ These are the highest-signal outcomes from this validation run.
 
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
-- Protocol: Batch processing implementation is inconsistent or incomplete.
-- Protocol: JSON-RPC Error Code Violation: Parse Error.
-- Security: Review MCP implementation against security best practices.
-- Review and address failed test cases to improve server stability.
+- Protocol: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure ba....
+- Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse e....
+- Ensure full compliance with MCP protocol specification.
 
 ## 5. MCP Trust Assessment
 
@@ -59,8 +57,8 @@ Trust level is determined by a **weighted multi-dimensional score** and then cap
 | Dimension | Score | What It Measures |
 | :--- | :---: | :--- |
 | **Protocol Compliance** | 78% | MCP spec adherence, JSON-RPC compliance, response structures |
-| **Security Posture** | 85% | Auth compliance, injection resistance, attack surface |
-| **AI Safety** | 48% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
+| **Security Posture** | 100% | Auth compliance, injection resistance, attack surface |
+| **AI Safety** | 67% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
 | **Operational Readiness** | 100% | Latency, throughput, error rate, stability |
 
 ### AI Boundary Findings
@@ -70,34 +68,32 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 | Category | Component | Severity | Finding |
 | :--- | :--- | :---: | :--- |
 | Exfiltration | `microsoft_docs_fetch` | 🟠 High | Tool 'microsoft_docs_fetch' accepts URI-like or outbound-target parameters that could be used for data exfiltration (evidence: 'url'). |
-| PromptInjection | `microsoft_code_sample_search` | 🔴 Critical | Tool 'microsoft_code_sample_search' metadata contains prompt-injection-like language: 'you are'. |
-| Injection | `SecurityValidator` | 🟠 High | 1 injection attack(s) reflected back in server response. AI agents consuming this output may execute malicious content. |
 
 ### Summary
 
 - Destructive tools: **0**
 - Data exfiltration risk: **1/3 (33%)**
-- Prompt injection surface: **1/3 (33%)**
+- Prompt injection surface: **0**
 
 ### MCP Spec Compliance (RFC 2119 Tiers)
 
 | Tier | Passed | Failed | Total | Impact |
 | :--- | :---: | :---: | :---: | :--- |
-| **MUST** | 6 | 0 | 6 | ✅ Fully compliant |
-| **SHOULD** | 4 | 3 | 7 | ⚠️ 3 penalties applied |
-| **MAY** | 3 | 2 | 5 | ℹ️ Informational (no score impact) |
+| **MUST** | 9 | 0 | 9 | ✅ Fully compliant |
+| **SHOULD** | 3 | 2 | 5 | ⚠️ 2 penalties applied |
+| **MAY** | 3 | 3 | 6 | ℹ️ Informational (no score impact) |
 
 #### ⚠️ SHOULD Gaps (Score Penalties)
 
 - SHOULD: String parameters have enum/pattern/format constraints (tools/list)
 - SHOULD: tools/call result includes 'isError' field (tools/call)
-- SHOULD: Server sanitizes tool outputs (security)
 
 #### ℹ️ Optional Features (MAY)
 
 - ✅ MAY: Server supports logging/setLevel
 - ➖ MAY: Server supports sampling/createMessage
 - ➖ MAY: Server supports roots/list
+- ➖ MAY: Server supports completion/complete
 - ✅ MAY: Server supports resources/templates/list
 - ✅ MAY: Tools include 'annotations' (readOnlyHint, destructiveHint)
 
@@ -105,9 +101,9 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 3 | HTTP 200 | 64.1 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 91.3 ms | ✅ Listed |
-| Prompts/list | 0 | HTTP 200 | 104.5 ms | ✅ Listed |
+| Tools/list | 3 | HTTP 200 | 75.5 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 54.0 ms | ✅ Listed |
+| Prompts/list | 0 | HTTP 200 | 69.4 ms | ✅ Listed |
 
 - **First Tool Probed:** `microsoft_docs_search`
 
@@ -116,29 +112,30 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 These notes explain how the overall score and blocking decision were calibrated for this run.
 
 - INFO: Authentication challenge observations are informational for the declared public profile.
-- Score meets the preferred target with non-blocking improvement opportunities.
 
 ## 8. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
 | Protocol Compliance | ✅ Passed | 78.1% | **4** |
-| Security Assessment | ✅ Passed | 85.0% | **1** |
+| Security Assessment | ✅ Passed | 100.0% | - |
 | Tool Validation | ✅ Passed | 100.0% | - |
 | Resource Capabilities | ✅ Passed | 100.0% | - |
 | Prompt Capabilities | ✅ Passed | 100.0% | - |
-| Performance | ❌ Failed | 100.0% | - |
+| Performance | ✅ Passed | 100.0% | - |
 
 ## 9. Performance Calibration
 
 Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
 For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
 
-- Synthetic load probe executed against tools/list using 500 requests at concurrency 100.
+- Public remote synthetic load probe stabilized at concurrency 2 before ramping to the configured target concurrency 10.
+- Synthetic load probe executed against tools/list using 50 requests at concurrency 10.
+- Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration.
 
 ## 10. Security Assessment
 
-**Security Score:** 85.0%
+**Security Score:** 100.0%
 
 ### Authentication Analysis
 | Scenario | Method | Expected | Actual | Analysis | Status |
@@ -210,11 +207,11 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1776760541&#46;ac037a1f <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1776760541&#46;ac037a1f</P> </BODY> </HTML> ` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1776760541&#46;ac036eb5 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1776760541&#46;ac036eb5</P> </BODY> </HTML> ` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1776760541&#46;ac037a81 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1776760541&#46;ac037a81</P> </BODY> </HTML> ` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;43d02e17&#46;1776848907&#46;f80d9e74 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;43d02e17&#46;1776848907&#46;f80d9e74</P> </BODY> </HTML> ` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;43d02e17&#46;1776848907&#46;f80d8f81 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;43d02e17&#46;1776848907&#46;f80d8f81</P> </BODY> </HTML> ` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;43d02e17&#46;1776848907&#46;f80d8de0 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;43d02e17&#46;1776848907&#46;f80d8de0</P> </BODY> </HTML> ` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
-| MCP-SEC-002 | Metadata Enumeration | ⚠️ REFLECTED / UNSAFE ECHO | `Potential enumeration: Different HTTP status codes for random vs common resources.` |
+| MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
 | MCP-AI-001 | Hallucination Fuzzing | 🛡️ BLOCKED | `Error clarity: 55/100 (Fair). Error messages partially helpful for AI.` |
 
@@ -223,27 +220,39 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 **Status Detail:** declared capabilities: logging, prompts, resources, resources.listChanged, tools | roots/list: not supported | logging/setLevel: supported | sampling/createMessage: not supported | completion/complete: not supported
 
 ### Compliance Violations
-| ID | Source | Description | Severity |
-| :--- | :--- | :--- | :---: |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Parse Error | Low |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc | Low |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | Low |
-| MCP-PROTO-JSONRPC | `spec` | Batch processing implementation is inconsistent or incomplete | Medium |
+| ID | Source | Description | Severity | Recommendation |
+| :--- | :--- | :--- | :---: | :--- |
+| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Parse Error | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
+| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
+| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
+| MCP-PROTO-JSONRPC | `spec` | Batch processing implementation is inconsistent or incomplete | Medium | If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch |
 
 ## 12. Tool Validation
 
 **Tools Discovered:** 3
 
+### Tool Metadata Completeness
+
+Annotation coverage across the discovered tool catalog. Missing annotations reduce AI agent safety and UX quality.
+
+| Tool | title | description | readOnlyHint | destructiveHint | openWorldHint | idempotentHint |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `tools/list (Schema Compliance)` | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| `microsoft_docs_search` | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| `microsoft_code_sample_search` | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| `microsoft_docs_fetch` | ✅ | ✅ | ✅ | ✅ | ❌ | ✅ |
+| **Coverage** | **3/4** | **3/4** | **3/4** | **3/4** | **0/4** | **3/4** |
+
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 64.14ms
+**Execution Time:** 75.55ms
 ---
 
 ### Tool: `microsoft_docs_search`
 
 **Status:** ✅ Passed
-**Execution Time:** 464.63ms
+**Execution Time:** 749.41ms
 
 #### Tool Metadata
 | Property | Value |
@@ -258,7 +267,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 ### Tool: `microsoft_code_sample_search`
 
 **Status:** ✅ Passed
-**Execution Time:** 742.91ms
+**Execution Time:** 674.88ms
 
 #### Tool Metadata
 | Property | Value |
@@ -273,7 +282,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 ### Tool: `microsoft_docs_fetch`
 
 **Status:** ✅ Passed
-**Execution Time:** 72.68ms
+**Execution Time:** 68.27ms
 
 #### Tool Metadata
 | Property | Value |
@@ -334,15 +343,16 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 83.61ms | 🚀 Excellent |
-| **P95 Latency** | 123.00ms | - |
-| **Throughput** | 68.17 req/sec | - |
+| **Avg Latency** | 108.60ms | ✅ Good |
+| **P95 Latency** | 245.00ms | - |
+| **Throughput** | 85.82 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
+| **Requests** | 50/50 successful | - |
+| **Probe Rounds** | 2 | ℹ️ Calibrated |
 
 ## 17. Recommendations
 
-- 💡 Review and address failed test cases to improve server stability
 - 💡 Ensure full compliance with MCP protocol specification
 
 ---
-*Report generated by mcpval — MCP Validator*
+*Produced with [MCP Validator](https://github.com/navalerakesh/mcp-validation-security) · [McpVal on NuGet](https://www.nuget.org/packages/McpVal#versions-body-tab)*

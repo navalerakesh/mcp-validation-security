@@ -732,21 +732,23 @@ internal sealed class ValidationHtmlReportComposer
 
         if (security.AttackSimulations?.Any() == true)
         {
-            var blockedCount = security.AttackSimulations.Count(attack => attack.DefenseSuccessful);
+            var blockedCount = security.AttackSimulations.Count(attack => AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Blocked);
+            var reflectedCount = security.AttackSimulations.Count(attack => AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Detected);
+            var skippedCount = security.AttackSimulations.Count(attack => AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Skipped);
             sb.AppendLine("          <div class=\"ledger-group\">");
             sb.AppendLine("            <h3 class=\"minor-title\">Attack Simulation Outcomes</h3>");
             sb.AppendLine(RenderDistributionSummary(
                 "Attack Outcome Distribution",
-                new[]
-                {
-                    ("Blocked", blockedCount, HtmlReportTone.Success),
-                    ("Reflected", security.AttackSimulations.Count - blockedCount, HtmlReportTone.Warning)
-                }));
+                BuildAttackOutcomeSummary(blockedCount, reflectedCount, skippedCount)));
             sb.AppendLine("            <div class=\"ledger-list\">");
             foreach (var attack in security.AttackSimulations)
             {
-                var resultTone = attack.DefenseSuccessful ? HtmlReportTone.Success : HtmlReportTone.Warning;
-                var resultLabel = attack.DefenseSuccessful ? "Blocked" : "Reflected";
+                var (resultLabel, resultTone) = AttackSimulationOutcomeResolver.Resolve(attack) switch
+                {
+                    AttackSimulationOutcome.Skipped => ("Skipped", HtmlReportTone.Info),
+                    AttackSimulationOutcome.Blocked => ("Blocked", HtmlReportTone.Success),
+                    _ => ("Reflected", HtmlReportTone.Warning)
+                };
                 var response = string.IsNullOrWhiteSpace(attack.ServerResponse) ? "—" : attack.ServerResponse.Replace("\n", " ");
                 sb.AppendLine($"              <article class=\"ledger-entry ledger-entry--{ValidationHtmlReportTheme.ToCssTone(resultTone)}\">");
                 sb.AppendLine("                <div class=\"ledger-rail\">");
@@ -766,6 +768,22 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("        </div>");
         sb.AppendLine("      </section>");
         return sb.ToString();
+    }
+
+    private static (string Label, int Count, HtmlReportTone Tone)[] BuildAttackOutcomeSummary(int blockedCount, int reflectedCount, int skippedCount)
+    {
+        var items = new List<(string Label, int Count, HtmlReportTone Tone)>
+        {
+            ("Blocked", blockedCount, HtmlReportTone.Success),
+            ("Reflected", reflectedCount, HtmlReportTone.Warning)
+        };
+
+        if (skippedCount > 0)
+        {
+            items.Add(("Skipped", skippedCount, HtmlReportTone.Info));
+        }
+
+        return items.ToArray();
     }
 
     private static string RenderToolDetails(ValidationResult result)
@@ -953,6 +971,23 @@ internal sealed class ValidationHtmlReportComposer
             };
             sb.AppendLine(RenderScoreStrip(cards));
             sb.AppendLine($"          <div class=\"evidence-note\">Requests: {perf.LoadTesting.SuccessfulRequests}/{perf.LoadTesting.TotalRequests} successful.</div>");
+            if (perf.LoadTesting.PressureSignalsObserved)
+            {
+                sb.AppendLine("          <ul class=\"compact-list\">");
+                if (perf.LoadTesting.ProbeRoundsExecuted > 1)
+                {
+                    sb.AppendLine($"            <li>Probe rounds executed: {perf.LoadTesting.ProbeRoundsExecuted}</li>");
+                }
+                if (perf.LoadTesting.ObservedRateLimitedRequests > 0)
+                {
+                    sb.AppendLine($"            <li>Rate-limited requests observed across calibration: {perf.LoadTesting.ObservedRateLimitedRequests}</li>");
+                }
+                if (perf.LoadTesting.ObservedTransientFailures > 0)
+                {
+                    sb.AppendLine($"            <li>Retryable transient failures observed across calibration: {perf.LoadTesting.ObservedTransientFailures}</li>");
+                }
+                sb.AppendLine("          </ul>");
+            }
             if (perf.PerformanceBottlenecks.Count > 0)
             {
                 sb.AppendLine("          <ul class=\"compact-list\">");
@@ -1170,11 +1205,16 @@ internal sealed class ValidationHtmlReportComposer
             }
         }
 
-        if (scenario.ActualBehavior.Contains("401", StringComparison.OrdinalIgnoreCase)
-            || scenario.ActualBehavior.Contains("403", StringComparison.OrdinalIgnoreCase)
-            || scenario.ActualBehavior.Contains("WWW-Auth", StringComparison.OrdinalIgnoreCase))
+        if (!string.IsNullOrWhiteSpace(scenario.WwwAuthenticateHeader))
         {
             return ("Aligned", HtmlReportTone.Success);
+        }
+
+        if (string.Equals(scenario.StatusCode, "400", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scenario.StatusCode, "401", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(scenario.StatusCode, "403", StringComparison.OrdinalIgnoreCase))
+        {
+            return ("Review", HtmlReportTone.Warning);
         }
 
         return ("Observed", HtmlReportTone.Info);

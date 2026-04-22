@@ -145,20 +145,29 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 try
                 {
                     var attackResult = await vector.ExecuteAsync(serverConfig, _httpClient, ct);
+                    var outcome = attackResult.Analysis.Contains("Skipped", StringComparison.OrdinalIgnoreCase)
+                        ? AttackSimulationOutcome.Skipped
+                        : attackResult.IsBlocked
+                            ? AttackSimulationOutcome.Blocked
+                            : AttackSimulationOutcome.Detected;
                     
                     // Add to attack simulations for reporting
                     result.AttackSimulations.Add(new AttackSimulationResult
                     {
                         AttackVector = vector.Id,
                         Description = vector.Name,
-                        AttackSuccessful = !attackResult.IsBlocked,
-                        DefenseSuccessful = attackResult.IsBlocked,
+                        AttackSuccessful = outcome == AttackSimulationOutcome.Detected,
+                        DefenseSuccessful = outcome == AttackSimulationOutcome.Blocked,
                         ServerResponse = attackResult.Analysis,
-                        Evidence = new Dictionary<string, object> { { "evidence", attackResult.Evidence } }
+                        Evidence = new Dictionary<string, object>
+                        {
+                            ["evidence"] = attackResult.Evidence,
+                            ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(outcome)
+                        }
                     });
 
                     // If vulnerable, add to vulnerabilities list
-                    if (!attackResult.IsBlocked)
+                    if (outcome == AttackSimulationOutcome.Detected)
                     {
                         result.Vulnerabilities.Add(new SecurityVulnerability
                         {
@@ -511,6 +520,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
                         Evidence = new Dictionary<string, object>
                         {
+                            ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isBlocked ? AttackSimulationOutcome.Blocked : AttackSimulationOutcome.Detected),
                             ["target"] = targetTool != null ? $"tools/call ({targetTool})" : "tools/list",
                             ["result"] = !isBlocked ? "Server accepted attack payload (Review output for reflection)" : $"Server blocked attack: {defenseDetails} (SECURE)",
                             ["isSuccess"] = response.IsSuccess,
@@ -536,6 +546,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         ExecutionTimeMs = 0,
                         Evidence = new Dictionary<string, object>
                         {
+                            ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isServerError ? AttackSimulationOutcome.Detected : AttackSimulationOutcome.Blocked),
                             ["exception"] = ex.Message,
                             ["attackSuccessful"] = isServerError,
                             ["defenseSuccessful"] = !isServerError,

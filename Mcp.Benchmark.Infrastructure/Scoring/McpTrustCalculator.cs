@@ -19,6 +19,13 @@ namespace Mcp.Benchmark.Infrastructure.Scoring;
 /// </summary>
 public static class McpTrustCalculator
 {
+    private static readonly HashSet<string> SentenceLeadingPromptInjectionPatterns = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "you are",
+        "act as",
+        "pretend"
+    };
+
     public static McpTrustAssessment Calculate(ValidationResult result)
     {
         var assessment = new McpTrustAssessment();
@@ -38,7 +45,7 @@ public static class McpTrustCalculator
         assessment.AiSafety = CalculateAiSafety(result, assessment);
 
         // ─── Dimension 4: Operational Readiness ──────────────────────
-        assessment.OperationalReadiness = ValidationCalibration.GetOperationalReadinessScore(result.PerformanceTesting);
+        assessment.OperationalReadiness = ValidationCalibration.GetOperationalReadinessScore(result.ServerConfig, result.PerformanceTesting);
 
         // ─── Determine Trust Level ───────────────────────────────────
         if (ValidationCalibration.HasBlockingSecurityFailure(result) || result.CriticalErrors.Count > 0)
@@ -87,36 +94,43 @@ public static class McpTrustCalculator
     {
         // Protocol MUST checks
         AddMustCheck(assessment, McpComplianceTiers.Must.InitializeResponse, "initialize",
-            result.ProtocolCompliance != null && result.ProtocolCompliance.Status != TestStatus.Error,
-            result.ProtocolCompliance?.Status == TestStatus.Error ? "Initialize failed" : null);
+            !HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse),
+            HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse) ? "Initialize failed" : null);
 
         // Only check response structure if we got a successful response
         if (result.ProtocolCompliance != null && result.ProtocolCompliance.Status != TestStatus.Skipped)
         {
-            var hasCapViolation = result.ProtocolCompliance.Violations?.Any(v =>
-                v.Description?.Contains("capabilities") == true && v.Severity >= ViolationSeverity.High) == true;
-
             AddMustCheck(assessment, McpComplianceTiers.Must.CapabilitiesInResponse, "initialize",
-                !hasCapViolation, hasCapViolation ? "capabilities object missing from initialize" : null);
-
-            var hasVersionViolation = result.ProtocolCompliance.Violations?.Any(v =>
-                v.Description?.Contains("protocolVersion") == true && v.Severity >= ViolationSeverity.High) == true;
+                !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities),
+                HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities) ? "capabilities object missing from initialize" : null);
 
             AddMustCheck(assessment, McpComplianceTiers.Must.ProtocolVersionInResponse, "initialize",
-                !hasVersionViolation, hasVersionViolation ? "protocolVersion missing from initialize" : null);
+                !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingProtocolVersion),
+                HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingProtocolVersion) ? "protocolVersion missing from initialize" : null);
+
+            AddMustCheck(assessment, McpComplianceTiers.Must.ServerInfoPresent, "initialize",
+                !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfo),
+                HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfo) ? "serverInfo missing from initialize" : null);
+
+            AddMustCheck(assessment, McpComplianceTiers.Must.ServerInfoHasName, "initialize",
+                !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoName),
+                HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoName) ? "serverInfo.name missing from initialize" : null);
+
+            AddMustCheck(assessment, McpComplianceTiers.Must.ServerInfoHasVersion, "initialize",
+                !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoVersion),
+                HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoVersion) ? "serverInfo.version missing from initialize" : null);
         }
 
         // Tool MUST checks
         if (result.ToolValidation != null && result.ToolValidation.Status != TestStatus.Skipped)
         {
             AddMustCheck(assessment, McpComplianceTiers.Must.ToolsListReturnsArray, "tools/list",
-                result.ToolValidation.Status != TestStatus.Error,
-                result.ToolValidation.Status == TestStatus.Error ? "tools/list returned error" : null);
+                result.ToolValidation.Status is not (TestStatus.Error or TestStatus.Failed),
+                result.ToolValidation.Status is TestStatus.Error or TestStatus.Failed ? "tools/list returned an invalid response" : null);
 
             // Check if any tool result flagged missing content[] array
             var hasMissingContent = result.ToolValidation.ToolResults?.Any(t =>
-                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray) ||
-                t.Issues.Any(i => i.Contains("missing 'content' array"))) == true;
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray)) == true;
             if (result.ToolValidation.ToolResults?.Any(t =>
                 t.ExecutionSuccessful || HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingContentArray)) == true)
             {
@@ -129,8 +143,7 @@ public static class McpTrustCalculator
         if (result.ResourceTesting != null && result.ResourceTesting.Status != TestStatus.Skipped)
         {
             var missingUri = result.ResourceTesting.ResourceResults?.Any(r =>
-                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceMissingUri) ||
-                r.Issues.Any(i => i.Contains("missing 'uri'"))) == true;
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceMissingUri)) == true;
 
             if (result.ResourceTesting.ResourceResults?.Count > 0)
             {
@@ -139,11 +152,9 @@ public static class McpTrustCalculator
             }
 
             var missingContentUri = result.ResourceTesting.ResourceResults?.Any(r =>
-                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri) ||
-                r.Issues.Any(i => i.Contains("contents[0] missing 'uri'"))) == true;
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingContentUri)) == true;
             var missingTextBlob = result.ResourceTesting.ResourceResults?.Any(r =>
-                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob) ||
-                r.Issues.Any(i => i.Contains("missing both 'text' and 'blob'"))) == true;
+                HasFinding(r.Findings, ValidationFindingRuleIds.ResourceReadMissingTextOrBlob)) == true;
 
             if (result.ResourceTesting.ResourceResults?.Any(r =>
                 r.AccessSuccessful ||
@@ -163,11 +174,9 @@ public static class McpTrustCalculator
         if (result.PromptTesting != null && result.PromptTesting.Status != TestStatus.Skipped)
         {
             var missingMessages = result.PromptTesting.PromptResults?.Any(p =>
-                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray) ||
-                p.Issues.Any(i => i.Contains("missing 'messages'"))) == true;
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray)) == true;
             var missingRole = result.PromptTesting.PromptResults?.Any(p =>
-                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole) ||
-                p.Issues.Any(i => i.Contains("missing 'role'"))) == true;
+                HasFinding(p.Findings, ValidationFindingRuleIds.PromptMessageMissingRole)) == true;
 
             if (result.PromptTesting.PromptResults?.Any(p =>
                 p.ExecutionSuccessful ||
@@ -195,27 +204,13 @@ public static class McpTrustCalculator
 
     private static void RunShouldChecks(ValidationResult result, McpTrustAssessment assessment)
     {
-        // serverInfo
-        if (result.ProtocolCompliance != null && result.ProtocolCompliance.Status != TestStatus.Skipped)
-        {
-            var missingServerInfo = result.ProtocolCompliance.Violations?.Any(v =>
-                v.Description?.Contains("serverInfo") == true) == true;
-            AddShouldCheck(assessment, McpComplianceTiers.Should.ServerInfoPresent, "initialize", !missingServerInfo);
-
-            var missingName = result.ProtocolCompliance.Violations?.Any(v =>
-                v.Description?.Contains("serverInfo") == true && v.Description?.Contains("name") == true) == true;
-            AddShouldCheck(assessment, McpComplianceTiers.Should.ServerInfoHasName, "initialize", !missingName);
-        }
-
         // Tool descriptions
-        if (result.ToolValidation?.AiReadinessIssues != null)
+        if (result.ToolValidation?.AiReadinessFindings != null)
         {
-            var hasUndescribed = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions) ||
-                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("lack descriptions"));
+            var hasUndescribed = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
             AddShouldCheck(assessment, McpComplianceTiers.Should.ToolHasDescription, "tools/list", !hasUndescribed);
 
-            var hasVagueTypes = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema) ||
-                result.ToolValidation.AiReadinessIssues.Any(i => i.Contains("no enum/pattern"));
+            var hasVagueTypes = result.ToolValidation.AiReadinessFindings.Any(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema);
             AddShouldCheck(assessment, McpComplianceTiers.Should.DescriptiveParameterTypes, "tools/list", !hasVagueTypes);
         }
 
@@ -223,8 +218,7 @@ public static class McpTrustCalculator
         if (result.ToolValidation?.ToolResults != null)
         {
             var missingIsError = result.ToolValidation.ToolResults.Any(t =>
-                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingIsError) ||
-                t.Issues.Any(i => i.Contains("isError field not present")));
+                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingIsError));
             AddShouldCheck(assessment, McpComplianceTiers.Should.IsErrorFieldPresent, "tools/call", !missingIsError);
         }
 
@@ -258,17 +252,17 @@ public static class McpTrustCalculator
 
     private static void RunMayChecks(ValidationResult result, McpTrustAssessment assessment)
     {
-        // Parse capability probe results from protocol compliance message
-        var probeMessage = result.ProtocolCompliance?.Message ?? "";
-
         AddMayCheck(assessment, McpComplianceTiers.May.Logging, "capabilities",
-            probeMessage.Contains("logging/setLevel: supported"));
+            HasFinding(result.ProtocolCompliance?.Findings, ValidationFindingRuleIds.OptionalCapabilityLoggingSupported));
 
         AddMayCheck(assessment, McpComplianceTiers.May.Sampling, "capabilities",
-            probeMessage.Contains("sampling/createMessage: supported"));
+            HasFinding(result.ProtocolCompliance?.Findings, ValidationFindingRuleIds.OptionalCapabilitySamplingSupported));
 
         AddMayCheck(assessment, McpComplianceTiers.May.Roots, "capabilities",
-            probeMessage.Contains("roots/list: supported"));
+            HasFinding(result.ProtocolCompliance?.Findings, ValidationFindingRuleIds.OptionalCapabilityRootsSupported));
+
+        AddMayCheck(assessment, McpComplianceTiers.May.Completion, "capabilities",
+            HasFinding(result.ProtocolCompliance?.Findings, ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported));
 
         // Resource templates (checked in resource issues)
         if (result.ResourceTesting != null)
@@ -414,7 +408,7 @@ public static class McpTrustCalculator
                 {
                     foreach (var pattern in ScoringConstants.PromptInjectionPatterns)
                     {
-                        if (surfaceText.Contains(pattern))
+                        if (ContainsPromptInjectionPattern(surfaceText, pattern))
                         {
                             assessment.PromptInjectionSurfaceCount++;
                             assessment.BoundaryFindings.Add(new AiBoundaryFinding
@@ -525,9 +519,45 @@ public static class McpTrustCalculator
         return Math.Max(0, Math.Min(100, Math.Round(score, 1)));
     }
 
+    private static bool ContainsPromptInjectionPattern(string surfaceText, string pattern)
+    {
+        if (string.IsNullOrWhiteSpace(surfaceText) || string.IsNullOrWhiteSpace(pattern))
+        {
+            return false;
+        }
+
+        if (!SentenceLeadingPromptInjectionPatterns.Contains(pattern))
+        {
+            return surfaceText.Contains(pattern, StringComparison.OrdinalIgnoreCase);
+        }
+
+        foreach (var segment in surfaceText.Split(['\r', '\n', '.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (segment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            foreach (var bulletSegment in segment.Split(['-', '*'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (bulletSegment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     private static bool HasFinding(IEnumerable<ValidationFinding>? findings, string ruleId)
     {
         return findings?.Any(f => f.RuleId == ruleId) == true;
+    }
+
+    private static bool HasViolation(IEnumerable<ComplianceViolation>? violations, string checkId)
+    {
+        return violations?.Any(v => string.Equals(v.CheckId, checkId, StringComparison.Ordinal)) == true;
     }
 
     private static McpTrustLevel? GetProtocolSecurityCap(McpTrustAssessment assessment)

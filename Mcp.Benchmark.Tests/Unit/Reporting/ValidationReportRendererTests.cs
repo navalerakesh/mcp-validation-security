@@ -281,6 +281,35 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithObservedProbePressureSignals_ShouldShowCalibrationTelemetry()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 91,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 125,
+                P95ResponseTimeMs = 240,
+                RequestsPerSecond = 15,
+                ProbeRoundsExecuted = 2,
+                ObservedRateLimitedRequests = 3,
+                ObservedTransientFailures = 1
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Probe rounds executed: 2");
+        html.Should().Contain("Rate-limited requests observed across calibration: 3");
+        html.Should().Contain("Retryable transient failures observed across calibration: 1");
+    }
+
+    [Fact]
     public void GenerateXmlReport_WithClientCompatibility_ShouldIncludeProfileAssessments()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();

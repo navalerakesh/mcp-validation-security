@@ -37,7 +37,9 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         return await ExecuteValidationAsync(serverConfig, "Load Testing", async (ct) =>
         {
             var result = new PerformanceTestResult();
-            var concurrentConnections = Math.Clamp(config.MaxConcurrentConnections, 1, 512);
+            var targetConcurrency = Math.Clamp(config.MaxConcurrentConnections, 1, 512);
+            var concurrentConnections = ValidationCalibration.GetInitialPerformanceProbeConcurrency(serverConfig, targetConcurrency);
+            var probeRoundCount = 0;
 
             // Check connectivity and auth status - use provided auth if available
             var authCheckResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
@@ -46,7 +48,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             // 1. No auth provided and server requires it -> Skip (Compliant)
             // 2. Auth provided but invalid -> Skip (with warning)
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(authCheckResponse);
-            if (authChallenge.IsAuthenticationChallenge)
+            if (authChallenge.RequiresAuthentication)
             {
                 result.Status = TestStatus.Skipped;
                 result.Score = ValidationCalibration.AdvisoryPerformanceScore;
@@ -65,7 +67,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 result.PerformanceBottlenecks.Add(message);
                 result.Findings.Add(new ValidationFinding
                 {
-                    RuleId = "MCP.GUIDELINE.PERFORMANCE.AUTH_REQUIRED_ADVISORY",
+                    RuleId = ValidationFindingRuleIds.PerformanceAuthRequiredAdvisory,
                     Category = "Performance",
                     Component = "load-testing",
                     Severity = ValidationFindingSeverity.Info,
@@ -79,9 +81,18 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             
             LoadProbeRound? round = null;
             var calibrationAttempt = 1;
+            var observedRateLimitedRequests = 0;
+            var observedTransientFailures = 0;
             while (true)
             {
-                round = await ExecuteLoadProbeRoundAsync(serverConfig, concurrentConnections, ct);
+                round = await ExecuteLoadProbeRoundAsync(
+                    serverConfig,
+                    concurrentConnections,
+                    ValidationCalibration.GetPerformanceProbeRequestCount(serverConfig, concurrentConnections, targetConcurrency),
+                    ct);
+                probeRoundCount++;
+                observedRateLimitedRequests += round.RateLimitedRequests;
+                observedTransientFailures += round.TransientFailures;
 
                 if (!ValidationReliability.ShouldRetryPerformanceCalibration(
                         calibrationAttempt,
@@ -91,13 +102,41 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                         round.RateLimitedRequests,
                         round.TransientFailures))
                 {
+                    if (ValidationCalibration.ShouldEscalatePerformanceProbe(
+                            serverConfig,
+                            concurrentConnections,
+                            targetConcurrency,
+                            round.FailedRequests,
+                            round.RateLimitedRequests,
+                            round.TransientFailures))
+                    {
+                        result.Findings.Add(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.PerformancePublicRemoteRampUp,
+                            Category = "Performance",
+                            Component = "load-testing",
+                            Severity = ValidationFindingSeverity.Info,
+                            Summary = $"Public remote synthetic load probe stabilized at concurrency {concurrentConnections} before ramping to the configured target concurrency {targetConcurrency}.",
+                            Recommendation = "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe.",
+                            Source = ValidationRuleSource.Guideline,
+                            Metadata = new Dictionary<string, string>
+                            {
+                                ["initialConcurrency"] = concurrentConnections.ToString(),
+                                ["targetConcurrency"] = targetConcurrency.ToString()
+                            }
+                        });
+
+                        concurrentConnections = targetConcurrency;
+                        continue;
+                    }
+
                     break;
                 }
 
                 var nextConcurrency = ValidationReliability.GetReducedConcurrency(concurrentConnections);
                 result.Findings.Add(new ValidationFinding
                 {
-                    RuleId = "MCP.GUIDELINE.PERFORMANCE.RECALIBRATED_AFTER_TRANSIENT_LIMITS",
+                    RuleId = ValidationFindingRuleIds.PerformanceRecalibratedAfterTransientLimits,
                     Category = "Performance",
                     Component = "load-testing",
                     Severity = ValidationFindingSeverity.Info,
@@ -131,6 +170,10 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 TotalRequests = finalRound.TotalRequests,
                 SuccessfulRequests = finalRound.SuccessfulRequests,
                 FailedRequests = finalRound.FailedRequests,
+                RateLimitedRequests = finalRound.RateLimitedRequests,
+                ProbeRoundsExecuted = probeRoundCount,
+                ObservedRateLimitedRequests = observedRateLimitedRequests,
+                ObservedTransientFailures = observedTransientFailures,
                 AverageResponseTimeMs = avgResponseTime,
                 MedianResponseTimeMs = finalRound.ResponseTimes.Count > 0 ? finalRound.ResponseTimes.OrderBy(x => x).ElementAt(finalRound.ResponseTimes.Count / 2) : 0,
                 P95ResponseTimeMs = p95,
@@ -158,6 +201,26 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 }
             });
 
+            if (result.LoadTesting.PressureSignalsObserved)
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.PerformancePressureSignalsObserved,
+                    Category = "Performance",
+                    Component = "load-testing",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = $"Synthetic load probe executed {probeRoundCount} round(s) and observed {observedRateLimitedRequests} rate-limited request(s) plus {observedTransientFailures} retryable transient failure(s) across calibration.",
+                    Recommendation = "Review rate-limit and retry telemetry alongside final latency before treating the probe as representative of steady-state performance.",
+                    Source = ValidationRuleSource.Guideline,
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["probeRoundsExecuted"] = probeRoundCount.ToString(),
+                        ["observedRateLimitedRequests"] = observedRateLimitedRequests.ToString(),
+                        ["observedTransientFailures"] = observedTransientFailures.ToString()
+                    }
+                });
+            }
+
             result.ResourceUsage = new ResourceUsageMetrics { WithinAcceptableLimits = true };
             result.Throughput = new ThroughputMetrics
             {
@@ -172,7 +235,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             {
                 result.Status = TestStatus.Skipped;
                 result.Score = ValidationCalibration.AdvisoryPerformanceScore;
-                result.Message = $"Load testing remained constrained by transient rate limits or transport capacity after {calibrationAttempt} calibration round(s); performance assessment skipped to avoid classifying remote controls as instability.";
+                result.Message = $"Load testing remained constrained by transient rate limits or transport capacity after {probeRoundCount} probe round(s); performance assessment skipped to avoid classifying remote controls as instability.";
                 result.PerformanceBottlenecks.Add(result.Message);
                 Logger.LogInformation("Performance testing skipped after rate limiting was observed for {Profile} profile", serverConfig.Profile);
                 return result;
@@ -221,22 +284,9 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
-            if (ValidationCalibration.ShouldTreatPerformanceAsAdvisory(serverConfig, result))
+            ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, result);
+            if (result.Status == TestStatus.Skipped)
             {
-                result.Status = TestStatus.Skipped;
-                result.Score = Math.Max(result.Score, ValidationCalibration.AdvisoryPerformanceScore);
-                result.Message = "Synthetic load probe hit remote capacity limits or edge protections; results are reported as advisory and excluded from pass/fail decisions.";
-                result.PerformanceBottlenecks.Add(result.Message);
-                result.Findings.Add(new ValidationFinding
-                {
-                    RuleId = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY",
-                    Category = "Performance",
-                    Component = "load-testing",
-                    Severity = ValidationFindingSeverity.Info,
-                    Summary = "Remote public endpoint showed partial failures under synthetic pressure, so the performance result is treated as advisory rather than a readiness failure.",
-                    Recommendation = "Use endpoint-specific benchmarks or production telemetry for final capacity judgments.",
-                    Source = ValidationRuleSource.Guideline
-                });
                 return result;
             }
 
@@ -279,9 +329,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         return (double)rateLimitedRequests / totalRequests >= 0.2;
     }
 
-    private async Task<LoadProbeRound> ExecuteLoadProbeRoundAsync(McpServerConfig serverConfig, int concurrentConnections, CancellationToken ct)
+    private async Task<LoadProbeRound> ExecuteLoadProbeRoundAsync(McpServerConfig serverConfig, int concurrentConnections, int totalRequests, CancellationToken ct)
     {
-        var totalRequests = Math.Max(20, concurrentConnections * 5);
         var successfulRequests = 0;
         var failedRequests = 0;
         var rateLimitedRequests = 0;
@@ -323,7 +372,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                                 rateLimitedRequests++;
                             }
 
-                            if (ValidationReliability.ShouldRetryRpcResponse(response))
+                            if (response.StatusCode != 429 && ValidationReliability.ShouldRetryRpcResponse(response))
                             {
                                 transientFailures++;
                             }

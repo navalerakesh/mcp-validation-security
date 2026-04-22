@@ -5,6 +5,7 @@ using System.Linq;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -276,6 +277,7 @@ public class McpValidatorService : IMcpValidatorService
                 {
                     result.PerformanceTesting = await _performanceValidator.PerformLoadTestingAsync(
                         configuration.Server, categories.PerformanceTesting, cancellationToken);
+                    ValidationCalibration.ApplyPerformanceOutcomeCalibration(configuration.Server, result.PerformanceTesting);
                 }
                 catch (Exception ex)
                 {
@@ -658,29 +660,172 @@ public class McpValidatorService : IMcpValidatorService
     /// <param name="result">The validation result to generate recommendations for.</param>
     private void GenerateRecommendations(ValidationResult result)
     {
-        if (result.ComplianceScore < 80.0)
+        var recommendations = new List<string>();
+
+        recommendations.AddRange(BuildProtocolRecommendations(result));
+        recommendations.AddRange(BuildSecurityRecommendations(result));
+        recommendations.AddRange(BuildPerformanceRecommendations(result));
+        recommendations.AddRange(BuildCatalogFindingRecommendations(result));
+
+        result.Recommendations.AddRange(recommendations
+            .Where(recommendation => !string.IsNullOrWhiteSpace(recommendation))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(6));
+    }
+
+    private static IEnumerable<string> BuildProtocolRecommendations(ValidationResult result)
+    {
+        if (result.ProtocolCompliance?.Violations?.Any() != true)
         {
-            result.Recommendations.Add("Consider improving overall compliance score to meet industry standards");
+            return Array.Empty<string>();
         }
 
-        if (result.Summary.FailedTests > 0)
+        return result.ProtocolCompliance.Violations
+            .Where(violation => !string.IsNullOrWhiteSpace(violation.Recommendation))
+            .OrderByDescending(violation => violation.Severity)
+            .Select(violation => PrefixRecommendation(
+                ValidationRuleSourceClassifier.GetLabel(violation),
+                violation.Recommendation!));
+    }
+
+    private static IEnumerable<string> BuildSecurityRecommendations(ValidationResult result)
+    {
+        if (result.SecurityTesting?.Vulnerabilities?.Any() != true)
         {
-            result.Recommendations.Add("Review and address failed test cases to improve server stability");
+            return Array.Empty<string>();
         }
 
-        if (result.SecurityTesting?.SecurityScore < 70.0)
+        return result.SecurityTesting.Vulnerabilities
+            .Where(vulnerability => !string.IsNullOrWhiteSpace(vulnerability.Remediation))
+            .OrderByDescending(vulnerability => vulnerability.Severity)
+            .Select(vulnerability => PrefixRecommendation("security", vulnerability.Remediation!));
+    }
+
+    private static IEnumerable<string> BuildPerformanceRecommendations(ValidationResult result)
+    {
+        if (result.PerformanceTesting == null)
         {
-            result.Recommendations.Add("Implement additional security measures to address identified vulnerabilities");
+            return Array.Empty<string>();
         }
 
-        if (result.ProtocolCompliance?.ComplianceScore < 90.0)
+        var performance = result.PerformanceTesting;
+        if (!PerformanceMeasurementEvaluator.HasObservedMetrics(performance))
         {
-            result.Recommendations.Add("Ensure full compliance with MCP protocol specification");
+            var reason = PerformanceMeasurementEvaluator.GetUnavailableReason(
+                performance,
+                "Performance measurements were not captured before the run ended.");
+
+            return new[]
+            {
+                PrefixRecommendation("operational", $"Investigate why the performance probe ended without captured measurements ({reason}) before treating runtime behavior as representative.")
+            };
         }
 
-        if (result.ToolValidation?.ToolsTestFailed > 0)
+        return performance.Findings
+            .Where(finding => finding.Severity > ValidationFindingSeverity.Info && !string.IsNullOrWhiteSpace(finding.Recommendation))
+            .OrderByDescending(finding => finding.Severity)
+            .Select(finding => PrefixRecommendation(finding.EffectiveSourceLabel, finding.Recommendation!));
+    }
+
+    private static IEnumerable<string> BuildCatalogFindingRecommendations(ValidationResult result)
+    {
+        var recommendations = new List<string>();
+
+        recommendations.AddRange(BuildFindingCoverageRecommendations(
+            result.ToolValidation?.ToolResults.SelectMany(tool => tool.Findings)
+                .Concat(result.ToolValidation?.Findings ?? Enumerable.Empty<ValidationFinding>()),
+            ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation),
+            "tool"));
+
+        recommendations.AddRange(BuildFindingCoverageRecommendations(
+            result.PromptTesting?.PromptResults.SelectMany(prompt => prompt.Findings)
+                .Concat(result.PromptTesting?.Findings ?? Enumerable.Empty<ValidationFinding>()),
+            GetPromptCatalogSize(result.PromptTesting),
+            "prompt"));
+
+        recommendations.AddRange(BuildFindingCoverageRecommendations(
+            result.ResourceTesting?.ResourceResults.SelectMany(resource => resource.Findings)
+                .Concat(result.ResourceTesting?.Findings ?? Enumerable.Empty<ValidationFinding>()),
+            GetResourceCatalogSize(result.ResourceTesting),
+            "resource"));
+
+        return recommendations;
+    }
+
+    private static IEnumerable<string> BuildFindingCoverageRecommendations(IEnumerable<ValidationFinding>? findings, int totalComponents, string componentLabel)
+    {
+        if (findings == null)
         {
-            result.Recommendations.Add("Fix tool implementation issues to ensure proper functionality");
+            return Array.Empty<string>();
         }
+
+        return ValidationFindingAggregator.SummarizeFindingsByRule(findings, totalComponents)
+            .Where(rollup =>
+                rollup.Severity > ValidationFindingSeverity.Info &&
+                !string.IsNullOrWhiteSpace(rollup.Recommendation))
+            .Select(rollup => PrefixRecommendation(
+                rollup.SourceLabel,
+                AppendCoverageScope(rollup.Recommendation!, rollup.AffectedComponents, rollup.TotalComponents, componentLabel)));
+    }
+
+    private static string AppendCoverageScope(string recommendation, int affectedComponents, int totalComponents, string componentLabel)
+    {
+        if (affectedComponents <= 0)
+        {
+            return recommendation;
+        }
+
+        var normalized = TrimSentence(recommendation);
+        var noun = affectedComponents == 1 ? componentLabel : componentLabel + "s";
+        if (totalComponents <= 0)
+        {
+            return $"{normalized} Gap affects {affectedComponents} {noun}.";
+        }
+
+        return $"{normalized} Gap affects {affectedComponents}/{totalComponents} {noun}.";
+    }
+
+    private static int GetPromptCatalogSize(PromptTestResult? promptTesting)
+    {
+        if (promptTesting == null)
+        {
+            return 0;
+        }
+
+        return promptTesting.PromptsDiscovered > 0
+            ? promptTesting.PromptsDiscovered
+            : promptTesting.PromptResults.Select(prompt => prompt.PromptName)
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+    }
+
+    private static int GetResourceCatalogSize(ResourceTestResult? resourceTesting)
+    {
+        if (resourceTesting == null)
+        {
+            return 0;
+        }
+
+        return resourceTesting.ResourcesDiscovered > 0
+            ? resourceTesting.ResourcesDiscovered
+            : resourceTesting.ResourceResults.Select(resource => resource.ResourceUri)
+                .Where(uri => !string.IsNullOrWhiteSpace(uri))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Count();
+    }
+
+    private static string PrefixRecommendation(string authority, string recommendation)
+    {
+        var prefix = string.IsNullOrWhiteSpace(authority)
+            ? "Action"
+            : char.ToUpperInvariant(authority[0]) + authority[1..].ToLowerInvariant();
+
+        return $"{prefix}: {TrimSentence(recommendation)}";
+    }
+
+    private static string TrimSentence(string text)
+    {
+        return text.Trim().TrimEnd('.');
     }
 }

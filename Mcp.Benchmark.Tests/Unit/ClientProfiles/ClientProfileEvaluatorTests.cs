@@ -98,6 +98,43 @@ public class ClientProfileEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_ClaudeCode_ShouldWarnWhenPromptCategoryFailsWithoutPromptContractFinding()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.PromptTesting = new PromptTestResult
+        {
+            Status = TestStatus.Failed,
+            PromptsDiscovered = 1,
+            Findings = new List<ValidationFinding>
+            {
+                new()
+                {
+                    RuleId = ValidationFindingRuleIds.PromptArgumentComplexityGuidanceMissing,
+                    Component = "triage_issue",
+                    Severity = ValidationFindingSeverity.Low,
+                    Summary = "Prompt requires multiple inputs without enough caller guidance."
+                }
+            },
+            PromptResults = new List<IndividualPromptResult>
+            {
+                new() { PromptName = "triage_issue", Status = TestStatus.Passed, ExecutionSuccessful = true }
+            }
+        };
+
+        var compatibility = _evaluator.Evaluate(result, new ClientProfileOptions
+        {
+            Profiles = new List<string> { "claude-code" }
+        });
+
+        compatibility.Should().NotBeNull();
+        var assessment = compatibility!.Assessments.Should().ContainSingle().Subject;
+        assessment.Status.Should().Be(ClientProfileCompatibilityStatus.CompatibleWithWarnings);
+        assessment.Requirements.Should().Contain(requirement =>
+            requirement.RequirementId == "prompt-prompts-contract" &&
+            requirement.Outcome == ClientProfileRequirementOutcome.Warning);
+    }
+
+    [Fact]
     public void Evaluate_UnknownProfile_ShouldThrowArgumentException()
     {
         var action = () => _evaluator.Evaluate(CreateToolOnlyValidationResult(), new ClientProfileOptions

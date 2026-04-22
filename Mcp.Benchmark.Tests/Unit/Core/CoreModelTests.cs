@@ -147,6 +147,14 @@ public class CoreModelTests
         result.ErrorRate.Should().Be(0);
     }
 
+    [Fact]
+    public void LoadTestResult_NonRateLimitedFailedRequests_ShouldExcludeRateLimitedRequests()
+    {
+        var result = new LoadTestResult { FailedRequests = 5, RateLimitedRequests = 2 };
+
+        result.NonRateLimitedFailedRequests.Should().Be(3);
+    }
+
     // ─── ScoringConstants ────────────────────────────────────────
     [Fact]
     public void ScoringConstants_WeightsShouldSumTo1()
@@ -179,6 +187,7 @@ public class CoreModelTests
     public void McpComplianceTiers_MustConstants_ShouldStartWithMUST()
     {
         McpComplianceTiers.Must.InitializeResponse.Should().StartWith("MUST:");
+        McpComplianceTiers.Must.ServerInfoPresent.Should().StartWith("MUST:");
         McpComplianceTiers.Must.ToolHasName.Should().StartWith("MUST:");
         McpComplianceTiers.Must.StandardErrorCodes.Should().StartWith("MUST:");
     }
@@ -186,7 +195,6 @@ public class CoreModelTests
     [Fact]
     public void McpComplianceTiers_ShouldConstants_ShouldStartWithSHOULD()
     {
-        McpComplianceTiers.Should.ServerInfoPresent.Should().StartWith("SHOULD:");
         McpComplianceTiers.Should.ToolHasDescription.Should().StartWith("SHOULD:");
         McpComplianceTiers.Should.SanitizeToolOutputs.Should().StartWith("SHOULD:");
     }

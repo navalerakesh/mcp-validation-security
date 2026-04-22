@@ -452,8 +452,8 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
         {
             if (categoryStatus == TestStatus.Failed)
             {
-                return ClientProfileRuleObservation.Failed(
-                    $"The {componentLabel} validation category failed even though no blocking structured rule matched this profile. Inspect the detailed validation output.");
+                return ClientProfileRuleObservation.Warning(
+                    $"The {componentLabel} validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.");
             }
 
             return ClientProfileRuleObservation.Satisfied(successSummary);

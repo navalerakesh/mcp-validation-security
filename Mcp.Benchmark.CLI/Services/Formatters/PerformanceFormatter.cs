@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.CLI.Services.Formatters;
 
@@ -13,7 +14,12 @@ public static class PerformanceFormatter
         Console.WriteLine(new string('-', 40));
 
         var perf = result.PerformanceTesting;
-        Console.WriteLine($"Score: {perf.Score:F1}%");
+        var scoreLabel = perf.Status == TestStatus.Skipped
+            ? "-"
+            : PerformanceMeasurementEvaluator.HasObservedMetrics(perf)
+                ? $"{perf.Score:F1}%"
+                : "Unavailable";
+        Console.WriteLine($"Score: {scoreLabel}");
 
         if (!string.IsNullOrEmpty(perf.Message))
         {
@@ -25,6 +31,10 @@ public static class PerformanceFormatter
             Console.WriteLine($"Requests:   {perf.LoadTesting.TotalRequests} ({perf.LoadTesting.SuccessfulRequests} success, {perf.LoadTesting.FailedRequests} failed)");
             Console.WriteLine($"Latency:    {perf.LoadTesting.AverageResponseTimeMs:F1}ms avg, {perf.LoadTesting.P95ResponseTimeMs:F1}ms p95");
             Console.WriteLine($"Throughput: {perf.LoadTesting.RequestsPerSecond:F1} req/sec");
+            if (perf.LoadTesting.PressureSignalsObserved)
+            {
+                Console.WriteLine($"Probe:      {perf.LoadTesting.ProbeRoundsExecuted} round(s), {perf.LoadTesting.ObservedRateLimitedRequests} rate-limited, {perf.LoadTesting.ObservedTransientFailures} transient failure(s)");
+            }
         }
 
         if (perf.PerformanceBottlenecks.Any())

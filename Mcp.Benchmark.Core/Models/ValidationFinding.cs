@@ -46,6 +46,13 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
+    public const string PerformanceAuthRequiredAdvisory = "MCP.GUIDELINE.PERFORMANCE.AUTH_REQUIRED_ADVISORY";
+    public const string PerformanceRecalibratedAfterTransientLimits = "MCP.GUIDELINE.PERFORMANCE.RECALIBRATED_AFTER_TRANSIENT_LIMITS";
+    public const string PerformancePublicRemoteAdvisory = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY";
+    public const string PerformancePublicRemoteTimeoutAdvisory = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY";
+    public const string PerformancePublicRemoteRampUp = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP";
+    public const string PerformancePressureSignalsObserved = "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED";
+
     public const string ToolGuidelineDisplayTitleMissing = "MCP.GUIDELINE.TOOL.DISPLAY_TITLE_MISSING";
     public const string ToolGuidelineReadOnlyHintMissing = "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING";
     public const string ToolGuidelineDestructiveHintMissing = "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING";

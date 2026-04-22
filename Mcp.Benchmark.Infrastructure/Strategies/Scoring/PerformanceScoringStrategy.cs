@@ -5,7 +5,7 @@ namespace Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 
 /// <summary>
 /// Scoring strategy for Performance validation.
-/// Score starts at 100 and is penalized by errors and high latency.
+/// Score starts at 100 and is penalized by non-rate-limited failures and high latency.
 /// </summary>
 public class PerformanceScoringStrategy : IScoringStrategy<PerformanceTestResult>
 {
@@ -15,8 +15,10 @@ public class PerformanceScoringStrategy : IScoringStrategy<PerformanceTestResult
 
         double score = 100.0;
         
-        // Deduct for failed requests (5 points per failure)
-        score -= result.LoadTesting.FailedRequests * 5;
+        // Deduct for failures attributable to server/runtime instability.
+        // Requests rejected by explicit rate limiting remain visible in telemetry
+        // but do not count as brokenness for readiness scoring.
+        score -= result.LoadTesting.NonRateLimitedFailedRequests * 5;
 
         // Deduct for latency (1 point for every 20ms over 200ms)
         if (result.LoadTesting.AverageResponseTimeMs > 200)

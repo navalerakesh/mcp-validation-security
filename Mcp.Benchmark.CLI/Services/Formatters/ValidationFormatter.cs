@@ -3,6 +3,7 @@ using System.Linq;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Resources;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.CLI.Services.Formatters;
 
@@ -232,7 +233,7 @@ public static class ValidationFormatter
                 _ => ConsoleColor.Gray
             };
 
-            var scoreText = (status == TestStatus.Skipped) ? "-" : (score.HasValue ? $"{score.Value:F0}%" : "-");
+            var scoreText = FormatScoreText(testResult, status, score);
             var issuesText = issues > 0 ? $"{issues}" : "-";
 
             FormatterUtils.WriteWithColor(name.PadRight(16), ConsoleColor.White, useColors);
@@ -267,12 +268,7 @@ public static class ValidationFormatter
 
     private static void DisplayOutputInfo(ValidationResult result, bool verbose, bool useColors)
     {
-        // Check for Skipped Tests due to Auth
-        var skippedTests = new List<string>();
-        if (result.ToolValidation?.Status == TestStatus.Skipped) skippedTests.Add("Tools");
-        if (result.ResourceTesting?.Status == TestStatus.Skipped) skippedTests.Add("Resources");
-        if (result.PromptTesting?.Status == TestStatus.Skipped) skippedTests.Add("Prompts");
-        if (result.PerformanceTesting?.Status == TestStatus.Skipped) skippedTests.Add("Performance");
+        var skippedTests = GetAuthenticationLimitedSkippedCategories(result);
 
         if (skippedTests.Any())
         {
@@ -286,6 +282,61 @@ public static class ValidationFormatter
             Console.WriteLine();
         }
 
+    }
+
+    private static List<string> GetAuthenticationLimitedSkippedCategories(ValidationResult result)
+    {
+        var skippedTests = new List<string>();
+
+        if (IsAuthenticationLimitedSkip(result.ToolValidation, result.ToolValidation?.AuthenticationSecurity?.AuthenticationRequired == true))
+        {
+            skippedTests.Add("Tools");
+        }
+
+        if (IsAuthenticationLimitedSkip(result.ResourceTesting))
+        {
+            skippedTests.Add("Resources");
+        }
+
+        if (IsAuthenticationLimitedSkip(result.PromptTesting))
+        {
+            skippedTests.Add("Prompts");
+        }
+
+        if (IsAuthenticationLimitedSkip(result.PerformanceTesting))
+        {
+            skippedTests.Add("Performance");
+        }
+
+        return skippedTests;
+    }
+
+    private static bool IsAuthenticationLimitedSkip(TestResultBase? testResult, bool explicitAuthEvidence = false)
+    {
+        if (testResult?.Status != TestStatus.Skipped)
+        {
+            return false;
+        }
+
+        if (explicitAuthEvidence)
+        {
+            return true;
+        }
+
+        if (testResult.Findings.Any(f => string.Equals(f.RuleId, ValidationFindingRuleIds.PerformanceAuthRequiredAdvisory, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var message = testResult.Message;
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return false;
+        }
+
+        return message.Contains("authentication", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase)
+            || message.Contains("invalid token", StringComparison.OrdinalIgnoreCase);
     }
 
     private static void DisplayDetailedOverallSummary(ValidationResult result, bool useColors)
@@ -441,6 +492,21 @@ public static class ValidationFormatter
             PromptTestResult prompt => prompt.PromptsTestFailed,
             _ => 0
         };
+    }
+
+    private static string FormatScoreText(object testResult, TestStatus status, double? score)
+    {
+        if (status == TestStatus.Skipped)
+        {
+            return "-";
+        }
+
+        if (testResult is PerformanceTestResult performance && !PerformanceMeasurementEvaluator.HasObservedMetrics(performance))
+        {
+            return "Unavailable";
+        }
+
+        return score.HasValue ? $"{score.Value:F0}%" : "-";
     }
 
 }

@@ -122,22 +122,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 toolsListDuration = (DateTime.UtcNow - toolsListStartTime).TotalMilliseconds;
             }
 
-            if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).IsAuthenticationChallenge)
+            var toolsListAuthChallenge = AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration);
+            if (toolsListAuthChallenge.RequiresAuthentication)
             {
                 result.Status = TestStatus.Passed;
                 result.Score = 100.0;
                 result.ToolsTestPassed = 1;
 
                 var authIssues = new List<string>();
-                string? authHeaderValue = null;
-
-                if (toolsListResponse.Headers != null)
-                {
-                    if (toolsListResponse.Headers.TryGetValue("WWW-Authenticate", out var val)) authHeaderValue = val.ToString();
-                    else if (toolsListResponse.Headers.TryGetValue("www-authenticate", out var val2)) authHeaderValue = val2.ToString();
-                }
-
-                var hasWwwAuth = !string.IsNullOrEmpty(authHeaderValue);
+                var authHeaderValue = toolsListAuthChallenge.WwwAuthenticateHeader;
+                var hasWwwAuth = toolsListAuthChallenge.HasWwwAuthenticateHeader;
 
                 if (hasWwwAuth) authIssues.Add("✅ Proper WWW-Authenticate header present");
                 else authIssues.Add("⚠️  Missing WWW-Authenticate header (recommended per RFC 9110)");
@@ -146,48 +140,26 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 authIssues.Add("🔒 MCP spec allows both public and auth-protected servers - this is SECURE");
 
                 authSecurity ??= new AuthenticationSecurityResult();
-                authSecurity.AuthenticationRequired = true;
-                authSecurity.RejectsUnauthenticated = true;
-                authSecurity.CorrectStatusCodes = true;
-                authSecurity.ErrorResponsesCompliant = true;
-                authSecurity.HasProperAuthHeaders = hasWwwAuth;
-                authSecurity.ChallengeStatusCode = toolsListResponse.StatusCode;
-                if (toolsListDuration > 0)
-                {
-                    authSecurity.ChallengeDurationMs = toolsListDuration;
-                }
-
-                if (hasWwwAuth)
-                {
-                    authSecurity.WwwAuthenticateHeader = authHeaderValue;
-                }
-
-                authSecurity.SecurityScore = hasWwwAuth ? 100.0 : 85.0;
+                AuthenticationChallengeInterpreter.Apply(authSecurity, toolsListAuthChallenge);
                 result.AuthenticationSecurity = authSecurity;
                 result.AuthenticationProperlyEnforced = authSecurity.AuthenticationRequired && authSecurity.HasProperAuthHeaders;
 
                 AuthMetadata? authMetadata = null;
-                if (hasWwwAuth && authHeaderValue!.Contains("resource_metadata=\""))
+                if (!string.IsNullOrEmpty(toolsListAuthChallenge.ResourceMetadataUrl))
                 {
                     try
                     {
-                        var start = authHeaderValue.IndexOf("resource_metadata=\"") + "resource_metadata=\"".Length;
-                        var end = authHeaderValue.IndexOf("\"", start);
-                        if (end > start)
+                        Logger.LogDebug("Fetching auth metadata from: {MetadataUrl}", toolsListAuthChallenge.ResourceMetadataUrl);
+
+                        var json = await _httpClient.GetStringAsync(toolsListAuthChallenge.ResourceMetadataUrl, ct);
+                        authMetadata = JsonSerializer.Deserialize<AuthMetadata>(json);
+
+                        if (authMetadata != null)
                         {
-                            var metadataUrl = authHeaderValue.Substring(start, end - start);
-                            Logger.LogDebug($"Fetching auth metadata from: {metadataUrl}");
-
-                            var json = await _httpClient.GetStringAsync(metadataUrl, ct);
-                            authMetadata = JsonSerializer.Deserialize<AuthMetadata>(json);
-
-                            if (authMetadata != null)
+                            authIssues.Add("✅ Successfully fetched and parsed OAuth 2.0 Metadata");
+                            if (authSecurity != null)
                             {
-                                authIssues.Add("✅ Successfully fetched and parsed OAuth 2.0 Metadata");
-                                if (authSecurity != null)
-                                {
-                                    authSecurity.AuthMetadata = authMetadata;
-                                }
+                                authSecurity.AuthMetadata = authMetadata;
                             }
                         }
                     }
@@ -269,7 +241,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
                 
                 // If still 401/403 after retry (or no retry), return the Auth Check result
-                if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).IsAuthenticationChallenge)
+                if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).RequiresAuthentication)
                 {
                     // If interactive auth was requested but failed, mark as SKIPPED instead of PASSED
                     if (serverConfig.Authentication?.AllowInteractive == true)
@@ -382,10 +354,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 !schemaValidationResult.IsValid)
             {
                     var schemaErrors = schemaValidationResult.Errors ?? new List<string>();
-                    var hasProcessingError = schemaErrors.Any(e => e.Contains("Schema processing error", StringComparison.OrdinalIgnoreCase));
-                    var schemaIssueHeader = hasProcessingError
-                        ? "⚠️ Schema validation warning: tools/list schema could not be fully processed"
-                        : "❌ NON-COMPLIANT: tools/list response does not conform to MCP JSON Schema";
+                    var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(schemaValidationResult);
+                    var schemaIssueHeader = SchemaValidationHelpers.FormatListSchemaIssueHeader(ValidationConstants.Methods.ToolsList, hasProcessingError);
 
                     // Only count hard schema violations (where we could
                     // fully process the schema and found non-compliance)
@@ -541,7 +511,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             var toolCallDuration = (DateTime.UtcNow - toolCallStartTime).TotalMilliseconds;
             result.ExecutionTimeMs = toolCallDuration;
 
-            if (AuthenticationChallengeInterpreter.Inspect(toolCallResponse).IsAuthenticationChallenge)
+            if (AuthenticationChallengeInterpreter.Inspect(toolCallResponse).RequiresAuthentication)
             {
                 // Auth enforced on individual tool call — compliant
                 result.Status = TestStatus.Passed;
@@ -847,7 +817,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             // Discover tools first
             var listResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
-            if (AuthenticationChallengeInterpreter.Inspect(listResponse).IsAuthenticationChallenge)
+            if (AuthenticationChallengeInterpreter.Inspect(listResponse).RequiresAuthentication)
             {
                 result.Status = TestStatus.Skipped;
                 result.Message = "Tool execution skipped: authentication required.";
@@ -891,7 +861,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     sw.Stop();
                     toolResult.ExecutionTimeMs = sw.ElapsedMilliseconds;
 
-                    if (AuthenticationChallengeInterpreter.Inspect(callResponse).IsAuthenticationChallenge)
+                    if (AuthenticationChallengeInterpreter.Inspect(callResponse).RequiresAuthentication)
                     {
                         toolResult.Status = TestStatus.Passed;
                         toolResult.ExecutionSuccessful = true;

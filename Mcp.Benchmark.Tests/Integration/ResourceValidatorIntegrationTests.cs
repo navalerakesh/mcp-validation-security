@@ -6,6 +6,7 @@ using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using Moq;
 using FluentAssertions;
+using System.Text;
 using Xunit;
 
 namespace Mcp.Benchmark.Tests.Integration;
@@ -14,18 +15,24 @@ public class ResourceValidatorIntegrationTests
 {
     private readonly ResourceValidator _validator;
     private readonly Mock<IMcpHttpClient> _httpClientMock;
+    private readonly Mock<ISchemaValidator> _schemaValidatorMock;
+    private readonly Mock<ISchemaRegistry> _schemaRegistryMock;
 
     public ResourceValidatorIntegrationTests()
     {
         var logger = new Mock<ILogger<ResourceValidator>>();
         _httpClientMock = new Mock<IMcpHttpClient>();
-        var schemaValidator = new Mock<ISchemaValidator>();
-        var schemaRegistry = new Mock<ISchemaRegistry>();
+        _schemaValidatorMock = new Mock<ISchemaValidator>();
+        _schemaRegistryMock = new Mock<ISchemaRegistry>();
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
         contentSafety.Setup(x => x.AnalyzeResource(It.IsAny<string>(), It.IsAny<string>()))
             .Returns(new List<ContentSafetyFinding>());
 
-        _validator = new ResourceValidator(logger.Object, _httpClientMock.Object, schemaValidator.Object, schemaRegistry.Object, contentSafety.Object);
+        _schemaRegistryMock
+            .Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Throws(new FileNotFoundException("Schema not found"));
+
+        _validator = new ResourceValidator(logger.Object, _httpClientMock.Object, _schemaValidatorMock.Object, _schemaRegistryMock.Object, contentSafety.Object);
     }
 
     [Fact]
@@ -212,5 +219,36 @@ public class ResourceValidatorIntegrationTests
         var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig(), CancellationToken.None);
 
         result.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateResourceDiscovery_WithSchemaProcessingError_ShouldWarnWithoutFailingCategory()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[{\"uri\":\"repo://demo/readme.md\",\"name\":\"README\",\"mimeType\":\"text/markdown\"}]},\"id\":1}"
+            });
+
+        _schemaRegistryMock
+            .Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), "protocol", "schema"))
+            .Returns(() => new MemoryStream(Encoding.UTF8.GetBytes("{\"$defs\":{\"ListResourcesResult\":{\"type\":\"object\"}}}")));
+
+        _schemaValidatorMock
+            .Setup(validator => validator.Validate(It.IsAny<System.Text.Json.Nodes.JsonNode>(), It.IsAny<System.Text.Json.Nodes.JsonNode>()))
+            .Returns(new SchemaValidationResult
+            {
+                IsValid = false,
+                Errors = new List<string> { "Schema processing error: Could not resolve 'https://example.test/$defs/Resource'" }
+            });
+
+        var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig { TestResourceReading = false }, CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.Issues.Should().Contain(issue => issue.Contains("Schema validation warning: resources/list schema could not be fully processed"));
+        result.Issues.Should().NotContain(issue => issue.Contains("NON-COMPLIANT", StringComparison.OrdinalIgnoreCase));
     }
 }

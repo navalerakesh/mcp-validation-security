@@ -275,7 +275,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var response = await _httpClient.CallAsync(endpoint, method, null, ct);
             if (!string.IsNullOrEmpty(response.RawJson) && response.RawJson.Contains("-32601", StringComparison.Ordinal)) return false; // MethodNotFound
             if (response.IsSuccess) return true;
-            if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true; // Auth-blocked but exists
+            if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true; // Auth-blocked but exists
             return response.StatusCode != 404;
         }
         catch
@@ -549,7 +549,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             if (string.IsNullOrEmpty(negotiatedVersion))
                             {
                                 result.Violations.Add(CreateViolation(
-                                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                                    ValidationConstants.CheckIds.ProtocolInitializeMissingProtocolVersion,
                                     "Server did not return a protocolVersion in initialize response",
                                     ViolationSeverity.High,
                                     ValidationConstants.Categories.ProtocolLifecycle,
@@ -561,14 +561,14 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                                 Logger.LogInformation("Protocol version negotiated: requested={Requested}, server={Server}", requestedVersion, negotiatedVersion);
                             }
 
-                            // Also verify serverInfo is present (SHOULD per spec)
+                            // Verify serverInfo is present and complete (required by the initialize result schema)
                             if (res.TryGetProperty("serverInfo", out var serverInfo))
                             {
                                 // serverInfo MUST have 'name' (string) and 'version' (string)
                                 if (!serverInfo.TryGetProperty("name", out _))
                                 {
                                     result.Violations.Add(CreateViolation(
-                                        ValidationConstants.CheckIds.ProtocolLifecycle,
+                                        ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoName,
                                         "serverInfo missing 'name' field (MUST per spec)",
                                         ViolationSeverity.Medium,
                                         ValidationConstants.Categories.ProtocolLifecycle,
@@ -577,7 +577,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                                 if (!serverInfo.TryGetProperty("version", out _))
                                 {
                                     result.Violations.Add(CreateViolation(
-                                        ValidationConstants.CheckIds.ProtocolLifecycle,
+                                        ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfoVersion,
                                         "serverInfo missing 'version' field (MUST per spec)",
                                         ViolationSeverity.Medium,
                                         ValidationConstants.Categories.ProtocolLifecycle,
@@ -587,9 +587,9 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             else
                             {
                                 result.Violations.Add(CreateViolation(
-                                    ValidationConstants.CheckIds.ProtocolLifecycle,
-                                    "Server did not return serverInfo in initialize response (SHOULD per spec)",
-                                    ViolationSeverity.Low,
+                                    ValidationConstants.CheckIds.ProtocolInitializeMissingServerInfo,
+                                    "Server did not return serverInfo in initialize response (MUST per schema)",
+                                    ViolationSeverity.High,
                                     ValidationConstants.Categories.ProtocolLifecycle,
                                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
                             }
@@ -606,7 +606,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                             else
                             {
                                 result.Violations.Add(CreateViolation(
-                                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                                    ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities,
                                     "Server did not return capabilities in initialize response (MUST per spec)",
                                     ViolationSeverity.High,
                                     ValidationConstants.Categories.ProtocolLifecycle,
@@ -626,7 +626,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 result.Status = TestStatus.Failed;
                 result.Score = 0.0;
                 result.Violations.Add(CreateViolation(
-                    ValidationConstants.CheckIds.ProtocolLifecycle,
+                    ValidationConstants.CheckIds.ProtocolInitializeResponse,
                     "Server failed to respond to initialize request",
                     ViolationSeverity.Critical,
                     ValidationConstants.Categories.ProtocolLifecycle,
@@ -667,7 +667,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var validResponse = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
         
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
-        if (AuthenticationChallengeInterpreter.Inspect(validResponse).IsAuthenticationChallenge) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(validResponse).RequiresAuthentication) return true;
 
         if (!validResponse.IsSuccess && validResponse.StatusCode != 404) return false; // 404 is fine for ping
 
@@ -700,7 +700,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var response = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
         
         // If auth failed, we can't validate response format, but we shouldn't fail the test
-        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
 
         if (string.IsNullOrEmpty(response.RawJson)) return false;
 
@@ -722,7 +722,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var batchRequest = "[{\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}, {\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 2}]";
         var response = await _httpClient.SendRawJsonAsync(endpoint, batchRequest, cancellationToken);
         
-        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
 
         if (!response.IsSuccess) return false; // Batch support is optional but basic handling should work
 
@@ -739,11 +739,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     private async Task<bool> CheckNotificationHandlingAsync(string endpoint, CancellationToken cancellationToken)
     {
-        // Notification = Request without ID
-        var notification = "{\"jsonrpc\": \"2.0\", \"method\": \"ping\"}";
+        // Use a real MCP notification method instead of a request-style method like ping.
+        // This avoids classifying "missing id" method validation as a notification response bug.
+        var notification = $"{{\"jsonrpc\": \"2.0\", \"method\": \"{McpSpecConstants.InitializedNotification}\"}}";
         var response = await _httpClient.SendRawJsonAsync(endpoint, notification, cancellationToken);
         
-        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
 
         // Server MUST NOT respond to notifications (empty body or 204 No Content)
         // ACCEPTABLE: 202 Accepted (processing started)
@@ -756,7 +757,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     {
         var response = await _httpClient.CallAsync(endpoint, "non_existent_method", null, cancellationToken);
         
-        if (AuthenticationChallengeInterpreter.Inspect(response).IsAuthenticationChallenge) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
 
         // If server rejects with 404/405/406/400, it's compliant enough for transport layer
         if (response.StatusCode == 404 || response.StatusCode == 405 || response.StatusCode == 406 || response.StatusCode == 400) return true;

@@ -78,16 +78,16 @@ public class PerformanceMetricsCalculatorTests
     }
 
     [Fact]
-    public void IdentifyBottlenecks_WithToolCallLatency_ShouldReport()
+    public void IdentifyBottlenecks_WithHealthyToolCallLatency_ShouldNotReport()
     {
         var findings = PerformanceMetricsCalculator.IdentifyBottlenecks(100, 0, 200, 250, "echo");
-        findings.Should().Contain(f => f.Contains("echo") && f.Contains("250"));
+        findings.Should().BeEmpty();
     }
 
     [Fact]
     public void IdentifyBottlenecks_WithSlowToolCall_ShouldFlagSLO()
     {
         var findings = PerformanceMetricsCalculator.IdentifyBottlenecks(100, 0, 200, 6000, "slow_tool");
-        findings.Should().Contain(f => f.Contains("5000ms SLO"));
+        findings.Should().Contain(f => f.Contains("5000ms SLO") && f.Contains("slow_tool"));
     }
 }

@@ -281,7 +281,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         if (result.ClientCompatibility?.Assessments.Count > 0)
         {
             findings.AddRange(result.ClientCompatibility.Assessments
-                .Where(assessment => assessment.Status != ClientProfileCompatibilityStatus.Compatible)
+                .Where(assessment => assessment.Status == ClientProfileCompatibilityStatus.Incompatible)
                 .Take(2)
                 .Select(assessment => $"Client profile {assessment.DisplayName}: {assessment.StatusLabel}. {assessment.Summary}"));
         }

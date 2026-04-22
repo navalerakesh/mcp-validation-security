@@ -71,8 +71,8 @@ public abstract class BaseValidator<T> where T : class
         {
             Logger.LogWarning("{Operation} timed out or was cancelled", operationName);
             result.Status = TestStatus.Failed; // Or Error?
-            result.Message = "Operation timed out or was cancelled";
-            result.CriticalErrors.Add("Operation timed out or was cancelled");
+            result.Message = ValidationConstants.Messages.OperationTimedOutOrWasCancelled;
+            result.CriticalErrors.Add(ValidationConstants.Messages.OperationTimedOutOrWasCancelled);
             result.Duration = DateTime.UtcNow - startTime;
             return result;
         }

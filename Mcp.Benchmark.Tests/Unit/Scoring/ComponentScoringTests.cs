@@ -160,6 +160,23 @@ public class ComponentScoringTests
     }
 
     [Fact]
+    public void PerformanceScoring_WithOnlyRateLimitedFailures_ShouldNotPenalizeServerReadiness()
+    {
+        var strategy = new PerformanceScoringStrategy();
+        var result = new PerformanceTestResult
+        {
+            LoadTesting = new LoadTestResult
+            {
+                AverageResponseTimeMs = 100,
+                FailedRequests = 3,
+                RateLimitedRequests = 3
+            }
+        };
+
+        strategy.CalculateScore(result).Should().Be(100);
+    }
+
+    [Fact]
     public void PerformanceScoring_WithNullLoadTesting_ShouldHandleGracefully()
     {
         var strategy = new PerformanceScoringStrategy();
