@@ -55,6 +55,34 @@ public class FixtureServerProcessIntegrationTests
     }
 
     [Fact]
+    public async Task StrictSessionFixtureServer_ShouldCompletePostInitializeTransitionBeforeToolDiscovery()
+    {
+        var command = BuildFixtureCommand("strict-session");
+        await using var adapter = await StartFixtureServerAsync(command);
+
+        var capabilitySnapshot = await adapter.ValidateCapabilitiesAsync(command, CancellationToken.None);
+
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = command,
+            Transport = "stdio"
+        };
+
+        var toolValidator = CreateToolValidator(adapter);
+        var result = await toolValidator.ValidateToolDiscoveryAsync(serverConfig, new ToolTestingConfig
+        {
+            TestToolDiscovery = true,
+            CapabilitySnapshot = capabilitySnapshot
+        }, CancellationToken.None);
+
+        capabilitySnapshot.IsSuccessful.Should().BeTrue();
+        capabilitySnapshot.Payload.Should().NotBeNull();
+        capabilitySnapshot.Payload!.ToolListResponse.Should().NotBeNull();
+        result.ToolsDiscovered.Should().Be(2);
+        result.DiscoveredToolNames.Should().Contain(new[] { "list_repositories", "get_repository" });
+    }
+
+    [Fact]
     public async Task PartialFixtureServer_ShouldSurfacePromptAndResourceFindings()
     {
         var command = BuildFixtureCommand("partial");

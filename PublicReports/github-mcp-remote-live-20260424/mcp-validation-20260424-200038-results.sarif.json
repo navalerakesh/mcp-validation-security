@@ -126,6 +126,29 @@
               }
             },
             {
+              "id": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
+              "name": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
+              "shortDescription": {
+                "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
+              },
+              "fullDescription": {
+                "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
+              },
+              "help": {
+                "text": "Add nextCursor pagination for large tool catalogs so clients can discover tools incrementally."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "tools/list"
+                ]
+              }
+            },
+            {
               "id": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "name": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "shortDescription": {
@@ -405,10 +428,10 @@
               "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "shortDescription": {
-                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
               },
               "fullDescription": {
-                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
               },
               "help": {
                 "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
@@ -421,6 +444,29 @@
                   "guideline",
                   "Performance",
                   "tools/list"
+                ]
+              }
+            },
+            {
+              "id": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "name": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "shortDescription": {
+                "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+              },
+              "fullDescription": {
+                "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+              },
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "spec",
+                "category": "Protocol",
+                "tags": [
+                  "spec",
+                  "Protocol",
+                  "invalid-method"
                 ]
               }
             },
@@ -518,7 +564,7 @@
         }
       },
       "automationDetails": {
-        "id": "dfdd05e3-92e4-4204-8c2c-4f3be39576ed",
+        "id": "c2f92529-57a8-4630-aa62-323962450c08",
         "description": {
           "text": "MCP validation run"
         }
@@ -526,13 +572,13 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-22T13:44:05.4324050Z",
-          "endTimeUtc": "2026-04-22T13:46:17.7132220Z",
+          "startTimeUtc": "2026-04-24T20:00:05.7475040Z",
+          "endTimeUtc": "2026-04-24T20:00:38.2419940Z",
           "properties": {
-            "validationId": "dfdd05e3-92e4-4204-8c2c-4f3be39576ed",
+            "validationId": "c2f92529-57a8-4630-aa62-323962450c08",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
-            "overallStatus": "Passed",
+            "overallStatus": "Failed",
             "serverProfile": "Authenticated",
             "specProfile": "latest"
           }
@@ -708,6 +754,35 @@
               "declared": "false",
               "supported": "true"
             }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED|tools/list|tools/list returned 41 tools (~25,152 tokens) without pagination support."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "tools/list",
+            "severity": "Low",
+            "recommendation": "Add nextCursor pagination for large tool catalogs so clients can discover tools incrementally."
           }
         },
         {
@@ -6488,10 +6563,10 @@
           "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+            "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
           },
           "locations": [
             {
@@ -6511,9 +6586,42 @@
             "severity": "Info",
             "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
             "metadata": {
-              "requests": "500",
-              "concurrency": "100",
+              "requests": "20",
+              "concurrency": "4",
               "operation": "tools/list"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-method|Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-method"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "invalid-method",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32601",
+              "actualResponse": "HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: \u0022nonexistent_method_12345\u0022 unsupported\n"
             }
           }
         },

@@ -87,4 +87,40 @@ public class PromptValidatorUnitTests
         result.Score.Should().Be(100);
         result.Issues.Should().Contain("✅ COMPLIANT: No prompts were advertised; no prompt executions were required");
     }
+
+    [Fact]
+    public async Task ValidatePromptDiscoveryAsync_WithMethodNotFound_ShouldTreatPromptSurfaceAsNotAdvertised()
+    {
+        var httpClient = new Mock<IMcpHttpClient>();
+        httpClient
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                "prompts/list",
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 400,
+                IsSuccess = false,
+                Error = "Method not found",
+                RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":1}"
+            });
+
+        var validator = new PromptValidator(
+            new Mock<ILogger<PromptValidator>>().Object,
+            httpClient.Object,
+            new Mock<ISchemaValidator>().Object,
+            new Mock<ISchemaRegistry>().Object,
+            new Mock<IContentSafetyAnalyzer>().Object);
+
+        var result = await validator.ValidatePromptDiscoveryAsync(
+            new McpServerConfig { Endpoint = "stdio-server", Transport = "stdio" },
+            new PromptTestingConfig { TestPromptExecution = false },
+            CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.PromptsDiscovered.Should().Be(0);
+        result.Score.Should().Be(100);
+        result.Issues.Should().Contain("✅ COMPLIANT: No prompts were advertised; no prompt executions were required");
+    }
 }

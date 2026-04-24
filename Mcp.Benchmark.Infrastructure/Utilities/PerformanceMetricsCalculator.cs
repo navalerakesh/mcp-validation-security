@@ -12,7 +12,7 @@ public static class PerformanceMetricsCalculator
     /// </summary>
     /// <param name="times">Response times (will be sorted internally).</param>
     /// <param name="percentile">Percentile to calculate (0.0 to 1.0, e.g., 0.95 for P95).</param>
-    public static double GetPercentile(IReadOnlyList<long> times, double percentile)
+    public static double GetPercentile(IReadOnlyList<double> times, double percentile)
     {
         if (times.Count == 0) return 0;
         var sorted = times.OrderBy(x => x).ToList();

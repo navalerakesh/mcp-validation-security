@@ -117,7 +117,7 @@ internal sealed class ValidationHtmlReportComposer
             "This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.",
             executiveAbstract,
             document.ReleaseDecision.Tone,
-            openByDefault: true));
+            openByDefault: false));
         sb.AppendLine("          <div class=\"brief-grid\">");
         sb.AppendLine(RenderReleaseDecision(document.ReleaseDecision));
         sb.AppendLine("            <div class=\"brief-side\">");
@@ -150,7 +150,7 @@ internal sealed class ValidationHtmlReportComposer
                 "Grouped decision themes show the causal path from evidence to gate outcome. Hotspots call out the components absorbing the most pressure.",
                 decisionTraceAbstract,
                 document.DecisionTrace.FirstOrDefault()?.Tone ?? HtmlReportTone.Info,
-                openByDefault: true));
+                openByDefault: false));
             sb.AppendLine("          <div class=\"dual-grid\">");
             sb.AppendLine(RenderDecisionTraceLedger(document.DecisionTrace));
             sb.AppendLine(RenderHotspotPanel(document.Hotspots));
@@ -168,7 +168,7 @@ internal sealed class ValidationHtmlReportComposer
             "Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.",
             scorecardAbstract,
             HtmlReportTone.Info,
-            openByDefault: true));
+            openByDefault: false));
         sb.AppendLine(RenderEvaluationPrinciples());
         sb.AppendLine(RenderScoreStrip(document.OverviewMetrics));
         sb.AppendLine(RenderDomainCalibrationTable(document.RiskMetrics));
@@ -207,8 +207,9 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("            </div>");
         }
         sb.AppendLine("            <div class=\"section-card__toggle-row\">");
-        sb.AppendLine("              <span class=\"section-card__toggle-label\">Section details</span>");
         sb.AppendLine("              <span class=\"section-card__toggle-icon\" aria-hidden=\"true\"></span>");
+        sb.AppendLine("              <span class=\"section-card__toggle-label section-card__toggle-label--collapsed\">Expand details</span>");
+        sb.AppendLine("              <span class=\"section-card__toggle-label section-card__toggle-label--expanded\">Collapse details</span>");
         sb.AppendLine("            </div>");
         sb.AppendLine("          </summary>");
         sb.AppendLine("          <div class=\"section-card__content\">");
@@ -536,7 +537,7 @@ internal sealed class ValidationHtmlReportComposer
             bootstrap.Summary,
             abstractItems,
             bootstrap.Tone,
-            openByDefault: true));
+            openByDefault: false));
         sb.AppendLine("          <div class=\"section-heading-row\">");
         sb.AppendLine("            <div></div>");
         sb.AppendLine($"            <span class=\"tone-chip tone-{toneCss}\">{Encode(bootstrap.BadgeLabel)}</span>");
@@ -568,7 +569,7 @@ internal sealed class ValidationHtmlReportComposer
             $"{compatibility.Assessments.Count} profiles evaluated. Shared requirement themes are summarized first so profile cards only need to explain host-specific differences.",
             abstractItems,
             compatibility.IncompatibleCount > 0 ? HtmlReportTone.Danger : compatibility.WarningCount > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success,
-            openByDefault: true));
+            openByDefault: false));
         sb.AppendLine(RenderDistributionSummary(
             "Compatibility Distribution",
             new[]
@@ -1452,7 +1453,7 @@ internal sealed class ValidationHtmlReportComposer
                 : "The performance probe did not produce representative timing samples for this run.",
             performanceAbstract,
             performanceTone,
-            openByDefault: true));
+            openByDefault: false));
 
         if (!hasObservedMetrics)
         {

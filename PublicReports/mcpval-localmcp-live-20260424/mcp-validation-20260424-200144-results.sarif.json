@@ -1,0 +1,231 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "name": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "shortDescription": {
+                "text": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio."
+              },
+              "fullDescription": {
+                "text": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio."
+              },
+              "help": {
+                "text": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "batch"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "shortDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "help": {
+                "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "tools/list"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+              "name": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+              "shortDescription": {
+                "text": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test."
+              },
+              "fullDescription": {
+                "text": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test."
+              },
+              "help": {
+                "text": "Extend the transport harness if this probe must become a first-class validation requirement."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "ErrorHandling",
+                "tags": [
+                  "guideline",
+                  "ErrorHandling",
+                  "malformed-json"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-04-24T20:01:13.4689020Z",
+          "endTimeUtc": "2026-04-24T20:01:44.4491090Z",
+          "properties": {
+            "validationId": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+            "endpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
+            "transport": "stdio",
+            "overallStatus": "Passed",
+            "serverProfile": "Public",
+            "specProfile": "latest"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED|batch|Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "batch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "batch",
+            "severity": "Info",
+            "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": "Info",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "metadata": {
+              "requests": "20",
+              "concurrency": "4",
+              "operation": "tools/list"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED|malformed-json|Malformed JSON probing is enabled, but the active transport did not expose a parse-error test."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "malformed-json"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "ErrorHandling",
+            "component": "malformed-json",
+            "severity": "Info",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED|invalid-request|Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-request"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "ErrorHandling",
+            "component": "invalid-request",
+            "severity": "Info",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement."
+          }
+        }
+      ]
+    }
+  ]
+}

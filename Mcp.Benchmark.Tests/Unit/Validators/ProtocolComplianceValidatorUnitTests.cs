@@ -123,6 +123,57 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithStdioEndpoint_ShouldNotThrowWhenHttpOnlyRulesAreAbsent()
+    {
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "npx -y mcpval-localmcp",
+            Transport = "stdio"
+        };
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig
+        {
+            TestJsonRpcCompliance = true,
+            ProtocolVersion = "2024-11-05"
+        });
+
+        result.Should().NotBeNull();
+        result.Status.Should().NotBe(TestStatus.Error);
+        result.CriticalErrors.Should().BeEmpty();
+        result.Message.Should().NotContain("Sequence contains no matching element");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithStdioTransport_ShouldSkipBatchProbeViolations()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.Is<string>(raw => raw.StartsWith("[{\"jsonrpc\"", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 500,
+                IsSuccess = false,
+                Error = "No batch response"
+            });
+
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "npx -y mcpval-localmcp",
+            Transport = "stdio"
+        };
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
+        result.Findings.Should().Contain(f => f.RuleId == "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED");
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_WithNullEndpoint_ShouldReturnFailedStatus()
     {
         var validator = CreateValidator();

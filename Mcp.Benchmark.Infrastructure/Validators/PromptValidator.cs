@@ -104,6 +104,15 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     : "⚠️  ACCEPTED: Authentication required but missing WWW-Authenticate header");
                 return result;
             }
+
+            if (JsonRpcResponseInspector.IsMethodNotFound(response))
+            {
+                result.Status = TestStatus.Passed;
+                result.PromptsDiscovered = 0;
+                result.Score = 100;
+                result.Issues.Add("✅ COMPLIANT: No prompts were advertised; no prompt executions were required");
+                return result;
+            }
             
             if (!response.IsSuccess)
             {

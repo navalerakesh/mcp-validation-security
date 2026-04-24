@@ -771,22 +771,57 @@ body {
     align-items: center;
     gap: 10px;
     justify-self: start;
-    color: var(--text-soft);
-    font-size: 0.74rem;
-    letter-spacing: 0.14em;
+    margin-top: 2px;
+    padding: 8px 12px;
+    border: 1px solid rgba(54, 95, 161, 0.22);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.92);
+    box-shadow: 0 6px 16px rgba(15, 23, 38, 0.08);
+    color: var(--text-strong);
+}
+.section-card__summary:hover .section-card__toggle-row,
+.section-card__summary:focus-visible .section-card__toggle-row {
+    border-color: rgba(54, 95, 161, 0.4);
+    background: rgba(255,255,255,0.98);
+}
+.section-card__toggle-label {
+    font-size: 0.76rem;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    font-weight: 700;
+    font-weight: 800;
+}
+.section-card__toggle-label--expanded {
+    display: none;
 }
 .section-card__toggle-icon {
-    width: 12px;
-    height: 12px;
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid currentColor;
+    border-radius: 999px;
+    flex: 0 0 auto;
+}
+.section-card__toggle-icon::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 4px;
+    width: 5px;
+    height: 5px;
     border-right: 2px solid currentColor;
     border-bottom: 2px solid currentColor;
     transform: rotate(45deg);
-    transition: transform 160ms ease;
+    transition: transform 160ms ease, top 160ms ease;
 }
-.section-card[open] .section-card__toggle-icon {
+.section-card[open] .section-card__toggle-label--collapsed {
+    display: none;
+}
+.section-card[open] .section-card__toggle-label--expanded {
+    display: inline;
+}
+.section-card[open] .section-card__toggle-icon::before {
     transform: rotate(225deg);
+    top: 7px;
 }
 .section-card__content {
     border-top: 1px solid rgba(174, 187, 201, 0.45);

@@ -1,21 +1,24 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-24 09:32:28 UTC
+**Generated:** 2026-04-24 20:00:38 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://api.githubcopilot.com/mcp/` |
-| **Validation ID** | `63abb18a-d502-4348-9393-c61ed655a85c` |
-| **Overall Status** | ✅ **Passed** |
+| **Validation ID** | `c2f92529-57a8-4630-aa62-323962450c08` |
+| **Overall Status** | ❌ **Failed** |
+| **Baseline Verdict** | **Reject** |
+| **Protocol Verdict** | **Reject** |
+| **Coverage Verdict** | **Trusted** |
 | **Compliance Score** | **73.4%** |
 | **Compliance Profile** | `Authenticated (Inferred)` |
-| **Duration** | 128.63s |
+| **Duration** | 32.49s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
 | **MCP Protocol Version (Effective)** | `2025-11-25` |
-| **MCP Trust Level** | 🔵 **L4: Trusted — Meets enterprise AI safety requirements** |
+| **Benchmark Trust Level** | 🔵 **L4: Trusted — Meets enterprise AI safety requirements** |
 
 ## 2. Connectivity & Session Bootstrap
 
@@ -27,9 +30,9 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 1272.3 ms |
+| **Handshake Duration** | 1473.1 ms |
 | **Negotiated Protocol** | `2025-11-25` |
-| **Observed Server Version** | `github-mcp-server/remote-db56d310138fc1df6a65d41403eb53a9e32f48bc` |
+| **Observed Server Version** | `github-mcp-server/remote-3242d9e12bd9ffa96a76388614e42ce90d05f764` |
 | **Server Profile Resolution** | `Authenticated (Inferred)` |
 
 Validation began from a clean bootstrap with no deferred connectivity risk carried into later categories.
@@ -38,6 +41,9 @@ Validation began from a clean bootstrap with no deferred connectivity risk carri
 
 These are the highest-signal outcomes from this validation run.
 
+- Policy balanced blocked the run: Balanced policy blocked the validation result with 84 unsuppressed signal(s).
+- 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops
+- Name/URI suggests potential system impact capability (matched keyword: 'delete').
 - MCP-PROTO-JSONRPC: Batch processing implementation is inconsistent or incomplete
 - MCP-PROTO-ERR: JSON-RPC Error Code Violation: Method Not Found
 
@@ -45,15 +51,38 @@ These are the highest-signal outcomes from this validation run.
 
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
+- AiReadiness: 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops.
 - Protocol: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure ba....
 - Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse e....
 - Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch....
-- Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error....
 
-## 5. MCP Trust Assessment
+## 5. Deterministic Verdicts
 
-Multi-dimensional evaluation of server trustworthiness for AI agent consumption.
-Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
+These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.
+
+| Lane | Verdict | Meaning |
+| :--- | :--- | :--- |
+| **Baseline** | **Reject** | Overall deterministic gate across blocking findings and coverage debt. |
+| **Protocol** | **Reject** | Protocol correctness and contract integrity. |
+| **Coverage** | **Trusted** | Whether enabled validation surfaces produced authoritative evidence. |
+
+Baseline=Reject; Protocol=Reject; Coverage=Trusted; BlockingDecisions=84.
+
+### Blocking Decisions
+
+- **Reject** [AiReadiness] `delete_file`: 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops
+- **Reject** [AiReadiness] `get_latest_release`: 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops
+- **Reject** [AiReadiness] `list_releases`: 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops
+- **Reject** [ContentSafety.SystemImpact] `delete_file`: Name/URI suggests potential system impact capability (matched keyword: 'delete').
+- **Reject** [Protocol] `invalid-method`: Error-handling scenario 'Invalid Method Call' did not return the expected JSON-RPC error code -32601.
+- **Review Required** [Destructive] `delete_file`: Tool 'delete_file' declares destructiveHint=true. AI agents SHOULD require human confirmation before invocation.
+- **Review Required** [LLM-Hostile] `Error Responses`: Average LLM-friendliness score is 10/100 (Anti-LLM). Error messages don't help AI agents self-correct, causing hallucination and retry loops.
+- **Review Required** [TierCheck] `tools/call`: SHOULD requirement failed: SHOULD: tools/call result includes 'isError' field
+
+## 6. Benchmark Trust Profile
+
+Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.
+This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.
 
 | Dimension | Score | What It Measures |
 | :--- | :---: | :--- |
@@ -109,7 +138,7 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 - ✅ MAY: Server supports resources/templates/list
 - ✅ MAY: Tools include 'annotations' (readOnlyHint, destructiveHint)
 
-## 6. Client Profile Compatibility
+## 7. Client Profile Compatibility
 
 Documented host-side compatibility assessments derived from the neutral validation evidence collected during this run.
 
@@ -208,7 +237,7 @@ Required compatibility checks passed; 3 advisory requirements still need follow-
 - ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
 - ⚠️ **Prompt metadata is descriptive enough for guided use:** Mention when a prompt expects multiple required inputs so callers can prepare the full argument set before execution.
 
-## 7. Validation Envelope
+## 8. Validation Envelope
 
 This section exposes the structured validation envelope used for layered reporting, coverage tracking, and pack provenance.
 
@@ -217,7 +246,7 @@ This section exposes the structured validation envelope used for layered reporti
 | Layer | Status | Findings | Summary |
 | :--- | :--- | :---: | :--- |
 | `protocol-core` | ✅ Passed | 5 | declared capabilities: completions, prompts, resources, tools \| roots/list: supported \| logging/setLevel: supported \| sampling/createMessage: supported \| completion/complete: supported |
-| `tool-surface` | ✅ Passed | 190 | - |
+| `tool-surface` | ✅ Passed | 191 | - |
 | `resource-surface` | ✅ Passed | 0 | - |
 | `prompt-surface` | ✅ Passed | 1 | - |
 | `security-boundaries` | ✅ Passed | 7 | - |
@@ -231,7 +260,7 @@ This section exposes the structured validation envelope used for layered reporti
 | :--- | :--- | :---: | :--- |
 | `bootstrap-initialize-handshake` | ✅ Passed | 0 | Bootstrap health checks completed successfully. |
 | `protocol-compliance-review` | ✅ Passed | 5 | declared capabilities: completions, prompts, resources, tools \| roots/list: supported \| logging/setLevel: supported \| sampling/createMessage: supported \| completion/complete: supported |
-| `tool-catalog-smoke` | ✅ Passed | 198 | Tool validation completed. |
+| `tool-catalog-smoke` | ✅ Passed | 199 | Tool validation completed. |
 | `resource-catalog-smoke` | ✅ Passed | 0 | No resources were discovered during validation. |
 | `prompt-catalog-smoke` | ✅ Passed | 1 | Prompt validation completed. |
 | `security-authentication-challenge` | ✅ Passed | 0 | Evaluated 55 authentication challenge scenario(s). |
@@ -373,9 +402,9 @@ This section exposes the structured validation envelope used for layered reporti
 | `auth-revoked-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. |
 | `auth-wrong-audience-rfc-8707-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. |
 | `auth-valid-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"af2c75f0-4a31-4ff6-8eed-93f3ce3946b1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"6968e1b3-08f2-4373-bea0-0879f4bfe96c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"55a50428-a0fa-4921-b3c9-231643194c37","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"217bb3d1-ddee-4f58-bee8-4a5247c62f9c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"289eafca-59b6-48ab-81c7-8da56501a752","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"1601051d-bf4f-4ef7-8fbf-30d200acc1a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
@@ -386,24 +415,24 @@ This section exposes the structured validation envelope used for layered reporti
 | `error-timeout-handling-recovery` | `error-handling` | `timeout-handling` | `error-scenario` | Validator cancelled the HTTP request after the induced timeout window elapsed. |
 | `error-connection-interruption-recovery` | `error-handling` | `connection-interruption` | `error-scenario` | Validator aborted the HTTP request body mid-stream to simulate a connection interruption. |
 
-## 8. Capability Snapshot
+## 9. Capability Snapshot
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 41 | HTTP 200 | 354.9 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 116.2 ms | ✅ Listed |
-| Prompts/list | 2 | HTTP 200 | 117.2 ms | ✅ Listed |
+| Tools/list | 41 | HTTP 200 | 366.6 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 114.5 ms | ✅ Listed |
+| Prompts/list | 2 | HTTP 200 | 197.9 ms | ✅ Listed |
 
 - **First Tool Probed:** `add_comment_to_pending_review`
 
-## 9. Scoring Methodology
+## 10. Scoring Methodology
 
 These notes explain how the overall score and blocking decision were calibrated for this run.
 
 - GUIDANCE: 7 protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by 20%.
 - Score meets the preferred target with non-blocking improvement opportunities.
 
-## 10. Compliance Matrix
+## 11. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
@@ -414,14 +443,14 @@ These notes explain how the overall score and blocking decision were calibrated 
 | Prompt Capabilities | ✅ Passed | 100.0% | - |
 | Performance | ✅ Passed | 100.0% | - |
 
-## 11. Performance Calibration
+## 12. Performance Calibration
 
 Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
 For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
 
-- Synthetic load probe executed against tools/list using 500 requests at concurrency 100.
+- Synthetic load probe executed against tools/list using 20 requests at concurrency 4.
 
-## 12. Security Assessment
+## 13. Security Assessment
 
 **Security Score:** 100.0%
 
@@ -493,15 +522,15 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"af2c75f0-4a31-4ff6-8eed-93f3ce3946b1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"6968e1b3-08f2-4373-bea0-0879f4bfe96c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"55a50428-a0fa-4921-b3c9-231643194c37","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"217bb3d1-ddee-4f58-bee8-4a5247c62f9c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"289eafca-59b6-48ab-81c7-8da56501a752","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"1601051d-bf4f-4ef7-8fbf-30d200acc1a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
 | MCP-AI-001 | Hallucination Fuzzing | 🛡️ BLOCKED | `Error clarity: 100/100 (Good). Server error messages help AI self-correct.` |
 
-## 13. Protocol Compliance
+## 14. Protocol Compliance
 
 **Status Detail:** declared capabilities: completions, prompts, resources, tools | roots/list: supported | logging/setLevel: supported | sampling/createMessage: supported | completion/complete: supported
 
@@ -512,7 +541,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 | MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | Low | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
 | MCP-PROTO-JSONRPC | `spec` | Batch processing implementation is inconsistent or incomplete | Medium | If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch |
 
-## 14. Tool Validation
+## 15. Tool Validation
 
 **Tools Discovered:** 41
 
@@ -569,13 +598,13 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 354.89ms
+**Execution Time:** 366.64ms
 ---
 
 ### Tool: `add_comment_to_pending_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 1057.68ms
+**Execution Time:** 956.85ms
 
 #### Tool Metadata
 | Property | Value |
@@ -587,7 +616,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_issue_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 734.06ms
+**Execution Time:** 642.03ms
 
 #### Tool Metadata
 | Property | Value |
@@ -599,7 +628,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_reply_to_pull_request_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 552.60ms
+**Execution Time:** 485.83ms
 
 #### Tool Metadata
 | Property | Value |
@@ -611,7 +640,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 603.05ms
+**Execution Time:** 534.94ms
 
 #### Tool Metadata
 | Property | Value |
@@ -623,7 +652,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_or_update_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 512.93ms
+**Execution Time:** 639.19ms
 
 #### Tool Metadata
 | Property | Value |
@@ -635,7 +664,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 502.38ms
+**Execution Time:** 461.16ms
 
 #### Tool Metadata
 | Property | Value |
@@ -647,7 +676,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 470.85ms
+**Execution Time:** 402.61ms
 
 #### Tool Metadata
 | Property | Value |
@@ -659,7 +688,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `delete_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 677.76ms
+**Execution Time:** 493.15ms
 
 #### Tool Metadata
 | Property | Value |
@@ -672,7 +701,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `fork_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 467.73ms
+**Execution Time:** 447.90ms
 
 #### Tool Metadata
 | Property | Value |
@@ -684,7 +713,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_commit`
 
 **Status:** ✅ Passed
-**Execution Time:** 542.53ms
+**Execution Time:** 527.97ms
 
 #### Tool Metadata
 | Property | Value |
@@ -697,7 +726,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_file_contents`
 
 **Status:** ✅ Passed
-**Execution Time:** 755.24ms
+**Execution Time:** 614.39ms
 
 #### Tool Metadata
 | Property | Value |
@@ -710,7 +739,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_label`
 
 **Status:** ✅ Passed
-**Execution Time:** 526.57ms
+**Execution Time:** 504.06ms
 
 #### Tool Metadata
 | Property | Value |
@@ -723,7 +752,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_latest_release`
 
 **Status:** ✅ Passed
-**Execution Time:** 459.77ms
+**Execution Time:** 380.02ms
 
 #### Tool Metadata
 | Property | Value |
@@ -736,7 +765,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_me`
 
 **Status:** ✅ Passed
-**Execution Time:** 343.93ms
+**Execution Time:** 388.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -749,7 +778,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_release_by_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 401.79ms
+**Execution Time:** 398.35ms
 
 #### Tool Metadata
 | Property | Value |
@@ -762,7 +791,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 381.94ms
+**Execution Time:** 411.93ms
 
 #### Tool Metadata
 | Property | Value |
@@ -775,7 +804,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_team_members`
 
 **Status:** ✅ Passed
-**Execution Time:** 311.92ms
+**Execution Time:** 351.30ms
 
 #### Tool Metadata
 | Property | Value |
@@ -788,7 +817,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_teams`
 
 **Status:** ✅ Passed
-**Execution Time:** 350.72ms
+**Execution Time:** 375.42ms
 
 #### Tool Metadata
 | Property | Value |
@@ -801,7 +830,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 288.29ms
+**Execution Time:** 277.92ms
 
 #### Tool Metadata
 | Property | Value |
@@ -814,7 +843,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 299.60ms
+**Execution Time:** 376.50ms
 
 #### Tool Metadata
 | Property | Value |
@@ -826,7 +855,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_branches`
 
 **Status:** ✅ Passed
-**Execution Time:** 489.18ms
+**Execution Time:** 431.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -839,7 +868,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_commits`
 
 **Status:** ✅ Passed
-**Execution Time:** 283.80ms
+**Execution Time:** 262.19ms
 
 #### Tool Metadata
 | Property | Value |
@@ -852,7 +881,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issue_types`
 
 **Status:** ✅ Passed
-**Execution Time:** 287.55ms
+**Execution Time:** 298.64ms
 
 #### Tool Metadata
 | Property | Value |
@@ -865,7 +894,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 269.35ms
+**Execution Time:** 284.70ms
 
 #### Tool Metadata
 | Property | Value |
@@ -878,7 +907,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 372.77ms
+**Execution Time:** 460.22ms
 
 #### Tool Metadata
 | Property | Value |
@@ -891,7 +920,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_releases`
 
 **Status:** ✅ Passed
-**Execution Time:** 373.69ms
+**Execution Time:** 329.75ms
 
 #### Tool Metadata
 | Property | Value |
@@ -904,7 +933,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_tags`
 
 **Status:** ✅ Passed
-**Execution Time:** 481.97ms
+**Execution Time:** 409.26ms
 
 #### Tool Metadata
 | Property | Value |
@@ -917,7 +946,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `merge_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 378.75ms
+**Execution Time:** 360.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -929,7 +958,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 315.22ms
+**Execution Time:** 305.26ms
 
 #### Tool Metadata
 | Property | Value |
@@ -942,7 +971,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_review_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 333.67ms
+**Execution Time:** 320.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -954,7 +983,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `push_files`
 
 **Status:** ✅ Passed
-**Execution Time:** 530.94ms
+**Execution Time:** 422.04ms
 
 #### Tool Metadata
 | Property | Value |
@@ -966,7 +995,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `request_copilot_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 371.15ms
+**Execution Time:** 355.40ms
 
 #### Tool Metadata
 | Property | Value |
@@ -978,7 +1007,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `run_secret_scanning`
 
 **Status:** ✅ Passed
-**Execution Time:** 200.75ms
+**Execution Time:** 206.36ms
 
 #### Tool Metadata
 | Property | Value |
@@ -992,7 +1021,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_code`
 
 **Status:** ✅ Passed
-**Execution Time:** 3602.39ms
+**Execution Time:** 3718.71ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1005,7 +1034,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 461.33ms
+**Execution Time:** 448.30ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1018,7 +1047,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 464.65ms
+**Execution Time:** 439.05ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1031,7 +1060,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_repositories`
 
 **Status:** ✅ Passed
-**Execution Time:** 499.27ms
+**Execution Time:** 434.25ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1044,7 +1073,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_users`
 
 **Status:** ✅ Passed
-**Execution Time:** 487.79ms
+**Execution Time:** 458.29ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1057,7 +1086,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `sub_issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 331.36ms
+**Execution Time:** 489.62ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1069,7 +1098,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 363.26ms
+**Execution Time:** 340.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1081,7 +1110,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 367.23ms
+**Execution Time:** 339.37ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1097,7 +1126,7 @@ Remaining tool-catalog debt is grouped by authority so MCP specification failure
 | Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |
 | :--- | :---: | :--- | :---: | :--- |
 | Spec | 1 | 5/41 (12%) | 🔵 Low | tools/call result.isError field not present |
-| Guideline | 4 | 41/41 (100%) | 🔵 Low | Tool 'add_comment_to_pending_review' does not declare annotations.idempotentHint.<br />Tool 'add_comment_to_pending_review' does not declare annotations.destructiveHint. |
+| Guideline | 5 | 42/41 (100%) | 🔵 Low | Tool 'add_comment_to_pending_review' does not declare annotations.idempotentHint.<br />Tool 'add_comment_to_pending_review' does not declare annotations.destructiveHint. |
 | Heuristic | 7 | 41/41 (100%) | 🟠 High | 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops<br />Tool 'add_comment_to_pending_review': 4/10 string parameters have no enum/pattern/format constraint |
 
 ### MCP Guideline Findings
@@ -1113,11 +1142,11 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `guideline` | 40/41 (98%) | 🔵 Low | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Tool 'add_comment_to_pending_review' does not declare annotations.openWorldHint. |
 | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING` | `guideline` | 17/41 (41%) | 🔵 Low | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Tool 'add_comment_to_pending_review' does not declare annotations.readOnlyHint. |
 
-## 15. Resource Capabilities
+## 16. Resource Capabilities
 
 **Resources Discovered:** 0
 
-## 16. AI Readiness Assessment
+## 17. AI Readiness Assessment
 
 **AI Readiness Score:** ✅ **86/100** (Good)
 
@@ -1139,7 +1168,7 @@ This score measures how well the server's tool schemas are optimized for consump
 | `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `heuristic` | 4/41 (10%) | 🔵 Low | Tool 'issue_write': 1/13 string parameters look like fixed-choice fields but do not declare enum/const choices |
 | `AI.TOOL.SCHEMA.TOKEN_BUDGET_WARNING` | `heuristic` | 1/41 (2%) | 🔵 Low | ℹ️ tools/list response is ~25,152 tokens — consider reducing descriptions for token efficiency. |
 
-## 17. Optional MCP Capabilities
+## 18. Optional MCP Capabilities
 
 These probes check whether the server supports optional MCP features beyond the core primitives.
 
@@ -1151,17 +1180,17 @@ These probes check whether the server supports optional MCP features beyond the 
 | `sampling/createMessage` | ✅ supported |
 | `completion/complete` | ✅ supported |
 
-## 18. Performance Metrics
+## 19. Performance Metrics
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 145.84ms | ✅ Good |
-| **P95 Latency** | 226.00ms | - |
-| **Throughput** | 5.08 req/sec | - |
+| **Avg Latency** | 135.02ms | ✅ Good |
+| **P95 Latency** | 155.44ms | - |
+| **Throughput** | 7.37 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
-| **Requests** | 500/500 successful | - |
+| **Requests** | 20/20 successful | - |
 
-## 19. Recommendations
+## 20. Recommendations
 
 - 💡 Spec: If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch
 - 💡 Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors

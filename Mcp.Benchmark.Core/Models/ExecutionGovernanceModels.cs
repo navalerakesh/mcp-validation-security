@@ -78,7 +78,7 @@ public sealed class ExecutionPolicy
     /// Gets or sets the maximum number of outbound requests allowed for the run.
     /// </summary>
     [JsonPropertyName("maxRequests")]
-    public int MaxRequests { get; set; } = 100;
+    public int MaxRequests { get; set; } = 256;
 
     /// <summary>
     /// Gets or sets the maximum concurrency allowed for the run.

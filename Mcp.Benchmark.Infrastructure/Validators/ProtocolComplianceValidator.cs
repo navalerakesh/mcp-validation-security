@@ -75,7 +75,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, ct);
 
             // Test 4: Batch Processing Compliance
-            var batchCompliant = await ValidateBatchProcessingAsync(serverConfig.Endpoint!, ct);
+            var batchProbe = await ValidateBatchProcessingAsync(serverConfig, ct);
+            var batchCompliant = batchProbe.IsCompliant ?? true;
 
             // Test 5: Notification Handling (CRITICAL: Server MUST NOT respond to notifications)
             var notificationProbe = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
@@ -91,24 +92,48 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 Array.Empty<string>());
             var protocolFeatures = _protocolFeatureResolver.Resolve(applicabilityContext);
             var activeRules = _ruleRegistry.Resolve(applicabilityContext).ToList();
-            
-            var contentTypeRule = activeRules.First(r => r is ContentTypeRule);
-            var contentTypeResult = await contentTypeRule.EvaluateAsync(ruleContext, ct);
-            var contentTypeCompliant = contentTypeResult.IsCompliant;
+
+            var contentTypeRule = activeRules.OfType<ContentTypeRule>().FirstOrDefault();
+            bool? contentTypeCompliant = null;
+            if (contentTypeRule != null)
+            {
+                var contentTypeResult = await contentTypeRule.EvaluateAsync(ruleContext, ct);
+                contentTypeCompliant = contentTypeResult.IsCompliant;
+            }
 
             // Test 8: Case Sensitivity (Using Rule Engine)
-            var caseSensitivityRule = activeRules.First(r => r is CaseSensitivityRule);
-            var caseSensitivityResult = await caseSensitivityRule.EvaluateAsync(ruleContext, ct);
-            var caseSensitivityCompliant = caseSensitivityResult.IsCompliant;
+            var caseSensitivityRule = activeRules.OfType<CaseSensitivityRule>().FirstOrDefault();
+            bool? caseSensitivityCompliant = null;
+            if (caseSensitivityRule != null)
+            {
+                var caseSensitivityResult = await caseSensitivityRule.EvaluateAsync(ruleContext, ct);
+                caseSensitivityCompliant = caseSensitivityResult.IsCompliant;
+            }
 
             var violations = new List<ComplianceViolation>();
 
             // Calculate score early to determine violation severity
             var preliminaryScores = new[] {
                 errorValidation.Tests.Count(t => t.IsValid) / (double)errorValidation.Tests.Count * 100,
-                100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0
+                100.0, 100.0, 100.0, 100.0
             };
-            var preliminaryScore = preliminaryScores.Average();
+            var preliminaryScoreCandidates = preliminaryScores.ToList();
+            if (batchProbe.IsCompliant != null)
+            {
+                preliminaryScoreCandidates.Add(batchCompliant ? 100.0 : 0.0);
+            }
+
+            if (contentTypeCompliant != null)
+            {
+                preliminaryScoreCandidates.Add(contentTypeCompliant.Value ? 100.0 : 0.0);
+            }
+
+            if (caseSensitivityCompliant != null)
+            {
+                preliminaryScoreCandidates.Add(caseSensitivityCompliant.Value ? 100.0 : 0.0);
+            }
+
+            var preliminaryScore = preliminaryScoreCandidates.Average();
             var isHighCompliance = preliminaryScore >= 80.0;
 
             // Collect all violations (marked as warnings if score >= 80%)
@@ -142,7 +167,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
-            if (!batchCompliant)
+            if (batchProbe.IsCompliant == false)
             {
                 violations.Add(CreateViolation(
                     ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
@@ -150,6 +175,19 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ViolationSeverity.Medium,
                     ValidationConstants.Categories.JsonRpcCompliance,
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
+            }
+
+            if (batchProbe.IsCompliant == null && !string.IsNullOrWhiteSpace(batchProbe.Reason))
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+                    Category = "McpGuideline",
+                    Component = "batch",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = batchProbe.Reason,
+                    Recommendation = "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+                });
             }
 
             if (!notificationCompliant)
@@ -172,7 +210,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling]));
             }
 
-            if (!contentTypeCompliant)
+            if (contentTypeCompliant == false)
             {
                 violations.Add(CreateViolation(
                     ValidationConstants.CheckIds.HttpContentType,
@@ -182,7 +220,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"));
             }
 
-            if (!caseSensitivityCompliant)
+            if (caseSensitivityCompliant == false)
             {
                 violations.Add(CreateViolation(
                     ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
@@ -230,11 +268,23 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 errorCompliance * 100,
                 requestFormatCompliant ? 100.0 : 0.0,
                 responseFormatCompliant ? 100.0 : 0.0,
-                batchCompliant ? 100.0 : 0.0,
-                errorCodeCompliant ? 100.0 : 0.0,
-                contentTypeCompliant ? 100.0 : 0.0,
-                caseSensitivityCompliant ? 100.0 : 0.0
+                errorCodeCompliant ? 100.0 : 0.0
             };
+
+            if (batchProbe.IsCompliant != null)
+            {
+                scores.Add(batchCompliant ? 100.0 : 0.0);
+            }
+
+            if (contentTypeCompliant != null)
+            {
+                scores.Add(contentTypeCompliant.Value ? 100.0 : 0.0);
+            }
+
+            if (caseSensitivityCompliant != null)
+            {
+                scores.Add(caseSensitivityCompliant.Value ? 100.0 : 0.0);
+            }
 
             if (notificationProbe.IsCompliant != null)
             {
@@ -799,23 +849,32 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }
     }
 
-    private async Task<bool> ValidateBatchProcessingAsync(string endpoint, CancellationToken cancellationToken)
+    private async Task<ProtocolProbeOutcome> ValidateBatchProcessingAsync(McpServerConfig serverConfig, CancellationToken cancellationToken)
     {
+        if (string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            return ProtocolProbeOutcome.Inconclusive(
+                "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio.");
+        }
+
+        var endpoint = serverConfig.Endpoint!;
         var batchRequest = "[{\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}, {\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 2}]";
         var response = await _httpClient.SendRawJsonAsync(endpoint, batchRequest, cancellationToken);
         
-        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return ProtocolProbeOutcome.Compliant();
 
-        if (!response.IsSuccess) return false; // Batch support is optional but basic handling should work
+        if (!response.IsSuccess) return ProtocolProbeOutcome.Failed();
 
         try
         {
             using var doc = JsonDocument.Parse(response.RawJson!);
-            return doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() == 2;
+            return doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() == 2
+                ? ProtocolProbeOutcome.Compliant()
+                : ProtocolProbeOutcome.Failed();
         }
         catch
         {
-            return false;
+            return ProtocolProbeOutcome.Failed();
         }
     }
 

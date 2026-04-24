@@ -91,6 +91,54 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_BalancedMode_WithMayOnlyTierFailures_ShouldRemainPassing()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.Passed,
+            ProtocolCompliance = new ComplianceTestResult(),
+            TrustAssessment = new McpTrustAssessment
+            {
+                TrustLevel = McpTrustLevel.L5_CertifiedSecure,
+                TierChecks = new List<ComplianceTierCheck>
+                {
+                    new()
+                    {
+                        Tier = "MAY",
+                        Requirement = "MAY: Server supports logging/setLevel",
+                        Passed = false,
+                        Component = "capabilities"
+                    },
+                    new()
+                    {
+                        Tier = "MAY",
+                        Requirement = "MAY: Server supports roots/list",
+                        Passed = false,
+                        Component = "capabilities"
+                    }
+                }
+            }
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol",
+            Scope = "full",
+            Status = ValidationCoverageStatus.Covered
+        });
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Balanced);
+
+        outcome.Passed.Should().BeTrue();
+        outcome.BlockingSignalCount.Should().Be(0);
+        result.VerdictAssessment!.BlockingDecisions.Should().BeEmpty();
+        result.VerdictAssessment.TriggeredDecisions.Should().Contain(decision =>
+            decision.Gate == GateOutcome.Note
+            && decision.Summary.Contains("MAY requirement failed", StringComparison.Ordinal));
+        ValidationVerdictEngine.IsPassing(result.VerdictAssessment).Should().BeTrue();
+    }
+
+    [Fact]
     public void Evaluate_StrictMode_WithTrustedCleanResult_ShouldPass()
     {
         var result = new ValidationResult

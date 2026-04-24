@@ -91,9 +91,18 @@ public static class ValidationVerdictEngine
         foreach (var check in tierChecks.Where(check => !check.Passed))
         {
             var normalizedTier = check.Tier?.Trim();
-            var gate = string.Equals(normalizedTier, "MUST", StringComparison.OrdinalIgnoreCase)
-                ? GateOutcome.Reject
-                : GateOutcome.ReviewRequired;
+            var gate = normalizedTier switch
+            {
+                var tier when string.Equals(tier, "MUST", StringComparison.OrdinalIgnoreCase) => GateOutcome.Reject,
+                var tier when string.Equals(tier, "SHOULD", StringComparison.OrdinalIgnoreCase) => GateOutcome.ReviewRequired,
+                _ => GateOutcome.Note
+            };
+            var severity = gate switch
+            {
+                GateOutcome.Reject => ValidationFindingSeverity.Critical,
+                GateOutcome.ReviewRequired => ValidationFindingSeverity.High,
+                _ => ValidationFindingSeverity.Low
+            };
 
             AddDecision(
                 decisions,
@@ -105,7 +114,7 @@ public static class ValidationVerdictEngine
                     Authority = ValidationRuleSource.Spec,
                     Origin = EvidenceOrigin.DeterministicAggregation,
                     Gate = gate,
-                    Severity = gate == GateOutcome.Reject ? ValidationFindingSeverity.Critical : ValidationFindingSeverity.High,
+                    Severity = severity,
                     Category = "TierCheck",
                     Component = string.IsNullOrWhiteSpace(check.Component) ? "tier-check" : check.Component,
                     Summary = $"{normalizedTier} requirement failed: {check.Requirement}{FormatDetail(check.Detail)}",

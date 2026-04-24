@@ -1,0 +1,58 @@
+{
+  "generatedUtc": "2026-04-24T20:01:44.6726860Z",
+  "validationId": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+  "serverEndpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
+  "complianceScore": 100,
+  "trustLevel": "L5: Certified Secure \u2014 Production AI-agent ready",
+  "profileCount": 5,
+  "compatibleCount": 5,
+  "warningCount": 0,
+  "incompatibleCount": 0,
+  "profiles": [
+    {
+      "profileId": "claude-code",
+      "displayName": "Claude Code",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "vscode-copilot-agent",
+      "displayName": "VS Code Copilot Agent",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cli",
+      "displayName": "GitHub Copilot CLI",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cloud-agent",
+      "displayName": "GitHub Copilot Cloud Agent",
+      "status": "Compatible",
+      "passedRequirements": 5,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "visual-studio-copilot",
+      "displayName": "Visual Studio Copilot",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    }
+  ]
+}

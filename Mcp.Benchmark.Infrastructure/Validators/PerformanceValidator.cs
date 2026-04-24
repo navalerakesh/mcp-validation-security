@@ -269,7 +269,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                                 serverConfig.Authentication, ct);
                             callSw.Stop();
 
-                            var callLatency = callResponse.ElapsedMs ?? callSw.ElapsedMilliseconds;
+                            var callLatency = callResponse.ElapsedMs ?? callSw.Elapsed.TotalMilliseconds;
                             result.PerformanceBottlenecks.AddRange(
                                 PerformanceMetricsCalculator.IdentifyBottlenecks(0, 0, 0, callLatency, toolName));
                         }
@@ -335,7 +335,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         var failedRequests = 0;
         var rateLimitedRequests = 0;
         var transientFailures = 0;
-        var responseTimes = new List<long>();
+        var responseTimes = new List<double>();
 
         Logger.LogInformation("Starting load test with {Requests} requests, {Connections} concurrent connections", totalRequests, concurrentConnections);
 
@@ -352,10 +352,9 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 {
                     var response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
-                    // Use HTTP-layer latency recorded by the client; fall
-                    // back to 0 when unavailable. This excludes validator
-                    // backoff delays and concurrency queueing.
-                    var elapsed = (long)Math.Round(response.ElapsedMs ?? 0);
+                    // Preserve sub-millisecond timing for fast local/STDIO
+                    // servers while still excluding validator queueing.
+                    var elapsed = response.ElapsedMs ?? 0;
 
                     lock (responseTimes)
                     {
@@ -418,7 +417,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         int FailedRequests,
         int RateLimitedRequests,
         int TransientFailures,
-        List<long> ResponseTimes,
+        List<double> ResponseTimes,
         TimeSpan Duration);
 
     /// <summary>
@@ -434,7 +433,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
 
             foreach (var operation in operations)
             {
-                var responseTimes = new List<long>();
+                var responseTimes = new List<double>();
                 var failureCount = 0;
 
                 for (int i = 0; i < 10; i++)
@@ -445,7 +444,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                         var response = await _httpClient.CallAsync(serverConfig.Endpoint!, operation, null, serverConfig.Authentication, ct);
                         sw.Stop();
 
-                        responseTimes.Add(sw.ElapsedMilliseconds);
+                        responseTimes.Add(sw.Elapsed.TotalMilliseconds);
                         if (!response.IsSuccess) failureCount++;
                     }
                     catch

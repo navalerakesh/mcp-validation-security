@@ -531,14 +531,14 @@ public static class McpTrustCalculator
             return surfaceText.Contains(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
-        foreach (var segment in surfaceText.Split(['\r', '\n', '.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var segment in surfaceText.Split(new[] { '\r', '\n', '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (segment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            foreach (var bulletSegment in segment.Split(['-', '*'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (var bulletSegment in segment.Split(new[] { '-', '*' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 if (bulletSegment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                 {

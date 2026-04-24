@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Compliance.Spec;
 using ModelContextProtocol.Protocol;
@@ -26,6 +27,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     private Dictionary<string, string>? _startupEnvironment;
     private ExecutionPolicy? _executionPolicy;
     private int _requestCount;
+    private bool _initializeSucceeded;
+    private bool _initializedNotificationSent;
     private bool _disposed;
 
     public StdioMcpClientAdapter(ILogger<StdioMcpClientAdapter> logger)
@@ -98,6 +101,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
 
         _logger.LogInformation("STDIO server process started (PID: {Pid})", _serverProcess.Id);
+        ResetSessionState();
     }
 
     public Task<ValidatorJsonRpcResponse> CallAsync(string endpoint, string method, object? parameters = null, CancellationToken cancellationToken = default)
@@ -108,6 +112,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public async Task<ValidatorJsonRpcResponse> CallAsync(string endpoint, string method, object? parameters, AuthenticationConfig? authentication, CancellationToken cancellationToken = default)
     {
         EnforceExecutionPolicy();
+        var isInitializeRequest = string.Equals(method, McpSpecConstants.InitializeMethod, StringComparison.Ordinal);
 
         if (_serverProcess == null || _serverProcess.HasExited)
         {
@@ -127,6 +132,11 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         await _lock.WaitAsync(cancellationToken);
         try
         {
+            if (!isInitializeRequest && _initializeSucceeded && !_initializedNotificationSent)
+            {
+                await SendInitializedNotificationCoreAsync(cancellationToken);
+            }
+
             var sw = Stopwatch.StartNew();
             await _serverProcess.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
             await _serverProcess.StandardInput.FlushAsync();
@@ -136,17 +146,28 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
             if (string.IsNullOrEmpty(responseLine))
             {
+                if (isInitializeRequest)
+                {
+                    ResetSessionState();
+                }
+
                 return new ValidatorJsonRpcResponse
                 {
                     StatusCode = 500,
                     IsSuccess = false,
                     Error = "Empty response from STDIO server",
-                    ElapsedMs = sw.ElapsedMilliseconds
+                        ElapsedMs = sw.Elapsed.TotalMilliseconds
                 };
             }
 
             using var doc = JsonDocument.Parse(responseLine);
             var hasError = doc.RootElement.TryGetProperty("error", out _);
+
+            if (isInitializeRequest)
+            {
+                _initializeSucceeded = !hasError;
+                _initializedNotificationSent = false;
+            }
 
             return new ValidatorJsonRpcResponse
             {
@@ -154,11 +175,16 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 IsSuccess = !hasError,
                 RawJson = responseLine,
                 Error = hasError ? doc.RootElement.GetProperty("error").GetProperty("message").GetString() : null,
-                ElapsedMs = sw.ElapsedMilliseconds
+                ElapsedMs = sw.Elapsed.TotalMilliseconds
             };
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            if (isInitializeRequest)
+            {
+                ResetSessionState();
+            }
+
             _logger.LogError(ex, "STDIO call to {Method} failed", method);
             return new ValidatorJsonRpcResponse
             {
@@ -318,12 +344,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public async Task<TransportResult<InitializeResult>> ValidateInitializeAsync(string endpoint, CancellationToken cancellationToken = default)
     {
         var sw = Stopwatch.StartNew();
-        var response = await CallAsync(endpoint, "initialize", new
-        {
-            protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(null),
-            capabilities = new { },
-            clientInfo = new { name = "mcp-benchmark", version = "1.0.0" }
-        }, cancellationToken);
+        var response = await CallAsync(endpoint, McpSpecConstants.InitializeMethod, CreateInitializeParameters(), cancellationToken);
         sw.Stop();
 
         var transportResult = new TransportResult<InitializeResult>
@@ -360,10 +381,72 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public async Task<TransportResult<CapabilitySummary>> ValidateCapabilitiesAsync(string endpoint, CancellationToken cancellationToken = default)
     {
         var initResult = await ValidateInitializeAsync(endpoint, cancellationToken);
+
+        if (!initResult.IsSuccessful)
+        {
+            return new TransportResult<CapabilitySummary>
+            {
+                Transport = initResult.Transport,
+                IsSuccessful = false,
+                Error = initResult.Error ?? "Initialize failed"
+            };
+        }
+
+        var (toolListResponse, toolListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ToolsList, cancellationToken);
+        var (resourceListResponse, resourceListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken);
+        var (promptListResponse, promptListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken);
+
+        var toolListingSucceeded = toolListResponse?.IsSuccess == true;
+        var firstToolName = toolListingSucceeded ? TryGetFirstToolName(toolListResponse?.RawJson) : null;
+        var toolInvocationSucceeded = false;
+
+        if (toolListingSucceeded && !string.IsNullOrWhiteSpace(firstToolName))
+        {
+            try
+            {
+                var toolCallResponse = await CallAsync(endpoint, ValidationConstants.Methods.ToolsCall, new
+                {
+                    name = firstToolName,
+                    arguments = new { }
+                }, cancellationToken);
+
+                toolInvocationSucceeded = toolCallResponse.IsSuccess || toolCallResponse.StatusCode == 400;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "STDIO capability snapshot tool invocation failed for {Tool}", firstToolName);
+            }
+        }
+
         return new TransportResult<CapabilitySummary>
         {
-            Transport = initResult.Transport,
-            IsSuccessful = initResult.IsSuccessful
+            Transport = new TransportMetadata
+            {
+                Duration = toolListDuration > 0 ? TimeSpan.FromMilliseconds(toolListDuration) : initResult.Transport.Duration,
+                StatusCode = toolListResponse?.StatusCode ?? initResult.Transport.StatusCode,
+                Headers = toolListResponse?.Headers ?? initResult.Transport.Headers,
+                RawContent = toolListResponse?.RawJson ?? initResult.Transport.RawContent
+            },
+            IsSuccessful = toolListingSucceeded,
+            Error = toolListingSucceeded ? null : toolListResponse?.Error ?? "Tool listing failed",
+            Payload = new CapabilitySummary
+            {
+                ToolListingSucceeded = toolListingSucceeded,
+                ToolInvocationSucceeded = toolInvocationSucceeded,
+                FirstToolName = firstToolName,
+                DiscoveredToolsCount = CountCollectionItems(toolListResponse, "tools"),
+                Score = CalculateCapabilityScore(toolListingSucceeded, toolInvocationSucceeded),
+                ToolListResponse = toolListResponse,
+                ResourceListResponse = resourceListResponse,
+                PromptListResponse = promptListResponse,
+                ToolListDurationMs = toolListDuration,
+                ResourceListDurationMs = resourceListDuration,
+                PromptListDurationMs = promptListDuration,
+                ResourceListingSucceeded = resourceListResponse?.IsSuccess == true,
+                PromptListingSucceeded = promptListResponse?.IsSuccess == true,
+                DiscoveredResourcesCount = CountCollectionItems(resourceListResponse, "resources"),
+                DiscoveredPromptsCount = CountCollectionItems(promptListResponse, "prompts")
+            }
         };
     }
 
@@ -423,6 +506,139 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         {
             throw new InvalidOperationException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
         }
+    }
+
+    private async Task<(ValidatorJsonRpcResponse? Response, double Duration)> ProbeJsonRpcAsync(string endpoint, string method, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var sw = Stopwatch.StartNew();
+            var response = await CallAsync(endpoint, method, null, cancellationToken);
+            sw.Stop();
+            return (response, sw.Elapsed.TotalMilliseconds);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "STDIO capability probe {Method} failed", method);
+            return (null, 0);
+        }
+    }
+
+    private int CountCollectionItems(ValidatorJsonRpcResponse? response, string collectionPropertyName)
+    {
+        if (string.IsNullOrWhiteSpace(response?.RawJson))
+        {
+            return 0;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(response.RawJson);
+            if (document.RootElement.TryGetProperty("result", out var resultElement) &&
+                resultElement.TryGetProperty(collectionPropertyName, out var collectionElement) &&
+                collectionElement.ValueKind == JsonValueKind.Array)
+            {
+                return collectionElement.GetArrayLength();
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse {Collection} collection while building STDIO capability summary", collectionPropertyName);
+        }
+
+        return 0;
+    }
+
+    private string? TryGetFirstToolName(string? rawJson)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            if (!document.RootElement.TryGetProperty("result", out var resultElement) ||
+                !resultElement.TryGetProperty("tools", out var toolsElement) ||
+                toolsElement.ValueKind != JsonValueKind.Array)
+            {
+                return null;
+            }
+
+            foreach (var toolElement in toolsElement.EnumerateArray())
+            {
+                if (toolElement.TryGetProperty("name", out var nameElement))
+                {
+                    var name = nameElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(name))
+                    {
+                        return name;
+                    }
+                }
+            }
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogDebug(ex, "Failed to parse tool list response while extracting the first tool name");
+        }
+
+        return null;
+    }
+
+    private static double CalculateCapabilityScore(bool toolListingSucceeded, bool toolInvocationSucceeded)
+    {
+        var passed = 0;
+        if (toolListingSucceeded)
+        {
+            passed++;
+        }
+
+        if (toolInvocationSucceeded)
+        {
+            passed++;
+        }
+
+        const int totalChecks = 2;
+        return passed / (double)totalChecks * 100;
+    }
+
+    private static object CreateInitializeParameters() => new
+    {
+        protocolVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(null),
+        capabilities = new { },
+        clientInfo = new { name = "mcp-benchmark", version = "1.0.0" }
+    };
+
+    private async Task SendInitializedNotificationCoreAsync(CancellationToken cancellationToken)
+    {
+        if (_serverProcess == null || _serverProcess.HasExited || !_initializeSucceeded || _initializedNotificationSent)
+        {
+            return;
+        }
+
+        var notificationJson = JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method = McpSpecConstants.InitializedNotification
+        }, _jsonOptions);
+
+        await _serverProcess.StandardInput.WriteLineAsync(notificationJson.AsMemory(), cancellationToken);
+        await _serverProcess.StandardInput.FlushAsync();
+
+        var unexpectedResponse = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromMilliseconds(100), cancellationToken);
+        if (!string.IsNullOrWhiteSpace(unexpectedResponse))
+        {
+            _logger.LogWarning("STDIO server responded to {Notification}: {Response}", McpSpecConstants.InitializedNotification, unexpectedResponse);
+        }
+
+        _initializedNotificationSent = true;
+    }
+
+    private void ResetSessionState()
+    {
+        _initializeSucceeded = false;
+        _initializedNotificationSent = false;
     }
 
     private async Task PopulateRecoveryProbeAsync(string endpoint, TransportResilienceProbeResult result, CancellationToken cancellationToken)
@@ -515,6 +731,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         {
             _serverProcess.Dispose();
             _serverProcess = null;
+            ResetSessionState();
         }
     }
 

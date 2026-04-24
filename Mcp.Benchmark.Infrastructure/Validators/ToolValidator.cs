@@ -332,7 +332,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             // Parse tools from the first page, then continue through paginated discovery when the server exposes nextCursor.
             var toolsList = ParseTools(toolsListResponse.RawJson);
-            if (cachedToolsListResponse == null && snapshotTools == null)
+            if (snapshotTools == null)
             {
                 var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
                 toolsList = paginationFetch.Tools;
@@ -1400,33 +1400,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     private static JsonRpcResponse? CreateResponseFromSnapshot(TransportResult<CapabilitySummary>? snapshot)
     {
-        if (snapshot == null)
+        if (snapshot?.Payload == null)
         {
             return null;
         }
 
-        var cached = CapabilitySnapshotUtils.CloneResponse(snapshot.Payload?.ToolListResponse);
-        if (cached != null)
-        {
-            return cached;
-        }
-
-        var headers = new Dictionary<string, string>();
-        foreach (var header in snapshot.Transport.Headers)
-        {
-            headers[header.Key] = header.Value;
-        }
-
-        var status = snapshot.Transport.StatusCode ?? (snapshot.IsSuccessful ? 200 : -1);
-
-        return new JsonRpcResponse
-        {
-            StatusCode = status,
-            IsSuccess = snapshot.IsSuccessful,
-            RawJson = snapshot.Transport.RawContent,
-            Error = snapshot.Error,
-            Headers = headers
-        };
+        return CapabilitySnapshotUtils.CloneResponse(snapshot.Payload.ToolListResponse);
     }
 
     private static List<ToolInfo>? BuildToolListFromSnapshot(CapabilitySummary? summary)

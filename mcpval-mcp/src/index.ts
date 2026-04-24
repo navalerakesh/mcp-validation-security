@@ -74,7 +74,7 @@ async function main(): Promise<void> {
           reportDetail,
           verbose,
         });
-        return { content: [{ type: "text" as const, text: result }] };
+        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Validation failed: ${(err as Error).message}` }], isError: true };
       }
@@ -92,7 +92,7 @@ async function main(): Promise<void> {
     async ({ server: endpoint, access, token, interactive }) => {
       try {
         const result = await handleHealthCheck({ server: endpoint, access, token, interactive });
-        return { content: [{ type: "text" as const, text: result }] };
+        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Health check failed: ${(err as Error).message}` }], isError: true };
       }
@@ -110,7 +110,7 @@ async function main(): Promise<void> {
     async ({ server: endpoint, access, token, interactive, format }) => {
       try {
         const result = await handleDiscover({ server: endpoint, access, token, interactive, format });
-        return { content: [{ type: "text" as const, text: result }] };
+        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Discovery failed: ${(err as Error).message}` }], isError: true };
       }

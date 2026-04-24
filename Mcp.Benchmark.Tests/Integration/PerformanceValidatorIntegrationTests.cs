@@ -96,6 +96,21 @@ public class PerformanceValidatorIntegrationTests
     }
 
     [Fact]
+    public async Task PerformLoadTesting_WithSubMillisecondElapsedMs_ShouldPreserveFractionalLatency()
+    {
+        var config = new McpServerConfig { Endpoint = "npx test-server", Transport = "stdio" };
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{}", ElapsedMs = 0.6 });
+
+        var result = await _validator.PerformLoadTestingAsync(config,
+            new PerformanceTestingConfig { MaxConcurrentConnections = 1 }, CancellationToken.None);
+
+        result.LoadTesting.Should().NotBeNull();
+        result.LoadTesting!.AverageResponseTimeMs.Should().BeApproximately(0.6, 0.01);
+        result.LoadTesting.P95ResponseTimeMs.Should().BeApproximately(0.6, 0.01);
+    }
+
+    [Fact]
     public async Task PerformLoadTesting_WithRateLimitedRemoteProfile_ShouldSkipInsteadOfFailing()
     {
         var config = new McpServerConfig

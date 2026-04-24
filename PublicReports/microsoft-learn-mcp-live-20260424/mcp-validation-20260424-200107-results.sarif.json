@@ -126,36 +126,13 @@
               }
             },
             {
-              "id": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
-              "name": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
-              "shortDescription": {
-                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
-              },
-              "fullDescription": {
-                "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
-              },
-              "help": {
-                "text": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "guideline",
-                "category": "Performance",
-                "tags": [
-                  "guideline",
-                  "Performance",
-                  "load-testing"
-                ]
-              }
-            },
-            {
               "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
               "shortDescription": {
-                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
               },
               "fullDescription": {
-                "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
               },
               "help": {
                 "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
@@ -172,25 +149,25 @@
               }
             },
             {
-              "id": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
-              "name": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
+              "id": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "name": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
               "shortDescription": {
-                "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+                "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
               },
               "fullDescription": {
-                "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+                "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
               },
               "help": {
-                "text": "Review rate-limit and retry telemetry alongside final latency before treating the probe as representative of steady-state performance."
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
               },
               "helpUri": null,
               "properties": {
-                "source": "guideline",
-                "category": "Performance",
+                "source": "spec",
+                "category": "Protocol",
                 "tags": [
-                  "guideline",
-                  "Performance",
-                  "load-testing"
+                  "spec",
+                  "Protocol",
+                  "malformed-json"
                 ]
               }
             },
@@ -265,7 +242,7 @@
         }
       },
       "automationDetails": {
-        "id": "218f4501-4d25-4385-9bf1-7cdacba726f6",
+        "id": "0f983109-89c9-46fa-b5ad-6ef4d528d5c3",
         "description": {
           "text": "MCP validation run"
         }
@@ -273,13 +250,13 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-22T13:42:59.0731250Z",
-          "endTimeUtc": "2026-04-22T13:44:01.2111300Z",
+          "startTimeUtc": "2026-04-24T20:00:47.7368640Z",
+          "endTimeUtc": "2026-04-24T20:01:07.1282140Z",
           "properties": {
-            "validationId": "218f4501-4d25-4385-9bf1-7cdacba726f6",
+            "validationId": "0f983109-89c9-46fa-b5ad-6ef4d528d5c3",
             "endpoint": "https://learn.microsoft.com/api/mcp",
             "transport": "http",
-            "overallStatus": "Passed",
+            "overallStatus": "Failed",
             "serverProfile": "Public",
             "specProfile": "latest"
           }
@@ -553,47 +530,14 @@
           }
         },
         {
-          "ruleId": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP",
-          "level": "note",
-          "kind": "fail",
-          "message": {
-            "text": "Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP|load-testing|Public remote synthetic load probe stabilized at concurrency 20 before ramping to the configured target concurrency 100."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "load-testing"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "structured-finding",
-            "authority": "guideline",
-            "category": "Performance",
-            "component": "load-testing",
-            "severity": "Info",
-            "recommendation": "Interpret the final round as the scored measurement; the initial round was used to avoid front-loading public endpoints with an immediate peak probe.",
-            "metadata": {
-              "initialConcurrency": "20",
-              "targetConcurrency": "100"
-            }
-          }
-        },
-        {
           "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
           "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+            "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 500 requests at concurrency 100."
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
           },
           "locations": [
             {
@@ -613,49 +557,81 @@
             "severity": "Info",
             "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
             "metadata": {
-              "requests": "500",
-              "concurrency": "100",
+              "requests": "20",
+              "concurrency": "4",
               "operation": "tools/list"
             }
           }
         },
         {
-          "ruleId": "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED",
-          "level": "note",
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
           "kind": "fail",
           "message": {
-            "text": "Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+            "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED|load-testing|Synthetic load probe executed 2 round(s) and observed 0 rate-limited request(s) plus 0 retryable transient failure(s) across calibration."
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|malformed-json|Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
           },
           "locations": [
             {
               "logicalLocations": [
                 {
                   "kind": "component",
-                  "name": "load-testing"
+                  "name": "malformed-json"
                 }
               ]
             }
           ],
           "properties": {
             "source": "structured-finding",
-            "authority": "guideline",
-            "category": "Performance",
-            "component": "load-testing",
-            "severity": "Info",
-            "recommendation": "Review rate-limit and retry telemetry alongside final latency before treating the probe as representative of steady-state performance.",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "malformed-json",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
             "metadata": {
-              "probeRoundsExecuted": "2",
-              "observedRateLimitedRequests": "0",
-              "observedTransientFailures": "0"
+              "expectedErrorCode": "-32700",
+              "actualResponse": "HTTP 500; \u0027i\u0027 is an invalid start of a property name. Expected a \u0027\u0022\u0027. Path: $ | LineNumber: 0 | BytePositionInLine: 2."
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 did not return the expected JSON-RPC error code -32600."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-request|Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 did not return the expected JSON-RPC error code -32600."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-request"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "invalid-request",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32600",
+              "actualResponse": "HTTP 500; Invalid or missing jsonrpc version"
             }
           }
         },
         {
           "ruleId": "MCP-PROTO-ERR",
-          "level": "note",
+          "level": "error",
           "kind": "fail",
           "message": {
             "text": "JSON-RPC Error Code Violation: Parse Error"
@@ -678,14 +654,14 @@
             "authority": "spec",
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
-            "severity": "Low",
+            "severity": "High",
             "rule": null,
             "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
           "ruleId": "MCP-PROTO-ERR",
-          "level": "note",
+          "level": "error",
           "kind": "fail",
           "message": {
             "text": "JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
@@ -708,14 +684,14 @@
             "authority": "spec",
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
-            "severity": "Low",
+            "severity": "High",
             "rule": null,
             "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }
         },
         {
           "ruleId": "MCP-PROTO-ERR",
-          "level": "note",
+          "level": "error",
           "kind": "fail",
           "message": {
             "text": "JSON-RPC Error Code Violation: Invalid Params"
@@ -738,7 +714,7 @@
             "authority": "spec",
             "category": "JSON-RPC Compliance",
             "component": "JSON-RPC Compliance",
-            "severity": "Low",
+            "severity": "High",
             "rule": null,
             "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
           }

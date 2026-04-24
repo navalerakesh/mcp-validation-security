@@ -265,6 +265,59 @@ public sealed class ValidateCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_WithoutExplicitMaxRequests_ShouldUseRaisedDefaultRequestBudget()
+    {
+        var sessionContext = CreateSessionContext();
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>();
+        validatorService
+            .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult
+            {
+                OverallStatus = ValidationStatus.Passed,
+                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
+                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
+            });
+
+        ExecutionPolicy? capturedExecutionPolicy = null;
+        var httpClient = new Mock<IMcpHttpClient>(MockBehavior.Loose);
+        httpClient
+            .Setup(client => client.ConfigureExecutionPolicy(It.IsAny<ExecutionPolicy?>()))
+            .Callback<ExecutionPolicy?>(policy => capturedExecutionPolicy = policy?.Clone());
+
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            new Mock<IReportGenerator>(MockBehavior.Loose).Object,
+            new Mock<IValidationReportRenderer>(MockBehavior.Loose).Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            httpClient.Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            server: "https://example.test/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null,
+            policyMode: ValidationPolicyModes.Advisory);
+
+        capturedExecutionPolicy.Should().NotBeNull();
+        capturedExecutionPolicy!.MaxRequests.Should().Be(256);
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithTimedOutPerformanceAndNoMeasurements_ShouldAnnotateSavedJson()
     {
         var sessionContext = CreateSessionContext();

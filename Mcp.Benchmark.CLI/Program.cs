@@ -462,7 +462,7 @@ internal class Program
 
         var maxRequestsOption = new Option<int?>("--max-requests")
         {
-            Description = "Maximum outbound requests allowed for the run"
+            Description = "Maximum outbound requests allowed for the run (default: 256)"
         };
 
         var timeoutSecondsOption = new Option<int?>("--timeout")
