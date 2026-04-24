@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using ModelContextProtocol.Protocol;
 
 namespace Mcp.Benchmark.Tests.Fixtures;
@@ -7,7 +8,7 @@ public static class ReportSnapshotTestData
 {
     public static ValidationResult CreateComprehensiveResult()
     {
-        return new ValidationResult
+        var result = new ValidationResult
         {
             ValidationId = "validation-snapshot-001",
             StartTime = new DateTime(2026, 04, 20, 10, 00, 00, DateTimeKind.Utc),
@@ -567,5 +568,16 @@ public static class ReportSnapshotTestData
                 }
             }
         };
+
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)
+            ? ValidationStatus.Passed
+            : ValidationStatus.Failed;
+        result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
+        {
+            Mode = ValidationPolicyModes.Strict
+        });
+
+        return result;
     }
 }

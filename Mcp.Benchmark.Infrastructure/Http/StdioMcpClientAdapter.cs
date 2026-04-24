@@ -24,6 +24,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     private Process? _serverProcess;
     private string? _startupCommand;
     private Dictionary<string, string>? _startupEnvironment;
+    private ExecutionPolicy? _executionPolicy;
+    private int _requestCount;
     private bool _disposed;
 
     public StdioMcpClientAdapter(ILogger<StdioMcpClientAdapter> logger)
@@ -105,6 +107,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     public async Task<ValidatorJsonRpcResponse> CallAsync(string endpoint, string method, object? parameters, AuthenticationConfig? authentication, CancellationToken cancellationToken = default)
     {
+        EnforceExecutionPolicy();
+
         if (_serverProcess == null || _serverProcess.HasExited)
         {
             return new ValidatorJsonRpcResponse { StatusCode = 503, IsSuccess = false, Error = "STDIO server process is not running." };
@@ -365,6 +369,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     public async Task<ValidatorJsonRpcResponse> SendRawJsonAsync(string endpoint, string rawJson, CancellationToken cancellationToken, bool setContentType = true)
     {
+        EnforceExecutionPolicy();
+
         if (_serverProcess == null || _serverProcess.HasExited)
         {
             return new ValidatorJsonRpcResponse { StatusCode = 503, IsSuccess = false, Error = "STDIO server not running." };
@@ -394,10 +400,29 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public void SetAuthentication(AuthenticationConfig? authentication) { }
     public void SetConcurrencyLimit(int maxConcurrency) { }
     public void SetProtocolVersion(string? protocolVersion) { }
+    public void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy)
+    {
+        _executionPolicy = executionPolicy?.Clone();
+        Interlocked.Exchange(ref _requestCount, 0);
+    }
 
     public Task<string> GetStringAsync(string url, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(string.Empty);
+    }
+
+    private void EnforceExecutionPolicy()
+    {
+        if (_executionPolicy == null)
+        {
+            return;
+        }
+
+        var requestNumber = Interlocked.Increment(ref _requestCount);
+        if (requestNumber > _executionPolicy.MaxRequests)
+        {
+            throw new InvalidOperationException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
+        }
     }
 
     private async Task PopulateRecoveryProbeAsync(string endpoint, TransportResilienceProbeResult result, CancellationToken cancellationToken)

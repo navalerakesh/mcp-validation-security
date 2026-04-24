@@ -109,6 +109,311 @@
         }
       ]
     },
+    "verdictAssessment": {
+      "rulesetVersion": "2026-04",
+      "baselineVerdict": 1,
+      "protocolVerdict": 1,
+      "coverageVerdict": 2,
+      "summary": "Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.",
+      "triggeredDecisions": [
+        {
+          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 0,
+          "gate": 3,
+          "severity": 4,
+          "category": "Execution",
+          "component": "validation-run",
+          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+          "specReference": null,
+          "impactAreas": [
+            7
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:security:mcp-security-prompt-injection:prompt-get",
+          "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+          "lane": 0,
+          "authority": 3,
+          "origin": 0,
+          "gate": 3,
+          "severity": 4,
+          "category": "PromptInjection",
+          "component": "prompt:get",
+          "summary": "Server reflected untrusted prompt content without sanitization.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1,
+            3,
+            4
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 2,
+          "gate": 3,
+          "severity": 4,
+          "category": "PromptInjection",
+          "component": "prompt:get",
+          "summary": "Prompt output includes reflected untrusted content.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1,
+            3,
+            4,
+            5
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 3,
+          "severity": 3,
+          "category": "Initialization",
+          "component": "Initialization",
+          "summary": "Server ignored the requested MCP protocol version.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "lane": 0,
+          "authority": 2,
+          "origin": 2,
+          "gate": 2,
+          "severity": 3,
+          "category": "McpGuideline",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+          "specReference": null,
+          "impactAreas": [
+            3
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+          "lane": 0,
+          "authority": 3,
+          "origin": 2,
+          "gate": 2,
+          "severity": 2,
+          "category": "AiReadiness",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 2,
+          "severity": 2,
+          "category": "ProtocolCompliance",
+          "component": "tools/call",
+          "summary": "One tool response omitted the outer result object.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        }
+      ],
+      "blockingDecisions": [
+        {
+          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 0,
+          "gate": 3,
+          "severity": 4,
+          "category": "Execution",
+          "component": "validation-run",
+          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+          "specReference": null,
+          "impactAreas": [
+            7
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:security:mcp-security-prompt-injection:prompt-get",
+          "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+          "lane": 0,
+          "authority": 3,
+          "origin": 0,
+          "gate": 3,
+          "severity": 4,
+          "category": "PromptInjection",
+          "component": "prompt:get",
+          "summary": "Server reflected untrusted prompt content without sanitization.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1,
+            3,
+            4
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 2,
+          "gate": 3,
+          "severity": 4,
+          "category": "PromptInjection",
+          "component": "prompt:get",
+          "summary": "Prompt output includes reflected untrusted content.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1,
+            3,
+            4,
+            5
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 3,
+          "severity": 3,
+          "category": "Initialization",
+          "component": "Initialization",
+          "summary": "Server ignored the requested MCP protocol version.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "lane": 0,
+          "authority": 2,
+          "origin": 2,
+          "gate": 2,
+          "severity": 3,
+          "category": "McpGuideline",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+          "specReference": null,
+          "impactAreas": [
+            3
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+          "lane": 0,
+          "authority": 3,
+          "origin": 2,
+          "gate": 2,
+          "severity": 2,
+          "category": "AiReadiness",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 2,
+          "severity": 2,
+          "category": "ProtocolCompliance",
+          "component": "tools/call",
+          "summary": "One tool response omitted the outer result object.",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "coverage:prompt-surface:prompts-list:Skipped",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 1,
+          "gate": 1,
+          "severity": 2,
+          "category": "Coverage",
+          "component": "prompt-surface",
+          "summary": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.",
+          "specReference": null,
+          "impactAreas": [
+            8
+          ],
+          "metadata": {}
+        }
+      ],
+      "coverageDecisions": [
+        {
+          "decisionId": "coverage:prompt-surface:prompts-list:Skipped",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 3,
+          "origin": 1,
+          "gate": 1,
+          "severity": 2,
+          "category": "Coverage",
+          "component": "prompt-surface",
+          "summary": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.",
+          "specReference": null,
+          "impactAreas": [
+            8
+          ],
+          "metadata": {}
+        }
+      ]
+    },
     "toolValidation": {
       "toolsDiscovered": 2,
       "discoveredToolNames": [],
@@ -831,10 +1136,20 @@
     "mode": "strict",
     "passed": false,
     "recommendedExitCode": 1,
-    "summary": "Strict policy blocked the validation result with 2 unsuppressed signal(s).",
+    "summary": "Strict policy blocked the validation result with 9 unsuppressed signal(s).",
+    "totalSignalCount": 9,
+    "unsuppressedSignalCount": 9,
+    "blockingSignalCount": 9,
     "reasons": [
-      "Trust level L3_Acceptable is below the strict minimum of L4_Trusted.",
-      "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+      "Critical error recorded: Prompt validation hit an unsafe reflection path.",
+      "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+      "Server reflected untrusted prompt content without sanitization.",
+      "Prompt output includes reflected untrusted content.",
+      "Server ignored the requested MCP protocol version.",
+      "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+      "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+      "One tool response omitted the outer result object.",
+      "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
     ],
     "suppressedSignalCount": 0,
     "appliedSuppressions": [],

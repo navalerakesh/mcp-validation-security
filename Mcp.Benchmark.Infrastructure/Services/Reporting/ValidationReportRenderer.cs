@@ -58,6 +58,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 new XElement("StartTime", validationResult.StartTime.ToString("yyyy-MM-ddTHH:mm:ssZ")),
                 new XElement("EndTime", validationResult.EndTime?.ToString("yyyy-MM-ddTHH:mm:ssZ"))
             ),
+            BuildVerdictElement(validationResult),
             new XElement("Summary",
                 new XElement("TotalTests", validationResult.Summary.TotalTests),
                 new XElement("PassedTests", validationResult.Summary.PassedTests),
@@ -1284,6 +1285,14 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Transport: {validationResult.ServerConfig.Transport}"
         };
 
+        if (validationResult.VerdictAssessment != null)
+        {
+            details.Add($"Baseline Verdict: {validationResult.VerdictAssessment.BaselineVerdict}");
+            details.Add($"Protocol Verdict: {validationResult.VerdictAssessment.ProtocolVerdict}");
+            details.Add($"Coverage Verdict: {validationResult.VerdictAssessment.CoverageVerdict}");
+            details.Add($"Verdict Summary: {validationResult.VerdictAssessment.Summary}");
+        }
+
         if (validationResult.CriticalErrors.Count > 0)
         {
             details.AddRange(validationResult.CriticalErrors.Select(error => $"Critical Error: {error}"));
@@ -1387,6 +1396,24 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ValidationStatus.Failed => TestStatus.Failed,
             _ => TestStatus.Error
         };
+    }
+
+    private static XElement BuildVerdictElement(ValidationResult validationResult)
+    {
+        if (validationResult.VerdictAssessment == null)
+        {
+            return new XElement("Verdicts",
+                new XElement("BaselineVerdict", "Unknown"),
+                new XElement("ProtocolVerdict", "Unknown"),
+                new XElement("CoverageVerdict", "Unknown"));
+        }
+
+        return new XElement("Verdicts",
+            new XElement("BaselineVerdict", validationResult.VerdictAssessment.BaselineVerdict.ToString()),
+            new XElement("ProtocolVerdict", validationResult.VerdictAssessment.ProtocolVerdict.ToString()),
+            new XElement("CoverageVerdict", validationResult.VerdictAssessment.CoverageVerdict.ToString()),
+            new XElement("Summary", validationResult.VerdictAssessment.Summary),
+            new XElement("BlockingDecisionCount", validationResult.VerdictAssessment.BlockingDecisions.Count));
     }
 
     private static string? BuildProtocolDetails(ComplianceTestResult? result)

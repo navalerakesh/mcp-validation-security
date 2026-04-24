@@ -99,6 +99,48 @@ public class CoreModelTests
         clone.Server.Authentication!.Token.Should().NotBe("secret");
     }
 
+    [Fact]
+    public void McpValidatorConfiguration_CloneWithoutSecrets_ShouldPreserveExecutionAndEvaluationPolicies()
+    {
+        var configuration = new McpValidatorConfiguration
+        {
+            Execution = new ExecutionPolicy
+            {
+                Mode = ExecutionMode.Elevated,
+                DryRun = true,
+                AllowedHosts = new List<string> { "example.test" },
+                PersistenceMode = PersistenceMode.Session,
+                RedactLevel = RedactionLevel.Standard,
+                TraceMode = TraceMode.Redacted,
+                ConfirmElevatedRisk = true
+            },
+            Evaluation = new EvaluationPolicy
+            {
+                ModelEvaluation = new ModelEvaluationPolicy
+                {
+                    Enabled = true,
+                    Provider = "github-models",
+                    Model = "gpt-4.1",
+                    PromptSet = "baseline-v1"
+                }
+            }
+        };
+
+        var clone = configuration.CloneWithoutSecrets();
+
+        clone.Execution.Mode.Should().Be(ExecutionMode.Elevated);
+        clone.Execution.DryRun.Should().BeTrue();
+        clone.Execution.AllowedHosts.Should().ContainSingle().Which.Should().Be("example.test");
+        clone.Execution.PersistenceMode.Should().Be(PersistenceMode.Session);
+        clone.Execution.RedactLevel.Should().Be(RedactionLevel.Standard);
+        clone.Execution.TraceMode.Should().Be(TraceMode.Redacted);
+        clone.Execution.ConfirmElevatedRisk.Should().BeTrue();
+        clone.Evaluation.ModelEvaluation.Enabled.Should().BeTrue();
+        clone.Evaluation.ModelEvaluation.Provider.Should().Be("github-models");
+        clone.Evaluation.ModelEvaluation.Model.Should().Be("gpt-4.1");
+        clone.Evaluation.ModelEvaluation.PromptSet.Should().Be("baseline-v1");
+    }
+
     // ─── McpServerConfig ──────────────────────────────────────────
     [Fact]
     public void McpServerConfig_CloneWithoutSecrets_ShouldRedactAuthHeaders()

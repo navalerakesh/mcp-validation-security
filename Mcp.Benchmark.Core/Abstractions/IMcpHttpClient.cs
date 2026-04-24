@@ -84,6 +84,11 @@ public interface IMcpHttpClient
     void SetProtocolVersion(string? protocolVersion);
 
     /// <summary>
+    /// Applies execution governance constraints for the current run.
+    /// </summary>
+    void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy);
+
+    /// <summary>
     /// Performs a GET request to the specified URL and returns the response body as a string.
     /// </summary>
     Task<string> GetStringAsync(string url, CancellationToken cancellationToken = default);

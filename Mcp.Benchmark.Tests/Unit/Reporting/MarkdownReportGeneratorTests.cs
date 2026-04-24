@@ -41,9 +41,9 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("MCP Trust Level");
+        report.Should().Contain("Benchmark Trust Level");
         report.Should().Contain("L4");
-        report.Should().Contain("MCP Trust Assessment");
+        report.Should().Contain("Benchmark Trust Profile");
         report.Should().Contain("Protocol Compliance");
         report.Should().Contain("AI Safety");
     }

@@ -8,6 +8,9 @@
 | **Server Endpoint** | `https://snapshot.example.test/mcp` |
 | **Validation ID** | `validation-snapshot-001` |
 | **Overall Status** | ❌ **Failed** |
+| **Baseline Verdict** | **Reject** |
+| **Protocol Verdict** | **Reject** |
+| **Coverage Verdict** | **Review Required** |
 | **Compliance Score** | **81.4%** |
 | **Compliance Profile** | `Authenticated (UserDeclared)` |
 | **Duration** | 12.00s |
@@ -15,7 +18,7 @@
 | **Session Bootstrap** | 🔒 Reachable (Protected) |
 | **Deferred Validation** | Yes — validation continued with a calibrated advisory bootstrap state. |
 | **MCP Protocol Version (Effective)** | `2025-11-25` |
-| **MCP Trust Level** | 🟡 **L3: Acceptable — Compliant with known limitations** |
+| **Benchmark Trust Level** | 🟡 **L3: Acceptable — Compliant with known limitations** |
 
 ## 2. Connectivity & Session Bootstrap
 
@@ -40,9 +43,9 @@ Validation continued because the endpoint was classified as protected rather tha
 
 These are the highest-signal outcomes from this validation run.
 
-- Policy strict blocked the run: Strict policy blocked the validation result with 2 unsuppressed signal(s).
-- Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
-- Tool 'delete_repo' does not declare annotations.destructiveHint.
+- Policy strict blocked the run: Strict policy blocked the validation result with 9 unsuppressed signal(s).
+- Critical error recorded: Prompt validation hit an unsafe reflection path.
+- Critical execution error recorded: Prompt validation hit an unsafe reflection path.
 - Prompt validation hit an unsafe reflection path.
 - MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
 
@@ -50,15 +53,38 @@ These are the highest-signal outcomes from this validation run.
 
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
-- Strict policy blocked the validation result with 2 unsuppressed signal(s).
+- Execution: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+- PromptInjection: Server reflected untrusted prompt content without sanitization.
 - Protocol: Echo the negotiated protocol version in initialize.result.
 - Security: Sanitize and label untrusted content before returning it.
-- Add destructive hints to write-capable tools.
 
-## 5. MCP Trust Assessment
+## 5. Deterministic Verdicts
 
-Multi-dimensional evaluation of server trustworthiness for AI agent consumption.
-Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
+These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.
+
+| Lane | Verdict | Meaning |
+| :--- | :--- | :--- |
+| **Baseline** | **Reject** | Overall deterministic gate across blocking findings and coverage debt. |
+| **Protocol** | **Reject** | Protocol correctness and contract integrity. |
+| **Coverage** | **Review Required** | Whether enabled validation surfaces produced authoritative evidence. |
+
+Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
+
+### Blocking Decisions
+
+- **Reject** [Execution] `validation-run`: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+- **Reject** [PromptInjection] `prompt:get`: Server reflected untrusted prompt content without sanitization.
+- **Reject** [PromptInjection] `prompt:get`: Prompt output includes reflected untrusted content.
+- **Reject** [Initialization] `Initialization`: Server ignored the requested MCP protocol version.
+- **Review Required** [McpGuideline] `delete_repo`: Tool 'delete_repo' does not declare annotations.destructiveHint.
+- **Review Required** [AiReadiness] `delete_repo`: Tool 'delete_repo' has parameters without descriptions.
+- **Review Required** [ProtocolCompliance] `tools/call`: One tool response omitted the outer result object.
+- **Coverage Debt** [Coverage] `prompt-surface`: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+
+## 6. Benchmark Trust Profile
+
+Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.
+This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.
 
 | Dimension | Score | What It Measures |
 | :--- | :---: | :--- |
@@ -81,7 +107,7 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 - Data exfiltration risk: **0**
 - Prompt injection surface: **0**
 
-## 6. Validation Envelope
+## 7. Validation Envelope
 
 This section exposes the structured validation envelope used for layered reporting, coverage tracking, and pack provenance.
 
@@ -133,7 +159,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `obs-tool-delete-repo` | `tool-surface` | `delete_repo` | `tool-metadata` | Tool metadata missing annotations.destructiveHint. |
 | `auth-unauthorized-tools-list-challenge` | `security-boundaries` | `tools/list` | `authentication-scenario` | Returned 401 with WWW-Authenticate. |
 
-## 7. Compliance Matrix
+## 8. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
@@ -144,16 +170,16 @@ This section exposes the structured validation envelope used for layered reporti
 | Prompt Capabilities | ➖ Skipped | - | - |
 | Performance | ✅ Passed | 100.0% | - |
 
-## 8. Performance Calibration
+## 9. Performance Calibration
 
 Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
 For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
 
-## 9. Security Assessment
+## 10. Security Assessment
 
 **Security Score:** 69.0%
 
-## 10. Protocol Compliance
+## 11. Protocol Compliance
 
 **Status Detail:** Protocol negotiation had one blocking violation.
 
@@ -162,7 +188,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 | :--- | :--- | :--- | :---: | :--- |
 | MCP.INIT.VERSION_NEGOTIATION | `spec` | Server ignored the requested MCP protocol version. | High | Echo the negotiated protocol version in initialize.result. |
 
-## 11. Tool Validation
+## 12. Tool Validation
 
 **Tools Discovered:** 2
 **Authentication Enforcement:** ⚠️ Not Enforced
@@ -220,7 +246,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING` | `guideline` | 1/2 (50%) | 🟠 High | `delete_repo` | Tool 'delete_repo' does not declare annotations.destructiveHint. |
 
-## 12. Resource Capabilities
+## 13. Resource Capabilities
 
 **Resources Discovered:** 1
 
@@ -228,7 +254,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | :--- | :--- | :--- | :--- | :---: |
 | repo://snapshot/README.md | `repo://snapshot/README.md` | text/markdown | - | ✅ |
 
-## 13. Performance Metrics
+## 14. Performance Metrics
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
@@ -238,7 +264,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 120/120 successful | - |
 
-## 14. Recommendations
+## 15. Recommendations
 
 - 💡 Add destructive hints to write-capable tools.
 - 💡 Return the negotiated protocol version explicitly during initialize.

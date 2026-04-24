@@ -33,6 +33,13 @@ public class McpValidatorConfiguration
     public ValidationPolicyConfig Policy { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the execution governance policy for the run.
+    /// </summary>
+    [JsonPropertyName("execution")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ExecutionPolicy? Execution { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the test execution settings.
     /// </summary>
     [JsonPropertyName("testExecution")]
@@ -46,6 +53,13 @@ public class McpValidatorConfiguration
     public ClientProfileOptions? ClientProfiles { get; set; }
 
     /// <summary>
+    /// Gets or sets optional advisory evaluation overlays.
+    /// </summary>
+    [JsonPropertyName("evaluation")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationPolicy? Evaluation { get; set; } = new();
+
+    /// <summary>
     /// Creates a copy of this validator configuration with server configuration
     /// cloned and secrets redacted for safe persistence.
     /// </summary>
@@ -57,9 +71,23 @@ public class McpValidatorConfiguration
             Validation = Validation,
             Reporting = Reporting,
             Policy = Policy,
+            Execution = Execution?.Clone(),
             TestExecution = TestExecution,
-            ClientProfiles = ClientProfiles
+            ClientProfiles = ClientProfiles,
+            Evaluation = Evaluation?.Clone()
         };
+    }
+
+    /// <summary>
+    /// Creates a clone suitable for deterministic result persistence.
+    /// Execution governance and experimental evaluation overlays remain operational-only.
+    /// </summary>
+    public McpValidatorConfiguration CloneForDeterministicResult()
+    {
+        var clone = CloneWithoutSecrets();
+        clone.Execution = null;
+        clone.Evaluation = null;
+        return clone;
     }
 }
 

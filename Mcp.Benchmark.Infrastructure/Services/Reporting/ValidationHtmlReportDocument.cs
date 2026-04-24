@@ -16,11 +16,19 @@ internal sealed class ValidationHtmlReportDocument
 
     public required ValidationHtmlHero Hero { get; init; }
 
-    public required ValidationHtmlDecisionPanel DecisionPanel { get; init; }
+    public required ValidationHtmlReleaseDecision ReleaseDecision { get; init; }
 
     public required IReadOnlyList<ValidationHtmlMetricCard> OverviewMetrics { get; init; }
 
     public required IReadOnlyList<ValidationHtmlMetricCard> RiskMetrics { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlDomainSummary> DomainSummaries { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlDecisionTraceItem> DecisionTrace { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlHotspot> Hotspots { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlCompatibilityTheme> CompatibilityThemes { get; init; }
 
     public required IReadOnlyList<string> PriorityFindings { get; init; }
 
@@ -50,7 +58,7 @@ internal sealed class ValidationHtmlHero
     public required IReadOnlyList<ValidationHtmlMetaItem> MetaItems { get; init; }
 }
 
-internal sealed class ValidationHtmlDecisionPanel
+internal sealed class ValidationHtmlReleaseDecision
 {
     public required string Eyebrow { get; init; }
 
@@ -61,6 +69,20 @@ internal sealed class ValidationHtmlDecisionPanel
     public required HtmlReportTone Tone { get; init; }
 
     public required IReadOnlyList<string> Highlights { get; init; }
+
+    public required string PolicyModeLabel { get; init; }
+
+    public required string ExitCodeLabel { get; init; }
+
+    public required string VerdictLabel { get; init; }
+
+    public required int TotalSignalCount { get; init; }
+
+    public required int UnsuppressedSignalCount { get; init; }
+
+    public required int BlockingSignalCount { get; init; }
+
+    public required int SuppressedSignalCount { get; init; }
 }
 
 internal sealed class ValidationHtmlMetricCard
@@ -72,6 +94,76 @@ internal sealed class ValidationHtmlMetricCard
     public required string Label { get; init; }
 
     public string? SupportingText { get; init; }
+
+    public required HtmlReportTone Tone { get; init; }
+}
+
+internal sealed class ValidationHtmlDomainSummary
+{
+    public required string Domain { get; init; }
+
+    public required string StatusLabel { get; init; }
+
+    public required string SignalLabel { get; init; }
+
+    public required string EvidenceLabel { get; init; }
+
+    public required string Summary { get; init; }
+
+    public required string ActionLabel { get; init; }
+
+    public required HtmlReportTone Tone { get; init; }
+}
+
+internal sealed class ValidationHtmlDecisionTraceItem
+{
+    public required string Title { get; init; }
+
+    public required string Summary { get; init; }
+
+    public required string Category { get; init; }
+
+    public required string ComponentLabel { get; init; }
+
+    public required string GateLabel { get; init; }
+
+    public required string AuthorityLabel { get; init; }
+
+    public required string EvidenceLabel { get; init; }
+
+    public string? RuleId { get; init; }
+
+    public string? SpecReference { get; init; }
+
+    public required HtmlReportTone Tone { get; init; }
+
+    public IReadOnlyList<string> ImpactAreas { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<ValidationHtmlMetaItem> Facts { get; init; } = Array.Empty<ValidationHtmlMetaItem>();
+}
+
+internal sealed class ValidationHtmlHotspot
+{
+    public required string Component { get; init; }
+
+    public required string Domain { get; init; }
+
+    public required int SignalCount { get; init; }
+
+    public required string Summary { get; init; }
+
+    public required HtmlReportTone Tone { get; init; }
+}
+
+internal sealed class ValidationHtmlCompatibilityTheme
+{
+    public required string Title { get; init; }
+
+    public required string Summary { get; init; }
+
+    public required int ProfileCount { get; init; }
+
+    public IReadOnlyList<string> Profiles { get; init; } = Array.Empty<string>();
 
     public required HtmlReportTone Tone { get; init; }
 }

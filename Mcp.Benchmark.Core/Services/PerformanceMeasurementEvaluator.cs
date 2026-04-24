@@ -9,11 +9,24 @@ public static class PerformanceMeasurementEvaluator
     {
         ArgumentNullException.ThrowIfNull(performance);
 
-        return performance.LoadTesting.TotalRequests > 0
-            || performance.LoadTesting.SuccessfulRequests > 0
-            || performance.LoadTesting.FailedRequests > 0
+        return performance.LoadTesting.SuccessfulRequests > 0
             || performance.LoadTesting.ConnectionErrors.Count > 0
-            || performance.ResponseTimes.OperationBenchmarks.Count > 0;
+            || performance.ResponseTimes.OperationBenchmarks.Count > 0
+            || performance.ResponseTimes.OverallAverageResponseTimeMs > 0
+            || performance.LoadTesting.AverageResponseTimeMs > 0
+            || performance.LoadTesting.MedianResponseTimeMs > 0
+            || performance.LoadTesting.P95ResponseTimeMs > 0
+            || performance.LoadTesting.P99ResponseTimeMs > 0
+            || performance.LoadTesting.MaxResponseTimeMs > 0
+            || performance.LoadTesting.MinResponseTimeMs > 0
+            || performance.LoadTesting.RequestsPerSecond > 0
+            || performance.Throughput.RequestsPerSecond > 0
+            || performance.Throughput.BytesPerSecond > 0
+            || performance.Throughput.TransactionsPerMinute > 0
+            || performance.Throughput.PeakThroughput > 0
+            || performance.ResourceUsage.Network.AverageNetworkLatencyMs > 0
+            || performance.ResourceUsage.Network.TotalBytesSent > 0
+            || performance.ResourceUsage.Network.TotalBytesReceived > 0;
     }
 
     public static string GetUnavailableReason(PerformanceTestResult performance, string fallbackReason)
@@ -26,6 +39,18 @@ public static class PerformanceMeasurementEvaluator
         }
 
         var criticalError = performance.CriticalErrors.FirstOrDefault(error => !string.IsNullOrWhiteSpace(error));
-        return criticalError ?? fallbackReason;
+        if (!string.IsNullOrWhiteSpace(criticalError))
+        {
+            return criticalError;
+        }
+
+        if (performance.LoadTesting.TotalRequests > 0 &&
+            performance.LoadTesting.SuccessfulRequests == 0 &&
+            !HasObservedMetrics(performance))
+        {
+            return $"Performance probe attempted {performance.LoadTesting.TotalRequests} request(s) but captured no timing samples because every request failed.";
+        }
+
+        return fallbackReason;
     }
 }

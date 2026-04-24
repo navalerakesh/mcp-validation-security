@@ -46,7 +46,10 @@ public sealed class ValidateCommandTests : IDisposable
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -94,7 +97,10 @@ public sealed class ValidateCommandTests : IDisposable
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -143,7 +149,10 @@ public sealed class ValidateCommandTests : IDisposable
                         new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
                         NullLogger<ValidateCommand>.Instance,
                         new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+                        new ExecutionGovernanceService(),
+                        new NoOpModelEvaluationExecutor(),
                         new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+                        new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
                         sessionContext);
 
                 var configPath = Path.Combine(Path.GetTempPath(), $"validation-policy-{Guid.NewGuid():N}.json");
@@ -226,7 +235,10 @@ public sealed class ValidateCommandTests : IDisposable
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -294,7 +306,10 @@ public sealed class ValidateCommandTests : IDisposable
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -318,6 +333,85 @@ public sealed class ValidateCommandTests : IDisposable
         performance.GetProperty("measurementsCaptured").GetBoolean().Should().BeFalse();
         performance.GetProperty("measurementStatus").GetString().Should().Be("Unavailable");
         performance.GetProperty("measurementReason").GetString().Should().Be("Operation timed out or was cancelled");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithFailedProbeAndZeroMetrics_ShouldAnnotateSavedJsonAsUnavailable()
+    {
+        var sessionContext = CreateSessionContext();
+        var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputRoot);
+        _sessionRoots.Add(outputRoot);
+
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>();
+        validatorService
+            .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult
+            {
+                OverallStatus = ValidationStatus.Failed,
+                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
+                PerformanceTesting = new PerformanceTestResult
+                {
+                    Status = TestStatus.Failed,
+                    LoadTesting = new LoadTestResult
+                    {
+                        TotalRequests = 20,
+                        SuccessfulRequests = 0,
+                        FailedRequests = 20,
+                        AverageResponseTimeMs = 0,
+                        P95ResponseTimeMs = 0,
+                        RequestsPerSecond = 0
+                        
+                    }
+                },
+                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L2_Caution }
+            });
+
+        var reportGenerator = new Mock<IReportGenerator>();
+        reportGenerator.Setup(generator => generator.GenerateReport(It.IsAny<ValidationResult>())).Returns("# markdown");
+
+        var reportRenderer = new Mock<IValidationReportRenderer>();
+        reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
+        reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            reportGenerator.Object,
+            reportRenderer.Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            server: "https://example.test/mcp",
+            outputDirectory: new DirectoryInfo(outputRoot),
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null,
+            policyMode: ValidationPolicyModes.Advisory);
+
+        var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
+        var performance = document.RootElement
+            .GetProperty("assessments")
+            .GetProperty("performanceTesting");
+
+        performance.GetProperty("measurementsCaptured").GetBoolean().Should().BeFalse();
+        performance.GetProperty("measurementStatus").GetString().Should().Be("Unavailable");
+        performance.GetProperty("measurementReason").GetString().Should().Be("Performance probe attempted 20 request(s) but captured no timing samples because every request failed.");
     }
 
     [Fact]
@@ -363,7 +457,10 @@ public sealed class ValidateCommandTests : IDisposable
             gitHubReporter.Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -443,7 +540,10 @@ public sealed class ValidateCommandTests : IDisposable
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             NullLogger<ValidateCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
             new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
             sessionContext);
 
         await command.ExecuteAsync(
@@ -462,6 +562,178 @@ public sealed class ValidateCommandTests : IDisposable
         capturedOptions.Should().NotBeNull();
         capturedOptions!.Profiles.Should().ContainSingle().Which.Should().Be("claude-code");
         consoleOutput.Verify(output => output.WriteSuccess(It.Is<string>(value => value.Contains("Claude Code", StringComparison.Ordinal))), Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDryRun_ShouldNotContactTarget()
+    {
+        var sessionContext = CreateSessionContext();
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            new Mock<IReportGenerator>(MockBehavior.Loose).Object,
+            new Mock<IValidationReportRenderer>(MockBehavior.Loose).Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            server: "https://example.test/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null,
+            policyMode: ValidationPolicyModes.Advisory,
+            executionMode: null,
+            dryRun: true);
+
+        Environment.ExitCode.Should().Be(0);
+        validatorService.Verify(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithModelEvaluationEnabled_ShouldEmitSeparateCompanionArtifact()
+    {
+        var sessionContext = CreateSessionContext();
+        var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputRoot);
+        _sessionRoots.Add(outputRoot);
+
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>();
+        validatorService
+            .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult
+            {
+                OverallStatus = ValidationStatus.Passed,
+                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
+                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted },
+                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted }
+            });
+
+        var reportGenerator = new Mock<IReportGenerator>();
+        reportGenerator.Setup(generator => generator.GenerateReport(It.IsAny<ValidationResult>())).Returns("# markdown");
+
+        var reportRenderer = new Mock<IValidationReportRenderer>();
+        reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
+        reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+
+                var configPath = Path.Combine(Path.GetTempPath(), $"model-eval-{Guid.NewGuid():N}.json");
+                _tempFiles.Add(configPath);
+                await File.WriteAllTextAsync(
+                        configPath,
+                        """
+                        {
+                            "evaluation": {
+                                "modelEvaluation": {
+                                    "enabled": true,
+                                    "provider": "builtin-rubric",
+                                    "model": "builtin-rubric-v1",
+                                    "promptSet": "baseline-v1"
+                                }
+                            }
+                        }
+                        """);
+
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            reportGenerator.Object,
+            reportRenderer.Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            server: "https://example.test/mcp",
+            outputDirectory: new DirectoryInfo(outputRoot),
+            specProfile: null,
+            configFile: new FileInfo(configPath),
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null,
+            policyMode: ValidationPolicyModes.Advisory,
+            enableModelEval: true);
+
+        Directory.GetFiles(outputRoot, "*-model-evaluation.json").Should().ContainSingle();
+        var modelEvaluationPath = Directory.GetFiles(outputRoot, "*-model-evaluation.json").Single();
+        var modelEvaluationJson = await File.ReadAllTextAsync(modelEvaluationPath);
+        modelEvaluationJson.Should().Contain("\"status\": \"Completed\"");
+        var resultJsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
+        var resultJson = await File.ReadAllTextAsync(resultJsonPath);
+        resultJson.Should().NotContain("modelEvaluation");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithModelEvaluationEnabledAndNoProvider_ShouldFailFast()
+    {
+        var sessionContext = CreateSessionContext();
+        var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
+        _sessionRoots.Add(outputRoot);
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>();
+        validatorService
+            .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult
+            {
+                OverallStatus = ValidationStatus.Passed,
+                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
+                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted }
+            });
+
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            new Mock<IReportGenerator>(MockBehavior.Loose).Object,
+            new Mock<IValidationReportRenderer>(MockBehavior.Loose).Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            server: "https://example.test/mcp",
+            outputDirectory: new DirectoryInfo(outputRoot),
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null,
+            policyMode: ValidationPolicyModes.Advisory,
+            enableModelEval: true);
+
+        Environment.ExitCode.Should().Be(64);
+        consoleOutput.Verify(output => output.WriteError(It.Is<string>(message => message.Contains("no provider was configured", StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
     }
 
     private CliSessionContext CreateSessionContext()

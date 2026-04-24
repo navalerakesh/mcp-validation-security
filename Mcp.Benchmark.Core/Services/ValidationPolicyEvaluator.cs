@@ -66,6 +66,9 @@ public static class ValidationPolicyEvaluator
             Passed = blockingSignals.Count == 0,
             RecommendedExitCode = blockingSignals.Count == 0 ? 0 : 1,
             Summary = BuildSummary(mode, blockingSignals.Count == 0, blockingSignals.Count, suppressedSignalCount),
+            TotalSignalCount = signals.Count,
+            UnsuppressedSignalCount = unsuppressedSignals.Count,
+            BlockingSignalCount = blockingSignals.Count,
             Reasons = blockingSignals.Select(signal => signal.Description).Distinct(StringComparer.Ordinal).ToList(),
             SuppressedSignalCount = suppressedSignalCount,
             AppliedSuppressions = appliedSuppressions.Values.OrderBy(value => value.Id, StringComparer.OrdinalIgnoreCase).ToList(),
@@ -173,6 +176,12 @@ public static class ValidationPolicyEvaluator
                 Description: $"Critical error recorded: {criticalError}",
                 Suppressible: false));
         }
+
+            if (result.VerdictAssessment is { } verdictAssessment)
+            {
+                AddVerdictSignals(signals, verdictAssessment);
+                return signals;
+            }
 
         if (result.TrustAssessment?.TierChecks is { Count: > 0 } tierChecks)
         {
@@ -335,6 +344,76 @@ public static class ValidationPolicyEvaluator
         return signals;
     }
 
+    private static void AddVerdictSignals(List<PolicySignal> signals, VerdictAssessment verdictAssessment)
+    {
+        foreach (var decision in verdictAssessment.TriggeredDecisions)
+        {
+            if (decision.Gate == GateOutcome.Note)
+            {
+                continue;
+            }
+
+            signals.Add(new PolicySignal(
+                Kind: decision.Gate switch
+                {
+                    GateOutcome.Reject => PolicySignalKind.GateReject,
+                    GateOutcome.ReviewRequired => PolicySignalKind.GateReviewRequired,
+                    GateOutcome.CoverageDebt => PolicySignalKind.CoverageDebt,
+                    _ => PolicySignalKind.StructuredFinding
+                },
+                SignalId: $"POLICY.VERDICT.{decision.Gate.ToString().ToUpperInvariant()}",
+                RuleId: decision.RuleId,
+                Source: ValidationRuleSourceClassifier.GetLabel(decision.Authority),
+                Category: decision.Category,
+                Component: decision.Component,
+                Severity: MapSeverity(decision.Severity),
+                Description: decision.Summary,
+                Suppressible: true));
+        }
+
+        foreach (var decision in verdictAssessment.CoverageDecisions)
+        {
+            signals.Add(new PolicySignal(
+                Kind: PolicySignalKind.CoverageDebt,
+                SignalId: "POLICY.VERDICT.COVERAGE_DEBT",
+                RuleId: decision.RuleId,
+                Source: ValidationRuleSourceClassifier.GetLabel(decision.Authority),
+                Category: decision.Category,
+                Component: decision.Component,
+                Severity: MapSeverity(decision.Severity),
+                Description: decision.Summary,
+                Suppressible: true));
+        }
+
+        if (verdictAssessment.ProtocolVerdict == ValidationVerdict.Unknown)
+        {
+            signals.Add(new PolicySignal(
+                Kind: PolicySignalKind.VerdictUnavailable,
+                SignalId: "POLICY.VERDICT.PROTOCOL_UNKNOWN",
+                RuleId: null,
+                Source: ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                Category: "Verdict",
+                Component: "protocol",
+                Severity: SeverityBand.High,
+                Description: "Protocol verdict is unknown, so policy cannot treat the run as authoritative.",
+                Suppressible: true));
+        }
+
+        if (verdictAssessment.CoverageVerdict == ValidationVerdict.Unknown)
+        {
+            signals.Add(new PolicySignal(
+                Kind: PolicySignalKind.VerdictUnavailable,
+                SignalId: "POLICY.VERDICT.COVERAGE_UNKNOWN",
+                RuleId: null,
+                Source: ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                Category: "Verdict",
+                Component: "coverage",
+                Severity: SeverityBand.High,
+                Description: "Coverage verdict is unknown, so the run cannot be treated as fully authoritative.",
+                Suppressible: true));
+        }
+    }
+
     private static void AddFindingSignals(List<PolicySignal> signals, IEnumerable<ValidationFinding>? findings, string defaultComponent)
     {
         if (findings == null)
@@ -448,9 +527,17 @@ public static class ValidationPolicyEvaluator
                 or PolicySignalKind.ShouldFailure
                 or PolicySignalKind.TrustThreshold
                 or PolicySignalKind.TrustAssessmentMissing
+                or PolicySignalKind.GateReject
+                or PolicySignalKind.GateReviewRequired
+                or PolicySignalKind.CoverageDebt
+                or PolicySignalKind.VerdictUnavailable
                 || signal.Severity >= SeverityBand.High,
             _ => signal.Kind is PolicySignalKind.MustFailure
                 or PolicySignalKind.TrustThreshold
+                or PolicySignalKind.GateReject
+                or PolicySignalKind.GateReviewRequired
+                or PolicySignalKind.CoverageDebt
+                or PolicySignalKind.VerdictUnavailable
                 || signal.Severity >= SeverityBand.Critical
         };
     }
@@ -519,6 +606,17 @@ public static class ValidationPolicyEvaluator
         };
     }
 
+    private static SeverityBand MapSeverity(GateOutcome gate)
+    {
+        return gate switch
+        {
+            GateOutcome.Reject => SeverityBand.Critical,
+            GateOutcome.ReviewRequired => SeverityBand.High,
+            GateOutcome.CoverageDebt => SeverityBand.High,
+            _ => SeverityBand.Info
+        };
+    }
+
     private static SeverityBand MapSeverity(ViolationSeverity severity)
     {
         return severity switch
@@ -571,10 +669,14 @@ public static class ValidationPolicyEvaluator
         CriticalError,
         MustFailure,
         ShouldFailure,
+        GateReject,
+        GateReviewRequired,
+        CoverageDebt,
         StructuredFinding,
         BoundaryFinding,
         TrustThreshold,
-        TrustAssessmentMissing
+        TrustAssessmentMissing,
+        VerdictUnavailable
     }
 
     private sealed record PolicySignal(

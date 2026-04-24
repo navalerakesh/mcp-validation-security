@@ -5,6 +5,7 @@ using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Abstractions;
 using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Exceptions;
+using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
@@ -30,7 +31,10 @@ public class ValidateCommand
     private readonly IGitHubActionsReporter _gitHubActionsReporter;
     private readonly ILogger<ValidateCommand> _logger;
     private readonly INextStepAdvisor _nextStepAdvisor;
-        private readonly ISessionArtifactStore _artifactStore;
+    private readonly IExecutionGovernanceService _executionGovernanceService;
+    private readonly IModelEvaluationExecutor _modelEvaluationExecutor;
+    private readonly ISessionArtifactStore _artifactStore;
+    private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
 
     public ValidateCommand(
@@ -41,9 +45,12 @@ public class ValidateCommand
         IValidationReportRenderer reportRenderer,
         IGitHubActionsReporter gitHubActionsReporter,
         ILogger<ValidateCommand> logger,
-            INextStepAdvisor nextStepAdvisor,
-            ISessionArtifactStore artifactStore,
-            CliSessionContext sessionContext)
+        INextStepAdvisor nextStepAdvisor,
+        IExecutionGovernanceService executionGovernanceService,
+        IModelEvaluationExecutor modelEvaluationExecutor,
+        ISessionArtifactStore artifactStore,
+        IMcpHttpClient httpClient,
+        CliSessionContext sessionContext)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
@@ -53,7 +60,10 @@ public class ValidateCommand
         _gitHubActionsReporter = gitHubActionsReporter ?? throw new ArgumentNullException(nameof(gitHubActionsReporter));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _nextStepAdvisor = nextStepAdvisor ?? throw new ArgumentNullException(nameof(nextStepAdvisor));
-            _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
+        _executionGovernanceService = executionGovernanceService ?? throw new ArgumentNullException(nameof(executionGovernanceService));
+        _modelEvaluationExecutor = modelEvaluationExecutor ?? throw new ArgumentNullException(nameof(modelEvaluationExecutor));
+        _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
     }
 
@@ -73,7 +83,18 @@ public class ValidateCommand
         int? maxConcurrency = null,
         string? policyMode = null,
         string[]? clientProfiles = null,
-        string? reportDetail = null)
+        string? reportDetail = null,
+        string? executionMode = null,
+        bool? dryRun = null,
+        string[]? allowedHosts = null,
+        bool? allowPrivateAddresses = null,
+        int? maxRequests = null,
+        int? timeoutSeconds = null,
+        string? persistenceMode = null,
+        string? redactLevel = null,
+        string? traceMode = null,
+        bool? confirmElevatedRisk = null,
+        bool? enableModelEval = null)
     {
         _consoleOutput.SetVerbose(verbose);
         _nextStepAdvisor.Reset();
@@ -95,10 +116,25 @@ public class ValidateCommand
             // Load and normalize configuration
             var profileOverride = ParseServerProfile(serverProfile);
             configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride);
-            ApplyTestExecutionOverrides(configuration, maxConcurrency);
             ApplyPolicyOverride(configuration, policyMode);
             ApplyClientProfileOverride(configuration, clientProfiles);
             ApplyReportingOverrides(configuration, reportDetail);
+            ExecutionPolicyOverrides.Apply(
+                configuration,
+                maxConcurrency,
+                executionMode,
+                dryRun,
+                allowedHosts,
+                allowPrivateAddresses,
+                maxRequests,
+                timeoutSeconds,
+                persistenceMode,
+                redactLevel,
+                traceMode,
+                confirmElevatedRisk,
+                enableModelEval);
+            configuration.Execution ??= new ExecutionPolicy();
+            ApplyTestExecutionOverrides(configuration, configuration.Execution.MaxConcurrency);
             targetEndpoint = configuration.Server.Endpoint ?? targetEndpoint;
             var effectiveProfile = configuration.Server.Profile;
 
@@ -128,9 +164,40 @@ public class ValidateCommand
                 configuration.Reporting.OutputDirectory = outputDirectory.FullName;
             }
 
-            // Show high level plan
-            _consoleOutput.DisplayValidationPlan(ValidationMessages.Titles.SecurityValidation, configuration.Server);
+            var explicitOutputDirectory = ResolveExplicitOutputDirectory(outputDirectory, configuration);
+
+            _sessionContext.ApplyExecutionPolicy(configuration.Execution);
+            var executionPlan = _executionGovernanceService.BuildValidationPlan(_sessionContext, configuration, explicitOutputDirectory);
+            if (!executionPlan.IsValid)
+            {
+                throw new CliUsageException(BuildExecutionErrorMessage(executionPlan.ValidationErrors));
+            }
+
+            DisplayExecutionPlan(executionPlan);
             _consoleOutput.DisplayConfigurationStatus(configFile?.FullName, configFile?.Exists ?? false);
+
+            if (executionPlan.DryRun)
+            {
+                var dryRunAuditManifest = _executionGovernanceService.BuildAuditManifest(
+                    executionPlan,
+                    result: null,
+                    artifactPaths: Array.Empty<string>(),
+                    modelEvaluationArtifact: null);
+                var dryRunArtifactPaths = await PersistOperationalArtifactsAsync(explicitOutputDirectory, executionPlan, dryRunAuditManifest, modelEvaluationArtifact: null);
+
+                if (dryRunArtifactPaths.Count > 0)
+                {
+                    _consoleOutput.WriteSuccess($"Operational artifacts generated: {string.Join(", ", dryRunArtifactPaths)}");
+                }
+
+                _consoleOutput.WriteSuccess("Dry run complete. No requests were sent.");
+                Environment.ExitCode = 0;
+                return;
+            }
+
+            var transportExecutionPolicy = configuration.Execution.Clone();
+            transportExecutionPolicy.AllowedHosts = executionPlan.AllowedHosts.ToList();
+            _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
 
             _consoleOutput.ShowProgress(ValidationMessages.Progress.Initializing);
 
@@ -152,6 +219,17 @@ public class ValidateCommand
 
             var safeConfig = configuration.CloneWithoutSecrets();
             var safeResult = result.CloneWithoutSecrets();
+            ModelEvaluationArtifact? modelEvaluationArtifact = null;
+                var modelEvaluationPolicy = configuration.Evaluation?.ModelEvaluation;
+
+                if (modelEvaluationPolicy?.Enabled == true)
+            {
+                modelEvaluationArtifact = await _modelEvaluationExecutor.ExecuteAsync(
+                    safeResult,
+                    executionPlan,
+                    modelEvaluationPolicy,
+                    cts.Token);
+            }
 
             // Display main results; verbose turns on additional console output via ConsoleOutputService
             _consoleOutput.DisplayValidationResults(result, showDetails: verbose);
@@ -173,9 +251,27 @@ public class ValidateCommand
                 result.ProtocolVersion ?? configuration.Server.ProtocolVersion);
 
             // Persist Markdown report if requested
-            if (outputDirectory != null)
+            if (!string.IsNullOrWhiteSpace(explicitOutputDirectory))
             {
-                artifactPaths = await SaveValidationResultsAsync(result, configuration.Reporting.OutputDirectory, verbose);
+                artifactPaths = await SaveValidationResultsAsync(
+                    result,
+                    explicitOutputDirectory,
+                    verbose,
+                    executionPlan,
+                    modelEvaluationArtifact);
+            }
+            else
+            {
+                var auditManifest = _executionGovernanceService.BuildAuditManifest(
+                    executionPlan,
+                    safeResult,
+                    artifactPaths: Array.Empty<string>(),
+                    modelEvaluationArtifact);
+                artifactPaths = await PersistOperationalArtifactsAsync(
+                    explicitOutputDirectory: null,
+                    executionPlan,
+                    auditManifest,
+                    modelEvaluationArtifact);
             }
 
             _gitHubActionsReporter.PublishValidationResult(safeResult, artifactPaths);
@@ -230,6 +326,7 @@ public class ValidateCommand
         {
             var normalized = Math.Clamp(maxConcurrency.Value, 1, 128);
             configuration.TestExecution.MaxParallelThreads = normalized;
+            configuration.TestExecution.DefaultTestTimeoutMs = Math.Max(1000, configuration.Server.TimeoutMs);
             configuration.Validation.Categories.PerformanceTesting.MaxConcurrentConnections = normalized;
         }
     }
@@ -523,7 +620,12 @@ public class ValidateCommand
     /// snapshot that can be used later with the offline <c>report</c> command,
     /// and a SARIF artifact for CI/code scanning integrations.
     /// </summary>
-    private async Task<IReadOnlyList<string>> SaveValidationResultsAsync(ValidationResult result, string outputDirectory, bool verbose)
+    private async Task<IReadOnlyList<string>> SaveValidationResultsAsync(
+        ValidationResult result,
+        string outputDirectory,
+        bool verbose,
+        ExecutionPlan executionPlan,
+        ModelEvaluationArtifact? modelEvaluationArtifact)
     {
         if (!Directory.Exists(outputDirectory))
         {
@@ -584,7 +686,140 @@ public class ValidateCommand
             savedPaths.Add(profileSummaryPath);
         }
 
+        if (modelEvaluationArtifact != null)
+        {
+            var modelEvaluationPath = Path.Combine(outputDirectory, $"{baseName}-model-evaluation.json");
+            var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
+            await File.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson);
+            _logger.LogInformation("Model evaluation artifact saved: {Path}", modelEvaluationPath);
+            savedPaths.Add(modelEvaluationPath);
+        }
+
+        var auditManifest = _executionGovernanceService.BuildAuditManifest(
+            executionPlan,
+            safeResult,
+            savedPaths,
+            modelEvaluationArtifact);
+        var auditManifestPath = Path.Combine(outputDirectory, $"{baseName}-audit.json");
+        var auditManifestJson = JsonSerializer.Serialize(auditManifest, jsonOptions);
+        await File.WriteAllTextAsync(auditManifestPath, auditManifestJson);
+        _logger.LogInformation("Audit manifest saved: {Path}", auditManifestPath);
+        savedPaths.Add(auditManifestPath);
+
         return savedPaths;
+    }
+
+    private async Task<IReadOnlyList<string>> PersistOperationalArtifactsAsync(
+        string? explicitOutputDirectory,
+        ExecutionPlan executionPlan,
+        AuditManifest auditManifest,
+        ModelEvaluationArtifact? modelEvaluationArtifact)
+    {
+        var artifactPaths = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(explicitOutputDirectory))
+        {
+            if (!Directory.Exists(explicitOutputDirectory))
+            {
+                Directory.CreateDirectory(explicitOutputDirectory);
+            }
+
+            var jsonOptions = new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+
+            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            var baseName = $"mcp-validation-{timestamp}";
+
+            if (modelEvaluationArtifact != null)
+            {
+                var modelEvaluationPath = Path.Combine(explicitOutputDirectory, $"{baseName}-model-evaluation.json");
+                var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
+                await File.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson);
+                artifactPaths.Add(modelEvaluationPath);
+            }
+
+            var updatedAuditManifest = _executionGovernanceService.BuildAuditManifest(
+                executionPlan,
+                result: null,
+                artifactPaths,
+                modelEvaluationArtifact);
+            var auditManifestPath = Path.Combine(explicitOutputDirectory, $"{baseName}-audit.json");
+            var auditManifestJson = JsonSerializer.Serialize(updatedAuditManifest, jsonOptions);
+            await File.WriteAllTextAsync(auditManifestPath, auditManifestJson);
+            artifactPaths.Add(auditManifestPath);
+            return artifactPaths;
+        }
+
+        var persistedAuditPath = _artifactStore.TrySaveJson("audit-manifest", auditManifest);
+        if (!string.IsNullOrWhiteSpace(persistedAuditPath))
+        {
+            artifactPaths.Add(persistedAuditPath);
+        }
+
+        if (modelEvaluationArtifact != null)
+        {
+            var persistedModelEvaluationPath = _artifactStore.TrySaveJson("model-evaluation", modelEvaluationArtifact);
+            if (!string.IsNullOrWhiteSpace(persistedModelEvaluationPath))
+            {
+                artifactPaths.Add(persistedModelEvaluationPath);
+            }
+        }
+
+        return artifactPaths;
+    }
+
+    private void DisplayExecutionPlan(ExecutionPlan executionPlan)
+    {
+        _consoleOutput.DisplaySessionBanner();
+        Console.WriteLine();
+        _consoleOutput.WriteHeader("EXECUTION PLAN");
+        Console.WriteLine($"Target: {executionPlan.Target}");
+        Console.WriteLine($"Transport: {executionPlan.Transport}");
+        Console.WriteLine($"Mode: {executionPlan.ExecutionMode}");
+        Console.WriteLine($"Dry Run: {(executionPlan.DryRun ? "enabled" : "disabled")}");
+        Console.WriteLine($"Persistence: {executionPlan.PersistenceMode}");
+        Console.WriteLine($"Redaction: {executionPlan.RedactionLevel}");
+        Console.WriteLine($"Trace: {executionPlan.TraceMode}");
+        Console.WriteLine($"Timeout: {executionPlan.TimeoutSeconds}s per request");
+        Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
+        Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
+        Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
+        Console.WriteLine($"Private Addresses: {(executionPlan.AllowPrivateAddresses ? "allowed" : "blocked")}");
+        Console.WriteLine($"Model Evaluation: {(executionPlan.ModelEvaluationEnabled ? "enabled" : "disabled")}");
+
+        if (executionPlan.SelectedClientProfiles.Count > 0)
+        {
+            Console.WriteLine($"Client Profiles: {string.Join(", ", executionPlan.SelectedClientProfiles)}");
+        }
+
+        if (executionPlan.OutputDirectory != null)
+        {
+            Console.WriteLine($"Output Directory: {executionPlan.OutputDirectory}");
+        }
+
+        Console.WriteLine($"Planned Checks: {string.Join(", ", executionPlan.PlannedChecks)}");
+        Console.WriteLine($"Planned Artifacts: {string.Join(", ", executionPlan.PlannedArtifacts)}");
+        Console.WriteLine();
+    }
+
+    private static string BuildExecutionErrorMessage(IReadOnlyList<string> errors)
+    {
+        return "Execution plan rejected:" + Environment.NewLine + string.Join(Environment.NewLine, errors.Select(error => $"- {error}"));
+    }
+
+    private static string? ResolveExplicitOutputDirectory(DirectoryInfo? outputDirectory, McpValidatorConfiguration configuration)
+    {
+        if (outputDirectory != null)
+        {
+            return outputDirectory.FullName;
+        }
+
+        return configuration.Execution?.PersistenceMode == PersistenceMode.ExplicitOutput
+            ? configuration.Reporting.OutputDirectory
+            : null;
     }
 
     private static object BuildClientProfileSummary(ValidationResult result)

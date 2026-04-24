@@ -124,6 +124,8 @@ public sealed class ValidationAssessmentDocument
 {
     public ComplianceTestResult? ProtocolCompliance { get; set; }
 
+    public VerdictAssessment? VerdictAssessment { get; set; }
+
     public ToolTestResult? ToolValidation { get; set; }
 
     public ResourceTestResult? ResourceTesting { get; set; }
@@ -236,4 +238,97 @@ public sealed class ValidationCoverageDeclaration
     public required ValidationCoverageStatus Status { get; init; }
 
     public string? Reason { get; init; }
+}
+
+public enum EvaluationLane
+{
+    Baseline,
+    ClientCompatibility,
+    ModelAdvisory
+}
+
+public enum EvidenceOrigin
+{
+    DeterministicObservation,
+    DeterministicAggregation,
+    HeuristicInference,
+    ModelAssistance
+}
+
+public enum GateOutcome
+{
+    Note = 0,
+    CoverageDebt = 1,
+    ReviewRequired = 2,
+    Reject = 3
+}
+
+public enum ValidationVerdict
+{
+    Unknown = 0,
+    Reject = 1,
+    ReviewRequired = 2,
+    ConditionallyAcceptable = 3,
+    Trusted = 4
+}
+
+public enum ImpactArea
+{
+    ProtocolInteroperability,
+    CapabilityContract,
+    AuthenticationBoundary,
+    UnsafeAutonomy,
+    OutputIntegrity,
+    DataExposure,
+    RecoveryIntegrity,
+    OperationalResilience,
+    CoverageIntegrity
+}
+
+public sealed class DecisionRecord
+{
+    public required string DecisionId { get; init; }
+
+    public string? RuleId { get; init; }
+
+    public required EvaluationLane Lane { get; init; }
+
+    public required ValidationRuleSource Authority { get; init; }
+
+    public required EvidenceOrigin Origin { get; init; }
+
+    public required GateOutcome Gate { get; init; }
+
+    public required ValidationFindingSeverity Severity { get; init; }
+
+    public required string Category { get; init; }
+
+    public required string Component { get; init; }
+
+    public required string Summary { get; init; }
+
+    public string? SpecReference { get; init; }
+
+    public IReadOnlyList<ImpactArea> ImpactAreas { get; init; } = Array.Empty<ImpactArea>();
+
+    public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
+public sealed class VerdictAssessment
+{
+    public string RulesetVersion { get; set; } = "2026-04";
+
+    public ValidationVerdict BaselineVerdict { get; set; } = ValidationVerdict.Unknown;
+
+    public ValidationVerdict ProtocolVerdict { get; set; } = ValidationVerdict.Unknown;
+
+    public ValidationVerdict CoverageVerdict { get; set; } = ValidationVerdict.Unknown;
+
+    public string Summary { get; set; } = string.Empty;
+
+    public List<DecisionRecord> TriggeredDecisions { get; init; } = new();
+
+    public List<DecisionRecord> BlockingDecisions { get; init; } = new();
+
+    public List<DecisionRecord> CoverageDecisions { get; init; } = new();
 }

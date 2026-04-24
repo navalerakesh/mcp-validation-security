@@ -26,6 +26,21 @@ public class ValidationPolicyOutcome
     public string Summary { get; set; } = string.Empty;
 
     /// <summary>
+    /// Gets or sets the total number of policy signals evaluated before suppressions.
+    /// </summary>
+    public int TotalSignalCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of signals remaining after suppressions are applied.
+    /// </summary>
+    public int UnsuppressedSignalCount { get; set; }
+
+    /// <summary>
+    /// Gets or sets the number of remaining signals that actively block the selected policy mode.
+    /// </summary>
+    public int BlockingSignalCount { get; set; }
+
+    /// <summary>
     /// Gets or sets the reasons that drove the policy decision.
     /// </summary>
     public List<string> Reasons { get; set; } = new();

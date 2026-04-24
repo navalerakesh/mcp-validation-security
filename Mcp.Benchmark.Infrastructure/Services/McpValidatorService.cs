@@ -355,6 +355,10 @@ public class McpValidatorService : IMcpValidatorService
 
             // Calculate MCP Trust Assessment (multi-dimensional AI safety evaluation)
             result.TrustAssessment = Scoring.McpTrustCalculator.Calculate(result);
+            result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+            result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)
+                ? ValidationStatus.Passed
+                : ValidationStatus.Failed;
 
             result.EndTime = DateTime.UtcNow;
             _logger.LogInformation("Validation completed with status: {Status}, Score: {Score:F1}%",

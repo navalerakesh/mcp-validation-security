@@ -15,6 +15,13 @@
     <StartTime>2026-04-20T10:00:00Z</StartTime>
     <EndTime>2026-04-20T10:00:12Z</EndTime>
   </Results>
+  <Verdicts>
+    <BaselineVerdict>Reject</BaselineVerdict>
+    <ProtocolVerdict>Reject</ProtocolVerdict>
+    <CoverageVerdict>ReviewRequired</CoverageVerdict>
+    <Summary>Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.</Summary>
+    <BlockingDecisionCount>8</BlockingDecisionCount>
+  </Verdicts>
   <Summary>
     <TotalTests>7</TotalTests>
     <PassedTests>4</PassedTests>

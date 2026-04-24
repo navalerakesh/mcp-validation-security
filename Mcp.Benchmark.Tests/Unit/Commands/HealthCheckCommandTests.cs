@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Mcp.Benchmark.CLI;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
@@ -32,10 +33,21 @@ public sealed class HealthCheckCommandTests : IDisposable
             consoleOutput.Object,
             NullLogger<HealthCheckCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
-            artifactStore);
+            new ExecutionGovernanceService(),
+            artifactStore,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
 
         // Act
-        await command.ExecuteAsync("https://mcp.example.org", 2000, null, verbose: false, token: null, interactive: false, serverProfile: null);
+        await command.ExecuteAsync(
+            "https://mcp.example.org",
+            2000,
+            null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            persistenceMode: "session");
 
         // Assert
         var artifacts = Directory.GetFiles(sessionContext.StateDirectory, "health-check-results-*.json");
@@ -62,13 +74,47 @@ public sealed class HealthCheckCommandTests : IDisposable
             consoleOutput.Object,
             NullLogger<HealthCheckCommand>.Instance,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
-            artifactStore);
+            new ExecutionGovernanceService(),
+            artifactStore,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
 
         // Act
         await command.ExecuteAsync("https://mcp.example.org", 2000, null, verbose: false, token: null, interactive: false, serverProfile: null);
 
         // Assert
         consoleOutput.Verify(c => c.WriteSessionLogHint(It.Is<string?>(s => s != null && s.Contains("Health-check", StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithDryRun_ShouldNotContactTarget()
+    {
+        var sessionContext = CreateSessionContext();
+        var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var validatorService = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+
+        var command = new HealthCheckCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            NullLogger<HealthCheckCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            "https://mcp.example.org",
+            timeoutMs: 2000,
+            configFile: null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            dryRun: true);
+
+        Environment.ExitCode.Should().Be(0);
+        validatorService.Verify(service => service.PerformHealthCheckAsync(It.IsAny<McpServerConfig>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private CliSessionContext CreateSessionContext()

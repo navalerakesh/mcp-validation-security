@@ -185,6 +185,14 @@ public static class ValidationFormatter
 
         FormatterUtils.WriteWithColor("Score:  ", ConsoleColor.Gray, useColors);
         FormatterUtils.WriteLineWithColor($"{result.ComplianceScore:F1}%", FormatterUtils.GetScoreColor(result.ComplianceScore), useColors);
+
+        if (result.VerdictAssessment != null)
+        {
+            WriteKeyValue("Baseline", FormatVerdict(result.VerdictAssessment.BaselineVerdict), useColors);
+            WriteKeyValue("Protocol", FormatVerdict(result.VerdictAssessment.ProtocolVerdict), useColors);
+            WriteKeyValue("Coverage", FormatVerdict(result.VerdictAssessment.CoverageVerdict), useColors);
+        }
+
         Console.WriteLine();
     }
 
@@ -400,6 +408,31 @@ public static class ValidationFormatter
 
     private static void DisplayExpertAssessmentInsights(ValidationResult result, bool useColors)
     {
+        if (result.VerdictAssessment != null)
+        {
+            var verdict = result.VerdictAssessment.BaselineVerdict;
+            var text = verdict switch
+            {
+                ValidationVerdict.Trusted => "VERDICT: TRUSTED",
+                ValidationVerdict.ConditionallyAcceptable => "VERDICT: CONDITIONAL ACCEPTANCE",
+                ValidationVerdict.ReviewRequired => "VERDICT: REVIEW REQUIRED",
+                ValidationVerdict.Reject => "VERDICT: REJECT",
+                _ => "VERDICT: UNKNOWN"
+            };
+
+            var color = verdict switch
+            {
+                ValidationVerdict.Trusted => ConsoleColor.Green,
+                ValidationVerdict.ConditionallyAcceptable => ConsoleColor.Cyan,
+                ValidationVerdict.ReviewRequired => ConsoleColor.Yellow,
+                ValidationVerdict.Reject => ConsoleColor.Red,
+                _ => ConsoleColor.White
+            };
+
+            FormatterUtils.WriteLineWithColor(text, color, useColors);
+            return;
+        }
+
         if (result.ComplianceScore >= 95)
         {
             FormatterUtils.WriteLineWithColor("VERDICT: EXEMPLARY IMPLEMENTATION", ConsoleColor.Green, useColors);
@@ -412,6 +445,18 @@ public static class ValidationFormatter
         {
             FormatterUtils.WriteLineWithColor("VERDICT: IMPROVEMENTS REQUIRED", ConsoleColor.Yellow, useColors);
         }
+    }
+
+    private static string FormatVerdict(ValidationVerdict verdict)
+    {
+        return verdict switch
+        {
+            ValidationVerdict.Trusted => "Trusted",
+            ValidationVerdict.ConditionallyAcceptable => "Conditional",
+            ValidationVerdict.ReviewRequired => "Review Required",
+            ValidationVerdict.Reject => "Reject",
+            _ => "Unknown"
+        };
     }
 
     // Helpers

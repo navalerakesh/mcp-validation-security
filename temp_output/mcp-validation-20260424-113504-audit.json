@@ -1,0 +1,32 @@
+{
+  "timestampUtc": "2026-04-24T11:35:04.593652+00:00",
+  "commandName": "validate",
+  "validationId": "df1e52a4-b0a3-4800-bc9d-bf0be676fb65",
+  "sessionId": "df1e52a4-b0a3-4800-bc9d-bf0be676fb65",
+  "target": "https://example.test/mcp",
+  "transport": "http",
+  "executionMode": "Safe",
+  "dryRun": true,
+  "persistenceMode": "Ephemeral",
+  "redactionLevel": "Strict",
+  "traceMode": "Off",
+  "modelEvaluationEnabled": true,
+  "allowPrivateAddresses": false,
+  "maxRequests": 100,
+  "maxConcurrency": 4,
+  "timeoutSeconds": 120,
+  "allowedHosts": [
+    "example.test"
+  ],
+  "plannedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "executedChecks": [],
+  "artifactPaths": []
+}

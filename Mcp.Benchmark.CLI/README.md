@@ -44,6 +44,46 @@ dotnet run --project Mcp.Benchmark.CLI -- discover --server https://example.test
 dotnet run --project Mcp.Benchmark.CLI -- report --input ./reports/mcp-validation-20260421-031745-result.json --format junit
 ```
 
+## Execution Governance
+
+`validate`, `health-check`, and `discover` now apply a safe-by-default execution contract before contacting a target.
+
+- Default persistence is ephemeral. Session logs and session-state artifacts are only created when `--persistence-mode session` is selected.
+- `--dry-run` renders the execution plan and exits without sending requests.
+- `--mode elevated` requires `--confirm-elevated-risk` before the run starts.
+- `--allow-host`, `--allow-private-addresses`, `--max-requests`, and `--timeout` define the outbound execution budget instead of leaving it implicit.
+- Experimental model evaluation stays outside the canonical validation result and is emitted as a companion artifact only when a supported provider is configured.
+
+Current model-evaluation support:
+
+- `--enable-model-eval` without `evaluation.modelEvaluation.provider` now fails fast instead of emitting a placeholder `Skipped` artifact.
+- This build currently ships the deterministic companion provider `builtin-rubric` for experimental side-lane summaries.
+
+Typical governance-first invocation:
+
+```bash
+dotnet run --project Mcp.Benchmark.CLI -- validate \
+	--server https://example.test/mcp \
+	--mode safe \
+	--dry-run \
+	--allow-host example.test
+```
+
+The same contract applies to quick probes:
+
+```bash
+dotnet run --project Mcp.Benchmark.CLI -- health-check \
+	--server https://example.test/mcp \
+	--dry-run \
+	--allow-host example.test
+
+dotnet run --project Mcp.Benchmark.CLI -- discover \
+	--server https://example.test/mcp \
+	--format json \
+	--dry-run \
+	--allow-host example.test
+```
+
 ## Design Guardrails
 
 - Keep this project thin. Command handlers should translate CLI input into configuration and delegate real work to shared services.

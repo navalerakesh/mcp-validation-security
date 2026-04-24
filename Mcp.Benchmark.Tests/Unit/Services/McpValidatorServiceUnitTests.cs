@@ -168,7 +168,7 @@ public class McpValidatorServiceUnitTests
     }
 
     [Fact]
-    public async Task ValidateServerAsync_WithAllValidatorsSuccessful_ShouldReturnPassedResult()
+    public async Task ValidateServerAsync_WithReviewRequiredFindings_ShouldReturnFailedResult()
     {
         // Arrange
         var config = new McpValidatorConfiguration
@@ -295,10 +295,14 @@ public class McpValidatorServiceUnitTests
 
         // Assert
         result.Should().NotBeNull();
-        result.OverallStatus.Should().Be(ValidationStatus.Passed);
+        result.OverallStatus.Should().Be(ValidationStatus.Failed);
         result.ComplianceScore.Should().BeGreaterThan(0);
         result.ScoringDetails.Should().NotBeNull();
         result.ScoringDetails!.OverallScore.Should().Be(result.ComplianceScore);
+        result.VerdictAssessment.Should().NotBeNull();
+        result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+        result.VerdictAssessment.ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
+        result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
         config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);

@@ -98,6 +98,13 @@ public class ValidationResult
         set => Assessments.ProtocolCompliance = value;
     }
 
+    [JsonIgnore]
+    public VerdictAssessment? VerdictAssessment
+    {
+        get => Assessments.VerdictAssessment;
+        set => Assessments.VerdictAssessment = value;
+    }
+
     /// <summary>
     /// Gets or sets the tool validation test results.
     /// </summary>
@@ -269,6 +276,7 @@ public class ValidationResult
             Assessments = new ValidationAssessmentDocument
             {
                 ProtocolCompliance = ProtocolCompliance,
+                VerdictAssessment = VerdictAssessment,
                 ToolValidation = ToolValidation,
                 ResourceTesting = ResourceTesting,
                 PromptTesting = PromptTesting,
@@ -295,7 +303,7 @@ public class ValidationResult
             ScoringNotes = ScoringNotes,
             ScoringDetails = ScoringDetails,
             ServerConfig = ServerConfig.CloneWithoutSecrets(),
-            ValidationConfig = ValidationConfig.CloneWithoutSecrets(),
+            ValidationConfig = ValidationConfig.CloneForDeterministicResult(),
             ServerProfile = ServerProfile,
             ServerProfileSource = ServerProfileSource,
             ExecutionLogs = ExecutionLogs,

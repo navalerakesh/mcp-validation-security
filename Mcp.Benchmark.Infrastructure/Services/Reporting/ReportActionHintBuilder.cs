@@ -12,9 +12,15 @@ internal static partial class ReportActionHintBuilder
     {
         var hints = new List<string>();
 
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
+        if (result.PolicyOutcome is { Passed: false })
         {
-            hints.Add(Compact(policyOutcome.Summary));
+            foreach (var decision in result.VerdictAssessment?.BlockingDecisions
+                         .Where(item => !string.IsNullOrWhiteSpace(item.Summary))
+                         .Take(2)
+                         ?? Enumerable.Empty<DecisionRecord>())
+            {
+                hints.Add(Compact($"{decision.Category}: {decision.Summary}"));
+            }
         }
 
         if (result.ProtocolCompliance?.Violations?.Count > 0)

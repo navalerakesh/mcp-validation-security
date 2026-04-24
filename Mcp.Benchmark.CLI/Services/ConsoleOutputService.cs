@@ -74,10 +74,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
         if (!string.IsNullOrEmpty(serverConfig?.Authentication?.Token))
         {
-            var tokenPreview = serverConfig!.Authentication!.Token.Length > 8
-                ? $"{serverConfig.Authentication.Token[..4]}...{serverConfig.Authentication.Token[^4..]}"
-                : "****";
-            WriteInfo($"Authentication: Bearer {tokenPreview}");
+            WriteInfo("Authentication: configured");
         }
 
         Console.WriteLine();
@@ -278,13 +275,36 @@ public class ConsoleOutputService : IConsoleOutputService
         Console.WriteLine();
         WriteHeader("SESSION", ConsoleColor.Magenta);
         FormatterUtils.WriteLineWithColor($"Session ID: {_sessionContext.SessionId}", ConsoleColor.White, _useColors);
-        FormatterUtils.WriteLineWithColor($"State Path: {_sessionContext.StateDirectory}", ConsoleColor.White, _useColors);
-        FormatterUtils.WriteLineWithColor($"Log File: {_sessionContext.LogFilePath}", ConsoleColor.White, _useColors);
+
+        var persistenceLabel = _sessionContext.PersistenceMode switch
+        {
+            PersistenceMode.Session => "session",
+            PersistenceMode.ExplicitOutput => "explicit-output",
+            _ => "ephemeral"
+        };
+
+        FormatterUtils.WriteLineWithColor($"Persistence: {persistenceLabel}", ConsoleColor.White, _useColors);
+
+        if (_sessionContext.CanPersistSessionArtifacts)
+        {
+            FormatterUtils.WriteLineWithColor($"State Path: {_sessionContext.StateDirectory}", ConsoleColor.White, _useColors);
+        }
+
+        if (_sessionContext.CanPersistLogs)
+        {
+            FormatterUtils.WriteLineWithColor($"Log File: {_sessionContext.LogFilePath}", ConsoleColor.White, _useColors);
+        }
+
         Console.WriteLine();
     }
 
     public void WriteSessionLogHint(string? context = null)
     {
+        if (!_sessionContext.CanPersistLogs)
+        {
+            return;
+        }
+
         var prefix = string.IsNullOrWhiteSpace(context) ? string.Empty : context.EndsWith(':') ? context + ' ' : context + ": ";
         FormatterUtils.WriteLineWithColor(
             $"{prefix}See session log for details: {_sessionContext.LogFilePath}",

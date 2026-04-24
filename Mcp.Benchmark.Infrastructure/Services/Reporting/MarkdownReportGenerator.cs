@@ -33,6 +33,12 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Server Endpoint** | `{result.ServerConfig.Endpoint}` |");
         sb.AppendLine($"| **Validation ID** | `{result.ValidationId}` |");
         sb.AppendLine($"| **Overall Status** | {GetStatusIcon(result.OverallStatus)} **{result.OverallStatus}** |");
+        if (result.VerdictAssessment != null)
+        {
+            sb.AppendLine($"| **Baseline Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** |");
+            sb.AppendLine($"| **Protocol Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** |");
+            sb.AppendLine($"| **Coverage Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** |");
+        }
         sb.AppendLine($"| **Compliance Score** | **{result.ComplianceScore:F1}%** |");
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
@@ -56,7 +62,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 McpTrustLevel.L2_Caution => "🟠",
                 _ => "🔴"
             };
-            sb.AppendLine($"| **MCP Trust Level** | {trustIcon} **{result.TrustAssessment.TrustLabel}** |");
+            sb.AppendLine($"| **Benchmark Trust Level** | {trustIcon} **{result.TrustAssessment.TrustLabel}** |");
         }
         sb.AppendLine();
 
@@ -64,13 +70,44 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendPriorityFindingsSection(sb, result, ref sectionNumber);
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
 
-        // MCP Trust Assessment (before compliance matrix)
+        if (result.VerdictAssessment != null)
+        {
+            sb.AppendLine($"## {sectionNumber++}. Deterministic Verdicts");
+            sb.AppendLine();
+            sb.AppendLine("These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.");
+            sb.AppendLine();
+            sb.AppendLine("| Lane | Verdict | Meaning |");
+            sb.AppendLine("| :--- | :--- | :--- |");
+            sb.AppendLine($"| **Baseline** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** | Overall deterministic gate across blocking findings and coverage debt. |");
+            sb.AppendLine($"| **Protocol** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** | Protocol correctness and contract integrity. |");
+            sb.AppendLine($"| **Coverage** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** | Whether enabled validation surfaces produced authoritative evidence. |");
+            sb.AppendLine();
+
+            if (!string.IsNullOrWhiteSpace(result.VerdictAssessment.Summary))
+            {
+                sb.AppendLine(result.VerdictAssessment.Summary);
+                sb.AppendLine();
+            }
+
+            if (result.VerdictAssessment.BlockingDecisions.Count > 0)
+            {
+                sb.AppendLine("### Blocking Decisions");
+                sb.AppendLine();
+                foreach (var decision in result.VerdictAssessment.BlockingDecisions.Take(8))
+                {
+                    sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{decision.Category}] `{decision.Component}`: {decision.Summary}");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        // Benchmark trust profile (descriptive only)
         if (result.TrustAssessment != null)
         {
-            sb.AppendLine($"## {sectionNumber++}. MCP Trust Assessment");
+            sb.AppendLine($"## {sectionNumber++}. Benchmark Trust Profile");
             sb.AppendLine();
-            sb.AppendLine("Multi-dimensional evaluation of server trustworthiness for AI agent consumption.");
-            sb.AppendLine("Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.");
+            sb.AppendLine("Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.");
+            sb.AppendLine("This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.");
             sb.AppendLine();
             sb.AppendLine("| Dimension | Score | What It Measures |");
             sb.AppendLine("| :--- | :---: | :--- |");
@@ -718,6 +755,29 @@ public class MarkdownReportGenerator : IReportGenerator
             : string.Empty;
 
         return profile + sourceSuffix;
+    }
+
+    private static string FormatVerdictLabel(ValidationVerdict verdict)
+    {
+        return verdict switch
+        {
+            ValidationVerdict.Trusted => "Trusted",
+            ValidationVerdict.ConditionallyAcceptable => "Conditionally Acceptable",
+            ValidationVerdict.ReviewRequired => "Review Required",
+            ValidationVerdict.Reject => "Reject",
+            _ => "Unknown"
+        };
+    }
+
+    private static string FormatGateLabel(GateOutcome gate)
+    {
+        return gate switch
+        {
+            GateOutcome.Reject => "Reject",
+            GateOutcome.ReviewRequired => "Review Required",
+            GateOutcome.CoverageDebt => "Coverage Debt",
+            _ => "Note"
+        };
     }
 
     private static ValidationProducerInfo ResolveProducer(ValidationResult result)

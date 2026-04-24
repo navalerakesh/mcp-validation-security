@@ -208,7 +208,7 @@ public class ReportCommand(
         {
             return DeserializeOrThrow(json, options);
         }
-        catch (InvalidOperationException ex) when (IsCapabilitySnapshotSerializationIssue(ex))
+        catch (Exception ex) when (IsCapabilitySnapshotSerializationIssue(ex))
         {
             _logger.LogWarning(ex, "Capability snapshot contained SDK types that cannot be replayed offline. Stripping tool payload for report rendering.");
             var sanitizedJson = SanitizeCapabilitySnapshot(json);
@@ -242,11 +242,11 @@ public class ReportCommand(
                 return json;
             }
 
-            if (root["capabilitySnapshot"] is JsonObject snapshot &&
-                snapshot["payload"] is JsonObject payload &&
-                payload.ContainsKey("tools"))
+            SanitizeCapabilitySnapshotNode(root["capabilitySnapshot"] as JsonObject);
+
+            if (root["run"] is JsonObject run)
             {
-                payload["tools"] = new JsonArray();
+                SanitizeCapabilitySnapshotNode(run["capabilitySnapshot"] as JsonObject);
             }
 
             return root.ToJsonString(new JsonSerializerOptions
@@ -258,6 +258,14 @@ public class ReportCommand(
         catch
         {
             return json;
+        }
+    }
+
+    private static void SanitizeCapabilitySnapshotNode(JsonObject? snapshot)
+    {
+        if (snapshot?["payload"] is JsonObject payload && payload.ContainsKey("tools"))
+        {
+            payload["tools"] = new JsonArray();
         }
     }
 

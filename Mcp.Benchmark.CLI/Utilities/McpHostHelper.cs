@@ -22,25 +22,17 @@ internal static class McpHostHelper
                 "mcp-cli");
         }
 
-        Directory.CreateDirectory(basePath);
         return basePath;
     });
 
     public static string BasePath => BasePathValue.Value;
 
-    public static string SessionsRoot
-    {
-        get
-        {
-            var path = Path.Combine(BasePath, "Sessions");
-            Directory.CreateDirectory(path);
-            return path;
-        }
-    }
-
     public static string CreateSessionRoot(string sessionId)
     {
-        var sessionRoot = Path.Combine(SessionsRoot, sessionId);
+        Directory.CreateDirectory(BasePath);
+        var sessionsRoot = Path.Combine(BasePath, "Sessions");
+        Directory.CreateDirectory(sessionsRoot);
+        var sessionRoot = Path.Combine(sessionsRoot, sessionId);
         Directory.CreateDirectory(sessionRoot);
         return sessionRoot;
     }

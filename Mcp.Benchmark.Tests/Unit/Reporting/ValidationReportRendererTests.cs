@@ -216,7 +216,7 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Connectivity & Session Bootstrap");
+        html.Should().Contain("Connectivity &amp; Session Bootstrap");
         html.Should().Contain("Protected endpoint");
         html.Should().Contain("Deferred Validation");
     }

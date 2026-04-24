@@ -17,7 +17,6 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
     {
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
         _minimumLevel = minimumLevel;
-        Directory.CreateDirectory(Path.GetDirectoryName(_sessionContext.LogFilePath)!);
     }
 
     public ILogger CreateLogger(string categoryName)
@@ -27,7 +26,7 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
             throw new ObjectDisposedException(nameof(SessionFileLoggerProvider));
         }
 
-        return new SessionFileLogger(categoryName, _sessionContext.LogFilePath, _minimumLevel, _lock);
+        return new SessionFileLogger(categoryName, _sessionContext, _minimumLevel, _lock);
     }
 
     public void Dispose()
@@ -38,14 +37,14 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
     private sealed class SessionFileLogger : ILogger
     {
         private readonly string _categoryName;
-        private readonly string _logFilePath;
+        private readonly CliSessionContext _sessionContext;
         private readonly LogLevel _minimumLevel;
         private readonly object _lock;
 
-        public SessionFileLogger(string categoryName, string logFilePath, LogLevel minimumLevel, object sharedLock)
+        public SessionFileLogger(string categoryName, CliSessionContext sessionContext, LogLevel minimumLevel, object sharedLock)
         {
             _categoryName = categoryName;
-            _logFilePath = logFilePath;
+            _sessionContext = sessionContext;
             _minimumLevel = minimumLevel;
             _lock = sharedLock;
         }
@@ -61,7 +60,18 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
                 return;
             }
 
-            var message = formatter(state, exception);
+            if (!_sessionContext.CanPersistLogs)
+            {
+                return;
+            }
+
+            var message = SessionLogRedactor.Redact(formatter(state, exception), _sessionContext.RedactionLevel);
+            var logFilePath = _sessionContext.LogFilePath;
+            if (string.IsNullOrWhiteSpace(logFilePath))
+            {
+                return;
+            }
+
             var builder = new StringBuilder()
                 .Append(DateTime.UtcNow.ToString("o"))
                 .Append(' ')
@@ -82,7 +92,13 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
 
             lock (_lock)
             {
-                File.AppendAllText(_logFilePath, builder.AppendLine().ToString());
+                var directory = Path.GetDirectoryName(logFilePath);
+                if (!string.IsNullOrWhiteSpace(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                File.AppendAllText(logFilePath, builder.AppendLine().ToString());
             }
         }
     }

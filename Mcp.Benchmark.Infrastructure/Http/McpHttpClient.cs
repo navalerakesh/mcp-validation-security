@@ -33,6 +33,8 @@ public class McpHttpClient : IMcpHttpClient
     private int _maxConcurrency;
     private string? _protocolVersion;
     private AuthenticationConfig? _defaultAuthentication;
+    private ExecutionPolicy? _executionPolicy;
+    private int _requestCount;
     private const int DefaultRequestTimeoutSeconds = 60;
 
     public McpHttpClient(HttpClient httpClient, ILogger<McpHttpClient> logger, IMcpClient mcpClient)
@@ -103,11 +105,26 @@ public class McpHttpClient : IMcpHttpClient
             : protocolVersion.Trim();
     }
 
+    public void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy)
+    {
+        _executionPolicy = executionPolicy?.Clone();
+        Interlocked.Exchange(ref _requestCount, 0);
+
+        if (_executionPolicy == null)
+        {
+            return;
+        }
+
+        SetConcurrencyLimit(Math.Max(1, _executionPolicy.MaxConcurrency));
+        _httpClient.Timeout = TimeSpan.FromSeconds(Math.Max(1, _executionPolicy.TimeoutSeconds));
+    }
+
     /// <summary>
     /// Performs a GET request to the specified URL and returns the response body as a string.
     /// </summary>
     public async Task<string> GetStringAsync(string url, CancellationToken cancellationToken = default)
     {
+        EnforceExecutionPolicy(url);
         return await _httpClient.GetStringAsync(url, cancellationToken);
     }
 
@@ -210,6 +227,7 @@ public class McpHttpClient : IMcpHttpClient
                 HttpResponseMessage httpResponse;
                 try
                 {
+                    EnforceExecutionPolicy(endpoint);
                     var sw = System.Diagnostics.Stopwatch.StartNew();
                     httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
                     sw.Stop();
@@ -807,6 +825,7 @@ public class McpHttpClient : IMcpHttpClient
 
             using var requestMessage = CreatePostRequestMessage(endpoint, content, authentication: null, acceptWildcard: true);
 
+            EnforceExecutionPolicy(endpoint);
             var httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
             var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken);
 
@@ -835,7 +854,68 @@ public class McpHttpClient : IMcpHttpClient
     /// </summary>
     public async Task<HttpResponseMessage> SendAsync(string endpoint, HttpContent content, CancellationToken cancellationToken = default)
     {
+        EnforceExecutionPolicy(endpoint);
         return await _httpClient.PostAsync(endpoint, content, cancellationToken);
+    }
+
+    private void EnforceExecutionPolicy(string endpoint)
+    {
+        if (_executionPolicy == null)
+        {
+            return;
+        }
+
+        var requestNumber = Interlocked.Increment(ref _requestCount);
+        if (requestNumber > _executionPolicy.MaxRequests)
+        {
+            throw new InvalidOperationException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+        {
+            return;
+        }
+
+        if (_executionPolicy.AllowedHosts.Count > 0 &&
+            !_executionPolicy.AllowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException($"Execution policy blocked outbound request to host '{uri.Host}'.");
+        }
+
+        if (!_executionPolicy.AllowPrivateAddresses && IsPrivateAddress(uri.Host))
+        {
+            throw new InvalidOperationException($"Execution policy blocked private or loopback host '{uri.Host}'.");
+        }
+    }
+
+    private static bool IsPrivateAddress(string host)
+    {
+        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (!IPAddress.TryParse(host, out var address))
+        {
+            return false;
+        }
+
+        if (IPAddress.IsLoopback(address))
+        {
+            return true;
+        }
+
+        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        {
+            var bytes = address.GetAddressBytes();
+            return bytes[0] == 10 ||
+                   bytes[0] == 127 ||
+                   (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
+                   (bytes[0] == 192 && bytes[1] == 168) ||
+                   (bytes[0] == 169 && bytes[1] == 254);
+        }
+
+        return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
     }
 
     private static ByteArrayContent CreateJsonContent(string jsonPayload)
