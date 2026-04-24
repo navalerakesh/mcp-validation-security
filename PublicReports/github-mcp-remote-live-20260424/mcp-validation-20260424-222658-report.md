@@ -1,19 +1,19 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-24 20:00:38 UTC
+**Generated:** 2026-04-24 22:26:58 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://api.githubcopilot.com/mcp/` |
-| **Validation ID** | `c2f92529-57a8-4630-aa62-323962450c08` |
+| **Validation ID** | `7cae8317-b0a3-4595-882e-b0e061d6136f` |
 | **Overall Status** | ❌ **Failed** |
 | **Baseline Verdict** | **Reject** |
 | **Protocol Verdict** | **Reject** |
 | **Coverage Verdict** | **Trusted** |
 | **Compliance Score** | **73.4%** |
 | **Compliance Profile** | `Authenticated (Inferred)` |
-| **Duration** | 32.49s |
+| **Duration** | 31.54s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -30,7 +30,7 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 1473.1 ms |
+| **Handshake Duration** | 1441.4 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `github-mcp-server/remote-3242d9e12bd9ffa96a76388614e42ce90d05f764` |
 | **Server Profile Resolution** | `Authenticated (Inferred)` |
@@ -144,49 +144,13 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://docs.anthropic.com/en/docs/claude-code/mcp> |
-| **VS Code Copilot Agent** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ⚠️ Compatible with warnings | 2 passed / 2 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 2 passed / 3 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 3 passed / 3 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio> |
+| **Claude Code** | ⚠️ Compatible with warnings | 3 passed / 2 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
+| **VS Code Copilot Agent** | ✅ Compatible | 3 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 3 passed / 1 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 4 passed / 1 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
 
 ### Claude Code
-
-**Status:** ⚠️ Compatible with warnings
-
-Required compatibility checks passed; 3 advisory requirements still need follow-up.
-
-| Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
-
-#### Remediation
-
-- ⚠️ **Tool presentation and approval metadata is complete:** Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.
-- ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
-- ⚠️ **Prompt metadata is descriptive enough for guided use:** Mention when a prompt expects multiple required inputs so callers can prepare the full argument set before execution.
-
-### VS Code Copilot Agent
-
-**Status:** ⚠️ Compatible with warnings
-
-Required compatibility checks passed; 3 advisory requirements still need follow-up.
-
-| Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
-
-#### Remediation
-
-- ⚠️ **Tool presentation and approval metadata is complete:** Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.
-- ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
-- ⚠️ **Prompt metadata is descriptive enough for guided use:** Mention when a prompt expects multiple required inputs so callers can prepare the full argument set before execution.
-
-### GitHub Copilot CLI
 
 **Status:** ⚠️ Compatible with warnings
 
@@ -194,48 +158,53 @@ Required compatibility checks passed; 2 advisory requirements still need follow-
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
+| Initialize instructions help Claude Code find and use the server correctly | Recommended | ⚠️ Warning | - | - | Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing. |
+| Dynamic tool, prompt, and resource updates are declared for Claude Code | Recommended | ⚠️ Warning | - | `tools`, `prompts` | Claude Code documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools, prompts surfaces. |
 
 #### Remediation
 
-- ⚠️ **Tool presentation and approval metadata is complete:** Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.
-- ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
+- ⚠️ **Initialize instructions help Claude Code find and use the server correctly:** Populate initialize.instructions with concise guidance about when Claude should search and use this server.
+- ⚠️ **Dynamic tool, prompt, and resource updates are declared for Claude Code:** Declare listChanged for tools, prompts when the server can notify clients about catalog changes without reconnecting.
+
+### VS Code Copilot Agent
+
+**Status:** ✅ Compatible
+
+All applicable compatibility checks passed (3 satisfied).
+
+- No client-specific compatibility gaps were detected.
+
+### GitHub Copilot CLI
+
+**Status:** ✅ Compatible
+
+All applicable compatibility checks passed (2 satisfied).
+
+- No client-specific compatibility gaps were detected.
 
 ### GitHub Copilot Cloud Agent
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed; 3 advisory requirements still need follow-up.
+Required compatibility checks passed; 1 advisory requirement still needs follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | Only the tool surface is currently consumed | Recommended | ⚠️ Warning | - | - | This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility. |
-| Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-
-#### Remediation
-
-- ⚠️ **Tool presentation and approval metadata is complete:** Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.
-- ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
 
 ### Visual Studio Copilot
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed; 3 advisory requirements still need follow-up.
+Required compatibility checks passed; 1 advisory requirement still needs follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| Tool presentation and approval metadata is complete | Recommended | ⚠️ Warning | `MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING`, `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING`, `MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Tool schemas are clear enough for agent planning | Recommended | ⚠️ Warning | `AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING`, `AI.TOOL.SCHEMA.FORMAT_HINT_MISSING`, `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | Advisory tool guidance gaps affect 41/41 tool(s). |
-| Prompt metadata is descriptive enough for guided use | Recommended | ⚠️ Warning | `AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING` | `issue_to_fix_workflow` | Advisory prompt guidance gaps affect 1/2 prompt(s). |
+| Tool updates are declared through notifications/tools/list_changed | Recommended | ⚠️ Warning | - | `tools` | Visual Studio documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools surfaces. |
 
 #### Remediation
 
-- ⚠️ **Tool presentation and approval metadata is complete:** Declare readOnlyHint so agents can distinguish read-only tools from state-changing tools.
-- ⚠️ **Tool schemas are clear enough for agent planning:** Constrain string parameters with enum, pattern, or format metadata when possible.
-- ⚠️ **Prompt metadata is descriptive enough for guided use:** Mention when a prompt expects multiple required inputs so callers can prepare the full argument set before execution.
+- ⚠️ **Tool updates are declared through notifications/tools/list_changed:** Declare listChanged for tools when the server can notify clients about catalog changes without reconnecting.
 
 ## 8. Validation Envelope
 
@@ -246,13 +215,13 @@ This section exposes the structured validation envelope used for layered reporti
 | Layer | Status | Findings | Summary |
 | :--- | :--- | :---: | :--- |
 | `protocol-core` | ✅ Passed | 5 | declared capabilities: completions, prompts, resources, tools \| roots/list: supported \| logging/setLevel: supported \| sampling/createMessage: supported \| completion/complete: supported |
-| `tool-surface` | ✅ Passed | 191 | - |
+| `tool-surface` | ✅ Passed | 190 | - |
 | `resource-surface` | ✅ Passed | 0 | - |
 | `prompt-surface` | ✅ Passed | 1 | - |
 | `security-boundaries` | ✅ Passed | 7 | - |
 | `performance` | ✅ Passed | 1 | - |
 | `error-handling` | ❌ Failed | 1 | Validated 5 error scenario(s); 4 handled correctly. |
-| `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 5 warning profile(s); 0 incompatible profile(s). |
+| `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 3 warning profile(s); 0 incompatible profile(s). |
 
 ### Scenario Outcomes
 
@@ -260,7 +229,7 @@ This section exposes the structured validation envelope used for layered reporti
 | :--- | :--- | :---: | :--- |
 | `bootstrap-initialize-handshake` | ✅ Passed | 0 | Bootstrap health checks completed successfully. |
 | `protocol-compliance-review` | ✅ Passed | 5 | declared capabilities: completions, prompts, resources, tools \| roots/list: supported \| logging/setLevel: supported \| sampling/createMessage: supported \| completion/complete: supported |
-| `tool-catalog-smoke` | ✅ Passed | 199 | Tool validation completed. |
+| `tool-catalog-smoke` | ✅ Passed | 198 | Tool validation completed. |
 | `resource-catalog-smoke` | ✅ Passed | 0 | No resources were discovered during validation. |
 | `prompt-catalog-smoke` | ✅ Passed | 1 | Prompt validation completed. |
 | `security-authentication-challenge` | ✅ Passed | 0 | Evaluated 55 authentication challenge scenario(s). |
@@ -402,9 +371,9 @@ This section exposes the structured validation envelope used for layered reporti
 | `auth-revoked-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. |
 | `auth-wrong-audience-rfc-8707-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400. |
 | `auth-valid-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"217bb3d1-ddee-4f58-bee8-4a5247c62f9c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"289eafca-59b6-48ab-81c7-8da56501a752","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"1601051d-bf4f-4ef7-8fbf-30d200acc1a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"d0c779f3-6994-4db6-b56c-210570552beb","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"2084bc59-c826-467d-840e-c1328a5b15f0","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"b3b18892-c8ec-411b-babe-81a5ea0123ae","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
@@ -419,9 +388,9 @@ This section exposes the structured validation envelope used for layered reporti
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 41 | HTTP 200 | 366.6 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 114.5 ms | ✅ Listed |
-| Prompts/list | 2 | HTTP 200 | 197.9 ms | ✅ Listed |
+| Tools/list | 41 | HTTP 200 | 394.4 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 118.0 ms | ✅ Listed |
+| Prompts/list | 2 | HTTP 200 | 125.5 ms | ✅ Listed |
 
 - **First Tool Probed:** `add_comment_to_pending_review`
 
@@ -522,9 +491,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"217bb3d1-ddee-4f58-bee8-4a5247c62f9c","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"289eafca-59b6-48ab-81c7-8da56501a752","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"1601051d-bf4f-4ef7-8fbf-30d200acc1a1","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"d0c779f3-6994-4db6-b56c-210570552beb","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"2084bc59-c826-467d-840e-c1328a5b15f0","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `{"jsonrpc":"2.0","id":"b3b18892-c8ec-411b-babe-81a5ea0123ae","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
@@ -598,13 +567,13 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 366.64ms
+**Execution Time:** 394.39ms
 ---
 
 ### Tool: `add_comment_to_pending_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 956.85ms
+**Execution Time:** 872.95ms
 
 #### Tool Metadata
 | Property | Value |
@@ -616,7 +585,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_issue_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 642.03ms
+**Execution Time:** 652.14ms
 
 #### Tool Metadata
 | Property | Value |
@@ -628,7 +597,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `add_reply_to_pull_request_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 485.83ms
+**Execution Time:** 504.56ms
 
 #### Tool Metadata
 | Property | Value |
@@ -640,7 +609,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 534.94ms
+**Execution Time:** 522.36ms
 
 #### Tool Metadata
 | Property | Value |
@@ -652,7 +621,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_or_update_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 639.19ms
+**Execution Time:** 560.45ms
 
 #### Tool Metadata
 | Property | Value |
@@ -664,7 +633,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 461.16ms
+**Execution Time:** 482.08ms
 
 #### Tool Metadata
 | Property | Value |
@@ -676,7 +645,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `create_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 402.61ms
+**Execution Time:** 445.87ms
 
 #### Tool Metadata
 | Property | Value |
@@ -688,7 +657,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `delete_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 493.15ms
+**Execution Time:** 552.20ms
 
 #### Tool Metadata
 | Property | Value |
@@ -701,7 +670,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `fork_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 447.90ms
+**Execution Time:** 522.80ms
 
 #### Tool Metadata
 | Property | Value |
@@ -713,7 +682,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_commit`
 
 **Status:** ✅ Passed
-**Execution Time:** 527.97ms
+**Execution Time:** 509.92ms
 
 #### Tool Metadata
 | Property | Value |
@@ -726,7 +695,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_file_contents`
 
 **Status:** ✅ Passed
-**Execution Time:** 614.39ms
+**Execution Time:** 644.66ms
 
 #### Tool Metadata
 | Property | Value |
@@ -739,7 +708,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_label`
 
 **Status:** ✅ Passed
-**Execution Time:** 504.06ms
+**Execution Time:** 450.69ms
 
 #### Tool Metadata
 | Property | Value |
@@ -752,7 +721,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_latest_release`
 
 **Status:** ✅ Passed
-**Execution Time:** 380.02ms
+**Execution Time:** 400.55ms
 
 #### Tool Metadata
 | Property | Value |
@@ -765,7 +734,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_me`
 
 **Status:** ✅ Passed
-**Execution Time:** 388.44ms
+**Execution Time:** 351.71ms
 
 #### Tool Metadata
 | Property | Value |
@@ -778,7 +747,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_release_by_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 398.35ms
+**Execution Time:** 392.92ms
 
 #### Tool Metadata
 | Property | Value |
@@ -791,7 +760,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 411.93ms
+**Execution Time:** 399.04ms
 
 #### Tool Metadata
 | Property | Value |
@@ -804,7 +773,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_team_members`
 
 **Status:** ✅ Passed
-**Execution Time:** 351.30ms
+**Execution Time:** 335.47ms
 
 #### Tool Metadata
 | Property | Value |
@@ -817,7 +786,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `get_teams`
 
 **Status:** ✅ Passed
-**Execution Time:** 375.42ms
+**Execution Time:** 347.56ms
 
 #### Tool Metadata
 | Property | Value |
@@ -830,7 +799,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 277.92ms
+**Execution Time:** 290.34ms
 
 #### Tool Metadata
 | Property | Value |
@@ -843,7 +812,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 376.50ms
+**Execution Time:** 334.63ms
 
 #### Tool Metadata
 | Property | Value |
@@ -855,7 +824,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_branches`
 
 **Status:** ✅ Passed
-**Execution Time:** 431.53ms
+**Execution Time:** 419.79ms
 
 #### Tool Metadata
 | Property | Value |
@@ -868,7 +837,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_commits`
 
 **Status:** ✅ Passed
-**Execution Time:** 262.19ms
+**Execution Time:** 292.12ms
 
 #### Tool Metadata
 | Property | Value |
@@ -881,7 +850,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issue_types`
 
 **Status:** ✅ Passed
-**Execution Time:** 298.64ms
+**Execution Time:** 294.30ms
 
 #### Tool Metadata
 | Property | Value |
@@ -894,7 +863,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 284.70ms
+**Execution Time:** 281.99ms
 
 #### Tool Metadata
 | Property | Value |
@@ -907,7 +876,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 460.22ms
+**Execution Time:** 383.58ms
 
 #### Tool Metadata
 | Property | Value |
@@ -920,7 +889,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_releases`
 
 **Status:** ✅ Passed
-**Execution Time:** 329.75ms
+**Execution Time:** 331.76ms
 
 #### Tool Metadata
 | Property | Value |
@@ -933,7 +902,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `list_tags`
 
 **Status:** ✅ Passed
-**Execution Time:** 409.26ms
+**Execution Time:** 388.83ms
 
 #### Tool Metadata
 | Property | Value |
@@ -946,7 +915,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `merge_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 360.53ms
+**Execution Time:** 361.82ms
 
 #### Tool Metadata
 | Property | Value |
@@ -958,7 +927,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 305.26ms
+**Execution Time:** 319.00ms
 
 #### Tool Metadata
 | Property | Value |
@@ -971,7 +940,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `pull_request_review_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 320.44ms
+**Execution Time:** 342.52ms
 
 #### Tool Metadata
 | Property | Value |
@@ -983,7 +952,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `push_files`
 
 **Status:** ✅ Passed
-**Execution Time:** 422.04ms
+**Execution Time:** 453.47ms
 
 #### Tool Metadata
 | Property | Value |
@@ -995,7 +964,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `request_copilot_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 355.40ms
+**Execution Time:** 352.65ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1007,7 +976,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `run_secret_scanning`
 
 **Status:** ✅ Passed
-**Execution Time:** 206.36ms
+**Execution Time:** 228.31ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1021,7 +990,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_code`
 
 **Status:** ✅ Passed
-**Execution Time:** 3718.71ms
+**Execution Time:** 3148.45ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1034,7 +1003,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 448.30ms
+**Execution Time:** 458.18ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1047,7 +1016,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 439.05ms
+**Execution Time:** 451.79ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1060,7 +1029,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_repositories`
 
 **Status:** ✅ Passed
-**Execution Time:** 434.25ms
+**Execution Time:** 462.74ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1073,7 +1042,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `search_users`
 
 **Status:** ✅ Passed
-**Execution Time:** 458.29ms
+**Execution Time:** 498.00ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1086,7 +1055,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `sub_issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 489.62ms
+**Execution Time:** 323.87ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1098,7 +1067,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 340.10ms
+**Execution Time:** 352.47ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1110,7 +1079,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `update_pull_request_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 339.37ms
+**Execution Time:** 361.67ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1126,7 +1095,7 @@ Remaining tool-catalog debt is grouped by authority so MCP specification failure
 | Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |
 | :--- | :---: | :--- | :---: | :--- |
 | Spec | 1 | 5/41 (12%) | 🔵 Low | tools/call result.isError field not present |
-| Guideline | 5 | 42/41 (100%) | 🔵 Low | Tool 'add_comment_to_pending_review' does not declare annotations.idempotentHint.<br />Tool 'add_comment_to_pending_review' does not declare annotations.destructiveHint. |
+| Guideline | 4 | 41/41 (100%) | 🔵 Low | Tool 'add_comment_to_pending_review' does not declare annotations.idempotentHint.<br />Tool 'add_comment_to_pending_review' does not declare annotations.destructiveHint. |
 | Heuristic | 7 | 41/41 (100%) | 🟠 High | 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops<br />Tool 'add_comment_to_pending_review': 4/10 string parameters have no enum/pattern/format constraint |
 
 ### MCP Guideline Findings
@@ -1184,9 +1153,9 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 135.02ms | ✅ Good |
-| **P95 Latency** | 155.44ms | - |
-| **Throughput** | 7.37 req/sec | - |
+| **Avg Latency** | 133.72ms | ✅ Good |
+| **P95 Latency** | 138.97ms | - |
+| **Throughput** | 7.44 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 20/20 successful | - |
 

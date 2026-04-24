@@ -1,0 +1,895 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.ROOTS_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.ROOTS_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to roots/list, indicating optional roots workflow support."
+              },
+              "fullDescription": {
+                "text": "Server responded to roots/list, indicating optional roots workflow support."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "roots/list"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "logging/setLevel"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.SAMPLING_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.SAMPLING_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to sampling/createMessage, indicating optional sampling workflows are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to sampling/createMessage, indicating optional sampling workflows are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "sampling/createMessage"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to completion/complete, indicating optional completions are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to completion/complete, indicating optional completions are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "completion/complete"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED_BUT_UNDECLARED",
+              "name": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED_BUT_UNDECLARED",
+              "shortDescription": {
+                "text": "Server responds to logging/setLevel but does not advertise the logging capability during initialize."
+              },
+              "fullDescription": {
+                "text": "Server responds to logging/setLevel but does not advertise the logging capability during initialize."
+              },
+              "help": {
+                "text": "Declare logging in initialize when logging/setLevel is supported."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "logging/setLevel"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
+              "name": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
+              "shortDescription": {
+                "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
+              },
+              "fullDescription": {
+                "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
+              },
+              "help": {
+                "text": "Declare completions in initialize when completion/complete is supported."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "completion/complete"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PROTOCOL.NOTIFICATION_PROBE_INCONCLUSIVE",
+              "name": "MCP.GUIDELINE.PROTOCOL.NOTIFICATION_PROBE_INCONCLUSIVE",
+              "shortDescription": {
+                "text": "Notification handling probe inconclusive due to transient transport pressure (HTTP 429)."
+              },
+              "fullDescription": {
+                "text": "Notification handling probe inconclusive due to transient transport pressure (HTTP 429)."
+              },
+              "help": {
+                "text": "Rerun protocol validation against a lower-pressure window before treating notification handling as non-compliant."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "notifications/initialized"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY",
+              "name": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY",
+              "shortDescription": {
+                "text": "Public remote synthetic load probe did not capture any measurements before timing out or being cancelled, so the performance result is treated as advisory rather than a readiness failure."
+              },
+              "fullDescription": {
+                "text": "Public remote synthetic load probe did not capture any measurements before timing out or being cancelled, so the performance result is treated as advisory rather than a readiness failure."
+              },
+              "help": {
+                "text": "Use endpoint-specific benchmarks or production telemetry for final capacity judgments."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "load-testing"
+                ]
+              }
+            },
+            {
+              "id": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "name": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "shortDescription": {
+                "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+              },
+              "fullDescription": {
+                "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+              },
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "spec",
+                "category": "Protocol",
+                "tags": [
+                  "spec",
+                  "Protocol",
+                  "invalid-method"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-ERR",
+              "name": "MCP-PROTO-ERR",
+              "shortDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "fullDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-JSONRPC",
+              "name": "MCP-PROTO-JSONRPC",
+              "shortDescription": {
+                "text": "Request format does not comply with JSON-RPC 2.0 specification"
+              },
+              "fullDescription": {
+                "text": "Request format does not comply with JSON-RPC 2.0 specification"
+              },
+              "help": {
+                "text": "Ensure every JSON-RPC request includes \u0022jsonrpc\u0022: \u00222.0\u0022, a string \u0022method\u0022 field, and an integer \u0022id\u0022. The \u0022params\u0022 field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "27bea45f-1e3e-464b-bc77-f578e248ea97",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-04-24T22:20:36.2610520Z",
+          "endTimeUtc": "2026-04-24T22:27:42.9637150Z",
+          "properties": {
+            "validationId": "27bea45f-1e3e-464b-bc77-f578e248ea97",
+            "endpoint": "https://learn.microsoft.com",
+            "transport": "http",
+            "overallStatus": "Failed",
+            "serverProfile": "Public",
+            "specProfile": "latest"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.ROOTS_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to roots/list, indicating optional roots workflow support."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.ROOTS_SUPPORTED|roots/list|Server responded to roots/list, indicating optional roots workflow support."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "roots/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "roots/list",
+            "severity": "Info",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "roots",
+              "method": "roots/list",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED|logging/setLevel|Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "logging/setLevel"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "logging/setLevel",
+            "severity": "Info",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "logging",
+              "method": "logging/setLevel",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.SAMPLING_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to sampling/createMessage, indicating optional sampling workflows are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.SAMPLING_SUPPORTED|sampling/createMessage|Server responded to sampling/createMessage, indicating optional sampling workflows are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "sampling/createMessage"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "sampling/createMessage",
+            "severity": "Info",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "sampling",
+              "method": "sampling/createMessage",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to completion/complete, indicating optional completions are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED|completion/complete|Server responded to completion/complete, indicating optional completions are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "completion/complete"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "completion/complete",
+            "severity": "Info",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "completions",
+              "method": "completion/complete",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED_BUT_UNDECLARED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responds to logging/setLevel but does not advertise the logging capability during initialize."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED_BUT_UNDECLARED|logging/setLevel|Server responds to logging/setLevel but does not advertise the logging capability during initialize."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "logging/setLevel"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "logging/setLevel",
+            "severity": "Low",
+            "recommendation": "Declare logging in initialize when logging/setLevel is supported.",
+            "metadata": {
+              "capability": "logging",
+              "method": "logging/setLevel",
+              "declared": "false",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responds to completion/complete but does not advertise the completions capability during initialize."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED|completion/complete|Server responds to completion/complete but does not advertise the completions capability during initialize."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "completion/complete"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "completion/complete",
+            "severity": "Low",
+            "recommendation": "Declare completions in initialize when completion/complete is supported.",
+            "metadata": {
+              "capability": "completions",
+              "method": "completion/complete",
+              "declared": "false",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PROTOCOL.NOTIFICATION_PROBE_INCONCLUSIVE",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Notification handling probe inconclusive due to transient transport pressure (HTTP 429)."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PROTOCOL.NOTIFICATION_PROBE_INCONCLUSIVE|notifications/initialized|Notification handling probe inconclusive due to transient transport pressure (HTTP 429)."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "notifications/initialized"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "McpGuideline",
+            "component": "notifications/initialized",
+            "severity": "Info",
+            "recommendation": "Rerun protocol validation against a lower-pressure window before treating notification handling as non-compliant."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Public remote synthetic load probe did not capture any measurements before timing out or being cancelled, so the performance result is treated as advisory rather than a readiness failure."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY|load-testing|Public remote synthetic load probe did not capture any measurements before timing out or being cancelled, so the performance result is treated as advisory rather than a readiness failure."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "load-testing"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "guideline",
+            "category": "Performance",
+            "component": "load-testing",
+            "severity": "Info",
+            "recommendation": "Use endpoint-specific benchmarks or production telemetry for final capacity judgments."
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-method|Error-handling scenario \u0027Invalid Method Call\u0027 did not return the expected JSON-RPC error code -32601."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-method"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "invalid-method",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32601",
+              "actualResponse": "HTTP 429; HTTP 429 Too Many Requests. Body: \u003CHTML\u003E\u003CHEAD\u003E\u003CTITLE\u003EToo Many Requests\u003C/TITLE\u003E\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EToo Many Requests\u003C/H1\u003E\n\u003CP\u003EReference 0.49d02e17.1777069520.206b9bbb\u003C/P\u003E\n\u003CP\u003EYour IP: 2601:600:8d00:cd30:7d25:f5d7:b9e4:39b5\u003C/P\u003E\n\u003C/BODY\u003E\u003C/HTML\u003E\n"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|malformed-json|Error-handling scenario \u0027Malformed JSON Payload\u0027 did not return the expected JSON-RPC error code -32700."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "malformed-json"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "malformed-json",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32700",
+              "actualResponse": "HTTP 429; \u003CHTML\u003E\u003CHEAD\u003E\u003CTITLE\u003EToo Many Requests\u003C/TITLE\u003E\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EToo Many Requests\u003C/H1\u003E\n\u003CP\u003EReference 0.49d02e17.1777069513.206b2202\u003C/P\u003E\n\u003CP\u003EYour IP: 2601:600:8d00:cd30:7d25:f5d7:b9e4:39b5\u003C/P\u003E\n\u003C/BODY\u003E\u003C/HTM"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 did not return the expected JSON-RPC error code -32600."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-request|Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 did not return the expected JSON-RPC error code -32600."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-request"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "authority": "spec",
+            "category": "Protocol",
+            "component": "invalid-request",
+            "severity": "High",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32600",
+              "actualResponse": "HTTP 429; \u003CHTML\u003E\u003CHEAD\u003E\u003CTITLE\u003EToo Many Requests\u003C/TITLE\u003E\u003C/HEAD\u003E\u003CBODY\u003E\n\u003CH1\u003EToo Many Requests\u003C/H1\u003E\n\u003CP\u003EReference 0.49d02e17.1777069513.206b2376\u003C/P\u003E\n\u003CP\u003EYour IP: 2601:600:8d00:cd30:7d25:f5d7:b9e4:39b5\u003C/P\u003E\n\u003C/BODY\u003E\u003C/HTM"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Parse Error"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Parse Error"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Method Not Found"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Method Not Found"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-JSONRPC",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Request format does not comply with JSON-RPC 2.0 specification"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Request format does not comply with JSON-RPC 2.0 specification"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "Ensure every JSON-RPC request includes \u0022jsonrpc\u0022: \u00222.0\u0022, a string \u0022method\u0022 field, and an integer \u0022id\u0022. The \u0022params\u0022 field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-JSONRPC",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Response format does not comply with JSON-RPC 2.0 specification"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Response format does not comply with JSON-RPC 2.0 specification"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "Every JSON-RPC response must include \u0022jsonrpc\u0022: \u00222.0\u0022 and the same \u0022id\u0022 as the request. Successful responses use a \u0022result\u0022 field; failures use an \u0022error\u0022 object with code and message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-JSONRPC",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Batch processing implementation is inconsistent or incomplete"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Batch processing implementation is inconsistent or incomplete"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "Medium",
+            "rule": null,
+            "recommendation": "If the server accepts batch requests, it must process each request independently and return an array of responses in any order. Ensure batch handling does not drop or duplicate responses. See https://www.jsonrpc.org/specification#batch"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error codes do not comply with JSON-RPC 2.0 standard error codes"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|Error codes do not comply with JSON-RPC 2.0 standard error codes"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "authority": "spec",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "rule": null,
+            "recommendation": "Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        }
+      ]
+    }
+  ]
+}

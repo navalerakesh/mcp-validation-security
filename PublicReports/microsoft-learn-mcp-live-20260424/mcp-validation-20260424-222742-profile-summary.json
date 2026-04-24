@@ -1,0 +1,93 @@
+{
+  "generatedUtc": "2026-04-24T22:27:43.1563840Z",
+  "validationId": "27bea45f-1e3e-464b-bc77-f578e248ea97",
+  "serverEndpoint": "https://learn.microsoft.com",
+  "complianceScore": 40.57,
+  "trustLevel": "L2: Caution \u2014 Significant gaps in safety or compliance",
+  "profileCount": 5,
+  "compatibleCount": 0,
+  "warningCount": 0,
+  "incompatibleCount": 5,
+  "profiles": [
+    {
+      "profileId": "claude-code",
+      "displayName": "Claude Code",
+      "status": "Incompatible",
+      "passedRequirements": 0,
+      "warningRequirements": 0,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "interactive-surfaces",
+          "title": "At least one interactive MCP surface is available",
+          "ruleIds": [],
+          "recommendation": null
+        }
+      ]
+    },
+    {
+      "profileId": "vscode-copilot-agent",
+      "displayName": "VS Code Copilot Agent",
+      "status": "Incompatible",
+      "passedRequirements": 0,
+      "warningRequirements": 0,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "interactive-surfaces",
+          "title": "At least one interactive MCP surface is available",
+          "ruleIds": [],
+          "recommendation": null
+        }
+      ]
+    },
+    {
+      "profileId": "github-copilot-cli",
+      "displayName": "GitHub Copilot CLI",
+      "status": "Incompatible",
+      "passedRequirements": 0,
+      "warningRequirements": 0,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "tool-tools-present",
+          "title": "Tool surface is available",
+          "ruleIds": [],
+          "recommendation": null
+        }
+      ]
+    },
+    {
+      "profileId": "github-copilot-cloud-agent",
+      "displayName": "GitHub Copilot Cloud Agent",
+      "status": "Incompatible",
+      "passedRequirements": 2,
+      "warningRequirements": 0,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "tool-tools-present",
+          "title": "Tool surface is available",
+          "ruleIds": [],
+          "recommendation": null
+        }
+      ]
+    },
+    {
+      "profileId": "visual-studio-copilot",
+      "displayName": "Visual Studio Copilot",
+      "status": "Incompatible",
+      "passedRequirements": 1,
+      "warningRequirements": 0,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "interactive-surfaces",
+          "title": "At least one interactive MCP surface is available",
+          "ruleIds": [],
+          "recommendation": null
+        }
+      ]
+    }
+  ]
+}

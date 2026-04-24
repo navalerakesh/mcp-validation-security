@@ -509,6 +509,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             DestructiveHint = tool.DestructiveHint,
             OpenWorldHint = tool.OpenWorldHint,
             IdempotentHint = tool.IdempotentHint,
+            AnthropicMaxResultSizeChars = tool.AnthropicMaxResultSizeChars,
             InputParameterNames = GetInputParameterNames(tool)
         };
 
@@ -980,6 +981,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                             if (annotations.TryGetProperty("idempotentHint", out var idempotent))
                                 info.IdempotentHint = idempotent.GetBoolean();
                         }
+
+                        if (tool.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
+                        {
+                            if (metadata.TryGetProperty("anthropic/maxResultSizeChars", out var maxResultSizeChars)
+                                && maxResultSizeChars.ValueKind == JsonValueKind.Number
+                                && maxResultSizeChars.TryGetInt64(out var overrideChars))
+                            {
+                                info.AnthropicMaxResultSizeChars = overrideChars;
+                            }
+                        }
                         
                         tools.Add(info);
                     }
@@ -1157,6 +1168,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public bool? DestructiveHint { get; set; }
         public bool? OpenWorldHint { get; set; }
         public bool? IdempotentHint { get; set; }
+        public long? AnthropicMaxResultSizeChars { get; set; }
     }
 
     private static void ApplyGuidelineFindings(ToolTestResult aggregateResult, ToolInfo tool, IndividualToolResult toolResult)
@@ -1408,9 +1420,20 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         return CapabilitySnapshotUtils.CloneResponse(snapshot.Payload.ToolListResponse);
     }
 
-    private static List<ToolInfo>? BuildToolListFromSnapshot(CapabilitySummary? summary)
+    private List<ToolInfo>? BuildToolListFromSnapshot(CapabilitySummary? summary)
     {
-        if (summary?.Tools == null || summary.Tools.Count == 0)
+        if (summary == null)
+        {
+            return null;
+        }
+
+        var parsedTools = ParseTools(summary.ToolListResponse?.RawJson);
+        if (parsedTools.Count > 0)
+        {
+            return parsedTools;
+        }
+
+        if (summary.Tools == null || summary.Tools.Count == 0)
         {
             return null;
         }

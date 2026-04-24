@@ -1,0 +1,2105 @@
+{
+  "producer": {
+    "name": "MCP Validator",
+    "packageId": "McpVal",
+    "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
+    "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
+  },
+  "run": {
+    "validationId": "0eb3b63b-2d58-4950-a437-3e314341184c",
+    "protocolVersion": "2025-11-25",
+    "schemaVersion": "2025-11-25",
+    "applicabilityContext": {
+      "negotiatedProtocolVersion": "2025-11-25",
+      "schemaVersion": "2025-11-25",
+      "transport": "stdio",
+      "accessMode": "Public",
+      "serverProfile": "Public",
+      "isAuthenticated": false,
+      "advertisedCapabilities": [
+        "tools"
+      ],
+      "advertisedSurfaces": [
+        "tools"
+      ],
+      "selectedClientProfiles": [
+        "all"
+      ],
+      "environmentHints": {
+        "endpointKind": "local",
+        "transport": "stdio"
+      }
+    },
+    "initializationHandshake": {
+      "isSuccessful": true,
+      "error": null,
+      "payload": {
+        "protocolVersion": "2025-11-25",
+        "capabilities": {
+          "experimental": null,
+          "logging": null,
+          "prompts": null,
+          "resources": null,
+          "tools": {
+            "listChanged": true
+          },
+          "completions": null,
+          "tasks": null,
+          "extensions": null
+        },
+        "serverInfo": {
+          "name": "mcpval",
+          "title": null,
+          "version": "1.1.0",
+          "description": null,
+          "icons": null,
+          "websiteUrl": null
+        },
+        "instructions": null,
+        "_meta": null
+      },
+      "transport": {
+        "statusCode": null,
+        "headers": {},
+        "duration": "00:00:00.0361134",
+        "rawContent": null
+      }
+    },
+    "capabilitySnapshot": {
+      "isSuccessful": true,
+      "error": null,
+      "payload": {
+        "tools": [],
+        "toolListingSucceeded": true,
+        "toolInvocationSucceeded": true,
+        "firstToolName": "validate",
+        "discoveredToolsCount": 3,
+        "score": 100,
+        "toolListResponse": {
+          "statusCode": 200,
+          "isSuccess": true,
+          "rawJson": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022validate\u0022,\u0022title\u0022:\u0022Validate MCP Server\u0022,\u0022description\u0022:\u0022Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022},\u0022mcpspec\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(latest|\\\\d{4}-\\\\d{2}-\\\\d{2})$\u0022,\u0022description\u0022:\u0022Target MCP spec profile, either \u0027latest\u0027 or a dated profile such as 2025-11-25.\u0022},\u0022policy\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022advisory\u0022,\u0022balanced\u0022,\u0022strict\u0022],\u0022description\u0022:\u0022Host-side gating mode. Does not change raw findings.\u0022},\u0022clientProfile\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022all\u0022,\u0022claude-code\u0022,\u0022vscode-copilot-agent\u0022,\u0022github-copilot-cli\u0022,\u0022github-copilot-cloud-agent\u0022,\u0022visual-studio-copilot\u0022,\u0022claude\u0022,\u0022vscode\u0022,\u0022vscode-copilot\u0022,\u0022copilot-cli\u0022,\u0022cloud-agent\u0022,\u0022copilot-cloud-agent\u0022,\u0022visual-studio\u0022,\u0022vs-copilot\u0022],\u0022description\u0022:\u0022Client compatibility profile to evaluate. Use \u0027all\u0027 to run every supported profile.\u0022},\u0022description\u0022:\u0022Optional client compatibility profiles to evaluate. Omit to use the CLI default host set.\u0022},\u0022reportDetail\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022full\u0022,\u0022minimal\u0022],\u0022description\u0022:\u0022Human report detail level.\u0022},\u0022verbose\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Include detailed output\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022title\u0022:\u0022Validate MCP Server\u0022,\u0022readOnlyHint\u0022:false,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:false,\u0022openWorldHint\u0022:true},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}},{\u0022name\u0022:\u0022health_check\u0022,\u0022title\u0022:\u0022Health Check MCP Server\u0022,\u0022description\u0022:\u0022Quick connectivity check \u2014 verifies MCP initialize handshake and protocol version.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022readOnlyHint\u0022:true,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022openWorldHint\u0022:true,\u0022title\u0022:\u0022Health Check MCP Server\u0022},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}},{\u0022name\u0022:\u0022discover\u0022,\u0022title\u0022:\u0022Discover MCP Server Capabilities\u0022,\u0022description\u0022:\u0022Discover MCP server capabilities \u2014 lists tools, resources, and prompts.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022},\u0022format\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022json\u0022,\u0022yaml\u0022,\u0022table\u0022],\u0022default\u0022:\u0022json\u0022,\u0022description\u0022:\u0022Discovery output format. json is usually easiest for agents to consume.\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022readOnlyHint\u0022:true,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022openWorldHint\u0022:true,\u0022title\u0022:\u0022Discover MCP Server Capabilities\u0022},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}}]},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u0022d70ec3f0-baef-4cb7-8076-baaa347904ea\u0022}",
+          "error": null,
+          "headers": {},
+          "elapsedMs": 2.2365
+        },
+        "resourceListResponse": {
+          "statusCode": 400,
+          "isSuccess": false,
+          "rawJson": "{\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00224a4f3265-293f-453f-b25e-979594101d2f\u0022,\u0022error\u0022:{\u0022code\u0022:-32601,\u0022message\u0022:\u0022Method not found\u0022}}",
+          "error": "Method not found",
+          "headers": {},
+          "elapsedMs": 0.1637
+        },
+        "promptListResponse": {
+          "statusCode": 400,
+          "isSuccess": false,
+          "rawJson": "{\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00221fc6308e-8dba-4fab-a8dc-ad873c1d5e90\u0022,\u0022error\u0022:{\u0022code\u0022:-32601,\u0022message\u0022:\u0022Method not found\u0022}}",
+          "error": "Method not found",
+          "headers": {},
+          "elapsedMs": 0.1005
+        },
+        "toolListDurationMs": 106.1137,
+        "resourceListDurationMs": 0.6456,
+        "promptListDurationMs": 0.1129,
+        "resourceListingSucceeded": false,
+        "promptListingSucceeded": false,
+        "discoveredResourcesCount": 0,
+        "discoveredPromptsCount": 0
+      },
+      "transport": {
+        "statusCode": 200,
+        "headers": {},
+        "duration": "00:00:00.1061137",
+        "rawContent": "{\u0022result\u0022:{\u0022tools\u0022:[{\u0022name\u0022:\u0022validate\u0022,\u0022title\u0022:\u0022Validate MCP Server\u0022,\u0022description\u0022:\u0022Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022},\u0022mcpspec\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(latest|\\\\d{4}-\\\\d{2}-\\\\d{2})$\u0022,\u0022description\u0022:\u0022Target MCP spec profile, either \u0027latest\u0027 or a dated profile such as 2025-11-25.\u0022},\u0022policy\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022advisory\u0022,\u0022balanced\u0022,\u0022strict\u0022],\u0022description\u0022:\u0022Host-side gating mode. Does not change raw findings.\u0022},\u0022clientProfile\u0022:{\u0022type\u0022:\u0022array\u0022,\u0022items\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022all\u0022,\u0022claude-code\u0022,\u0022vscode-copilot-agent\u0022,\u0022github-copilot-cli\u0022,\u0022github-copilot-cloud-agent\u0022,\u0022visual-studio-copilot\u0022,\u0022claude\u0022,\u0022vscode\u0022,\u0022vscode-copilot\u0022,\u0022copilot-cli\u0022,\u0022cloud-agent\u0022,\u0022copilot-cloud-agent\u0022,\u0022visual-studio\u0022,\u0022vs-copilot\u0022],\u0022description\u0022:\u0022Client compatibility profile to evaluate. Use \u0027all\u0027 to run every supported profile.\u0022},\u0022description\u0022:\u0022Optional client compatibility profiles to evaluate. Omit to use the CLI default host set.\u0022},\u0022reportDetail\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022full\u0022,\u0022minimal\u0022],\u0022description\u0022:\u0022Human report detail level.\u0022},\u0022verbose\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Include detailed output\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022title\u0022:\u0022Validate MCP Server\u0022,\u0022readOnlyHint\u0022:false,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:false,\u0022openWorldHint\u0022:true},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}},{\u0022name\u0022:\u0022health_check\u0022,\u0022title\u0022:\u0022Health Check MCP Server\u0022,\u0022description\u0022:\u0022Quick connectivity check \u2014 verifies MCP initialize handshake and protocol version.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022readOnlyHint\u0022:true,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022openWorldHint\u0022:true,\u0022title\u0022:\u0022Health Check MCP Server\u0022},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}},{\u0022name\u0022:\u0022discover\u0022,\u0022title\u0022:\u0022Discover MCP Server Capabilities\u0022,\u0022description\u0022:\u0022Discover MCP server capabilities \u2014 lists tools, resources, and prompts.\u0022,\u0022inputSchema\u0022:{\u0022type\u0022:\u0022object\u0022,\u0022properties\u0022:{\u0022server\u0022:{\u0022anyOf\u0022:[{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(https?:\\\\/\\\\/|wss?:\\\\/\\\\/)\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Absolute MCP endpoint URL, for example https://example.test/mcp or wss://example.test/mcp.\u0022},{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^(?!https?:\\\\/\\\\/)(?!wss?:\\\\/\\\\/)\\\\S(?:.*\\\\S)?$\u0022,\u0022description\u0022:\u0022STDIO command, for example npx -y @modelcontextprotocol/server-everything.\u0022}],\u0022description\u0022:\u0022MCP server target as an absolute endpoint URL or a local stdio command.\u0022},\u0022access\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022public\u0022,\u0022authenticated\u0022,\u0022enterprise\u0022,\u0022unspecified\u0022],\u0022default\u0022:\u0022public\u0022,\u0022description\u0022:\u0022Declared server access intent so the CLI interprets auth expectations correctly.\u0022},\u0022token\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022pattern\u0022:\u0022^\\\\S\u002B$\u0022,\u0022description\u0022:\u0022Bearer token for authenticated servers. Supply the opaque token value without a Bearer prefix.\u0022},\u0022interactive\u0022:{\u0022type\u0022:\u0022boolean\u0022,\u0022default\u0022:false,\u0022description\u0022:\u0022Allow the CLI to trigger an interactive auth flow when supported.\u0022},\u0022format\u0022:{\u0022type\u0022:\u0022string\u0022,\u0022enum\u0022:[\u0022json\u0022,\u0022yaml\u0022,\u0022table\u0022],\u0022default\u0022:\u0022json\u0022,\u0022description\u0022:\u0022Discovery output format. json is usually easiest for agents to consume.\u0022}},\u0022required\u0022:[\u0022server\u0022],\u0022additionalProperties\u0022:false,\u0022$schema\u0022:\u0022http://json-schema.org/draft-07/schema#\u0022},\u0022annotations\u0022:{\u0022readOnlyHint\u0022:true,\u0022destructiveHint\u0022:false,\u0022idempotentHint\u0022:true,\u0022openWorldHint\u0022:true,\u0022title\u0022:\u0022Discover MCP Server Capabilities\u0022},\u0022execution\u0022:{\u0022taskSupport\u0022:\u0022forbidden\u0022}}]},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u0022d70ec3f0-baef-4cb7-8076-baaa347904ea\u0022}"
+      }
+    },
+    "bootstrapHealth": {
+      "isHealthy": true,
+      "disposition": 1,
+      "responseTimeMs": 36.1134,
+      "serverVersion": "1.1.0",
+      "protocolVersion": "2025-11-25",
+      "errorMessage": null,
+      "serverMetadata": {},
+      "initializationDetails": {
+        "isSuccessful": true,
+        "error": null,
+        "payload": {
+          "protocolVersion": "2025-11-25",
+          "capabilities": {
+            "experimental": null,
+            "logging": null,
+            "prompts": null,
+            "resources": null,
+            "tools": {
+              "listChanged": true
+            },
+            "completions": null,
+            "tasks": null,
+            "extensions": null
+          },
+          "serverInfo": {
+            "name": "mcpval",
+            "title": null,
+            "version": "1.1.0",
+            "description": null,
+            "icons": null,
+            "websiteUrl": null
+          },
+          "instructions": null,
+          "_meta": null
+        },
+        "transport": {
+          "statusCode": null,
+          "headers": {},
+          "duration": "00:00:00.0361134",
+          "rawContent": null
+        }
+      },
+      "allowsDeferredValidation": true
+    }
+  },
+  "assessments": {
+    "protocolCompliance": {
+      "complianceScore": 100,
+      "jsonRpcCompliance": {
+        "requestFormatCompliant": true,
+        "responseFormatCompliant": true,
+        "errorHandlingCompliant": true,
+        "batchProcessingCompliant": true,
+        "complianceScore": 100,
+        "violations": []
+      },
+      "initialization": {
+        "handshakeSuccessful": true,
+        "serverInfoProvided": true,
+        "clientInfoAccepted": true,
+        "initializationTimeMs": 36.1134,
+        "initializationErrors": []
+      },
+      "capabilityNegotiation": {
+        "capabilityExchangeSuccessful": true,
+        "advertisedCapabilities": [
+          "tools"
+        ],
+        "implementedCapabilities": [
+          "tools"
+        ],
+        "missingCapabilities": [],
+        "capabilityComplianceScore": 100
+      },
+      "notificationHandling": {
+        "notificationFormatCorrect": true,
+        "notificationIssues": []
+      },
+      "messageFormat": {
+        "requestFormatValid": true,
+        "responseFormatValid": true,
+        "errorFormatValid": true,
+        "formatViolations": []
+      },
+      "violations": [],
+      "status": 2,
+      "duration": "00:00:30.1503090",
+      "message": "declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported",
+      "score": 100,
+      "criticalErrors": [],
+      "findings": [
+        {
+          "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+          "category": "McpGuideline",
+          "component": "batch",
+          "severity": 0,
+          "summary": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio.",
+          "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support.",
+          "source": 0,
+          "specReference": null,
+          "metadata": {},
+          "effectiveSource": 2,
+          "effectiveSourceLabel": "guideline",
+          "effectiveSpecReference": null
+        }
+      ]
+    },
+    "verdictAssessment": {
+      "rulesetVersion": "2026-04",
+      "baselineVerdict": 3,
+      "protocolVerdict": 3,
+      "coverageVerdict": 4,
+      "summary": "Baseline=ConditionallyAcceptable; Protocol=ConditionallyAcceptable; Coverage=Trusted; BlockingDecisions=0.",
+      "triggeredDecisions": [
+        {
+          "decisionId": "baseline:tier:may:capabilities:may--server-supports-logging-setlevel",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 1,
+          "origin": 1,
+          "gate": 0,
+          "severity": 1,
+          "category": "TierCheck",
+          "component": "capabilities",
+          "summary": "MAY requirement failed: MAY: Server supports logging/setLevel",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:tier:may:capabilities:may--server-supports-sampling-createmessage",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 1,
+          "origin": 1,
+          "gate": 0,
+          "severity": 1,
+          "category": "TierCheck",
+          "component": "capabilities",
+          "summary": "MAY requirement failed: MAY: Server supports sampling/createMessage",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:tier:may:capabilities:may--server-supports-roots-list",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 1,
+          "origin": 1,
+          "gate": 0,
+          "severity": 1,
+          "category": "TierCheck",
+          "component": "capabilities",
+          "summary": "MAY requirement failed: MAY: Server supports roots/list",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:tier:may:capabilities:may--server-supports-completion-complete",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 1,
+          "origin": 1,
+          "gate": 0,
+          "severity": 1,
+          "category": "TierCheck",
+          "component": "capabilities",
+          "summary": "MAY requirement failed: MAY: Server supports completion/complete",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:tier:may:resources:may--server-supports-resources-templates-list",
+          "ruleId": null,
+          "lane": 0,
+          "authority": 1,
+          "origin": 1,
+          "gate": 0,
+          "severity": 1,
+          "category": "TierCheck",
+          "component": "resources",
+          "summary": "MAY requirement failed: MAY: Server supports resources/templates/list",
+          "specReference": null,
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        }
+      ],
+      "blockingDecisions": [],
+      "coverageDecisions": []
+    },
+    "toolValidation": {
+      "toolsDiscovered": 3,
+      "discoveredToolNames": [
+        "validate",
+        "health_check",
+        "discover"
+      ],
+      "toolsTestPassed": 3,
+      "toolsTestFailed": 0,
+      "toolResults": [
+        {
+          "toolName": "tools/list (Schema Compliance)",
+          "status": 2,
+          "discoveredCorrectly": true,
+          "metadataValid": false,
+          "executionSuccessful": true,
+          "displayTitle": null,
+          "description": null,
+          "readOnlyHint": null,
+          "destructiveHint": null,
+          "openWorldHint": null,
+          "idempotentHint": null,
+          "anthropicMaxResultSizeChars": null,
+          "executionTimeMs": 106.1137,
+          "parameterTests": [],
+          "inputParameterNames": [],
+          "issues": [
+            "\u26A0\uFE0F Schema validation warning: tools/list schema could not be fully processed",
+            "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/e88e43afcc52492db86735a773bc7b03#/$defs/Tool\u0027",
+            "\u2139\uFE0F Initial 401 challenge (if any) succeeded; failure is due to schema non-compliance."
+          ],
+          "findings": [],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        },
+        {
+          "toolName": "validate",
+          "status": 2,
+          "discoveredCorrectly": true,
+          "metadataValid": true,
+          "executionSuccessful": true,
+          "displayTitle": "Validate MCP Server",
+          "description": "Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.",
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": false,
+          "anthropicMaxResultSizeChars": null,
+          "executionTimeMs": 9959.993,
+          "parameterTests": [],
+          "inputParameterNames": [
+            "server",
+            "access",
+            "token",
+            "interactive",
+            "mcpspec",
+            "policy",
+            "clientProfile",
+            "reportDetail",
+            "verbose"
+          ],
+          "issues": [],
+          "findings": [],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        },
+        {
+          "toolName": "health_check",
+          "status": 2,
+          "discoveredCorrectly": true,
+          "metadataValid": true,
+          "executionSuccessful": true,
+          "displayTitle": "Health Check MCP Server",
+          "description": "Quick connectivity check \u2014 verifies MCP initialize handshake and protocol version.",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true,
+          "anthropicMaxResultSizeChars": null,
+          "executionTimeMs": 10003.573,
+          "parameterTests": [],
+          "inputParameterNames": [
+            "server",
+            "access",
+            "token",
+            "interactive"
+          ],
+          "issues": [],
+          "findings": [],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        },
+        {
+          "toolName": "discover",
+          "status": 2,
+          "discoveredCorrectly": true,
+          "metadataValid": true,
+          "executionSuccessful": true,
+          "displayTitle": "Discover MCP Server Capabilities",
+          "description": "Discover MCP server capabilities \u2014 lists tools, resources, and prompts.",
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "openWorldHint": true,
+          "idempotentHint": true,
+          "anthropicMaxResultSizeChars": null,
+          "executionTimeMs": 4.546,
+          "parameterTests": [],
+          "inputParameterNames": [
+            "server",
+            "access",
+            "token",
+            "interactive",
+            "format"
+          ],
+          "issues": [],
+          "findings": [],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        }
+      ],
+      "parameterValidation": [],
+      "issues": [
+        "\u26A0\uFE0F Schema validation warning: tools/list schema could not be fully processed",
+        "   \u2022 Schema processing error: Could not resolve \u0027https://json-everything.lib/e88e43afcc52492db86735a773bc7b03#/$defs/Tool\u0027",
+        "\u2705 SDK invocation of the first discovered tool succeeded",
+        "\uD83E\uDD16 AI Readiness Score: 100/100 (Good)"
+      ],
+      "authenticationSecurity": null,
+      "authenticationProperlyEnforced": false,
+      "securityTests": [],
+      "contentSafetyFindings": [],
+      "aiReadinessScore": 100,
+      "aiReadinessIssues": [],
+      "aiReadinessFindings": [],
+      "estimatedTokenCount": 1378,
+      "status": 2,
+      "duration": "00:00:20.0377570",
+      "message": null,
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "resourceTesting": {
+      "resourcesDiscovered": 0,
+      "resourcesAccessible": 0,
+      "resourcesTestFailed": 0,
+      "resourceResults": [],
+      "subscriptionResults": [],
+      "issues": [
+        "\u2705 COMPLIANT: No resources were advertised; no resource reads were required"
+      ],
+      "contentSafetyFindings": [],
+      "status": 2,
+      "duration": "00:00:00.0032640",
+      "message": null,
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "promptTesting": {
+      "promptsDiscovered": 0,
+      "promptsTestPassed": 0,
+      "promptsTestFailed": 0,
+      "promptResults": [],
+      "issues": [
+        "\u2705 COMPLIANT: No prompts were advertised; no prompt executions were required"
+      ],
+      "contentSafetyFindings": [],
+      "status": 2,
+      "duration": "00:00:00.0032180",
+      "message": null,
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "securityTesting": {
+      "securityScore": 100,
+      "vulnerabilities": [],
+      "inputValidationResults": [],
+      "attackSimulations": [
+        {
+          "attackVector": "INJ-001 (Input Validation)",
+          "description": "Simulated INJ-001 (Input Validation) attack on validate",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022\u0027; DROP TABLE users; --\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027\u0027; DROP TABLE users; --\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00228b6106e1-004f-4ee0-a6b1-151931c322db\u0022}",
+          "executionTimeMs": 10005,
+          "evidence": {
+            "outcome": "Blocked",
+            "target": "tools/call (validate)",
+            "result": "Server blocked attack: Tool execution returned isError: true (SECURE)",
+            "isSuccess": true,
+            "statusCode": 200,
+            "defenseMechanism": "Unknown",
+            "error": "",
+            "actualExecutionTimeMs": 10005
+          }
+        },
+        {
+          "attackVector": "INJ-002 (Input Validation)",
+          "description": "Simulated INJ-002 (Input Validation) attack on validate",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022\u003Cscript\u003Ealert(\u0027XSS\u0027)\u003C/script\u003E\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027\u003Cscript\u003Ealert(\u0027XSS\u0027)\u003C/script\u003E\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00221d0c5588-f582-4dc3-bced-f286d244731d\u0022}",
+          "executionTimeMs": 1,
+          "evidence": {
+            "outcome": "Blocked",
+            "target": "tools/call (validate)",
+            "result": "Server blocked attack: Tool execution returned isError: true (SECURE)",
+            "isSuccess": true,
+            "statusCode": 200,
+            "defenseMechanism": "Unknown",
+            "error": "",
+            "actualExecutionTimeMs": 1
+          }
+        },
+        {
+          "attackVector": "INJ-003 (Input Validation)",
+          "description": "Simulated INJ-003 (Input Validation) attack on validate",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022; rm -rf /\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027; rm -rf /\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00228352b609-a42c-40fc-8c5d-4e002a57c91c\u0022}",
+          "executionTimeMs": 4,
+          "evidence": {
+            "outcome": "Blocked",
+            "target": "tools/call (validate)",
+            "result": "Server blocked attack: Tool execution returned isError: true (SECURE)",
+            "isSuccess": true,
+            "statusCode": 200,
+            "defenseMechanism": "Unknown",
+            "error": "",
+            "actualExecutionTimeMs": 4
+          }
+        },
+        {
+          "attackVector": "MCP-SEC-001",
+          "description": "JSON-RPC Error Smuggling",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "Server handled malformed requests gracefully with standard errors.",
+          "executionTimeMs": 0,
+          "evidence": {
+            "evidence": "",
+            "outcome": "Blocked"
+          }
+        },
+        {
+          "attackVector": "MCP-SEC-002",
+          "description": "Metadata Enumeration",
+          "attackSuccessful": false,
+          "defenseSuccessful": false,
+          "serverResponse": "Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.",
+          "executionTimeMs": 0,
+          "evidence": {
+            "evidence": "resources/list did not advertise any concrete resource URIs, so cross-scheme fallback probes were suppressed to avoid false positives.",
+            "outcome": "Skipped"
+          }
+        },
+        {
+          "attackVector": "MCP-SEC-003",
+          "description": "Schema Confusion",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "Server correctly rejected invalid schema.",
+          "executionTimeMs": 0,
+          "evidence": {
+            "evidence": "Response contained error or 400.",
+            "outcome": "Blocked"
+          }
+        },
+        {
+          "attackVector": "MCP-AI-001",
+          "description": "Hallucination Fuzzing",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "Error clarity: 100/100 (Good). Server error messages help AI self-correct.",
+          "executionTimeMs": 0,
+          "evidence": {
+            "evidence": "Tool: validate, Param: interactive, Expected: boolean, Sent: String, Response: {\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n    \\\u0022expected\\\u0022: \\\u0022boolean\\\u0022,\\n   ",
+            "outcome": "Blocked"
+          }
+        }
+      ],
+      "securityRecommendations": [],
+      "authenticationTestResult": {
+        "status": 2,
+        "complianceScore": 100,
+        "duration": "00:00:00.0055510",
+        "testScenarios": [
+          {
+            "scenarioName": "STDIO Transport Protocol Check",
+            "testType": "Transport Protocol Validation",
+            "method": "transport-validation",
+            "expectedBehavior": "STDIO transport should NOT use HTTP authentication headers",
+            "actualBehavior": "\u2705 Correctly using STDIO transport (no HTTP auth)",
+            "statusCode": "",
+            "analysis": "",
+            "isCompliant": true,
+            "isSecure": false,
+            "isStandardsAligned": false,
+            "assessmentScore": -1,
+            "assessmentDisposition": 0,
+            "complianceReason": "MCP Spec: STDIO implementations should NOT follow HTTP authorization spec",
+            "wwwAuthenticateHeader": null
+          },
+          {
+            "scenarioName": "STDIO Environment Credentials Check",
+            "testType": "Environment Authentication",
+            "method": "env-check",
+            "expectedBehavior": "Environment variables may carry credentials for STDIO servers",
+            "actualBehavior": "\u2705 Environment credential variables detected",
+            "statusCode": "",
+            "analysis": "",
+            "isCompliant": true,
+            "isSecure": false,
+            "isStandardsAligned": false,
+            "assessmentScore": -1,
+            "assessmentDisposition": 0,
+            "complianceReason": "Credentials appear to be passed via environment variables",
+            "wwwAuthenticateHeader": null
+          }
+        ]
+      },
+      "status": 2,
+      "duration": "00:00:30.1530580",
+      "message": null,
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "performanceTesting": {
+      "loadTesting": {
+        "maxConcurrentConnections": 4,
+        "totalRequests": 20,
+        "successfulRequests": 20,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "probeRoundsExecuted": 1,
+        "observedRateLimitedRequests": 0,
+        "observedTransientFailures": 0,
+        "averageResponseTimeMs": 0.390815,
+        "medianResponseTimeMs": 0.3471,
+        "p95ResponseTimeMs": 0.5777,
+        "p99ResponseTimeMs": 0.9533,
+        "maxResponseTimeMs": 0.9533,
+        "minResponseTimeMs": 0.2314,
+        "requestsPerSecond": 2108.3702298123553,
+        "errorRate": 0,
+        "nonRateLimitedFailedRequests": 0,
+        "pressureSignalsObserved": false,
+        "connectionErrors": [],
+        "serverStabilityMaintained": true
+      },
+      "responseTimes": {
+        "operationBenchmarks": [],
+        "overallAverageResponseTimeMs": 0,
+        "slowOperations": [],
+        "fastestOperation": null,
+        "slowestOperation": null
+      },
+      "resourceUsage": {
+        "memory": {
+          "initialMemoryBytes": 0,
+          "peakMemoryBytes": 0,
+          "finalMemoryBytes": 0,
+          "averageMemoryBytes": 0,
+          "memoryLeaksDetected": false
+        },
+        "cpu": {
+          "averageCpuUsagePercent": 0,
+          "peakCpuUsagePercent": 0,
+          "withinAcceptableLimits": false
+        },
+        "network": {
+          "totalBytesSent": 0,
+          "totalBytesReceived": 0,
+          "averageNetworkLatencyMs": 0,
+          "networkErrors": 0
+        },
+        "withinAcceptableLimits": true,
+        "resourceExhaustionEvents": []
+      },
+      "throughput": {
+        "requestsPerSecond": 2108.3702298123553,
+        "bytesPerSecond": 0,
+        "transactionsPerMinute": 126502.21378874133,
+        "peakThroughput": 2108.3702298123553,
+        "meetsPerformanceTargets": true
+      },
+      "performanceBottlenecks": [],
+      "status": 2,
+      "duration": "00:00:00.0265080",
+      "message": null,
+      "score": 100,
+      "criticalErrors": [],
+      "findings": [
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+          "category": "Performance",
+          "component": "tools/list",
+          "severity": 0,
+          "summary": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4.",
+          "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+          "source": 2,
+          "specReference": null,
+          "metadata": {
+            "requests": "20",
+            "concurrency": "4",
+            "operation": "tools/list"
+          },
+          "effectiveSource": 2,
+          "effectiveSourceLabel": "guideline",
+          "effectiveSpecReference": null
+        }
+      ],
+      "measurementsCaptured": true,
+      "measurementStatus": "Captured"
+    },
+    "errorHandling": {
+      "errorScenariosTestCount": 3,
+      "errorScenariosHandledCorrectly": 3,
+      "errorScenarioResults": [
+        {
+          "scenarioName": "Invalid Method Call",
+          "errorType": "invalid-method",
+          "handledCorrectly": true,
+          "expectedResponse": "JSON-RPC error code -32601 (Method not found).",
+          "actualResponse": "HTTP 400; JSON-RPC error -32601: Method not found",
+          "errorHandlingTimeMs": 0.336,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        },
+        {
+          "scenarioName": "Timeout Handling Recovery",
+          "errorType": "timeout-handling",
+          "handledCorrectly": true,
+          "expectedResponse": "Validator-induced timeout should surface a transport failure and the endpoint should respond to a follow-up recovery probe.",
+          "actualResponse": "Validator induced a zero-window STDIO read timeout and then drained the pending response.",
+          "errorHandlingTimeMs": 0.3402,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        },
+        {
+          "scenarioName": "Connection Interruption Recovery",
+          "errorType": "connection-interruption",
+          "handledCorrectly": true,
+          "expectedResponse": "Validator-induced transport interruption should not leave the endpoint unresponsive to a follow-up recovery probe.",
+          "actualResponse": "Validator terminated the STDIO child process and restarted it for recovery verification.",
+          "errorHandlingTimeMs": 25.0474,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        }
+      ],
+      "recoveryResults": [
+        {
+          "scenarioName": "Timeout Handling Recovery",
+          "failureType": "timeout-handling",
+          "recoverySuccessful": true,
+          "recoveryTimeMs": 0.2872,
+          "dataIntegrityMaintained": true,
+          "serviceAvailabilityRestored": true,
+          "recoveryLosses": []
+        },
+        {
+          "scenarioName": "Connection Interruption Recovery",
+          "failureType": "connection-interruption",
+          "recoverySuccessful": true,
+          "recoveryTimeMs": 4.1095,
+          "dataIntegrityMaintained": true,
+          "serviceAvailabilityRestored": true,
+          "recoveryLosses": []
+        }
+      ],
+      "status": 2,
+      "duration": "00:00:00.5518670",
+      "message": "Validated 3 error scenario(s); 3 handled correctly.",
+      "score": 100,
+      "criticalErrors": [],
+      "findings": [
+        {
+          "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+          "category": "ErrorHandling",
+          "component": "malformed-json",
+          "severity": 0,
+          "summary": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.",
+          "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+          "source": 2,
+          "specReference": null,
+          "metadata": {},
+          "effectiveSource": 2,
+          "effectiveSourceLabel": "guideline",
+          "effectiveSpecReference": null
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+          "category": "ErrorHandling",
+          "component": "invalid-request",
+          "severity": 0,
+          "summary": "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.",
+          "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+          "source": 2,
+          "specReference": null,
+          "metadata": {},
+          "effectiveSource": 2,
+          "effectiveSourceLabel": "guideline",
+          "effectiveSpecReference": null
+        }
+      ]
+    },
+    "layers": [
+      {
+        "layerId": "protocol-core",
+        "displayName": "Protocol Compliance",
+        "status": 2,
+        "summary": "declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported",
+        "findings": [
+          {
+            "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+            "category": "McpGuideline",
+            "component": "batch",
+            "severity": 0,
+            "summary": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio.",
+            "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support.",
+            "source": 0,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          }
+        ]
+      },
+      {
+        "layerId": "tool-surface",
+        "displayName": "Tool Validation",
+        "status": 2,
+        "summary": null,
+        "findings": []
+      },
+      {
+        "layerId": "resource-surface",
+        "displayName": "Resource Validation",
+        "status": 2,
+        "summary": null,
+        "findings": []
+      },
+      {
+        "layerId": "prompt-surface",
+        "displayName": "Prompt Validation",
+        "status": 2,
+        "summary": null,
+        "findings": []
+      },
+      {
+        "layerId": "security-boundaries",
+        "displayName": "Security Assessment",
+        "status": 2,
+        "summary": null,
+        "findings": []
+      },
+      {
+        "layerId": "performance",
+        "displayName": "Performance Testing",
+        "status": 2,
+        "summary": null,
+        "findings": [
+          {
+            "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": 0,
+            "summary": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4.",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "source": 2,
+            "specReference": null,
+            "metadata": {
+              "requests": "20",
+              "concurrency": "4",
+              "operation": "tools/list"
+            },
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          }
+        ]
+      },
+      {
+        "layerId": "error-handling",
+        "displayName": "Error Handling",
+        "status": 2,
+        "summary": "Validated 3 error scenario(s); 3 handled correctly.",
+        "findings": [
+          {
+            "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+            "category": "ErrorHandling",
+            "component": "malformed-json",
+            "severity": 0,
+            "summary": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+            "source": 2,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          },
+          {
+            "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+            "category": "ErrorHandling",
+            "component": "invalid-request",
+            "severity": 0,
+            "summary": "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+            "source": 2,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          }
+        ]
+      },
+      {
+        "layerId": "client-profiles",
+        "displayName": "Client Profile Compatibility",
+        "status": 2,
+        "summary": "Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s).",
+        "findings": []
+      }
+    ],
+    "scenarios": [
+      {
+        "scenarioId": "bootstrap-initialize-handshake",
+        "displayName": "Initialize Handshake",
+        "status": 2,
+        "summary": "Bootstrap health checks completed successfully.",
+        "findings": []
+      },
+      {
+        "scenarioId": "protocol-compliance-review",
+        "displayName": "Protocol Compliance Review",
+        "status": 2,
+        "summary": "declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported",
+        "findings": [
+          {
+            "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+            "category": "McpGuideline",
+            "component": "batch",
+            "severity": 0,
+            "summary": "Batch processing probe skipped for stdio transport because current official MCP SDK baselines do not reliably answer raw JSON-RPC batch arrays over newline-delimited stdio.",
+            "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support.",
+            "source": 0,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          }
+        ]
+      },
+      {
+        "scenarioId": "tool-catalog-smoke",
+        "displayName": "Tool Catalog Smoke",
+        "status": 2,
+        "summary": "Tool validation completed.",
+        "findings": []
+      },
+      {
+        "scenarioId": "resource-catalog-smoke",
+        "displayName": "Resource Catalog Smoke",
+        "status": 2,
+        "summary": "No resources were discovered during validation.",
+        "findings": []
+      },
+      {
+        "scenarioId": "prompt-catalog-smoke",
+        "displayName": "Prompt Catalog Smoke",
+        "status": 2,
+        "summary": "No prompts were discovered during validation.",
+        "findings": []
+      },
+      {
+        "scenarioId": "security-authentication-challenge",
+        "displayName": "Authentication Challenge Matrix",
+        "status": 2,
+        "summary": "Evaluated 2 authentication challenge scenario(s).",
+        "findings": []
+      },
+      {
+        "scenarioId": "security-attack-simulations",
+        "displayName": "Attack Simulation Matrix",
+        "status": 4,
+        "summary": "Evaluated 7 attack simulation(s).",
+        "findings": []
+      },
+      {
+        "scenarioId": "error-handling-matrix",
+        "displayName": "Error Handling Matrix",
+        "status": 2,
+        "summary": "Validated 3 error scenario(s); 3 handled correctly.",
+        "findings": [
+          {
+            "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+            "category": "ErrorHandling",
+            "component": "malformed-json",
+            "severity": 0,
+            "summary": "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+            "source": 2,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          },
+          {
+            "ruleId": "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED",
+            "category": "ErrorHandling",
+            "component": "invalid-request",
+            "severity": 0,
+            "summary": "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.",
+            "recommendation": "Extend the transport harness if this probe must become a first-class validation requirement.",
+            "source": 2,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 2,
+            "effectiveSourceLabel": "guideline",
+            "effectiveSpecReference": null
+          }
+        ]
+      }
+    ]
+  },
+  "evidence": {
+    "observations": [
+      {
+        "id": "bootstrap-initialize",
+        "layerId": "bootstrap",
+        "component": "initialize",
+        "observationKind": "bootstrap-health",
+        "scenarioId": null,
+        "metadata": {
+          "disposition": "Healthy",
+          "httpStatus": "",
+          "protocolVersion": "2025-11-25"
+        },
+        "redactedPayloadPreview": "Healthy"
+      },
+      {
+        "id": "tool-tools-list-schema-compliance",
+        "layerId": "tool-surface",
+        "component": "tools/list (Schema Compliance)",
+        "observationKind": "tool-result",
+        "scenarioId": "tool-catalog-smoke",
+        "metadata": {
+          "status": "Passed",
+          "displayTitle": ""
+        },
+        "redactedPayloadPreview": "\u26A0\uFE0F Schema validation warning: tools/list schema could not be fully processed"
+      },
+      {
+        "id": "auth-stdio-transport-protocol-check",
+        "layerId": "security-boundaries",
+        "component": "transport-validation",
+        "observationKind": "authentication-scenario",
+        "scenarioId": "security-authentication-challenge",
+        "metadata": {
+          "statusCode": "",
+          "disposition": "Unknown"
+        },
+        "redactedPayloadPreview": "\u2705 Correctly using STDIO transport (no HTTP auth)"
+      },
+      {
+        "id": "auth-stdio-environment-credentials-check",
+        "layerId": "security-boundaries",
+        "component": "env-check",
+        "observationKind": "authentication-scenario",
+        "scenarioId": "security-authentication-challenge",
+        "metadata": {
+          "statusCode": "",
+          "disposition": "Unknown"
+        },
+        "redactedPayloadPreview": "\u2705 Environment credential variables detected"
+      },
+      {
+        "id": "attack-inj-001-input-validation",
+        "layerId": "security-boundaries",
+        "component": "INJ-001 (Input Validation)",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022\u0027; DROP TABLE users; --\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027\u0027; DROP TABLE users; --\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00228b6106e1-004f-4ee0-a6b1-151931c322db\u0022}"
+      },
+      {
+        "id": "attack-inj-002-input-validation",
+        "layerId": "security-boundaries",
+        "component": "INJ-002 (Input Validation)",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022\u003Cscript\u003Ealert(\u0027XSS\u0027)\u003C/script\u003E\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027\u003Cscript\u003Ealert(\u0027XSS\u0027)\u003C/script\u003E\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00221d0c5588-f582-4dc3-bced-f286d244731d\u0022}"
+      },
+      {
+        "id": "attack-inj-003-input-validation",
+        "layerId": "security-boundaries",
+        "component": "INJ-003 (Input Validation)",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "{\u0022result\u0022:{\u0022content\u0022:[{\u0022type\u0022:\u0022text\u0022,\u0022text\u0022:\u0022MCP error -32602: Input validation error: Invalid arguments for tool validate: [\\n  {\\n    \\\u0022received\\\u0022: \\\u0022; rm -rf /\\\u0022,\\n    \\\u0022code\\\u0022: \\\u0022invalid_enum_value\\\u0022,\\n    \\\u0022options\\\u0022: [\\n      \\\u0022public\\\u0022,\\n      \\\u0022authenticated\\\u0022,\\n      \\\u0022enterprise\\\u0022,\\n      \\\u0022unspecified\\\u0022\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022access\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid enum value. Expected \u0027public\u0027 | \u0027authenticated\u0027 | \u0027enterprise\u0027 | \u0027unspecified\u0027, received \u0027; rm -rf /\u0027\\\u0022\\n  },\\n  {\\n    \\\u0022code\\\u0022: \\\u0022invalid_union\\\u0022,\\n    \\\u0022unionErrors\\\u0022: [\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      },\\n      {\\n        \\\u0022issues\\\u0022: [\\n          {\\n            \\\u0022code\\\u0022: \\\u0022invalid_type\\\u0022,\\n            \\\u0022expected\\\u0022: \\\u0022string\\\u0022,\\n            \\\u0022received\\\u0022: \\\u0022undefined\\\u0022,\\n            \\\u0022path\\\u0022: [\\n              \\\u0022server\\\u0022\\n            ],\\n            \\\u0022message\\\u0022: \\\u0022Required\\\u0022\\n          }\\n        ],\\n        \\\u0022name\\\u0022: \\\u0022ZodError\\\u0022\\n      }\\n    ],\\n    \\\u0022path\\\u0022: [\\n      \\\u0022server\\\u0022\\n    ],\\n    \\\u0022message\\\u0022: \\\u0022Invalid input\\\u0022\\n  }\\n]\u0022}],\u0022isError\u0022:true},\u0022jsonrpc\u0022:\u00222.0\u0022,\u0022id\u0022:\u00228352b609-a42c-40fc-8c5d-4e002a57c91c\u0022}"
+      },
+      {
+        "id": "attack-mcp-sec-001",
+        "layerId": "security-boundaries",
+        "component": "MCP-SEC-001",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "Server handled malformed requests gracefully with standard errors."
+      },
+      {
+        "id": "attack-mcp-sec-002",
+        "layerId": "security-boundaries",
+        "component": "MCP-SEC-002",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "False"
+        },
+        "redactedPayloadPreview": "Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available."
+      },
+      {
+        "id": "attack-mcp-sec-003",
+        "layerId": "security-boundaries",
+        "component": "MCP-SEC-003",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "Server correctly rejected invalid schema."
+      },
+      {
+        "id": "attack-mcp-ai-001",
+        "layerId": "security-boundaries",
+        "component": "MCP-AI-001",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "redactedPayloadPreview": "Error clarity: 100/100 (Good). Server error messages help AI self-correct."
+      },
+      {
+        "id": "error-invalid-method-call",
+        "layerId": "error-handling",
+        "component": "invalid-method",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "HTTP 400; JSON-RPC error -32601: Method not found"
+      },
+      {
+        "id": "error-timeout-handling-recovery",
+        "layerId": "error-handling",
+        "component": "timeout-handling",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "Validator induced a zero-window STDIO read timeout and then drained the pending response."
+      },
+      {
+        "id": "error-connection-interruption-recovery",
+        "layerId": "error-handling",
+        "component": "connection-interruption",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "Validator terminated the STDIO child process and restarted it for recovery verification."
+      }
+    ],
+    "coverage": [
+      {
+        "layerId": "protocol-core",
+        "scope": "json-rpc",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "tool-surface",
+        "scope": "tools/list",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "resource-surface",
+        "scope": "resources/list",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "prompt-surface",
+        "scope": "prompts/list",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "security-boundaries",
+        "scope": "security-assessment",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "performance",
+        "scope": "load-testing",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "error-handling",
+        "scope": "error-handling",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "bootstrap",
+        "scope": "bootstrap-initialize-handshake",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "protocol-core",
+        "scope": "protocol-compliance-review",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "tool-surface",
+        "scope": "tool-catalog-smoke",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "resource-surface",
+        "scope": "resource-catalog-smoke",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "prompt-surface",
+        "scope": "prompt-catalog-smoke",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "security-boundaries",
+        "scope": "security-authentication-challenge",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "security-boundaries",
+        "scope": "security-attack-simulations",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "error-handling",
+        "scope": "error-handling-matrix",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "client-profiles",
+        "scope": "claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot",
+        "status": 0,
+        "reason": null
+      }
+    ],
+    "appliedPacks": [
+      {
+        "key": {
+          "value": "protocol-features/mcp-embedded"
+        },
+        "kind": 0,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Embedded MCP Protocol Features",
+        "stability": 0,
+        "documentationUrl": "https://spec.modelcontextprotocol.io/"
+      },
+      {
+        "key": {
+          "value": "scenario-pack/observed-surface"
+        },
+        "kind": 2,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Observed Surface Scenario Pack",
+        "stability": 0,
+        "documentationUrl": null
+      },
+      {
+        "key": {
+          "value": "rule-pack/protocol-core"
+        },
+        "kind": 1,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Protocol Rule Pack",
+        "stability": 0,
+        "documentationUrl": "https://spec.modelcontextprotocol.io/"
+      },
+      {
+        "key": {
+          "value": "client-profile-pack/built-in"
+        },
+        "kind": 3,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Client Profile Pack",
+        "stability": 0,
+        "documentationUrl": null
+      }
+    ]
+  },
+  "compatibility": {
+    "clientCompatibility": {
+      "requestedProfiles": [
+        "claude-code",
+        "vscode-copilot-agent",
+        "github-copilot-cli",
+        "github-copilot-cloud-agent",
+        "visual-studio-copilot"
+      ],
+      "assessments": [
+        {
+          "profileId": "claude-code",
+          "displayName": "Claude Code",
+          "revision": "2026-04",
+          "documentationUrl": "https://code.claude.com/docs/en/mcp",
+          "evidenceBasis": 0,
+          "status": 1,
+          "summary": "Required compatibility checks passed; 1 advisory requirement still needs follow-up.",
+          "passedRequirements": 3,
+          "warningRequirements": 1,
+          "failedRequirements": 0,
+          "requirements": [
+            {
+              "requirementId": "interactive-surfaces",
+              "title": "At least one interactive MCP surface is available",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Server exposes 3 tool(s).",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp"
+            },
+            {
+              "requirementId": "tool-tools-contract",
+              "title": "Tool call contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed tools without blocking tool-call contract gaps.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp"
+            },
+            {
+              "requirementId": "prompt-prompts-contract",
+              "title": "Prompt get/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp"
+            },
+            {
+              "requirementId": "resource-resources-contract",
+              "title": "Resource read/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No resources were discovered, so resource contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp"
+            },
+            {
+              "requirementId": "initialize-server-instructions",
+              "title": "Initialize instructions help Claude Code find and use the server correctly",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 1,
+              "summary": "Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": "Populate initialize.instructions with concise guidance about when Claude should search and use this server.",
+              "documentationUrl": "https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search"
+            },
+            {
+              "requirementId": "tool-output-budget",
+              "title": "Claude Code large-output overrides are declared when needed",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No discovered tools declared _meta[\u0022anthropic/maxResultSizeChars\u0022]. Claude Code uses this override only for tools that need larger-than-default text outputs.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp#raise-the-limit-for-a-specific-tool"
+            },
+            {
+              "requirementId": "list-changed",
+              "title": "Dynamic tool, prompt, and resource updates are declared for Claude Code",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Initialize capabilities declare listChanged for tools.",
+              "ruleIds": [],
+              "exampleComponents": [
+                "tools"
+              ],
+              "recommendation": null,
+              "documentationUrl": "https://code.claude.com/docs/en/mcp#dynamic-tool-updates"
+            }
+          ],
+          "statusLabel": "Compatible with warnings"
+        },
+        {
+          "profileId": "vscode-copilot-agent",
+          "displayName": "VS Code Copilot Agent",
+          "revision": "2026-04",
+          "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers",
+          "evidenceBasis": 0,
+          "status": 0,
+          "summary": "All applicable compatibility checks passed (2 satisfied).",
+          "passedRequirements": 2,
+          "warningRequirements": 0,
+          "failedRequirements": 0,
+          "requirements": [
+            {
+              "requirementId": "interactive-surfaces",
+              "title": "At least one interactive MCP surface is available",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Server exposes 3 tool(s).",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers"
+            },
+            {
+              "requirementId": "tool-tools-contract",
+              "title": "Tool call contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed tools without blocking tool-call contract gaps.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers"
+            },
+            {
+              "requirementId": "prompt-prompts-contract",
+              "title": "Prompt get/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers"
+            },
+            {
+              "requirementId": "resource-resources-contract",
+              "title": "Resource read/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No resources were discovered, so resource contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://code.visualstudio.com/docs/copilot/chat/mcp-servers"
+            }
+          ],
+          "statusLabel": "Compatible"
+        },
+        {
+          "profileId": "github-copilot-cli",
+          "displayName": "GitHub Copilot CLI",
+          "revision": "2026-04",
+          "documentationUrl": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers",
+          "evidenceBasis": 0,
+          "status": 0,
+          "summary": "All applicable compatibility checks passed (2 satisfied).",
+          "passedRequirements": 2,
+          "warningRequirements": 0,
+          "failedRequirements": 0,
+          "requirements": [
+            {
+              "requirementId": "tool-tools-present",
+              "title": "Tool surface is available",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed 3 tool(s) for this client profile.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers"
+            },
+            {
+              "requirementId": "tool-tools-contract",
+              "title": "Tool call contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed tools without blocking tool-call contract gaps.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers"
+            }
+          ],
+          "statusLabel": "Compatible"
+        },
+        {
+          "profileId": "github-copilot-cloud-agent",
+          "displayName": "GitHub Copilot Cloud Agent",
+          "revision": "2026-04",
+          "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp",
+          "evidenceBasis": 0,
+          "status": 0,
+          "summary": "All applicable compatibility checks passed (3 satisfied).",
+          "passedRequirements": 3,
+          "warningRequirements": 0,
+          "failedRequirements": 0,
+          "requirements": [
+            {
+              "requirementId": "tool-tools-present",
+              "title": "Tool surface is available",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed 3 tool(s) for this client profile.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp"
+            },
+            {
+              "requirementId": "tool-tools-contract",
+              "title": "Tool call contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed tools without blocking tool-call contract gaps.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp"
+            },
+            {
+              "requirementId": "surface-tools-only-surface",
+              "title": "Only the tool surface is currently consumed",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Server exposes tools only, which aligns cleanly with this profile\u0027s current surface support.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp"
+            },
+            {
+              "requirementId": "transport-remote-auth",
+              "title": "Remote servers do not rely on OAuth flows the cloud agent does not support",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "This server is not using a remote HTTP/SSE transport, so the cloud agent\u0027s remote OAuth limitation does not apply.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp"
+            }
+          ],
+          "statusLabel": "Compatible"
+        },
+        {
+          "profileId": "visual-studio-copilot",
+          "displayName": "Visual Studio Copilot",
+          "revision": "2026-04",
+          "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022",
+          "evidenceBasis": 0,
+          "status": 0,
+          "summary": "All applicable compatibility checks passed (3 satisfied).",
+          "passedRequirements": 3,
+          "warningRequirements": 0,
+          "failedRequirements": 0,
+          "requirements": [
+            {
+              "requirementId": "interactive-surfaces",
+              "title": "At least one interactive MCP surface is available",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Server exposes 3 tool(s).",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022"
+            },
+            {
+              "requirementId": "tool-tools-contract",
+              "title": "Tool call contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Observed tools without blocking tool-call contract gaps.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022"
+            },
+            {
+              "requirementId": "prompt-prompts-contract",
+              "title": "Prompt get/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No prompts were discovered, so prompt contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022"
+            },
+            {
+              "requirementId": "resource-resources-contract",
+              "title": "Resource read/list contract is structurally valid",
+              "level": 0,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "No resources were discovered, so resource contract validation was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022"
+            },
+            {
+              "requirementId": "list-changed",
+              "title": "Tool updates are declared through notifications/tools/list_changed",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 0,
+              "summary": "Initialize capabilities declare listChanged for tools.",
+              "ruleIds": [],
+              "exampleComponents": [
+                "tools"
+              ],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022#tool-lifecycle"
+            },
+            {
+              "requirementId": "sampling-supported",
+              "title": "Sampling workflows remain available when the server advertises them",
+              "level": 1,
+              "evidenceBasis": 0,
+              "outcome": 3,
+              "summary": "Sampling support was not advertised or detected, so this optional Visual Studio capability was not applicable.",
+              "ruleIds": [],
+              "exampleComponents": [],
+              "recommendation": null,
+              "documentationUrl": "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022#mcp-sampling"
+            }
+          ],
+          "statusLabel": "Compatible"
+        }
+      ],
+      "compatibleCount": 4,
+      "warningCount": 1,
+      "incompatibleCount": 0
+    }
+  },
+  "startTime": "2026-04-24T22:19:58.016607Z",
+  "endTime": "2026-04-24T22:20:28.946122Z",
+  "duration": "00:00:30.9295150",
+  "overallStatus": 1,
+  "complianceScore": 100,
+  "scoringNotes": [
+    "INFO: Authentication challenge observations are informational for the declared public profile."
+  ],
+  "scoringDetails": {
+    "overallScore": 100,
+    "status": 1,
+    "scoringNotes": [
+      "INFO: Authentication challenge observations are informational for the declared public profile."
+    ],
+    "categoryScores": {
+      "Protocol": 100,
+      "Security": 100,
+      "Tools": 100,
+      "Resources": 100,
+      "Prompts": 100,
+      "ErrorHandling": 100,
+      "Performance": 100
+    },
+    "coverageRatio": 1
+  },
+  "serverConfig": {
+    "endpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
+    "transport": "stdio",
+    "protocolVersion": "2025-11-25",
+    "authentication": null,
+    "timeoutMs": 120000,
+    "headers": {},
+    "environment": {},
+    "profile": 1
+  },
+  "serverProfile": 1,
+  "serverProfileSource": 3,
+  "validationConfig": {
+    "server": {
+      "endpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
+      "transport": "stdio",
+      "protocolVersion": "2025-11-25",
+      "authentication": null,
+      "timeoutMs": 120000,
+      "headers": {},
+      "environment": {},
+      "profile": 1
+    },
+    "validation": {
+      "categories": {
+        "protocol": {
+          "testJsonRpcCompliance": true,
+          "testInitialization": true,
+          "testCapabilities": true,
+          "testNotifications": true,
+          "testMessageFormat": true,
+          "protocolVersion": "latest"
+        },
+        "tools": {
+          "testToolDiscovery": true,
+          "testToolExecution": true,
+          "testParameterValidation": true,
+          "specificTools": [],
+          "preDiscoveredAuth": null,
+          "customScenarios": []
+        },
+        "resources": {
+          "testResourceDiscovery": true,
+          "testResourceReading": true,
+          "testUriValidation": true,
+          "testSubscriptions": true,
+          "specificResources": []
+        },
+        "prompts": {
+          "testPromptDiscovery": true,
+          "testPromptExecution": true,
+          "testArgumentValidation": true,
+          "specificPrompts": []
+        },
+        "security": {
+          "testInputValidation": true,
+          "testInjectionAttacks": true,
+          "testAuthenticationBypass": true,
+          "testBufferOverflow": true,
+          "testMalformedMessages": true,
+          "testResourceExhaustion": true,
+          "customPayloads": [],
+          "maxTestDurationSeconds": 300
+        },
+        "performance": {
+          "testConcurrentRequests": true,
+          "testResponseTimes": true,
+          "testMemoryUsage": true,
+          "testThroughput": true,
+          "maxConcurrentConnections": 4,
+          "loadTestDurationSeconds": 60,
+          "responseTimeThresholdMs": 1000,
+          "customScenarios": []
+        },
+        "errorHandling": {
+          "testInvalidMethods": true,
+          "testMalformedJson": true,
+          "testConnectionInterruption": true,
+          "testTimeoutHandling": true,
+          "testGracefulDegradation": true,
+          "customErrorScenarios": []
+        }
+      }
+    },
+    "reporting": {
+      "outputDirectory": "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-localmcp-live-20260424",
+      "formats": [
+        0,
+        1
+      ],
+      "detailLevel": "Full",
+      "includeDetailedLogs": true,
+      "includePerformanceMetrics": true,
+      "includeSecurityDetails": true,
+      "generateComplianceSummary": true,
+      "customTemplates": {},
+      "minimumLogLevel": 2,
+      "specProfile": "latest",
+      "includeSpecReferences": true
+    },
+    "policy": {
+      "mode": "balanced",
+      "suppressions": []
+    },
+    "testExecution": {
+      "continueOnFailure": true,
+      "enableParallelExecution": true,
+      "maxParallelThreads": 4,
+      "defaultTestTimeoutMs": 120000,
+      "globalTimeoutMinutes": 60,
+      "retryAttempts": 3,
+      "retryDelayMs": 1000,
+      "randomizeExecutionOrder": false,
+      "includeCategories": [],
+      "excludeCategories": [],
+      "customFilters": [],
+      "enableProgressReporting": true,
+      "captureSnapshots": false,
+      "environmentVariables": {}
+    },
+    "clientProfiles": {
+      "profiles": [
+        "all"
+      ]
+    }
+  },
+  "executionLogs": [
+    {
+      "timestamp": "2026-04-24T22:19:58.017797Z",
+      "level": 2,
+      "category": null,
+      "message": "Server profile resolved to Public (Inferred).",
+      "context": {},
+      "exception": null
+    }
+  ],
+  "criticalErrors": [],
+  "recommendations": [],
+  "summary": {
+    "totalTests": 7,
+    "passedTests": 7,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "criticalIssues": 0,
+    "warnings": 0,
+    "passRate": 100,
+    "coverageRatio": 1
+  },
+  "trustAssessment": {
+    "trustLevel": 5,
+    "trustLabel": "L5: Certified Secure \u2014 Production AI-agent ready",
+    "protocolCompliance": 100,
+    "securityPosture": 100,
+    "aiSafety": 100,
+    "operationalReadiness": 100,
+    "destructiveToolCount": 0,
+    "dataExfiltrationRiskCount": 0,
+    "promptInjectionSurfaceCount": 0,
+    "humanInLoopEnforced": false,
+    "llmFriendlinessScore": -1,
+    "boundaryFindings": [],
+    "mustPassCount": 9,
+    "mustFailCount": 0,
+    "mustTotalCount": 9,
+    "shouldPassCount": 5,
+    "shouldFailCount": 0,
+    "shouldTotalCount": 5,
+    "maySupported": 1,
+    "mayTotal": 6,
+    "tierChecks": [
+      {
+        "tier": "MUST",
+        "requirement": "MUST: Server responds to \u0027initialize\u0027 with valid JSON-RPC",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: Initialize response includes \u0027capabilities\u0027 object",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: Initialize response includes \u0027protocolVersion\u0027",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: Initialize response includes \u0027serverInfo\u0027",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: serverInfo includes \u0027name\u0027",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: serverInfo includes \u0027version\u0027",
+        "passed": true,
+        "component": "initialize",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: tools/list result has \u0027tools\u0027 array",
+        "passed": true,
+        "component": "tools/list",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: tools/call result has \u0027content\u0027 array",
+        "passed": true,
+        "component": "tools/call",
+        "detail": null
+      },
+      {
+        "tier": "MUST",
+        "requirement": "MUST: Use standard JSON-RPC error codes",
+        "passed": true,
+        "component": "errors",
+        "detail": null
+      },
+      {
+        "tier": "SHOULD",
+        "requirement": "SHOULD: Each tool has \u0027description\u0027 for LLM consumption",
+        "passed": true,
+        "component": "tools/list",
+        "detail": null
+      },
+      {
+        "tier": "SHOULD",
+        "requirement": "SHOULD: String parameters have enum/pattern/format constraints",
+        "passed": true,
+        "component": "tools/list",
+        "detail": null
+      },
+      {
+        "tier": "SHOULD",
+        "requirement": "SHOULD: tools/call result includes \u0027isError\u0027 field",
+        "passed": true,
+        "component": "tools/call",
+        "detail": null
+      },
+      {
+        "tier": "SHOULD",
+        "requirement": "SHOULD: Server sanitizes tool outputs",
+        "passed": true,
+        "component": "security",
+        "detail": null
+      },
+      {
+        "tier": "SHOULD",
+        "requirement": "SHOULD: tools/list payload within context window limits",
+        "passed": true,
+        "component": "tools/list",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Server supports logging/setLevel",
+        "passed": false,
+        "component": "capabilities",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Server supports sampling/createMessage",
+        "passed": false,
+        "component": "capabilities",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Server supports roots/list",
+        "passed": false,
+        "component": "capabilities",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Server supports completion/complete",
+        "passed": false,
+        "component": "capabilities",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Server supports resources/templates/list",
+        "passed": false,
+        "component": "resources",
+        "detail": null
+      },
+      {
+        "tier": "MAY",
+        "requirement": "MAY: Tools include \u0027annotations\u0027 (readOnlyHint, destructiveHint)",
+        "passed": true,
+        "component": "tools",
+        "detail": null
+      }
+    ]
+  },
+  "policyOutcome": {
+    "mode": "balanced",
+    "passed": true,
+    "recommendedExitCode": 0,
+    "summary": "Balanced policy requirements satisfied.",
+    "totalSignalCount": 0,
+    "unsuppressedSignalCount": 0,
+    "blockingSignalCount": 0,
+    "reasons": [],
+    "suppressedSignalCount": 0,
+    "appliedSuppressions": [],
+    "ignoredSuppressions": []
+  }
+}

@@ -1,19 +1,19 @@
 {
-  "generatedUtc": "2026-04-24T20:01:07.3732160Z",
-  "validationId": "0f983109-89c9-46fa-b5ad-6ef4d528d5c3",
-  "serverEndpoint": "https://learn.microsoft.com/api/mcp",
-  "complianceScore": 91.44,
+  "generatedUtc": "2026-04-24T22:26:58.2568440Z",
+  "validationId": "7cae8317-b0a3-4595-882e-b0e061d6136f",
+  "serverEndpoint": "https://api.githubcopilot.com/mcp/",
+  "complianceScore": 73.38,
   "trustLevel": "L4: Trusted \u2014 Meets enterprise AI safety requirements",
   "profileCount": 5,
-  "compatibleCount": 0,
-  "warningCount": 5,
+  "compatibleCount": 2,
+  "warningCount": 3,
   "incompatibleCount": 0,
   "profiles": [
     {
       "profileId": "claude-code",
       "displayName": "Claude Code",
       "status": "Compatible with warnings",
-      "passedRequirements": 2,
+      "passedRequirements": 3,
       "warningRequirements": 2,
       "failedRequirements": 0,
       "topBlockers": []
@@ -21,18 +21,18 @@
     {
       "profileId": "vscode-copilot-agent",
       "displayName": "VS Code Copilot Agent",
-      "status": "Compatible with warnings",
-      "passedRequirements": 2,
-      "warningRequirements": 2,
+      "status": "Compatible",
+      "passedRequirements": 3,
+      "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
     },
     {
       "profileId": "github-copilot-cli",
       "displayName": "GitHub Copilot CLI",
-      "status": "Compatible with warnings",
+      "status": "Compatible",
       "passedRequirements": 2,
-      "warningRequirements": 2,
+      "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
     },
@@ -41,7 +41,7 @@
       "displayName": "GitHub Copilot Cloud Agent",
       "status": "Compatible with warnings",
       "passedRequirements": 3,
-      "warningRequirements": 2,
+      "warningRequirements": 1,
       "failedRequirements": 0,
       "topBlockers": []
     },
@@ -49,8 +49,8 @@
       "profileId": "visual-studio-copilot",
       "displayName": "Visual Studio Copilot",
       "status": "Compatible with warnings",
-      "passedRequirements": 2,
-      "warningRequirements": 2,
+      "passedRequirements": 4,
+      "warningRequirements": 1,
       "failedRequirements": 0,
       "topBlockers": []
     }

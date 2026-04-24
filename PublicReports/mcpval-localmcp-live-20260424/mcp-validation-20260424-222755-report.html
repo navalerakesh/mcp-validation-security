@@ -1491,11 +1491,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716</div>
+                <div class="fact-item__value">12803c9f-a511-4ddb-8557-9b8b129c752c</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">31.0s</div>
+                <div class="fact-item__value">30.9s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1516,7 +1516,7 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Run Status</span>
     <div class="focus-value">Proceed</div>
-    <div class="focus-label">Generated on 2026-04-24 20:01:44 UTC</div>
+    <div class="focus-label">Generated on 2026-04-24 22:27:55 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-info">
     <span class="status-chip status-chip--info">Deterministic Verdict</span>
@@ -1799,16 +1799,16 @@ a:hover {
                   <td><div class="cell-title">Operations</div></td>
                   <td><span class="tone-chip tone-success">100%</span></td>
                   <td>No escalated signals</td>
-                  <td>Avg 0.4 ms &#183; P95 0.7 ms &#183; 0.00% errors</td>
+                  <td>Avg 0.4 ms &#183; P95 0.6 ms &#183; 0.00% errors</td>
                   <td>Runtime probe completed with measured latency, throughput, and failure-rate data.</td>
                   <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Compatibility</div></td>
-                  <td><span class="tone-chip tone-success">Compatible</span></td>
-                  <td>0 incompatible &#183; 0 warning profile(s)</td>
+                  <td><span class="tone-chip tone-warning">Compatible with warnings</span></td>
+                  <td>0 incompatible &#183; 1 warning profile(s)</td>
                   <td>5 profile(s) evaluated</td>
-                  <td>All applicable compatibility checks passed (4 satisfied).</td>
+                  <td>Required compatibility checks passed; 1 advisory requirement still needs follow-up.</td>
                   <td>Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</td>
                 </tr>
                 <tr>
@@ -1839,7 +1839,7 @@ a:hover {
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Bootstrap State</div><div class="section-abstract__value">Healthy</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Deferred Validation</div><div class="section-abstract__value">No</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake HTTP</div><div class="section-abstract__value">n/a</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">43.7 ms</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">36.2 ms</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1869,7 +1869,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">43.7 ms</div>
+                <div class="fact-item__value">36.2 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -1886,7 +1886,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-success">
+        <details class="section-card section-card--tone-warning">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Host Compatibility</div>
@@ -1895,8 +1895,8 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profiles</div><div class="section-abstract__value">5</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">5</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">4</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">1</div></div>
               <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Incompatible</div><div class="section-abstract__value">0</div></div>
             </div>
             <div class="section-card__toggle-row">
@@ -1912,29 +1912,47 @@ a:hover {
             <div class="distribution-summary__cards">
               <div class="distribution-card distribution-card--success">
                 <div class="distribution-card__label">Compatible</div>
-                <div class="distribution-card__value">5</div>
-                <div class="distribution-card__meta">100% of observed outcomes</div>
+                <div class="distribution-card__value">4</div>
+                <div class="distribution-card__meta">80% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--warning">
+                <div class="distribution-card__label">Warnings</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">20% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:5;"></span>
+              <span class="distribution-segment distribution-segment--success" style="flex:4;"></span>
+              <span class="distribution-segment distribution-segment--warning" style="flex:1;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Compatible 5 (100%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Compatible 4 (80%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Warnings 1 (20%)</span>
             </div>
           </div>
 
+          <div class="summary-grid">
+            <div class="summary-card">
+              <div class="summary-card__label">Initialize instructions help Claude Code find and use the server correctly</div>
+              <div class="summary-card__value">Affects 1/5 profile(s). Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</div>
+              <div class="table-subtle"><span class="tone-chip tone-warning">1 profile(s)</span></div>
+              <div class="table-subtle">Profiles: Claude Code</div>
+            </div>
+          </div>
           <div class="ledger-list">
-            <article class="ledger-entry ledger-entry--success">
+            <article class="ledger-entry ledger-entry--warning">
               <div class="ledger-rail">
                 <div class="ledger-title">Claude Code</div>
                 <div class="ledger-subtle">claude-code · 2026-04</div>
-                <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 4</span><span>W 0</span><span>F 0</span></div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 3</span><span>W 1</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (4 satisfied).</p>
-                <div class="ledger-links">Reference: <a href="https://docs.anthropic.com/en/docs/claude-code/mcp">Profile documentation</a></div>
+                <p class="ledger-copy">Required compatibility checks passed; 1 advisory requirement still needs follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Initialize instructions help Claude Code find and use the server correctly</strong>: Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://code.claude.com/docs/en/mcp">Profile documentation</a></div>
               </div>
             </article>
             <article class="ledger-entry ledger-entry--success">
@@ -1942,10 +1960,10 @@ a:hover {
                 <div class="ledger-title">VS Code Copilot Agent</div>
                 <div class="ledger-subtle">vscode-copilot-agent · 2026-04</div>
                 <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 4</span><span>W 0</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 2</span><span>W 0</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (4 satisfied).</p>
+                <p class="ledger-copy">All applicable compatibility checks passed (2 satisfied).</p>
                 <div class="ledger-links">Reference: <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers">Profile documentation</a></div>
               </div>
             </article>
@@ -1954,10 +1972,10 @@ a:hover {
                 <div class="ledger-title">GitHub Copilot CLI</div>
                 <div class="ledger-subtle">github-copilot-cli · 2026-04</div>
                 <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 4</span><span>W 0</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 2</span><span>W 0</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (4 satisfied).</p>
+                <p class="ledger-copy">All applicable compatibility checks passed (2 satisfied).</p>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers">Profile documentation</a></div>
               </div>
             </article>
@@ -1966,10 +1984,10 @@ a:hover {
                 <div class="ledger-title">GitHub Copilot Cloud Agent</div>
                 <div class="ledger-subtle">github-copilot-cloud-agent · 2026-04</div>
                 <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 5</span><span>W 0</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 3</span><span>W 0</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (5 satisfied).</p>
+                <p class="ledger-copy">All applicable compatibility checks passed (3 satisfied).</p>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp">Profile documentation</a></div>
               </div>
             </article>
@@ -1978,11 +1996,11 @@ a:hover {
                 <div class="ledger-title">Visual Studio Copilot</div>
                 <div class="ledger-subtle">visual-studio-copilot · 2026-04</div>
                 <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 4</span><span>W 0</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 3</span><span>W 0</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (4 satisfied).</p>
-                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio">Profile documentation</a></div>
+                <p class="ledger-copy">All applicable compatibility checks passed (3 satisfied).</p>
+                <div class="ledger-links">Reference: <a href="https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022">Profile documentation</a></div>
               </div>
             </article>
           </div>
@@ -2022,7 +2040,7 @@ a:hover {
                 <tr><td><code>security-boundaries</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>performance</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>-</td></tr>
                 <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 0 warning profile(s); 0 incompatible profile(s).</td></tr>
+                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s).</td></tr>
               </tbody></table>
           </div>
           <div class="table-shell">
@@ -2113,9 +2131,9 @@ a:hover {
                 <tr><td><code>tool-tools-list-schema-compliance</code></td><td><code>tool-surface</code></td><td><code>tools/list (Schema Compliance)</code></td><td><code>tool-result</code></td><td>⚠️ Schema validation warning: tools/list schema could not be fully processed</td></tr>
                 <tr><td><code>auth-stdio-transport-protocol-check</code></td><td><code>security-boundaries</code></td><td><code>transport-validation</code></td><td><code>authentication-scenario</code></td><td>✅ Correctly using STDIO transport (no HTTP auth)</td></tr>
                 <tr><td><code>auth-stdio-environment-credentials-check</code></td><td><code>security-boundaries</code></td><td><code>env-check</code></td><td><code>authentication-scenario</code></td><td>✅ Environment credential variables detected</td></tr>
-                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;5c8bb8b7-efc5-42fc-bde2-0c39e3c1767f&quot;}</td></tr>
-                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;a6329be2-1377-4800-b592-e36ca9968b57&quot;}</td></tr>
-                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;e475122f-46aa-4127-b433-956a40701052&quot;}</td></tr>
+                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;cb309ac3-65a8-4d9c-b210-44ee00596a3f&quot;}</td></tr>
+                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2cc46c62-3152-4e6e-b82d-1c983ca26420&quot;}</td></tr>
+                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;f8c76132-951b-4071-b2f3-78afe5046434&quot;}</td></tr>
                 <tr><td><code>attack-mcp-sec-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-001</code></td><td><code>attack-simulation</code></td><td>Server handled malformed requests gracefully with standard errors.</td></tr>
                 <tr><td><code>attack-mcp-sec-002</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-002</code></td><td><code>attack-simulation</code></td><td>Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</td></tr>
                 <tr><td><code>attack-mcp-sec-003</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-003</code></td><td><code>attack-simulation</code></td><td>Server correctly rejected invalid schema.</td></tr>
@@ -2184,7 +2202,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 3</span>
-        <span class="probe-metric"><strong>Duration</strong> 106.6 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 104.5 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool validate responded successfully.</div>
 </article>
@@ -2196,7 +2214,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 400</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 0.9 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 0.6 ms</span>
     </div>
     <div class="probe-row__note">List probe needs review.</div>
 </article>
@@ -2208,7 +2226,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 400</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 0.3 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 0.1 ms</span>
     </div>
     <div class="probe-row__note">List probe needs review.</div>
 </article>
@@ -2346,7 +2364,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;5c8bb8b7-efc5-42fc-bde2-0c39e3c1767f&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;cb309ac3-65a8-4d9c-b210-44ee00596a3f&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2356,7 +2374,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;a6329be2-1377-4800-b592-e36ca9968b57&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2cc46c62-3152-4e6e-b82d-1c983ca26420&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2366,7 +2384,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;e475122f-46aa-4127-b433-956a40701052&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;f8c76132-951b-4071-b2f3-78afe5046434&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2503,10 +2521,10 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>106.62 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>validate</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9950.07 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
-                <tr><td><code>health_check</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>10001.85 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
-                <tr><td><code>discover</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2.64 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>104.51 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>validate</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9959.85 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>health_check</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>10003.27 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>discover</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>4.43 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
               </tbody></table>
           </div>
           </div>
@@ -2524,7 +2542,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">0.4 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">0.7 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">0.6 ms</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Requests</div><div class="section-abstract__value">20</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Error Rate</div><div class="section-abstract__value">0.00%</div></div>
             </div>
@@ -2544,12 +2562,12 @@ a:hover {
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">0.7 ms</div>
+              <div class="score-pill__value">0.6 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">1835.70</div>
+              <div class="score-pill__value">2110.60</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">

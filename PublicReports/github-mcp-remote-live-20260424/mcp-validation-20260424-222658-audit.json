@@ -1,0 +1,50 @@
+{
+  "timestampUtc": "2026-04-24T22:26:58.258482+00:00",
+  "commandName": "validate",
+  "validationId": "7cae8317-b0a3-4595-882e-b0e061d6136f",
+  "sessionId": "7cae8317-b0a3-4595-882e-b0e061d6136f",
+  "target": "https://api.githubcopilot.com/mcp/",
+  "transport": "http",
+  "executionMode": "Safe",
+  "dryRun": false,
+  "persistenceMode": "Ephemeral",
+  "redactionLevel": "Strict",
+  "traceMode": "Off",
+  "modelEvaluationEnabled": false,
+  "allowPrivateAddresses": false,
+  "maxRequests": 256,
+  "maxConcurrency": 4,
+  "timeoutSeconds": 120,
+  "allowedHosts": [
+    "api.githubcopilot.com"
+  ],
+  "plannedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "executedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "artifactPaths": [
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/github-mcp-remote-live-20260424/mcp-validation-20260424-222658-report.md",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/github-mcp-remote-live-20260424/mcp-validation-20260424-222658-report.html",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/github-mcp-remote-live-20260424/mcp-validation-20260424-222658-result.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/github-mcp-remote-live-20260424/mcp-validation-20260424-222658-results.sarif.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/github-mcp-remote-live-20260424/mcp-validation-20260424-222658-profile-summary.json"
+  ],
+  "overallStatus": 2,
+  "baselineVerdict": 1,
+  "protocolVerdict": 1,
+  "coverageVerdict": 4
+}

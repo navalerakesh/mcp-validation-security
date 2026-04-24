@@ -12,7 +12,7 @@ public static class ClientProfileCatalog
             Id = "claude-code",
             DisplayName = "Claude Code",
             Revision = "2026-04",
-            DocumentationUrl = "https://docs.anthropic.com/en/docs/claude-code/mcp"
+            DocumentationUrl = "https://code.claude.com/docs/en/mcp"
         },
         new ClientProfileDescriptor
         {
@@ -40,7 +40,7 @@ public static class ClientProfileCatalog
             Id = "visual-studio-copilot",
             DisplayName = "Visual Studio Copilot",
             Revision = "2026-04",
-            DocumentationUrl = "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio"
+            DocumentationUrl = "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022"
         }
     };
 

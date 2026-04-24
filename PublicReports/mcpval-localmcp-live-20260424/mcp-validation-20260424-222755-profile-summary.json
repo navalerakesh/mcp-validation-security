@@ -1,20 +1,20 @@
 {
-  "generatedUtc": "2026-04-24T20:01:44.6726860Z",
-  "validationId": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+  "generatedUtc": "2026-04-24T22:27:55.4607530Z",
+  "validationId": "12803c9f-a511-4ddb-8557-9b8b129c752c",
   "serverEndpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
   "complianceScore": 100,
   "trustLevel": "L5: Certified Secure \u2014 Production AI-agent ready",
   "profileCount": 5,
-  "compatibleCount": 5,
-  "warningCount": 0,
+  "compatibleCount": 4,
+  "warningCount": 1,
   "incompatibleCount": 0,
   "profiles": [
     {
       "profileId": "claude-code",
       "displayName": "Claude Code",
-      "status": "Compatible",
-      "passedRequirements": 4,
-      "warningRequirements": 0,
+      "status": "Compatible with warnings",
+      "passedRequirements": 3,
+      "warningRequirements": 1,
       "failedRequirements": 0,
       "topBlockers": []
     },
@@ -22,7 +22,7 @@
       "profileId": "vscode-copilot-agent",
       "displayName": "VS Code Copilot Agent",
       "status": "Compatible",
-      "passedRequirements": 4,
+      "passedRequirements": 2,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -31,7 +31,7 @@
       "profileId": "github-copilot-cli",
       "displayName": "GitHub Copilot CLI",
       "status": "Compatible",
-      "passedRequirements": 4,
+      "passedRequirements": 2,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -40,7 +40,7 @@
       "profileId": "github-copilot-cloud-agent",
       "displayName": "GitHub Copilot Cloud Agent",
       "status": "Compatible",
-      "passedRequirements": 5,
+      "passedRequirements": 3,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -49,7 +49,7 @@
       "profileId": "visual-studio-copilot",
       "displayName": "Visual Studio Copilot",
       "status": "Compatible",
-      "passedRequirements": 4,
+      "passedRequirements": 3,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []

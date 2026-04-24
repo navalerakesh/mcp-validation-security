@@ -1,0 +1,50 @@
+{
+  "timestampUtc": "2026-04-24T22:27:43.158301+00:00",
+  "commandName": "validate",
+  "validationId": "27bea45f-1e3e-464b-bc77-f578e248ea97",
+  "sessionId": "27bea45f-1e3e-464b-bc77-f578e248ea97",
+  "target": "https://learn.microsoft.com",
+  "transport": "http",
+  "executionMode": "Safe",
+  "dryRun": false,
+  "persistenceMode": "Ephemeral",
+  "redactionLevel": "Strict",
+  "traceMode": "Off",
+  "modelEvaluationEnabled": false,
+  "allowPrivateAddresses": false,
+  "maxRequests": 256,
+  "maxConcurrency": 4,
+  "timeoutSeconds": 120,
+  "allowedHosts": [
+    "learn.microsoft.com"
+  ],
+  "plannedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "executedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "artifactPaths": [
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/microsoft-learn-mcp-live-20260424/mcp-validation-20260424-222742-report.md",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/microsoft-learn-mcp-live-20260424/mcp-validation-20260424-222742-report.html",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/microsoft-learn-mcp-live-20260424/mcp-validation-20260424-222742-result.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/microsoft-learn-mcp-live-20260424/mcp-validation-20260424-222742-results.sarif.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/microsoft-learn-mcp-live-20260424/mcp-validation-20260424-222742-profile-summary.json"
+  ],
+  "overallStatus": 2,
+  "baselineVerdict": 1,
+  "protocolVerdict": 1,
+  "coverageVerdict": 2
+}

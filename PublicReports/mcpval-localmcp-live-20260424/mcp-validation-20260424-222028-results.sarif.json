@@ -83,7 +83,7 @@
         }
       },
       "automationDetails": {
-        "id": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+        "id": "0eb3b63b-2d58-4950-a437-3e314341184c",
         "description": {
           "text": "MCP validation run"
         }
@@ -91,10 +91,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-24T20:01:13.4689020Z",
-          "endTimeUtc": "2026-04-24T20:01:44.4491090Z",
+          "startTimeUtc": "2026-04-24T22:19:58.0166070Z",
+          "endTimeUtc": "2026-04-24T22:20:28.9461220Z",
           "properties": {
-            "validationId": "3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716",
+            "validationId": "0eb3b63b-2d58-4950-a437-3e314341184c",
             "endpoint": "node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js",
             "transport": "stdio",
             "overallStatus": "Passed",

@@ -323,6 +323,37 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
+    public async Task ValidateToolDiscovery_WithCapabilitySnapshot_ShouldPreserveAnthropicMaxResultSizeAnnotation()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var snapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                ToolListingSucceeded = true,
+                DiscoveredToolsCount = 1,
+                ToolListResponse = new JsonRpcResponse
+                {
+                    StatusCode = 200,
+                    IsSuccess = true,
+                    RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"get_schema\",\"description\":\"Returns the full database schema\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"_meta\":{\"anthropic/maxResultSizeChars\":200000}}]},\"id\":1}"
+                }
+            }
+        };
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            config,
+            new ToolTestingConfig { CapabilitySnapshot = snapshot },
+            CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "get_schema");
+        toolResult.AnthropicMaxResultSizeChars.Should().Be(200000);
+        _httpClient.Verify(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task ValidateToolDiscovery_WithDestructiveHintAndNoConfirmationGuidance_ShouldEmitHeuristicFinding()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };

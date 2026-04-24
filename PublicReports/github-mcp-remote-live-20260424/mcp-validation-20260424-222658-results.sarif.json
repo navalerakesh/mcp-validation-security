@@ -126,29 +126,6 @@
               }
             },
             {
-              "id": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
-              "name": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
-              "shortDescription": {
-                "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
-              },
-              "fullDescription": {
-                "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
-              },
-              "help": {
-                "text": "Add nextCursor pagination for large tool catalogs so clients can discover tools incrementally."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "guideline",
-                "category": "McpGuideline",
-                "tags": [
-                  "guideline",
-                  "McpGuideline",
-                  "tools/list"
-                ]
-              }
-            },
-            {
               "id": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "name": "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING",
               "shortDescription": {
@@ -564,7 +541,7 @@
         }
       },
       "automationDetails": {
-        "id": "c2f92529-57a8-4630-aa62-323962450c08",
+        "id": "7cae8317-b0a3-4595-882e-b0e061d6136f",
         "description": {
           "text": "MCP validation run"
         }
@@ -572,10 +549,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-04-24T20:00:05.7475040Z",
-          "endTimeUtc": "2026-04-24T20:00:38.2419940Z",
+          "startTimeUtc": "2026-04-24T22:26:26.4985640Z",
+          "endTimeUtc": "2026-04-24T22:26:58.0422530Z",
           "properties": {
-            "validationId": "c2f92529-57a8-4630-aa62-323962450c08",
+            "validationId": "7cae8317-b0a3-4595-882e-b0e061d6136f",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
             "overallStatus": "Failed",
@@ -754,35 +731,6 @@
               "declared": "false",
               "supported": "true"
             }
-          }
-        },
-        {
-          "ruleId": "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED",
-          "level": "note",
-          "kind": "fail",
-          "message": {
-            "text": "tools/list returned 41 tools (~25,152 tokens) without pagination support."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED|tools/list|tools/list returned 41 tools (~25,152 tokens) without pagination support."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "tools/list"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "source": "structured-finding",
-            "authority": "guideline",
-            "category": "McpGuideline",
-            "component": "tools/list",
-            "severity": "Low",
-            "recommendation": "Add nextCursor pagination for large tool catalogs so clients can discover tools incrementally."
           }
         },
         {

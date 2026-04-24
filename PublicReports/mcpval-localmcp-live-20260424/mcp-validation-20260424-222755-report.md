@@ -1,19 +1,19 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-04-24 20:01:44 UTC
+**Generated:** 2026-04-24 22:27:55 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `node /Users/navalerakesh/Work/engineering/mcp-validation-security/mcpval-mcp/dist/index.js` |
-| **Validation ID** | `3b0ff0d9-b1f5-4c03-a6d4-73e9d49cf716` |
+| **Validation ID** | `12803c9f-a511-4ddb-8557-9b8b129c752c` |
 | **Overall Status** | ✅ **Passed** |
 | **Baseline Verdict** | **Conditionally Acceptable** |
 | **Protocol Verdict** | **Conditionally Acceptable** |
 | **Coverage Verdict** | **Trusted** |
 | **Compliance Score** | **100.0%** |
 | **Compliance Profile** | `Public (Inferred)` |
-| **Duration** | 30.98s |
+| **Duration** | 30.91s |
 | **Transport** | STDIO |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -29,7 +29,7 @@ This section explains how the validator established initial connectivity and whe
 | **Bootstrap State** | ✅ Healthy |
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
-| **Handshake Duration** | 43.7 ms |
+| **Handshake Duration** | 36.2 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `1.1.0` |
 | **Server Profile Resolution** | `Public (Inferred)` |
@@ -95,25 +95,31 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://docs.anthropic.com/en/docs/claude-code/mcp> |
-| **VS Code Copilot Agent** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ✅ Compatible | 5 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp?tool=visualstudio> |
+| **Claude Code** | ⚠️ Compatible with warnings | 3 passed / 1 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
+| **VS Code Copilot Agent** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ✅ Compatible | 3 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ✅ Compatible | 3 passed / 0 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
 
 ### Claude Code
 
-**Status:** ✅ Compatible
+**Status:** ⚠️ Compatible with warnings
 
-All applicable compatibility checks passed (4 satisfied).
+Required compatibility checks passed; 1 advisory requirement still needs follow-up.
 
-- No client-specific compatibility gaps were detected.
+| Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Initialize instructions help Claude Code find and use the server correctly | Recommended | ⚠️ Warning | - | - | Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing. |
+
+#### Remediation
+
+- ⚠️ **Initialize instructions help Claude Code find and use the server correctly:** Populate initialize.instructions with concise guidance about when Claude should search and use this server.
 
 ### VS Code Copilot Agent
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (2 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -121,7 +127,7 @@ All applicable compatibility checks passed (4 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (2 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -129,7 +135,7 @@ All applicable compatibility checks passed (4 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (5 satisfied).
+All applicable compatibility checks passed (3 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -137,7 +143,7 @@ All applicable compatibility checks passed (5 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (3 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -156,7 +162,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `security-boundaries` | ✅ Passed | 0 | - |
 | `performance` | ✅ Passed | 1 | - |
 | `error-handling` | ✅ Passed | 2 | Validated 3 error scenario(s); 3 handled correctly. |
-| `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 0 warning profile(s); 0 incompatible profile(s). |
+| `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s). |
 
 ### Scenario Outcomes
 
@@ -207,9 +213,9 @@ This section exposes the structured validation envelope used for layered reporti
 | `tool-tools-list-schema-compliance` | `tool-surface` | `tools/list (Schema Compliance)` | `tool-result` | ⚠️ Schema validation warning: tools/list schema could not be fully processed |
 | `auth-stdio-transport-protocol-check` | `security-boundaries` | `transport-validation` | `authentication-scenario` | ✅ Correctly using STDIO transport (no HTTP auth) |
 | `auth-stdio-environment-credentials-check` | `security-boundaries` | `env-check` | `authentication-scenario` | ✅ Environment credential variables detected |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"'; DROP TABLE users; --\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received ''; DROP TABLE users; --'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"5c8bb8b7-efc5-42fc-bde2-0c39e3c1767f"} |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"<script>alert('XSS')</script>\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '<script>alert('XSS')</script>'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"a6329be2-1377-4800-b592-e36ca9968b57"} |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"; rm -rf /\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '; rm -rf /'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"e475122f-46aa-4127-b433-956a40701052"} |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"'; DROP TABLE users; --\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received ''; DROP TABLE users; --'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"cb309ac3-65a8-4d9c-b210-44ee00596a3f"} |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"<script>alert('XSS')</script>\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '<script>alert('XSS')</script>'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"2cc46c62-3152-4e6e-b82d-1c983ca26420"} |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"; rm -rf /\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '; rm -rf /'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"f8c76132-951b-4071-b2f3-78afe5046434"} |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
@@ -222,9 +228,9 @@ This section exposes the structured validation envelope used for layered reporti
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 3 | HTTP 200 | 106.6 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 400 | 0.9 ms | ❌ Failed |
-| Prompts/list | 0 | HTTP 400 | 0.3 ms | ❌ Failed |
+| Tools/list | 3 | HTTP 200 | 104.5 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 400 | 0.6 ms | ❌ Failed |
+| Prompts/list | 0 | HTTP 400 | 0.1 ms | ❌ Failed |
 
 - **First Tool Probed:** `validate`
 
@@ -271,9 +277,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Analysis |
 | :--- | :--- | :---: | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"'; DROP TABLE users; --\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received ''; DROP TABLE users; --'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"5c8bb8b7-efc5-42fc-bde2-0c39e3c1767f"}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"<script>alert('XSS')</script>\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '<script>alert('XSS')</script>'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"a6329be2-1377-4800-b592-e36ca9968b57"}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"; rm -rf /\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '; rm -rf /'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"e475122f-46aa-4127-b433-956a40701052"}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"'; DROP TABLE users; --\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received ''; DROP TABLE users; --'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"cb309ac3-65a8-4d9c-b210-44ee00596a3f"}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"<script>alert('XSS')</script>\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '<script>alert('XSS')</script>'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"2cc46c62-3152-4e6e-b82d-1c983ca26420"}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on validate | 🛡️ BLOCKED | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"received\": \"; rm -rf /\",\n    \"code\": \"invalid_enum_value\",\n    \"options\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid enum value. Expected 'public' \| 'authenticated' \| 'enterprise' \| 'unspecified', received '; rm -rf /'\"\n  },\n  {\n    \"code\": \"invalid_union\",\n    \"unionErrors\": [\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      },\n      {\n        \"issues\": [\n          {\n            \"code\": \"invalid_type\",\n            \"expected\": \"string\",\n            \"received\": \"undefined\",\n            \"path\": [\n              \"server\"\n            ],\n            \"message\": \"Required\"\n          }\n        ],\n        \"name\": \"ZodError\"\n      }\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"f8c76132-951b-4071-b2f3-78afe5046434"}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `Server correctly rejected invalid schema.` |
@@ -304,13 +310,13 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 106.62ms
+**Execution Time:** 104.51ms
 ---
 
 ### Tool: `validate`
 
 **Status:** ✅ Passed
-**Execution Time:** 9950.07ms
+**Execution Time:** 9959.85ms
 
 #### Tool Metadata
 | Property | Value |
@@ -326,7 +332,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `health_check`
 
 **Status:** ✅ Passed
-**Execution Time:** 10001.85ms
+**Execution Time:** 10003.27ms
 
 #### Tool Metadata
 | Property | Value |
@@ -342,7 +348,7 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 ### Tool: `discover`
 
 **Status:** ✅ Passed
-**Execution Time:** 2.64ms
+**Execution Time:** 4.43ms
 
 #### Tool Metadata
 | Property | Value |
@@ -397,9 +403,9 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 0.44ms | 🚀 Excellent |
-| **P95 Latency** | 0.72ms | - |
-| **Throughput** | 1835.70 req/sec | - |
+| **Avg Latency** | 0.39ms | 🚀 Excellent |
+| **P95 Latency** | 0.58ms | - |
+| **Throughput** | 2110.60 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 20/20 successful | - |
 
