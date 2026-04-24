@@ -40,6 +40,15 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine(RenderClientCompatibility(result));
         }
 
+        if (result.Assessments.Layers.Count > 0 ||
+            result.Assessments.Scenarios.Count > 0 ||
+            result.Evidence.Coverage.Count > 0 ||
+            result.Evidence.AppliedPacks.Count > 0 ||
+            result.Evidence.Observations.Count > 0)
+        {
+            sb.AppendLine(RenderValidationEnvelope(result));
+        }
+
         if (result.CapabilitySnapshot?.Payload is CapabilitySummary capabilitySummary)
         {
             sb.AppendLine(RenderCapabilitySnapshot(capabilitySummary));
@@ -422,6 +431,110 @@ internal sealed class ValidationHtmlReportComposer
                         </article>
                         """;
         }
+    }
+
+    private static string RenderValidationEnvelope(ValidationResult result)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("      <section class=\"section\">");
+        sb.AppendLine("        <div class=\"section-shell\">");
+        sb.AppendLine("          <div class=\"section-kicker\">Structured Envelope</div>");
+        sb.AppendLine("          <h2 class=\"section-title\">Layer Coverage & Applied Packs</h2>");
+        sb.AppendLine("          <p class=\"section-intro\">This is the persisted validation envelope used to explain what ran, what was covered, and which validation packs were active.</p>");
+
+        if (result.Assessments.Layers.Count > 0)
+        {
+            sb.AppendLine("          <div class=\"table-shell\">");
+            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("              <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>");
+            foreach (var layer in result.Assessments.Layers)
+            {
+                sb.AppendLine($"                <tr><td><code>{Encode(layer.LayerId)}</code></td><td>{RenderToneChip(layer.Status.ToString(), MapTestTone(layer.Status))}</td><td>{layer.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td>{Encode(layer.Summary ?? "-")}</td></tr>");
+            }
+            sb.AppendLine("              </tbody></table>");
+            sb.AppendLine("          </div>");
+        }
+
+        if (result.Evidence.Coverage.Count > 0)
+        {
+            sb.AppendLine("          <div class=\"table-shell\">");
+            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>");
+            foreach (var coverage in result.Evidence.Coverage)
+            {
+                sb.AppendLine($"                <tr><td><code>{Encode(coverage.LayerId)}</code></td><td><code>{Encode(coverage.Scope)}</code></td><td>{RenderToneChip(coverage.Status.ToString(), MapCoverageTone(coverage.Status))}</td><td>{Encode(coverage.Reason ?? "-")}</td></tr>");
+            }
+            sb.AppendLine("              </tbody></table>");
+            sb.AppendLine("          </div>");
+        }
+
+        if (result.Evidence.AppliedPacks.Count > 0)
+        {
+            sb.AppendLine("          <div class=\"ledger-group\">");
+            sb.AppendLine("            <h3 class=\"minor-title\">Applied Validation Packs</h3>");
+            sb.AppendLine("            <div class=\"ledger-list\">");
+            foreach (var pack in result.Evidence.AppliedPacks)
+            {
+                sb.AppendLine("              <article class=\"ledger-entry ledger-entry--info\">");
+                sb.AppendLine("                <div class=\"ledger-rail\">");
+                sb.AppendLine($"                  <div class=\"ledger-title\">{Encode(pack.DisplayName)}</div>");
+                sb.AppendLine($"                  <div class=\"ledger-subtle\"><code>{Encode(pack.Key.Value)}</code></div>");
+                sb.AppendLine($"                  {RenderToneChip(pack.Stability.ToString(), HtmlReportTone.Info)}");
+                sb.AppendLine("                </div>");
+                sb.AppendLine("                <div class=\"ledger-body\">");
+                sb.AppendLine($"                  <p class=\"ledger-copy\">Revision {Encode(pack.Revision.Value)} · {Encode(pack.Kind.ToString())}</p>");
+                if (!string.IsNullOrWhiteSpace(pack.DocumentationUrl))
+                {
+                    sb.AppendLine($"                  <div class=\"ledger-links\">Reference: <a href=\"{Encode(pack.DocumentationUrl)}\">documentation</a></div>");
+                }
+                sb.AppendLine("                </div>");
+                sb.AppendLine("              </article>");
+            }
+            sb.AppendLine("            </div>");
+            sb.AppendLine("          </div>");
+        }
+
+        if (result.Assessments.Scenarios.Count > 0)
+        {
+            sb.AppendLine("          <div class=\"table-shell\">");
+            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("              <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>");
+            foreach (var scenario in result.Assessments.Scenarios)
+            {
+                sb.AppendLine($"                <tr><td><code>{Encode(scenario.ScenarioId)}</code></td><td>{RenderToneChip(scenario.Status.ToString(), MapTestTone(scenario.Status))}</td><td>{scenario.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td>{Encode(scenario.Summary ?? "-")}</td></tr>");
+            }
+            sb.AppendLine("              </tbody></table>");
+            sb.AppendLine("          </div>");
+        }
+
+        if (result.Evidence.Observations.Count > 0)
+        {
+            sb.AppendLine("          <div class=\"table-shell\">");
+            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("              <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>");
+            foreach (var observation in result.Evidence.Observations)
+            {
+                sb.AppendLine($"                <tr><td><code>{Encode(observation.Id)}</code></td><td><code>{Encode(observation.LayerId)}</code></td><td><code>{Encode(observation.Component)}</code></td><td><code>{Encode(observation.ObservationKind)}</code></td><td>{Encode(observation.RedactedPayloadPreview ?? "-")}</td></tr>");
+            }
+            sb.AppendLine("              </tbody></table>");
+            sb.AppendLine("          </div>");
+        }
+
+        sb.AppendLine("        </div>");
+        sb.AppendLine("      </section>");
+        return sb.ToString();
+    }
+
+    private static HtmlReportTone MapCoverageTone(ValidationCoverageStatus status)
+    {
+        return status switch
+        {
+            ValidationCoverageStatus.Covered => HtmlReportTone.Success,
+            ValidationCoverageStatus.Skipped => HtmlReportTone.Info,
+            ValidationCoverageStatus.NotApplicable => HtmlReportTone.Neutral,
+            ValidationCoverageStatus.Blocked => HtmlReportTone.Warning,
+            _ => HtmlReportTone.Warning
+        };
     }
 
     private static string RenderCapabilityCard(string title, int discovered, int? statusCode, double durationMs, bool succeeded, string? toolName, bool? invocationSucceeded)

@@ -1,14 +1,27 @@
 using System.Text;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
-public class ContentTypeRule : IValidationRule<ProtocolValidationContext>
+public sealed class ContentTypeRule : IVersionedValidationRule<ProtocolValidationContext>
 {
     public string Id => "PROTOCOL-007";
     public string Description => "Content-Type Requirements";
-    public string SpecVersion => "2024-11-25";
+    public string SpecVersion => SchemaRegistryProtocolVersions.GetLatestVersion().Value;
+
+    public ValidationRuleDescriptor Descriptor => new()
+    {
+        RuleId = Id,
+        Source = ValidationRuleSource.Spec,
+        SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+    };
+
+    public ValidationApplicability Applicability => new()
+    {
+        Transports = new[] { "http", "https" }
+    };
 
     public async Task<RuleResult> EvaluateAsync(ProtocolValidationContext context, CancellationToken cancellationToken)
     {

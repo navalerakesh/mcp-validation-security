@@ -1494,6 +1494,102 @@ a:hover {
 
       <section class="section">
         <div class="section-shell">
+          <div class="section-kicker">Structured Envelope</div>
+          <h2 class="section-title">Layer Coverage & Applied Packs</h2>
+          <p class="section-intro">This is the persisted validation envelope used to explain what ran, what was covered, and which validation packs were active.</p>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
+                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>1</td><td>Protocol negotiation had one blocking violation.</td></tr>
+                <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Tool catalog loaded and executed.</td></tr>
+                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
+                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 2 profile(s); 1 warning profile(s); 0 incompatible profile(s).</td></tr>
+              </tbody></table>
+          </div>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>
+                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-info">Skipped</span></td><td>Server does not advertise prompts capability.</td></tr>
+                <tr><td><code>client-profiles</code></td><td><code>github-copilot-cli,github-copilot-cloud-agent</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+              </tbody></table>
+          </div>
+          <div class="ledger-group">
+            <h3 class="minor-title">Applied Validation Packs</h3>
+            <div class="ledger-list">
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-title">Embedded MCP Protocol Features</div>
+                  <div class="ledger-subtle"><code>protocol-features/mcp-embedded</code></div>
+                  <span class="tone-chip tone-info">Stable</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">Revision 2026-04 · ProtocolFeatures</p>
+                  <div class="ledger-links">Reference: <a href="https://spec.modelcontextprotocol.io/">documentation</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-title">Built-in Protocol Rule Pack</div>
+                  <div class="ledger-subtle"><code>rule-pack/protocol-core</code></div>
+                  <span class="tone-chip tone-info">Stable</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">Revision 2026-04 · RulePack</p>
+                  <div class="ledger-links">Reference: <a href="https://spec.modelcontextprotocol.io/">documentation</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-title">Built-in Client Profile Pack</div>
+                  <div class="ledger-subtle"><code>client-profile-pack/built-in</code></div>
+                  <span class="tone-chip tone-info">Stable</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">Revision 2026-04 · ClientProfilePack</p>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--info">
+                <div class="ledger-rail">
+                  <div class="ledger-title">Built-in Observed Surface Scenario Pack</div>
+                  <div class="ledger-subtle"><code>scenario-pack/observed-surface</code></div>
+                  <span class="tone-chip tone-info">Stable</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">Revision 2026-04 · ScenarioPack</p>
+                </div>
+              </article>
+            </div>
+          </div>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
+                <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Discovery and first invocation completed with expected metadata.</td></tr>
+                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Authentication challenge completed under deferred bootstrap review.</td></tr>
+                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
+              </tbody></table>
+          </div>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>
+                <tr><td><code>error-invalid-method-call</code></td><td><code>error-handling</code></td><td><code>invalid-method</code></td><td><code>error-scenario</code></td><td>HTTP 200; JSON-RPC error -32601: Method not found</td></tr>
+                <tr><td><code>error-malformed-json-payload</code></td><td><code>error-handling</code></td><td><code>malformed-json</code></td><td><code>error-scenario</code></td><td>HTTP 400; JSON-RPC error -32700: Parse error</td></tr>
+                <tr><td><code>error-graceful-degradation-on-invalid-request</code></td><td><code>error-handling</code></td><td><code>invalid-request</code></td><td><code>error-scenario</code></td><td>HTTP 400; JSON-RPC error -32600: Invalid Request</td></tr>
+                <tr><td><code>obs-init-401</code></td><td><code>protocol-core</code></td><td><code>initialize</code></td><td><code>handshake-response</code></td><td>401 Unauthorized — bootstrap encountered an authentication challenge.</td></tr>
+                <tr><td><code>obs-tool-delete-repo</code></td><td><code>tool-surface</code></td><td><code>delete_repo</code></td><td><code>tool-metadata</code></td><td>Tool metadata missing annotations.destructiveHint.</td></tr>
+                <tr><td><code>auth-unauthorized-tools-list-challenge</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>Returned 401 with WWW-Authenticate.</td></tr>
+              </tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section-shell">
           <div class="section-kicker">Structured Evidence</div>
           <h2 class="section-title">Rule & Severity Insights</h2>
           <p class="section-intro">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>

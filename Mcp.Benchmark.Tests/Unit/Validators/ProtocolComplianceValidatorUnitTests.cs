@@ -14,12 +14,18 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     private readonly Mock<ILogger<ProtocolComplianceValidator>> _loggerMock;
     private readonly Mock<IMcpHttpClient> _mcpHttpClientMock;
     private readonly IProtocolRuleRegistry _ruleRegistry;
+    private readonly IValidationApplicabilityResolver _applicabilityResolver;
+    private readonly IProtocolFeatureResolver _protocolFeatureResolver;
 
     public ProtocolComplianceValidatorUnitTests()
     {
         _loggerMock = new Mock<ILogger<ProtocolComplianceValidator>>();
         _mcpHttpClientMock = new Mock<IMcpHttpClient>();
         _ruleRegistry = new ProtocolRuleRegistry();
+        _applicabilityResolver = new ValidationApplicabilityResolver(new EmbeddedSchemaRegistry());
+        _protocolFeatureResolver = new ProtocolFeatureResolver(
+            new ValidationPackRegistry<IProtocolFeaturePack>(
+                new IProtocolFeaturePack[] { new BuiltInProtocolFeaturePack(new EmbeddedSchemaRegistry()) }));
         SetupHappyPathHttpClient();
     }
 
@@ -35,7 +41,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(null!, _mcpHttpClientMock.Object, _ruleRegistry);
+        Action act = () => new ProtocolComplianceValidator(null!, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("logger");
@@ -44,7 +50,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullMcpHttpClient_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, null!, _ruleRegistry);
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, null!, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("httpClient");
@@ -53,10 +59,28 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullRuleRegistry_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, null!);
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, null!, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("ruleRegistry");
+    }
+
+    [Fact]
+    public void Constructor_WithNullApplicabilityResolver_ShouldThrowArgumentNullException()
+    {
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, null!, _protocolFeatureResolver);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("applicabilityResolver");
+    }
+
+    [Fact]
+    public void Constructor_WithNullProtocolFeatureResolver_ShouldThrowArgumentNullException()
+    {
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("protocolFeatureResolver");
     }
 
     [Theory]
@@ -180,6 +204,46 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateInitializationAsync_ShouldUseResolvedFeatureVersion()
+    {
+        object? initializePayload = null;
+
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, CancellationToken>((_, _, payload, _) => initializePayload = payload)
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"serverInfo\":{\"name\":\"fixture\",\"version\":\"1.0.0\"}},\"id\":\"init\"}"));
+
+        var protocolFeatureResolver = new Mock<IProtocolFeatureResolver>();
+        protocolFeatureResolver
+            .Setup(resolver => resolver.Resolve(It.IsAny<ValidationApplicabilityContext>()))
+            .Returns(new ProtocolFeatureSet
+            {
+                NegotiatedProtocolVersion = "2025-11-25",
+                SchemaVersion = "2025-11-25",
+                OptionalCapabilities = Array.Empty<string>()
+            });
+
+        var validator = new ProtocolComplianceValidator(
+            _loggerMock.Object,
+            _mcpHttpClientMock.Object,
+            _ruleRegistry,
+            _applicabilityResolver,
+            protocolFeatureResolver.Object);
+
+        await validator.ValidateInitializationAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http", ProtocolVersion = "2024-11-05" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2024-11-05" });
+
+        var version = initializePayload!.GetType().GetProperty("protocolVersion")?.GetValue(initializePayload) as string;
+        version.Should().Be("2025-11-25");
+        protocolFeatureResolver.Verify(resolver => resolver.Resolve(It.IsAny<ValidationApplicabilityContext>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_WithDeclaredCapabilitiesWithoutMethods_ShouldEmitMismatchFindings()
     {
         _mcpHttpClientMock
@@ -286,7 +350,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     private ProtocolComplianceValidator CreateValidator() =>
-        new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry);
+        new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
     private void SetupHappyPathHttpClient()
     {

@@ -170,9 +170,12 @@ Error Rate: 0.00</system-out>
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="validation.error.handling" name="Error Handling" time="0.700">
-      <system-out>Message: Error scenarios were handled cleanly.
+      <system-out>Message: Validated 3 error scenario(s); 3 handled correctly.
 Error Scenarios Tested: 3
-Error Scenarios Handled Correctly: 3</system-out>
+Error Scenarios Handled Correctly: 3
+Scenario Invalid Method Call: Handled correctly
+Scenario Malformed JSON Payload: Handled correctly
+Scenario Graceful Degradation On Invalid Request: Handled correctly</system-out>
     </testcase>
   </testsuite>
 </testsuites>

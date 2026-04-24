@@ -70,9 +70,9 @@ public class SecurityFocusedScoringStrategyTests
         var score = _strategy.CalculateScore(results);
 
         // Assert
-        // Protocol (0.35) + Security (0.45) = 0.80 included (Tools/Resources/Prompts skipped, Performance weight=0)
-        score.CoverageRatio.Should().BeApproximately(0.80, 0.01);
-        score.OverallScore.Should().BeApproximately(80.0, 0.01);
+        // Protocol (0.30) + Security (0.45) = 0.75 included when the other weighted categories are absent.
+        score.CoverageRatio.Should().BeApproximately(0.75, 0.01);
+        score.OverallScore.Should().BeApproximately(75.0, 0.01);
         score.Status.Should().Be(ValidationStatus.Passed);
     }
 

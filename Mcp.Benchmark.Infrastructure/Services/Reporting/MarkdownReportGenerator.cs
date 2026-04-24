@@ -165,6 +165,8 @@ public class MarkdownReportGenerator : IReportGenerator
 
         AppendClientCompatibilitySection(sb, result, ref sectionNumber);
 
+        AppendValidationEnvelopeSection(sb, result, ref sectionNumber);
+
         AppendCapabilitySnapshotSection(sb, result, ref sectionNumber);
 
         if (includeDetailedSections && result.ScoringNotes?.Any() == true)
@@ -890,6 +892,88 @@ public class MarkdownReportGenerator : IReportGenerator
                 }
                 sb.AppendLine();
             }
+        }
+    }
+
+    private void AppendValidationEnvelopeSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
+    {
+        var hasLayers = result.Assessments.Layers.Count > 0;
+        var hasScenarios = result.Assessments.Scenarios.Count > 0;
+        var hasCoverage = result.Evidence.Coverage.Count > 0;
+        var hasAppliedPacks = result.Evidence.AppliedPacks.Count > 0;
+        var hasObservations = result.Evidence.Observations.Count > 0;
+
+        if (!hasLayers && !hasScenarios && !hasCoverage && !hasAppliedPacks && !hasObservations)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Validation Envelope");
+        sb.AppendLine();
+        sb.AppendLine("This section exposes the structured validation envelope used for layered reporting, coverage tracking, and pack provenance.");
+        sb.AppendLine();
+
+        if (hasLayers)
+        {
+            sb.AppendLine("### Assessment Layers");
+            sb.AppendLine();
+            sb.AppendLine("| Layer | Status | Findings | Summary |");
+            sb.AppendLine("| :--- | :--- | :---: | :--- |");
+            foreach (var layer in result.Assessments.Layers)
+            {
+                sb.AppendLine($"| `{layer.LayerId}` | {GetStatusIcon(layer.Status)} {layer.Status} | {layer.Findings.Count} | {EscapeTableCell(layer.Summary ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasScenarios)
+        {
+            sb.AppendLine("### Scenario Outcomes");
+            sb.AppendLine();
+            sb.AppendLine("| Scenario | Status | Findings | Summary |");
+            sb.AppendLine("| :--- | :--- | :---: | :--- |");
+            foreach (var scenario in result.Assessments.Scenarios)
+            {
+                sb.AppendLine($"| `{scenario.ScenarioId}` | {GetStatusIcon(scenario.Status)} {scenario.Status} | {scenario.Findings.Count} | {EscapeTableCell(scenario.Summary ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasCoverage)
+        {
+            sb.AppendLine("### Coverage Declarations");
+            sb.AppendLine();
+            sb.AppendLine("| Layer | Scope | Status | Reason |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            foreach (var coverage in result.Evidence.Coverage)
+            {
+                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | {EscapeTableCell(coverage.Reason ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasAppliedPacks)
+        {
+            sb.AppendLine("### Applied Validation Packs");
+            sb.AppendLine();
+            foreach (var pack in result.Evidence.AppliedPacks)
+            {
+                sb.AppendLine($"- **{EscapeTableCell(pack.DisplayName)}** — `{pack.Key}` · revision `{pack.Revision}` · {pack.Kind} · {pack.Stability}");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasObservations)
+        {
+            sb.AppendLine("### Recorded Observations");
+            sb.AppendLine();
+            sb.AppendLine("| Observation | Layer | Component | Kind | Preview |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- | :--- |");
+            foreach (var observation in result.Evidence.Observations)
+            {
+                sb.AppendLine($"| `{observation.Id}` | `{observation.LayerId}` | `{observation.Component}` | `{observation.ObservationKind}` | {EscapeTableCell(observation.RedactedPayloadPreview ?? "-")} |");
+            }
+            sb.AppendLine();
         }
     }
 

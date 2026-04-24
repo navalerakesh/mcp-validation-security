@@ -36,6 +36,26 @@ public class ClientProfileEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_ShouldRecordAppliedProfilePackAndCompatibilityLayer()
+    {
+        var result = CreateToolOnlyValidationResult();
+
+        var compatibility = _evaluator.Evaluate(result, new ClientProfileOptions
+        {
+            Profiles = new List<string> { "github-copilot-cli" }
+        });
+
+        compatibility.Should().NotBeNull();
+        result.Evidence.AppliedPacks.Select(pack => pack.Key.Value).Should().Contain("client-profile-pack/built-in");
+        result.Assessments.Layers.Should().ContainSingle(layer =>
+            layer.LayerId == "client-profiles" &&
+            layer.Status == TestStatus.Passed);
+        result.Evidence.Coverage.Should().ContainSingle(coverage =>
+            coverage.LayerId == "client-profiles" &&
+            coverage.Status == ValidationCoverageStatus.Covered);
+    }
+
+    [Fact]
     public void Evaluate_GitHubCopilotCloudAgent_ShouldWarnWhenPromptAndResourceSurfacesExist()
     {
         var result = CreateToolOnlyValidationResult();

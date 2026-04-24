@@ -1,4 +1,6 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Compliance.Spec;
 using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
 using Mcp.Benchmark.Tests.Fixtures;
@@ -21,13 +23,24 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
     private readonly ProtocolComplianceValidator _validator;
     private readonly Mock<ILogger<ProtocolComplianceValidator>> _loggerMock;
     private readonly IProtocolRuleRegistry _ruleRegistry;
+    private readonly IValidationApplicabilityResolver _applicabilityResolver;
+    private readonly IProtocolFeatureResolver _protocolFeatureResolver;
 
     public ProtocolComplianceValidatorIntegrationTests(McpServerTestFixture testFixture)
     {
         _testFixture = testFixture;
         _loggerMock = new Mock<ILogger<ProtocolComplianceValidator>>();
         _ruleRegistry = new ProtocolRuleRegistry();
-        _validator = new ProtocolComplianceValidator(_loggerMock.Object, _testFixture.McpClient, _ruleRegistry);
+        _applicabilityResolver = new ValidationApplicabilityResolver(new EmbeddedSchemaRegistry());
+        _protocolFeatureResolver = new ProtocolFeatureResolver(
+            new ValidationPackRegistry<IProtocolFeaturePack>(
+                new IProtocolFeaturePack[] { new BuiltInProtocolFeaturePack(new EmbeddedSchemaRegistry()) }));
+        _validator = new ProtocolComplianceValidator(
+            _loggerMock.Object,
+            _testFixture.McpClient,
+            _ruleRegistry,
+            _applicabilityResolver,
+            _protocolFeatureResolver);
         
         // Reset mock server state before each test
         _testFixture.ResetMockServer();

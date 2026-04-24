@@ -5,7 +5,651 @@
     "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
     "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
   },
-  "validationId": "validation-snapshot-001",
+  "run": {
+    "validationId": "validation-snapshot-001",
+    "protocolVersion": "2025-11-25",
+    "schemaVersion": null,
+    "applicabilityContext": null,
+    "initializationHandshake": {
+      "isSuccessful": false,
+      "error": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
+      "payload": null,
+      "transport": {
+        "statusCode": 401,
+        "headers": {},
+        "duration": "00:00:00.0842000",
+        "rawContent": null
+      }
+    },
+    "capabilitySnapshot": null,
+    "bootstrapHealth": {
+      "isHealthy": false,
+      "disposition": 2,
+      "responseTimeMs": 84.2,
+      "serverVersion": "2.4.1",
+      "protocolVersion": "2025-11-25",
+      "errorMessage": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
+      "serverMetadata": {},
+      "initializationDetails": {
+        "isSuccessful": false,
+        "error": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
+        "payload": null,
+        "transport": {
+          "statusCode": 401,
+          "headers": {},
+          "duration": "00:00:00.0842000",
+          "rawContent": null
+        }
+      },
+      "allowsDeferredValidation": true
+    }
+  },
+  "assessments": {
+    "protocolCompliance": {
+      "complianceScore": 84,
+      "jsonRpcCompliance": {
+        "requestFormatCompliant": false,
+        "responseFormatCompliant": false,
+        "errorHandlingCompliant": false,
+        "batchProcessingCompliant": false,
+        "complianceScore": 0,
+        "violations": []
+      },
+      "initialization": {
+        "handshakeSuccessful": false,
+        "serverInfoProvided": false,
+        "clientInfoAccepted": false,
+        "initializationTimeMs": 0,
+        "initializationErrors": []
+      },
+      "capabilityNegotiation": {
+        "capabilityExchangeSuccessful": false,
+        "advertisedCapabilities": [],
+        "implementedCapabilities": [],
+        "missingCapabilities": [],
+        "capabilityComplianceScore": 0
+      },
+      "notificationHandling": {
+        "notificationIssues": []
+      },
+      "messageFormat": {
+        "formatViolations": []
+      },
+      "violations": [
+        {
+          "checkId": "MCP.INIT.VERSION_NEGOTIATION",
+          "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+          "severity": 2,
+          "category": "Initialization",
+          "description": "Server ignored the requested MCP protocol version.",
+          "rule": "initialize.result.protocolVersion must reflect negotiation.",
+          "recommendation": "Echo the negotiated protocol version in initialize.result.",
+          "context": {}
+        }
+      ],
+      "status": 3,
+      "duration": "00:00:02.1000000",
+      "message": "Protocol negotiation had one blocking violation.",
+      "score": 84,
+      "criticalErrors": [],
+      "findings": [
+        {
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "category": "ProtocolCompliance",
+          "component": "tools/call",
+          "severity": 2,
+          "summary": "One tool response omitted the outer result object.",
+          "recommendation": null,
+          "source": 0,
+          "specReference": null,
+          "metadata": {},
+          "effectiveSource": 1,
+          "effectiveSourceLabel": "spec",
+          "effectiveSpecReference": null
+        }
+      ]
+    },
+    "toolValidation": {
+      "toolsDiscovered": 2,
+      "discoveredToolNames": [],
+      "toolsTestPassed": 2,
+      "toolsTestFailed": 0,
+      "toolResults": [
+        {
+          "toolName": "delete_repo",
+          "status": 2,
+          "discoveredCorrectly": false,
+          "metadataValid": false,
+          "executionSuccessful": false,
+          "displayTitle": "Delete Repository",
+          "description": null,
+          "readOnlyHint": null,
+          "destructiveHint": null,
+          "openWorldHint": null,
+          "idempotentHint": null,
+          "executionTimeMs": 140,
+          "parameterTests": [],
+          "inputParameterNames": [],
+          "issues": [],
+          "findings": [
+            {
+              "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "category": "McpGuideline",
+              "component": "delete_repo",
+              "severity": 3,
+              "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+              "recommendation": null,
+              "source": 0,
+              "specReference": null,
+              "metadata": {},
+              "effectiveSource": 2,
+              "effectiveSourceLabel": "guideline",
+              "effectiveSpecReference": null
+            }
+          ],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        },
+        {
+          "toolName": "list_repos",
+          "status": 2,
+          "discoveredCorrectly": false,
+          "metadataValid": false,
+          "executionSuccessful": false,
+          "displayTitle": "List Repositories",
+          "description": null,
+          "readOnlyHint": null,
+          "destructiveHint": null,
+          "openWorldHint": null,
+          "idempotentHint": null,
+          "executionTimeMs": 80,
+          "parameterTests": [],
+          "inputParameterNames": [],
+          "issues": [],
+          "findings": [],
+          "wwwAuthenticateHeader": null,
+          "authMetadata": null,
+          "contentSafetyFindings": []
+        }
+      ],
+      "parameterValidation": [],
+      "issues": [],
+      "authenticationSecurity": {
+        "rejectsUnauthenticated": true,
+        "rejectsInvalidTokens": false,
+        "hasProperAuthHeaders": true,
+        "errorResponsesCompliant": false,
+        "correctStatusCodes": false,
+        "authenticationRequired": true,
+        "wwwAuthenticateHeader": null,
+        "authMetadata": null,
+        "challengeDurationMs": 0,
+        "challengeStatusCode": null,
+        "interactiveLoginAttempted": false,
+        "interactiveLoginSucceeded": false,
+        "securityScore": 95,
+        "findings": [],
+        "structuredFindings": []
+      },
+      "authenticationProperlyEnforced": false,
+      "securityTests": [],
+      "contentSafetyFindings": [],
+      "aiReadinessScore": -1,
+      "aiReadinessIssues": [],
+      "aiReadinessFindings": [
+        {
+          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+          "category": "AiReadiness",
+          "component": "delete_repo",
+          "severity": 2,
+          "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+          "recommendation": null,
+          "source": 0,
+          "specReference": null,
+          "metadata": {},
+          "effectiveSource": 3,
+          "effectiveSourceLabel": "heuristic",
+          "effectiveSpecReference": null
+        }
+      ],
+      "estimatedTokenCount": 0,
+      "status": 2,
+      "duration": "00:00:01.8000000",
+      "message": "Tool catalog loaded and executed.",
+      "score": 91,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "resourceTesting": {
+      "resourcesDiscovered": 1,
+      "resourcesAccessible": 1,
+      "resourcesTestFailed": 0,
+      "resourceResults": [
+        {
+          "resourceUri": "repo://snapshot/README.md",
+          "resourceName": "repo://snapshot/README.md",
+          "status": 2,
+          "discoveredCorrectly": false,
+          "metadataValid": false,
+          "accessSuccessful": false,
+          "accessTimeMs": 0,
+          "mimeType": "text/markdown",
+          "contentSize": null,
+          "issues": [],
+          "findings": [],
+          "contentSafetyFindings": []
+        }
+      ],
+      "subscriptionResults": [],
+      "issues": [],
+      "contentSafetyFindings": [],
+      "status": 2,
+      "duration": "00:00:00.9000000",
+      "message": "Resource access passed.",
+      "score": 0,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "promptTesting": {
+      "promptsDiscovered": 0,
+      "promptsTestPassed": 0,
+      "promptsTestFailed": 0,
+      "promptResults": [],
+      "issues": [],
+      "contentSafetyFindings": [],
+      "status": 4,
+      "duration": "00:00:00.4000000",
+      "message": "Server does not advertise prompts capability.",
+      "score": 0,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "securityTesting": {
+      "securityScore": 69,
+      "vulnerabilities": [
+        {
+          "id": "MCP.SECURITY.PROMPT_INJECTION",
+          "name": "Prompt injection reflection",
+          "description": "Server reflected untrusted prompt content without sanitization.",
+          "severity": 4,
+          "cvssScore": 9.1,
+          "category": "PromptInjection",
+          "affectedComponent": "prompt:get",
+          "proofOfConcept": null,
+          "remediation": "Sanitize and label untrusted content before returning it.",
+          "isExploitable": true
+        }
+      ],
+      "inputValidationResults": [],
+      "attackSimulations": [],
+      "securityRecommendations": [
+        "Label or sanitize untrusted prompt content before returning it."
+      ],
+      "authenticationTestResult": null,
+      "status": 3,
+      "duration": "00:00:02.6000000",
+      "message": "Security testing found one exploitable prompt reflection.",
+      "score": 69,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "performanceTesting": {
+      "loadTesting": {
+        "maxConcurrentConnections": 0,
+        "totalRequests": 120,
+        "successfulRequests": 120,
+        "failedRequests": 0,
+        "rateLimitedRequests": 0,
+        "probeRoundsExecuted": 0,
+        "observedRateLimitedRequests": 0,
+        "observedTransientFailures": 0,
+        "averageResponseTimeMs": 120.5,
+        "medianResponseTimeMs": 0,
+        "p95ResponseTimeMs": 210.4,
+        "p99ResponseTimeMs": 0,
+        "maxResponseTimeMs": 0,
+        "minResponseTimeMs": 0,
+        "requestsPerSecond": 18.2,
+        "errorRate": 0,
+        "nonRateLimitedFailedRequests": 0,
+        "pressureSignalsObserved": false,
+        "connectionErrors": [],
+        "serverStabilityMaintained": false
+      },
+      "responseTimes": {
+        "operationBenchmarks": [],
+        "overallAverageResponseTimeMs": 0,
+        "slowOperations": [],
+        "fastestOperation": null,
+        "slowestOperation": null
+      },
+      "resourceUsage": {
+        "memory": {
+          "initialMemoryBytes": 0,
+          "peakMemoryBytes": 0,
+          "finalMemoryBytes": 0,
+          "averageMemoryBytes": 0,
+          "memoryLeaksDetected": false
+        },
+        "cpu": {
+          "averageCpuUsagePercent": 0,
+          "peakCpuUsagePercent": 0,
+          "withinAcceptableLimits": false
+        },
+        "network": {
+          "totalBytesSent": 0,
+          "totalBytesReceived": 0,
+          "averageNetworkLatencyMs": 0,
+          "networkErrors": 0
+        },
+        "withinAcceptableLimits": false,
+        "resourceExhaustionEvents": []
+      },
+      "throughput": {
+        "requestsPerSecond": 0,
+        "bytesPerSecond": 0,
+        "transactionsPerMinute": 0,
+        "peakThroughput": 0,
+        "meetsPerformanceTargets": false
+      },
+      "performanceBottlenecks": [],
+      "status": 2,
+      "duration": "00:00:01.2000000",
+      "message": "Performance is acceptable under moderate load.",
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "errorHandling": {
+      "errorScenariosTestCount": 3,
+      "errorScenariosHandledCorrectly": 3,
+      "errorScenarioResults": [
+        {
+          "scenarioName": "Invalid Method Call",
+          "errorType": "invalid-method",
+          "handledCorrectly": true,
+          "expectedResponse": "JSON-RPC error code -32601 (Method not found).",
+          "actualResponse": "HTTP 200; JSON-RPC error -32601: Method not found",
+          "errorHandlingTimeMs": 18.4,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        },
+        {
+          "scenarioName": "Malformed JSON Payload",
+          "errorType": "malformed-json",
+          "handledCorrectly": true,
+          "expectedResponse": "JSON-RPC error code -32700 (Parse error).",
+          "actualResponse": "HTTP 400; JSON-RPC error -32700: Parse error",
+          "errorHandlingTimeMs": 21.1,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        },
+        {
+          "scenarioName": "Graceful Degradation On Invalid Request",
+          "errorType": "invalid-request",
+          "handledCorrectly": true,
+          "expectedResponse": "JSON-RPC error code -32600 (Invalid request).",
+          "actualResponse": "HTTP 400; JSON-RPC error -32600: Invalid Request",
+          "errorHandlingTimeMs": 19.7,
+          "gracefulRecovery": true,
+          "additionalIssues": []
+        }
+      ],
+      "recoveryResults": [],
+      "status": 2,
+      "duration": "00:00:00.7000000",
+      "message": "Validated 3 error scenario(s); 3 handled correctly.",
+      "score": 100,
+      "criticalErrors": [],
+      "findings": []
+    },
+    "layers": [
+      {
+        "layerId": "protocol-core",
+        "displayName": "Protocol Compliance",
+        "status": 3,
+        "summary": "Protocol negotiation had one blocking violation.",
+        "findings": [
+          {
+            "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+            "category": "ProtocolCompliance",
+            "component": "tools/call",
+            "severity": 2,
+            "summary": "One tool response omitted the outer result object.",
+            "recommendation": null,
+            "source": 0,
+            "specReference": null,
+            "metadata": {},
+            "effectiveSource": 1,
+            "effectiveSourceLabel": "spec",
+            "effectiveSpecReference": null
+          }
+        ]
+      },
+      {
+        "layerId": "tool-surface",
+        "displayName": "Tool Validation",
+        "status": 2,
+        "summary": "Tool catalog loaded and executed.",
+        "findings": []
+      },
+      {
+        "layerId": "error-handling",
+        "displayName": "Error Handling",
+        "status": 2,
+        "summary": "Validated 3 error scenario(s); 3 handled correctly.",
+        "findings": []
+      },
+      {
+        "layerId": "client-profiles",
+        "displayName": "Client Profile Compatibility",
+        "status": 2,
+        "summary": "Evaluated 2 profile(s); 1 warning profile(s); 0 incompatible profile(s).",
+        "findings": []
+      }
+    ],
+    "scenarios": [
+      {
+        "scenarioId": "tool-catalog-smoke",
+        "displayName": "Tool Catalog Smoke",
+        "status": 2,
+        "summary": "Discovery and first invocation completed with expected metadata.",
+        "findings": []
+      },
+      {
+        "scenarioId": "security-authentication-challenge",
+        "displayName": "Authentication Challenge Matrix",
+        "status": 4,
+        "summary": "Authentication challenge completed under deferred bootstrap review.",
+        "findings": []
+      },
+      {
+        "scenarioId": "error-handling-matrix",
+        "displayName": "Error Handling Matrix",
+        "status": 2,
+        "summary": "Validated 3 error scenario(s); 3 handled correctly.",
+        "findings": []
+      }
+    ]
+  },
+  "evidence": {
+    "observations": [
+      {
+        "id": "error-invalid-method-call",
+        "layerId": "error-handling",
+        "component": "invalid-method",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "HTTP 200; JSON-RPC error -32601: Method not found"
+      },
+      {
+        "id": "error-malformed-json-payload",
+        "layerId": "error-handling",
+        "component": "malformed-json",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "HTTP 400; JSON-RPC error -32700: Parse error"
+      },
+      {
+        "id": "error-graceful-degradation-on-invalid-request",
+        "layerId": "error-handling",
+        "component": "invalid-request",
+        "observationKind": "error-scenario",
+        "scenarioId": "error-handling-matrix",
+        "metadata": {
+          "handledCorrectly": "True",
+          "gracefulRecovery": "True"
+        },
+        "redactedPayloadPreview": "HTTP 400; JSON-RPC error -32600: Invalid Request"
+      },
+      {
+        "id": "obs-init-401",
+        "layerId": "protocol-core",
+        "component": "initialize",
+        "observationKind": "handshake-response",
+        "scenarioId": null,
+        "metadata": {
+          "httpStatus": "401"
+        },
+        "redactedPayloadPreview": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge."
+      },
+      {
+        "id": "obs-tool-delete-repo",
+        "layerId": "tool-surface",
+        "component": "delete_repo",
+        "observationKind": "tool-metadata",
+        "scenarioId": "tool-catalog-smoke",
+        "metadata": {
+          "displayTitle": "Delete Repository"
+        },
+        "redactedPayloadPreview": "Tool metadata missing annotations.destructiveHint."
+      },
+      {
+        "id": "auth-unauthorized-tools-list-challenge",
+        "layerId": "security-boundaries",
+        "component": "tools/list",
+        "observationKind": "authentication-scenario",
+        "scenarioId": "security-authentication-challenge",
+        "metadata": {
+          "statusCode": "401",
+          "disposition": "StandardsAligned"
+        },
+        "redactedPayloadPreview": "Returned 401 with WWW-Authenticate."
+      }
+    ],
+    "coverage": [
+      {
+        "layerId": "protocol-core",
+        "scope": "json-rpc",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "tool-surface",
+        "scope": "tools/list",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "prompt-surface",
+        "scope": "prompts/list",
+        "status": 1,
+        "reason": "Server does not advertise prompts capability."
+      },
+      {
+        "layerId": "client-profiles",
+        "scope": "github-copilot-cli,github-copilot-cloud-agent",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "tool-surface",
+        "scope": "tool-catalog-smoke",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "security-boundaries",
+        "scope": "security-authentication-challenge",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "error-handling",
+        "scope": "error-handling",
+        "status": 0,
+        "reason": null
+      },
+      {
+        "layerId": "error-handling",
+        "scope": "error-handling-matrix",
+        "status": 0,
+        "reason": null
+      }
+    ],
+    "appliedPacks": [
+      {
+        "key": {
+          "value": "protocol-features/mcp-embedded"
+        },
+        "kind": 0,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Embedded MCP Protocol Features",
+        "stability": 0,
+        "documentationUrl": "https://spec.modelcontextprotocol.io/"
+      },
+      {
+        "key": {
+          "value": "rule-pack/protocol-core"
+        },
+        "kind": 1,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Protocol Rule Pack",
+        "stability": 0,
+        "documentationUrl": "https://spec.modelcontextprotocol.io/"
+      },
+      {
+        "key": {
+          "value": "client-profile-pack/built-in"
+        },
+        "kind": 3,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Client Profile Pack",
+        "stability": 0,
+        "documentationUrl": null
+      },
+      {
+        "key": {
+          "value": "scenario-pack/observed-surface"
+        },
+        "kind": 2,
+        "revision": {
+          "value": "2026-04"
+        },
+        "displayName": "Built-in Observed Surface Scenario Pack",
+        "stability": 0,
+        "documentationUrl": null
+      }
+    ]
+  },
+  "compatibility": {
+    "clientCompatibility": null
+  },
   "startTime": "2026-04-20T10:00:00Z",
   "endTime": "2026-04-20T10:00:12Z",
   "duration": "00:00:12",
@@ -134,334 +778,6 @@
       "environmentVariables": {}
     }
   },
-  "protocolCompliance": {
-    "complianceScore": 84,
-    "jsonRpcCompliance": {
-      "requestFormatCompliant": false,
-      "responseFormatCompliant": false,
-      "errorHandlingCompliant": false,
-      "batchProcessingCompliant": false,
-      "complianceScore": 0,
-      "violations": []
-    },
-    "initialization": {
-      "handshakeSuccessful": false,
-      "serverInfoProvided": false,
-      "clientInfoAccepted": false,
-      "initializationTimeMs": 0,
-      "initializationErrors": []
-    },
-    "capabilityNegotiation": {
-      "capabilityExchangeSuccessful": false,
-      "advertisedCapabilities": [],
-      "implementedCapabilities": [],
-      "missingCapabilities": [],
-      "capabilityComplianceScore": 0
-    },
-    "notificationHandling": {
-      "notificationIssues": []
-    },
-    "messageFormat": {
-      "formatViolations": []
-    },
-    "violations": [
-      {
-        "checkId": "MCP.INIT.VERSION_NEGOTIATION",
-        "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
-        "severity": 2,
-        "category": "Initialization",
-        "description": "Server ignored the requested MCP protocol version.",
-        "rule": "initialize.result.protocolVersion must reflect negotiation.",
-        "recommendation": "Echo the negotiated protocol version in initialize.result.",
-        "context": {}
-      }
-    ],
-    "status": 3,
-    "duration": "00:00:02.1000000",
-    "message": "Protocol negotiation had one blocking violation.",
-    "score": 84,
-    "criticalErrors": [],
-    "findings": [
-      {
-        "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
-        "category": "ProtocolCompliance",
-        "component": "tools/call",
-        "severity": 2,
-        "summary": "One tool response omitted the outer result object.",
-        "recommendation": null,
-        "source": 0,
-        "specReference": null,
-        "metadata": {},
-        "effectiveSource": 1,
-        "effectiveSourceLabel": "spec",
-        "effectiveSpecReference": null
-      }
-    ]
-  },
-  "toolValidation": {
-    "toolsDiscovered": 2,
-    "discoveredToolNames": [],
-    "toolsTestPassed": 2,
-    "toolsTestFailed": 0,
-    "toolResults": [
-      {
-        "toolName": "delete_repo",
-        "status": 2,
-        "discoveredCorrectly": false,
-        "metadataValid": false,
-        "executionSuccessful": false,
-        "displayTitle": "Delete Repository",
-        "description": null,
-        "readOnlyHint": null,
-        "destructiveHint": null,
-        "openWorldHint": null,
-        "idempotentHint": null,
-        "executionTimeMs": 140,
-        "parameterTests": [],
-        "inputParameterNames": [],
-        "issues": [],
-        "findings": [
-          {
-            "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
-            "category": "McpGuideline",
-            "component": "delete_repo",
-            "severity": 3,
-            "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
-            "recommendation": null,
-            "source": 0,
-            "specReference": null,
-            "metadata": {},
-            "effectiveSource": 2,
-            "effectiveSourceLabel": "guideline",
-            "effectiveSpecReference": null
-          }
-        ],
-        "wwwAuthenticateHeader": null,
-        "authMetadata": null,
-        "contentSafetyFindings": []
-      },
-      {
-        "toolName": "list_repos",
-        "status": 2,
-        "discoveredCorrectly": false,
-        "metadataValid": false,
-        "executionSuccessful": false,
-        "displayTitle": "List Repositories",
-        "description": null,
-        "readOnlyHint": null,
-        "destructiveHint": null,
-        "openWorldHint": null,
-        "idempotentHint": null,
-        "executionTimeMs": 80,
-        "parameterTests": [],
-        "inputParameterNames": [],
-        "issues": [],
-        "findings": [],
-        "wwwAuthenticateHeader": null,
-        "authMetadata": null,
-        "contentSafetyFindings": []
-      }
-    ],
-    "parameterValidation": [],
-    "issues": [],
-    "authenticationSecurity": {
-      "rejectsUnauthenticated": true,
-      "rejectsInvalidTokens": false,
-      "hasProperAuthHeaders": true,
-      "errorResponsesCompliant": false,
-      "correctStatusCodes": false,
-      "authenticationRequired": true,
-      "wwwAuthenticateHeader": null,
-      "authMetadata": null,
-      "challengeDurationMs": 0,
-      "challengeStatusCode": null,
-      "interactiveLoginAttempted": false,
-      "interactiveLoginSucceeded": false,
-      "securityScore": 95,
-      "findings": [],
-      "structuredFindings": []
-    },
-    "authenticationProperlyEnforced": false,
-    "securityTests": [],
-    "contentSafetyFindings": [],
-    "aiReadinessScore": -1,
-    "aiReadinessIssues": [],
-    "aiReadinessFindings": [
-      {
-        "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
-        "category": "AiReadiness",
-        "component": "delete_repo",
-        "severity": 2,
-        "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
-        "recommendation": null,
-        "source": 0,
-        "specReference": null,
-        "metadata": {},
-        "effectiveSource": 3,
-        "effectiveSourceLabel": "heuristic",
-        "effectiveSpecReference": null
-      }
-    ],
-    "estimatedTokenCount": 0,
-    "status": 2,
-    "duration": "00:00:01.8000000",
-    "message": "Tool catalog loaded and executed.",
-    "score": 91,
-    "criticalErrors": [],
-    "findings": []
-  },
-  "resourceTesting": {
-    "resourcesDiscovered": 1,
-    "resourcesAccessible": 1,
-    "resourcesTestFailed": 0,
-    "resourceResults": [
-      {
-        "resourceUri": "repo://snapshot/README.md",
-        "resourceName": "repo://snapshot/README.md",
-        "status": 2,
-        "discoveredCorrectly": false,
-        "metadataValid": false,
-        "accessSuccessful": false,
-        "accessTimeMs": 0,
-        "mimeType": "text/markdown",
-        "contentSize": null,
-        "issues": [],
-        "findings": [],
-        "contentSafetyFindings": []
-      }
-    ],
-    "subscriptionResults": [],
-    "issues": [],
-    "contentSafetyFindings": [],
-    "status": 2,
-    "duration": "00:00:00.9000000",
-    "message": "Resource access passed.",
-    "score": 0,
-    "criticalErrors": [],
-    "findings": []
-  },
-  "promptTesting": {
-    "promptsDiscovered": 0,
-    "promptsTestPassed": 0,
-    "promptsTestFailed": 0,
-    "promptResults": [],
-    "issues": [],
-    "contentSafetyFindings": [],
-    "status": 4,
-    "duration": "00:00:00.4000000",
-    "message": "Server does not advertise prompts capability.",
-    "score": 0,
-    "criticalErrors": [],
-    "findings": []
-  },
-  "securityTesting": {
-    "securityScore": 69,
-    "vulnerabilities": [
-      {
-        "id": "MCP.SECURITY.PROMPT_INJECTION",
-        "name": "Prompt injection reflection",
-        "description": "Server reflected untrusted prompt content without sanitization.",
-        "severity": 4,
-        "cvssScore": 9.1,
-        "category": "PromptInjection",
-        "affectedComponent": "prompt:get",
-        "proofOfConcept": null,
-        "remediation": "Sanitize and label untrusted content before returning it.",
-        "isExploitable": true
-      }
-    ],
-    "inputValidationResults": [],
-    "attackSimulations": [],
-    "securityRecommendations": [
-      "Label or sanitize untrusted prompt content before returning it."
-    ],
-    "authenticationTestResult": null,
-    "status": 3,
-    "duration": "00:00:02.6000000",
-    "message": "Security testing found one exploitable prompt reflection.",
-    "score": 69,
-    "criticalErrors": [],
-    "findings": []
-  },
-  "performanceTesting": {
-    "loadTesting": {
-      "maxConcurrentConnections": 0,
-      "totalRequests": 120,
-      "successfulRequests": 120,
-      "failedRequests": 0,
-      "rateLimitedRequests": 0,
-      "probeRoundsExecuted": 0,
-      "observedRateLimitedRequests": 0,
-      "observedTransientFailures": 0,
-      "averageResponseTimeMs": 120.5,
-      "medianResponseTimeMs": 0,
-      "p95ResponseTimeMs": 210.4,
-      "p99ResponseTimeMs": 0,
-      "maxResponseTimeMs": 0,
-      "minResponseTimeMs": 0,
-      "requestsPerSecond": 18.2,
-      "errorRate": 0,
-      "nonRateLimitedFailedRequests": 0,
-      "pressureSignalsObserved": false,
-      "connectionErrors": [],
-      "serverStabilityMaintained": false
-    },
-    "responseTimes": {
-      "operationBenchmarks": [],
-      "overallAverageResponseTimeMs": 0,
-      "slowOperations": [],
-      "fastestOperation": null,
-      "slowestOperation": null
-    },
-    "resourceUsage": {
-      "memory": {
-        "initialMemoryBytes": 0,
-        "peakMemoryBytes": 0,
-        "finalMemoryBytes": 0,
-        "averageMemoryBytes": 0,
-        "memoryLeaksDetected": false
-      },
-      "cpu": {
-        "averageCpuUsagePercent": 0,
-        "peakCpuUsagePercent": 0,
-        "withinAcceptableLimits": false
-      },
-      "network": {
-        "totalBytesSent": 0,
-        "totalBytesReceived": 0,
-        "averageNetworkLatencyMs": 0,
-        "networkErrors": 0
-      },
-      "withinAcceptableLimits": false,
-      "resourceExhaustionEvents": []
-    },
-    "throughput": {
-      "requestsPerSecond": 0,
-      "bytesPerSecond": 0,
-      "transactionsPerMinute": 0,
-      "peakThroughput": 0,
-      "meetsPerformanceTargets": false
-    },
-    "performanceBottlenecks": [],
-    "status": 2,
-    "duration": "00:00:01.2000000",
-    "message": "Performance is acceptable under moderate load.",
-    "score": 100,
-    "criticalErrors": [],
-    "findings": []
-  },
-  "errorHandling": {
-    "errorScenariosTestCount": 3,
-    "errorScenariosHandledCorrectly": 3,
-    "errorScenarioResults": [],
-    "recoveryResults": [],
-    "status": 2,
-    "duration": "00:00:00.7000000",
-    "message": "Error scenarios were handled cleanly.",
-    "score": 0,
-    "criticalErrors": [],
-    "findings": []
-  },
   "executionLogs": [],
   "criticalErrors": [
     "Prompt validation hit an unsafe reflection path."
@@ -479,40 +795,6 @@
     "warnings": 2,
     "passRate": 57.14285714285714,
     "coverageRatio": 0.875
-  },
-  "protocolVersion": "2025-11-25",
-  "initializationHandshake": {
-    "isSuccessful": false,
-    "error": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
-    "payload": null,
-    "transport": {
-      "statusCode": 401,
-      "headers": {},
-      "duration": "00:00:00.0842000",
-      "rawContent": null
-    }
-  },
-  "capabilitySnapshot": null,
-  "bootstrapHealth": {
-    "isHealthy": false,
-    "disposition": 2,
-    "responseTimeMs": 84.2,
-    "serverVersion": "2.4.1",
-    "protocolVersion": "2025-11-25",
-    "errorMessage": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
-    "serverMetadata": {},
-    "initializationDetails": {
-      "isSuccessful": false,
-      "error": "401 Unauthorized \u2014 bootstrap encountered an authentication challenge.",
-      "payload": null,
-      "transport": {
-        "statusCode": 401,
-        "headers": {},
-        "duration": "00:00:00.0842000",
-        "rawContent": null
-      }
-    },
-    "allowsDeferredValidation": true
   },
   "trustAssessment": {
     "trustLevel": 3,

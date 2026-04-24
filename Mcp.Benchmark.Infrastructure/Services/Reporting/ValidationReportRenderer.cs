@@ -100,6 +100,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
             reportElement.Add(clientCompatibilityElement);
         }
 
+        var validationEnvelopeElement = BuildValidationEnvelopeElement(validationResult);
+        if (validationEnvelopeElement != null)
+        {
+            reportElement.Add(validationEnvelopeElement);
+        }
+
         var testCategories = new XElement("TestCategories");
 
         if (validationResult.ProtocolCompliance != null)
@@ -729,6 +735,83 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
             return profileElement;
         }));
+
+        return element;
+    }
+
+    private static XElement? BuildValidationEnvelopeElement(ValidationResult validationResult)
+    {
+        if (validationResult.Assessments.Layers.Count == 0 &&
+            validationResult.Assessments.Scenarios.Count == 0 &&
+            validationResult.Evidence.Coverage.Count == 0 &&
+            validationResult.Evidence.AppliedPacks.Count == 0 &&
+            validationResult.Evidence.Observations.Count == 0)
+        {
+            return null;
+        }
+
+        var element = new XElement("ValidationEnvelope");
+
+        if (validationResult.Assessments.Layers.Count > 0)
+        {
+            element.Add(new XElement("Layers",
+                validationResult.Assessments.Layers.Select(layer =>
+                    new XElement("Layer",
+                        new XAttribute("id", layer.LayerId),
+                        new XAttribute("status", layer.Status.ToString()),
+                        new XAttribute("findingCount", layer.Findings.Count),
+                        new XElement("DisplayName", layer.DisplayName),
+                        new XElement("Summary", layer.Summary ?? string.Empty)))));
+        }
+
+        if (validationResult.Assessments.Scenarios.Count > 0)
+        {
+            element.Add(new XElement("Scenarios",
+                validationResult.Assessments.Scenarios.Select(scenario =>
+                    new XElement("Scenario",
+                        new XAttribute("id", scenario.ScenarioId),
+                        new XAttribute("status", scenario.Status.ToString()),
+                        new XAttribute("findingCount", scenario.Findings.Count),
+                        new XElement("DisplayName", scenario.DisplayName),
+                        new XElement("Summary", scenario.Summary ?? string.Empty)))));
+        }
+
+        if (validationResult.Evidence.Coverage.Count > 0)
+        {
+            element.Add(new XElement("Coverage",
+                validationResult.Evidence.Coverage.Select(coverage =>
+                    new XElement("Declaration",
+                        new XAttribute("layerId", coverage.LayerId),
+                        new XAttribute("scope", coverage.Scope),
+                        new XAttribute("status", coverage.Status.ToString()),
+                        new XElement("Reason", coverage.Reason ?? string.Empty)))));
+        }
+
+        if (validationResult.Evidence.AppliedPacks.Count > 0)
+        {
+            element.Add(new XElement("AppliedPacks",
+                validationResult.Evidence.AppliedPacks.Select(pack =>
+                    new XElement("Pack",
+                        new XAttribute("key", pack.Key.Value),
+                        new XAttribute("revision", pack.Revision.Value),
+                        new XAttribute("kind", pack.Kind.ToString()),
+                        new XAttribute("stability", pack.Stability.ToString()),
+                        new XElement("DisplayName", pack.DisplayName),
+                        new XElement("DocumentationUrl", pack.DocumentationUrl ?? string.Empty)))));
+        }
+
+        if (validationResult.Evidence.Observations.Count > 0)
+        {
+            element.Add(new XElement("Observations",
+                validationResult.Evidence.Observations.Select(observation =>
+                    new XElement("Observation",
+                        new XAttribute("id", observation.Id),
+                        new XAttribute("layerId", observation.LayerId),
+                        new XAttribute("component", observation.Component),
+                        new XAttribute("kind", observation.ObservationKind),
+                        new XElement("ScenarioId", observation.ScenarioId ?? string.Empty),
+                        new XElement("RedactedPayloadPreview", observation.RedactedPayloadPreview ?? string.Empty)))));
+        }
 
         return element;
     }

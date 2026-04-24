@@ -363,6 +363,110 @@ public class McpHttpClient : IMcpHttpClient
         };
     }
 
+    public async Task<TransportResilienceProbeResult> ProbeTimeoutRecoveryAsync(string endpoint, CancellationToken cancellationToken = default)
+    {
+        var result = new TransportResilienceProbeResult
+        {
+            ProbeId = "timeout-handling",
+            DisplayName = "Timeout Handling Recovery",
+            ExpectedOutcome = "A validator-induced HTTP timeout should abort the request and the endpoint should still respond to a follow-up MCP probe."
+        };
+
+        using var timeoutTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutTokenSource.CancelAfter(TimeSpan.FromMilliseconds(25));
+
+        var payload = CreateProbePayload("rpc.timeout.probe");
+        result.Executed = true;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var requestMessage = CreatePostRequestMessage(
+                endpoint,
+                new DelayedAbortJsonContent(payload, TimeSpan.FromMilliseconds(250)),
+                authentication: null,
+                acceptWildcard: true);
+
+            using var response = await _httpClient.SendAsync(requestMessage, timeoutTokenSource.Token);
+            sw.Stop();
+
+            result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
+            result.FailureResponse = new ValidatorJsonRpcResponse
+            {
+                StatusCode = (int)response.StatusCode,
+                IsSuccess = response.IsSuccessStatusCode,
+                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken),
+                ElapsedMs = result.FailureElapsedMs
+            };
+            result.ActualOutcome = "Timeout probe completed before the induced cancellation window elapsed.";
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            sw.Stop();
+            result.FailureObserved = true;
+            result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
+            result.FailureResponse = CreateSyntheticFailureResponse("HTTP request cancelled by validator-induced timeout.", result.FailureElapsedMs);
+            result.ActualOutcome = "Validator cancelled the HTTP request after the induced timeout window elapsed.";
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
+            result.ActualOutcome = $"Timeout probe failed unexpectedly: {ex.Message}";
+            result.Notes.Add(ex.Message);
+        }
+
+        await PopulateRecoveryProbeAsync(endpoint, result, cancellationToken);
+        return result;
+    }
+
+    public async Task<TransportResilienceProbeResult> ProbeConnectionInterruptionRecoveryAsync(string endpoint, CancellationToken cancellationToken = default)
+    {
+        var result = new TransportResilienceProbeResult
+        {
+            ProbeId = "connection-interruption",
+            DisplayName = "Connection Interruption Recovery",
+            ExpectedOutcome = "A validator-induced HTTP connection interruption should be observed and the endpoint should still respond to a follow-up MCP probe."
+        };
+
+        var payload = CreateProbePayload("rpc.connection.interruption.probe");
+        result.Executed = true;
+
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            using var requestMessage = CreatePostRequestMessage(
+                endpoint,
+                new InterruptingJsonContent(payload),
+                authentication: null,
+                acceptWildcard: true);
+
+            using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+            sw.Stop();
+
+            result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
+            result.FailureResponse = new ValidatorJsonRpcResponse
+            {
+                StatusCode = (int)response.StatusCode,
+                IsSuccess = response.IsSuccessStatusCode,
+                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken),
+                ElapsedMs = result.FailureElapsedMs
+            };
+            result.ActualOutcome = "Connection interruption probe completed without the transport being interrupted.";
+        }
+        catch (Exception ex) when (ex is IOException or HttpRequestException or InvalidOperationException)
+        {
+            sw.Stop();
+            result.FailureObserved = true;
+            result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
+            result.FailureResponse = CreateSyntheticFailureResponse($"HTTP connection interrupted by validator: {ex.Message}", result.FailureElapsedMs);
+            result.ActualOutcome = "Validator aborted the HTTP request body mid-stream to simulate a connection interruption.";
+        }
+
+        await PopulateRecoveryProbeAsync(endpoint, result, cancellationToken);
+        return result;
+    }
+
     /// <summary>
     /// Tests the MCP initialize handshake.
     /// </summary>
@@ -701,26 +805,7 @@ public class McpHttpClient : IMcpHttpClient
                 content.Headers.ContentType = null; // Remove Content-Type header
             }
 
-            var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
-            {
-                Content = content
-            };
-            
-            // Add Accept header (Best Practice)
-            requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
-
-            // Advertise MCP protocol version if configured
-            if (!string.IsNullOrEmpty(_protocolVersion))
-            {
-                requestMessage.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _protocolVersion);
-            }
-
-            // Explicitly apply authentication from default headers if present
-            // This ensures auth works even if HttpClient behavior varies or if using a fresh client pattern elsewhere
-            if (_httpClient.DefaultRequestHeaders.Authorization != null)
-            {
-                requestMessage.Headers.Authorization = _httpClient.DefaultRequestHeaders.Authorization;
-            }
+            using var requestMessage = CreatePostRequestMessage(endpoint, content, authentication: null, acceptWildcard: true);
 
             var httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
             var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken);
@@ -1074,5 +1159,173 @@ public class McpHttpClient : IMcpHttpClient
             CustomHeaders = new Dictionary<string, string>(authentication.CustomHeaders ?? new Dictionary<string, string>()),
             AllowInteractive = authentication.AllowInteractive
         };
+    }
+
+    private async Task PopulateRecoveryProbeAsync(string endpoint, TransportResilienceProbeResult result, CancellationToken cancellationToken)
+    {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var recoveryResponse = await CallAsync(endpoint, "rpc.recovery.probe", null, cancellationToken).ConfigureAwait(false);
+        sw.Stop();
+
+        result.RecoveryElapsedMs = sw.Elapsed.TotalMilliseconds;
+        result.RecoveryResponse = recoveryResponse;
+        result.GracefulRecovery = IsResponsiveRecoveryResponse(recoveryResponse);
+
+        if (!result.GracefulRecovery)
+        {
+            result.Notes.Add("Follow-up recovery probe did not receive a usable MCP response.");
+        }
+    }
+
+    private bool IsResponsiveRecoveryResponse(ValidatorJsonRpcResponse response)
+    {
+        if (response.StatusCode <= 0)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(response.RawJson))
+        {
+            return true;
+        }
+
+        return response.IsSuccess || ValidationReliability.IsAuthenticationStatusCode(response.StatusCode);
+    }
+
+    private HttpRequestMessage CreatePostRequestMessage(string endpoint, HttpContent content, AuthenticationConfig? authentication, bool acceptWildcard = false)
+    {
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        {
+            Content = content
+        };
+
+        if (acceptWildcard)
+        {
+            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+        }
+        else
+        {
+            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+        }
+
+        if (!string.IsNullOrEmpty(_protocolVersion))
+        {
+            requestMessage.Headers.TryAddWithoutValidation("MCP-Protocol-Version", _protocolVersion);
+        }
+
+        if (authentication != null)
+        {
+            var headerValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(authentication);
+            if (!string.IsNullOrEmpty(headerValue))
+            {
+                McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, headerValue);
+            }
+        }
+        else if (_httpClient.DefaultRequestHeaders.Authorization != null)
+        {
+            requestMessage.Headers.Authorization = _httpClient.DefaultRequestHeaders.Authorization;
+        }
+
+        return requestMessage;
+    }
+
+    private string CreateProbePayload(string method)
+    {
+        return JsonSerializer.Serialize(new ValidatorJsonRpcRequest
+        {
+            JsonRpc = "2.0",
+            Method = method,
+            Id = Guid.NewGuid().ToString()
+        }, _jsonOptions);
+    }
+
+    private static ValidatorJsonRpcResponse CreateSyntheticFailureResponse(string error, double elapsedMs)
+    {
+        return new ValidatorJsonRpcResponse
+        {
+            StatusCode = -1,
+            IsSuccess = false,
+            Error = error,
+            ElapsedMs = elapsedMs
+        };
+    }
+
+    private sealed class DelayedAbortJsonContent : HttpContent
+    {
+        private readonly byte[] _firstChunk;
+        private readonly byte[] _secondChunk;
+        private readonly TimeSpan _delay;
+
+        public DelayedAbortJsonContent(string payload, TimeSpan delay)
+        {
+            var bytes = Encoding.UTF8.GetBytes(payload);
+            var splitIndex = Math.Max(1, bytes.Length / 2);
+            _firstChunk = bytes[..splitIndex];
+            _secondChunk = bytes[splitIndex..];
+            _delay = delay;
+            Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = _firstChunk.Length + _secondChunk.Length;
+            return true;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            return SerializeToStreamCoreAsync(stream, CancellationToken.None);
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+        {
+            return SerializeToStreamCoreAsync(stream, cancellationToken);
+        }
+
+        private async Task SerializeToStreamCoreAsync(Stream stream, CancellationToken cancellationToken)
+        {
+            await stream.WriteAsync(_firstChunk, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+            await Task.Delay(_delay, cancellationToken);
+            await stream.WriteAsync(_secondChunk, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+        }
+    }
+
+    private sealed class InterruptingJsonContent : HttpContent
+    {
+        private readonly byte[] _firstChunk;
+
+        public InterruptingJsonContent(string payload)
+        {
+            var bytes = Encoding.UTF8.GetBytes(payload);
+            var splitIndex = Math.Max(1, bytes.Length / 2);
+            _firstChunk = bytes[..splitIndex];
+            Headers.ContentType = new MediaTypeHeaderValue("application/json");
+        }
+
+        protected override bool TryComputeLength(out long length)
+        {
+            length = -1;
+            return false;
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
+        {
+            return SerializeToStreamCoreAsync(stream, CancellationToken.None);
+        }
+
+        protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
+        {
+            return SerializeToStreamCoreAsync(stream, cancellationToken);
+        }
+
+        private async Task SerializeToStreamCoreAsync(Stream stream, CancellationToken cancellationToken)
+        {
+            await stream.WriteAsync(_firstChunk, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+            throw new IOException("Synthetic connection interruption injected by validator.");
+        }
     }
 }

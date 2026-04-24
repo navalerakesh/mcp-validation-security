@@ -1,3 +1,4 @@
+using Mcp.Benchmark.Core.Models;
 namespace Mcp.Benchmark.ClientProfiles;
 
 public static class ClientProfileCatalog

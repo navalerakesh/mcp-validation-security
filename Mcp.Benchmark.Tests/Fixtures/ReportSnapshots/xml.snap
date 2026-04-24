@@ -44,6 +44,110 @@
     <Severity level="Low" count="0" />
     <Severity level="Informational" count="0" />
   </SeverityBreakdown>
+  <ValidationEnvelope>
+    <Layers>
+      <Layer id="protocol-core" status="Failed" findingCount="1">
+        <DisplayName>Protocol Compliance</DisplayName>
+        <Summary>Protocol negotiation had one blocking violation.</Summary>
+      </Layer>
+      <Layer id="tool-surface" status="Passed" findingCount="0">
+        <DisplayName>Tool Validation</DisplayName>
+        <Summary>Tool catalog loaded and executed.</Summary>
+      </Layer>
+      <Layer id="error-handling" status="Passed" findingCount="0">
+        <DisplayName>Error Handling</DisplayName>
+        <Summary>Validated 3 error scenario(s); 3 handled correctly.</Summary>
+      </Layer>
+      <Layer id="client-profiles" status="Passed" findingCount="0">
+        <DisplayName>Client Profile Compatibility</DisplayName>
+        <Summary>Evaluated 2 profile(s); 1 warning profile(s); 0 incompatible profile(s).</Summary>
+      </Layer>
+    </Layers>
+    <Scenarios>
+      <Scenario id="tool-catalog-smoke" status="Passed" findingCount="0">
+        <DisplayName>Tool Catalog Smoke</DisplayName>
+        <Summary>Discovery and first invocation completed with expected metadata.</Summary>
+      </Scenario>
+      <Scenario id="security-authentication-challenge" status="Skipped" findingCount="0">
+        <DisplayName>Authentication Challenge Matrix</DisplayName>
+        <Summary>Authentication challenge completed under deferred bootstrap review.</Summary>
+      </Scenario>
+      <Scenario id="error-handling-matrix" status="Passed" findingCount="0">
+        <DisplayName>Error Handling Matrix</DisplayName>
+        <Summary>Validated 3 error scenario(s); 3 handled correctly.</Summary>
+      </Scenario>
+    </Scenarios>
+    <Coverage>
+      <Declaration layerId="protocol-core" scope="json-rpc" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="tool-surface" scope="tools/list" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="prompt-surface" scope="prompts/list" status="Skipped">
+        <Reason>Server does not advertise prompts capability.</Reason>
+      </Declaration>
+      <Declaration layerId="client-profiles" scope="github-copilot-cli,github-copilot-cloud-agent" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="tool-surface" scope="tool-catalog-smoke" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="security-boundaries" scope="security-authentication-challenge" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="error-handling" scope="error-handling" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+      <Declaration layerId="error-handling" scope="error-handling-matrix" status="Covered">
+        <Reason></Reason>
+      </Declaration>
+    </Coverage>
+    <AppliedPacks>
+      <Pack key="protocol-features/mcp-embedded" revision="2026-04" kind="ProtocolFeatures" stability="Stable">
+        <DisplayName>Embedded MCP Protocol Features</DisplayName>
+        <DocumentationUrl>https://spec.modelcontextprotocol.io/</DocumentationUrl>
+      </Pack>
+      <Pack key="rule-pack/protocol-core" revision="2026-04" kind="RulePack" stability="Stable">
+        <DisplayName>Built-in Protocol Rule Pack</DisplayName>
+        <DocumentationUrl>https://spec.modelcontextprotocol.io/</DocumentationUrl>
+      </Pack>
+      <Pack key="client-profile-pack/built-in" revision="2026-04" kind="ClientProfilePack" stability="Stable">
+        <DisplayName>Built-in Client Profile Pack</DisplayName>
+        <DocumentationUrl></DocumentationUrl>
+      </Pack>
+      <Pack key="scenario-pack/observed-surface" revision="2026-04" kind="ScenarioPack" stability="Stable">
+        <DisplayName>Built-in Observed Surface Scenario Pack</DisplayName>
+        <DocumentationUrl></DocumentationUrl>
+      </Pack>
+    </AppliedPacks>
+    <Observations>
+      <Observation id="error-invalid-method-call" layerId="error-handling" component="invalid-method" kind="error-scenario">
+        <ScenarioId>error-handling-matrix</ScenarioId>
+        <RedactedPayloadPreview>HTTP 200; JSON-RPC error -32601: Method not found</RedactedPayloadPreview>
+      </Observation>
+      <Observation id="error-malformed-json-payload" layerId="error-handling" component="malformed-json" kind="error-scenario">
+        <ScenarioId>error-handling-matrix</ScenarioId>
+        <RedactedPayloadPreview>HTTP 400; JSON-RPC error -32700: Parse error</RedactedPayloadPreview>
+      </Observation>
+      <Observation id="error-graceful-degradation-on-invalid-request" layerId="error-handling" component="invalid-request" kind="error-scenario">
+        <ScenarioId>error-handling-matrix</ScenarioId>
+        <RedactedPayloadPreview>HTTP 400; JSON-RPC error -32600: Invalid Request</RedactedPayloadPreview>
+      </Observation>
+      <Observation id="obs-init-401" layerId="protocol-core" component="initialize" kind="handshake-response">
+        <ScenarioId></ScenarioId>
+        <RedactedPayloadPreview>401 Unauthorized — bootstrap encountered an authentication challenge.</RedactedPayloadPreview>
+      </Observation>
+      <Observation id="obs-tool-delete-repo" layerId="tool-surface" component="delete_repo" kind="tool-metadata">
+        <ScenarioId>tool-catalog-smoke</ScenarioId>
+        <RedactedPayloadPreview>Tool metadata missing annotations.destructiveHint.</RedactedPayloadPreview>
+      </Observation>
+      <Observation id="auth-unauthorized-tools-list-challenge" layerId="security-boundaries" component="tools/list" kind="authentication-scenario">
+        <ScenarioId>security-authentication-challenge</ScenarioId>
+        <RedactedPayloadPreview>Returned 401 with WWW-Authenticate.</RedactedPayloadPreview>
+      </Observation>
+    </Observations>
+  </ValidationEnvelope>
   <TestCategories>
     <ProtocolCompliance status="Failed" score="84.0" durationSeconds="2.1">
       <ViolationsCount>1</ViolationsCount>

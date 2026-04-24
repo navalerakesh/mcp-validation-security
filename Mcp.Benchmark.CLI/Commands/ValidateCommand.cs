@@ -626,7 +626,9 @@ public class ValidateCommand
 
     private static void AnnotatePerformanceMeasurementState(JsonObject root, PerformanceTestResult? performance)
     {
-        if (performance == null || root["performanceTesting"] is not JsonObject performanceObject)
+        if (performance == null ||
+            root["assessments"] is not JsonObject assessmentsObject ||
+            assessmentsObject["performanceTesting"] is not JsonObject performanceObject)
         {
             return;
         }

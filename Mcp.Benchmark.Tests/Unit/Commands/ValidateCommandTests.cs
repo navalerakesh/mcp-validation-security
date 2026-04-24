@@ -311,7 +311,9 @@ public sealed class ValidateCommandTests : IDisposable
 
         var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
-        var performance = document.RootElement.GetProperty("performanceTesting");
+        var performance = document.RootElement
+            .GetProperty("assessments")
+            .GetProperty("performanceTesting");
 
         performance.GetProperty("measurementsCaptured").GetBoolean().Should().BeFalse();
         performance.GetProperty("measurementStatus").GetString().Should().Be("Unavailable");

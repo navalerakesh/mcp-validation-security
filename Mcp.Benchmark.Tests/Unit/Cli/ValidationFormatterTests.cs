@@ -6,6 +6,7 @@ using Mcp.Benchmark.Core.Resources;
 
 namespace Mcp.Benchmark.Tests.Unit.Cli;
 
+[Collection("Console output")]
 public class ValidationFormatterTests
 {
     [Fact]

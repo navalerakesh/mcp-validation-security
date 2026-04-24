@@ -14,10 +14,23 @@ public class ValidationResult
     /// </summary>
     public ValidationProducerInfo Producer { get; set; } = ValidationProducerInfo.CreateDefault();
 
+    public ValidationRunDocument Run { get; set; } = new();
+
+    public ValidationAssessmentDocument Assessments { get; set; } = new();
+
+    public ValidationEvidenceDocument Evidence { get; set; } = new();
+
+    public ValidationCompatibilityDocument Compatibility { get; set; } = new();
+
     /// <summary>
     /// Gets or sets the unique identifier for this validation run.
     /// </summary>
-    public string ValidationId { get; set; } = Guid.NewGuid().ToString();
+    [JsonIgnore]
+    public string ValidationId
+    {
+        get => Run.ValidationId;
+        set => Run.ValidationId = value;
+    }
 
     /// <summary>
     /// Gets or sets the timestamp when validation started.
@@ -78,37 +91,72 @@ public class ValidationResult
     /// <summary>
     /// Gets or sets the protocol compliance test results.
     /// </summary>
-    public ComplianceTestResult? ProtocolCompliance { get; set; }
+    [JsonIgnore]
+    public ComplianceTestResult? ProtocolCompliance
+    {
+        get => Assessments.ProtocolCompliance;
+        set => Assessments.ProtocolCompliance = value;
+    }
 
     /// <summary>
     /// Gets or sets the tool validation test results.
     /// </summary>
-    public ToolTestResult? ToolValidation { get; set; }
+    [JsonIgnore]
+    public ToolTestResult? ToolValidation
+    {
+        get => Assessments.ToolValidation;
+        set => Assessments.ToolValidation = value;
+    }
 
     /// <summary>
     /// Gets or sets the resource testing results.
     /// </summary>
-    public ResourceTestResult? ResourceTesting { get; set; }
+    [JsonIgnore]
+    public ResourceTestResult? ResourceTesting
+    {
+        get => Assessments.ResourceTesting;
+        set => Assessments.ResourceTesting = value;
+    }
 
     /// <summary>
     /// Gets or sets the prompt testing results.
     /// </summary>
-    public PromptTestResult? PromptTesting { get; set; }
+    [JsonIgnore]
+    public PromptTestResult? PromptTesting
+    {
+        get => Assessments.PromptTesting;
+        set => Assessments.PromptTesting = value;
+    }
 
     /// <summary>
     /// Gets or sets the security testing results.
     /// </summary>
-    public SecurityTestResult? SecurityTesting { get; set; }
+    [JsonIgnore]
+    public SecurityTestResult? SecurityTesting
+    {
+        get => Assessments.SecurityTesting;
+        set => Assessments.SecurityTesting = value;
+    }
 
     /// <summary>
     /// Gets or sets the performance testing results.
     /// </summary>
-    public PerformanceTestResult? PerformanceTesting { get; set; }
+    [JsonIgnore]
+    public PerformanceTestResult? PerformanceTesting
+    {
+        get => Assessments.PerformanceTesting;
+        set => Assessments.PerformanceTesting = value;
+    }
 
     /// <summary>
     /// Gets or sets the error handling test results.
     /// </summary>
-    public ErrorHandlingTestResult? ErrorHandling { get; set; }
+    [JsonIgnore]
+    public ErrorHandlingTestResult? ErrorHandling
+    {
+        get => Assessments.ErrorHandling;
+        set => Assessments.ErrorHandling = value;
+    }
 
     /// <summary>
     /// Gets or sets the detailed execution logs.
@@ -136,25 +184,45 @@ public class ValidationResult
     /// This is derived from <see cref="ServerConfig.ProtocolVersion"/> and
     /// recorded here for reporting convenience.
     /// </summary>
-    public string? ProtocolVersion { get; set; }
+    [JsonIgnore]
+    public string? ProtocolVersion
+    {
+        get => Run.ProtocolVersion;
+        set => Run.ProtocolVersion = value;
+    }
 
     /// <summary>
     /// Gets or sets the captured MCP initialize handshake, including transport
     /// metadata for latency and HTTP status analysis.
     /// </summary>
-    public TransportResult<InitializeResult>? InitializationHandshake { get; set; }
+    [JsonIgnore]
+    public TransportResult<InitializeResult>? InitializationHandshake
+    {
+        get => Run.InitializationHandshake;
+        set => Run.InitializationHandshake = value;
+    }
 
     /// <summary>
     /// Gets or sets the snapshot of tool/resource capability discovery that
     /// accompanies validation runs.
     /// </summary>
-    public TransportResult<CapabilitySummary>? CapabilitySnapshot { get; set; }
+    [JsonIgnore]
+    public TransportResult<CapabilitySummary>? CapabilitySnapshot
+    {
+        get => Run.CapabilitySnapshot;
+        set => Run.CapabilitySnapshot = value;
+    }
 
     /// <summary>
     /// Gets or sets the calibrated bootstrap health outcome used to decide whether
     /// validation could proceed after the initial connectivity and initialize checks.
     /// </summary>
-    public HealthCheckResult? BootstrapHealth { get; set; }
+    [JsonIgnore]
+    public HealthCheckResult? BootstrapHealth
+    {
+        get => Run.BootstrapHealth;
+        set => Run.BootstrapHealth = value;
+    }
 
     /// <summary>
     /// Gets or sets the MCP Trust Assessment — a multi-dimensional evaluation
@@ -171,8 +239,12 @@ public class ValidationResult
     /// <summary>
     /// Gets or sets the optional host-side client compatibility interpretation derived from the validation result.
     /// </summary>
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ClientCompatibilityReport? ClientCompatibility { get; set; }
+    [JsonIgnore]
+    public ClientCompatibilityReport? ClientCompatibility
+    {
+        get => Compatibility.ClientCompatibility;
+        set => Compatibility.ClientCompatibility = value;
+    }
 
     /// <summary>
     /// Creates a shallow copy of this validation result with server and validation
@@ -184,7 +256,38 @@ public class ValidationResult
         return new ValidationResult
         {
             Producer = Producer,
-            ValidationId = ValidationId,
+            Run = new ValidationRunDocument
+            {
+                ValidationId = ValidationId,
+                ProtocolVersion = ProtocolVersion,
+                SchemaVersion = Run.SchemaVersion,
+                ApplicabilityContext = Run.ApplicabilityContext,
+                InitializationHandshake = InitializationHandshake,
+                CapabilitySnapshot = CapabilitySnapshot,
+                BootstrapHealth = BootstrapHealth
+            },
+            Assessments = new ValidationAssessmentDocument
+            {
+                ProtocolCompliance = ProtocolCompliance,
+                ToolValidation = ToolValidation,
+                ResourceTesting = ResourceTesting,
+                PromptTesting = PromptTesting,
+                SecurityTesting = SecurityTesting,
+                PerformanceTesting = PerformanceTesting,
+                ErrorHandling = ErrorHandling,
+                Layers = Assessments.Layers,
+                Scenarios = Assessments.Scenarios
+            },
+            Evidence = new ValidationEvidenceDocument
+            {
+                Observations = Evidence.Observations,
+                Coverage = Evidence.Coverage,
+                AppliedPacks = Evidence.AppliedPacks
+            },
+            Compatibility = new ValidationCompatibilityDocument
+            {
+                ClientCompatibility = ClientCompatibility
+            },
             StartTime = StartTime,
             EndTime = EndTime,
             OverallStatus = OverallStatus,
@@ -195,24 +298,12 @@ public class ValidationResult
             ValidationConfig = ValidationConfig.CloneWithoutSecrets(),
             ServerProfile = ServerProfile,
             ServerProfileSource = ServerProfileSource,
-            ProtocolCompliance = ProtocolCompliance,
-            ToolValidation = ToolValidation,
-            ResourceTesting = ResourceTesting,
-            PromptTesting = PromptTesting,
-            SecurityTesting = SecurityTesting,
-            PerformanceTesting = PerformanceTesting,
-            ErrorHandling = ErrorHandling,
             ExecutionLogs = ExecutionLogs,
             CriticalErrors = CriticalErrors,
             Recommendations = Recommendations,
             Summary = Summary,
-            ProtocolVersion = ProtocolVersion,
-            InitializationHandshake = InitializationHandshake,
-            CapabilitySnapshot = CapabilitySnapshot,
-            BootstrapHealth = BootstrapHealth,
             TrustAssessment = TrustAssessment,
-            PolicyOutcome = PolicyOutcome,
-            ClientCompatibility = ClientCompatibility
+            PolicyOutcome = PolicyOutcome
         };
     }
 }

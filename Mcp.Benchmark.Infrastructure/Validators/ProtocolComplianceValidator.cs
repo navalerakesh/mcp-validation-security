@@ -22,12 +22,21 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 {
     private readonly IMcpHttpClient _httpClient;
     private readonly IProtocolRuleRegistry _ruleRegistry;
+    private readonly IValidationApplicabilityResolver _applicabilityResolver;
+    private readonly IProtocolFeatureResolver _protocolFeatureResolver;
 
-    public ProtocolComplianceValidator(ILogger<ProtocolComplianceValidator> logger, IMcpHttpClient httpClient, IProtocolRuleRegistry ruleRegistry) 
+    public ProtocolComplianceValidator(
+        ILogger<ProtocolComplianceValidator> logger,
+        IMcpHttpClient httpClient,
+        IProtocolRuleRegistry ruleRegistry,
+        IValidationApplicabilityResolver applicabilityResolver,
+        IProtocolFeatureResolver protocolFeatureResolver) 
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _ruleRegistry = ruleRegistry ?? throw new ArgumentNullException(nameof(ruleRegistry));
+        _applicabilityResolver = applicabilityResolver ?? throw new ArgumentNullException(nameof(applicabilityResolver));
+        _protocolFeatureResolver = protocolFeatureResolver ?? throw new ArgumentNullException(nameof(protocolFeatureResolver));
     }
 
     public async Task<ComplianceTestResult> ValidateJsonRpcComplianceAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
@@ -75,9 +84,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             // Test 6: Error Code Compliance (MUST use standard JSON-RPC error codes)
             var errorCodeCompliant = await ValidateErrorCodeComplianceAsync(serverConfig.Endpoint!, ct);
 
-            // Test 7: Content-Type Requirements (Using Rule Engine)
-            // Get rules for the latest version (or configurable version)
-            var activeRules = _ruleRegistry.GetRulesForVersion(_ruleRegistry.LatestVersion).ToList();
+            // Test 7: Content-Type Requirements (Using resolved protocol rule packs)
+            var applicabilityContext = _applicabilityResolver.Build(
+                serverConfig,
+                config.ProtocolVersion ?? serverConfig.ProtocolVersion,
+                Array.Empty<string>());
+            var protocolFeatures = _protocolFeatureResolver.Resolve(applicabilityContext);
+            var activeRules = _ruleRegistry.Resolve(applicabilityContext).ToList();
             
             var contentTypeRule = activeRules.First(r => r is ContentTypeRule);
             var contentTypeResult = await contentTypeRule.EvaluateAsync(ruleContext, ct);
@@ -181,7 +194,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
                 serverConfig.Endpoint!,
-                config.ProtocolVersion ?? serverConfig.ProtocolVersion,
+                protocolFeatures.NegotiatedProtocolVersion,
                 ct);
 
             // Calculate comprehensive compliance score (now 8 scored tests total)
@@ -578,7 +591,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             // Server responds with the version it supports (may differ).
             // We test version negotiation by requesting the latest spec version,
             // then verify the server responds with a valid version string.
-            var requestedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion);
+            var applicabilityContext = _applicabilityResolver.Build(
+                serverConfig,
+                config.ProtocolVersion ?? serverConfig.ProtocolVersion,
+                Array.Empty<string>());
+            var requestedVersion = _protocolFeatureResolver.Resolve(applicabilityContext).NegotiatedProtocolVersion;
 
             var response = await _httpClient.CallAsync(
                 serverConfig.Endpoint!,

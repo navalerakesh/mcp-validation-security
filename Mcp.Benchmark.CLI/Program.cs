@@ -22,7 +22,9 @@ using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using Mcp.Benchmark.Infrastructure.Services.Telemetry;
 using Mcp.Benchmark.Infrastructure.Validators;
+using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -242,6 +244,8 @@ internal class Program
                 services.AddSingleton<IGitHubActionsReporter, GitHubActionsReporter>();
                 services.AddSingleton<IReportGenerator, MarkdownReportGenerator>();
                 services.AddSingleton<IValidationReportRenderer, ValidationReportRenderer>();
+                services.AddSingleton<IClientProfilePack, BuiltInClientProfilePack>();
+                services.AddSingleton<IClientProfileResolver, ClientProfileResolver>();
                 services.AddSingleton<IClientProfileEvaluator, ClientProfileEvaluator>();
                 services.AddScoped<INextStepAdvisor, NextStepAdvisor>();
 
@@ -256,6 +260,12 @@ internal class Program
                 services.AddSingleton<IContentSafetyAnalyzer, ContentSafetyAnalyzer>();
                 services.AddSingleton<IToolAiReadinessAnalyzer, ToolAiReadinessAnalyzer>();
                 services.AddSingleton<IAggregateScoringStrategy, SecurityFocusedScoringStrategy>();
+                services.AddSingleton<IValidationApplicabilityResolver, ValidationApplicabilityResolver>();
+                services.AddSingleton(typeof(IValidationPackRegistry<>), typeof(ValidationPackRegistry<>));
+                services.AddSingleton<IProtocolFeaturePack, BuiltInProtocolFeaturePack>();
+                services.AddSingleton<IValidationScenarioPack, BuiltInObservedSurfaceScenarioPack>();
+                services.AddSingleton<IProtocolFeatureResolver, ProtocolFeatureResolver>();
+                services.AddSingleton<IValidationRulePack<ProtocolValidationContext>, BuiltInProtocolRulePack>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
                 services.AddSingleton<IValidationSessionBuilder, ValidationSessionBuilder>();
                 services.AddSingleton<IHealthCheckService, HealthCheckService>();
@@ -270,6 +280,7 @@ internal class Program
                 services.AddSingleton<ISecurityValidator, SecurityValidator>();
 
                 services.AddSingleton<IPerformanceValidator, PerformanceValidator>();
+                services.AddSingleton<IErrorHandlingValidator, ErrorHandlingValidator>();
 
                 // Register CLI command handlers
                 services.AddScoped<ValidateCommand>();

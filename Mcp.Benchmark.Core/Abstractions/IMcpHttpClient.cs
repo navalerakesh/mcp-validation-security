@@ -40,6 +40,16 @@ public interface IMcpHttpClient
     Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Forces a client-observed timeout during an MCP request and verifies the endpoint remains responsive afterwards.
+    /// </summary>
+    Task<TransportResilienceProbeResult> ProbeTimeoutRecoveryAsync(string endpoint, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Forces a transport interruption during an MCP request and verifies the endpoint remains responsive afterwards.
+    /// </summary>
+    Task<TransportResilienceProbeResult> ProbeConnectionInterruptionRecoveryAsync(string endpoint, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Tests the MCP initialize handshake.
     /// </summary>
     Task<TransportResult<InitializeResult>> ValidateInitializeAsync(string endpoint, CancellationToken cancellationToken = default);

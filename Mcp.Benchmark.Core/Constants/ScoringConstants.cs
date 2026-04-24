@@ -33,11 +33,12 @@ public static class ScoringConstants
 
     // ─── Category Weights (Aggregate Scoring) ────────────────────────
     
-    public const double WeightProtocol = 0.35;
+    public const double WeightProtocol = 0.30;
     public const double WeightSecurity = 0.45;
     public const double WeightTools = 0.10;
     public const double WeightResources = 0.05;
     public const double WeightPrompts = 0.05;
+    public const double WeightErrorHandling = 0.05;
     public const double WeightPerformance = 0.00; // Informational only — correctness > speed
 
     // ─── Coverage Thresholds ─────────────────────────────────────────

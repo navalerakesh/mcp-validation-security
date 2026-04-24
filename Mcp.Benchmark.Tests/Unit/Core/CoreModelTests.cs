@@ -161,7 +161,8 @@ public class CoreModelTests
     {
         var sum = ScoringConstants.WeightProtocol + ScoringConstants.WeightSecurity +
                   ScoringConstants.WeightTools + ScoringConstants.WeightResources +
-                  ScoringConstants.WeightPrompts + ScoringConstants.WeightPerformance;
+                  ScoringConstants.WeightPrompts + ScoringConstants.WeightErrorHandling +
+                  ScoringConstants.WeightPerformance;
         sum.Should().Be(1.0);
     }
 
