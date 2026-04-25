@@ -42,26 +42,46 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
 
             if (config.TestMalformedJson)
             {
-                AddScenarioResult(
-                    result,
-                    errorCodeValidation,
-                    expectedErrorCode: -32700,
-                    scenarioName: "Malformed JSON Payload",
-                    errorType: "malformed-json",
-                    expectedResponse: "JSON-RPC error code -32700 (Parse error).",
-                    unsupportedMessage: "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.");
+                if (ShouldSkipRawStdioProbe(serverConfig, errorCodeValidation, -32700))
+                {
+                    unsupportedProbeCount++;
+                    result.Findings.Add(CreateUnsupportedProbeFinding(
+                        "malformed-json",
+                        "Malformed JSON probing is enabled, but the active stdio transport did not surface a JSON-RPC parse-error envelope for malformed input."));
+                }
+                else
+                {
+                    AddScenarioResult(
+                        result,
+                        errorCodeValidation,
+                        expectedErrorCode: -32700,
+                        scenarioName: "Malformed JSON Payload",
+                        errorType: "malformed-json",
+                        expectedResponse: "JSON-RPC error code -32700 (Parse error).",
+                        unsupportedMessage: "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.");
+                }
             }
 
             if (config.TestGracefulDegradation)
             {
-                AddScenarioResult(
-                    result,
-                    errorCodeValidation,
-                    expectedErrorCode: -32600,
-                    scenarioName: "Graceful Degradation On Invalid Request",
-                    errorType: "invalid-request",
-                    expectedResponse: "JSON-RPC error code -32600 (Invalid request).",
-                    unsupportedMessage: "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.");
+                if (ShouldSkipRawStdioProbe(serverConfig, errorCodeValidation, -32600))
+                {
+                    unsupportedProbeCount++;
+                    result.Findings.Add(CreateUnsupportedProbeFinding(
+                        "invalid-request",
+                        "Graceful-degradation probing is enabled, but the active stdio transport did not surface a JSON-RPC invalid-request envelope for malformed input."));
+                }
+                else
+                {
+                    AddScenarioResult(
+                        result,
+                        errorCodeValidation,
+                        expectedErrorCode: -32600,
+                        scenarioName: "Graceful Degradation On Invalid Request",
+                        errorType: "invalid-request",
+                        expectedResponse: "JSON-RPC error code -32600 (Invalid request).",
+                        unsupportedMessage: "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.");
+                }
             }
 
             if (config.TestTimeoutHandling)
@@ -319,6 +339,23 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
             Recommendation = "Extend the transport harness if this probe must become a first-class validation requirement.",
             Source = ValidationRuleSource.Guideline
         };
+    }
+
+    private static bool ShouldSkipRawStdioProbe(McpServerConfig serverConfig, JsonRpcErrorValidationResult validation, int expectedErrorCode)
+    {
+        if (!string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var errorTest = validation.Tests.FirstOrDefault(test => test.ExpectedErrorCode == expectedErrorCode);
+        if (errorTest is null)
+        {
+            return true;
+        }
+
+        var classification = JsonRpcResponseInspector.Classify(errorTest.ActualResponse);
+        return classification.Surface is JsonRpcResponseSurface.EmptyBody or JsonRpcResponseSurface.TransportFailure;
     }
 
     private static string BuildResultMessage(ErrorHandlingTestResult result, int unsupportedProbeCount)

@@ -114,7 +114,7 @@ When experimental model evaluation is enabled, `validate` writes `mcp-validation
 
 - `mcpval health-check` - fast connectivity and initialization probe with auth hints; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
 - `mcpval discover` - capability snapshot for remote endpoints in JSON, YAML, or table form; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
-- `mcpval report` - offline rendering from a saved result into `html`, `xml`, `sarif`, or `junit`
+- `mcpval report` - offline rendering from a saved JSON result or Markdown report path into `html`, `xml`, `sarif`, or `junit`
 - `mcpval --list-spec-profiles` - list embedded protocol profiles supported by the current build
 
 Example offline rendering:

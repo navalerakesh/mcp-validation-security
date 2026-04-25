@@ -545,6 +545,76 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithStdioRawProbeDrops_ShouldSkipUnobservableMalformedRequestFailures()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests =
+                [
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Parse Error",
+                        ExpectedErrorCode = -32700,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            Error = "No response"
+                        }
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Request - Missing jsonrpc",
+                        ExpectedErrorCode = -32600,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            Error = "No response"
+                        }
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Method Not Found",
+                        ExpectedErrorCode = -32601,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601},\"id\":1}")
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Params",
+                        ExpectedErrorCode = -32602,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            Error = "No response"
+                        }
+                    }
+                ],
+                OverallScore = 25,
+                IsCompliant = false
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "npx -y mcpval-localmcp", Transport = "stdio" },
+            new ProtocolComplianceConfig());
+
+        result.MessageFormat.RequestFormatValid.Should().BeTrue();
+        result.JsonRpcCompliance.ErrorHandlingCompliant.Should().BeTrue();
+        result.Violations.Should().NotContain(v => v.Description.Contains("Parse Error", StringComparison.Ordinal));
+        result.Violations.Should().NotContain(v => v.Description.Contains("Invalid Request - Missing jsonrpc", StringComparison.Ordinal));
+        result.Violations.Should().NotContain(v => v.Description.Contains("Invalid Params", StringComparison.Ordinal));
+        result.Violations.Should().NotContain(v => v.Description == "Request format does not comply with JSON-RPC 2.0 specification");
+        result.Findings.Should().Contain(f => f.RuleId == "MCP.GUIDELINE.PROTOCOL.STDIO_RAW_ERROR_PROBE_SKIPPED");
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_ShouldUseDeclaredListMethodForBatchProbe()
     {
         _mcpHttpClientMock

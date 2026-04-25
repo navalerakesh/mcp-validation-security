@@ -46,10 +46,18 @@ const inspectionAnnotations: ToolAnnotations = {
 async function main(): Promise<void> {
   const cliVersion = await getCliVersion();
 
-  const server = new McpServer({
-    name: config.server.name,
-    version: config.server.version,
-  });
+  const server = new McpServer(
+    {
+      name: config.server.name,
+      title: config.server.title,
+      version: config.server.version,
+      description: config.server.description,
+      websiteUrl: config.server.websiteUrl,
+    },
+    {
+      instructions: config.server.instructions,
+    },
+  );
 
   // ─── Register Tools ──────────────────────────────────────────
 

@@ -33,7 +33,7 @@ When you need discovery-like evidence for a local STDIO server, use `validate`; 
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
-| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, and client-profile summary JSON from `validate`; HTML, XML, SARIF, and JUnit from `report` |
+| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report` |
 | CI gating | Advisory, balanced, and strict policy modes with structured policy outcomes |
 
 ## Result And Finding Model
@@ -44,7 +44,8 @@ When you need discovery-like evidence for a local STDIO server, use `validate`; 
 | Rule-source labeling | Findings distinguish `spec`, `guideline`, and `heuristic` origins |
 | Remediation guidance | Findings include remediation text suitable for reports and CI output |
 | Structured evidence | Capability checks and interpretation layers attach explicit evidence instead of only free-form text |
-| Canonical result object | `ValidationResult` preserves raw category results, policy outcome, trust assessment, and client compatibility interpretation |
+| Canonical result object | `ValidationResult` preserves run, assessment, evidence, and compatibility documents plus trust assessment and policy outcome |
+| Offline report replay | `report` can start from the canonical JSON result or from the Markdown report path that resolves to the sibling JSON snapshot |
 | Transient probe calibration | Retryable protocol and tool probe responses are preserved as inconclusive operational evidence instead of being overstated as hard spec failures |
 
 ## Client Compatibility Profiles

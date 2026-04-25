@@ -372,4 +372,4 @@ The first implementation should keep the split simple.
 4. Migrate the current protocol rule registry into a built-in rule pack.
 5. Migrate the current client profile catalog and evaluator into a built-in client profile pack plus resolver.
 6. Replace the old category-first result storage shape with the new bounded subdocuments.
-7. Add scenario packs and report document builders on top of that substrate.
+7. Add scenario packs and report document builders on top of that foundation.

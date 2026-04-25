@@ -63,25 +63,25 @@ Typical governance-first invocation:
 
 ```bash
 dotnet run --project Mcp.Benchmark.CLI -- validate \
-	--server https://example.test/mcp \
-	--mode safe \
-	--dry-run \
-	--allow-host example.test
+  --server https://example.test/mcp \
+  --mode safe \
+  --dry-run \
+  --allow-host example.test
 ```
 
 The same contract applies to quick probes:
 
 ```bash
 dotnet run --project Mcp.Benchmark.CLI -- health-check \
-	--server https://example.test/mcp \
-	--dry-run \
-	--allow-host example.test
+  --server https://example.test/mcp \
+  --dry-run \
+  --allow-host example.test
 
 dotnet run --project Mcp.Benchmark.CLI -- discover \
-	--server https://example.test/mcp \
-	--format json \
-	--dry-run \
-	--allow-host example.test
+  --server https://example.test/mcp \
+  --format json \
+  --dry-run \
+  --allow-host example.test
 ```
 
 ## Design Guardrails
