@@ -132,6 +132,8 @@ Use `--report-detail minimal` on either `validate` or `report` when you only wan
 
 When `mcpval` runs inside GitHub Actions, it writes a step summary and emits workflow annotations automatically. The repository root also includes a reusable composite action.
 
+Use a release tag instead of `main`. The release workflow publishes immutable `v<major>.<minor>.<patch>` tags and keeps `v<major>` plus `v<major>.<minor>` aliases current for the action entrypoint.
+
 ```yaml
 name: Validate MCP Server
 
@@ -146,7 +148,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate MCP server
-        uses: navalerakesh/mcp-validation-security@main
+        uses: navalerakesh/mcp-validation-security@v1
         with:
           server: https://example.test/mcp
           access: authenticated
@@ -156,6 +158,8 @@ jobs:
 ```
 
 The composite action installs the published `McpVal` tool, runs `mcpval validate`, writes the standard artifact set, and uploads the output directory by default.
+
+Once a tagged release is published, the same root action can be listed in GitHub Marketplace from the release page.
 
 ## Why Teams Use MCP Validator
 

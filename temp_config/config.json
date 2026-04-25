@@ -1,9 +1,0 @@
-{
-  "evaluation": {
-    "modelEvaluation": {
-      "enabled": true,
-      "provider": "builtin-rubric",
-      "promptSet": "baseline-v1"
-    }
-  }
-}
