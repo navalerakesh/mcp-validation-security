@@ -1,5 +1,10 @@
 name: MCP Validator
-description: Validate an MCP server from GitHub Actions and publish summary plus workflow annotations.
+description: Validate MCP servers in GitHub Actions with policy gates, workflow summaries, annotations, and artifacts.
+author: Rakesh Navale
+
+branding:
+  icon: shield
+  color: blue
 
 inputs:
   server:
