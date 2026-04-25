@@ -289,10 +289,12 @@ jobs:
             patch="${latest#"$tag_prefix"}"
             patch=$((patch + 1))
           fi
-          echo "version=${major_minor}.${patch}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${major_minor}.${patch}" >> "$GITHUB_OUTPUT"
-          echo "minor_tag=v${major_minor}" >> "$GITHUB_OUTPUT"
-          echo "major_tag=v${major}" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=${major_minor}.${patch}"
+            echo "tag=v${major_minor}.${patch}"
+            echo "minor_tag=v${major_minor}"
+            echo "major_tag=v${major}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Summary
         run: echo "### 🚀 Release v${{ steps.tag.outputs.version }}" >> "$GITHUB_STEP_SUMMARY"
