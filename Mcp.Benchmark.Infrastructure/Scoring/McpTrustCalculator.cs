@@ -194,9 +194,20 @@ public static class McpTrustCalculator
         // Security MUST checks
         if (result.SecurityTesting != null)
         {
+            var protocolErrorHandlingFailed = result.ProtocolCompliance?.JsonRpcCompliance?.ErrorHandlingCompliant == false;
+            var errorHandlingFindings = result.ErrorHandling?.Findings?
+                .Where(f => string.Equals(f.RuleId, "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE", StringComparison.Ordinal))
+                .ToList() ?? new List<ValidationFinding>();
+            var standardErrorCodesPassed = !protocolErrorHandlingFailed && errorHandlingFindings.Count == 0;
+            var standardErrorCodeDetail = protocolErrorHandlingFailed
+                ? "Non-standard error codes"
+                : errorHandlingFindings.Count > 0
+                    ? $"Non-standard error codes in: {string.Join(", ", errorHandlingFindings.Select(f => f.Component).Where(static value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))}"
+                    : null;
+
             AddMustCheck(assessment, McpComplianceTiers.Must.StandardErrorCodes, "errors",
-                result.ProtocolCompliance?.JsonRpcCompliance?.ErrorHandlingCompliant != false,
-                result.ProtocolCompliance?.JsonRpcCompliance?.ErrorHandlingCompliant == false ? "Non-standard error codes" : null);
+                standardErrorCodesPassed,
+                standardErrorCodeDetail);
         }
     }
 
@@ -372,25 +383,36 @@ public static class McpTrustCalculator
                 var name = tool.ToolName?.ToLowerInvariant() ?? "";
                 var parameterNames = tool.InputParameterNames.Select(p => p.ToLowerInvariant()).ToList();
                 var descriptionText = string.Join(' ', new[] { tool.DisplayTitle, tool.Description }.Where(text => !string.IsNullOrWhiteSpace(text))).ToLowerInvariant();
-                foreach (var pattern in ScoringConstants.ExfiltrationRiskPatterns)
-                {
-                    var hasParameterEvidence = parameterNames.Any(p => p.Contains(pattern));
-                    var hasBehaviorEvidence = name.Contains(pattern) || descriptionText.Contains(pattern) || tool.OpenWorldHint == true;
 
-                    if (hasParameterEvidence && hasBehaviorEvidence)
-                    {
-                        assessment.DataExfiltrationRiskCount++;
-                        assessment.BoundaryFindings.Add(new AiBoundaryFinding
-                        {
-                            Category = "Exfiltration",
-                            Component = tool.ToolName ?? "unknown",
-                            Severity = "High",
-                            Description = $"Tool '{tool.ToolName}' accepts URI-like or outbound-target parameters that could be used for data exfiltration (evidence: '{pattern}').",
-                            Mitigation = "Validate all URIs/URLs server-side. Restrict outbound connections to allowlisted domains."
-                        });
-                        break;
-                    }
+                var matchedParameterPattern = ScoringConstants.ExfiltrationTargetParameterPatterns
+                    .FirstOrDefault(pattern => parameterNames.Any(parameter => parameter.Contains(pattern, StringComparison.Ordinal)));
+
+                if (matchedParameterPattern is null)
+                {
+                    continue;
                 }
+
+                var matchedBehaviorPattern = ScoringConstants.ExfiltrationBehaviorPatterns
+                    .FirstOrDefault(pattern =>
+                        name.Contains(pattern, StringComparison.Ordinal) ||
+                        descriptionText.Contains(pattern, StringComparison.Ordinal));
+
+                var hasOpenWorldWriteBehavior = tool.OpenWorldHint == true && tool.ReadOnlyHint != true;
+                if (matchedBehaviorPattern is null && !hasOpenWorldWriteBehavior)
+                {
+                    continue;
+                }
+
+                var evidence = matchedBehaviorPattern ?? matchedParameterPattern;
+                assessment.DataExfiltrationRiskCount++;
+                assessment.BoundaryFindings.Add(new AiBoundaryFinding
+                {
+                    Category = "Exfiltration",
+                    Component = tool.ToolName ?? "unknown",
+                    Severity = "High",
+                    Description = $"Tool '{tool.ToolName}' accepts caller-controlled outbound targets and shows egress behavior that could enable data exfiltration (evidence: '{evidence}').",
+                    Mitigation = "Validate outbound destinations server-side. Restrict network targets to explicit allowlists and require least-privilege access."
+                });
             }
         }
 
@@ -531,14 +553,14 @@ public static class McpTrustCalculator
             return surfaceText.Contains(pattern, StringComparison.OrdinalIgnoreCase);
         }
 
-        foreach (var segment in surfaceText.Split(['\r', '\n', '.', '!', '?'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            foreach (var segment in surfaceText.Split(new[] { '\r', '\n', '.', '!', '?' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
         {
             if (segment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
             }
 
-            foreach (var bulletSegment in segment.Split(['-', '*'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                foreach (var bulletSegment in segment.Split(new[] { '-', '*' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 if (bulletSegment.StartsWith(pattern, StringComparison.OrdinalIgnoreCase))
                 {

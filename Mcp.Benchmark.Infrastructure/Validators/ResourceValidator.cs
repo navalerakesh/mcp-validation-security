@@ -57,6 +57,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     : "⚠️  ACCEPTED: Authentication required but missing WWW-Authenticate header");
                 return result;
             }
+
+            if (JsonRpcResponseInspector.IsMethodNotFound(response))
+            {
+                result.Status = TestStatus.Passed;
+                result.ResourcesDiscovered = 0;
+                result.Score = 100;
+                result.Issues.Add("✅ COMPLIANT: No resources were advertised; no resource reads were required");
+                return result;
+            }
             
             if (!response.IsSuccess)
             {

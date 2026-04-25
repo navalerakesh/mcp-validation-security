@@ -158,6 +158,20 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
+    public async Task ValidateToolDiscovery_WithoutIsErrorField_ShouldTreatResponseAsCompliant()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"echo\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"msg\":{\"type\":\"string\"}}}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "echo");
+        toolResult.Status.Should().Be(TestStatus.Passed);
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolCallMissingIsError);
+    }
+
+    [Fact]
     public async Task ValidateToolDiscovery_WithMissingContentArray_ShouldFlag()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
@@ -266,10 +280,25 @@ public class ToolValidatorComprehensiveTests
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema);
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
+        result.AiReadinessFindings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema);
         result.AiReadinessIssues.Should().Contain(i => i.Contains("required array parameters", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessIssues.Should().Contain(i => i.Contains("fixed-choice fields", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessIssues.Should().Contain(i => i.Contains("structured values", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessScore.Should().BeLessThan(100);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithDescribedFreeformQuery_ShouldNotEmitVagueStringFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"search_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"Freeform search text used to look up matching issues\"}}}}]");
+        SetupToolCall(_httpClient, 400, null);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.AiReadinessFindings.Should().NotContain(f =>
+            f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema &&
+            f.Component == "search_tool");
     }
 
     [Fact]
@@ -320,6 +349,37 @@ public class ToolValidatorComprehensiveTests
         toolResult.OpenWorldHint.Should().BeTrue();
         toolResult.IdempotentHint.Should().BeTrue();
         toolResult.Findings.Should().NotContain(f => f.Category == "McpGuideline");
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithCapabilitySnapshot_ShouldPreserveAnthropicMaxResultSizeAnnotation()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var snapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                ToolListingSucceeded = true,
+                DiscoveredToolsCount = 1,
+                ToolListResponse = new JsonRpcResponse
+                {
+                    StatusCode = 200,
+                    IsSuccess = true,
+                    RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"get_schema\",\"description\":\"Returns the full database schema\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"_meta\":{\"anthropic/maxResultSizeChars\":200000}}]},\"id\":1}"
+                }
+            }
+        };
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            config,
+            new ToolTestingConfig { CapabilitySnapshot = snapshot },
+            CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "get_schema");
+        toolResult.AnthropicMaxResultSizeChars.Should().Be(200000);
+        _httpClient.Verify(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

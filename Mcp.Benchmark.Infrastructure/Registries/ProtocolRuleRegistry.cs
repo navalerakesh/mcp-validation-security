@@ -1,42 +1,41 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
 namespace Mcp.Benchmark.Infrastructure.Registries;
 
 public interface IProtocolRuleRegistry
 {
-    IEnumerable<IValidationRule<ProtocolValidationContext>> GetRulesForVersion(string version);
-    IEnumerable<IValidationRule<ProtocolValidationContext>> GetAllRules();
-    string LatestVersion { get; }
+    IReadOnlyList<IVersionedValidationRule<ProtocolValidationContext>> Resolve(ValidationApplicabilityContext context);
+    IReadOnlyList<IValidationRulePack<ProtocolValidationContext>> GetPacks();
 }
 
-public class ProtocolRuleRegistry : IProtocolRuleRegistry
+public sealed class ProtocolRuleRegistry : IProtocolRuleRegistry
 {
-    private readonly List<IValidationRule<ProtocolValidationContext>> _rules;
+    private readonly IValidationPackRegistry<IValidationRulePack<ProtocolValidationContext>> _packRegistry;
 
-    // This could be moved to a constant or configuration
-    public string LatestVersion => "2024-11-25";
+    public ProtocolRuleRegistry(IValidationPackRegistry<IValidationRulePack<ProtocolValidationContext>> packRegistry)
+    {
+        _packRegistry = packRegistry ?? throw new ArgumentNullException(nameof(packRegistry));
+    }
 
     public ProtocolRuleRegistry()
+        : this(new ValidationPackRegistry<IValidationRulePack<ProtocolValidationContext>>(new[] { new BuiltInProtocolRulePack() }))
     {
-        // Centralized registration of all protocol rules
-        _rules = new List<IValidationRule<ProtocolValidationContext>>
-        {
-            new ContentTypeRule(),
-            new CaseSensitivityRule()
-            // Future rules for newer versions would be added here
-        };
     }
 
-    public IEnumerable<IValidationRule<ProtocolValidationContext>> GetRulesForVersion(string version)
+    public IReadOnlyList<IVersionedValidationRule<ProtocolValidationContext>> Resolve(ValidationApplicabilityContext context)
     {
-        // In a real scenario, you might want logic to include "all rules up to version X"
-        // For now, we filter by exact match as requested
-        return _rules.Where(r => r.SpecVersion == version);
+        ArgumentNullException.ThrowIfNull(context);
+
+        return _packRegistry.Resolve(context)
+            .SelectMany(pack => pack.GetRules())
+            .Where(rule => ValidationPackApplicabilityMatcher.Matches(rule.Applicability, context))
+            .ToArray();
     }
 
-    public IEnumerable<IValidationRule<ProtocolValidationContext>> GetAllRules()
+    public IReadOnlyList<IValidationRulePack<ProtocolValidationContext>> GetPacks()
     {
-        return _rules;
+        return _packRegistry.GetAll();
     }
 }

@@ -14,6 +14,19 @@ public sealed class ClientProfileOptions
     public List<string> Profiles { get; set; } = new();
 }
 
+public sealed class ClientProfileDescriptor
+{
+    public required string Id { get; init; }
+
+    public required string DisplayName { get; init; }
+
+    public required string Revision { get; init; }
+
+    public required string DocumentationUrl { get; init; }
+
+    public ClientProfileEvidenceBasis EvidenceBasis { get; init; } = ClientProfileEvidenceBasis.Documented;
+}
+
 /// <summary>
 /// Aggregated client compatibility assessments for a validation run.
 /// </summary>
@@ -43,6 +56,15 @@ public sealed class ClientCompatibilityReport
     /// Gets the number of profiles that were deemed incompatible.
     /// </summary>
     public int IncompatibleCount => Assessments.Count(assessment => assessment.Status == ClientProfileCompatibilityStatus.Incompatible);
+}
+
+public sealed class ResolvedClientProfile
+{
+    public required ClientProfileDescriptor Descriptor { get; init; }
+
+    public required ValidationRevision Revision { get; init; }
+
+    public required ValidationStability Stability { get; init; }
 }
 
 /// <summary>

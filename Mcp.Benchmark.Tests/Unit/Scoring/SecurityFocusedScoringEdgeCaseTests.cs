@@ -24,6 +24,7 @@ public class SecurityFocusedScoringEdgeCaseTests
         score.OverallScore.Should().BeGreaterThan(0);
         score.CategoryScores.Should().ContainKey("Protocol");
         score.CategoryScores.Should().ContainKey("Security");
+        score.CategoryScores.Should().ContainKey("ErrorHandling");
     }
 
     [Fact]
@@ -159,6 +160,7 @@ public class SecurityFocusedScoringEdgeCaseTests
             ToolValidation = new ToolTestResult { Status = TestStatus.Passed, Score = tools, ToolsDiscovered = 1, ToolsTestPassed = 1 },
             ResourceTesting = new ResourceTestResult { Status = TestStatus.Passed, Score = res, ResourcesDiscovered = 1, ResourcesAccessible = 1 },
             PromptTesting = new PromptTestResult { Status = TestStatus.Passed, Score = prompts, PromptsDiscovered = 1, PromptsTestPassed = 1 },
+            ErrorHandling = new ErrorHandlingTestResult { Status = TestStatus.Passed, Score = 100 },
             PerformanceTesting = new PerformanceTestResult { Status = perfStatus, Score = perfStatus == TestStatus.Passed ? 100 : 0 }
         };
     }

@@ -14,12 +14,18 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     private readonly Mock<ILogger<ProtocolComplianceValidator>> _loggerMock;
     private readonly Mock<IMcpHttpClient> _mcpHttpClientMock;
     private readonly IProtocolRuleRegistry _ruleRegistry;
+    private readonly IValidationApplicabilityResolver _applicabilityResolver;
+    private readonly IProtocolFeatureResolver _protocolFeatureResolver;
 
     public ProtocolComplianceValidatorUnitTests()
     {
         _loggerMock = new Mock<ILogger<ProtocolComplianceValidator>>();
         _mcpHttpClientMock = new Mock<IMcpHttpClient>();
         _ruleRegistry = new ProtocolRuleRegistry();
+        _applicabilityResolver = new ValidationApplicabilityResolver(new EmbeddedSchemaRegistry());
+        _protocolFeatureResolver = new ProtocolFeatureResolver(
+            new ValidationPackRegistry<IProtocolFeaturePack>(
+                new IProtocolFeaturePack[] { new BuiltInProtocolFeaturePack(new EmbeddedSchemaRegistry()) }));
         SetupHappyPathHttpClient();
     }
 
@@ -35,7 +41,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(null!, _mcpHttpClientMock.Object, _ruleRegistry);
+        Action act = () => new ProtocolComplianceValidator(null!, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("logger");
@@ -44,7 +50,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullMcpHttpClient_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, null!, _ruleRegistry);
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, null!, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("httpClient");
@@ -53,10 +59,28 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public void Constructor_WithNullRuleRegistry_ShouldThrowArgumentNullException()
     {
-        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, null!);
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, null!, _applicabilityResolver, _protocolFeatureResolver);
 
         act.Should().Throw<ArgumentNullException>()
             .WithParameterName("ruleRegistry");
+    }
+
+    [Fact]
+    public void Constructor_WithNullApplicabilityResolver_ShouldThrowArgumentNullException()
+    {
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, null!, _protocolFeatureResolver);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("applicabilityResolver");
+    }
+
+    [Fact]
+    public void Constructor_WithNullProtocolFeatureResolver_ShouldThrowArgumentNullException()
+    {
+        Action act = () => new ProtocolComplianceValidator(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, null!);
+
+        act.Should().Throw<ArgumentNullException>()
+            .WithParameterName("protocolFeatureResolver");
     }
 
     [Theory]
@@ -96,6 +120,91 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Status.Should().Be(TestStatus.Failed);
         result.CriticalErrors.Should().NotBeEmpty();
         result.CriticalErrors.Should().Contain(error => error.Contains("STDIO"));
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithStdioEndpoint_ShouldNotThrowWhenHttpOnlyRulesAreAbsent()
+    {
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "npx -y mcpval-localmcp",
+            Transport = "stdio"
+        };
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig
+        {
+            TestJsonRpcCompliance = true,
+            ProtocolVersion = "2024-11-05"
+        });
+
+        result.Should().NotBeNull();
+        result.Status.Should().NotBe(TestStatus.Error);
+        result.CriticalErrors.Should().BeEmpty();
+        result.Message.Should().NotContain("Sequence contains no matching element");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithStdioTransport_ShouldSkipBatchProbeViolations()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.Is<string>(raw => raw.StartsWith("[{\"jsonrpc\"", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 500,
+                IsSuccess = false,
+                Error = "No batch response"
+            });
+
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "npx -y mcpval-localmcp",
+            Transport = "stdio"
+        };
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig());
+
+        result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
+        result.Findings.Should().Contain(f => f.RuleId == "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_With2025_06_18Protocol_ShouldSkipBatchProbeViolations()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.Is<string>(raw => raw.StartsWith("[{\"jsonrpc\"", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 500,
+                IsSuccess = false,
+                Error = "Expected StartObject token"
+            });
+
+        var validator = CreateValidator();
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "http://localhost:8080/mcp",
+            Transport = "http"
+        };
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig
+        {
+            ProtocolVersion = "2025-06-18"
+        });
+
+        result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
+        result.Findings.Should().Contain(f =>
+            f.RuleId == "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED" &&
+            f.Summary.Contains("active embedded schema context", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -180,6 +289,46 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateInitializationAsync_ShouldUseResolvedFeatureVersion()
+    {
+        object? initializePayload = null;
+
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, CancellationToken>((_, _, payload, _) => initializePayload = payload)
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"serverInfo\":{\"name\":\"fixture\",\"version\":\"1.0.0\"}},\"id\":\"init\"}"));
+
+        var protocolFeatureResolver = new Mock<IProtocolFeatureResolver>();
+        protocolFeatureResolver
+            .Setup(resolver => resolver.Resolve(It.IsAny<ValidationApplicabilityContext>()))
+            .Returns(new ProtocolFeatureSet
+            {
+                NegotiatedProtocolVersion = "2025-11-25",
+                SchemaVersion = "2025-11-25",
+                OptionalCapabilities = Array.Empty<string>()
+            });
+
+        var validator = new ProtocolComplianceValidator(
+            _loggerMock.Object,
+            _mcpHttpClientMock.Object,
+            _ruleRegistry,
+            _applicabilityResolver,
+            protocolFeatureResolver.Object);
+
+        await validator.ValidateInitializationAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http", ProtocolVersion = "2024-11-05" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2024-11-05" });
+
+        var version = initializePayload!.GetType().GetProperty("protocolVersion")?.GetValue(initializePayload) as string;
+        version.Should().Be("2025-11-25");
+        protocolFeatureResolver.Verify(resolver => resolver.Resolve(It.IsAny<ValidationApplicabilityContext>()), Times.Once);
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_WithDeclaredCapabilitiesWithoutMethods_ShouldEmitMismatchFindings()
     {
         _mcpHttpClientMock
@@ -208,7 +357,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
 
         var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
             new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
-            new ProtocolComplianceConfig());
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
 
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported);
@@ -259,7 +408,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
 
         var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
             new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
-            new ProtocolComplianceConfig());
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
 
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityRootsSupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported);
@@ -285,8 +434,154 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.MessageFormat.ErrorFormatValid.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithPlainText400ForUnknownMethod_ShouldFailErrorCodeCompliance()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests =
+                [
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Parse Error",
+                        ExpectedErrorCode = -32700,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32700},\"id\":null}")
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Request - Missing jsonrpc",
+                        ExpectedErrorCode = -32600,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600},\"id\":1}")
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Method Not Found",
+                        ExpectedErrorCode = -32601,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 400,
+                            IsSuccess = false,
+                            RawJson = "JSON RPC not handled: \"nonexistent_method\" unsupported"
+                        }
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Params",
+                        ExpectedErrorCode = -32602,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32602},\"id\":1}")
+                    }
+                ],
+                OverallScore = 75,
+                IsCompliant = false
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig());
+
+        result.JsonRpcCompliance.ErrorHandlingCompliant.Should().BeFalse();
+        result.Violations.Should().Contain(v => v.Description == "Error codes do not comply with JSON-RPC 2.0 standard error codes");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithPlainText500ForMalformedJson_ShouldFailRequestFormat()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests =
+                [
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Parse Error",
+                        ExpectedErrorCode = -32700,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            RawJson = "Internal server error while parsing request"
+                        }
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Request - Missing jsonrpc",
+                        ExpectedErrorCode = -32600,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600},\"id\":1}")
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Method Not Found",
+                        ExpectedErrorCode = -32601,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601},\"id\":1}")
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Params",
+                        ExpectedErrorCode = -32602,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32602},\"id\":1}")
+                    }
+                ],
+                OverallScore = 75,
+                IsCompliant = false
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig());
+
+        result.MessageFormat.RequestFormatValid.Should().BeFalse();
+        result.Violations.Should().Contain(v => v.Description == "Request format does not comply with JSON-RPC 2.0 specification");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ShouldUseDeclaredListMethodForBatchProbe()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"tools\":{}}},\"id\":\"init\"}"));
+
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.Is<string>(raw => raw.Contains("\"method\": \"tools/list\"", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "[{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[]},\"id\":1},{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[]},\"id\":2}]"
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
+
+        result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
+        _mcpHttpClientMock.Verify(client => client.SendRawJsonAsync(
+            It.IsAny<string>(),
+            It.Is<string>(raw => raw.Contains("\"method\": \"tools/list\"", StringComparison.Ordinal)),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<bool>()), Times.AtLeastOnce);
+    }
+
     private ProtocolComplianceValidator CreateValidator() =>
-        new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry);
+        new(_loggerMock.Object, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
 
     private void SetupHappyPathHttpClient()
     {
@@ -296,7 +591,37 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             {
                 IsCompliant = true,
                 OverallScore = 100,
-                Tests = [new JsonRpcErrorTest { Name = "method not found", IsValid = true }]
+                Tests =
+                [
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Parse Error",
+                        ExpectedErrorCode = -32700,
+                        IsValid = true,
+                        ActualResponse = CreateParseErrorResponse()
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Request - Missing jsonrpc",
+                        ExpectedErrorCode = -32600,
+                        IsValid = true,
+                        ActualResponse = CreateInvalidRequestResponse()
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Method Not Found",
+                        ExpectedErrorCode = -32601,
+                        IsValid = true,
+                        ActualResponse = CreateMethodNotFoundResponse()
+                    },
+                    new JsonRpcErrorTest
+                    {
+                        Name = "Invalid Params",
+                        ExpectedErrorCode = -32602,
+                        IsValid = true,
+                        ActualResponse = CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32602,\"message\":\"Invalid params\"},\"id\":1}")
+                    }
+                ]
             });
 
         _mcpHttpClientMock

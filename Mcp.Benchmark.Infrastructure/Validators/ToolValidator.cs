@@ -332,7 +332,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             // Parse tools from the first page, then continue through paginated discovery when the server exposes nextCursor.
             var toolsList = ParseTools(toolsListResponse.RawJson);
-            if (cachedToolsListResponse == null && snapshotTools == null)
+            if (snapshotTools == null)
             {
                 var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
                 toolsList = paginationFetch.Tools;
@@ -509,6 +509,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             DestructiveHint = tool.DestructiveHint,
             OpenWorldHint = tool.OpenWorldHint,
             IdempotentHint = tool.IdempotentHint,
+            AnthropicMaxResultSizeChars = tool.AnthropicMaxResultSizeChars,
             InputParameterNames = GetInputParameterNames(tool)
         };
 
@@ -650,7 +651,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     /// Validates the tools/call response body against MCP spec:
     /// - result.content MUST be an array of Content objects
     /// - Each Content MUST have a "type" field ("text", "image", "audio", "resource")
-    /// - result.isError SHOULD be present (boolean)
+    /// - result.isError MAY be omitted; omitted is equivalent to false per the MCP schema
     /// </summary>
     private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result)
     {
@@ -795,18 +796,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
-            if (!resultObj.TryGetProperty("isError", out _))
-            {
-                result.AddFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.ToolCallMissingIsError,
-                    Category = "ProtocolCompliance",
-                    Component = result.ToolName,
-                    Severity = ValidationFindingSeverity.Low,
-                    Summary = "tools/call result.isError field not present",
-                    Recommendation = "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
-                }, "ℹ️ MCP Note: result.isError field not present (SHOULD be included per spec)");
-            }
         }
         catch (Exception ex)
         {
@@ -979,6 +968,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                                 info.OpenWorldHint = openWorld.GetBoolean();
                             if (annotations.TryGetProperty("idempotentHint", out var idempotent))
                                 info.IdempotentHint = idempotent.GetBoolean();
+                        }
+
+                        if (tool.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
+                        {
+                            if (metadata.TryGetProperty("anthropic/maxResultSizeChars", out var maxResultSizeChars)
+                                && maxResultSizeChars.ValueKind == JsonValueKind.Number
+                                && maxResultSizeChars.TryGetInt64(out var overrideChars))
+                            {
+                                info.AnthropicMaxResultSizeChars = overrideChars;
+                            }
                         }
                         
                         tools.Add(info);
@@ -1157,6 +1156,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public bool? DestructiveHint { get; set; }
         public bool? OpenWorldHint { get; set; }
         public bool? IdempotentHint { get; set; }
+        public long? AnthropicMaxResultSizeChars { get; set; }
     }
 
     private static void ApplyGuidelineFindings(ToolTestResult aggregateResult, ToolInfo tool, IndividualToolResult toolResult)
@@ -1400,38 +1400,28 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     private static JsonRpcResponse? CreateResponseFromSnapshot(TransportResult<CapabilitySummary>? snapshot)
     {
-        if (snapshot == null)
+        if (snapshot?.Payload == null)
         {
             return null;
         }
 
-        var cached = CapabilitySnapshotUtils.CloneResponse(snapshot.Payload?.ToolListResponse);
-        if (cached != null)
-        {
-            return cached;
-        }
-
-        var headers = new Dictionary<string, string>();
-        foreach (var header in snapshot.Transport.Headers)
-        {
-            headers[header.Key] = header.Value;
-        }
-
-        var status = snapshot.Transport.StatusCode ?? (snapshot.IsSuccessful ? 200 : -1);
-
-        return new JsonRpcResponse
-        {
-            StatusCode = status,
-            IsSuccess = snapshot.IsSuccessful,
-            RawJson = snapshot.Transport.RawContent,
-            Error = snapshot.Error,
-            Headers = headers
-        };
+        return CapabilitySnapshotUtils.CloneResponse(snapshot.Payload.ToolListResponse);
     }
 
-    private static List<ToolInfo>? BuildToolListFromSnapshot(CapabilitySummary? summary)
+    private List<ToolInfo>? BuildToolListFromSnapshot(CapabilitySummary? summary)
     {
-        if (summary?.Tools == null || summary.Tools.Count == 0)
+        if (summary == null)
+        {
+            return null;
+        }
+
+        var parsedTools = ParseTools(summary.ToolListResponse?.RawJson);
+        if (parsedTools.Count > 0)
+        {
+            return parsedTools;
+        }
+
+        if (summary.Tools == null || summary.Tools.Count == 0)
         {
             return null;
         }

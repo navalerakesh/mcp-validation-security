@@ -11,12 +11,17 @@ type ValidateInput = z.infer<typeof import("./tools.js").ValidateInputSchema>;
 type HealthCheckInput = z.infer<typeof import("./tools.js").HealthCheckInputSchema>;
 type DiscoverInput = z.infer<typeof import("./tools.js").DiscoverInputSchema>;
 
+export interface ToolExecutionResult {
+  text: string;
+  isError: boolean;
+}
+
 /**
  * Handles the `validate` tool call.
  */
-export async function handleValidate(input: ValidateInput): Promise<string> {
+export async function handleValidate(input: ValidateInput): Promise<ToolExecutionResult> {
   const available = await isCliAvailable();
-  if (!available) return cliNotInstalledMessage();
+  if (!available) return { text: cliNotInstalledMessage(), isError: true };
 
   const args: string[] = [];
   if (input.policy) args.push("--policy", input.policy);
@@ -38,18 +43,24 @@ export async function handleValidate(input: ValidateInput): Promise<string> {
   });
 
   if (result.resultJson) {
-    return cleanOutput(formatValidationResult(result.resultJson));
+    return {
+      text: cleanOutput(formatValidationResult(result.resultJson)),
+      isError: false,
+    };
   }
 
-  return cleanOutput(result.stdout || result.stderr || "Validation completed with no output.");
+  return {
+    text: cleanOutput(result.stdout || result.stderr || "Validation completed with no output."),
+    isError: result.exitCode !== 0,
+  };
 }
 
 /**
  * Handles the `health_check` tool call.
  */
-export async function handleHealthCheck(input: HealthCheckInput): Promise<string> {
+export async function handleHealthCheck(input: HealthCheckInput): Promise<ToolExecutionResult> {
   const available = await isCliAvailable();
-  if (!available) return cliNotInstalledMessage();
+  if (!available) return { text: cliNotInstalledMessage(), isError: true };
 
   const args: string[] = [];
   if (input.interactive) args.push("--interactive");
@@ -59,15 +70,19 @@ export async function handleHealthCheck(input: HealthCheckInput): Promise<string
     args,
     configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
   });
-  return cleanOutput(result.stdout || result.stderr || "Health check completed.");
+
+  return {
+    text: cleanOutput(result.stdout || result.stderr || "Health check completed."),
+    isError: result.exitCode !== 0,
+  };
 }
 
 /**
  * Handles the `discover` tool call.
  */
-export async function handleDiscover(input: DiscoverInput): Promise<string> {
+export async function handleDiscover(input: DiscoverInput): Promise<ToolExecutionResult> {
   const available = await isCliAvailable();
-  if (!available) return cliNotInstalledMessage();
+  if (!available) return { text: cliNotInstalledMessage(), isError: true };
 
   const args = ["--format", input.format];
   if (input.interactive) args.push("--interactive");
@@ -77,7 +92,11 @@ export async function handleDiscover(input: DiscoverInput): Promise<string> {
     args,
     configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
   });
-  return cleanOutput(result.stdout || result.stderr || "Discovery completed.");
+
+  return {
+    text: cleanOutput(result.stdout || result.stderr || "Discovery completed."),
+    isError: result.exitCode !== 0,
+  };
 }
 
 // ─── Output Handling ─────────────────────────────────────────

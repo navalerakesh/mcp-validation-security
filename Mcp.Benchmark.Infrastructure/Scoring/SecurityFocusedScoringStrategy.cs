@@ -17,17 +17,17 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
     {
         new(
             "Protocol",
-            0.35,
+            ScoringConstants.WeightProtocol,
             r => r.ProtocolCompliance?.ComplianceScore ?? 0,
             r => r.ProtocolCompliance?.Status),
         new(
             "Security",
-            0.45,
+            ScoringConstants.WeightSecurity,
             r => r.SecurityTesting?.SecurityScore ?? 0,
             r => r.SecurityTesting?.Status),
         new(
             "Tools",
-            0.10,
+            ScoringConstants.WeightTools,
             r =>
             {
                 if (r.ToolValidation == null)
@@ -45,7 +45,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             r => r.ToolValidation?.Status),
         new(
             "Resources",
-            0.05,
+            ScoringConstants.WeightResources,
             r =>
             {
                 if (r.ResourceTesting == null)
@@ -63,7 +63,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             r => r.ResourceTesting?.Status),
         new(
             "Prompts",
-            0.05,
+            ScoringConstants.WeightPrompts,
             r =>
             {
                 if (r.PromptTesting == null)
@@ -79,6 +79,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 return r.PromptTesting.Status == TestStatus.Passed ? 100.0 : 0.0;
             },
             r => r.PromptTesting?.Status),
+        new(
+            "ErrorHandling",
+            ScoringConstants.WeightErrorHandling,
+            r => r.ErrorHandling?.Score ?? 0,
+            r => r.ErrorHandling?.Status),
         // Performance is INFORMATIONAL — does not impact compliance score.
         // A slow server is not a non-compliant server. Correctness > speed.
         // Performance data is still collected and reported in the Trust Assessment.
@@ -319,6 +324,9 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 break;
             case "Prompts":
                 notes.Add("Prompts validation skipped (Auth required). Score coverage reduced accordingly.");
+                break;
+            case "ErrorHandling":
+                notes.Add("Error-handling validation skipped. Score coverage reduced accordingly.");
                 break;
             case "Performance":
                 notes.Add("Performance testing skipped (Auth required). Score coverage reduced accordingly.");

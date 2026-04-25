@@ -8,6 +8,7 @@ namespace Mcp.Benchmark.Tests.Unit;
 /// Unit tests for the ConsoleOutputService.
 /// Tests professional console output formatting, color handling, and result display.
 /// </summary>
+[Collection("Console output")]
 public class ConsoleOutputServiceUnitTests : IDisposable
 {
     private readonly ConsoleOutputService _outputService;

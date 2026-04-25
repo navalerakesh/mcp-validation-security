@@ -18,17 +18,17 @@ public sealed class FileSessionArtifactStore : ISessionArtifactStore
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private readonly string _stateDirectory;
+    private readonly Func<string?> _stateDirectoryProvider;
     private readonly ILogger<FileSessionArtifactStore> _logger;
 
     public FileSessionArtifactStore(string stateDirectory, ILogger<FileSessionArtifactStore> logger)
+        : this(() => stateDirectory, logger)
     {
-        if (string.IsNullOrWhiteSpace(stateDirectory))
-        {
-            throw new ArgumentException("State directory must be provided", nameof(stateDirectory));
-        }
+    }
 
-        _stateDirectory = stateDirectory;
+    public FileSessionArtifactStore(Func<string?> stateDirectoryProvider, ILogger<FileSessionArtifactStore> logger)
+    {
+        _stateDirectoryProvider = stateDirectoryProvider ?? throw new ArgumentNullException(nameof(stateDirectoryProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -36,9 +36,15 @@ public sealed class FileSessionArtifactStore : ISessionArtifactStore
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        Directory.CreateDirectory(_stateDirectory);
+        var stateDirectory = _stateDirectoryProvider();
+        if (string.IsNullOrWhiteSpace(stateDirectory))
+        {
+            throw new InvalidOperationException("Session artifact persistence is disabled for this run.");
+        }
+
+        Directory.CreateDirectory(stateDirectory);
         var fileName = $"{Sanitize(artifactName)}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}.json";
-        var path = Path.Combine(_stateDirectory, fileName);
+        var path = Path.Combine(stateDirectory, fileName);
 
         var json = JsonSerializer.Serialize(payload, JsonOptions);
         File.WriteAllText(path, json, Encoding.UTF8);

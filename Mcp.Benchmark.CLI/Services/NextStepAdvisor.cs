@@ -66,6 +66,11 @@ internal sealed class NextStepAdvisor : INextStepAdvisor
             return;
         }
 
+        if (!_sessionContext.CanPersistLogs)
+        {
+            return;
+        }
+
         var title = string.IsNullOrWhiteSpace(context)
             ? "Review session log"
             : context.Trim();

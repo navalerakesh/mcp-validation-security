@@ -40,6 +40,16 @@ public interface IMcpHttpClient
     Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Forces a client-observed timeout during an MCP request and verifies the endpoint remains responsive afterwards.
+    /// </summary>
+    Task<TransportResilienceProbeResult> ProbeTimeoutRecoveryAsync(string endpoint, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Forces a transport interruption during an MCP request and verifies the endpoint remains responsive afterwards.
+    /// </summary>
+    Task<TransportResilienceProbeResult> ProbeConnectionInterruptionRecoveryAsync(string endpoint, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Tests the MCP initialize handshake.
     /// </summary>
     Task<TransportResult<InitializeResult>> ValidateInitializeAsync(string endpoint, CancellationToken cancellationToken = default);
@@ -72,6 +82,11 @@ public interface IMcpHttpClient
     /// </summary>
     /// <param name="protocolVersion">The protocol version string to advertise, or null to clear.</param>
     void SetProtocolVersion(string? protocolVersion);
+
+    /// <summary>
+    /// Applies execution governance constraints for the current run.
+    /// </summary>
+    void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy);
 
     /// <summary>
     /// Performs a GET request to the specified URL and returns the response body as a string.

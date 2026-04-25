@@ -1,14 +1,27 @@
 using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
-public class CaseSensitivityRule : IValidationRule<ProtocolValidationContext>
+public sealed class CaseSensitivityRule : IVersionedValidationRule<ProtocolValidationContext>
 {
     public string Id => "PROTOCOL-008";
     public string Description => "Case Sensitivity";
-    public string SpecVersion => "2024-11-25";
+    public string SpecVersion => SchemaRegistryProtocolVersions.GetLatestVersion().Value;
+
+    public ValidationRuleDescriptor Descriptor => new()
+    {
+        RuleId = Id,
+        Source = ValidationRuleSource.Spec,
+        SpecReference = "https://www.jsonrpc.org/specification"
+    };
+
+    public ValidationApplicability Applicability => new()
+    {
+        Transports = new[] { "http", "https", "stdio", "websocket" }
+    };
 
     public async Task<RuleResult> EvaluateAsync(ProtocolValidationContext context, CancellationToken cancellationToken)
     {

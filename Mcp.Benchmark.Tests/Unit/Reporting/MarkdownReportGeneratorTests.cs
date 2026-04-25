@@ -41,9 +41,9 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("MCP Trust Level");
+        report.Should().Contain("Benchmark Trust Level");
         report.Should().Contain("L4");
-        report.Should().Contain("MCP Trust Assessment");
+        report.Should().Contain("Benchmark Trust Profile");
         report.Should().Contain("Protocol Compliance");
         report.Should().Contain("AI Safety");
     }
@@ -379,10 +379,60 @@ public class MarkdownReportGeneratorTests
         var report = _generator.GenerateReport(result);
 
         report.Should().Contain("Priority Findings");
-        report.Should().Contain("Top-level transport issue detected.");
-        report.Should().Contain("MCP.TEST.FAILURE: Protocol contract failed.");
+        report.Should().Contain("[Spec] 1 protocol violation(s), led by MCP.TEST.FAILURE: Protocol contract failed.");
+        report.Should().Contain("[Operational] 1 critical execution error(s), led by: Top-level transport issue detected.");
         report.Should().NotContain("## 6. Security Assessment");
         report.Should().NotContain("## 7. Tool Validation");
+    }
+
+    [Fact]
+    public void GenerateReport_ShouldSeparateSpecSkipAndHeuristicPriorityFindings()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Status = TestStatus.Failed,
+            ComplianceScore = 50,
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.TEST.FAILURE",
+                    Description = "Protocol contract failed.",
+                    Severity = ViolationSeverity.High,
+                    Category = "Protocol"
+                }
+            }
+        };
+        result.ToolValidation = new ToolTestResult
+        {
+            Status = TestStatus.Passed,
+            Score = 100,
+            AiReadinessFindings = new List<ValidationFinding>
+            {
+                new()
+                {
+                    RuleId = ValidationFindingRuleIds.AiReadinessVagueStringSchema,
+                    Category = "AiReadiness",
+                    Component = "search_docs",
+                    Severity = ValidationFindingSeverity.Medium,
+                    Summary = "Tool 'search_docs' exposes a vague freeform parameter."
+                }
+            }
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol-core",
+            Scope = "batch-processing",
+            Status = ValidationCoverageStatus.Skipped,
+            Reason = "Batch envelopes are not advertised for this schema profile."
+        });
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("[Spec] 1 protocol violation(s), led by MCP.TEST.FAILURE: Protocol contract failed.");
+        report.Should().Contain("[Guideline/Skip] 1 scope(s) skipped by validator design, led by batch-processing: Batch envelopes are not advertised for this schema profile.");
+        report.Should().Contain("[Heuristic] 1 AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
     }
 
     [Fact]

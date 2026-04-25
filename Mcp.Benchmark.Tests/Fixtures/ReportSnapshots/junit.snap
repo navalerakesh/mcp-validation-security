@@ -13,6 +13,10 @@
 Summary: total=7, passed=4, failed=2, skipped=1
 Endpoint: https://snapshot.example.test/mcp
 Transport: http
+Baseline Verdict: Reject
+Protocol Verdict: Reject
+Coverage Verdict: ReviewRequired
+Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
 Critical Error: Prompt validation hit an unsafe reflection path.
 Recommendation: Add destructive hints to write-capable tools.
 Recommendation: Return the negotiated protocol version explicitly during initialize.</failure>
@@ -20,6 +24,10 @@ Recommendation: Return the negotiated protocol version explicitly during initial
 Summary: total=7, passed=4, failed=2, skipped=1
 Endpoint: https://snapshot.example.test/mcp
 Transport: http
+Baseline Verdict: Reject
+Protocol Verdict: Reject
+Coverage Verdict: ReviewRequired
+Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
 Critical Error: Prompt validation hit an unsafe reflection path.
 Recommendation: Add destructive hints to write-capable tools.
 Recommendation: Return the negotiated protocol version explicitly during initialize.</system-out>
@@ -35,16 +43,30 @@ Recommendation: Return the negotiated protocol version explicitly during initial
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="validation.policy" name="Policy Gate (strict)" time="12.000">
-      <failure message="Strict policy blocked the validation result with 2 unsuppressed signal(s).">Strict policy blocked the validation result with 2 unsuppressed signal(s).
+      <failure message="Strict policy blocked the validation result with 9 unsuppressed signal(s).">Strict policy blocked the validation result with 9 unsuppressed signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
-Reason: Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.</failure>
-      <system-out>Strict policy blocked the validation result with 2 unsuppressed signal(s).
+Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server reflected untrusted prompt content without sanitization.
+Reason: Prompt output includes reflected untrusted content.
+Reason: Server ignored the requested MCP protocol version.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Reason: Tool 'delete_repo' has parameters without descriptions.
+Reason: One tool response omitted the outer result object.
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</failure>
+      <system-out>Strict policy blocked the validation result with 9 unsuppressed signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
-Reason: Trust level L3_Acceptable is below the strict minimum of L4_Trusted.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.</system-out>
+Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server reflected untrusted prompt content without sanitization.
+Reason: Prompt output includes reflected untrusted content.
+Reason: Server ignored the requested MCP protocol version.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Reason: Tool 'delete_repo' has parameters without descriptions.
+Reason: One tool response omitted the outer result object.
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">
@@ -170,9 +192,12 @@ Error Rate: 0.00</system-out>
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="validation.error.handling" name="Error Handling" time="0.700">
-      <system-out>Message: Error scenarios were handled cleanly.
+      <system-out>Message: Validated 3 error scenario(s); 3 handled correctly.
 Error Scenarios Tested: 3
-Error Scenarios Handled Correctly: 3</system-out>
+Error Scenarios Handled Correctly: 3
+Scenario Invalid Method Call: Handled correctly
+Scenario Malformed JSON Payload: Handled correctly
+Scenario Graceful Degradation On Invalid Request: Handled correctly</system-out>
     </testcase>
   </testsuite>
 </testsuites>

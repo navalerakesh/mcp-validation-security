@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Models;
@@ -216,9 +217,21 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Connectivity & Session Bootstrap");
+        html.Should().Contain("Connectivity &amp; Session Bootstrap");
         html.Should().Contain("Protected endpoint");
         html.Should().Contain("Deferred Validation");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_ShouldRenderSectionCardsCollapsedByDefaultWithVisibleToggleAffordance()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(0);
+        html.Should().Contain("section-card__toggle-label section-card__toggle-label--collapsed\">Expand details</span>");
+        html.Should().Contain("section-card__toggle-label section-card__toggle-label--expanded\">Collapse details</span>");
     }
 
     [Fact]

@@ -78,6 +78,17 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
 | `--client-profile <id>` | Narrows host-specific compatibility interpretation to profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. When omitted, `validate` evaluates every documented host profile by default. |
+| <code>--mode &lt;safe&#124;standard&#124;elevated&gt;</code> | Applies the execution contract for the run. `safe` is the default. |
+| `--dry-run` | Prints the execution plan and exits without contacting the target. |
+| `--allow-host <host>` | Restricts outbound requests to specific hosts. Repeat to permit more than one host. |
+| `--allow-private-addresses` | Opts into loopback or private-address targets. |
+| `--max-requests <n>` | Caps the total outbound request budget for the run. |
+| `--timeout <seconds>` | Sets the per-request timeout budget used by the CLI transport layer. |
+| <code>--persistence-mode &lt;ephemeral&#124;explicit-output&#124;session&gt;</code> | Controls whether operational artifacts stay ephemeral, go only to the explicit output directory, or are persisted under a session directory. |
+| <code>--redact-level &lt;strict&#124;standard&gt;</code> | Controls operational redaction for logs and companion artifacts. |
+| <code>--trace &lt;off&#124;redacted&#124;full&gt;</code> | Declares the trace capture mode for the run. |
+| `--confirm-elevated-risk` | Required acknowledgement for `--mode elevated`. |
+| `--enable-model-eval` | Emits a separate advisory model-evaluation companion artifact when an explicit supported provider is configured. |
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
 | `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. Remote functional probes may still self-calibrate below this cap so transient throttling does not become a false protocol or tool failure. |
@@ -93,13 +104,16 @@ The standard artifact set is:
 - `mcp-validation-<timestamp>-report.html` - full HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable validation object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF findings feed for CI and code scanning
+- `mcp-validation-<timestamp>-audit.json` - execution audit manifest for the run
 
 When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
+When experimental model evaluation is enabled, `validate` writes `mcp-validation-<timestamp>-model-evaluation.json` as a separate companion artifact. The canonical `*-result.json` file remains deterministic and does not embed experimental model output. `--enable-model-eval` now fails fast when no provider is configured; this build currently includes the deterministic companion provider `builtin-rubric`.
+
 ### Other Commands
 
-- `mcpval health-check` - fast connectivity and initialization probe with auth hints
-- `mcpval discover` - capability snapshot for remote endpoints in JSON, YAML, or table form
+- `mcpval health-check` - fast connectivity and initialization probe with auth hints; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
+- `mcpval discover` - capability snapshot for remote endpoints in JSON, YAML, or table form; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
 - `mcpval report` - offline rendering from a saved result into `html`, `xml`, `sarif`, or `junit`
 - `mcpval --list-spec-profiles` - list embedded protocol profiles supported by the current build
 

@@ -228,3 +228,20 @@ public interface IPerformanceValidator
     /// <returns>Resource exhaustion test results.</returns>
     Task<PerformanceTestResult> TestResourceExhaustionAsync(McpServerConfig serverConfig, IEnumerable<string> resourceTypes, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Defines the contract for protocol error-handling and resilience testing.
+/// Validates that the server returns structured JSON-RPC errors for invalid inputs
+/// and reports which configured recovery probes are not yet executable.
+/// </summary>
+public interface IErrorHandlingValidator
+{
+    /// <summary>
+    /// Validates the server's handling of malformed requests and error scenarios.
+    /// </summary>
+    /// <param name="serverConfig">The server configuration for connection details.</param>
+    /// <param name="config">The error-handling configuration.</param>
+    /// <param name="cancellationToken">Cancellation token to stop the validation process.</param>
+    /// <returns>Error-handling validation results.</returns>
+    Task<ErrorHandlingTestResult> ValidateErrorHandlingAsync(McpServerConfig serverConfig, ErrorHandlingConfig config, CancellationToken cancellationToken = default);
+}

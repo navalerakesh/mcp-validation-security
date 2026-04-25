@@ -60,6 +60,36 @@ public class McpTrustCalculatorTests
     }
 
     [Fact]
+    public void Calculate_WithErrorHandlingFindings_ShouldFailStandardErrorCodesMustCheck()
+    {
+        var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 2, toolsDiscovered: 2);
+        result.ErrorHandling = new ErrorHandlingTestResult
+        {
+            Status = TestStatus.Failed,
+            Findings = new List<ValidationFinding>
+            {
+                new ValidationFinding
+                {
+                    RuleId = "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+                    Category = "Protocol",
+                    Component = "malformed-json",
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = "Malformed JSON did not return -32700."
+                }
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.TierChecks.Should().Contain(check =>
+            check.Requirement == McpComplianceTiers.Must.StandardErrorCodes &&
+            !check.Passed &&
+            check.Detail != null &&
+            check.Detail.Contains("malformed-json", StringComparison.Ordinal));
+        trust.MustFailCount.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
     public void Calculate_WithGenericLifecycleDescriptionOnly_ShouldNotTreatProseAsStructuredMustFailure()
     {
         var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 2, toolsDiscovered: 2);

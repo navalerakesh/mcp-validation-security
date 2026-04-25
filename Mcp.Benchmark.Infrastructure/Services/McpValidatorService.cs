@@ -6,6 +6,8 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Infrastructure.Registries;
+using Mcp.Benchmark.Infrastructure.Scenarios;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -21,9 +23,14 @@ public class McpValidatorService : IMcpValidatorService
     private readonly IPromptValidator _promptValidator;
     private readonly ISecurityValidator _securityValidator;
     private readonly IPerformanceValidator _performanceValidator;
+    private readonly IErrorHandlingValidator _errorHandlingValidator;
     private readonly IMcpHttpClient _httpClient;
     private readonly IAggregateScoringStrategy _scoringStrategy;
     private readonly IValidationSessionBuilder _sessionBuilder;
+    private readonly IValidationApplicabilityResolver _applicabilityResolver;
+    private readonly IValidationPackRegistry<IProtocolFeaturePack> _protocolFeaturePackRegistry;
+    private readonly IValidationPackRegistry<IValidationScenarioPack> _scenarioPackRegistry;
+    private readonly IProtocolRuleRegistry _protocolRuleRegistry;
     private readonly IHealthCheckService _healthCheckService;
     private readonly ITelemetryService _telemetryService;
     private readonly ILogger<McpValidatorService> _logger;
@@ -38,7 +45,12 @@ public class McpValidatorService : IMcpValidatorService
         IPromptValidator promptValidator,
         ISecurityValidator securityValidator,
         IPerformanceValidator performanceValidator,
+        IErrorHandlingValidator errorHandlingValidator,
         IValidationSessionBuilder sessionBuilder,
+        IValidationApplicabilityResolver applicabilityResolver,
+        IValidationPackRegistry<IProtocolFeaturePack> protocolFeaturePackRegistry,
+        IValidationPackRegistry<IValidationScenarioPack> scenarioPackRegistry,
+        IProtocolRuleRegistry protocolRuleRegistry,
         IMcpHttpClient httpClient,
         IAggregateScoringStrategy scoringStrategy,
         IHealthCheckService healthCheckService,
@@ -51,7 +63,12 @@ public class McpValidatorService : IMcpValidatorService
         _promptValidator = promptValidator ?? throw new ArgumentNullException(nameof(promptValidator));
         _securityValidator = securityValidator ?? throw new ArgumentNullException(nameof(securityValidator));
         _performanceValidator = performanceValidator ?? throw new ArgumentNullException(nameof(performanceValidator));
+        _errorHandlingValidator = errorHandlingValidator ?? throw new ArgumentNullException(nameof(errorHandlingValidator));
         _sessionBuilder = sessionBuilder ?? throw new ArgumentNullException(nameof(sessionBuilder));
+        _applicabilityResolver = applicabilityResolver ?? throw new ArgumentNullException(nameof(applicabilityResolver));
+        _protocolFeaturePackRegistry = protocolFeaturePackRegistry ?? throw new ArgumentNullException(nameof(protocolFeaturePackRegistry));
+        _scenarioPackRegistry = scenarioPackRegistry ?? throw new ArgumentNullException(nameof(scenarioPackRegistry));
+        _protocolRuleRegistry = protocolRuleRegistry ?? throw new ArgumentNullException(nameof(protocolRuleRegistry));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _scoringStrategy = scoringStrategy ?? throw new ArgumentNullException(nameof(scoringStrategy));
         _healthCheckService = healthCheckService ?? throw new ArgumentNullException(nameof(healthCheckService));
@@ -125,6 +142,13 @@ public class McpValidatorService : IMcpValidatorService
             result.CapabilitySnapshot = session.CapabilitySnapshot;
             PropagateCapabilitySnapshot(configuration, session.CapabilitySnapshot);
         }
+
+        var selectedClientProfiles = configuration.ClientProfiles?.Profiles?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray()
+            ?? Array.Empty<string>();
+        var applicabilityContext = _applicabilityResolver.Build(session, configuration, selectedClientProfiles);
+        result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
+        result.Run.ApplicabilityContext = applicabilityContext;
+        PopulateAppliedPacks(result, applicabilityContext);
 
         configuration.Validation ??= new ValidationConfig();
         configuration.Validation.Categories ??= new ValidationScenarios();
@@ -276,6 +300,28 @@ public class McpValidatorService : IMcpValidatorService
             // Wait for all validation tasks to complete
             await Task.WhenAll(validationTasks);
 
+            if (IsErrorHandlingEnabled(categories.ErrorHandling))
+            {
+                try
+                {
+                    result.ErrorHandling = await _errorHandlingValidator.ValidateErrorHandlingAsync(
+                        configuration.Server,
+                        categories.ErrorHandling,
+                        cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error-handling validation failed");
+                    result.CriticalErrors.Add($"Error-handling validation error: {ex.Message}");
+                    result.ErrorHandling = new ErrorHandlingTestResult
+                    {
+                        Status = TestStatus.Failed,
+                        Score = 0,
+                        Message = ex.Message
+                    };
+                }
+            }
+
             // Performance testing runs after functional validation so load generation
             // cannot cause false negatives in protocol, auth, or capability checks.
             if (categories.PerformanceTesting.TestConcurrentRequests)
@@ -300,12 +346,19 @@ public class McpValidatorService : IMcpValidatorService
             }
 
             PopulateProtocolDetails(result);
+            PopulateAssessmentLayers(result);
+            PopulateCoverage(result, categories);
+            await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, cancellationToken);
 
             // Calculate overall results
             CalculateOverallResults(result);
 
             // Calculate MCP Trust Assessment (multi-dimensional AI safety evaluation)
             result.TrustAssessment = Scoring.McpTrustCalculator.Calculate(result);
+            result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+            result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)
+                ? ValidationStatus.Passed
+                : ValidationStatus.Failed;
 
             result.EndTime = DateTime.UtcNow;
             _logger.LogInformation("Validation completed with status: {Status}, Score: {Score:F1}%",
@@ -360,6 +413,214 @@ public class McpValidatorService : IMcpValidatorService
         {
             categories.PromptTesting.CapabilitySnapshot = snapshot;
         }
+    }
+
+    private void PopulateAppliedPacks(ValidationResult result, ValidationApplicabilityContext applicabilityContext)
+    {
+        AddAppliedPacks(
+            result.Evidence.AppliedPacks,
+            _protocolFeaturePackRegistry.Resolve(applicabilityContext)
+                .Select(pack => pack.Descriptor));
+
+        AddAppliedPacks(
+            result.Evidence.AppliedPacks,
+            _scenarioPackRegistry.Resolve(applicabilityContext)
+                .Select(pack => pack.Descriptor));
+
+        AddAppliedPacks(
+            result.Evidence.AppliedPacks,
+            _protocolRuleRegistry.GetPacks()
+                .Where(pack => ValidationPackApplicabilityMatcher.Matches(pack.Applicability, applicabilityContext))
+                .Select(pack => pack.Descriptor));
+    }
+
+    private static void AddAppliedPacks(ICollection<ValidationPackDescriptor> target, IEnumerable<ValidationPackDescriptor> descriptors)
+    {
+        foreach (var descriptor in descriptors)
+        {
+            if (target.Any(existing => existing.Key.Equals(descriptor.Key) && existing.Revision.Equals(descriptor.Revision)))
+            {
+                continue;
+            }
+
+            target.Add(descriptor);
+        }
+    }
+
+    private static void PopulateAssessmentLayers(ValidationResult result)
+    {
+        result.Assessments.Layers.Clear();
+
+        AddLayer(result.Assessments.Layers, "protocol-core", "Protocol Compliance", result.ProtocolCompliance);
+        AddLayer(result.Assessments.Layers, "tool-surface", "Tool Validation", result.ToolValidation);
+        AddLayer(result.Assessments.Layers, "resource-surface", "Resource Validation", result.ResourceTesting);
+        AddLayer(result.Assessments.Layers, "prompt-surface", "Prompt Validation", result.PromptTesting);
+        AddLayer(result.Assessments.Layers, "security-boundaries", "Security Assessment", result.SecurityTesting);
+        AddLayer(result.Assessments.Layers, "performance", "Performance Testing", result.PerformanceTesting);
+        AddLayer(result.Assessments.Layers, "error-handling", "Error Handling", result.ErrorHandling);
+    }
+
+    private static void AddLayer(ICollection<ValidationLayerResult> layers, string layerId, string displayName, TestResultBase? testResult)
+    {
+        if (testResult == null)
+        {
+            return;
+        }
+
+        layers.Add(new ValidationLayerResult
+        {
+            LayerId = layerId,
+            DisplayName = displayName,
+            Status = testResult.Status,
+            Summary = testResult.Message,
+            Findings = testResult.Findings.ToList()
+        });
+    }
+
+    private static void PopulateCoverage(ValidationResult result, ValidationScenarios categories)
+    {
+        result.Evidence.Coverage.Clear();
+
+        AddCoverage(result.Evidence.Coverage, "protocol-core", "json-rpc", categories.ProtocolCompliance.TestJsonRpcCompliance, result.ProtocolCompliance);
+        AddCoverage(result.Evidence.Coverage, "tool-surface", "tools/list", categories.ToolTesting.TestToolDiscovery, result.ToolValidation);
+        AddCoverage(result.Evidence.Coverage, "resource-surface", "resources/list", categories.ResourceTesting.TestResourceDiscovery, result.ResourceTesting);
+        AddCoverage(result.Evidence.Coverage, "prompt-surface", "prompts/list", categories.PromptTesting.TestPromptDiscovery, result.PromptTesting);
+        AddCoverage(result.Evidence.Coverage, "security-boundaries", "security-assessment", categories.SecurityTesting.TestInputValidation, result.SecurityTesting);
+        AddCoverage(result.Evidence.Coverage, "performance", "load-testing", categories.PerformanceTesting.TestConcurrentRequests, result.PerformanceTesting);
+        AddCoverage(result.Evidence.Coverage, "error-handling", "error-handling", IsErrorHandlingEnabled(categories.ErrorHandling), result.ErrorHandling);
+    }
+
+    private static void AddCoverage(
+        ICollection<ValidationCoverageDeclaration> coverage,
+        string layerId,
+        string scope,
+        bool enabled,
+        TestResultBase? testResult)
+    {
+        if (!enabled)
+        {
+            coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = layerId,
+                Scope = scope,
+                Status = ValidationCoverageStatus.Skipped,
+                Reason = "Validation category disabled by configuration."
+            });
+            return;
+        }
+
+        if (testResult == null)
+        {
+            coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = layerId,
+                Scope = scope,
+                Status = ValidationCoverageStatus.Unavailable,
+                Reason = "Validation category did not produce a result."
+            });
+            return;
+        }
+
+        coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = layerId,
+            Scope = scope,
+            Status = MapCoverageStatus(testResult.Status),
+            Reason = testResult.Status is TestStatus.Passed or TestStatus.Failed ? null : testResult.Message
+        });
+    }
+
+    private async Task ExecuteScenarioPacksAsync(
+        ValidationResult result,
+        ValidationApplicabilityContext applicabilityContext,
+        McpValidatorConfiguration configuration,
+        CancellationToken cancellationToken)
+    {
+        result.Assessments.Scenarios.Clear();
+        result.Evidence.Observations.Clear();
+
+        var scenarioContext = new ValidationScenarioContext
+        {
+            ServerConfig = result.ServerConfig,
+            ApplicabilityContext = applicabilityContext,
+            ValidationConfiguration = configuration,
+            ValidationResult = result
+        };
+
+        foreach (var pack in _scenarioPackRegistry.Resolve(applicabilityContext))
+        {
+            foreach (var scenario in pack.GetScenarios())
+            {
+                var execution = await scenario.ExecuteAsync(scenarioContext, cancellationToken);
+                result.Assessments.Scenarios.Add(execution.Scenario);
+                AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
+                AddObservations(result.Evidence.Observations, execution.Observations);
+            }
+        }
+    }
+
+    private static void AddCoverageDeclarations(
+        ICollection<ValidationCoverageDeclaration> target,
+        IEnumerable<ValidationCoverageDeclaration> declarations)
+    {
+        foreach (var declaration in declarations)
+        {
+            if (target.Any(existing =>
+                string.Equals(existing.LayerId, declaration.LayerId, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(existing.Scope, declaration.Scope, StringComparison.OrdinalIgnoreCase)))
+            {
+                continue;
+            }
+
+            target.Add(declaration);
+        }
+    }
+
+    private static void AddObservations(
+        ICollection<ValidationObservation> target,
+        IEnumerable<ValidationObservation> observations)
+    {
+        foreach (var observation in observations)
+        {
+            var effectiveId = observation.Id;
+            var suffix = 2;
+            while (target.Any(existing => string.Equals(existing.Id, effectiveId, StringComparison.Ordinal)))
+            {
+                effectiveId = $"{observation.Id}-{suffix++}";
+            }
+
+            target.Add(new ValidationObservation
+            {
+                Id = effectiveId,
+                LayerId = observation.LayerId,
+                Component = observation.Component,
+                ObservationKind = observation.ObservationKind,
+                ScenarioId = observation.ScenarioId,
+                RedactedPayloadPreview = observation.RedactedPayloadPreview,
+                Metadata = observation.Metadata
+            });
+        }
+    }
+
+    private static bool IsErrorHandlingEnabled(ErrorHandlingConfig config)
+    {
+        return config.TestInvalidMethods ||
+            config.TestMalformedJson ||
+            config.TestConnectionInterruption ||
+            config.TestTimeoutHandling ||
+            config.TestGracefulDegradation ||
+            config.CustomErrorScenarios.Count > 0;
+    }
+
+    private static ValidationCoverageStatus MapCoverageStatus(TestStatus status)
+    {
+        return status switch
+        {
+            TestStatus.Passed or TestStatus.Failed => ValidationCoverageStatus.Covered,
+            TestStatus.Skipped => ValidationCoverageStatus.Skipped,
+            TestStatus.Error or TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
+            _ => ValidationCoverageStatus.Unavailable
+        };
     }
 
     /// <summary>
@@ -635,6 +896,14 @@ public class McpValidatorService : IMcpValidatorService
             if (result.PerformanceTesting.Status == TestStatus.Passed) passedTests++;
             else if (result.PerformanceTesting.Status == TestStatus.Failed) failedTests++;
             else if (result.PerformanceTesting.Status == TestStatus.Skipped) skippedTests++;
+        }
+
+        if (result.ErrorHandling != null)
+        {
+            totalTests += 1;
+            if (result.ErrorHandling.Status == TestStatus.Passed) passedTests++;
+            else if (result.ErrorHandling.Status == TestStatus.Failed) failedTests++;
+            else if (result.ErrorHandling.Status == TestStatus.Skipped) skippedTests++;
         }
 
         // Update summary statistics

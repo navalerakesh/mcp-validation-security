@@ -9,20 +9,20 @@ public class PerformanceMetricsCalculatorTests
     [Fact]
     public void GetPercentile_WithEmptyList_ShouldReturnZero()
     {
-        PerformanceMetricsCalculator.GetPercentile(Array.Empty<long>(), 0.95).Should().Be(0);
+        PerformanceMetricsCalculator.GetPercentile(Array.Empty<double>(), 0.95).Should().Be(0);
     }
 
     [Fact]
     public void GetPercentile_WithSingleValue_ShouldReturnThatValue()
     {
-        PerformanceMetricsCalculator.GetPercentile(new long[] { 100 }, 0.95).Should().Be(100);
+        PerformanceMetricsCalculator.GetPercentile(new double[] { 100 }, 0.95).Should().Be(100);
     }
 
     [Fact]
     public void GetPercentile_P95_ShouldExcludeTop5Percent()
     {
         // 20 values: 1-20. P95 = value at index 19 (95th percentile) = 19
-        var times = Enumerable.Range(1, 20).Select(x => (long)x).ToArray();
+        var times = Enumerable.Range(1, 20).Select(x => (double)x).ToArray();
         var p95 = PerformanceMetricsCalculator.GetPercentile(times, 0.95);
         p95.Should().Be(19);
     }
@@ -30,10 +30,20 @@ public class PerformanceMetricsCalculatorTests
     [Fact]
     public void GetPercentile_P99_ShouldBeHigherThanP95()
     {
-        var times = Enumerable.Range(1, 100).Select(x => (long)x).ToArray();
+        var times = Enumerable.Range(1, 100).Select(x => (double)x).ToArray();
         var p95 = PerformanceMetricsCalculator.GetPercentile(times, 0.95);
         var p99 = PerformanceMetricsCalculator.GetPercentile(times, 0.99);
         p99.Should().BeGreaterThanOrEqualTo(p95);
+    }
+
+    [Fact]
+    public void GetPercentile_WithSubMillisecondValues_ShouldPreservePrecision()
+    {
+        var times = new[] { 0.42, 0.58, 0.61, 0.73 };
+
+        var p95 = PerformanceMetricsCalculator.GetPercentile(times, 0.95);
+
+        p95.Should().Be(0.73);
     }
 
     [Fact]

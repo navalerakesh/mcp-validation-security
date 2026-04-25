@@ -56,6 +56,8 @@ public class ValidationPolicyEvaluatorTests
 
         outcome.Passed.Should().BeFalse();
         outcome.RecommendedExitCode.Should().Be(1);
+        outcome.BlockingSignalCount.Should().Be(1);
+        outcome.UnsuppressedSignalCount.Should().Be(1);
         outcome.Reasons.Should().Contain(reason => reason.Contains("Critical destructive issue detected.", StringComparison.Ordinal));
     }
 
@@ -86,6 +88,54 @@ public class ValidationPolicyEvaluatorTests
 
         outcome.Passed.Should().BeFalse();
         outcome.Reasons.Should().Contain(reason => reason.Contains("SHOULD requirement failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Evaluate_BalancedMode_WithMayOnlyTierFailures_ShouldRemainPassing()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.Passed,
+            ProtocolCompliance = new ComplianceTestResult(),
+            TrustAssessment = new McpTrustAssessment
+            {
+                TrustLevel = McpTrustLevel.L5_CertifiedSecure,
+                TierChecks = new List<ComplianceTierCheck>
+                {
+                    new()
+                    {
+                        Tier = "MAY",
+                        Requirement = "MAY: Server supports logging/setLevel",
+                        Passed = false,
+                        Component = "capabilities"
+                    },
+                    new()
+                    {
+                        Tier = "MAY",
+                        Requirement = "MAY: Server supports roots/list",
+                        Passed = false,
+                        Component = "capabilities"
+                    }
+                }
+            }
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol",
+            Scope = "full",
+            Status = ValidationCoverageStatus.Covered
+        });
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Balanced);
+
+        outcome.Passed.Should().BeTrue();
+        outcome.BlockingSignalCount.Should().Be(0);
+        result.VerdictAssessment!.BlockingDecisions.Should().BeEmpty();
+        result.VerdictAssessment.TriggeredDecisions.Should().Contain(decision =>
+            decision.Gate == GateOutcome.Note
+            && decision.Summary.Contains("MAY requirement failed", StringComparison.Ordinal));
+        ValidationVerdictEngine.IsPassing(result.VerdictAssessment).Should().BeTrue();
     }
 
     [Fact]
@@ -132,6 +182,8 @@ public class ValidationPolicyEvaluatorTests
         outcome.Passed.Should().BeTrue();
         outcome.RecommendedExitCode.Should().Be(0);
         outcome.SuppressedSignalCount.Should().Be(1);
+        outcome.UnsuppressedSignalCount.Should().Be(0);
+        outcome.BlockingSignalCount.Should().Be(0);
         outcome.AppliedSuppressions.Should().ContainSingle();
         outcome.AppliedSuppressions[0].Id.Should().Be("suppress-critical-tool-finding");
         outcome.AppliedSuppressions[0].MatchedSignalCount.Should().Be(1);

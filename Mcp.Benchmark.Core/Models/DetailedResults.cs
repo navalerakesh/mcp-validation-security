@@ -272,6 +272,12 @@ public class IndividualToolResult
     public bool? IdempotentHint { get; set; }
 
     /// <summary>
+    /// Gets or sets the Claude-specific large-output override declared in
+    /// <c>_meta["anthropic/maxResultSizeChars"]</c>, if present.
+    /// </summary>
+    public long? AnthropicMaxResultSizeChars { get; set; }
+
+    /// <summary>
     /// Gets or sets the tool execution response time in milliseconds.
     /// </summary>
     public double ExecutionTimeMs { get; set; } = 0.0;

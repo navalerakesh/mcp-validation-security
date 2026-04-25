@@ -22,7 +22,9 @@ using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using Mcp.Benchmark.Infrastructure.Services.Telemetry;
 using Mcp.Benchmark.Infrastructure.Validators;
+using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -136,6 +138,19 @@ internal class Program
         var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles") { Description = BuildClientProfileOptionDescription() };
         clientProfileOption.AllowMultipleArgumentsPerToken = true;
         validate.Options.Add(clientProfileOption);
+        validate.Options.Add(new Option<string>("--mode") { Description = "Execution mode: safe, standard, elevated" });
+        validate.Options.Add(new Option<bool>("--dry-run") { Description = "Print the execution plan and exit without contacting the target" });
+        var allowHostOption = new Option<string[]>("--allow-host") { Description = "Allowed outbound host. Repeat to permit more than one host." };
+        allowHostOption.AllowMultipleArgumentsPerToken = true;
+        validate.Options.Add(allowHostOption);
+        validate.Options.Add(new Option<bool>("--allow-private-addresses") { Description = "Allow loopback or private network addresses" });
+        validate.Options.Add(new Option<int?>("--max-requests") { Description = "Maximum outbound requests allowed for the run" });
+        validate.Options.Add(new Option<int?>("--timeout") { Description = "Per-request timeout budget in seconds" });
+        validate.Options.Add(new Option<string>("--persistence-mode") { Description = "Persistence mode: ephemeral, explicit-output, session" });
+        validate.Options.Add(new Option<string>("--redact-level") { Description = "Operational redaction level: strict, standard" });
+        validate.Options.Add(new Option<string>("--trace") { Description = "Trace mode: off, redacted, full" });
+        validate.Options.Add(new Option<bool>("--confirm-elevated-risk") { Description = "Acknowledge elevated-risk execution before the run starts" });
+        validate.Options.Add(new Option<bool>("--enable-model-eval") { Description = "Emit an advisory model-evaluation companion artifact when configured" });
         validate.Options.Add(new Option<string>("--token", "-t") { Description = "Bearer token for authentication" });
         validate.Options.Add(new Option<bool>("--interactive", "-i") { Description = "Allow interactive authentication" });
         validate.Options.Add(new Option<int?>("--max-concurrency") { Description = "Max in-flight HTTP requests (default: CPU count)" });
@@ -192,8 +207,10 @@ internal class Program
                 {
                     var context = provider.GetRequiredService<CliSessionContext>();
                     var logger = provider.GetRequiredService<ILogger<FileSessionArtifactStore>>();
-                    return new FileSessionArtifactStore(context.StateDirectory, logger);
+                    return new FileSessionArtifactStore(() => context.CanPersistSessionArtifacts ? context.StateDirectory : null, logger);
                 });
+                services.AddSingleton<IExecutionGovernanceService, ExecutionGovernanceService>();
+                services.AddSingleton<IModelEvaluationExecutor, NoOpModelEvaluationExecutor>();
 
                 // Register Telemetry Service (NoOp by default for CLI)
                 services.AddSingleton<ITelemetryService, NoOpTelemetryService>();
@@ -242,6 +259,8 @@ internal class Program
                 services.AddSingleton<IGitHubActionsReporter, GitHubActionsReporter>();
                 services.AddSingleton<IReportGenerator, MarkdownReportGenerator>();
                 services.AddSingleton<IValidationReportRenderer, ValidationReportRenderer>();
+                services.AddSingleton<IClientProfilePack, BuiltInClientProfilePack>();
+                services.AddSingleton<IClientProfileResolver, ClientProfileResolver>();
                 services.AddSingleton<IClientProfileEvaluator, ClientProfileEvaluator>();
                 services.AddScoped<INextStepAdvisor, NextStepAdvisor>();
 
@@ -256,6 +275,12 @@ internal class Program
                 services.AddSingleton<IContentSafetyAnalyzer, ContentSafetyAnalyzer>();
                 services.AddSingleton<IToolAiReadinessAnalyzer, ToolAiReadinessAnalyzer>();
                 services.AddSingleton<IAggregateScoringStrategy, SecurityFocusedScoringStrategy>();
+                services.AddSingleton<IValidationApplicabilityResolver, ValidationApplicabilityResolver>();
+                services.AddSingleton(typeof(IValidationPackRegistry<>), typeof(ValidationPackRegistry<>));
+                services.AddSingleton<IProtocolFeaturePack, BuiltInProtocolFeaturePack>();
+                services.AddSingleton<IValidationScenarioPack, BuiltInObservedSurfaceScenarioPack>();
+                services.AddSingleton<IProtocolFeatureResolver, ProtocolFeatureResolver>();
+                services.AddSingleton<IValidationRulePack<ProtocolValidationContext>, BuiltInProtocolRulePack>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
                 services.AddSingleton<IValidationSessionBuilder, ValidationSessionBuilder>();
                 services.AddSingleton<IHealthCheckService, HealthCheckService>();
@@ -270,6 +295,7 @@ internal class Program
                 services.AddSingleton<ISecurityValidator, SecurityValidator>();
 
                 services.AddSingleton<IPerformanceValidator, PerformanceValidator>();
+                services.AddSingleton<IErrorHandlingValidator, ErrorHandlingValidator>();
 
                 // Register CLI command handlers
                 services.AddScoped<ValidateCommand>();
@@ -412,6 +438,66 @@ internal class Program
             Description = "Maximum in-flight HTTP requests the validator will issue (default: CPU count)"
         };
 
+        var executionModeOption = new Option<string?>("--mode")
+        {
+            Description = "Execution mode (safe, standard, elevated)"
+        };
+        executionModeOption.AcceptOnlyFromAmong("safe", "standard", "elevated");
+
+        var dryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Print the execution plan and exit without contacting the target"
+        };
+
+        var allowHostOption = new Option<string[]>("--allow-host")
+        {
+            Description = "Allowed outbound host. Repeat to permit more than one host."
+        };
+        allowHostOption.AllowMultipleArgumentsPerToken = true;
+
+        var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
+        {
+            Description = "Allow loopback or private network addresses"
+        };
+
+        var maxRequestsOption = new Option<int?>("--max-requests")
+        {
+            Description = "Maximum outbound requests allowed for the run (default: 256)"
+        };
+
+        var timeoutSecondsOption = new Option<int?>("--timeout")
+        {
+            Description = "Per-request timeout budget in seconds"
+        };
+
+        var persistenceModeOption = new Option<string?>("--persistence-mode")
+        {
+            Description = "Persistence mode (ephemeral, explicit-output, session)"
+        };
+        persistenceModeOption.AcceptOnlyFromAmong("ephemeral", "explicit-output", "session");
+
+        var redactionLevelOption = new Option<string?>("--redact-level")
+        {
+            Description = "Operational redaction level (strict, standard)"
+        };
+        redactionLevelOption.AcceptOnlyFromAmong("strict", "standard");
+
+        var traceModeOption = new Option<string?>("--trace")
+        {
+            Description = "Trace mode (off, redacted, full)"
+        };
+        traceModeOption.AcceptOnlyFromAmong("off", "redacted", "full");
+
+        var confirmElevatedRiskOption = new Option<bool>("--confirm-elevated-risk")
+        {
+            Description = "Acknowledge elevated-risk execution before the run starts"
+        };
+
+        var enableModelEvalOption = new Option<bool>("--enable-model-eval")
+        {
+            Description = "Emit an advisory model-evaluation companion artifact when configured"
+        };
+
         var policyModeOption = new Option<string?>("--policy")
         {
             Description = "Validation policy mode (advisory, balanced, strict)",
@@ -447,6 +533,17 @@ internal class Program
         validateCommand.Options.Add(tokenOption);
         validateCommand.Options.Add(interactiveOption);
         validateCommand.Options.Add(maxConcurrencyOption);
+        validateCommand.Options.Add(executionModeOption);
+        validateCommand.Options.Add(dryRunOption);
+        validateCommand.Options.Add(allowHostOption);
+        validateCommand.Options.Add(allowPrivateAddressesOption);
+        validateCommand.Options.Add(maxRequestsOption);
+        validateCommand.Options.Add(timeoutSecondsOption);
+        validateCommand.Options.Add(persistenceModeOption);
+        validateCommand.Options.Add(redactionLevelOption);
+        validateCommand.Options.Add(traceModeOption);
+        validateCommand.Options.Add(confirmElevatedRiskOption);
+        validateCommand.Options.Add(enableModelEvalOption);
         validateCommand.Options.Add(policyModeOption);
         validateCommand.Options.Add(clientProfileOption);
         validateCommand.Options.Add(reportDetailOption);
@@ -462,12 +559,23 @@ internal class Program
             var interactive = parseResult.GetValue(interactiveOption);
             var output = parseResult.GetValue(outputOption);
             var maxConcurrency = parseResult.GetValue(maxConcurrencyOption);
+            var executionMode = parseResult.GetValue(executionModeOption);
+            var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
+            var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
+            var maxRequests = parseResult.GetValue(maxRequestsOption);
+            var timeoutSeconds = parseResult.GetValue(timeoutSecondsOption);
+            var persistenceMode = parseResult.GetValue(persistenceModeOption);
+            var redactionLevel = parseResult.GetValue(redactionLevelOption);
+            var traceMode = parseResult.GetValue(traceModeOption);
+            var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
+            var enableModelEval = GetOptionalBoolean(parseResult, enableModelEvalOption);
             var policyMode = parseResult.GetValue(policyModeOption);
             var clientProfiles = parseResult.GetValue(clientProfileOption);
             var reportDetail = parseResult.GetValue(reportDetailOption);
 
             var command = serviceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval);
         });
 
         return validateCommand;
@@ -486,6 +594,11 @@ internal class Program
     private static string BuildClientProfileOptionDescription()
     {
         return $"Evaluate documented client compatibility profiles. Defaults to all supported profiles when omitted; use this option to narrow the set. Supported values: {string.Join(", ", ClientProfileCatalog.SupportedProfileIds)}, {ClientProfileCatalog.AllProfilesToken}.";
+    }
+
+    private static bool? GetOptionalBoolean(ParseResult parseResult, Option<bool> option)
+    {
+        return parseResult.GetValue(option) ? true : null;
     }
 
     /// <summary>
@@ -511,6 +624,56 @@ internal class Program
             DefaultValueFactory = _ => 30000
         };
 
+        var executionModeOption = new Option<string?>("--mode")
+        {
+            Description = "Execution mode (safe, standard, elevated)"
+        };
+        executionModeOption.AcceptOnlyFromAmong("safe", "standard", "elevated");
+
+        var dryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Print the execution plan and exit without contacting the target"
+        };
+
+        var allowHostOption = new Option<string[]>("--allow-host")
+        {
+            Description = "Allowed outbound host. Repeat to permit more than one host."
+        };
+        allowHostOption.AllowMultipleArgumentsPerToken = true;
+
+        var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
+        {
+            Description = "Allow loopback or private network addresses"
+        };
+
+        var maxRequestsOption = new Option<int?>("--max-requests")
+        {
+            Description = "Maximum outbound requests allowed for the run"
+        };
+
+        var persistenceModeOption = new Option<string?>("--persistence-mode")
+        {
+            Description = "Persistence mode (ephemeral, explicit-output, session)"
+        };
+        persistenceModeOption.AcceptOnlyFromAmong("ephemeral", "explicit-output", "session");
+
+        var redactionLevelOption = new Option<string?>("--redact-level")
+        {
+            Description = "Operational redaction level (strict, standard)"
+        };
+        redactionLevelOption.AcceptOnlyFromAmong("strict", "standard");
+
+        var traceModeOption = new Option<string?>("--trace")
+        {
+            Description = "Trace mode (off, redacted, full)"
+        };
+        traceModeOption.AcceptOnlyFromAmong("off", "redacted", "full");
+
+        var confirmElevatedRiskOption = new Option<bool>("--confirm-elevated-risk")
+        {
+            Description = "Acknowledge elevated-risk execution before the run starts"
+        };
+
         var serverProfileOption = new Option<string?>("--access")
         {
             Description = "Declared server access intent (public, authenticated, enterprise)"
@@ -532,6 +695,15 @@ internal class Program
         healthCommand.Options.Add(serverProfileOption);
         healthCommand.Options.Add(tokenOption);
         healthCommand.Options.Add(interactiveOption);
+        healthCommand.Options.Add(executionModeOption);
+        healthCommand.Options.Add(dryRunOption);
+        healthCommand.Options.Add(allowHostOption);
+        healthCommand.Options.Add(allowPrivateAddressesOption);
+        healthCommand.Options.Add(maxRequestsOption);
+        healthCommand.Options.Add(persistenceModeOption);
+        healthCommand.Options.Add(redactionLevelOption);
+        healthCommand.Options.Add(traceModeOption);
+        healthCommand.Options.Add(confirmElevatedRiskOption);
 
         healthCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
@@ -542,9 +714,18 @@ internal class Program
             var token = parseResult.GetValue(tokenOption);
             var interactive = parseResult.GetValue(interactiveOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
+            var executionMode = parseResult.GetValue(executionModeOption);
+            var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
+            var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
+            var maxRequests = parseResult.GetValue(maxRequestsOption);
+            var persistenceMode = parseResult.GetValue(persistenceModeOption);
+            var redactionLevel = parseResult.GetValue(redactionLevelOption);
+            var traceMode = parseResult.GetValue(traceModeOption);
+            var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
 
             var command = serviceProvider.GetRequiredService<HealthCheckCommand>();
-            await command.ExecuteAsync(server, timeout, config, verbose, token, interactive, serverProfile);
+            await command.ExecuteAsync(server, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk);
         });
 
         return healthCommand;
@@ -573,6 +754,62 @@ internal class Program
             DefaultValueFactory = _ => "json"
         };
 
+        var timeoutOption = new Option<int>("--timeout", "-T")
+        {
+            Description = "Timeout for discovery in milliseconds",
+            DefaultValueFactory = _ => 120000
+        };
+
+        var executionModeOption = new Option<string?>("--mode")
+        {
+            Description = "Execution mode (safe, standard, elevated)"
+        };
+        executionModeOption.AcceptOnlyFromAmong("safe", "standard", "elevated");
+
+        var dryRunOption = new Option<bool>("--dry-run")
+        {
+            Description = "Print the execution plan and exit without contacting the target"
+        };
+
+        var allowHostOption = new Option<string[]>("--allow-host")
+        {
+            Description = "Allowed outbound host. Repeat to permit more than one host."
+        };
+        allowHostOption.AllowMultipleArgumentsPerToken = true;
+
+        var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
+        {
+            Description = "Allow loopback or private network addresses"
+        };
+
+        var maxRequestsOption = new Option<int?>("--max-requests")
+        {
+            Description = "Maximum outbound requests allowed for the run"
+        };
+
+        var persistenceModeOption = new Option<string?>("--persistence-mode")
+        {
+            Description = "Persistence mode (ephemeral, explicit-output, session)"
+        };
+        persistenceModeOption.AcceptOnlyFromAmong("ephemeral", "explicit-output", "session");
+
+        var redactionLevelOption = new Option<string?>("--redact-level")
+        {
+            Description = "Operational redaction level (strict, standard)"
+        };
+        redactionLevelOption.AcceptOnlyFromAmong("strict", "standard");
+
+        var traceModeOption = new Option<string?>("--trace")
+        {
+            Description = "Trace mode (off, redacted, full)"
+        };
+        traceModeOption.AcceptOnlyFromAmong("off", "redacted", "full");
+
+        var confirmElevatedRiskOption = new Option<bool>("--confirm-elevated-risk")
+        {
+            Description = "Acknowledge elevated-risk execution before the run starts"
+        };
+
         var serverProfileOption = new Option<string?>("--access")
         {
             Description = "Declared server access intent (public, authenticated, enterprise)"
@@ -591,22 +828,42 @@ internal class Program
 
         discoverCommand.Options.Add(serverOption);
         discoverCommand.Options.Add(formatOption);
+        discoverCommand.Options.Add(timeoutOption);
         discoverCommand.Options.Add(serverProfileOption);
         discoverCommand.Options.Add(tokenOption);
         discoverCommand.Options.Add(interactiveOption);
+        discoverCommand.Options.Add(executionModeOption);
+        discoverCommand.Options.Add(dryRunOption);
+        discoverCommand.Options.Add(allowHostOption);
+        discoverCommand.Options.Add(allowPrivateAddressesOption);
+        discoverCommand.Options.Add(maxRequestsOption);
+        discoverCommand.Options.Add(persistenceModeOption);
+        discoverCommand.Options.Add(redactionLevelOption);
+        discoverCommand.Options.Add(traceModeOption);
+        discoverCommand.Options.Add(confirmElevatedRiskOption);
 
         discoverCommand.SetAction(async (ParseResult parseResult, CancellationToken cancellationToken) =>
         {
             var server = parseResult.GetValue(serverOption);
             var format = parseResult.GetValue(formatOption)!;
+            var timeout = parseResult.GetValue(timeoutOption);
             var config = parseResult.GetValue(configOption);
             var verbose = parseResult.GetValue(verboseOption);
             var token = parseResult.GetValue(tokenOption);
             var interactive = parseResult.GetValue(interactiveOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
+            var executionMode = parseResult.GetValue(executionModeOption);
+            var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
+            var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
+            var maxRequests = parseResult.GetValue(maxRequestsOption);
+            var persistenceMode = parseResult.GetValue(persistenceModeOption);
+            var redactionLevel = parseResult.GetValue(redactionLevelOption);
+            var traceMode = parseResult.GetValue(traceModeOption);
+            var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
 
             var command = serviceProvider.GetRequiredService<DiscoverCommand>();
-            await command.ExecuteAsync(server, format, config, verbose, token, interactive, serverProfile);
+            await command.ExecuteAsync(server, format, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk);
         });
 
         return discoverCommand;

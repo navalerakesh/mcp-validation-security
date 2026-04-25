@@ -12,18 +12,13 @@ internal static partial class ReportActionHintBuilder
     {
         var hints = new List<string>();
 
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
-        {
-            hints.Add(Compact(policyOutcome.Summary));
-        }
-
         if (result.ProtocolCompliance?.Violations?.Count > 0)
         {
             foreach (var violation in result.ProtocolCompliance.Violations
                          .OrderByDescending(item => item.Severity)
-                         .Take(2))
+                         .Take(1))
             {
-                hints.Add(BuildHint("Protocol", violation.Recommendation, violation.Description));
+                hints.Add(BuildHint("[Spec] Protocol", violation.Recommendation, violation.Description));
             }
         }
 
@@ -31,9 +26,29 @@ internal static partial class ReportActionHintBuilder
         {
             foreach (var vulnerability in result.SecurityTesting.Vulnerabilities
                          .OrderByDescending(item => item.Severity)
-                         .Take(2))
+                         .Take(1))
             {
-                hints.Add(BuildHint("Security", vulnerability.Remediation, vulnerability.Description));
+                hints.Add(BuildHint("[Heuristic] Security", vulnerability.Remediation, vulnerability.Description));
+            }
+        }
+
+        var guidelineSkipHint = ExecutiveFindingSummaryBuilder.BuildGuidelineSkipHint(result);
+        if (!string.IsNullOrWhiteSpace(guidelineSkipHint))
+        {
+            hints.Add(Compact(guidelineSkipHint));
+        }
+
+        if (hints.Count == 0 && result.PolicyOutcome is { Passed: false })
+        {
+            foreach (var decision in result.VerdictAssessment?.BlockingDecisions
+                         .OrderBy(item => GetAuthorityOrder(item.Authority))
+                         .ThenByDescending(item => item.Gate)
+                         .ThenByDescending(item => item.Severity)
+                         .Where(item => !string.IsNullOrWhiteSpace(item.Summary))
+                         .Take(2)
+                         ?? Enumerable.Empty<DecisionRecord>())
+            {
+                hints.Add(Compact($"{ExecutiveFindingSummaryBuilder.FormatAuthorityTag(decision.Authority)} {decision.Category}: {decision.Summary}"));
             }
         }
 
@@ -62,6 +77,17 @@ internal static partial class ReportActionHintBuilder
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Take(MaxHints)
             .ToList();
+    }
+
+    private static int GetAuthorityOrder(ValidationRuleSource source)
+    {
+        return source switch
+        {
+            ValidationRuleSource.Spec => 0,
+            ValidationRuleSource.Guideline => 1,
+            ValidationRuleSource.Heuristic => 2,
+            _ => 3
+        };
     }
 
     private static string BuildHint(string prefix, string? recommendation, string? fallback)

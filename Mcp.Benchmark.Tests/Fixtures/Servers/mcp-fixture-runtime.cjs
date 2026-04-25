@@ -3,131 +3,144 @@
 const readline = require("node:readline");
 
 function createProfiles() {
-  return {
-    compliant: {
-      initialize: {
-        protocolVersion: "2025-11-25",
-        capabilities: {
-          tools: {},
-          prompts: {},
-          resources: {}
-        },
-        serverInfo: {
-          name: "fixture-compliant",
-          version: "1.0.0"
-        }
+  const compliantProfile = {
+    initialize: {
+      protocolVersion: "2025-11-25",
+      capabilities: {
+        tools: {},
+        prompts: {},
+        resources: {}
       },
-      toolsPages: [
-        [
-          {
-            name: "list_repositories",
+      serverInfo: {
+        name: "fixture-compliant",
+        version: "1.0.0"
+      }
+    },
+    toolsPages: [
+      [
+        {
+          name: "list_repositories",
+          title: "List Repositories",
+          description: "Enumerates repositories visible to the caller.",
+          annotations: {
             title: "List Repositories",
-            description: "Enumerates repositories visible to the caller.",
-            annotations: {
-              title: "List Repositories",
-              readOnlyHint: true,
-              destructiveHint: false,
-              openWorldHint: true,
-              idempotentHint: true
-            },
-            inputSchema: {
-              type: "object",
-              properties: {
-                query: {
-                  type: "string",
-                  description: "Optional repository search query."
-                }
+            readOnlyHint: true,
+            destructiveHint: false,
+            openWorldHint: true,
+            idempotentHint: true
+          },
+          inputSchema: {
+            type: "object",
+            properties: {
+              query: {
+                type: "string",
+                description: "Optional repository search query."
               }
             }
           }
-        ],
-        [
-          {
-            name: "get_repository",
+        }
+      ],
+      [
+        {
+          name: "get_repository",
+          title: "Get Repository",
+          description: "Fetches repository metadata for a single repository.",
+          annotations: {
             title: "Get Repository",
-            description: "Fetches repository metadata for a single repository.",
-            annotations: {
-              title: "Get Repository",
-              readOnlyHint: true,
-              destructiveHint: false,
-              openWorldHint: true,
-              idempotentHint: true
+            readOnlyHint: true,
+            destructiveHint: false,
+            openWorldHint: true,
+            idempotentHint: true
+          },
+          inputSchema: {
+            type: "object",
+            properties: {
+              repository: {
+                type: "string",
+                description: "Repository identifier."
+              }
             },
-            inputSchema: {
-              type: "object",
-              properties: {
-                repository: {
-                  type: "string",
-                  description: "Repository identifier."
-                }
-              },
-              required: ["repository"]
+            required: ["repository"]
+          }
+        }
+      ]
+    ],
+    prompts: [
+      {
+        name: "code_review",
+        description: "Review a code diff for correctness and security.",
+        arguments: [
+          {
+            name: "diff",
+            required: true,
+            description: "Unified diff content to review."
+          }
+        ]
+      }
+    ],
+    resources: [
+      {
+        uri: "file:///repo/README.md",
+        name: "README.md",
+        mimeType: "text/markdown"
+      }
+    ],
+    resourceTemplates: [
+      {
+        name: "repository-file",
+        uriTemplate: "repo://{owner}/{repo}/{path}",
+        description: "Reads a file from a repository by owner, repo, and path."
+      }
+    ],
+    toolCall() {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "repository-a\nrepository-b"
+          }
+        ],
+        isError: false
+      };
+    },
+    promptGet() {
+      return {
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: "Review the supplied change set."
             }
           }
         ]
-      ],
-      prompts: [
-        {
-          name: "code_review",
-          description: "Review a code diff for correctness and security.",
-          arguments: [
-            {
-              name: "diff",
-              required: true,
-              description: "Unified diff content to review."
-            }
-          ]
+      };
+    },
+    resourceRead() {
+      return {
+        contents: [
+          {
+            uri: "file:///repo/README.md",
+            mimeType: "text/markdown",
+            text: "# Example repository"
+          }
+        ]
+      };
+    }
+  };
+
+  return {
+    compliant: compliantProfile,
+    strictSession: {
+      ...compliantProfile,
+      initialize: {
+        ...compliantProfile.initialize,
+        serverInfo: {
+          name: "fixture-strict-session",
+          version: compliantProfile.initialize.serverInfo.version
         }
-      ],
-      resources: [
-        {
-          uri: "file:///repo/README.md",
-          name: "README.md",
-          mimeType: "text/markdown"
-        }
-      ],
-      resourceTemplates: [
-        {
-          name: "repository-file",
-          uriTemplate: "repo://{owner}/{repo}/{path}",
-          description: "Reads a file from a repository by owner, repo, and path."
-        }
-      ],
-      toolCall() {
-        return {
-          content: [
-            {
-              type: "text",
-              text: "repository-a\nrepository-b"
-            }
-          ],
-          isError: false
-        };
       },
-      promptGet() {
-        return {
-          messages: [
-            {
-              role: "user",
-              content: {
-                type: "text",
-                text: "Review the supplied change set."
-              }
-            }
-          ]
-        };
-      },
-      resourceRead() {
-        return {
-          contents: [
-            {
-              uri: "file:///repo/README.md",
-              mimeType: "text/markdown",
-              text: "# Example repository"
-            }
-          ]
-        };
-      }
+      requiresInitializedNotification: true
     },
     partial: {
       initialize: {
@@ -401,6 +414,7 @@ function getToolsListResult(profile, request) {
 function startFixtureServer(profileName) {
   const profiles = createProfiles();
   const profile = profiles[profileName];
+  let initializedNotificationReceived = false;
 
   if (!profile) {
     throw new Error(`Unknown fixture profile: ${profileName}`);
@@ -428,30 +442,69 @@ function startFixtureServer(profileName) {
 
     switch (request.method) {
       case "initialize":
+        initializedNotificationReceived = false;
         writeResponse(createSuccess(id, profile.initialize));
+        return;
+      case "notifications/initialized":
+        initializedNotificationReceived = true;
         return;
       case "ping":
         writeResponse(createSuccess(id, { ok: true, profile: profileName }));
         return;
       case "tools/list":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createSuccess(id, { tools: [] }));
+          return;
+        }
+
         writeResponse(createSuccess(id, getToolsListResult(profile, request)));
         return;
       case "tools/call":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createError(id, -32002, "Session not ready: notifications/initialized required"));
+          return;
+        }
+
         writeResponse(createSuccess(id, profile.toolCall(request)));
         return;
       case "prompts/list":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createSuccess(id, { prompts: [] }));
+          return;
+        }
+
         writeResponse(createSuccess(id, { prompts: profile.prompts }));
         return;
       case "prompts/get":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createError(id, -32002, "Session not ready: notifications/initialized required"));
+          return;
+        }
+
         writeResponse(createSuccess(id, profile.promptGet(request)));
         return;
       case "resources/list":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createSuccess(id, { resources: [] }));
+          return;
+        }
+
         writeResponse(createSuccess(id, { resources: profile.resources }));
         return;
       case "resources/read":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createError(id, -32002, "Session not ready: notifications/initialized required"));
+          return;
+        }
+
         writeResponse(createSuccess(id, profile.resourceRead(request)));
         return;
       case "resources/templates/list":
+        if (profile.requiresInitializedNotification && !initializedNotificationReceived) {
+          writeResponse(createSuccess(id, { resourceTemplates: [] }));
+          return;
+        }
+
         writeResponse(createSuccess(id, { resourceTemplates: profile.resourceTemplates || [] }));
         return;
       default:

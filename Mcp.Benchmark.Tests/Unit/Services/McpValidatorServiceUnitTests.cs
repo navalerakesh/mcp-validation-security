@@ -3,11 +3,15 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Infrastructure.Registries;
+using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Benchmark.Infrastructure.Services;
+using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Microsoft.Extensions.Logging;
 using Moq;
 using FluentAssertions;
 using Xunit;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Tests.Unit;
 
@@ -24,8 +28,13 @@ public class McpValidatorServiceUnitTests
     private readonly Mock<IPromptValidator> _promptValidatorMock;
     private readonly Mock<ISecurityValidator> _securityValidatorMock;
     private readonly Mock<IPerformanceValidator> _performanceValidatorMock;
+    private readonly Mock<IErrorHandlingValidator> _errorHandlingValidatorMock;
     private readonly Mock<IMcpHttpClient> _httpClientMock;
     private readonly Mock<IValidationSessionBuilder> _sessionBuilderMock;
+    private readonly Mock<IValidationApplicabilityResolver> _applicabilityResolverMock;
+    private readonly IValidationPackRegistry<IProtocolFeaturePack> _protocolFeaturePackRegistry;
+    private readonly IValidationPackRegistry<IValidationScenarioPack> _scenarioPackRegistry;
+    private readonly IProtocolRuleRegistry _protocolRuleRegistry;
     private readonly Mock<IAggregateScoringStrategy> _scoringStrategyMock;
     private readonly Mock<IHealthCheckService> _healthCheckServiceMock;
     private readonly Mock<ITelemetryService> _telemetryServiceMock;
@@ -41,8 +50,17 @@ public class McpValidatorServiceUnitTests
         _promptValidatorMock = new Mock<IPromptValidator>();
         _securityValidatorMock = new Mock<ISecurityValidator>();
         _performanceValidatorMock = new Mock<IPerformanceValidator>();
+        _errorHandlingValidatorMock = new Mock<IErrorHandlingValidator>();
         _httpClientMock = new Mock<IMcpHttpClient>();
         _sessionBuilderMock = new Mock<IValidationSessionBuilder>();
+        _applicabilityResolverMock = new Mock<IValidationApplicabilityResolver>();
+        _protocolFeaturePackRegistry = new ValidationPackRegistry<IProtocolFeaturePack>(
+            new IProtocolFeaturePack[] { new BuiltInProtocolFeaturePack(new EmbeddedSchemaRegistry()) });
+        _scenarioPackRegistry = new ValidationPackRegistry<IValidationScenarioPack>(
+            new IValidationScenarioPack[] { new BuiltInObservedSurfaceScenarioPack() });
+        _protocolRuleRegistry = new ProtocolRuleRegistry(
+            new ValidationPackRegistry<IValidationRulePack<ProtocolValidationContext>>(
+                new IValidationRulePack<ProtocolValidationContext>[] { new BuiltInProtocolRulePack() }));
         _scoringStrategyMock = new Mock<IAggregateScoringStrategy>();
         _healthCheckServiceMock = new Mock<IHealthCheckService>();
         _telemetryServiceMock = new Mock<ITelemetryService>();
@@ -90,6 +108,45 @@ public class McpValidatorServiceUnitTests
         _healthCheckServiceMock.Setup(x => x.PerformHealthCheckAsync(It.IsAny<McpServerConfig>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new HealthCheckResult { IsHealthy = true });
 
+        _errorHandlingValidatorMock
+            .Setup(x => x.ValidateErrorHandlingAsync(It.IsAny<McpServerConfig>(), It.IsAny<ErrorHandlingConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ErrorHandlingTestResult
+            {
+                Status = TestStatus.Passed,
+                Score = 100,
+                Message = "Validated 3 error scenario(s); 3 handled correctly.",
+                ErrorScenariosTestCount = 3,
+                ErrorScenariosHandledCorrectly = 3,
+                ErrorScenarioResults = new List<ErrorScenarioResult>
+                {
+                    new()
+                    {
+                        ScenarioName = "Invalid Method Call",
+                        ErrorType = "invalid-method",
+                        HandledCorrectly = true,
+                        ExpectedResponse = "JSON-RPC error code -32601 (Method not found).",
+                        ActualResponse = "HTTP 200; JSON-RPC error -32601: Method not found",
+                        GracefulRecovery = true
+                    }
+                }
+            });
+
+        _applicabilityResolverMock
+            .Setup(x => x.Build(It.IsAny<ValidationSessionContext>(), It.IsAny<McpValidatorConfiguration>(), It.IsAny<IReadOnlyList<string>>()))
+            .Returns((ValidationSessionContext session, McpValidatorConfiguration configuration, IReadOnlyList<string> selectedProfiles) => new ValidationApplicabilityContext
+            {
+                NegotiatedProtocolVersion = session.ProtocolVersion ?? configuration.Server.ProtocolVersion ?? "2025-11-25",
+                SchemaVersion = session.ProtocolVersion ?? configuration.Server.ProtocolVersion ?? "2025-11-25",
+                Transport = configuration.Server.Transport,
+                AccessMode = configuration.Server.Profile.ToString(),
+                ServerProfile = session.ServerProfile.ToString(),
+                IsAuthenticated = !string.IsNullOrWhiteSpace(configuration.Server.Authentication?.Token),
+                AdvertisedCapabilities = Array.Empty<string>(),
+                AdvertisedSurfaces = Array.Empty<string>(),
+                SelectedClientProfiles = selectedProfiles,
+                EnvironmentHints = new Dictionary<string, string>()
+            });
+
         _validatorService = new McpValidatorService(
             _protocolValidatorMock.Object,
             _toolValidatorMock.Object,
@@ -97,7 +154,12 @@ public class McpValidatorServiceUnitTests
             _promptValidatorMock.Object,
             _securityValidatorMock.Object,
             _performanceValidatorMock.Object,
-                _sessionBuilderMock.Object,
+            _errorHandlingValidatorMock.Object,
+            _sessionBuilderMock.Object,
+            _applicabilityResolverMock.Object,
+            _protocolFeaturePackRegistry,
+            _scenarioPackRegistry,
+            _protocolRuleRegistry,
             _httpClientMock.Object,
             _scoringStrategyMock.Object,
             _healthCheckServiceMock.Object,
@@ -106,7 +168,7 @@ public class McpValidatorServiceUnitTests
     }
 
     [Fact]
-    public async Task ValidateServerAsync_WithAllValidatorsSuccessful_ShouldReturnPassedResult()
+    public async Task ValidateServerAsync_WithReviewRequiredFindings_ShouldReturnFailedResult()
     {
         // Arrange
         var config = new McpValidatorConfiguration
@@ -140,7 +202,21 @@ public class McpValidatorServiceUnitTests
         // Mock successful protocol validation
         _protocolValidatorMock
             .Setup(x => x.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ComplianceTestResult { Status = TestStatus.Passed, ComplianceScore = 100.0 });
+            .ReturnsAsync(new ComplianceTestResult
+            {
+                Status = TestStatus.Passed,
+                ComplianceScore = 100.0,
+                Violations = new List<ComplianceViolation>
+                {
+                    new()
+                    {
+                        CheckId = "MCP.INIT.VERSION_NEGOTIATION",
+                        Category = "Initialization",
+                        Severity = ViolationSeverity.Medium,
+                        Description = "Server negotiated the requested version after retry."
+                    }
+                }
+            });
 
         _protocolValidatorMock
             .Setup(x => x.ValidateInitializationAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
@@ -156,12 +232,58 @@ public class McpValidatorServiceUnitTests
                 It.IsAny<McpServerConfig>(),
                 It.Is<ToolTestingConfig>(cfg => cfg.CapabilitySnapshot != null),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ToolTestResult { Status = TestStatus.Passed });
+            .ReturnsAsync(new ToolTestResult
+            {
+                Status = TestStatus.Passed,
+                ToolResults = new List<IndividualToolResult>
+                {
+                    new()
+                    {
+                        ToolName = "delete_repo",
+                        DisplayTitle = "Delete Repository",
+                        Status = TestStatus.Passed,
+                        Findings = new List<ValidationFinding>
+                        {
+                            new()
+                            {
+                                RuleId = ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
+                                Category = "McpGuideline",
+                                Component = "delete_repo",
+                                Severity = ValidationFindingSeverity.High,
+                                Summary = "Tool 'delete_repo' does not declare annotations.destructiveHint."
+                            }
+                        }
+                    }
+                }
+            });
 
         // Mock successful security validation using correct interface method
         _securityValidatorMock
             .Setup(x => x.PerformSecurityAssessmentAsync(It.IsAny<McpServerConfig>(), It.IsAny<SecurityTestingConfig>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new SecurityTestResult { Status = TestStatus.Passed });
+            .ReturnsAsync(new SecurityTestResult
+            {
+                Status = TestStatus.Passed,
+                AuthenticationTestResult = new AuthenticationTestResult
+                {
+                    Status = TestStatus.Passed,
+                    TestScenarios = new List<AuthenticationScenario>
+                    {
+                        new()
+                        {
+                            ScenarioName = "Unauthorized tools/list challenge",
+                            Method = "tools/list",
+                            TestType = "challenge",
+                            ActualBehavior = "Returned 401 with WWW-Authenticate.",
+                            Analysis = "Challenge flow aligned with the expected bearer-token pattern.",
+                            IsCompliant = true,
+                            IsSecure = true,
+                            IsStandardsAligned = true,
+                            AssessmentDisposition = AuthenticationAssessmentDisposition.StandardsAligned,
+                            StatusCode = "401"
+                        }
+                    }
+                }
+            });
 
         // Mock successful performance validation using correct interface method
         _performanceValidatorMock
@@ -173,14 +295,51 @@ public class McpValidatorServiceUnitTests
 
         // Assert
         result.Should().NotBeNull();
-        result.OverallStatus.Should().Be(ValidationStatus.Passed);
+        result.OverallStatus.Should().Be(ValidationStatus.Failed);
         result.ComplianceScore.Should().BeGreaterThan(0);
         result.ScoringDetails.Should().NotBeNull();
         result.ScoringDetails!.OverallScore.Should().Be(result.ComplianceScore);
+        result.VerdictAssessment.Should().NotBeNull();
+        result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+        result.VerdictAssessment.ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
+        result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
         config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         result.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
+        result.Run.SchemaVersion.Should().Be(result.ProtocolVersion);
+        result.Run.ApplicabilityContext.Should().NotBeNull();
+        result.Run.ApplicabilityContext!.NegotiatedProtocolVersion.Should().Be(result.ProtocolVersion);
+        result.Run.ApplicabilityContext.Transport.Should().Be(config.Server.Transport);
+        result.Evidence.AppliedPacks.Select(pack => pack.Key.Value)
+            .Should().Contain(["protocol-features/mcp-embedded", "scenario-pack/observed-surface", "rule-pack/protocol-core"]);
+        result.Assessments.Layers.Should().Contain(layer => layer.LayerId == "protocol-core" && layer.Status == TestStatus.Passed);
+        result.Evidence.Coverage.Should().Contain(coverage =>
+            coverage.LayerId == "protocol-core" &&
+            coverage.Scope == "json-rpc" &&
+            coverage.Status == ValidationCoverageStatus.Covered);
+        result.Assessments.Scenarios.Should().Contain(scenario =>
+            scenario.ScenarioId == "tool-catalog-smoke" &&
+            scenario.Status == TestStatus.Passed);
+        result.Assessments.Scenarios.Should().Contain(scenario =>
+            scenario.ScenarioId == "security-authentication-challenge" &&
+            scenario.Status == TestStatus.Passed);
+        result.Assessments.Scenarios.Should().Contain(scenario =>
+            scenario.ScenarioId == "error-handling-matrix" &&
+            scenario.Status == TestStatus.Passed);
+        result.Evidence.Observations.Should().Contain(observation =>
+            observation.Id == "tool-delete-repo" &&
+            observation.LayerId == "tool-surface");
+        result.Evidence.Observations.Should().Contain(observation =>
+            observation.Id == "protocol-mcp-init-version-negotiation" &&
+            observation.LayerId == "protocol-core");
+        result.Evidence.Observations.Should().Contain(observation =>
+            observation.Id == "error-invalid-method-call" &&
+            observation.LayerId == "error-handling");
+        result.Evidence.Coverage.Should().Contain(coverage =>
+            coverage.LayerId == "error-handling" &&
+            coverage.Scope == "error-handling" &&
+            coverage.Status == ValidationCoverageStatus.Covered);
     }
 
     [Fact]

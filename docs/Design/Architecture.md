@@ -6,6 +6,7 @@ This document describes the stable architectural shape of MCP Validator: project
 
 - Keep validation evidence neutral and reusable across hosts.
 - Separate host-specific compatibility interpretation from protocol and security evidence.
+- Keep execution governance separate from validation evidence and trust assessments.
 - Support remote HTTP targets and local STDIO targets without duplicating validator logic.
 - Produce deterministic human-readable and machine-readable artifacts that can be archived or re-rendered offline.
 
@@ -41,11 +42,13 @@ flowchart LR
     Schema[Embedded schema registry] --> Service
     Service --> Validators[Protocol, tools, prompts, resources, security, performance validators]
     Validators --> Result[ValidationResult]
-    Result --> Trust[Trust and policy interpretation]
+    Result --> Verdicts[Deterministic verdict and score interpretation]
     Result --> Profiles[Client profile interpretation]
+    Result -. optional reference .-> ModelArtifacts[Experimental model artifacts]
     Result --> Artifacts[Markdown, HTML, JSON, SARIF artifacts]
-    Trust --> Artifacts
+    Verdicts --> Artifacts
     Profiles --> Artifacts
+    ModelArtifacts --> Artifacts
 ```
 
 ## Validation Pipeline
@@ -53,9 +56,10 @@ flowchart LR
 1. Command input and configuration are merged into a `McpValidatorConfiguration`.
 2. Session bootstrap resolves transport, checks connectivity, and prepares authentication context.
 3. Validators collect neutral evidence across the enabled categories.
-4. Scoring and policy layers interpret that evidence into overall status, trust assessment, and policy outcome.
+4. Deterministic verdict, score, and policy layers interpret that evidence into baseline posture, protocol posture, coverage posture, and descriptive benchmarking outputs.
 5. Client profile evaluation maps the same evidence to documented host expectations without changing the underlying findings.
-6. The CLI writes artifacts, prints a concise summary, and returns an exit code aligned with the selected policy mode.
+6. Optional model evaluation produces separate experimental artifacts keyed to the same validation run without changing the deterministic result.
+7. The CLI writes artifacts, prints a concise summary, and returns an exit code aligned with the selected policy mode.
 
 ## Artifact Model
 
@@ -66,11 +70,14 @@ flowchart LR
 - JSON result as the canonical machine-readable record
 - SARIF for CI and code-scanning pipelines
 
+The canonical JSON result contains deterministic validation evidence and deterministic derived assessments only. Optional model-evaluation outputs must be written as separate companion artifacts.
+
 `report` consumes saved results and renders additional offline formats such as XML and JUnit. Reporting never re-runs validation logic; it works from persisted evidence.
 
 ## Design Implications
 
 - Client compatibility belongs outside `Core` because it is a host interpretation problem, not a neutral evidence problem.
+- Execution governance artifacts such as execution plans and audit manifests belong outside the validation-result evidence envelope.
 - Transport-specific behavior belongs in shared infrastructure services, not in command handlers.
 - Schema lookups flow through the registry so validators stay version-aware without reading files directly.
 - Offline reporting depends on persisted results, which keeps sharing and CI pipelines deterministic.

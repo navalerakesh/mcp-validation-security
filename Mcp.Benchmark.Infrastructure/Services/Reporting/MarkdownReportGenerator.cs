@@ -33,6 +33,12 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Server Endpoint** | `{result.ServerConfig.Endpoint}` |");
         sb.AppendLine($"| **Validation ID** | `{result.ValidationId}` |");
         sb.AppendLine($"| **Overall Status** | {GetStatusIcon(result.OverallStatus)} **{result.OverallStatus}** |");
+        if (result.VerdictAssessment != null)
+        {
+            sb.AppendLine($"| **Baseline Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** |");
+            sb.AppendLine($"| **Protocol Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** |");
+            sb.AppendLine($"| **Coverage Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** |");
+        }
         sb.AppendLine($"| **Compliance Score** | **{result.ComplianceScore:F1}%** |");
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
@@ -56,7 +62,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 McpTrustLevel.L2_Caution => "🟠",
                 _ => "🔴"
             };
-            sb.AppendLine($"| **MCP Trust Level** | {trustIcon} **{result.TrustAssessment.TrustLabel}** |");
+            sb.AppendLine($"| **Benchmark Trust Level** | {trustIcon} **{result.TrustAssessment.TrustLabel}** |");
         }
         sb.AppendLine();
 
@@ -64,13 +70,44 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendPriorityFindingsSection(sb, result, ref sectionNumber);
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
 
-        // MCP Trust Assessment (before compliance matrix)
+        if (result.VerdictAssessment != null)
+        {
+            sb.AppendLine($"## {sectionNumber++}. Deterministic Verdicts");
+            sb.AppendLine();
+            sb.AppendLine("These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.");
+            sb.AppendLine();
+            sb.AppendLine("| Lane | Verdict | Meaning |");
+            sb.AppendLine("| :--- | :--- | :--- |");
+            sb.AppendLine($"| **Baseline** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** | Overall deterministic gate across blocking findings and coverage debt. |");
+            sb.AppendLine($"| **Protocol** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** | Protocol correctness and contract integrity. |");
+            sb.AppendLine($"| **Coverage** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** | Whether enabled validation surfaces produced authoritative evidence. |");
+            sb.AppendLine();
+
+            if (!string.IsNullOrWhiteSpace(result.VerdictAssessment.Summary))
+            {
+                sb.AppendLine(result.VerdictAssessment.Summary);
+                sb.AppendLine();
+            }
+
+            if (result.VerdictAssessment.BlockingDecisions.Count > 0)
+            {
+                sb.AppendLine("### Blocking Decisions");
+                sb.AppendLine();
+                foreach (var decision in result.VerdictAssessment.BlockingDecisions.Take(8))
+                {
+                    sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{decision.Category}] `{decision.Component}`: {decision.Summary}");
+                }
+                sb.AppendLine();
+            }
+        }
+
+        // Benchmark trust profile (descriptive only)
         if (result.TrustAssessment != null)
         {
-            sb.AppendLine($"## {sectionNumber++}. MCP Trust Assessment");
+            sb.AppendLine($"## {sectionNumber++}. Benchmark Trust Profile");
             sb.AppendLine();
-            sb.AppendLine("Multi-dimensional evaluation of server trustworthiness for AI agent consumption.");
-            sb.AppendLine("Trust level is determined by a **weighted multi-dimensional score** and then capped by confirmed blockers such as critical security failures or MCP MUST failures.");
+            sb.AppendLine("Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.");
+            sb.AppendLine("This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.");
             sb.AppendLine();
             sb.AppendLine("| Dimension | Score | What It Measures |");
             sb.AppendLine("| :--- | :---: | :--- |");
@@ -164,6 +201,8 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         AppendClientCompatibilitySection(sb, result, ref sectionNumber);
+
+        AppendValidationEnvelopeSection(sb, result, ref sectionNumber);
 
         AppendCapabilitySnapshotSection(sb, result, ref sectionNumber);
 
@@ -668,7 +707,7 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private void AppendPriorityFindingsSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
     {
-        var keyFindings = CollectPriorityFindings(result);
+        var keyFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
         if (keyFindings.Count == 0)
         {
             return;
@@ -716,6 +755,29 @@ public class MarkdownReportGenerator : IReportGenerator
             : string.Empty;
 
         return profile + sourceSuffix;
+    }
+
+    private static string FormatVerdictLabel(ValidationVerdict verdict)
+    {
+        return verdict switch
+        {
+            ValidationVerdict.Trusted => "Trusted",
+            ValidationVerdict.ConditionallyAcceptable => "Conditionally Acceptable",
+            ValidationVerdict.ReviewRequired => "Review Required",
+            ValidationVerdict.Reject => "Reject",
+            _ => "Unknown"
+        };
+    }
+
+    private static string FormatGateLabel(GateOutcome gate)
+    {
+        return gate switch
+        {
+            GateOutcome.Reject => "Reject",
+            GateOutcome.ReviewRequired => "Review Required",
+            GateOutcome.CoverageDebt => "Coverage Debt",
+            _ => "Note"
+        };
     }
 
     private static ValidationProducerInfo ResolveProducer(ValidationResult result)
@@ -890,6 +952,88 @@ public class MarkdownReportGenerator : IReportGenerator
                 }
                 sb.AppendLine();
             }
+        }
+    }
+
+    private void AppendValidationEnvelopeSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
+    {
+        var hasLayers = result.Assessments.Layers.Count > 0;
+        var hasScenarios = result.Assessments.Scenarios.Count > 0;
+        var hasCoverage = result.Evidence.Coverage.Count > 0;
+        var hasAppliedPacks = result.Evidence.AppliedPacks.Count > 0;
+        var hasObservations = result.Evidence.Observations.Count > 0;
+
+        if (!hasLayers && !hasScenarios && !hasCoverage && !hasAppliedPacks && !hasObservations)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Validation Envelope");
+        sb.AppendLine();
+        sb.AppendLine("This section exposes the structured validation envelope used for layered reporting, coverage tracking, and pack provenance.");
+        sb.AppendLine();
+
+        if (hasLayers)
+        {
+            sb.AppendLine("### Assessment Layers");
+            sb.AppendLine();
+            sb.AppendLine("| Layer | Status | Findings | Summary |");
+            sb.AppendLine("| :--- | :--- | :---: | :--- |");
+            foreach (var layer in result.Assessments.Layers)
+            {
+                sb.AppendLine($"| `{layer.LayerId}` | {GetStatusIcon(layer.Status)} {layer.Status} | {layer.Findings.Count} | {EscapeTableCell(layer.Summary ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasScenarios)
+        {
+            sb.AppendLine("### Scenario Outcomes");
+            sb.AppendLine();
+            sb.AppendLine("| Scenario | Status | Findings | Summary |");
+            sb.AppendLine("| :--- | :--- | :---: | :--- |");
+            foreach (var scenario in result.Assessments.Scenarios)
+            {
+                sb.AppendLine($"| `{scenario.ScenarioId}` | {GetStatusIcon(scenario.Status)} {scenario.Status} | {scenario.Findings.Count} | {EscapeTableCell(scenario.Summary ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasCoverage)
+        {
+            sb.AppendLine("### Coverage Declarations");
+            sb.AppendLine();
+            sb.AppendLine("| Layer | Scope | Status | Reason |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            foreach (var coverage in result.Evidence.Coverage)
+            {
+                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | {EscapeTableCell(coverage.Reason ?? "-")} |");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasAppliedPacks)
+        {
+            sb.AppendLine("### Applied Validation Packs");
+            sb.AppendLine();
+            foreach (var pack in result.Evidence.AppliedPacks)
+            {
+                sb.AppendLine($"- **{EscapeTableCell(pack.DisplayName)}** — `{pack.Key}` · revision `{pack.Revision}` · {pack.Kind} · {pack.Stability}");
+            }
+            sb.AppendLine();
+        }
+
+        if (hasObservations)
+        {
+            sb.AppendLine("### Recorded Observations");
+            sb.AppendLine();
+            sb.AppendLine("| Observation | Layer | Component | Kind | Preview |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- | :--- |");
+            foreach (var observation in result.Evidence.Observations)
+            {
+                sb.AppendLine($"| `{observation.Id}` | `{observation.LayerId}` | `{observation.Component}` | `{observation.ObservationKind}` | {EscapeTableCell(observation.RedactedPayloadPreview ?? "-")} |");
+            }
+            sb.AppendLine();
         }
     }
 
@@ -1089,52 +1233,6 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         sb.AppendLine();
-    }
-
-    private static IReadOnlyList<string> CollectPriorityFindings(ValidationResult result)
-    {
-        var findings = new List<string>();
-
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
-        {
-            findings.Add($"Policy {policyOutcome.Mode} blocked the run: {policyOutcome.Summary}");
-            findings.AddRange(policyOutcome.Reasons.Take(2));
-        }
-
-        if (result.ClientCompatibility?.Assessments.Count > 0)
-        {
-            findings.AddRange(result.ClientCompatibility.Assessments
-                .Where(assessment => assessment.Status == ClientProfileCompatibilityStatus.Incompatible)
-                .Take(2)
-                .Select(assessment => $"Client profile {assessment.DisplayName}: {assessment.StatusLabel}. {assessment.Summary}"));
-        }
-
-        if (result.CriticalErrors.Count > 0)
-        {
-            findings.AddRange(result.CriticalErrors.Take(2));
-        }
-
-        if (result.SecurityTesting?.Vulnerabilities.Count > 0)
-        {
-            findings.AddRange(result.SecurityTesting.Vulnerabilities
-                .OrderByDescending(vulnerability => vulnerability.Severity)
-                .Take(2)
-                .Select(vulnerability => $"{vulnerability.Id}: {vulnerability.Description}"));
-        }
-
-        if (result.ProtocolCompliance?.Violations.Count > 0)
-        {
-            findings.AddRange(result.ProtocolCompliance.Violations
-                .OrderByDescending(violation => violation.Severity)
-                .Take(2)
-                .Select(violation => $"{violation.CheckId}: {violation.Description}"));
-        }
-
-        return findings
-            .Where(finding => !string.IsNullOrWhiteSpace(finding))
-            .Distinct(StringComparer.Ordinal)
-            .Take(5)
-            .ToList();
     }
 
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult result)

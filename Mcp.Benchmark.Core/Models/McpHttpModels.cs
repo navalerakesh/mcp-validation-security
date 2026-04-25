@@ -50,3 +50,32 @@ public class JsonRpcErrorValidationResult
     public bool IsCompliant { get; set; }
 }
 
+public class TransportResilienceProbeResult
+{
+    public string ProbeId { get; set; } = string.Empty;
+
+    public string DisplayName { get; set; } = string.Empty;
+
+    public bool Executed { get; set; }
+
+    public bool FailureObserved { get; set; }
+
+    public bool GracefulRecovery { get; set; }
+
+    public string? ExpectedOutcome { get; set; }
+
+    public string? ActualOutcome { get; set; }
+
+    public JsonRpcResponse? FailureResponse { get; set; }
+
+    public JsonRpcResponse? RecoveryResponse { get; set; }
+
+    public double FailureElapsedMs { get; set; }
+
+    public double RecoveryElapsedMs { get; set; }
+
+    public List<string> Notes { get; set; } = new();
+
+    public bool HandledCorrectly => Executed && FailureObserved && GracefulRecovery;
+}
+
