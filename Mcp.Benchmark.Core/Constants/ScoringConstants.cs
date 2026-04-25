@@ -117,13 +117,23 @@ public static class ScoringConstants
     // ─── AI Boundary Detection ──────────────────────────────────────
 
     /// <summary>
-    /// Patterns in tool parameter names/descriptions that indicate potential 
-    /// data exfiltration risk (tools that accept URIs/URLs that could be manipulated).
+    /// Parameter-name patterns that indicate a tool accepts an outbound target
+    /// or remote location supplied by the caller.
     /// </summary>
-    public static readonly string[] ExfiltrationRiskPatterns = 
+    public static readonly string[] ExfiltrationTargetParameterPatterns =
     {
         "url", "uri", "endpoint", "webhook", "callback", "redirect",
-        "destination", "target", "forward", "proxy", "fetch"
+        "destination", "target"
+    };
+
+    /// <summary>
+    /// Behavior patterns that suggest a tool can forward, proxy, or otherwise
+    /// send data to a caller-controlled destination.
+    /// </summary>
+    public static readonly string[] ExfiltrationBehaviorPatterns =
+    {
+        "webhook", "callback", "redirect", "destination", "forward",
+        "proxy", "upload", "post", "send", "push", "notify", "export"
     };
 
     /// <summary>

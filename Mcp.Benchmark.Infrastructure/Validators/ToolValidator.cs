@@ -651,7 +651,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     /// Validates the tools/call response body against MCP spec:
     /// - result.content MUST be an array of Content objects
     /// - Each Content MUST have a "type" field ("text", "image", "audio", "resource")
-    /// - result.isError SHOULD be present (boolean)
+    /// - result.isError MAY be omitted; omitted is equivalent to false per the MCP schema
     /// </summary>
     private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result)
     {
@@ -796,18 +796,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
-            if (!resultObj.TryGetProperty("isError", out _))
-            {
-                result.AddFinding(new ValidationFinding
-                {
-                    RuleId = ValidationFindingRuleIds.ToolCallMissingIsError,
-                    Category = "ProtocolCompliance",
-                    Component = result.ToolName,
-                    Severity = ValidationFindingSeverity.Low,
-                    Summary = "tools/call result.isError field not present",
-                    Recommendation = "Include result.isError in tool responses so clients can distinguish failures from normal payloads."
-                }, "ℹ️ MCP Note: result.isError field not present (SHOULD be included per spec)");
-            }
         }
         catch (Exception ex)
         {

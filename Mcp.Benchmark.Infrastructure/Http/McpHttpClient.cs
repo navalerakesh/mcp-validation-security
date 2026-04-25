@@ -1061,47 +1061,72 @@ public class McpHttpClient : IMcpHttpClient
 
     private string ParseSseResponse(string sseContent)
     {
-        // Parse SSE format: look for the last "data:" line (handles multi-event streams)
-        string? lastData = null;
+        // Preserve multi-line event payloads and return the last complete event with data.
+        var events = new List<string>();
+        var currentDataLines = new List<string>();
+
         using var reader = new StringReader(sseContent);
         string? line;
         while ((line = reader.ReadLine()) != null)
         {
+            if (string.IsNullOrWhiteSpace(line))
+            {
+                if (currentDataLines.Count > 0)
+                {
+                    events.Add(string.Join("\n", currentDataLines));
+                    currentDataLines.Clear();
+                }
+
+                continue;
+            }
+
             if (line.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
             {
-                lastData = line.Substring(5).Trim();
+                var value = line.Substring(5);
+                if (value.StartsWith(' '))
+                {
+                    value = value.Substring(1);
+                }
+
+                currentDataLines.Add(value);
             }
+
             // SSE keep-alive: empty lines or comments (":" prefix) are ignored
         }
-        return lastData ?? sseContent;
+
+        if (currentDataLines.Count > 0)
+        {
+            events.Add(string.Join("\n", currentDataLines));
+        }
+
+        return events.LastOrDefault(static value => !string.IsNullOrWhiteSpace(value)) ?? sseContent;
     }
 
     private bool CheckErrorCode(ValidatorJsonRpcResponse response, int expectedCode)
     {
-        // JSON-RPC 2.0 spec allows both HTTP-level and JSON-RPC-level error handling
-        // Check HTTP status codes first (transport-level rejection)
-        if (expectedCode == -32700 && (response.StatusCode == 400 || response.StatusCode == 401 || response.StatusCode == 403)) // Parse error
+        // Authentication challenges can legitimately gate protocol checks.
+        if (expectedCode == -32700 && (response.StatusCode == 401 || response.StatusCode == 403))
         {
             _logger.LogDebug("Parse error correctly handled with HTTP {Status} (spec-compliant)", response.StatusCode);
             return true;
         }
-        if (expectedCode == -32600 && (response.StatusCode == 400 || response.StatusCode == 401 || response.StatusCode == 403)) // Invalid request
+        if (expectedCode == -32600 && (response.StatusCode == 401 || response.StatusCode == 403))
         {
             _logger.LogDebug("Invalid request correctly handled with HTTP {Status} (spec-compliant)", response.StatusCode);
             return true;
         }
-        if (expectedCode == -32601 && (response.StatusCode == 401 || response.StatusCode == 403)) // Method not found -> auth error acceptable
+        if (expectedCode == -32601 && (response.StatusCode == 401 || response.StatusCode == 403))
         {
             _logger.LogDebug("Method not found test properly protected by authentication (spec-compliant)");
             return true;
         }
-        if (expectedCode == -32602 && (response.StatusCode == 401 || response.StatusCode == 403)) // Invalid params -> auth error acceptable
+        if (expectedCode == -32602 && (response.StatusCode == 401 || response.StatusCode == 403))
         {
             _logger.LogDebug("Invalid params test properly protected by authentication (spec-compliant)");
             return true;
         }
 
-        // Check JSON-RPC error codes (application-level error handling)
+        // Everything else must surface a structured JSON-RPC error response.
         if (string.IsNullOrEmpty(response.RawJson)) return false;
 
         try

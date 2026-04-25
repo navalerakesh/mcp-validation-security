@@ -189,6 +189,31 @@ public class McpTrustCalculatorEdgeCaseTests
     }
 
     [Fact]
+    public void Calculate_WithReadOnlyUrlFetcher_ShouldNotFlagExfiltrationWithoutEgressEvidence()
+    {
+        var result = BuildResult(100, 100);
+        result.ToolValidation!.AiReadinessScore = 90;
+        result.ToolValidation.ToolResults = new List<IndividualToolResult>
+        {
+            new()
+            {
+                ToolName = "microsoft_docs_fetch",
+                Description = "Fetch and convert a Microsoft documentation page from a URL into markdown.",
+                InputParameterNames = new List<string> { "url" },
+                ReadOnlyHint = true,
+                DestructiveHint = false,
+                IdempotentHint = true,
+                Status = TestStatus.Passed
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.DataExfiltrationRiskCount.Should().Be(0);
+        trust.BoundaryFindings.Should().NotContain(f => f.Category == "Exfiltration");
+    }
+
+    [Fact]
     public void Calculate_WithPromptInjectionTextInDescription_ShouldFlagWithoutIssueStringParsing()
     {
         var result = BuildResult(100, 100);

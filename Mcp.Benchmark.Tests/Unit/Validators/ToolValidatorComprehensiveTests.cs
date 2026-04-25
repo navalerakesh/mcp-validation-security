@@ -158,6 +158,20 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
+    public async Task ValidateToolDiscovery_WithoutIsErrorField_ShouldTreatResponseAsCompliant()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"echo\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"msg\":{\"type\":\"string\"}}}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"hello\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "echo");
+        toolResult.Status.Should().Be(TestStatus.Passed);
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolCallMissingIsError);
+    }
+
+    [Fact]
     public async Task ValidateToolDiscovery_WithMissingContentArray_ShouldFlag()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
@@ -266,10 +280,25 @@ public class ToolValidatorComprehensiveTests
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema);
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
         result.AiReadinessFindings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
+        result.AiReadinessFindings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema);
         result.AiReadinessIssues.Should().Contain(i => i.Contains("required array parameters", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessIssues.Should().Contain(i => i.Contains("fixed-choice fields", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessIssues.Should().Contain(i => i.Contains("structured values", StringComparison.OrdinalIgnoreCase));
         result.AiReadinessScore.Should().BeLessThan(100);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithDescribedFreeformQuery_ShouldNotEmitVagueStringFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"search_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\",\"description\":\"Freeform search text used to look up matching issues\"}}}}]");
+        SetupToolCall(_httpClient, 400, null);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.AiReadinessFindings.Should().NotContain(f =>
+            f.RuleId == ValidationFindingRuleIds.AiReadinessVagueStringSchema &&
+            f.Component == "search_tool");
     }
 
     [Fact]

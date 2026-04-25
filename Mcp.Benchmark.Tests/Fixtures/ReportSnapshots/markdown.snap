@@ -43,20 +43,19 @@ Validation continued because the endpoint was classified as protected rather tha
 
 These are the highest-signal outcomes from this validation run.
 
-- Policy strict blocked the run: Strict policy blocked the validation result with 9 unsuppressed signal(s).
-- Critical error recorded: Prompt validation hit an unsafe reflection path.
-- Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-- Prompt validation hit an unsafe reflection path.
-- MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
+- [Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.
+- [Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.
+- [Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
+- [Operational] 1 critical execution error(s), led by: Prompt validation hit an unsafe reflection path.
 
 ## 4. Action Hints
 
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
-- Execution: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-- PromptInjection: Server reflected untrusted prompt content without sanitization.
-- Protocol: Echo the negotiated protocol version in initialize.result.
-- Security: Sanitize and label untrusted content before returning it.
+- [Spec] Protocol: Echo the negotiated protocol version in initialize.result.
+- [Heuristic] Security: Sanitize and label untrusted content before returning it.
+- [Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.
+- Add destructive hints to write-capable tools.
 
 ## 5. Deterministic Verdicts
 

@@ -1,0 +1,16 @@
+HTTP/2 200 
+access-control-allow-headers: Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, X-MCP-Readonly, X-MCP-Toolsets, X-MCP-Tools, X-MCP-Exclude-Tools, X-MCP-Features, X-MCP-Lockdown, X-MCP-Insiders
+access-control-allow-methods: GET, POST, DELETE, OPTIONS
+access-control-allow-origin: *
+access-control-expose-headers: Mcp-Session-Id, WWW-Authenticate
+access-control-max-age: 86400
+cache-control: no-cache, no-transform
+content-security-policy: default-src 'none'; sandbox
+content-type: text/event-stream
+date: Fri, 24 Apr 2026 23:11:59 GMT
+mcp-session-id: 1b290a26-e388-4751-8875-9d8a20425b1c
+server: github-mcp-server-remote
+strict-transport-security: max-age=31536000
+x-github-backend: Kubernetes
+x-github-request-id: E367:341C55:591CE9F:6396B88:69EBF8BF
+

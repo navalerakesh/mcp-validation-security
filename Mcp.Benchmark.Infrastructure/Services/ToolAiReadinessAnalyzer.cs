@@ -55,20 +55,24 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
                 if (property.Value.TryGetProperty("type", out var type) && type.GetString() == "string")
                 {
+                    var looksEnumerated = LooksLikeEnumeratedChoice(property.Name, property.Value);
+                    var looksStructured = LooksLikeStructuredFormatValue(property.Name, property.Value);
                     var hasConstraint = property.Value.TryGetProperty("enum", out _) ||
                                         property.Value.TryGetProperty("pattern", out _) ||
                                         property.Value.TryGetProperty("format", out _);
-                    if (!hasConstraint)
+                    var hasSemanticGuidance = HasSemanticGuidance(property.Value);
+
+                    if (!hasConstraint && !hasSemanticGuidance && !looksEnumerated && !looksStructured)
                     {
                         vagueStringParams++;
                     }
 
-                    if (LooksLikeEnumeratedChoice(property.Name, property.Value) && !HasEnumLikeConstraint(property.Value))
+                    if (looksEnumerated && !HasEnumLikeConstraint(property.Value))
                     {
                         enumCoverageMissingParams++;
                     }
 
-                    if (LooksLikeStructuredFormatValue(property.Name, property.Value) && !HasFormatLikeConstraint(property.Value))
+                    if (looksStructured && !HasFormatLikeConstraint(property.Value))
                     {
                         formatHintMissingParams++;
                     }
@@ -403,6 +407,42 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         return false;
     }
 
+    private static bool HasSemanticGuidance(JsonElement propertySchema)
+    {
+        if (HasEnumLikeConstraint(propertySchema) || HasFormatLikeConstraint(propertySchema))
+        {
+            return true;
+        }
+
+        if (HasMeaningfulText(GetSchemaText(propertySchema, "description")) ||
+            HasMeaningfulText(GetSchemaText(propertySchema, "title")))
+        {
+            return true;
+        }
+
+        if (propertySchema.TryGetProperty("examples", out var examples) &&
+            examples.ValueKind == JsonValueKind.Array &&
+            examples.GetArrayLength() > 0)
+        {
+            return true;
+        }
+
+        if (propertySchema.TryGetProperty("default", out var defaultValue) &&
+            defaultValue.ValueKind != JsonValueKind.Null &&
+            defaultValue.ValueKind != JsonValueKind.Undefined)
+        {
+            return true;
+        }
+
+        if ((propertySchema.TryGetProperty("minLength", out var minLength) && minLength.ValueKind == JsonValueKind.Number) ||
+            (propertySchema.TryGetProperty("maxLength", out var maxLength) && maxLength.ValueKind == JsonValueKind.Number))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
     private static bool LooksLikeEnumeratedChoice(string propertyName, JsonElement propertySchema)
     {
         var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
@@ -415,6 +455,11 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
         string[] markers = ["url", "uri", "email", "date", "time", "timestamp", "uuid", "guid", "hostname", "domain"];
         return markers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool HasMeaningfulText(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= 8;
     }
 
     private static string GetSchemaText(JsonElement propertySchema, string propertyName)

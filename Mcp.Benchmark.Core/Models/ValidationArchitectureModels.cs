@@ -100,6 +100,8 @@ public sealed class ProtocolFeatureSet
 
     public bool SupportsDeferredWorkflows { get; init; }
 
+    public bool SupportsBatchJsonRpc { get; init; }
+
     public IReadOnlyList<string> OptionalCapabilities { get; init; } = Array.Empty<string>();
 }
 

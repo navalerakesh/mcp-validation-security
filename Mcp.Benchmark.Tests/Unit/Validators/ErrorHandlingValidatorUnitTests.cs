@@ -87,6 +87,41 @@ public class ErrorHandlingValidatorUnitTests
     }
 
     [Fact]
+    public async Task ValidateErrorHandlingAsync_WithHttpFrontDoorRejection_ShouldClassifySurfaceInFindingMetadata()
+    {
+        var httpClient = new Mock<IMcpHttpClient>();
+        httpClient
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests = new List<JsonRpcErrorTest>
+                {
+                    CreateErrorTest("Parse Error", -32700, false, 500, "Internal server error while parsing request")
+                }
+            });
+
+        var validator = new ErrorHandlingValidator(new Mock<ILogger<ErrorHandlingValidator>>().Object, httpClient.Object);
+
+        var result = await validator.ValidateErrorHandlingAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ErrorHandlingConfig
+            {
+                TestInvalidMethods = false,
+                TestMalformedJson = true,
+                TestConnectionInterruption = false,
+                TestTimeoutHandling = false,
+                TestGracefulDegradation = false
+            },
+            CancellationToken.None);
+
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE" &&
+            finding.Metadata.ContainsKey("responseSurface") &&
+            finding.Metadata["responseSurface"] == "http-front-door" &&
+            finding.Summary.Contains("HTTP front door", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ValidateErrorHandlingAsync_WithFailedResilienceProbe_ShouldRecordRecoveryFailure()
     {
         var httpClient = new Mock<IMcpHttpClient>();

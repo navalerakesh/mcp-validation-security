@@ -35,10 +35,10 @@ public sealed class BuiltInProtocolFeaturePack : IProtocolFeaturePack
 
         return schemaVersion switch
         {
-            "2025-11-25" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: true, deferred: true),
-            "2025-06-18" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: false, deferred: false),
-            "2025-03-26" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: false, deferred: false),
-            _ => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: false, tasks: false, deferred: false)
+            "2025-11-25" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: true, deferred: true, batchJsonRpc: false),
+            "2025-06-18" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: false, deferred: false, batchJsonRpc: false),
+            "2025-03-26" => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: true, tasks: false, deferred: false, batchJsonRpc: true),
+            _ => CreateFeatureSet(context.NegotiatedProtocolVersion, schemaVersion, isHttpTransport, listChanged: false, tasks: false, deferred: false, batchJsonRpc: false)
         };
     }
 
@@ -48,7 +48,8 @@ public sealed class BuiltInProtocolFeaturePack : IProtocolFeaturePack
         bool isHttpTransport,
         bool listChanged,
         bool tasks,
-        bool deferred)
+        bool deferred,
+        bool batchJsonRpc)
     {
         return new ProtocolFeatureSet
         {
@@ -58,6 +59,7 @@ public sealed class BuiltInProtocolFeaturePack : IProtocolFeaturePack
             SupportsToolListChangedNotifications = listChanged,
             SupportsTasksSurface = tasks,
             SupportsDeferredWorkflows = deferred,
+            SupportsBatchJsonRpc = batchJsonRpc,
             OptionalCapabilities = new[] { "roots", "logging", "sampling", "completions" }
         };
     }

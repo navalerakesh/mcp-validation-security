@@ -707,7 +707,7 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private void AppendPriorityFindingsSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
     {
-        var keyFindings = CollectPriorityFindings(result);
+        var keyFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
         if (keyFindings.Count == 0)
         {
             return;
@@ -1233,52 +1233,6 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         sb.AppendLine();
-    }
-
-    private static IReadOnlyList<string> CollectPriorityFindings(ValidationResult result)
-    {
-        var findings = new List<string>();
-
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
-        {
-            findings.Add($"Policy {policyOutcome.Mode} blocked the run: {policyOutcome.Summary}");
-            findings.AddRange(policyOutcome.Reasons.Take(2));
-        }
-
-        if (result.ClientCompatibility?.Assessments.Count > 0)
-        {
-            findings.AddRange(result.ClientCompatibility.Assessments
-                .Where(assessment => assessment.Status == ClientProfileCompatibilityStatus.Incompatible)
-                .Take(2)
-                .Select(assessment => $"Client profile {assessment.DisplayName}: {assessment.StatusLabel}. {assessment.Summary}"));
-        }
-
-        if (result.CriticalErrors.Count > 0)
-        {
-            findings.AddRange(result.CriticalErrors.Take(2));
-        }
-
-        if (result.SecurityTesting?.Vulnerabilities.Count > 0)
-        {
-            findings.AddRange(result.SecurityTesting.Vulnerabilities
-                .OrderByDescending(vulnerability => vulnerability.Severity)
-                .Take(2)
-                .Select(vulnerability => $"{vulnerability.Id}: {vulnerability.Description}"));
-        }
-
-        if (result.ProtocolCompliance?.Violations.Count > 0)
-        {
-            findings.AddRange(result.ProtocolCompliance.Violations
-                .OrderByDescending(violation => violation.Severity)
-                .Take(2)
-                .Select(violation => $"{violation.CheckId}: {violation.Description}"));
-        }
-
-        return findings
-            .Where(finding => !string.IsNullOrWhiteSpace(finding))
-            .Distinct(StringComparer.Ordinal)
-            .Take(5)
-            .ToList();
     }
 
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult result)

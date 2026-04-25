@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Infrastructure.Utilities;
 
 namespace Mcp.Benchmark.Infrastructure.Validators;
 
@@ -151,26 +152,80 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
 
         if (!errorTest.IsValid)
         {
+            var classification = JsonRpcResponseInspector.Classify(errorTest.ActualResponse);
             scenarioResult.AdditionalIssues.Add("Server did not return the expected structured JSON-RPC error response.");
+            scenarioResult.AdditionalIssues.Add(DescribeSurfaceIssue(classification, expectedErrorCode));
             result.Findings.Add(new ValidationFinding
             {
                 RuleId = "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
                 Category = "Protocol",
                 Component = errorType,
                 Severity = ValidationFindingSeverity.High,
-                Summary = $"Error-handling scenario '{scenarioName}' did not return the expected JSON-RPC error code {expectedErrorCode}.",
+                Summary = BuildScenarioSummary(scenarioName, expectedErrorCode, classification),
                 Recommendation = ComplianceRecommendations.GetRecommendation(ValidationConstants.CheckIds.ProtocolErrorHandling, "Error Code Violation"),
                 Source = ValidationRuleSource.Spec,
                 SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling],
                 Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
                     ["expectedErrorCode"] = expectedErrorCode.ToString(),
-                    ["actualResponse"] = actualResponse
+                    ["actualResponse"] = actualResponse,
+                    ["responseSurface"] = ToSurfaceLabel(classification.Surface),
+                    ["httpStatus"] = classification.StatusCode.ToString(),
+                    ["contentType"] = classification.ContentType ?? string.Empty,
+                    ["observedErrorCode"] = classification.ErrorCode?.ToString() ?? string.Empty
                 }
             });
         }
 
         result.ErrorScenarioResults.Add(scenarioResult);
+    }
+
+    private static string BuildScenarioSummary(string scenarioName, int expectedErrorCode, JsonRpcResponseClassification classification)
+    {
+        return classification.Surface switch
+        {
+            JsonRpcResponseSurface.HttpFrontDoorRejection =>
+                $"Error-handling scenario '{scenarioName}' was rejected at the HTTP front door instead of returning JSON-RPC error code {expectedErrorCode}.",
+            JsonRpcResponseSurface.JsonRpcErrorEnvelope when classification.ErrorCode is int observedCode && observedCode != expectedErrorCode =>
+                $"Error-handling scenario '{scenarioName}' returned JSON-RPC error code {observedCode} instead of the expected {expectedErrorCode}.",
+            JsonRpcResponseSurface.NonJsonRpcJson =>
+                $"Error-handling scenario '{scenarioName}' returned JSON that was not a valid JSON-RPC error envelope for expected code {expectedErrorCode}.",
+            _ =>
+                $"Error-handling scenario '{scenarioName}' did not return the expected JSON-RPC error code {expectedErrorCode}."
+        };
+    }
+
+    private static string DescribeSurfaceIssue(JsonRpcResponseClassification classification, int expectedErrorCode)
+    {
+        return classification.Surface switch
+        {
+            JsonRpcResponseSurface.HttpFrontDoorRejection =>
+                "The endpoint rejected the payload at the HTTP front door instead of surfacing a JSON-RPC error envelope.",
+            JsonRpcResponseSurface.JsonRpcErrorEnvelope when classification.ErrorCode is int observedCode && observedCode != expectedErrorCode =>
+                $"The endpoint returned a structured JSON-RPC error, but with code {observedCode} instead of {expectedErrorCode}.",
+            JsonRpcResponseSurface.NonJsonRpcJson =>
+                "The endpoint returned JSON content, but not a valid JSON-RPC error envelope.",
+            JsonRpcResponseSurface.EmptyBody =>
+                "The endpoint returned no body for an error scenario that should have produced a JSON-RPC error envelope.",
+            JsonRpcResponseSurface.TransportFailure =>
+                "The validator observed a transport failure before a JSON-RPC error envelope was returned.",
+            _ =>
+                "The endpoint did not produce a standards-compliant JSON-RPC error envelope."
+        };
+    }
+
+    private static string ToSurfaceLabel(JsonRpcResponseSurface surface)
+    {
+        return surface switch
+        {
+            JsonRpcResponseSurface.JsonRpcErrorEnvelope => "jsonrpc-envelope",
+            JsonRpcResponseSurface.HttpFrontDoorRejection => "http-front-door",
+            JsonRpcResponseSurface.AuthenticationChallenge => "authentication-challenge",
+            JsonRpcResponseSurface.TransportFailure => "transport-failure",
+            JsonRpcResponseSurface.EmptyBody => "empty-body",
+            JsonRpcResponseSurface.NonJsonRpcJson => "non-jsonrpc-json",
+            _ => "unknown"
+        };
     }
 
     private static void AddResilienceProbeResult(

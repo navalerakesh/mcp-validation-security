@@ -19,7 +19,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var detailLabel = verbose ? "Full" : "Minimal";
         var decisionTrace = BuildDecisionTrace(result);
         var compatibilityThemes = BuildCompatibilityThemes(result);
-        var priorityFindings = CollectPriorityFindings(result, decisionTrace, compatibilityThemes);
+        var priorityFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
         var actionHints = ReportActionHintBuilder.Build(result)
             .Where(hint => !MatchesPolicySummary(hint, result.PolicyOutcome?.Summary))
             .ToList();
@@ -685,39 +685,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return "Review the summarized validation evidence before adoption.";
-    }
-
-    private static IReadOnlyList<string> CollectPriorityFindings(
-        ValidationResult result,
-        IReadOnlyList<ValidationHtmlDecisionTraceItem> decisionTrace,
-        IReadOnlyList<ValidationHtmlCompatibilityTheme> compatibilityThemes)
-    {
-        var findings = new List<string>();
-
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
-        {
-            findings.Add(policyOutcome.Summary);
-        }
-
-        findings.AddRange(decisionTrace.Take(2).Select(item => $"{item.Title}: {item.Summary}"));
-        if (result.ClientCompatibility?.IncompatibleCount > 0)
-        {
-            findings.AddRange(compatibilityThemes
-                .Where(theme => theme.Tone == HtmlReportTone.Danger)
-                .Take(1)
-                .Select(theme => $"{theme.Title}: {theme.Summary}"));
-        }
-
-        if (result.CriticalErrors.Count > 0)
-        {
-            findings.AddRange(result.CriticalErrors.Take(2));
-        }
-
-        return findings
-            .Where(finding => !string.IsNullOrWhiteSpace(finding))
-            .Distinct(StringComparer.Ordinal)
-            .Take(5)
-            .ToList();
     }
 
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult validationResult)

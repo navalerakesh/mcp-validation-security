@@ -1,0 +1,19 @@
+HTTP/2 200 
+content-type: text/event-stream
+content-encoding: identity
+request-context: appId=cid-v1:b4f063cf-d7e6-4c06-bfca-84aefacfbb6f
+mcp-session-id: eyJjbGllbnRJbmZvIjp7Im5hbWUiOiJ0ZXN0LWNsaWVudCIsInRpdGxlIjpudWxsLCJ2ZXJzaW9uIjoiMS4wLjAiLCJpY29ucyI6bnVsbCwid2Vic2l0ZVVybCI6bnVsbH0sInVzZXJJZENsYWltIjoiZTVhYWJhYjgtZWRjNy00OTUwLWFhZmMtNDExYzVkNDcyZDkxIn0=
+x-powered-by: ASP.NET
+x-azure-ref: 20260424T231155Z-15d54dbf475hwb7hhC1CO1bpp000000025m0000000001r3y
+nel: {"report_to":"network-errors","max_age":604800,"success_fraction":0.01,"failure_fraction":1.0}
+report-to: {"group":"network-errors","max_age":604800,"endpoints":[{"url":"https://mdec.nelreports.net/api/report?cat=mdocs"}]}
+x-content-type-options: nosniff
+content-length: 1950
+cache-control: no-cache, no-store
+expires: Fri, 24 Apr 2026 23:11:55 GMT
+date: Fri, 24 Apr 2026 23:11:55 GMT
+set-cookie: ASLBSA=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; Path=/; Secure; HttpOnly;
+set-cookie: ASLBSACORS=000352b1b5f29761f789ee21993e92dbd636948117335aba7a7c3aefc8bb34c6b72e; SameSite=none; Path=/; Secure; HttpOnly;
+akamai-cache-status: Miss from child, Miss from parent
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+

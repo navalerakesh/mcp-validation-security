@@ -1564,7 +1564,7 @@ a:hover {
                 <li>9 blocking signal(s) remain under Strict policy.</li>
                 <li>Execution</li>
                 <li>MCP.SECURITY.PROMPT_INJECTION</li>
-                <li>Strict policy blocked the validation result with 9 unsuppressed signal(s).</li>
+                <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
               </ul>
             </div>
 
@@ -1573,9 +1573,9 @@ a:hover {
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
                 <ul class="compact-list">
-                  <li>Strict policy blocked the validation result with 9 unsuppressed signal(s).</li>
-                  <li>Execution: Critical execution error recorded: Prompt validation hit an unsafe reflection path.</li>
-                  <li>MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.</li>
+                  <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
+                  <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
+                  <li>[Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.</li>
                 </ul>
               </section>
 
@@ -1583,9 +1583,9 @@ a:hover {
                 <div class="report-note__eyebrow">Then review</div>
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
-                  <li>Execution: Critical execution error recorded: Prompt validation hit an unsafe reflection path.</li>
-                  <li>PromptInjection: Server reflected untrusted prompt content without sanitization.</li>
-                  <li>Protocol: Echo the negotiated protocol version in initialize.result.</li>
+                  <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
+                  <li>[Heuristic] Security: Sanitize and label untrusted content before returning it.</li>
+                  <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
                 </ul>
               </section>
 
@@ -2473,7 +2473,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">2</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">1</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2487,7 +2487,6 @@ a:hover {
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
-                <li>Add destructive hints to write-capable tools.</li>
                 <li>Return the negotiated protocol version explicitly during initialize.</li>
               </ul>
             </div>
