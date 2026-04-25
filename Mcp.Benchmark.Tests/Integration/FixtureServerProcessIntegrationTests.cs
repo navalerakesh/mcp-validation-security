@@ -83,6 +83,22 @@ public class FixtureServerProcessIntegrationTests
     }
 
     [Fact]
+    public async Task CompliantFixtureServer_ShouldReturnStructuredJsonRpcErrorsForMalformedRequests()
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+
+        var result = await adapter.ValidateErrorCodesAsync(command, CancellationToken.None);
+
+        result.Tests.Should().Contain(test => test.ExpectedErrorCode == -32700 && test.IsValid);
+        result.Tests.Should().Contain(test => test.ExpectedErrorCode == -32601 && test.IsValid);
+        result.Tests.Should().Contain(test =>
+            test.ExpectedErrorCode == -32600 &&
+            test.Name.Contains("Invalid Request", StringComparison.Ordinal) &&
+            !string.IsNullOrWhiteSpace(test.ActualResponse.RawJson));
+    }
+
+    [Fact]
     public async Task PartialFixtureServer_ShouldSurfacePromptAndResourceFindings()
     {
         var command = BuildFixtureCommand("partial");

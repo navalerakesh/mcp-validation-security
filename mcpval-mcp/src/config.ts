@@ -29,6 +29,11 @@ export const config = {
   /** MCP server metadata */
   server: {
     name: "mcpval",
+    title: "MCP Validator Local MCP",
     version: packageVersion,
+    description: "Local MCP server that wraps the mcpval CLI so MCP clients can validate remote and local servers through MCP tools.",
+    websiteUrl: "https://github.com/navalerakesh/mcp-validation-security/tree/main/mcpval-mcp",
+    instructions:
+      "Use health_check first for a quick bootstrap and protocol check. Use discover for remote HTTP MCP endpoints when you need a capability catalog. Use validate for full compliance, security, and AI-safety analysis, especially for local or stdio targets. Provide server as either an absolute MCP endpoint URL or a stdio command.",
   },
 } as const;

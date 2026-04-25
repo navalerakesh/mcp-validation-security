@@ -122,6 +122,69 @@ public class ErrorHandlingValidatorUnitTests
     }
 
     [Fact]
+    public async Task ValidateErrorHandlingAsync_WithStdioRawProbeDrops_ShouldSkipMalformedEnvelopeScenarios()
+    {
+        var httpClient = new Mock<IMcpHttpClient>();
+        httpClient
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests = new List<JsonRpcErrorTest>
+                {
+                    new()
+                    {
+                        Name = "Parse Error",
+                        ExpectedErrorCode = -32700,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            Error = "No response"
+                        }
+                    },
+                    new()
+                    {
+                        Name = "Invalid Request",
+                        ExpectedErrorCode = -32600,
+                        IsValid = false,
+                        ActualResponse = new JsonRpcResponse
+                        {
+                            StatusCode = 500,
+                            IsSuccess = false,
+                            Error = "No response"
+                        }
+                    },
+                    CreateErrorTest("Method Not Found", -32601, true, 200, "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":1}")
+                }
+            });
+
+        var validator = new ErrorHandlingValidator(new Mock<ILogger<ErrorHandlingValidator>>().Object, httpClient.Object);
+
+        var result = await validator.ValidateErrorHandlingAsync(
+            new McpServerConfig { Endpoint = "npx -y mcpval-localmcp", Transport = "stdio" },
+            new ErrorHandlingConfig
+            {
+                TestInvalidMethods = true,
+                TestMalformedJson = true,
+                TestConnectionInterruption = false,
+                TestTimeoutHandling = false,
+                TestGracefulDegradation = true
+            },
+            CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.ErrorScenariosTestCount.Should().Be(1);
+        result.ErrorScenariosHandledCorrectly.Should().Be(1);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED" &&
+            finding.Component == "malformed-json");
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED" &&
+            finding.Component == "invalid-request");
+    }
+
+    [Fact]
     public async Task ValidateErrorHandlingAsync_WithFailedResilienceProbe_ShouldRecordRecoveryFailure()
     {
         var httpClient = new Mock<IMcpHttpClient>();

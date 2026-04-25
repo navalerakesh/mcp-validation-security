@@ -24,9 +24,9 @@ This directory contains the durable product, architecture, and contributor docum
 
 | Document | Purpose |
 | --- | --- |
-| [Design/Architecture.md](Design/Architecture.md) | High-level system boundaries, runtime flow, and artifact model |
+| [Design/Architecture.md](Design/Architecture.md) | High-level system boundaries, runtime flow, run-state diagram, and artifact model |
 | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
-| [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, and extension points |
+| [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
 | [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
 | [../Mcp.Compliance.Spec/schema/README.md](../Mcp.Compliance.Spec/schema/README.md) | Embedded schema folder layout used by the spec project |

@@ -601,6 +601,6 @@ The right move is to evolve the current structured-finding architecture into a l
 - host compatibility stays additive
 - workflow validation becomes first-class
 - reports become coverage-aware and progressively disclosed
-- protocol, host, and rule evolution become pack-driven instead of central-edit driven
+- protocol, host, and rule evolution become pack-driven instead of central-edit driven over time
 
 That path directly addresses the gaps seen in the Dynamics report comparison while preserving the repository's current strengths and keeping the design flexible for future hosts and protocol growth.

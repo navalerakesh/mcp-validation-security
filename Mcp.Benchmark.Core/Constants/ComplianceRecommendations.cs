@@ -41,7 +41,7 @@ public static class ComplianceRecommendations
             },
             {
                 ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
-                "Verify all requests and responses conform to the JSON-RPC 2.0 wire format: include \"jsonrpc\": \"2.0\", use integer IDs for requests, and never include an ID in notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+                "Verify all requests and responses conform to the JSON-RPC 2.0 wire format: include \"jsonrpc\": \"2.0\", use string or integer IDs for requests, and never include an ID in notifications. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
             },
             {
                 ValidationConstants.CheckIds.ProtocolLifecycle,
@@ -92,7 +92,7 @@ public static class ComplianceRecommendations
         new SpecificEntry(
             ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
             "Request format",
-            "Ensure every JSON-RPC request includes \"jsonrpc\": \"2.0\", a string \"method\" field, and an integer \"id\". The \"params\" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"),
+            "Ensure every JSON-RPC request includes \"jsonrpc\": \"2.0\", a string \"method\" field, and a string or integer \"id\". The \"params\" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"),
         new SpecificEntry(
             ValidationConstants.CheckIds.ProtocolJsonRpcFormat,
             "Response format",

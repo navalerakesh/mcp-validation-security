@@ -1482,8 +1482,8 @@ a:hover {
         <div class="hero-grid">
           <div class="hero-main">
             <div class="eyebrow">MCP Validation Report</div>
-            <h1 class="hero-title">Release Hold</h1>
-            <p class="hero-subtitle">Balanced policy blocked release readiness with 1 blocking signal(s) across 1 unsuppressed signal(s).</p>
+            <h1 class="hero-title">Validation Ready</h1>
+            <p class="hero-subtitle">Baseline=ConditionallyAcceptable; Protocol=ConditionallyAcceptable; Coverage=Trusted; BlockingDecisions=0.</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1491,11 +1491,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">86211d96-5d5e-4bcd-a291-1f710af2167f</div>
+                <div class="fact-item__value">955991e4-e031-4812-9d49-5af424659d94</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">20.9s</div>
+                <div class="fact-item__value">121.0s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1513,14 +1513,14 @@ a:hover {
 
           </div>
           <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Run Status</span>
-    <div class="focus-value">Hold Release</div>
-    <div class="focus-label">Generated on 2026-04-25 05:34:39 UTC</div>
+<div class="panel status-panel panel--soft panel--tone-success">
+    <span class="status-chip status-chip--success">Run Status</span>
+    <div class="focus-value">Proceed</div>
+    <div class="focus-label">Generated on 2026-04-25 06:24:58 UTC</div>
 </div>
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Deterministic Verdict</span>
-    <div class="focus-value">Baseline Reject &#183; Coverage Trusted</div>
+<div class="panel status-panel panel--soft panel--tone-info">
+    <span class="status-chip status-chip--info">Deterministic Verdict</span>
+    <div class="focus-value">Baseline Conditional &#183; Coverage Trusted</div>
     <div class="focus-label">Authoritative gate</div>
 </div>
           </div>
@@ -1528,7 +1528,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-danger">
+        <details class="section-card section-card--tone-info">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Executive Summary</div>
@@ -1536,10 +1536,10 @@ a:hover {
               <p class="section-intro section-intro--card">This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Hold release until blocking signals are resolved</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Release gate satisfied with documented follow-up</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">0</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Balanced</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Conditional &#183; Protocol Conditional &#183; Coverage Trusted</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1550,20 +1550,18 @@ a:hover {
           <div class="section-card__content">
 
           <div class="brief-grid">
-            <div class="decision-brief decision-brief--tone-danger">
+            <div class="decision-brief decision-brief--tone-info">
               <div class="section-kicker">Release Decision</div>
-              <h3 class="decision-title">Hold release until blocking signals are resolved</h3>
-              <p class="decision-summary">Balanced policy blocked the validation result with 1 unsuppressed signal(s).</p>
+              <h3 class="decision-title">Release gate satisfied with documented follow-up</h3>
+              <p class="decision-summary">Core release criteria passed. Remaining notes are advisory and should be scheduled according to the domain summaries below.</p>
               <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Verdict</div><div class="summary-card__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
+                <div class="summary-card"><div class="summary-card__label">Verdict</div><div class="summary-card__value">Baseline Conditional &#183; Protocol Conditional &#183; Coverage Trusted</div></div>
                 <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Balanced</div></div>
-                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">0</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">0</div></div>
               </div>
               <ul class="compact-list">
-                <li>1 blocking signal(s) remain under Balanced policy.</li>
-                <li>MCP-PROTO-JSONRPC</li>
-                <li>[Spec] 1 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
+                <li>TierCheck</li>
               </ul>
             </div>
 
@@ -1571,34 +1569,31 @@ a:hover {
               <section class="report-note report-note--warning">
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
-                <ul class="compact-list">
-                  <li>[Spec] 1 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
-                </ul>
+                <p class="report-note__empty">No elevated signals were recorded for this lane.</p>
               </section>
 
               <section class="report-note report-note--info">
                 <div class="report-note__eyebrow">Then review</div>
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
-                  <li>[Spec] Protocol: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if pres....</li>
-                  <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must b....</li>
+                  <li>No immediate remediation required; maintain current protocol and security posture.</li>
                 </ul>
               </section>
 
             </div>
           </div>
           <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">0</div></div>
+                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">0</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">0</div></div>
           </div>
 
           </div>
         </details>
       </section>
       <section class="section">
-        <details class="section-card section-card--tone-danger">
+        <details class="section-card section-card--tone-neutral">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Decision Trace</div>
@@ -1607,8 +1602,8 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Themes</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Hotspots</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Primary Gate</div><div class="section-abstract__value">Reject</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Hotspots</div><div class="section-abstract__value">2</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Primary Gate</div><div class="section-abstract__value">Note</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1622,25 +1617,24 @@ a:hover {
             <div>
               <h3 class="minor-title">Decision Themes</h3>
               <div class="ledger-list">
-                <article class="ledger-entry ledger-entry--danger">
+                <article class="ledger-entry ledger-entry--neutral">
                   <div class="ledger-rail">
-                    <div class="ledger-title">MCP-PROTO-JSONRPC</div>
-                    <div class="ledger-subtle">JSON-RPC Compliance</div>
+                    <div class="ledger-title">TierCheck</div>
+                    <div class="ledger-subtle">TierCheck</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
+                      <span class="tone-chip tone-neutral">Note</span>
                       <span class="tone-chip tone-info">spec</span>
                       <span class="tag">Protocol interoperability</span>
                       <span class="tag">Capability contract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">Request format does not comply with JSON-RPC 2.0 specification</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-JSONRPC</code></div>
+                    <p class="ledger-copy">5 related decision(s) across 2 component(s). Representative issue: MAY requirement failed: MAY: Server supports logging/setLevel</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic aggregation</div>
+                    <div class="ledger-links"><strong>Components:</strong> capabilities, resources</div>
                     <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">capabilities, resources</div></div>
+                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">5</div></div>
                     </div>
                   </div>
                 </article>
@@ -1650,10 +1644,16 @@ a:hover {
             <div>
               <h3 class="minor-title">Affected Hotspots</h3>
               <div class="ledger-list">
-                <article class="report-note report-note--danger">
+                <article class="report-note report-note--neutral">
                   <div class="report-note__eyebrow">Protocol</div>
-                  <h3 class="report-note__title">JSON-RPC Compliance</h3>
-                  <p class="report-note__empty">Request format does not comply with JSON-RPC 2.0 specification</p>
+                  <h3 class="report-note__title">capabilities</h3>
+                  <p class="report-note__empty">4 escalated decisions. Representative issue: MAY requirement failed: MAY: Server supports logging/setLevel</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 4</div>
+                </article>
+                <article class="report-note report-note--neutral">
+                  <div class="report-note__eyebrow">Protocol</div>
+                  <h3 class="report-note__title">resources</h3>
+                  <p class="report-note__empty">MAY requirement failed: MAY: Server supports resources/templates/list</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
               </div>
@@ -1672,10 +1672,10 @@ a:hover {
               <p class="section-intro section-intro--card">Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Baseline Verdict</div><div class="section-abstract__value">Reject</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Protocol Verdict</div><div class="section-abstract__value">Reject</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Baseline Verdict</div><div class="section-abstract__value">Conditional</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Protocol Verdict</div><div class="section-abstract__value">Conditional</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Coverage Verdict</div><div class="section-abstract__value">Trusted</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">80.0%</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">100.0%</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1709,14 +1709,14 @@ a:hover {
           </div>
 
           <div class="score-strip">
-            <div class="score-pill score-pill--danger">
+            <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Baseline Verdict</div>
-              <div class="score-pill__value">Reject</div>
+              <div class="score-pill__value">Conditional</div>
               <div class="score-pill__meta">Authoritative release gate</div>
             </div>
-            <div class="score-pill score-pill--danger">
+            <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Protocol Verdict</div>
-              <div class="score-pill__value">Reject</div>
+              <div class="score-pill__value">Conditional</div>
               <div class="score-pill__meta">Protocol correctness and contract integrity</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -1724,15 +1724,15 @@ a:hover {
               <div class="score-pill__value">Trusted</div>
               <div class="score-pill__meta">Evidence completeness across enabled checks</div>
             </div>
-            <div class="score-pill score-pill--info">
+            <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">80.0%</div>
+              <div class="score-pill__value">100.0%</div>
               <div class="score-pill__meta">Descriptive benchmarking signal</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Trust Profile</div>
-              <div class="score-pill__value">L4</div>
-              <div class="score-pill__meta">L4: Trusted — Meets enterprise AI safety requirements</div>
+              <div class="score-pill__value">L5</div>
+              <div class="score-pill__meta">L5: Certified Secure — Production AI-agent ready</div>
             </div>
           </div>
 
@@ -1742,7 +1742,7 @@ a:hover {
               <tbody>
                 <tr>
                   <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-info">83%</span></td>
+                  <td><span class="tone-chip tone-success">100%</span></td>
                   <td>Spec adherence and response structure</td>
                 </tr>
                 <tr>
@@ -1770,11 +1770,11 @@ a:hover {
               <tbody>
                 <tr>
                   <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-danger">Reject</span></td>
-                  <td>1 blocking / 6 total</td>
-                  <td>1 protocol violation(s) &#183; 3/3 error scenarios handled correctly</td>
-                  <td>Request format does not comply with JSON-RPC 2.0 specification</td>
-                  <td>Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</td>
+                  <td><span class="tone-chip tone-info">Conditional</span></td>
+                  <td>0 blocking / 5 total</td>
+                  <td>0 protocol violation(s) &#183; 3/3 error scenarios handled correctly</td>
+                  <td>Protocol checks completed without blocking findings.</td>
+                  <td>Fix protocol negotiation, JSON-RPC error semantics, and contract shape before broader rollout.</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Security</div></td>
@@ -1796,16 +1796,16 @@ a:hover {
                   <td><div class="cell-title">Operations</div></td>
                   <td><span class="tone-chip tone-success">100%</span></td>
                   <td>No escalated signals</td>
-                  <td>Avg 0.5 ms &#183; P95 0.9 ms &#183; 0.00% errors</td>
+                  <td>Avg 0.4 ms &#183; P95 0.6 ms &#183; 0.00% errors</td>
                   <td>Runtime probe completed with measured latency, throughput, and failure-rate data.</td>
                   <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Compatibility</div></td>
-                  <td><span class="tone-chip tone-warning">Compatible with warnings</span></td>
-                  <td>0 incompatible &#183; 1 warning profile(s)</td>
+                  <td><span class="tone-chip tone-success">Compatible</span></td>
+                  <td>0 incompatible &#183; 0 warning profile(s)</td>
                   <td>5 profile(s) evaluated</td>
-                  <td>Required compatibility checks passed; 1 advisory requirement still needs follow-up.</td>
+                  <td>All applicable compatibility checks passed (4 satisfied).</td>
                   <td>Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</td>
                 </tr>
                 <tr>
@@ -1836,7 +1836,7 @@ a:hover {
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Bootstrap State</div><div class="section-abstract__value">Healthy</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Deferred Validation</div><div class="section-abstract__value">No</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake HTTP</div><div class="section-abstract__value">n/a</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">39.4 ms</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">45.3 ms</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1866,7 +1866,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">39.4 ms</div>
+                <div class="fact-item__value">45.3 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -1883,7 +1883,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-warning">
+        <details class="section-card section-card--tone-success">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Host Compatibility</div>
@@ -1892,8 +1892,8 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profiles</div><div class="section-abstract__value">5</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">4</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">5</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">0</div></div>
               <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Incompatible</div><div class="section-abstract__value">0</div></div>
             </div>
             <div class="section-card__toggle-row">
@@ -1909,46 +1909,28 @@ a:hover {
             <div class="distribution-summary__cards">
               <div class="distribution-card distribution-card--success">
                 <div class="distribution-card__label">Compatible</div>
-                <div class="distribution-card__value">4</div>
-                <div class="distribution-card__meta">80% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--warning">
-                <div class="distribution-card__label">Warnings</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">20% of observed outcomes</div>
+                <div class="distribution-card__value">5</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:4;"></span>
-              <span class="distribution-segment distribution-segment--warning" style="flex:1;"></span>
+              <span class="distribution-segment distribution-segment--success" style="flex:5;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Compatible 4 (80%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Warnings 1 (20%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Compatible 5 (100%)</span>
             </div>
           </div>
 
-          <div class="summary-grid">
-            <div class="summary-card">
-              <div class="summary-card__label">Initialize instructions help Claude Code find and use the server correctly</div>
-              <div class="summary-card__value">Affects 1/5 profile(s). Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</div>
-              <div class="table-subtle"><span class="tone-chip tone-warning">1 profile(s)</span></div>
-              <div class="table-subtle">Profiles: Claude Code</div>
-            </div>
-          </div>
           <div class="ledger-list">
-            <article class="ledger-entry ledger-entry--warning">
+            <article class="ledger-entry ledger-entry--success">
               <div class="ledger-rail">
                 <div class="ledger-title">Claude Code</div>
                 <div class="ledger-subtle">claude-code · 2026-04</div>
-                <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 1</span><span>F 0</span></div>
+                <span class="tone-chip tone-success">Compatible</span>
+                <div class="check-summary"><span>P 4</span><span>W 0</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed; 1 advisory requirement still needs follow-up.</p>
-                <ul class="compact-list compact-list--tight">
-                  <li><strong>Initialize instructions help Claude Code find and use the server correctly</strong>: Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</li>
-                </ul>
+                <p class="ledger-copy">All applicable compatibility checks passed (4 satisfied).</p>
                 <div class="ledger-links">Reference: <a href="https://code.claude.com/docs/en/mcp">Profile documentation</a></div>
               </div>
             </article>
@@ -2030,14 +2012,14 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
+                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
                 <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>resource-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>prompt-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>security-boundaries</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>performance</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s).</td></tr>
+                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>Validated 3 error scenario(s); 3 handled correctly. 2 configured probe(s) were not executable with the current transport abstraction.</td></tr>
+                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 0 warning profile(s); 0 incompatible profile(s).</td></tr>
               </tbody></table>
           </div>
           <div class="table-shell">
@@ -2112,26 +2094,25 @@ a:hover {
             <table class="data-table">
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
                 <tr><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Bootstrap health checks completed successfully.</td></tr>
-                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
+                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: tools | roots/list: not supported | logging/setLevel: not supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
                 <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Tool validation completed.</td></tr>
                 <tr><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>No resources were discovered during validation.</td></tr>
                 <tr><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>No prompts were discovered during validation.</td></tr>
                 <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 2 authentication challenge scenario(s).</td></tr>
                 <tr><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Evaluated 7 attack simulation(s).</td></tr>
-                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
+                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>Validated 3 error scenario(s); 3 handled correctly. 2 configured probe(s) were not executable with the current transport abstraction.</td></tr>
               </tbody></table>
           </div>
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>
                 <tr><td><code>bootstrap-initialize</code></td><td><code>bootstrap</code></td><td><code>initialize</code></td><td><code>bootstrap-health</code></td><td>Healthy</td></tr>
-                <tr><td><code>protocol-mcp-proto-jsonrpc</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>Request format does not comply with JSON-RPC 2.0 specification</td></tr>
                 <tr><td><code>tool-tools-list-schema-compliance</code></td><td><code>tool-surface</code></td><td><code>tools/list (Schema Compliance)</code></td><td><code>tool-result</code></td><td>⚠️ Schema validation warning: tools/list schema could not be fully processed</td></tr>
                 <tr><td><code>auth-stdio-transport-protocol-check</code></td><td><code>security-boundaries</code></td><td><code>transport-validation</code></td><td><code>authentication-scenario</code></td><td>✅ Correctly using STDIO transport (no HTTP auth)</td></tr>
                 <tr><td><code>auth-stdio-environment-credentials-check</code></td><td><code>security-boundaries</code></td><td><code>env-check</code></td><td><code>authentication-scenario</code></td><td>✅ Environment credential variables detected</td></tr>
-                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2855c8e1-279b-4d03-a0f4-dfb06e3efda5&quot;}</td></tr>
-                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;db773689-b65d-4a59-9d3c-c64aea7cc911&quot;}</td></tr>
-                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;06fdf03a-9787-44a8-bb2f-deeefebed91f&quot;}</td></tr>
+                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3f90ac4a-ff61-4db1-807b-fe20ee4cb779&quot;}</td></tr>
+                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;24d760e6-5766-43c2-ac67-99df37b0d8fb&quot;}</td></tr>
+                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;6d5ddef7-632d-41fe-bc66-5000975d9e47&quot;}</td></tr>
                 <tr><td><code>attack-mcp-sec-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-001</code></td><td><code>attack-simulation</code></td><td>Server handled malformed requests gracefully with standard errors.</td></tr>
                 <tr><td><code>attack-mcp-sec-002</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-002</code></td><td><code>attack-simulation</code></td><td>Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</td></tr>
                 <tr><td><code>attack-mcp-sec-003</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-003</code></td><td><code>attack-simulation</code></td><td>Server correctly rejected invalid schema.</td></tr>
@@ -2200,7 +2181,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 3</span>
-        <span class="probe-metric"><strong>Duration</strong> 104.7 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 107.1 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool validate responded successfully.</div>
 </article>
@@ -2212,7 +2193,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 400</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 0.6 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 0.9 ms</span>
     </div>
     <div class="probe-row__note">List probe needs review.</div>
 </article>
@@ -2233,66 +2214,6 @@ a:hover {
         </details>
       </section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-danger">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Structured Evidence</div>
-              <h2 class="section-title section-title--card">Rule &amp; Severity Insights</h2>
-              <p class="section-intro section-intro--card">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Violations</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Spec-linked</div><div class="section-abstract__value">1</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
-
-          <div class="distribution-summary">
-            <div class="distribution-summary__title">Finding Distribution</div>
-            <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--danger">
-                <div class="distribution-card__label">High</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">100% of observed outcomes</div>
-              </div>
-            </div>
-            <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
-            </div>
-            <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 1 (100%)</span>
-            </div>
-          </div>
-
-          <div class="ledger-group">
-            <h3 class="minor-title">Protocol and Compliance Findings</h3>
-            <div class="ledger-list">
-              <article class="ledger-entry ledger-entry--danger">
-                <div class="ledger-rail">
-                  <div class="ledger-kicker">Rule</div>
-                  <code>MCP-PROTO-JSONRPC</code>
-                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
-                  <div class="ledger-subtle">JSON-RPC Compliance</div>
-                </div>
-                <div class="ledger-body">
-                  <div class="ledger-title">Request format does not comply with JSON-RPC 2.0 specification</div>
-                  <p class="ledger-copy"><strong>Remediation:</strong> Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</p>
-                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
-                </div>
-              </article>
-          </div>
-          </div>
-
-          </div>
-        </details>
-      </section>
 
       <section class="section">
         <details class="section-card section-card--tone-success">
@@ -2422,7 +2343,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;2855c8e1-279b-4d03-a0f4-dfb06e3efda5&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&#39;; DROP TABLE users; --\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&#39;; DROP TABLE users; --&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3f90ac4a-ff61-4db1-807b-fe20ee4cb779&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2432,7 +2353,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;db773689-b65d-4a59-9d3c-c64aea7cc911&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;&lt;script&gt;alert(&#39;XSS&#39;)&lt;/script&gt;&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;24d760e6-5766-43c2-ac67-99df37b0d8fb&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2442,7 +2363,7 @@ a:hover {
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on validate</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;06fdf03a-9787-44a8-bb2f-deeefebed91f&quot;}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;received\&quot;: \&quot;; rm -rf /\&quot;,\n    \&quot;code\&quot;: \&quot;invalid_enum_value\&quot;,\n    \&quot;options\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid enum value. Expected &#39;public&#39; | &#39;authenticated&#39; | &#39;enterprise&#39; | &#39;unspecified&#39;, received &#39;; rm -rf /&#39;\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;unionErrors\&quot;: [\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      },\n      {\n        \&quot;issues\&quot;: [\n          {\n            \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n            \&quot;expected\&quot;: \&quot;string\&quot;,\n            \&quot;received\&quot;: \&quot;undefined\&quot;,\n            \&quot;path\&quot;: [\n              \&quot;server\&quot;\n            ],\n            \&quot;message\&quot;: \&quot;Required\&quot;\n          }\n        ],\n        \&quot;name\&quot;: \&quot;ZodError\&quot;\n      }\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;6d5ddef7-632d-41fe-bc66-5000975d9e47&quot;}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -2579,10 +2500,10 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>104.74 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>validate</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9959.28 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
-                <tr><td><code>health_check</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9998.86 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
-                <tr><td><code>discover</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>4.00 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>107.09 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>validate</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9953.54 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>health_check</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>9999.05 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
+                <tr><td><code>discover</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2.88 ms</td><td>title, description, readOnlyHint, destructiveHint, openWorldHint, idempotentHint</td></tr>
               </tbody></table>
           </div>
           </div>
@@ -2599,8 +2520,8 @@ a:hover {
               <p class="section-intro section-intro--card">Observed values from the completed runtime probe.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">0.5 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">0.9 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">0.4 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">0.6 ms</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Requests</div><div class="section-abstract__value">20</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Error Rate</div><div class="section-abstract__value">0.00%</div></div>
             </div>
@@ -2615,17 +2536,17 @@ a:hover {
           <div class="score-strip">
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">0.5 ms</div>
+              <div class="score-pill__value">0.4 ms</div>
               <div class="score-pill__meta">Target ≤ 300 ms</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">0.9 ms</div>
+              <div class="score-pill__value">0.6 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">1716.44</div>
+              <div class="score-pill__value">2018.37</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -2649,8 +2570,8 @@ a:hover {
               <p class="section-intro section-intro--card">Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">3</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">0</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2665,14 +2586,6 @@ a:hover {
               <h3 class="minor-title">Methodology</h3>
               <ul class="compact-list">
                 <li>INFO: Authentication challenge observations are informational for the declared public profile.</li>
-                <li>SPEC: JSON-RPC 2.0 format deviations detected. Score reduced by 15%.</li>
-                <li>Score meets the preferred target with non-blocking improvement opportunities.</li>
-              </ul>
-            </div>
-            <div>
-              <h3 class="minor-title">Deferred Recommendations</h3>
-              <ul class="compact-list">
-                <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</li>
               </ul>
             </div>
           </div>

@@ -330,16 +330,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             long toolsListPayloadChars = toolsListResponse.RawJson?.Length ?? 0;
 
-            // Parse tools from the first page, then continue through paginated discovery when the server exposes nextCursor.
+            // Treat the cached tools/list payload as the authoritative first page, then
+            // continue paginated discovery so capability snapshots do not truncate catalogs.
             var toolsList = ParseTools(toolsListResponse.RawJson);
-            if (snapshotTools == null)
-            {
-                var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
-                toolsList = paginationFetch.Tools;
-                toolsListPayloadChars = paginationFetch.TotalPayloadChars;
-                result.Issues.AddRange(paginationFetch.Issues);
-                ApplyPaginationFindings(result, paginationFetch, toolsList, toolsListPayloadChars / 4);
-            }
+            var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
+            toolsList = paginationFetch.Tools;
+            toolsListPayloadChars = paginationFetch.TotalPayloadChars;
+            result.Issues.AddRange(paginationFetch.Issues);
+            ApplyPaginationFindings(result, paginationFetch, toolsList, toolsListPayloadChars / 4);
 
             if (toolsList.Count == 0 && snapshotTools != null && snapshotTools.Count > 0)
             {

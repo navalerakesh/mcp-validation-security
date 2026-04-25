@@ -32,9 +32,7 @@ Inside GitHub Actions, the same run also emits a step summary and workflow annot
 
 ## Example Output Directory
 
-A representative output set is kept under:
-
-- [../../PublicReports/github-mcp-remote-live-20260422](../../PublicReports/github-mcp-remote-live-20260422)
+A representative output set is typically generated under `PublicReports/github-mcp-remote-live-<date>/` during local or CI runs.
 
 The exact filenames change on every run because they are timestamped. The folder is preserved as an example of the default artifact contract rather than as a normative reference for scores or findings.
 

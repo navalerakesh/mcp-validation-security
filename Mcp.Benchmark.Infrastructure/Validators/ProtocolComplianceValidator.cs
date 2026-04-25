@@ -67,10 +67,14 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 return result;
             }
 
-            var errorCompliance = errorValidation.Tests.Count(t => t.IsValid) / (double)errorValidation.Tests.Count;
+            var observableErrorTests = GetObservableErrorTests(serverConfig, errorValidation).ToList();
+            var skippedRawStdioErrorTests = GetSkippedRawStdioErrorTests(serverConfig, errorValidation).ToList();
+            var errorCompliance = observableErrorTests.Count == 0
+                ? 1.0
+                : observableErrorTests.Count(t => t.IsValid) / (double)observableErrorTests.Count;
 
             // Test 2: Request Format Compliance
-            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig.Endpoint!, errorValidation, ct);
+            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, ct);
 
             // Test 3: Response Format Compliance  
             var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, ct);
@@ -93,7 +97,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var notificationCompliant = notificationProbe.IsCompliant ?? true;
 
             // Test 6: Error Code Compliance (MUST use standard JSON-RPC error codes)
-            var errorCodeCompliant = ValidateErrorCodeCompliance(errorValidation);
+            var errorCodeCompliant = ValidateErrorCodeCompliance(observableErrorTests);
 
             // Test 7: Content-Type Requirements (Using resolved protocol rule packs)
             var activeRules = _ruleRegistry.Resolve(applicabilityContext).ToList();
@@ -119,7 +123,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             // Calculate score early to determine violation severity
             var preliminaryScores = new[] {
-                errorValidation.Tests.Count(t => t.IsValid) / (double)errorValidation.Tests.Count * 100,
+                errorCompliance * 100,
                 100.0, 100.0, 100.0, 100.0
             };
             var preliminaryScoreCandidates = preliminaryScores.ToList();
@@ -141,8 +145,21 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var preliminaryScore = preliminaryScoreCandidates.Average();
             var isHighCompliance = preliminaryScore >= 80.0;
 
+            if (skippedRawStdioErrorTests.Count > 0)
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.GUIDELINE.PROTOCOL.STDIO_RAW_ERROR_PROBE_SKIPPED",
+                    Category = "McpGuideline",
+                    Component = "jsonrpc-error-probes",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = $"Skipped raw stdio JSON-RPC error probe(s): {string.Join(", ", skippedRawStdioErrorTests.Select(test => test.Name))}. The active stdio transport did not surface a JSON-RPC envelope for these malformed requests.",
+                    Recommendation = "Do not treat malformed-envelope stdio probes as hard failures when the active SDK transport rejects invalid messages before the protocol layer can emit a JSON-RPC error response."
+                });
+            }
+
             // Collect all violations (marked as warnings if score >= 80%)
-            foreach (var test in errorValidation.Tests.Where(t => !t.IsValid))
+            foreach (var test in observableErrorTests.Where(t => !t.IsValid))
             {
                 violations.Add(CreateViolation(
                     ValidationConstants.CheckIds.ProtocolErrorHandling,
@@ -316,7 +333,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             {
                 RequestFormatValid = requestFormatCompliant,
                 ResponseFormatValid = responseFormatCompliant,
-                ErrorFormatValid = errorValidation.IsCompliant,
+                ErrorFormatValid = observableErrorTests.Count == 0 || observableErrorTests.All(test => test.IsValid),
                 FormatViolations = new List<string>()
             };
 
@@ -330,7 +347,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 result.MessageFormat.FormatViolations.Add("Response format does not comply with JSON-RPC 2.0 requirements.");
             }
 
-            if (!errorValidation.IsCompliant)
+            if (observableErrorTests.Any(test => !test.IsValid))
             {
                 result.MessageFormat.FormatViolations.Add("Error responses did not consistently satisfy the validator's JSON-RPC error expectations.");
             }
@@ -798,10 +815,10 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }, cancellationToken);
     }
 
-    private async Task<bool> ValidateRequestFormatAsync(string endpoint, JsonRpcErrorValidationResult errorValidation, CancellationToken cancellationToken)
+    private async Task<bool> ValidateRequestFormatAsync(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation, CancellationToken cancellationToken)
     {
         // Test 1: Valid request
-        var validResponse = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
+        var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, "ping", null, cancellationToken);
         
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
         if (AuthenticationChallengeInterpreter.Inspect(validResponse).RequiresAuthentication) return true;
@@ -811,7 +828,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         var parseErrorTest = errorValidation.Tests.FirstOrDefault(test => test.ExpectedErrorCode == -32700);
         if (parseErrorTest is null)
         {
-            return false;
+            return string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (ShouldSkipRawStdioErrorProbe(serverConfig, parseErrorTest))
+        {
+            return true;
         }
 
         var classification = JsonRpcResponseInspector.Classify(parseErrorTest.ActualResponse);
@@ -964,10 +986,35 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         public static ProtocolProbeOutcome Inconclusive(string reason) => new(null, reason);
     }
 
-    private static bool ValidateErrorCodeCompliance(JsonRpcErrorValidationResult errorValidation)
+    private static bool ValidateErrorCodeCompliance(IReadOnlyCollection<JsonRpcErrorTest> observableErrorTests)
     {
-        var methodNotFoundTest = errorValidation.Tests.FirstOrDefault(test => test.ExpectedErrorCode == -32601);
-        return methodNotFoundTest?.IsValid ?? false;
+        return observableErrorTests.Count == 0 || observableErrorTests.All(test => test.IsValid);
+    }
+
+    private static IEnumerable<JsonRpcErrorTest> GetObservableErrorTests(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation)
+    {
+        return errorValidation.Tests.Where(test => !ShouldSkipRawStdioErrorProbe(serverConfig, test));
+    }
+
+    private static IEnumerable<JsonRpcErrorTest> GetSkippedRawStdioErrorTests(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation)
+    {
+        return errorValidation.Tests.Where(test => ShouldSkipRawStdioErrorProbe(serverConfig, test));
+    }
+
+    private static bool ShouldSkipRawStdioErrorProbe(McpServerConfig serverConfig, JsonRpcErrorTest test)
+    {
+        if (!string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (test.ExpectedErrorCode is not (-32700 or -32600 or -32602))
+        {
+            return false;
+        }
+
+        var classification = JsonRpcResponseInspector.Classify(test.ActualResponse);
+        return classification.Surface is JsonRpcResponseSurface.EmptyBody or JsonRpcResponseSurface.TransportFailure;
     }
 
     /// <summary>

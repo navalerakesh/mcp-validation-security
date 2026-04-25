@@ -222,21 +222,53 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     public async Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default)
     {
-        var response = await CallAsync(endpoint, "rpc.invalid.method", null, cancellationToken);
+        var results = new List<JsonRpcErrorTest>();
+
+        var parseErrorResponse = await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken);
+        results.Add(new JsonRpcErrorTest
+        {
+            Name = "Parse Error",
+            Payload = "{ invalid json",
+            ExpectedErrorCode = -32700,
+            ActualResponse = parseErrorResponse,
+            IsValid = CheckErrorCode(parseErrorResponse, -32700)
+        });
+
+        var invalidRequestResponse = await SendRawJsonAsync(endpoint,
+            "{\"method\":\"test\",\"id\":1,\"params\":{}}",
+            cancellationToken);
+        results.Add(new JsonRpcErrorTest
+        {
+            Name = "Invalid Request - Missing jsonrpc",
+            Payload = "{\"method\":\"test\",\"id\":1,\"params\":{}}",
+            ExpectedErrorCode = -32600,
+            ActualResponse = invalidRequestResponse,
+            IsValid = CheckErrorCode(invalidRequestResponse, -32600)
+        });
+
+        var methodNotFoundResponse = await CallAsync(endpoint, "rpc.invalid.method", null, cancellationToken);
+        results.Add(new JsonRpcErrorTest
+        {
+            Name = "Invalid Method",
+            ExpectedErrorCode = -32601,
+            ActualResponse = methodNotFoundResponse,
+            IsValid = CheckErrorCode(methodNotFoundResponse, -32601)
+        });
+
+        var invalidParamsResponse = await CallAsync(endpoint, ValidationConstants.Methods.ToolsCall, "invalid_params_string", cancellationToken);
+        results.Add(new JsonRpcErrorTest
+        {
+            Name = "Invalid Params",
+            ExpectedErrorCode = -32602,
+            ActualResponse = invalidParamsResponse,
+            IsValid = CheckErrorCode(invalidParamsResponse, -32602) || CheckErrorCode(invalidParamsResponse, -32600)
+        });
+
         return new JsonRpcErrorValidationResult
         {
-            Tests =
-            [
-                new JsonRpcErrorTest
-                {
-                    Name = "Invalid Method",
-                    ExpectedErrorCode = -32601,
-                    ActualResponse = response,
-                    IsValid = !response.IsSuccess || (response.RawJson?.Contains("-32601", StringComparison.OrdinalIgnoreCase) == true)
-                }
-            ],
-            OverallScore = !response.IsSuccess || (response.RawJson?.Contains("-32601", StringComparison.OrdinalIgnoreCase) == true) ? 100 : 0,
-            IsCompliant = !response.IsSuccess || (response.RawJson?.Contains("-32601", StringComparison.OrdinalIgnoreCase) == true)
+            Tests = results,
+            OverallScore = results.Count(test => test.IsValid) / (double)results.Count * 100,
+            IsCompliant = results.All(test => test.IsValid)
         };
     }
 
@@ -492,6 +524,32 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public Task<string> GetStringAsync(string url, CancellationToken cancellationToken = default)
     {
         return Task.FromResult(string.Empty);
+    }
+
+    private static bool CheckErrorCode(ValidatorJsonRpcResponse response, int expectedCode)
+    {
+        if (string.IsNullOrWhiteSpace(response.RawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            var trimmed = response.RawJson.Trim();
+            if (!trimmed.StartsWith("{", StringComparison.Ordinal) && !trimmed.StartsWith("[", StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            using var json = JsonDocument.Parse(response.RawJson);
+            return json.RootElement.TryGetProperty("error", out var error) &&
+                   error.TryGetProperty("code", out var code) &&
+                   code.GetInt32() == expectedCode;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
     }
 
     private void EnforceExecutionPolicy()
