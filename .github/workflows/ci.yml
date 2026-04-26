@@ -334,6 +334,10 @@ jobs:
           draft: false
           prerelease: false
           body: |
+            ## Distribution
+
+            This release is published across multiple public channels. GitHub Marketplace is only the listing for the root composite action used with `uses: navalerakesh/mcp-validation-security@...`.
+
             ## Install
 
             **NuGet** (cross-platform, requires .NET 8):

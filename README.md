@@ -11,6 +11,16 @@
 
 > Validate that an MCP server is safe and usable for AI agents. MCP Validator checks protocol compliance, security posture, AI safety, and operational readiness, then produces a trust assessment plus shareable artifacts for engineering and governance workflows.
 
+## Distribution Channels
+
+| Need | Public surface | What it publishes |
+| --- | --- | --- |
+| Install the CLI | NuGet (`McpVal`) | Cross-platform `dotnet tool install` package |
+| Run as a local MCP server | npm (`mcpval-localmcp`) | Local MCP wrapper for desktop and agent tooling |
+| Run in a container | GHCR (`ghcr.io/navalerakesh/mcp-validation-security`) | Container image |
+| Download without a runtime | GitHub Releases | Standalone binaries, checksums, and SBOMs |
+| Use in a workflow | GitHub Marketplace | Listing for the root composite action only; it does not replace the NuGet, npm, GHCR, or release-binary publishes |
+
 ![MCP Validator](https://raw.githubusercontent.com/navalerakesh/mcp-validation-security/main/docs/Resources/mcp-benchmark-intro.png)
 
 ## Install
@@ -159,7 +169,7 @@ jobs:
 
 The composite action installs the published `McpVal` tool, runs `mcpval validate`, writes the standard artifact set, and uploads the output directory by default.
 
-Once a tagged release is published, the same root action can be listed in GitHub Marketplace from the release page.
+Once a tagged release is published, the same root action can be listed in GitHub Marketplace from the release page. That Marketplace entry is only for the GitHub Action surface. The same release still publishes the CLI and companion artifacts to NuGet, npm, GHCR, and GitHub Releases.
 
 ## Why Teams Use MCP Validator
 
