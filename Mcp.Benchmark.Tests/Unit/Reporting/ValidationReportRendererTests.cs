@@ -428,7 +428,9 @@ public class ValidationReportRendererTests
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().Contain("<th>Coverage</th><th>Confidence</th>");
-        html.Should().Contain("<code>tool-surface</code></td><td>100.0%</td><td>Low (35.0%)</td>");
+        html.Should().Contain("<td data-label=\"Layer\" class=\"table-cell--code\"><code>tool-surface</code></td>");
+        html.Should().Contain("<td data-label=\"Coverage\" class=\"table-cell--numeric\">100.0%</td>");
+        html.Should().Contain("<td data-label=\"Confidence\"><div class=\"cell-copy cell-copy--compact\">Low (35.0%)</div></td>");
     }
 
     [Fact]

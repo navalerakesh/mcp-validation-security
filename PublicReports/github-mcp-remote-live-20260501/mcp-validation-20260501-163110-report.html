@@ -205,6 +205,8 @@ body {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid transparent;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 .status-chip::before,
 .tone-chip::before {
@@ -312,13 +314,14 @@ body {
 }
 .ledger-entry {
     display: grid;
-    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+    grid-template-columns: minmax(min(210px, 100%), 250px) minmax(0, 1fr);
     gap: 18px;
     border: 1px solid var(--line);
     border-left-width: 4px;
     border-radius: var(--radius-card);
     background: rgba(255,255,255,0.98);
     padding: 16px 18px;
+    min-width: 0;
 }
 .ledger-entry--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
 .ledger-entry--warning { border-left-color: var(--tone-warning); }
@@ -373,6 +376,11 @@ body {
     color: var(--text-muted);
     line-height: 1.5;
     overflow-wrap: anywhere;
+}
+.ledger-links a,
+.ledger-links code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .ledger-code,
 .ledger-code-block {
@@ -827,6 +835,7 @@ body {
 .section-card__content {
     border-top: 1px solid rgba(174, 187, 201, 0.45);
     padding: 0 18px 18px;
+    min-width: 0;
 }
 .section-card__content > :first-child {
     margin-top: 14px;
@@ -991,8 +1000,31 @@ body {
 }
 .dual-grid {
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
     gap: 14px;
+}
+.dual-grid > * {
+    min-width: 0;
+}
+.decision-trace-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 18px;
+    align-items: start;
+}
+.decision-trace-main,
+.decision-hotspots {
+    min-width: 0;
+}
+.decision-hotspots .ledger-list {
+    gap: 10px;
+}
+.decision-hotspots .report-note {
+    min-width: 0;
+}
+.decision-fact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    gap: 10px;
 }
 .list-panel {
     display: grid;
@@ -1027,7 +1059,7 @@ body {
 }
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
     gap: 12px;
     margin-top: 14px;
 }
@@ -1036,6 +1068,7 @@ body {
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.78);
     padding: 13px 14px;
+    min-width: 0;
 }
 .summary-card__label {
     font-size: 0.72rem;
@@ -1049,6 +1082,22 @@ body {
     font-size: 1.02rem;
     line-height: 1.45;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.summary-card--decision-fact {
+    border-radius: 12px;
+    background: rgba(255,255,255,0.88);
+    padding: 11px 12px;
+}
+.summary-card--decision-fact .summary-card__label {
+    overflow-wrap: anywhere;
+}
+.summary-card--decision-fact .summary-card__value {
+    color: var(--text);
+    font-size: 0.92rem;
+    line-height: 1.5;
 }
 .card-grid {
     display: grid;
@@ -1190,6 +1239,8 @@ body {
     border-radius: 18px;
     overflow: auto;
     background: rgba(255,255,255,0.98);
+    max-width: 100%;
+    scrollbar-gutter: stable;
 }
 .table-shell--compact {
     margin-top: 14px;
@@ -1198,6 +1249,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.92rem;
+    line-height: 1.48;
 }
 .data-table thead {
     background: var(--surface-emphasis);
@@ -1209,6 +1261,7 @@ body {
     text-align: left;
     vertical-align: top;
     overflow-wrap: anywhere;
+    min-width: 0;
 }
 .data-table th {
     color: var(--text-soft);
@@ -1222,6 +1275,83 @@ body {
 }
 .data-table tbody tr:last-child td {
     border-bottom: 0;
+}
+.domain-evidence-table,
+.layered-report-table {
+    table-layout: fixed;
+}
+.domain-evidence-table {
+    min-width: 100%;
+}
+.layered-report-table {
+    min-width: 100%;
+}
+.coverage-summary-table,
+.coverage-detail-table,
+.observation-table {
+    min-width: 100%;
+}
+.domain-evidence-table .table-col--domain { width: 10%; }
+.domain-evidence-table .table-col--status { width: 13%; }
+.domain-evidence-table .table-col--signals { width: 13%; }
+.domain-evidence-table .table-col--evidence { width: 18%; }
+.domain-evidence-table .table-col--interpretation { width: 22%; }
+.domain-evidence-table .table-col--action { width: 24%; }
+.layered-report-table--layers .table-col--layer,
+.layered-report-table--scenarios .table-col--scenario { width: 20%; }
+.layered-report-table--layers .table-col--status,
+.layered-report-table--scenarios .table-col--status { width: 12%; }
+.layered-report-table--layers .table-col--count,
+.layered-report-table--scenarios .table-col--count { width: 10%; }
+.layered-report-table--layers .table-col--summary,
+.layered-report-table--scenarios .table-col--summary { width: 58%; }
+.coverage-summary-table .table-col--layer { width: 17%; }
+.coverage-summary-table .table-col--coverage { width: 10%; }
+.coverage-summary-table .table-col--confidence { width: 16%; }
+.coverage-summary-table .table-col--count { width: 9%; }
+.coverage-summary-table .table-col--count-wide { width: 14%; }
+.coverage-detail-table .table-col--layer { width: 15%; }
+.coverage-detail-table .table-col--scope { width: 22%; }
+.coverage-detail-table .table-col--status { width: 12%; }
+.coverage-detail-table .table-col--blocker { width: 11%; }
+.coverage-detail-table .table-col--confidence { width: 10%; }
+.coverage-detail-table .table-col--probe { width: 15%; }
+.coverage-detail-table .table-col--reason { width: 15%; }
+.observation-table .table-col--observation { width: 20%; }
+.observation-table .table-col--layer { width: 15%; }
+.observation-table .table-col--component { width: 18%; }
+.observation-table .table-col--kind { width: 15%; }
+.observation-table .table-col--preview { width: 32%; }
+.table-cell--numeric {
+    color: var(--text-strong);
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+}
+.table-cell--status .tone-chip {
+    max-width: 100%;
+    padding-inline: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.table-cell--code code,
+.data-table code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+}
+.cell-copy {
+    max-width: 68ch;
+    color: var(--text);
+    line-height: 1.58;
+    overflow-wrap: anywhere;
+}
+.cell-copy--compact {
+    max-width: 34ch;
+}
+.cell-copy--interpretation,
+.cell-copy--action {
+    max-width: 48ch;
 }
 code {
     font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -1348,6 +1478,7 @@ a:hover {
     .hero { padding: 22px; }
     .hero-grid,
     .dual-grid,
+    .decision-trace-layout,
     .brief-grid,
     .appendix-grid {
         grid-template-columns: 1fr;
@@ -1385,6 +1516,78 @@ a:hover {
     }
     .authority-card__metrics {
         grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 760px) {
+    .table-shell--domain-evidence,
+    .table-shell--layer-summary,
+    .table-shell--coverage-summary,
+    .table-shell--coverage-detail,
+    .table-shell--scenario-summary,
+    .table-shell--observation-summary {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table {
+        min-width: 0;
+        table-layout: auto;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+    .domain-evidence-table thead,
+    .layered-report-table thead,
+    .domain-evidence-table colgroup,
+    .layered-report-table colgroup {
+        display: none;
+    }
+    .domain-evidence-table tbody tr,
+    .layered-report-table tbody tr {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.98);
+        overflow: hidden;
+    }
+    .domain-evidence-table tbody tr:nth-child(even),
+    .layered-report-table tbody tr:nth-child(even) {
+        background: rgba(255,255,255,0.98);
+    }
+    .domain-evidence-table td,
+    .layered-report-table td {
+        display: grid;
+        grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 10px 12px;
+    }
+    .domain-evidence-table td::before,
+    .layered-report-table td::before {
+        content: attr(data-label);
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .domain-evidence-table tbody tr:last-child td,
+    .layered-report-table tbody tr:last-child td {
+        border-bottom: 1px solid var(--line);
+    }
+    .domain-evidence-table tbody tr td:last-child,
+    .layered-report-table tbody tr td:last-child {
+        border-bottom: 0;
+    }
+    .table-cell--numeric {
+        text-align: left;
+    }
+    .cell-copy,
+    .cell-copy--compact,
+    .cell-copy--interpretation,
+    .cell-copy--action {
+        max-width: none;
     }
 }
 @media print {
@@ -1449,6 +1652,7 @@ a:hover {
     .stack-item,
     .finding-row,
     .summary-grid,
+    .decision-trace-layout,
     .card-grid,
     .panel-grid,
     .hero-meta,
@@ -1472,6 +1676,22 @@ a:hover {
     }
     details.section-card > .section-card__content {
         display: block !important;
+    }
+    .table-shell {
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table,
+    .coverage-summary-table,
+    .coverage-detail-table,
+    .observation-table {
+        min-width: 0;
+        table-layout: auto;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 7px 8px;
+        font-size: 0.78rem;
     }
 }
     </style>
@@ -1517,7 +1737,7 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-warning">
     <span class="status-chip status-chip--warning">Run Status</span>
     <div class="focus-value">Review Before Release</div>
-    <div class="focus-label">Generated on 2026-05-01 16:31:10 UTC</div>
+    <div class="focus-label">Generated on 2026-05-01 16:48:47 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
     <span class="status-chip status-chip--danger">Deterministic Verdict</span>
@@ -1750,8 +1970,8 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="dual-grid">
-            <div>
+          <div class="decision-trace-layout">
+            <div class="decision-trace-main">
               <h3 class="minor-title">Decision Themes</h3>
               <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
@@ -1772,17 +1992,17 @@ a:hover {
                     <div class="ledger-links"><strong>Components:</strong> invalid-method, invalid-request, malformed-json</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">invalid-method, invalid-request, malformed-json</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-error-handling-non-standard-error-response:invalid-method:error-handling-scenario--invalid-method-call--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32601, error-invalid-method-call, structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600, error-graceful-degradation-on-invalid-request, structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700, error-malformed-json-payload</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">invalid-method, invalid-request, malformed-json</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-error-handling-non-standard-error-response:invalid-method:error-handling-scenario--invalid-method-call--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32601, error-invalid-method-call, structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600, error-graceful-degradation-on-invalid-request, structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700, error-malformed-json-payload</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
 </div></div>
-                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
-                <div class="summary-card"><div class="summary-card__label">expectedErrorCode</div><div class="summary-card__value">-32601</div></div>
-                <div class="summary-card"><div class="summary-card__label">actualResponse</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">expectedErrorCode</div><div class="summary-card__value">-32601</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">actualResponse</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
 </div></div>
-                <div class="summary-card"><div class="summary-card__label">responseSurface</div><div class="summary-card__value">http-front-door</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">responseSurface</div><div class="summary-card__value">http-front-door</div></div>
                     </div>
                   </div>
                 </article>
@@ -1801,11 +2021,11 @@ a:hover {
                     <p class="ledger-copy">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</p>
                     <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic aggregation &#183; 1 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> errors</div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">errors</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">tier-check:must:errors:must--use-standard-json-rpc-error-codes</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Non-standard error codes</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">errors</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">tier-check:must:errors:must--use-standard-json-rpc-error-codes</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Non-standard error codes</div></div>
                     </div>
                   </div>
                 </article>
@@ -1826,12 +2046,12 @@ a:hover {
                     <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-JSONRPC</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-err-4</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
-                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-err-4</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</div></div>
                     </div>
                   </div>
                 </article>
@@ -1852,12 +2072,12 @@ a:hover {
                     <div class="ledger-links"><strong>Components:</strong> Transport</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP-HTTP-005</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http</a></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Transport</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-http-005:transport:streamable-http-transport-violation--invalid-origin-403---http-transports-must-validate-origin-and-reject-invalid-origins-with-http-403-forbidden--expected--http-403-forbidden--observed--http-200--content-type-text-event-stream--body-length-84, protocol-mcp-http-005</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</div></div>
-                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Transport</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-http-005:transport:streamable-http-transport-violation--invalid-origin-403---http-transports-must-validate-origin-and-reject-invalid-origins-with-http-403-forbidden--expected--http-403-forbidden--observed--http-200--content-type-text-event-stream--body-length-84, protocol-mcp-http-005</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation</div></div>
                     </div>
                   </div>
                 </article>
@@ -1878,14 +2098,14 @@ a:hover {
                     <div class="ledger-links"><strong>Components:</strong> prompts/get, prompts/list, resources/list +3 more</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.AUTH.INVALID_TOKEN_STATUS</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</a></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompts/get, prompts/list, resources/list +3 more</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">24</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-auth-invalid-token-status:prompts-get:invalid-token---prompts-get--token-was-rejected-with-http-400-instead-of-http-401, auth-no-auth-prompts-get, auth-malformed-token-prompts-get, auth-invalid-token-prompts-get, auth-token-expired-prompts-get, structured-finding:mcp-auth-invalid-token-status:prompts-get:token-expired---prompts-get--token-was-rejected-with-http-400-instead-of-http-401</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
-                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.</div></div>
-                <div class="summary-card"><div class="summary-card__label">statusCode</div><div class="summary-card__value">400</div></div>
-                <div class="summary-card"><div class="summary-card__label">specReference</div><div class="summary-card__value">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompts/get, prompts/list, resources/list +3 more</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">24</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-auth-invalid-token-status:prompts-get:invalid-token---prompts-get--token-was-rejected-with-http-400-instead-of-http-401, auth-no-auth-prompts-get, auth-malformed-token-prompts-get, auth-invalid-token-prompts-get, auth-token-expired-prompts-get, structured-finding:mcp-auth-invalid-token-status:prompts-get:token-expired---prompts-get--token-was-rejected-with-http-400-instead-of-http-401</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">statusCode</div><div class="summary-card__value">400</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">specReference</div><div class="summary-card__value">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</div></div>
                     </div>
                   </div>
                 </article>
@@ -1906,19 +2126,19 @@ a:hover {
                     <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-ERR</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">5</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--parse-error, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-err-4, protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc</div></div>
-                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
-                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">5</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--parse-error, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-err-4, protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
                     </div>
                   </div>
                 </article>
               </div>
             </div>
 
-            <div>
+            <aside class="decision-hotspots">
               <h3 class="minor-title">Affected Hotspots</h3>
               <div class="ledger-list">
                 <article class="report-note report-note--warning">
@@ -1958,7 +2178,7 @@ a:hover {
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 9</div>
                 </article>
               </div>
-            </div>
+            </aside>
 
           </div>
           </div>
@@ -2070,57 +2290,58 @@ a:hover {
             </table>
           </div>
 
-          <div class="table-shell">
-            <table class="data-table calibration-table">
+          <div class="table-shell table-shell--domain-evidence">
+            <table class="data-table domain-evidence-table">
+              <colgroup><col class="table-col--domain"><col class="table-col--status"><col class="table-col--signals"><col class="table-col--evidence"><col class="table-col--interpretation"><col class="table-col--action"></colgroup>
               <thead><tr><th>Domain</th><th>Status</th><th>Signals</th><th>Evidence</th><th>Interpretation</th><th>Next Action</th></tr></thead>
               <tbody>
                 <tr>
-                  <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-danger">Reject</span></td>
-                  <td>8 blocking / 11 total</td>
-                  <td>7 protocol violation(s) &#183; 2/5 error scenarios handled correctly</td>
-                  <td>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</td>
-                  <td>This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</td>
+                  <td data-label="Domain"><div class="cell-title">Protocol</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Reject</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">8 blocking / 11 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">7 protocol violation(s) &#183; 2/5 error scenarios handled correctly</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Security</div></td>
-                  <td><span class="tone-chip tone-danger">100%</span></td>
-                  <td>66 blocking / 67 total</td>
-                  <td>0 vulnerability finding(s) &#183; 7 attack simulation(s)</td>
-                  <td>Invalid Token - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.</td>
-                  <td>Review auth boundary behavior, exploit resistance, and reflected server responses.</td>
+                  <td data-label="Domain"><div class="cell-title">Security</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">100%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">66 blocking / 67 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">0 vulnerability finding(s) &#183; 7 attack simulation(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Invalid Token - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Review auth boundary behavior, exploit resistance, and reflected server responses.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">AI Safety</div></td>
-                  <td><span class="tone-chip tone-danger">84%</span></td>
-                  <td>20 blocking / 167 total</td>
-                  <td>11 schema finding(s) &#183; 11 boundary finding(s) &#183; 8 content-safety finding(s)</td>
-                  <td>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</td>
-                  <td>Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition.</td>
+                  <td data-label="Domain"><div class="cell-title">AI Safety</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">84%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">20 blocking / 167 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">11 schema finding(s) &#183; 11 boundary finding(s) &#183; 8 content-safety finding(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Operations</div></td>
-                  <td><span class="tone-chip tone-danger">100%</span></td>
-                  <td>3 blocking / 3 total</td>
-                  <td>Avg 136.0 ms &#183; P95 159.0 ms &#183; 0.00% errors</td>
-                  <td>Error-handling scenario &#39;Invalid Method Call&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.</td>
-                  <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
+                  <td data-label="Domain"><div class="cell-title">Operations</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">100%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 blocking / 3 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">Avg 136.0 ms &#183; P95 159.0 ms &#183; 0.00% errors</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Error-handling scenario &#39;Invalid Method Call&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Compatibility</div></td>
-                  <td><span class="tone-chip tone-warning">Compatible with warnings</span></td>
-                  <td>0 incompatible &#183; 3 warning profile(s)</td>
-                  <td>5 profile(s) evaluated</td>
-                  <td>Required compatibility checks passed; 2 advisory requirements still need follow-up.</td>
-                  <td>Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</td>
+                  <td data-label="Domain"><div class="cell-title">Compatibility</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Compatible with warnings</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">0 incompatible &#183; 3 warning profile(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">5 profile(s) evaluated</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Required compatibility checks passed; 2 advisory requirements still need follow-up.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Coverage</div></td>
-                  <td><span class="tone-chip tone-success">Trusted</span></td>
-                  <td>16 covered scope(s)</td>
-                  <td>16 covered &#183; 0 skipped &#183; 0 blocked declaration(s)</td>
-                  <td>Coverage declarations explain what ran, what was skipped, and where the result may be incomplete.</td>
-                  <td>Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</td>
+                  <td data-label="Domain"><div class="cell-title">Coverage</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Trusted</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">16 covered scope(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">16 covered &#183; 0 skipped &#183; 0 blocked declaration(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Coverage declarations explain what ran, what was skipped, and where the result may be incomplete.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</div></td>
                 </tr>
               </tbody>
             </table>
@@ -2352,52 +2573,55 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--layer-summary">
+            <table class="data-table layered-report-table layered-report-table--layers">
+              <colgroup><col class="table-col--layer"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: completions, prompts, resources, tools | roots/list: not advertised | logging/setLevel: not advertised | sampling/createMessage: not advertised | completion/complete: supported</td></tr>
-                <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>151</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>3</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>58</td><td>-</td></tr>
-                <tr><td><code>performance</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>3</td><td>Validated 5 error scenario(s); 2 handled correctly.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 3 warning profile(s); 0 incompatible profile(s).</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">2</td><td data-label="Summary"><div class="cell-copy">declared capabilities: completions, prompts, resources, tools | roots/list: not advertised | logging/setLevel: not advertised | sampling/createMessage: not advertised | completion/complete: supported</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">151</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">58</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">1</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 2 handled correctly.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 5 profile(s); 3 warning profile(s); 0 incompatible profile(s).</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--coverage-summary">
+            <table class="data-table layered-report-table coverage-summary-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--coverage"><col class="table-col--confidence"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count-wide"></colgroup>
               <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>
-                <tr><td><code>bootstrap</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>client-profiles</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>error-handling</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>performance</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>prompt-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>protocol-core</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>resource-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>security-boundaries</code></td><td>100.0%</td><td>High (100.0%)</td><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>tool-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">3</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--coverage-detail">
+            <table class="data-table layered-report-table coverage-detail-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--scope"><col class="table-col--status"><col class="table-col--blocker"><col class="table-col--confidence"><col class="table-col--probe"><col class="table-col--reason"></colgroup>
               <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resources/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-assessment</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>performance</code></td><td><code>load-testing</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>bootstrap</code></td><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>protocol-core</code></td><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>client-profiles</code></td><td><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Scope" class="table-cell--code"><code>json-rpc</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tools/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Scope" class="table-cell--code"><code>resources/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Scope" class="table-cell--code"><code>prompts/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-assessment</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Scope" class="table-cell--code"><code>load-testing</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Scope" class="table-cell--code"><code>bootstrap-initialize-handshake</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Scope" class="table-cell--code"><code>protocol-compliance-review</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Scope" class="table-cell--code"><code>resource-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Scope" class="table-cell--code"><code>prompt-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Scope" class="table-cell--code"><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
               </tbody></table>
           </div>
           <div class="ledger-group">
@@ -2447,147 +2671,149 @@ a:hover {
               </article>
             </div>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--scenario-summary">
+            <table class="data-table layered-report-table layered-report-table--scenarios">
+              <colgroup><col class="table-col--scenario"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Bootstrap health checks completed successfully.</td></tr>
-                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: completions, prompts, resources, tools | roots/list: not advertised | logging/setLevel: not advertised | sampling/createMessage: not advertised | completion/complete: supported</td></tr>
-                <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>154</td><td>Tool validation completed.</td></tr>
-                <tr><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>No resources were discovered during validation.</td></tr>
-                <tr><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>3</td><td>Prompt validation completed.</td></tr>
-                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 58 authentication challenge scenario(s).</td></tr>
-                <tr><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Evaluated 7 attack simulation(s).</td></tr>
-                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>3</td><td>Validated 5 error scenario(s); 2 handled correctly.</td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>bootstrap-initialize-handshake</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Bootstrap health checks completed successfully.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>protocol-compliance-review</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">2</td><td data-label="Summary"><div class="cell-copy">declared capabilities: completions, prompts, resources, tools | roots/list: not advertised | logging/setLevel: not advertised | sampling/createMessage: not advertised | completion/complete: supported</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">154</td><td data-label="Summary"><div class="cell-copy">Tool validation completed.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>resource-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">No resources were discovered during validation.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>prompt-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Prompt validation completed.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 58 authentication challenge scenario(s).</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Skipped</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 7 attack simulation(s).</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 2 handled correctly.</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--observation-summary">
+            <table class="data-table layered-report-table observation-table">
+              <colgroup><col class="table-col--observation"><col class="table-col--layer"><col class="table-col--component"><col class="table-col--kind"><col class="table-col--preview"></colgroup>
               <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>
-                <tr><td><code>bootstrap-initialize</code></td><td><code>bootstrap</code></td><td><code>initialize</code></td><td><code>bootstrap-health</code></td><td>Healthy</td></tr>
-                <tr><td><code>protocol-mcp-proto-err</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Parse Error</td></tr>
-                <tr><td><code>protocol-mcp-proto-err-2</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc</td></tr>
-                <tr><td><code>protocol-mcp-proto-err-3</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Method Not Found</td></tr>
-                <tr><td><code>protocol-mcp-proto-err-4</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Invalid Params</td></tr>
-                <tr><td><code>protocol-mcp-proto-jsonrpc</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>Request format does not comply with JSON-RPC 2.0 specification</td></tr>
-                <tr><td><code>protocol-mcp-proto-err-5</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>Error codes do not comply with JSON-RPC 2.0 standard error codes</td></tr>
-                <tr><td><code>protocol-mcp-http-005</code></td><td><code>protocol-core</code></td><td><code>Transport</code></td><td><code>protocol-violation</code></td><td>Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</td></tr>
-                <tr><td><code>tool-tools-list-schema-compliance</code></td><td><code>tool-surface</code></td><td><code>tools/list (Schema Compliance)</code></td><td><code>tool-result</code></td><td>⚠️ Schema validation warning: tools/list schema could not be fully processed</td></tr>
-                <tr><td><code>tool-add-comment-to-pending-review</code></td><td><code>tool-surface</code></td><td><code>add_comment_to_pending_review</code></td><td><code>tool-result</code></td><td>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-add-issue-comment</code></td><td><code>tool-surface</code></td><td><code>add_issue_comment</code></td><td><code>tool-result</code></td><td>Tool &#39;add_issue_comment&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-add-reply-to-pull-request-comment</code></td><td><code>tool-surface</code></td><td><code>add_reply_to_pull_request_comment</code></td><td><code>tool-result</code></td><td>Tool &#39;add_reply_to_pull_request_comment&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-create-branch</code></td><td><code>tool-surface</code></td><td><code>create_branch</code></td><td><code>tool-result</code></td><td>Tool &#39;create_branch&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-create-or-update-file</code></td><td><code>tool-surface</code></td><td><code>create_or_update_file</code></td><td><code>tool-result</code></td><td>Tool &#39;create_or_update_file&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-create-pull-request</code></td><td><code>tool-surface</code></td><td><code>create_pull_request</code></td><td><code>tool-result</code></td><td>Tool &#39;create_pull_request&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-create-repository</code></td><td><code>tool-surface</code></td><td><code>create_repository</code></td><td><code>tool-result</code></td><td>Tool &#39;create_repository&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-delete-file</code></td><td><code>tool-surface</code></td><td><code>delete_file</code></td><td><code>tool-result</code></td><td>ℹ️ Server returned JSON-RPC error: failed to get branch reference: GET https://api.github.com/repos/test-check/test-check/git/ref/heads/test-check: 404 Not Found [] (code: 0)</td></tr>
-                <tr><td><code>tool-fork-repository</code></td><td><code>tool-surface</code></td><td><code>fork_repository</code></td><td><code>tool-result</code></td><td>Tool &#39;fork_repository&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-get-commit</code></td><td><code>tool-surface</code></td><td><code>get_commit</code></td><td><code>tool-result</code></td><td>Tool &#39;get_commit&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-file-contents</code></td><td><code>tool-surface</code></td><td><code>get_file_contents</code></td><td><code>tool-result</code></td><td>Tool &#39;get_file_contents&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-label</code></td><td><code>tool-surface</code></td><td><code>get_label</code></td><td><code>tool-result</code></td><td>Tool &#39;get_label&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-latest-release</code></td><td><code>tool-surface</code></td><td><code>get_latest_release</code></td><td><code>tool-result</code></td><td>ℹ️ Server returned JSON-RPC error: failed to get latest release: GET https://api.github.com/repos/test-check/test-check/releases/latest: 404 Not Found [] (code: 0)</td></tr>
-                <tr><td><code>tool-get-me</code></td><td><code>tool-surface</code></td><td><code>get_me</code></td><td><code>tool-result</code></td><td>Tool &#39;get_me&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-release-by-tag</code></td><td><code>tool-surface</code></td><td><code>get_release_by_tag</code></td><td><code>tool-result</code></td><td>Tool &#39;get_release_by_tag&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-tag</code></td><td><code>tool-surface</code></td><td><code>get_tag</code></td><td><code>tool-result</code></td><td>Tool &#39;get_tag&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-team-members</code></td><td><code>tool-surface</code></td><td><code>get_team_members</code></td><td><code>tool-result</code></td><td>Tool &#39;get_team_members&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-get-teams</code></td><td><code>tool-surface</code></td><td><code>get_teams</code></td><td><code>tool-result</code></td><td>Tool &#39;get_teams&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-issue-read</code></td><td><code>tool-surface</code></td><td><code>issue_read</code></td><td><code>tool-result</code></td><td>Tool &#39;issue_read&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-issue-write</code></td><td><code>tool-surface</code></td><td><code>issue_write</code></td><td><code>tool-result</code></td><td>Tool &#39;issue_write&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-list-branches</code></td><td><code>tool-surface</code></td><td><code>list_branches</code></td><td><code>tool-result</code></td><td>Tool &#39;list_branches&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-list-commits</code></td><td><code>tool-surface</code></td><td><code>list_commits</code></td><td><code>tool-result</code></td><td>Tool &#39;list_commits&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-list-issue-types</code></td><td><code>tool-surface</code></td><td><code>list_issue_types</code></td><td><code>tool-result</code></td><td>Tool &#39;list_issue_types&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-list-issues</code></td><td><code>tool-surface</code></td><td><code>list_issues</code></td><td><code>tool-result</code></td><td>Tool &#39;list_issues&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-list-pull-requests</code></td><td><code>tool-surface</code></td><td><code>list_pull_requests</code></td><td><code>tool-result</code></td><td>Tool &#39;list_pull_requests&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-list-releases</code></td><td><code>tool-surface</code></td><td><code>list_releases</code></td><td><code>tool-result</code></td><td>ℹ️ Server returned JSON-RPC error: failed to list releases: GET https://api.github.com/repos/test-check/test-check/releases?page=1&amp;per_page=1: 404 Not Found [] (code: 0)</td></tr>
-                <tr><td><code>tool-list-tags</code></td><td><code>tool-surface</code></td><td><code>list_tags</code></td><td><code>tool-result</code></td><td>Tool &#39;list_tags&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-merge-pull-request</code></td><td><code>tool-surface</code></td><td><code>merge_pull_request</code></td><td><code>tool-result</code></td><td>Tool &#39;merge_pull_request&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-pull-request-read</code></td><td><code>tool-surface</code></td><td><code>pull_request_read</code></td><td><code>tool-result</code></td><td>Tool &#39;pull_request_read&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-pull-request-review-write</code></td><td><code>tool-surface</code></td><td><code>pull_request_review_write</code></td><td><code>tool-result</code></td><td>Tool &#39;pull_request_review_write&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-push-files</code></td><td><code>tool-surface</code></td><td><code>push_files</code></td><td><code>tool-result</code></td><td>Tool &#39;push_files&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-request-copilot-review</code></td><td><code>tool-surface</code></td><td><code>request_copilot_review</code></td><td><code>tool-result</code></td><td>Tool &#39;request_copilot_review&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-run-secret-scanning</code></td><td><code>tool-surface</code></td><td><code>run_secret_scanning</code></td><td><code>tool-result</code></td><td>Tool &#39;run_secret_scanning&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-search-code</code></td><td><code>tool-surface</code></td><td><code>search_code</code></td><td><code>tool-result</code></td><td>Tool &#39;search_code&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-search-issues</code></td><td><code>tool-surface</code></td><td><code>search_issues</code></td><td><code>tool-result</code></td><td>Tool &#39;search_issues&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-search-pull-requests</code></td><td><code>tool-surface</code></td><td><code>search_pull_requests</code></td><td><code>tool-result</code></td><td>Tool &#39;search_pull_requests&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-search-repositories</code></td><td><code>tool-surface</code></td><td><code>search_repositories</code></td><td><code>tool-result</code></td><td>Tool &#39;search_repositories&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-search-users</code></td><td><code>tool-surface</code></td><td><code>search_users</code></td><td><code>tool-result</code></td><td>Tool &#39;search_users&#39; does not declare annotations.destructiveHint.</td></tr>
-                <tr><td><code>tool-sub-issue-write</code></td><td><code>tool-surface</code></td><td><code>sub_issue_write</code></td><td><code>tool-result</code></td><td>Tool &#39;sub_issue_write&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-update-pull-request</code></td><td><code>tool-surface</code></td><td><code>update_pull_request</code></td><td><code>tool-result</code></td><td>Tool &#39;update_pull_request&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>tool-update-pull-request-branch</code></td><td><code>tool-surface</code></td><td><code>update_pull_request_branch</code></td><td><code>tool-result</code></td><td>Tool &#39;update_pull_request_branch&#39; does not declare annotations.readOnlyHint.</td></tr>
-                <tr><td><code>prompt-assigncodingagent</code></td><td><code>prompt-surface</code></td><td><code>AssignCodingAgent</code></td><td><code>prompt-result</code></td><td>✅ prompts/get: messages[] array present (6 messages)</td></tr>
-                <tr><td><code>prompt-issue-to-fix-workflow</code></td><td><code>prompt-surface</code></td><td><code>issue_to_fix_workflow</code></td><td><code>prompt-result</code></td><td>✅ prompts/get: messages[] array present (5 messages)</td></tr>
-                <tr><td><code>auth-no-auth-initialize</code></td><td><code>security-boundaries</code></td><td><code>initialize</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
-                <tr><td><code>auth-no-auth-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
-                <tr><td><code>auth-malformed-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-valid-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>auth-no-auth-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-malformed-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-query-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-valid-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>auth-no-auth-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
-                <tr><td><code>auth-malformed-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-valid-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>auth-no-auth-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-malformed-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-query-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-valid-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>auth-no-auth-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
-                <tr><td><code>auth-malformed-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-valid-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>auth-no-auth-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-malformed-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-invalid-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-token-expired-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-invalid-scope-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-insufficient-permissions-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</td></tr>
-                <tr><td><code>auth-revoked-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-wrong-audience-rfc-8707-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</td></tr>
-                <tr><td><code>auth-query-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
-                <tr><td><code>auth-valid-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</td></tr>
-                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3a9620f1-487c-45f8-8ec2-9e141f36f5aa&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</td></tr>
-                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;85666bdc-8c58-42e1-921c-5694b7cb2d07&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</td></tr>
-                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c378c1df-5478-47f8-96d6-414de4650cd9&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</td></tr>
-                <tr><td><code>attack-mcp-sec-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-001</code></td><td><code>attack-simulation</code></td><td>Server handled malformed requests gracefully with standard errors.</td></tr>
-                <tr><td><code>attack-mcp-sec-002</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-002</code></td><td><code>attack-simulation</code></td><td>Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</td></tr>
-                <tr><td><code>attack-mcp-sec-003</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-003</code></td><td><code>attack-simulation</code></td><td>Server correctly rejected invalid schema.</td></tr>
-                <tr><td><code>attack-mcp-ai-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-AI-001</code></td><td><code>attack-simulation</code></td><td>Error clarity: 100/100 (Good). Server error messages help AI self-correct.</td></tr>
-                <tr><td><code>error-invalid-method-call</code></td><td><code>error-handling</code></td><td><code>invalid-method</code></td><td><code>error-scenario</code></td><td>HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
-</td></tr>
-                <tr><td><code>error-malformed-json-payload</code></td><td><code>error-handling</code></td><td><code>malformed-json</code></td><td><code>error-scenario</code></td><td>HTTP 400; malformed payload: unmarshaling jsonrpc message: json: expected &#39;&quot;&#39; at the beginning of a string value: invalid json
-</td></tr>
-                <tr><td><code>error-graceful-degradation-on-invalid-request</code></td><td><code>error-handling</code></td><td><code>invalid-request</code></td><td><code>error-scenario</code></td><td>HTTP 400; malformed payload: invalid message version tag &quot;&quot;; expected &quot;2.0&quot;
-</td></tr>
-                <tr><td><code>error-timeout-handling-recovery</code></td><td><code>error-handling</code></td><td><code>timeout-handling</code></td><td><code>error-scenario</code></td><td>Validator cancelled the HTTP request after the induced timeout window elapsed.</td></tr>
-                <tr><td><code>error-connection-interruption-recovery</code></td><td><code>error-handling</code></td><td><code>connection-interruption</code></td><td><code>error-scenario</code></td><td>Validator aborted the HTTP request body mid-stream to simulate a connection interruption.</td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>bootstrap-initialize</code></td><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Component" class="table-cell--code"><code>initialize</code></td><td data-label="Kind" class="table-cell--code"><code>bootstrap-health</code></td><td data-label="Preview"><div class="cell-copy">Healthy</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-err</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">JSON-RPC Error Code Violation: Parse Error</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-err-2</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-err-3</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">JSON-RPC Error Code Violation: Method Not Found</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-err-4</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">JSON-RPC Error Code Violation: Invalid Params</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-jsonrpc</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">Request format does not comply with JSON-RPC 2.0 specification</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-proto-err-5</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>JSON-RPC Compliance</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">Error codes do not comply with JSON-RPC 2.0 standard error codes</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>protocol-mcp-http-005</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>Transport</code></td><td data-label="Kind" class="table-cell--code"><code>protocol-violation</code></td><td data-label="Preview"><div class="cell-copy">Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-tools-list-schema-compliance</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>tools/list (Schema Compliance)</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">⚠️ Schema validation warning: tools/list schema could not be fully processed</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-add-comment-to-pending-review</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>add_comment_to_pending_review</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-add-issue-comment</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>add_issue_comment</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;add_issue_comment&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-add-reply-to-pull-request-comment</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>add_reply_to_pull_request_comment</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;add_reply_to_pull_request_comment&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-create-branch</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>create_branch</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;create_branch&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-create-or-update-file</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>create_or_update_file</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;create_or_update_file&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-create-pull-request</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>create_pull_request</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;create_pull_request&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-create-repository</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>create_repository</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;create_repository&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-delete-file</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>delete_file</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">ℹ️ Server returned JSON-RPC error: failed to get branch reference: GET https://api.github.com/repos/test-check/test-check/git/ref/heads/test-check: 404 Not Found [] (code: 0)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-fork-repository</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>fork_repository</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;fork_repository&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-commit</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_commit</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_commit&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-file-contents</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_file_contents</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_file_contents&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-label</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_label</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_label&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-latest-release</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_latest_release</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">ℹ️ Server returned JSON-RPC error: failed to get latest release: GET https://api.github.com/repos/test-check/test-check/releases/latest: 404 Not Found [] (code: 0)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-me</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_me</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_me&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-release-by-tag</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_release_by_tag</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_release_by_tag&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-tag</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_tag</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_tag&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-team-members</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_team_members</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_team_members&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-get-teams</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>get_teams</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;get_teams&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-issue-read</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>issue_read</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;issue_read&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-issue-write</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>issue_write</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;issue_write&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-branches</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_branches</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_branches&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-commits</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_commits</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_commits&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-issue-types</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_issue_types</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_issue_types&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-issues</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_issues</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_issues&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-pull-requests</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_pull_requests</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_pull_requests&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-releases</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_releases</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">ℹ️ Server returned JSON-RPC error: failed to list releases: GET https://api.github.com/repos/test-check/test-check/releases?page=1&amp;per_page=1: 404 Not Found [] (code: 0)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-list-tags</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>list_tags</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;list_tags&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-merge-pull-request</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>merge_pull_request</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;merge_pull_request&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-pull-request-read</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>pull_request_read</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;pull_request_read&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-pull-request-review-write</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>pull_request_review_write</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;pull_request_review_write&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-push-files</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>push_files</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;push_files&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-request-copilot-review</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>request_copilot_review</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;request_copilot_review&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-run-secret-scanning</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>run_secret_scanning</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;run_secret_scanning&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-search-code</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>search_code</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;search_code&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-search-issues</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>search_issues</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;search_issues&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-search-pull-requests</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>search_pull_requests</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;search_pull_requests&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-search-repositories</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>search_repositories</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;search_repositories&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-search-users</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>search_users</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;search_users&#39; does not declare annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-sub-issue-write</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>sub_issue_write</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;sub_issue_write&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-update-pull-request</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>update_pull_request</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;update_pull_request&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-update-pull-request-branch</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>update_pull_request_branch</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">Tool &#39;update_pull_request_branch&#39; does not declare annotations.readOnlyHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>prompt-assigncodingagent</code></td><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Component" class="table-cell--code"><code>AssignCodingAgent</code></td><td data-label="Kind" class="table-cell--code"><code>prompt-result</code></td><td data-label="Preview"><div class="cell-copy">✅ prompts/get: messages[] array present (6 messages)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>prompt-issue-to-fix-workflow</code></td><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Component" class="table-cell--code"><code>issue_to_fix_workflow</code></td><td data-label="Kind" class="table-cell--code"><code>prompt-result</code></td><td data-label="Preview"><div class="cell-copy">✅ prompts/get: messages[] array present (5 messages)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-initialize</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>initialize</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-prompts-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-query-token-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-prompts-get</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>prompts/get</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-resources-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-query-token-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-resources-read</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>resources/read</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-tools-list</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-no-auth-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-malformed-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-token-expired-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-invalid-scope-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-insufficient-permissions-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-revoked-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-query-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-001-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-001 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3a9620f1-487c-45f8-8ec2-9e141f36f5aa&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-002-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-002 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;85666bdc-8c58-42e1-921c-5694b7cb2d07&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-003-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-003 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c378c1df-5478-47f8-96d6-414de4650cd9&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server handled malformed requests gracefully with standard errors.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-002</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-002</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-003</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-003</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server correctly rejected invalid schema.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-ai-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-AI-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Error clarity: 100/100 (Good). Server error messages help AI self-correct.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-invalid-method-call</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-method</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
+</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-malformed-json-payload</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>malformed-json</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; malformed payload: unmarshaling jsonrpc message: json: expected &#39;&quot;&#39; at the beginning of a string value: invalid json
+</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-graceful-degradation-on-invalid-request</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-request</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; malformed payload: invalid message version tag &quot;&quot;; expected &quot;2.0&quot;
+</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-timeout-handling-recovery</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>timeout-handling</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">Validator cancelled the HTTP request after the induced timeout window elapsed.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-connection-interruption-recovery</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>connection-interruption</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">Validator aborted the HTTP request body mid-stream to simulate a connection interruption.</div></td></tr>
               </tbody></table>
           </div>
           </div>

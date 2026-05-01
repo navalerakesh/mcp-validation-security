@@ -153,7 +153,7 @@ internal sealed class ValidationHtmlReportComposer
                 decisionTraceAbstract,
                 document.DecisionTrace.FirstOrDefault()?.Tone ?? HtmlReportTone.Info,
                 openByDefault: false));
-            sb.AppendLine("          <div class=\"dual-grid\">");
+            sb.AppendLine("          <div class=\"decision-trace-layout\">");
             sb.AppendLine(RenderDecisionTraceLedger(document.DecisionTrace));
             sb.AppendLine(RenderHotspotPanel(document.Hotspots));
             sb.AppendLine("          </div>");
@@ -352,7 +352,7 @@ internal sealed class ValidationHtmlReportComposer
     private static string RenderDecisionTraceLedger(IReadOnlyList<ValidationHtmlDecisionTraceItem> items)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("            <div>");
+        sb.AppendLine("            <div class=\"decision-trace-main\">");
         sb.AppendLine("              <h3 class=\"minor-title\">Decision Themes</h3>");
         sb.AppendLine($"              <p class=\"evidence-note\">{Encode(ValidationAuthorityHierarchy.Legend)}</p>");
         sb.AppendLine("              <div class=\"ledger-list\">");
@@ -387,10 +387,10 @@ internal sealed class ValidationHtmlReportComposer
             }
             if (item.Facts.Count > 0)
             {
-                sb.AppendLine("                    <div class=\"summary-grid\">");
+                sb.AppendLine("                    <div class=\"summary-grid decision-fact-grid\">");
                 foreach (var fact in item.Facts)
                 {
-                    sb.AppendLine(RenderExecutiveSummaryCard(fact.Label, fact.Value));
+                    sb.AppendLine(RenderDecisionFactCard(fact.Label, fact.Value));
                 }
                 sb.AppendLine("                    </div>");
             }
@@ -406,7 +406,7 @@ internal sealed class ValidationHtmlReportComposer
     private static string RenderHotspotPanel(IReadOnlyList<ValidationHtmlHotspot> hotspots)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("            <div>");
+        sb.AppendLine("            <aside class=\"decision-hotspots\">");
         sb.AppendLine("              <h3 class=\"minor-title\">Affected Hotspots</h3>");
         if (hotspots.Count == 0)
         {
@@ -427,26 +427,32 @@ internal sealed class ValidationHtmlReportComposer
             }
             sb.AppendLine("              </div>");
         }
-        sb.AppendLine("            </div>");
+        sb.AppendLine("            </aside>");
         return sb.ToString();
+    }
+
+    private static string RenderDecisionFactCard(string label, string value)
+    {
+        return $"                <div class=\"summary-card summary-card--decision-fact\"><div class=\"summary-card__label\">{Encode(label)}</div><div class=\"summary-card__value\">{Encode(value)}</div></div>";
     }
 
     private static string RenderDomainEvidenceMatrix(IReadOnlyList<ValidationHtmlDomainSummary> summaries)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"table-shell\">");
-        sb.AppendLine("            <table class=\"data-table calibration-table\">");
+        sb.AppendLine("          <div class=\"table-shell table-shell--domain-evidence\">");
+        sb.AppendLine("            <table class=\"data-table domain-evidence-table\">");
+        sb.AppendLine("              <colgroup><col class=\"table-col--domain\"><col class=\"table-col--status\"><col class=\"table-col--signals\"><col class=\"table-col--evidence\"><col class=\"table-col--interpretation\"><col class=\"table-col--action\"></colgroup>");
         sb.AppendLine("              <thead><tr><th>Domain</th><th>Status</th><th>Signals</th><th>Evidence</th><th>Interpretation</th><th>Next Action</th></tr></thead>");
         sb.AppendLine("              <tbody>");
         foreach (var summary in summaries)
         {
             sb.AppendLine("                <tr>");
-            sb.AppendLine($"                  <td><div class=\"cell-title\">{Encode(summary.Domain)}</div></td>");
-            sb.AppendLine($"                  <td>{RenderToneChip(summary.StatusLabel, summary.Tone)}</td>");
-            sb.AppendLine($"                  <td>{Encode(summary.SignalLabel)}</td>");
-            sb.AppendLine($"                  <td>{Encode(summary.EvidenceLabel)}</td>");
-            sb.AppendLine($"                  <td>{Encode(summary.Summary)}</td>");
-            sb.AppendLine($"                  <td>{Encode(summary.ActionLabel)}</td>");
+            sb.AppendLine($"                  <td data-label=\"Domain\"><div class=\"cell-title\">{Encode(summary.Domain)}</div></td>");
+            sb.AppendLine($"                  <td data-label=\"Status\" class=\"table-cell--status\">{RenderToneChip(summary.StatusLabel, summary.Tone)}</td>");
+            sb.AppendLine($"                  <td data-label=\"Signals\"><div class=\"cell-copy cell-copy--compact\">{Encode(summary.SignalLabel)}</div></td>");
+            sb.AppendLine($"                  <td data-label=\"Evidence\"><div class=\"cell-copy\">{Encode(summary.EvidenceLabel)}</div></td>");
+            sb.AppendLine($"                  <td data-label=\"Interpretation\"><div class=\"cell-copy cell-copy--interpretation\">{Encode(summary.Summary)}</div></td>");
+            sb.AppendLine($"                  <td data-label=\"Next Action\"><div class=\"cell-copy cell-copy--action\">{Encode(summary.ActionLabel)}</div></td>");
             sb.AppendLine("                </tr>");
         }
         sb.AppendLine("              </tbody>");
@@ -791,12 +797,13 @@ internal sealed class ValidationHtmlReportComposer
 
         if (result.Assessments.Layers.Count > 0)
         {
-            sb.AppendLine("          <div class=\"table-shell\">");
-            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("          <div class=\"table-shell table-shell--layer-summary\">");
+            sb.AppendLine("            <table class=\"data-table layered-report-table layered-report-table--layers\">");
+            sb.AppendLine("              <colgroup><col class=\"table-col--layer\"><col class=\"table-col--status\"><col class=\"table-col--count\"><col class=\"table-col--summary\"></colgroup>");
             sb.AppendLine("              <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>");
             foreach (var layer in result.Assessments.Layers)
             {
-                sb.AppendLine($"                <tr><td><code>{Encode(layer.LayerId)}</code></td><td>{RenderToneChip(layer.Status.ToString(), MapTestTone(layer.Status))}</td><td>{layer.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td>{Encode(layer.Summary ?? "-")}</td></tr>");
+                sb.AppendLine($"                <tr><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(layer.LayerId)}</code></td><td data-label=\"Status\" class=\"table-cell--status\">{RenderToneChip(layer.Status.ToString(), MapTestTone(layer.Status))}</td><td data-label=\"Findings\" class=\"table-cell--numeric\">{layer.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Summary\"><div class=\"cell-copy\">{Encode(layer.Summary ?? "-")}</div></td></tr>");
             }
             sb.AppendLine("              </tbody></table>");
             sb.AppendLine("          </div>");
@@ -807,23 +814,25 @@ internal sealed class ValidationHtmlReportComposer
             var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
             if (evidenceSummary.Categories.Count > 0)
             {
-                sb.AppendLine("          <div class=\"table-shell\">");
-                sb.AppendLine("            <table class=\"data-table\">");
+                sb.AppendLine("          <div class=\"table-shell table-shell--coverage-summary\">");
+                sb.AppendLine("            <table class=\"data-table layered-report-table coverage-summary-table\">");
+                sb.AppendLine("              <colgroup><col class=\"table-col--layer\"><col class=\"table-col--coverage\"><col class=\"table-col--confidence\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count-wide\"></colgroup>");
                 sb.AppendLine("              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>");
                 foreach (var category in evidenceSummary.Categories)
                 {
-                    sb.AppendLine($"                <tr><td><code>{Encode(category.LayerId)}</code></td><td>{(category.EvidenceCoverageRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%</td><td>{Encode(category.ConfidenceLevel.ToString())} ({(category.EvidenceConfidenceRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%)</td><td>{category.Covered.ToString(CultureInfo.InvariantCulture)}</td><td>{category.AuthRequired.ToString(CultureInfo.InvariantCulture)}</td><td>{category.Inconclusive.ToString(CultureInfo.InvariantCulture)}</td><td>{category.Skipped.ToString(CultureInfo.InvariantCulture)}</td><td>{(category.Blocked + category.Unavailable).ToString(CultureInfo.InvariantCulture)}</td></tr>");
+                    sb.AppendLine($"                <tr><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(category.LayerId)}</code></td><td data-label=\"Coverage\" class=\"table-cell--numeric\">{(category.EvidenceCoverageRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%</td><td data-label=\"Confidence\"><div class=\"cell-copy cell-copy--compact\">{Encode(category.ConfidenceLevel.ToString())} ({(category.EvidenceConfidenceRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%)</div></td><td data-label=\"Covered\" class=\"table-cell--numeric\">{category.Covered.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Auth Required\" class=\"table-cell--numeric\">{category.AuthRequired.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Inconclusive\" class=\"table-cell--numeric\">{category.Inconclusive.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Skipped\" class=\"table-cell--numeric\">{category.Skipped.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Blocked/Unavailable\" class=\"table-cell--numeric\">{(category.Blocked + category.Unavailable).ToString(CultureInfo.InvariantCulture)}</td></tr>");
                 }
                 sb.AppendLine("              </tbody></table>");
                 sb.AppendLine("          </div>");
             }
 
-            sb.AppendLine("          <div class=\"table-shell\">");
-            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("          <div class=\"table-shell table-shell--coverage-detail\">");
+            sb.AppendLine("            <table class=\"data-table layered-report-table coverage-detail-table\">");
+            sb.AppendLine("              <colgroup><col class=\"table-col--layer\"><col class=\"table-col--scope\"><col class=\"table-col--status\"><col class=\"table-col--blocker\"><col class=\"table-col--confidence\"><col class=\"table-col--probe\"><col class=\"table-col--reason\"></colgroup>");
             sb.AppendLine("              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>");
             foreach (var coverage in result.Evidence.Coverage)
             {
-                sb.AppendLine($"                <tr><td><code>{Encode(coverage.LayerId)}</code></td><td><code>{Encode(coverage.Scope)}</code></td><td>{RenderToneChip(coverage.Status.ToString(), MapCoverageTone(coverage.Status))}</td><td><code>{Encode(coverage.Blocker.ToString())}</code></td><td>{Encode(coverage.Confidence.ToString())}</td><td>{Encode(FormatProbeContext(coverage.ProbeContext))}</td><td>{Encode(coverage.Reason ?? "-")}</td></tr>");
+                sb.AppendLine($"                <tr><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(coverage.LayerId)}</code></td><td data-label=\"Scope\" class=\"table-cell--code\"><code>{Encode(coverage.Scope)}</code></td><td data-label=\"Status\" class=\"table-cell--status\">{RenderToneChip(coverage.Status.ToString(), MapCoverageTone(coverage.Status))}</td><td data-label=\"Blocker\" class=\"table-cell--code\"><code>{Encode(coverage.Blocker.ToString())}</code></td><td data-label=\"Confidence\"><div class=\"cell-copy cell-copy--compact\">{Encode(coverage.Confidence.ToString())}</div></td><td data-label=\"Probe\"><div class=\"cell-copy\">{Encode(FormatProbeContext(coverage.ProbeContext))}</div></td><td data-label=\"Reason\"><div class=\"cell-copy\">{Encode(coverage.Reason ?? "-")}</div></td></tr>");
             }
             sb.AppendLine("              </tbody></table>");
             sb.AppendLine("          </div>");
@@ -857,12 +866,13 @@ internal sealed class ValidationHtmlReportComposer
 
         if (result.Assessments.Scenarios.Count > 0)
         {
-            sb.AppendLine("          <div class=\"table-shell\">");
-            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("          <div class=\"table-shell table-shell--scenario-summary\">");
+            sb.AppendLine("            <table class=\"data-table layered-report-table layered-report-table--scenarios\">");
+            sb.AppendLine("              <colgroup><col class=\"table-col--scenario\"><col class=\"table-col--status\"><col class=\"table-col--count\"><col class=\"table-col--summary\"></colgroup>");
             sb.AppendLine("              <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>");
             foreach (var scenario in result.Assessments.Scenarios)
             {
-                sb.AppendLine($"                <tr><td><code>{Encode(scenario.ScenarioId)}</code></td><td>{RenderToneChip(scenario.Status.ToString(), MapTestTone(scenario.Status))}</td><td>{scenario.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td>{Encode(scenario.Summary ?? "-")}</td></tr>");
+                sb.AppendLine($"                <tr><td data-label=\"Scenario\" class=\"table-cell--code\"><code>{Encode(scenario.ScenarioId)}</code></td><td data-label=\"Status\" class=\"table-cell--status\">{RenderToneChip(scenario.Status.ToString(), MapTestTone(scenario.Status))}</td><td data-label=\"Findings\" class=\"table-cell--numeric\">{scenario.Findings.Count.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Summary\"><div class=\"cell-copy\">{Encode(scenario.Summary ?? "-")}</div></td></tr>");
             }
             sb.AppendLine("              </tbody></table>");
             sb.AppendLine("          </div>");
@@ -870,12 +880,13 @@ internal sealed class ValidationHtmlReportComposer
 
         if (result.Evidence.Observations.Count > 0)
         {
-            sb.AppendLine("          <div class=\"table-shell\">");
-            sb.AppendLine("            <table class=\"data-table\">");
+            sb.AppendLine("          <div class=\"table-shell table-shell--observation-summary\">");
+            sb.AppendLine("            <table class=\"data-table layered-report-table observation-table\">");
+            sb.AppendLine("              <colgroup><col class=\"table-col--observation\"><col class=\"table-col--layer\"><col class=\"table-col--component\"><col class=\"table-col--kind\"><col class=\"table-col--preview\"></colgroup>");
             sb.AppendLine("              <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>");
             foreach (var observation in result.Evidence.Observations)
             {
-                sb.AppendLine($"                <tr><td><code>{Encode(observation.Id)}</code></td><td><code>{Encode(observation.LayerId)}</code></td><td><code>{Encode(observation.Component)}</code></td><td><code>{Encode(observation.ObservationKind)}</code></td><td>{Encode(observation.RedactedPayloadPreview ?? "-")}</td></tr>");
+                sb.AppendLine($"                <tr><td data-label=\"Observation\" class=\"table-cell--code\"><code>{Encode(observation.Id)}</code></td><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(observation.LayerId)}</code></td><td data-label=\"Component\" class=\"table-cell--code\"><code>{Encode(observation.Component)}</code></td><td data-label=\"Kind\" class=\"table-cell--code\"><code>{Encode(observation.ObservationKind)}</code></td><td data-label=\"Preview\"><div class=\"cell-copy\">{Encode(observation.RedactedPayloadPreview ?? "-")}</div></td></tr>");
             }
             sb.AppendLine("              </tbody></table>");
             sb.AppendLine("          </div>");

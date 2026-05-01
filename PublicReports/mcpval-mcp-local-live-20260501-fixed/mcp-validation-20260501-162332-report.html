@@ -205,6 +205,8 @@ body {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid transparent;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 .status-chip::before,
 .tone-chip::before {
@@ -312,13 +314,14 @@ body {
 }
 .ledger-entry {
     display: grid;
-    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+    grid-template-columns: minmax(min(210px, 100%), 250px) minmax(0, 1fr);
     gap: 18px;
     border: 1px solid var(--line);
     border-left-width: 4px;
     border-radius: var(--radius-card);
     background: rgba(255,255,255,0.98);
     padding: 16px 18px;
+    min-width: 0;
 }
 .ledger-entry--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
 .ledger-entry--warning { border-left-color: var(--tone-warning); }
@@ -373,6 +376,11 @@ body {
     color: var(--text-muted);
     line-height: 1.5;
     overflow-wrap: anywhere;
+}
+.ledger-links a,
+.ledger-links code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .ledger-code,
 .ledger-code-block {
@@ -827,6 +835,7 @@ body {
 .section-card__content {
     border-top: 1px solid rgba(174, 187, 201, 0.45);
     padding: 0 18px 18px;
+    min-width: 0;
 }
 .section-card__content > :first-child {
     margin-top: 14px;
@@ -991,8 +1000,31 @@ body {
 }
 .dual-grid {
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
     gap: 14px;
+}
+.dual-grid > * {
+    min-width: 0;
+}
+.decision-trace-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 18px;
+    align-items: start;
+}
+.decision-trace-main,
+.decision-hotspots {
+    min-width: 0;
+}
+.decision-hotspots .ledger-list {
+    gap: 10px;
+}
+.decision-hotspots .report-note {
+    min-width: 0;
+}
+.decision-fact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    gap: 10px;
 }
 .list-panel {
     display: grid;
@@ -1027,7 +1059,7 @@ body {
 }
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
     gap: 12px;
     margin-top: 14px;
 }
@@ -1036,6 +1068,7 @@ body {
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.78);
     padding: 13px 14px;
+    min-width: 0;
 }
 .summary-card__label {
     font-size: 0.72rem;
@@ -1049,6 +1082,22 @@ body {
     font-size: 1.02rem;
     line-height: 1.45;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.summary-card--decision-fact {
+    border-radius: 12px;
+    background: rgba(255,255,255,0.88);
+    padding: 11px 12px;
+}
+.summary-card--decision-fact .summary-card__label {
+    overflow-wrap: anywhere;
+}
+.summary-card--decision-fact .summary-card__value {
+    color: var(--text);
+    font-size: 0.92rem;
+    line-height: 1.5;
 }
 .card-grid {
     display: grid;
@@ -1190,6 +1239,8 @@ body {
     border-radius: 18px;
     overflow: auto;
     background: rgba(255,255,255,0.98);
+    max-width: 100%;
+    scrollbar-gutter: stable;
 }
 .table-shell--compact {
     margin-top: 14px;
@@ -1198,6 +1249,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.92rem;
+    line-height: 1.48;
 }
 .data-table thead {
     background: var(--surface-emphasis);
@@ -1209,6 +1261,7 @@ body {
     text-align: left;
     vertical-align: top;
     overflow-wrap: anywhere;
+    min-width: 0;
 }
 .data-table th {
     color: var(--text-soft);
@@ -1222,6 +1275,83 @@ body {
 }
 .data-table tbody tr:last-child td {
     border-bottom: 0;
+}
+.domain-evidence-table,
+.layered-report-table {
+    table-layout: fixed;
+}
+.domain-evidence-table {
+    min-width: 100%;
+}
+.layered-report-table {
+    min-width: 100%;
+}
+.coverage-summary-table,
+.coverage-detail-table,
+.observation-table {
+    min-width: 100%;
+}
+.domain-evidence-table .table-col--domain { width: 10%; }
+.domain-evidence-table .table-col--status { width: 13%; }
+.domain-evidence-table .table-col--signals { width: 13%; }
+.domain-evidence-table .table-col--evidence { width: 18%; }
+.domain-evidence-table .table-col--interpretation { width: 22%; }
+.domain-evidence-table .table-col--action { width: 24%; }
+.layered-report-table--layers .table-col--layer,
+.layered-report-table--scenarios .table-col--scenario { width: 20%; }
+.layered-report-table--layers .table-col--status,
+.layered-report-table--scenarios .table-col--status { width: 12%; }
+.layered-report-table--layers .table-col--count,
+.layered-report-table--scenarios .table-col--count { width: 10%; }
+.layered-report-table--layers .table-col--summary,
+.layered-report-table--scenarios .table-col--summary { width: 58%; }
+.coverage-summary-table .table-col--layer { width: 17%; }
+.coverage-summary-table .table-col--coverage { width: 10%; }
+.coverage-summary-table .table-col--confidence { width: 16%; }
+.coverage-summary-table .table-col--count { width: 9%; }
+.coverage-summary-table .table-col--count-wide { width: 14%; }
+.coverage-detail-table .table-col--layer { width: 15%; }
+.coverage-detail-table .table-col--scope { width: 22%; }
+.coverage-detail-table .table-col--status { width: 12%; }
+.coverage-detail-table .table-col--blocker { width: 11%; }
+.coverage-detail-table .table-col--confidence { width: 10%; }
+.coverage-detail-table .table-col--probe { width: 15%; }
+.coverage-detail-table .table-col--reason { width: 15%; }
+.observation-table .table-col--observation { width: 20%; }
+.observation-table .table-col--layer { width: 15%; }
+.observation-table .table-col--component { width: 18%; }
+.observation-table .table-col--kind { width: 15%; }
+.observation-table .table-col--preview { width: 32%; }
+.table-cell--numeric {
+    color: var(--text-strong);
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+}
+.table-cell--status .tone-chip {
+    max-width: 100%;
+    padding-inline: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.table-cell--code code,
+.data-table code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+}
+.cell-copy {
+    max-width: 68ch;
+    color: var(--text);
+    line-height: 1.58;
+    overflow-wrap: anywhere;
+}
+.cell-copy--compact {
+    max-width: 34ch;
+}
+.cell-copy--interpretation,
+.cell-copy--action {
+    max-width: 48ch;
 }
 code {
     font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -1348,6 +1478,7 @@ a:hover {
     .hero { padding: 22px; }
     .hero-grid,
     .dual-grid,
+    .decision-trace-layout,
     .brief-grid,
     .appendix-grid {
         grid-template-columns: 1fr;
@@ -1385,6 +1516,78 @@ a:hover {
     }
     .authority-card__metrics {
         grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 760px) {
+    .table-shell--domain-evidence,
+    .table-shell--layer-summary,
+    .table-shell--coverage-summary,
+    .table-shell--coverage-detail,
+    .table-shell--scenario-summary,
+    .table-shell--observation-summary {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table {
+        min-width: 0;
+        table-layout: auto;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+    .domain-evidence-table thead,
+    .layered-report-table thead,
+    .domain-evidence-table colgroup,
+    .layered-report-table colgroup {
+        display: none;
+    }
+    .domain-evidence-table tbody tr,
+    .layered-report-table tbody tr {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.98);
+        overflow: hidden;
+    }
+    .domain-evidence-table tbody tr:nth-child(even),
+    .layered-report-table tbody tr:nth-child(even) {
+        background: rgba(255,255,255,0.98);
+    }
+    .domain-evidence-table td,
+    .layered-report-table td {
+        display: grid;
+        grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 10px 12px;
+    }
+    .domain-evidence-table td::before,
+    .layered-report-table td::before {
+        content: attr(data-label);
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .domain-evidence-table tbody tr:last-child td,
+    .layered-report-table tbody tr:last-child td {
+        border-bottom: 1px solid var(--line);
+    }
+    .domain-evidence-table tbody tr td:last-child,
+    .layered-report-table tbody tr td:last-child {
+        border-bottom: 0;
+    }
+    .table-cell--numeric {
+        text-align: left;
+    }
+    .cell-copy,
+    .cell-copy--compact,
+    .cell-copy--interpretation,
+    .cell-copy--action {
+        max-width: none;
     }
 }
 @media print {
@@ -1449,6 +1652,7 @@ a:hover {
     .stack-item,
     .finding-row,
     .summary-grid,
+    .decision-trace-layout,
     .card-grid,
     .panel-grid,
     .hero-meta,
@@ -1472,6 +1676,22 @@ a:hover {
     }
     details.section-card > .section-card__content {
         display: block !important;
+    }
+    .table-shell {
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table,
+    .coverage-summary-table,
+    .coverage-detail-table,
+    .observation-table {
+        min-width: 0;
+        table-layout: auto;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 7px 8px;
+        font-size: 0.78rem;
     }
 }
     </style>
@@ -1517,7 +1737,7 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-success">
     <span class="status-chip status-chip--success">Run Status</span>
     <div class="focus-value">Proceed</div>
-    <div class="focus-label">Generated on 2026-05-01 16:23:32 UTC</div>
+    <div class="focus-label">Generated on 2026-05-01 16:48:49 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-info">
     <span class="status-chip status-chip--info">Deterministic Verdict</span>
@@ -1660,8 +1880,8 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="dual-grid">
-            <div>
+          <div class="decision-trace-layout">
+            <div class="decision-trace-main">
               <h3 class="minor-title">Decision Themes</h3>
               <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
@@ -1680,17 +1900,17 @@ a:hover {
                     <p class="ledger-copy">3 related decision(s) across 1 component(s). Representative issue: MAY requirement failed: MAY: Server supports sampling/createMessage</p>
                     <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic aggregation &#183; 1 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> capabilities</div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">capabilities</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
-                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">tier-check:may:capabilities:may--server-supports-sampling-createmessage, tier-check:may:capabilities:may--server-supports-roots-list, tier-check:may:capabilities:may--server-supports-completion-complete</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">capabilities</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">tier-check:may:capabilities:may--server-supports-sampling-createmessage, tier-check:may:capabilities:may--server-supports-roots-list, tier-check:may:capabilities:may--server-supports-completion-complete</div></div>
                     </div>
                   </div>
                 </article>
               </div>
             </div>
 
-            <div>
+            <aside class="decision-hotspots">
               <h3 class="minor-title">Affected Hotspots</h3>
               <div class="ledger-list">
                 <article class="report-note report-note--neutral">
@@ -1700,7 +1920,7 @@ a:hover {
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 3</div>
                 </article>
               </div>
-            </div>
+            </aside>
 
           </div>
           </div>
@@ -1812,57 +2032,58 @@ a:hover {
             </table>
           </div>
 
-          <div class="table-shell">
-            <table class="data-table calibration-table">
+          <div class="table-shell table-shell--domain-evidence">
+            <table class="data-table domain-evidence-table">
+              <colgroup><col class="table-col--domain"><col class="table-col--status"><col class="table-col--signals"><col class="table-col--evidence"><col class="table-col--interpretation"><col class="table-col--action"></colgroup>
               <thead><tr><th>Domain</th><th>Status</th><th>Signals</th><th>Evidence</th><th>Interpretation</th><th>Next Action</th></tr></thead>
               <tbody>
                 <tr>
-                  <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-info">Conditional</span></td>
-                  <td>0 blocking / 3 total</td>
-                  <td>0 protocol violation(s) &#183; 5/5 error scenarios handled correctly</td>
-                  <td>Protocol checks completed without blocking findings.</td>
-                  <td>Fix protocol negotiation, JSON-RPC error semantics, and contract shape before broader rollout.</td>
+                  <td data-label="Domain"><div class="cell-title">Protocol</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-info">Conditional</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">0 blocking / 3 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">0 protocol violation(s) &#183; 5/5 error scenarios handled correctly</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Protocol checks completed without blocking findings.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Fix protocol negotiation, JSON-RPC error semantics, and contract shape before broader rollout.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Security</div></td>
-                  <td><span class="tone-chip tone-success">100%</span></td>
-                  <td>No escalated signals</td>
-                  <td>0 vulnerability finding(s) &#183; 7 attack simulation(s)</td>
-                  <td>Security boundary and attack simulations completed without blocking findings.</td>
-                  <td>Review auth boundary behavior, exploit resistance, and reflected server responses.</td>
+                  <td data-label="Domain"><div class="cell-title">Security</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">100%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">No escalated signals</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">0 vulnerability finding(s) &#183; 7 attack simulation(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Security boundary and attack simulations completed without blocking findings.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Review auth boundary behavior, exploit resistance, and reflected server responses.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">AI Safety</div></td>
-                  <td><span class="tone-chip tone-success">100%</span></td>
-                  <td>No escalated signals</td>
-                  <td>0 schema finding(s) &#183; 0 boundary finding(s) &#183; 0 content-safety finding(s)</td>
-                  <td>Schema clarity, content handling, and autonomy boundaries did not surface blocking issues.</td>
-                  <td>Tighten tool schemas, approval metadata, and agent-facing error quality for safer autonomous use.</td>
+                  <td data-label="Domain"><div class="cell-title">AI Safety</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">100%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">No escalated signals</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">0 schema finding(s) &#183; 0 boundary finding(s) &#183; 0 content-safety finding(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Schema clarity, content handling, and autonomy boundaries did not surface blocking issues.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Tighten tool schemas, approval metadata, and agent-facing error quality for safer autonomous use.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Operations</div></td>
-                  <td><span class="tone-chip tone-success">100%</span></td>
-                  <td>No escalated signals</td>
-                  <td>Avg 0.4 ms &#183; P95 0.5 ms &#183; 0.00% errors</td>
-                  <td>Runtime probe completed with measured latency, throughput, and failure-rate data.</td>
-                  <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
+                  <td data-label="Domain"><div class="cell-title">Operations</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">100%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">No escalated signals</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">Avg 0.4 ms &#183; P95 0.5 ms &#183; 0.00% errors</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Runtime probe completed with measured latency, throughput, and failure-rate data.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Compatibility</div></td>
-                  <td><span class="tone-chip tone-warning">Compatible with warnings</span></td>
-                  <td>0 incompatible &#183; 1 warning profile(s)</td>
-                  <td>5 profile(s) evaluated</td>
-                  <td>Required compatibility checks passed; 1 advisory requirement still needs follow-up.</td>
-                  <td>Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</td>
+                  <td data-label="Domain"><div class="cell-title">Compatibility</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Compatible with warnings</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">0 incompatible &#183; 1 warning profile(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">5 profile(s) evaluated</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Required compatibility checks passed; 1 advisory requirement still needs follow-up.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Coverage</div></td>
-                  <td><span class="tone-chip tone-success">Trusted</span></td>
-                  <td>16 covered scope(s)</td>
-                  <td>16 covered &#183; 0 skipped &#183; 0 blocked declaration(s)</td>
-                  <td>Coverage declarations explain what ran, what was skipped, and where the result may be incomplete.</td>
-                  <td>Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</td>
+                  <td data-label="Domain"><div class="cell-title">Coverage</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Trusted</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">16 covered scope(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">16 covered &#183; 0 skipped &#183; 0 blocked declaration(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Coverage declarations explain what ran, what was skipped, and where the result may be incomplete.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</div></td>
                 </tr>
               </tbody>
             </table>
@@ -2075,52 +2296,55 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--layer-summary">
+            <table class="data-table layered-report-table layered-report-table--layers">
+              <colgroup><col class="table-col--layer"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</td></tr>
-                <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
-                <tr><td><code>performance</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 5 error scenario(s); 5 handled correctly.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s).</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">2</td><td data-label="Summary"><div class="cell-copy">declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">1</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 5 handled correctly.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 5 profile(s); 1 warning profile(s); 0 incompatible profile(s).</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--coverage-summary">
+            <table class="data-table layered-report-table coverage-summary-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--coverage"><col class="table-col--confidence"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count-wide"></colgroup>
               <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>
-                <tr><td><code>bootstrap</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>client-profiles</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>error-handling</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>performance</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>prompt-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>protocol-core</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>resource-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>security-boundaries</code></td><td>100.0%</td><td>High (100.0%)</td><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-                <tr><td><code>tool-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">3</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--coverage-detail">
+            <table class="data-table layered-report-table coverage-detail-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--scope"><col class="table-col--status"><col class="table-col--blocker"><col class="table-col--confidence"><col class="table-col--probe"><col class="table-col--reason"></colgroup>
               <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resources/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-assessment</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>performance</code></td><td><code>load-testing</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
-                <tr><td><code>bootstrap</code></td><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>protocol-core</code></td><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
-                <tr><td><code>client-profiles</code></td><td><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Scope" class="table-cell--code"><code>json-rpc</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tools/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Scope" class="table-cell--code"><code>resources/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Scope" class="table-cell--code"><code>prompts/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-assessment</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Scope" class="table-cell--code"><code>load-testing</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Scope" class="table-cell--code"><code>bootstrap-initialize-handshake</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Scope" class="table-cell--code"><code>protocol-compliance-review</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Scope" class="table-cell--code"><code>resource-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Scope" class="table-cell--code"><code>prompt-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Scope" class="table-cell--code"><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
               </tbody></table>
           </div>
           <div class="ledger-group">
@@ -2170,40 +2394,42 @@ a:hover {
               </article>
             </div>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--scenario-summary">
+            <table class="data-table layered-report-table layered-report-table--scenarios">
+              <colgroup><col class="table-col--scenario"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Bootstrap health checks completed successfully.</td></tr>
-                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</td></tr>
-                <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Tool validation completed.</td></tr>
-                <tr><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Resource validation completed.</td></tr>
-                <tr><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Prompt validation completed.</td></tr>
-                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 2 authentication challenge scenario(s).</td></tr>
-                <tr><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 7 attack simulation(s).</td></tr>
-                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 5 error scenario(s); 5 handled correctly.</td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>bootstrap-initialize-handshake</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Bootstrap health checks completed successfully.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>protocol-compliance-review</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">2</td><td data-label="Summary"><div class="cell-copy">declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Tool validation completed.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>resource-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Resource validation completed.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>prompt-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Prompt validation completed.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 2 authentication challenge scenario(s).</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 7 attack simulation(s).</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 5 handled correctly.</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--observation-summary">
+            <table class="data-table layered-report-table observation-table">
+              <colgroup><col class="table-col--observation"><col class="table-col--layer"><col class="table-col--component"><col class="table-col--kind"><col class="table-col--preview"></colgroup>
               <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>
-                <tr><td><code>bootstrap-initialize</code></td><td><code>bootstrap</code></td><td><code>initialize</code></td><td><code>bootstrap-health</code></td><td>Healthy</td></tr>
-                <tr><td><code>tool-tools-list-schema-compliance</code></td><td><code>tool-surface</code></td><td><code>tools/list (Schema Compliance)</code></td><td><code>tool-result</code></td><td>⚠️ Schema validation warning: tools/list schema could not be fully processed</td></tr>
-                <tr><td><code>resource-mcpval-server-metadata</code></td><td><code>resource-surface</code></td><td><code>mcpval://server/metadata</code></td><td><code>resource-result</code></td><td>✅ Resource read: contents[] array present</td></tr>
-                <tr><td><code>prompt-validate-mcp-server</code></td><td><code>prompt-surface</code></td><td><code>validate-mcp-server</code></td><td><code>prompt-result</code></td><td>✅ prompts/get: messages[] array present (1 messages)</td></tr>
-                <tr><td><code>auth-stdio-transport-protocol-check</code></td><td><code>security-boundaries</code></td><td><code>transport-validation</code></td><td><code>authentication-scenario</code></td><td>✅ Correctly using STDIO transport (no HTTP auth)</td></tr>
-                <tr><td><code>auth-stdio-environment-credentials-check</code></td><td><code>security-boundaries</code></td><td><code>env-check</code></td><td><code>authentication-scenario</code></td><td>✅ Environment credential variables detected</td></tr>
-                <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;d33cb9b3-bba3-4849-b000-5343a1e652ab&quot;}</td></tr>
-                <tr><td><code>attack-inj-002-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-002 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;04fec1c3-bbee-4eff-81b5-b58d75c8f6df&quot;}</td></tr>
-                <tr><td><code>attack-inj-003-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-003 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c2c78952-cacd-427c-94d2-93ed588b936e&quot;}</td></tr>
-                <tr><td><code>attack-mcp-sec-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-001</code></td><td><code>attack-simulation</code></td><td>Server handled malformed requests gracefully with standard errors.</td></tr>
-                <tr><td><code>attack-mcp-sec-002</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-002</code></td><td><code>attack-simulation</code></td><td>Consistent same-family error handling observed for unadvertised resource probes.</td></tr>
-                <tr><td><code>attack-mcp-sec-003</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-003</code></td><td><code>attack-simulation</code></td><td>Server correctly rejected invalid schema.</td></tr>
-                <tr><td><code>attack-mcp-ai-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-AI-001</code></td><td><code>attack-simulation</code></td><td>Error clarity: 100/100 (Good). Server error messages help AI self-correct.</td></tr>
-                <tr><td><code>error-invalid-method-call</code></td><td><code>error-handling</code></td><td><code>invalid-method</code></td><td><code>error-scenario</code></td><td>HTTP 400; JSON-RPC error -32601: Method not found</td></tr>
-                <tr><td><code>error-malformed-json-payload</code></td><td><code>error-handling</code></td><td><code>malformed-json</code></td><td><code>error-scenario</code></td><td>HTTP 200; JSON-RPC error -32700: Parse error</td></tr>
-                <tr><td><code>error-graceful-degradation-on-invalid-request</code></td><td><code>error-handling</code></td><td><code>invalid-request</code></td><td><code>error-scenario</code></td><td>HTTP 200; JSON-RPC error -32600: Invalid Request</td></tr>
-                <tr><td><code>error-timeout-handling-recovery</code></td><td><code>error-handling</code></td><td><code>timeout-handling</code></td><td><code>error-scenario</code></td><td>Validator induced a zero-window STDIO read timeout and then drained the pending response.</td></tr>
-                <tr><td><code>error-connection-interruption-recovery</code></td><td><code>error-handling</code></td><td><code>connection-interruption</code></td><td><code>error-scenario</code></td><td>Validator terminated the STDIO child process and restarted it for recovery verification.</td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>bootstrap-initialize</code></td><td data-label="Layer" class="table-cell--code"><code>bootstrap</code></td><td data-label="Component" class="table-cell--code"><code>initialize</code></td><td data-label="Kind" class="table-cell--code"><code>bootstrap-health</code></td><td data-label="Preview"><div class="cell-copy">Healthy</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>tool-tools-list-schema-compliance</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>tools/list (Schema Compliance)</code></td><td data-label="Kind" class="table-cell--code"><code>tool-result</code></td><td data-label="Preview"><div class="cell-copy">⚠️ Schema validation warning: tools/list schema could not be fully processed</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>resource-mcpval-server-metadata</code></td><td data-label="Layer" class="table-cell--code"><code>resource-surface</code></td><td data-label="Component" class="table-cell--code"><code>mcpval://server/metadata</code></td><td data-label="Kind" class="table-cell--code"><code>resource-result</code></td><td data-label="Preview"><div class="cell-copy">✅ Resource read: contents[] array present</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>prompt-validate-mcp-server</code></td><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Component" class="table-cell--code"><code>validate-mcp-server</code></td><td data-label="Kind" class="table-cell--code"><code>prompt-result</code></td><td data-label="Preview"><div class="cell-copy">✅ prompts/get: messages[] array present (1 messages)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-stdio-transport-protocol-check</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>transport-validation</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ Correctly using STDIO transport (no HTTP auth)</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-stdio-environment-credentials-check</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>env-check</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ Environment credential variables detected</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-001-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-001 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;d33cb9b3-bba3-4849-b000-5343a1e652ab&quot;}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-002-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-002 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;04fec1c3-bbee-4eff-81b5-b58d75c8f6df&quot;}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-003-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-003 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \&quot;code\&quot;: \&quot;invalid_union\&quot;,\n    \&quot;errors\&quot;: [\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ],\n      [\n        {\n          \&quot;expected\&quot;: \&quot;string\&quot;,\n          \&quot;code\&quot;: \&quot;invalid_type\&quot;,\n          \&quot;path\&quot;: [],\n          \&quot;message\&quot;: \&quot;Invalid input: expected string, received undefined\&quot;\n        }\n      ]\n    ],\n    \&quot;path\&quot;: [\n      \&quot;server\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid input\&quot;\n  },\n  {\n    \&quot;code\&quot;: \&quot;invalid_value\&quot;,\n    \&quot;values\&quot;: [\n      \&quot;public\&quot;,\n      \&quot;authenticated\&quot;,\n      \&quot;enterprise\&quot;,\n      \&quot;unspecified\&quot;\n    ],\n    \&quot;path\&quot;: [\n      \&quot;access\&quot;\n    ],\n    \&quot;message\&quot;: \&quot;Invalid option: expected one of \\\&quot;public\\\&quot;|\\\&quot;authenticated\\\&quot;|\\\&quot;enterprise\\\&quot;|\\\&quot;unspecified\\\&quot;\&quot;\n  }\n]&quot;}],&quot;isError&quot;:true},&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c2c78952-cacd-427c-94d2-93ed588b936e&quot;}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server handled malformed requests gracefully with standard errors.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-002</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-002</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Consistent same-family error handling observed for unadvertised resource probes.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-003</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-003</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server correctly rejected invalid schema.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-ai-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-AI-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Error clarity: 100/100 (Good). Server error messages help AI self-correct.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-invalid-method-call</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-method</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; JSON-RPC error -32601: Method not found</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-malformed-json-payload</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>malformed-json</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 200; JSON-RPC error -32700: Parse error</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-graceful-degradation-on-invalid-request</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-request</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 200; JSON-RPC error -32600: Invalid Request</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-timeout-handling-recovery</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>timeout-handling</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">Validator induced a zero-window STDIO read timeout and then drained the pending response.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-connection-interruption-recovery</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>connection-interruption</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">Validator terminated the STDIO child process and restarted it for recovery verification.</div></td></tr>
               </tbody></table>
           </div>
           </div>
