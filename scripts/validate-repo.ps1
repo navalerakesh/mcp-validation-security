@@ -92,7 +92,7 @@ try {
 
     if (-not $SkipDotNet) {
         Write-Host '==> Restoring .NET dependencies'
-        dotnet restore .\mcp-benchmark-validation.sln
+        dotnet restore .\mcp-benchmark-validation.sln --locked-mode
 
         Write-Host "==> Building solution ($Configuration)"
         dotnet build .\mcp-benchmark-validation.sln --configuration $Configuration --no-restore

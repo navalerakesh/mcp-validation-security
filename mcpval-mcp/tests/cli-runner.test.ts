@@ -4,6 +4,7 @@ import { chmod, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import fc from "fast-check";
 import { config } from "../src/config.js";
 import { runCli } from "../src/cli-runner.js";
 
@@ -77,6 +78,55 @@ test("runCli passes secrets via config and not argv", async () => {
     assert.equal(invocation.configJson.server.authentication.token, "super-secret-token");
     assert.equal(existsSync(invocation.configPath), false);
     assert.equal(existsSync(dirname(invocation.configPath)), false);
+  } finally {
+    if (previousCliPath) {
+      process.env[config.cliPathEnvVar] = previousCliPath;
+    } else {
+      delete process.env[config.cliPathEnvVar];
+    }
+  }
+});
+
+test("runCli keeps generated bearer tokens out of argv", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  process.env[config.cliPathEnvVar] = mockCliPath;
+
+  const tokenArbitrary = fc
+    .array(fc.constantFrom(..."ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._~-"), { minLength: 1, maxLength: 64 })
+    .map((chars) => chars.join(""));
+
+  try {
+    await fc.assert(
+      fc.asyncProperty(tokenArbitrary, async (token) => {
+        const result = await runCli({
+          command: "validate",
+          args: ["--policy", "balanced"],
+          configJson: {
+            server: {
+              endpoint: "https://example.test/mcp",
+              authentication: {
+                type: "bearer",
+                token,
+              },
+            },
+          },
+        });
+
+        const invocation = JSON.parse(result.stdout) as {
+          args: string[];
+          configPath: string;
+          configJson: { server: { authentication: { token: string } } };
+        };
+
+        assert.equal(result.exitCode, 0);
+        assert.equal(invocation.configJson.server.authentication.token, token);
+        assert.ok(!invocation.args.includes(token));
+        assert.equal(existsSync(invocation.configPath), false);
+        assert.equal(existsSync(dirname(invocation.configPath)), false);
+      }),
+      { numRuns: 25 },
+    );
   } finally {
     if (previousCliPath) {
       process.env[config.cliPathEnvVar] = previousCliPath;
