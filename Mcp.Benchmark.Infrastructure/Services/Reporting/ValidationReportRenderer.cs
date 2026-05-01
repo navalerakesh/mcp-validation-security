@@ -503,6 +503,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     {
                         source = first.Source,
                         category = first.Category,
+                        ruleIdSource = first.Properties.TryGetValue("ruleIdSource", out var ruleIdSource) ? ruleIdSource : null,
                         tags = BuildSarifTags(first.Source, first.Category, first.Component)
                     }
                 };
@@ -1097,6 +1098,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var component = string.IsNullOrWhiteSpace(finding.Component) ? defaultComponent : finding.Component;
         var authority = ValidationRuleSourceClassifier.GetSource(finding);
         var normalizedSeverity = ReportSeverityNormalizer.From(finding.Severity);
+        var ruleId = ResolveSarifRuleId(
+            finding.RuleId,
+            normalizedSeverity,
+            "MCP.FINDING",
+            finding.Category,
+            component,
+            finding.Summary);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "structured-finding",
@@ -1110,6 +1118,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
             ["normalizedSeverityRank"] = (int)normalizedSeverity
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (!string.IsNullOrWhiteSpace(finding.Recommendation))
         {
@@ -1122,7 +1131,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: finding.RuleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(finding.Category) ? "validation" : finding.Category,
             Component: component,
             Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
@@ -1132,19 +1141,22 @@ public class ValidationReportRenderer : IValidationReportRenderer
             Recommendation: finding.Recommendation,
             HelpUri: TryGetHelpUri(finding.Metadata),
             Properties: properties,
-                Source: ValidationRuleSourceClassifier.GetLabel(authority),
-            Fingerprint: $"finding|{finding.RuleId}|{component}|{finding.Summary}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"finding|{ruleId.Value}|{component}|{finding.Summary}");
     }
 
     private static SarifEntry CreateSarifEntry(ComplianceViolation violation)
     {
-        var ruleId = string.IsNullOrWhiteSpace(violation.CheckId)
-            ? BuildFallbackRuleId("MCP.PROTOCOL", violation.Category, violation.Rule, violation.Description)
-            : violation.CheckId;
-
         var component = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category;
         var authority = ValidationRuleSourceClassifier.GetSource(violation);
         var normalizedSeverity = ReportSeverityNormalizer.From(violation.Severity);
+        var ruleId = ResolveSarifRuleId(
+            violation.CheckId,
+            normalizedSeverity,
+            "MCP.PROTOCOL",
+            violation.Category,
+            violation.Rule,
+            violation.Description);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "protocol-violation",
@@ -1159,6 +1171,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["rule"] = violation.Rule
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (!string.IsNullOrWhiteSpace(violation.Recommendation))
         {
@@ -1171,7 +1184,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: ruleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(violation.Category) ? "ProtocolCompliance" : violation.Category,
             Component: component,
             Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
@@ -1181,22 +1194,25 @@ public class ValidationReportRenderer : IValidationReportRenderer
             Recommendation: violation.Recommendation,
             HelpUri: violation.SpecReference,
             Properties: properties,
-                Source: ValidationRuleSourceClassifier.GetLabel(authority),
-            Fingerprint: $"protocol|{ruleId}|{component}|{violation.Description}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"protocol|{ruleId.Value}|{component}|{violation.Description}");
     }
 
     private static SarifEntry CreateSarifEntry(SecurityVulnerability vulnerability)
     {
-        var ruleId = string.IsNullOrWhiteSpace(vulnerability.Id)
-            ? BuildFallbackRuleId("MCP.SECURITY", vulnerability.Category, vulnerability.Name, vulnerability.AffectedComponent)
-            : vulnerability.Id;
-
         var component = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent)
             ? (string.IsNullOrWhiteSpace(vulnerability.Category) ? "security" : vulnerability.Category)
             : vulnerability.AffectedComponent;
 
         var authority = ValidationRuleSourceClassifier.GetSource(vulnerability);
-    var normalizedSeverity = ReportSeverityNormalizer.From(vulnerability.Severity);
+        var normalizedSeverity = ReportSeverityNormalizer.From(vulnerability.Severity);
+        var ruleId = ResolveSarifRuleId(
+            vulnerability.Id,
+            normalizedSeverity,
+            "MCP.SECURITY",
+            vulnerability.Category,
+            vulnerability.Name,
+            vulnerability.AffectedComponent);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "security-vulnerability",
@@ -1211,6 +1227,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["isExploitable"] = vulnerability.IsExploitable
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (vulnerability.CvssScore.HasValue)
         {
@@ -1233,7 +1250,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: ruleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(vulnerability.Category) ? "SecurityTesting" : vulnerability.Category,
             Component: component,
             Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
@@ -1243,19 +1260,22 @@ public class ValidationReportRenderer : IValidationReportRenderer
             Recommendation: vulnerability.Remediation,
             HelpUri: null,
             Properties: properties,
-                Source: ValidationRuleSourceClassifier.GetLabel(authority),
-            Fingerprint: $"vuln|{ruleId}|{component}|{vulnerability.Description}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"vuln|{ruleId.Value}|{component}|{vulnerability.Description}");
     }
 
     private static SarifEntry CreateCoverageSarifEntry(ValidationCoverageDeclaration coverage)
     {
         var evidenceId = ValidationEvidenceIdBuilder.ForCoverage(coverage);
-        var ruleId = BuildFallbackRuleId("MCP", "COVERAGE", coverage.LayerId, coverage.Scope, coverage.Status.ToString());
         var component = string.IsNullOrWhiteSpace(coverage.LayerId) ? "coverage" : coverage.LayerId;
         var summary = BuildCoverageSummary(coverage);
         var normalizedSeverity = ValidationEvidenceSummarizer.IsCoverageBlocking(coverage)
             ? ReportSeverity.High
             : ReportSeverity.Medium;
+        var ruleId = new SarifRuleIdResolution(
+            BuildFallbackRuleId("MCP", "COVERAGE", coverage.LayerId, coverage.Scope, coverage.Status.ToString()),
+            "derived-coverage",
+            false);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "coverage-declaration",
@@ -1272,6 +1292,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
             ["normalizedSeverityRank"] = (int)normalizedSeverity
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (coverage.ProbeContext != null)
         {
@@ -1279,7 +1300,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: ruleId,
+            RuleId: ruleId.Value,
             Category: "Coverage",
             Component: component,
             Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
@@ -1354,6 +1375,34 @@ public class ValidationReportRenderer : IValidationReportRenderer
         return null;
     }
 
+    private static SarifRuleIdResolution ResolveSarifRuleId(
+        string? explicitRuleId,
+        ReportSeverity normalizedSeverity,
+        string fallbackPrefix,
+        params string?[] fallbackParts)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitRuleId))
+        {
+            return new SarifRuleIdResolution(explicitRuleId.Trim(), "explicit", false);
+        }
+
+        var fallback = BuildFallbackRuleId(new[] { fallbackPrefix }.Concat(fallbackParts).ToArray());
+        var missingExplicitRuleId = normalizedSeverity is ReportSeverity.Critical or ReportSeverity.High;
+        return new SarifRuleIdResolution(fallback, "fallback", missingExplicitRuleId);
+    }
+
+    private static void AddRuleIdProvenance(Dictionary<string, object?> properties, SarifRuleIdResolution ruleId)
+    {
+        properties["ruleIdSource"] = ruleId.Source;
+        if (!ruleId.MissingExplicitHighPriorityRuleId)
+        {
+            return;
+        }
+
+        properties["missingExplicitRuleId"] = true;
+        properties["ruleIdPolicy"] = "High and critical SARIF entries should provide explicit stable rule IDs before rendering.";
+    }
+
     private static string BuildFallbackRuleId(params string?[] parts)
     {
         var normalized = parts
@@ -1368,6 +1417,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var joined = string.Join('.', normalized);
         return string.IsNullOrWhiteSpace(joined) ? "MCP.UNKNOWN" : joined;
     }
+
+    private sealed record SarifRuleIdResolution(string Value, string Source, bool MissingExplicitHighPriorityRuleId);
 
     private sealed record SarifEntry(
         string RuleId,

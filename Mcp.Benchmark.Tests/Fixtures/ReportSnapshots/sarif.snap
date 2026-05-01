@@ -24,6 +24,7 @@
               "properties": {
                 "source": "spec",
                 "category": "ProtocolCompliance",
+                "ruleIdSource": "explicit",
                 "tags": [
                   "spec",
                   "ProtocolCompliance",
@@ -45,6 +46,7 @@
               "properties": {
                 "source": "heuristic",
                 "category": "AiReadiness",
+                "ruleIdSource": "explicit",
                 "tags": [
                   "heuristic",
                   "AiReadiness",
@@ -68,6 +70,7 @@
               "properties": {
                 "source": "spec",
                 "category": "Initialization",
+                "ruleIdSource": "explicit",
                 "tags": [
                   "spec",
                   "Initialization"
@@ -88,6 +91,7 @@
               "properties": {
                 "source": "guideline",
                 "category": "McpGuideline",
+                "ruleIdSource": "explicit",
                 "tags": [
                   "guideline",
                   "McpGuideline",
@@ -111,6 +115,7 @@
               "properties": {
                 "source": "heuristic",
                 "category": "PromptInjection",
+                "ruleIdSource": "explicit",
                 "tags": [
                   "heuristic",
                   "PromptInjection",
@@ -134,6 +139,7 @@
               "properties": {
                 "source": "coverage",
                 "category": "Coverage",
+                "ruleIdSource": "derived-coverage",
                 "tags": [
                   "coverage",
                   "prompt-surface"
@@ -195,7 +201,8 @@
             "component": "tools/call",
             "severity": "Medium",
             "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2
+            "normalizedSeverityRank": 2,
+            "ruleIdSource": "explicit"
           }
         },
         {
@@ -228,7 +235,8 @@
             "component": "delete_repo",
             "severity": "Medium",
             "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2
+            "normalizedSeverityRank": 2,
+            "ruleIdSource": "explicit"
           }
         },
         {
@@ -263,6 +271,7 @@
             "normalizedSeverity": "high",
             "normalizedSeverityRank": 3,
             "rule": "initialize.result.protocolVersion must reflect negotiation.",
+            "ruleIdSource": "explicit",
             "recommendation": "Echo the negotiated protocol version in initialize.result."
           }
         },
@@ -296,7 +305,8 @@
             "component": "delete_repo",
             "severity": "High",
             "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3
+            "normalizedSeverityRank": 3,
+            "ruleIdSource": "explicit"
           }
         },
         {
@@ -331,6 +341,7 @@
             "normalizedSeverity": "critical",
             "normalizedSeverityRank": 4,
             "isExploitable": true,
+            "ruleIdSource": "explicit",
             "cvssScore": 9.1,
             "recommendation": "Sanitize and label untrusted content before returning it.",
             "probeContexts": [
@@ -384,7 +395,8 @@
             "confidence": "None",
             "reason": "Server does not advertise prompts capability.",
             "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2
+            "normalizedSeverityRank": 2,
+            "ruleIdSource": "derived-coverage"
           }
         }
       ]

@@ -158,6 +158,10 @@ public class ValidationReportRendererTests
             .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("high");
 
         results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
+            .GetProperty("properties").GetProperty("ruleIdSource").GetString().Should().Be("explicit");
+
+        results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
             .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("low");
 
@@ -172,6 +176,86 @@ public class ValidationReportRendererTests
         results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
             .GetProperty("properties").GetProperty("authorityLegend").GetString().Should().Contain("Authority order");
+    }
+
+    [Fact]
+    public void GenerateSarifReport_WithMissingHighSeverityRuleIds_ShouldFlagFallbackPolicy()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-missing-rule-ids",
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                Violations = new List<ComplianceViolation>
+                {
+                    new()
+                    {
+                        Category = "Initialization",
+                        Severity = ViolationSeverity.High,
+                        Rule = "initialize.result.protocolVersion",
+                        Description = "Server did not return a negotiated protocol version."
+                    }
+                }
+            },
+            ToolValidation = new ToolTestResult
+            {
+                Findings = new List<ValidationFinding>
+                {
+                    new()
+                    {
+                        Category = "McpGuideline",
+                        Component = "delete_repo",
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = "Tool is missing a stable guideline identifier."
+                    }
+                }
+            },
+            SecurityTesting = new SecurityTestResult
+            {
+                Vulnerabilities = new List<SecurityVulnerability>
+                {
+                    new()
+                    {
+                        Name = "Prompt injection reflection",
+                        Description = "Server reflected untrusted prompt content without sanitization.",
+                        Category = "PromptInjection",
+                        AffectedComponent = "prompt:get",
+                        Severity = VulnerabilitySeverity.Critical
+                    }
+                }
+            }
+        };
+
+        var sarif = _renderer.GenerateSarifReport(result);
+
+        using var document = JsonDocument.Parse(sarif);
+        var results = document.RootElement.GetProperty("runs")[0].GetProperty("results");
+        var fallbackResults = results.EnumerateArray()
+            .Where(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdSource").GetString() == "fallback")
+            .ToList();
+
+        fallbackResults.Should().HaveCount(3);
+        fallbackResults.Should().OnlyContain(resultElement => !string.IsNullOrWhiteSpace(resultElement.GetProperty("ruleId").GetString()));
+        fallbackResults.Should().OnlyContain(resultElement => resultElement.GetProperty("properties").GetProperty("missingExplicitRuleId").GetBoolean());
+        fallbackResults.Should().OnlyContain(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdPolicy").GetString()!.Contains("High and critical SARIF entries"));
+    }
+
+    [Fact]
+    public void GenerateSarifReport_ForComprehensiveSnapshot_ShouldNotUseFallbackRuleIds()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var sarif = _renderer.GenerateSarifReport(result);
+
+        using var document = JsonDocument.Parse(sarif);
+        var results = document.RootElement.GetProperty("runs")[0].GetProperty("results");
+        var ruleIdSources = results.EnumerateArray()
+            .Select(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdSource").GetString())
+            .ToList();
+
+        ruleIdSources.Should().NotContain("fallback");
+        ruleIdSources.Should().Contain("derived-coverage");
     }
 
     [Fact]
