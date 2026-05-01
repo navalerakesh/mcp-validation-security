@@ -61,7 +61,37 @@ Compact next-step guidance derived from the highest-signal evidence in this run.
 - [Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.
 - [Heuristic] Security: Sanitize and label untrusted content before returning it.
 
-## 5. Deterministic Verdicts
+## 5. Recommended Remediation Order
+
+Fix blocking dependencies in this order so later validation evidence becomes trustworthy instead of merely quieter.
+
+### Priority 1: Bootstrap & Protocol Version
+
+**Impact after fix:** Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.
+
+| Issue | Fix | Component | Evidence |
+| :--- | :--- | :--- | :--- |
+| Server ignored the requested MCP protocol version. | Echo the negotiated protocol version in initialize.result. | `Initialization` | [Spec] · `MCP.INIT.VERSION_NEGOTIATION` · High |
+
+### Priority 3: Advertised Capabilities
+
+**Impact after fix:** Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.
+
+| Issue | Fix | Component | Evidence |
+| :--- | :--- | :--- | :--- |
+| Prompt output includes reflected untrusted content. | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `prompt:get` | [Heuristic] · `PromptInjection` · Critical |
+| Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability. | Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope. | `prompt-surface` | [Heuristic] · `Coverage` · Medium |
+
+### Priority 4: AI Safety, Security, And Performance
+
+**Impact after fix:** After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.
+
+| Issue | Fix | Component | Evidence |
+| :--- | :--- | :--- | :--- |
+| Server reflected untrusted prompt content without sanitization. | Sanitize and label untrusted content before returning it. | `prompt:get` | [Heuristic] · `MCP.SECURITY.PROMPT_INJECTION` · Critical |
+| Critical execution error recorded: Prompt validation hit an unsafe reflection path. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `validation-run` | [Operational] · `Execution` · Critical |
+
+## 6. Deterministic Verdicts
 
 These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.
 > **Authority legend:** Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.
@@ -93,7 +123,7 @@ Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=Hi
 - **Reject** [Execution] `validation-run`: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
   - Evidence: IDs `execution-error:prompt-validation-hit-an-unsafe-reflection-path`; preview: Prompt validation hit an unsafe reflection path.
 
-## 6. Benchmark Trust Profile
+## 7. Benchmark Trust Profile
 
 Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.
 This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.
@@ -119,7 +149,7 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 - Data exfiltration risk: **0**
 - Prompt injection surface: **0**
 
-## 7. Validation Envelope
+## 8. Validation Envelope
 
 This section exposes the structured validation envelope used for layered reporting, coverage tracking, and pack provenance.
 
@@ -197,7 +227,7 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | `auth-unauthorized-tools-list-challenge` | `security-boundaries` | `tools/list` | `authentication-scenario` | Returned 401 with WWW-Authenticate. |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Rejected injected argument with JSON-RPC error -32602. |
 
-## 8. Compliance Matrix
+## 9. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
@@ -208,12 +238,12 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | Prompt Capabilities | ➖ Skipped | - | - |
 | Performance | ✅ Passed | 100.0% | - |
 
-## 9. Performance Calibration
+## 10. Performance Calibration
 
 Performance is assessed using a synthetic load probe rather than a workload-specific SLA benchmark.
 For public or remote SaaS endpoints, partial failures under synthetic pressure are reported as advisory when they look like capacity limits or edge protections rather than protocol instability.
 
-## 10. Security Assessment
+## 11. Security Assessment
 
 **Security Score:** 69.0%
 
@@ -233,7 +263,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 | :--- | :--- | :---: | :--- | :--- |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `Rejected injected argument with JSON-RPC error -32602.` |
 
-## 11. Protocol Compliance
+## 12. Protocol Compliance
 
 **Status Detail:** Protocol negotiation had one blocking violation.
 
@@ -242,7 +272,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 | :--- | :--- | :--- | :---: | :--- |
 | MCP.INIT.VERSION_NEGOTIATION | `spec` | Server ignored the requested MCP protocol version. | High | Echo the negotiated protocol version in initialize.result. |
 
-## 12. Tool Validation
+## 13. Tool Validation
 
 **Tools Discovered:** 2
 **Authentication Enforcement:** ⚠️ Not Enforced
@@ -313,7 +343,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | :--- | :--- | :--- | :---: | :--- | :--- |
 | `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING` | `guideline` | 1/2 (50%) | 🟠 High | `delete_repo` | Tool 'delete_repo' does not declare annotations.destructiveHint. |
 
-## 13. Resource Capabilities
+## 14. Resource Capabilities
 
 **Resources Discovered:** 1
 
@@ -321,7 +351,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | :--- | :--- | :--- | :--- | :---: |
 | repo://snapshot/README.md | `repo://snapshot/README.md` | text/markdown | - | ✅ |
 
-## 14. Performance Metrics
+## 15. Performance Metrics
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
@@ -331,7 +361,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 120/120 successful | - |
 
-## 15. Recommendations
+## 16. Recommendations
 
 - 💡 Add destructive hints to write-capable tools.
 - 💡 Return the negotiated protocol version explicitly during initialize.

@@ -34,6 +34,8 @@ internal sealed class ValidationHtmlReportDocument
 
     public required IReadOnlyList<string> ActionHints { get; init; }
 
+    public required IReadOnlyList<RemediationOrderGroup> RemediationOrder { get; init; }
+
     public required IReadOnlyList<string> AdditionalRecommendations { get; init; }
 
     public ValidationHtmlBootstrapSummary? Bootstrap { get; init; }

@@ -10,6 +10,7 @@ using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Infrastructure.Utilities;
 using Mcp.Compliance.Spec;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
@@ -612,6 +613,22 @@ public class McpHttpClient : IMcpHttpClient
     public async Task<TransportResult<CapabilitySummary>> ValidateCapabilitiesAsync(string endpoint, CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
+        var initializeResult = await ValidateInitializeAsync(endpoint, cancellationToken).ConfigureAwait(false);
+        var capabilityDeclarationsAvailable = CapabilitySnapshotUtils.HasCapabilityDeclarations(initializeResult.Payload);
+        var advertisedCapabilities = CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(initializeResult.Payload);
+        var shouldProbeTools = CapabilitySnapshotUtils.ShouldProbeCapability(
+            capabilityDeclarationsAvailable,
+            advertisedCapabilities,
+            McpSpecConstants.Capabilities.Tools);
+        var shouldProbeResources = CapabilitySnapshotUtils.ShouldProbeCapability(
+            capabilityDeclarationsAvailable,
+            advertisedCapabilities,
+            McpSpecConstants.Capabilities.Resources);
+        var shouldProbePrompts = CapabilitySnapshotUtils.ShouldProbeCapability(
+            capabilityDeclarationsAvailable,
+            advertisedCapabilities,
+            McpSpecConstants.Capabilities.Prompts);
+
         IReadOnlyList<McpClientTool> discoveredTools = Array.Empty<McpClientTool>();
         var toolListingSucceeded = false;
         var toolInvocationSucceeded = false;
@@ -619,29 +636,40 @@ public class McpHttpClient : IMcpHttpClient
 
         var serverConfig = BuildServerConfig(endpoint);
 
-        try
+        if (shouldProbeTools)
         {
-            discoveredTools = await _mcpClient
-                .ListToolsAsync(serverConfig, null, _protocolVersion, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                discoveredTools = await _mcpClient
+                    .ListToolsAsync(serverConfig, null, _protocolVersion, cancellationToken)
+                    .ConfigureAwait(false);
 
-            toolListingSucceeded = true;
-            firstToolName = discoveredTools.FirstOrDefault()?.Name;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "SDK tool discovery failed for {Endpoint}; falling back to raw JSON-RPC probes", endpoint);
+                toolListingSucceeded = true;
+                firstToolName = discoveredTools.FirstOrDefault()?.Name;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "SDK tool discovery failed for {Endpoint}; falling back to raw JSON-RPC probes", endpoint);
+            }
         }
 
-        var (toolListResponse, toolListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ToolsList, cancellationToken);
-        var (resourceListResponse, resourceListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken);
-        var (promptListResponse, promptListDuration) = await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken);
+        var (toolListResponse, toolListDuration) = shouldProbeTools
+            ? await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ToolsList, cancellationToken)
+            : (null, 0);
+        var (resourceListResponse, resourceListDuration) = shouldProbeResources
+            ? await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.ResourcesList, cancellationToken)
+            : (null, 0);
+        var (promptListResponse, promptListDuration) = shouldProbePrompts
+            ? await ProbeJsonRpcAsync(endpoint, ValidationConstants.Methods.PromptsList, cancellationToken)
+            : (null, 0);
 
         var rawDiscoveredToolCount = CountCollectionItems(toolListResponse, "tools");
+        var resourceListingSucceeded = resourceListResponse?.IsSuccess == true;
+        var promptListingSucceeded = promptListResponse?.IsSuccess == true;
 
         if (!toolListingSucceeded && toolListResponse?.IsSuccess == true)
         {
@@ -677,17 +705,21 @@ public class McpHttpClient : IMcpHttpClient
         }
 
         var payload = BuildSummary();
+        var capabilitySnapshotSucceeded = (initializeResult.IsSuccessful && capabilityDeclarationsAvailable) ||
+            toolListingSucceeded ||
+            resourceListingSucceeded ||
+            promptListingSucceeded;
 
         return new TransportResult<CapabilitySummary>
         {
-            IsSuccessful = toolListingSucceeded,
-            Error = toolListingSucceeded ? null : toolListResponse?.Error ?? "Tool listing failed",
+            IsSuccessful = capabilitySnapshotSucceeded,
+            Error = capabilitySnapshotSucceeded ? null : toolListResponse?.Error ?? initializeResult.Error ?? "Capability discovery failed",
             Payload = payload,
             Transport = CreateTransportMetadata(
                 ResolveTransportDuration(),
-                toolListResponse?.StatusCode,
-                toolListResponse?.Headers,
-                toolListResponse?.RawJson)
+                toolListResponse?.StatusCode ?? initializeResult.Transport.StatusCode,
+                toolListResponse?.Headers ?? initializeResult.Transport.Headers,
+                toolListResponse?.RawJson ?? initializeResult.Transport.RawContent)
         };
 
         CapabilitySummary BuildSummary()
@@ -698,20 +730,28 @@ public class McpHttpClient : IMcpHttpClient
 
             return new CapabilitySummary
             {
+                CapabilityDeclarationsAvailable = capabilityDeclarationsAvailable,
+                AdvertisedCapabilities = advertisedCapabilities,
                 Tools = discoveredTools,
                 ToolListingSucceeded = toolListingSucceeded,
                 ToolInvocationSucceeded = toolInvocationSucceeded,
                 FirstToolName = firstToolName,
                 DiscoveredToolsCount = discoveredToolCount,
-                Score = CalculateCapabilityScore(toolListingSucceeded, toolInvocationSucceeded),
+                Score = CalculateCapabilityScore(
+                    capabilityDeclarationsAvailable,
+                    advertisedCapabilities,
+                    toolListingSucceeded,
+                    toolInvocationSucceeded,
+                    resourceListingSucceeded,
+                    promptListingSucceeded),
                 ToolListResponse = toolListResponse,
                 ResourceListResponse = resourceListResponse,
                 PromptListResponse = promptListResponse,
                 ToolListDurationMs = toolListDuration,
                 ResourceListDurationMs = resourceListDuration,
                 PromptListDurationMs = promptListDuration,
-                ResourceListingSucceeded = resourceListResponse?.IsSuccess == true,
-                PromptListingSucceeded = promptListResponse?.IsSuccess == true,
+                ResourceListingSucceeded = resourceListingSucceeded,
+                PromptListingSucceeded = promptListingSucceeded,
                 DiscoveredResourcesCount = CountCollectionItems(resourceListResponse, "resources"),
                 DiscoveredPromptsCount = CountCollectionItems(promptListResponse, "prompts")
             };
@@ -1458,20 +1498,55 @@ public class McpHttpClient : IMcpHttpClient
         return false;
     }
 
-    private static double CalculateCapabilityScore(bool toolListingSucceeded, bool toolInvocationSucceeded)
+    private static double CalculateCapabilityScore(
+        bool capabilityDeclarationsAvailable,
+        IReadOnlyCollection<string> advertisedCapabilities,
+        bool toolListingSucceeded,
+        bool toolInvocationSucceeded,
+        bool resourceListingSucceeded,
+        bool promptListingSucceeded)
     {
         var passed = 0;
-        if (toolListingSucceeded)
+        var totalChecks = 0;
+
+        if (CapabilitySnapshotUtils.ShouldProbeCapability(capabilityDeclarationsAvailable, advertisedCapabilities, McpSpecConstants.Capabilities.Tools))
         {
-            passed++;
+            totalChecks++;
+            if (toolListingSucceeded)
+            {
+                passed++;
+            }
+
+            totalChecks++;
+            if (toolInvocationSucceeded)
+            {
+                passed++;
+            }
         }
 
-        if (toolInvocationSucceeded)
+        if (CapabilitySnapshotUtils.ShouldProbeCapability(capabilityDeclarationsAvailable, advertisedCapabilities, McpSpecConstants.Capabilities.Resources))
         {
-            passed++;
+            totalChecks++;
+            if (resourceListingSucceeded)
+            {
+                passed++;
+            }
         }
 
-        const int totalChecks = 2;
+        if (CapabilitySnapshotUtils.ShouldProbeCapability(capabilityDeclarationsAvailable, advertisedCapabilities, McpSpecConstants.Capabilities.Prompts))
+        {
+            totalChecks++;
+            if (promptListingSucceeded)
+            {
+                passed++;
+            }
+        }
+
+        if (totalChecks == 0)
+        {
+            return 100.0;
+        }
+
         return passed / (double)totalChecks * 100;
     }
 

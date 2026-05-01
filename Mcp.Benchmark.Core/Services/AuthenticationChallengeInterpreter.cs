@@ -25,8 +25,12 @@ public static class AuthenticationChallengeInterpreter
             requiresAuthentication && hasChallengeHeader,
             headerValue,
             durationMs ?? response.ElapsedMs ?? 0.0,
-            ExtractQuotedParameter(headerValue, "resource_metadata"),
-            ExtractQuotedParameter(headerValue, "authorization_uri"),
+            ExtractParameter(headerValue, "resource_metadata"),
+            ExtractParameter(headerValue, "authorization_uri"),
+            ExtractParameter(headerValue, "realm"),
+            ExtractParameter(headerValue, "error"),
+            ExtractParameter(headerValue, "error_description"),
+            ExtractParameter(headerValue, "scope"),
             headerValue?.Contains("Bearer", StringComparison.OrdinalIgnoreCase) == true);
     }
 
@@ -151,6 +155,33 @@ public static class AuthenticationChallengeInterpreter
         var end = headerValue.IndexOf('"', start);
         return end > start ? headerValue[start..end] : null;
     }
+
+    public static string? ExtractParameter(string? headerValue, string parameterName)
+    {
+        if (string.IsNullOrWhiteSpace(headerValue) || string.IsNullOrWhiteSpace(parameterName))
+        {
+            return null;
+        }
+
+        var quotedValue = ExtractQuotedParameter(headerValue, parameterName);
+        if (!string.IsNullOrWhiteSpace(quotedValue))
+        {
+            return quotedValue;
+        }
+
+        var marker = $"{parameterName}=";
+        var start = headerValue.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (start < 0)
+        {
+            return null;
+        }
+
+        start += marker.Length;
+        var end = headerValue.IndexOf(',', start);
+        var rawValue = end >= start ? headerValue[start..end] : headerValue[start..];
+        rawValue = rawValue.Trim();
+        return rawValue.Length > 0 ? rawValue : null;
+    }
 }
 
 public sealed record AuthenticationChallengeObservation(
@@ -161,9 +192,13 @@ public sealed record AuthenticationChallengeObservation(
     double DurationMs,
     string? ResourceMetadataUrl,
     string? AuthorizationUri,
+    string? Realm,
+    string? Error,
+    string? ErrorDescription,
+    string? Scope,
     bool UsesBearerChallenge)
 {
-    public static readonly AuthenticationChallengeObservation None = new(0, false, false, null, 0.0, null, null, false);
+    public static readonly AuthenticationChallengeObservation None = new(0, false, false, null, 0.0, null, null, null, null, null, null, false);
 
     public bool HasWwwAuthenticateHeader => !string.IsNullOrWhiteSpace(WwwAuthenticateHeader);
 

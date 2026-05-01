@@ -193,24 +193,6 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
                     var metadataUrl = authChallenge.ResourceMetadataUrl;
                     var isStandardOAuth = !string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri) || authChallenge.UsesBearerChallenge;
 
-                    if (isStandardOAuth)
-                    {
-                        var authUri = "https://login.microsoftonline.com/common/v2.0";
-                        if (!string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri))
-                        {
-                            authUri = authChallenge.AuthorizationUri;
-                        }
-
-                        var syntheticMetadata = new AuthMetadata
-                        {
-                            AuthorizationServers = new List<string> { authUri },
-                            ScopesSupported = new List<string> { "default" }
-                        };
-
-                        await AcquireTokenAsync(serverConfig, syntheticMetadata, discoveryInfo, cancellationToken);
-                        return discoveryInfo;
-                    }
-
                     if (!string.IsNullOrEmpty(metadataUrl))
                     {
                         try
@@ -229,6 +211,26 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
                             _logger.LogWarning(ex, "Failed to fetch or parse OAuth metadata from {MetadataUrl}", metadataUrl);
                             discoveryInfo.Issues.Add($"Metadata fetch failed: {ex.Message}");
                         }
+                    }
+
+                    if (isStandardOAuth)
+                    {
+                        discoveryInfo.Issues.Add("Protected resource metadata was not available; falling back to challenge authorization hints.");
+
+                        var authUri = "https://login.microsoftonline.com/common/v2.0";
+                        if (!string.IsNullOrWhiteSpace(authChallenge.AuthorizationUri))
+                        {
+                            authUri = authChallenge.AuthorizationUri;
+                        }
+
+                        var syntheticMetadata = new AuthMetadata
+                        {
+                            AuthorizationServers = new List<string> { authUri },
+                            ScopesSupported = new List<string> { "default" }
+                        };
+
+                        await AcquireTokenAsync(serverConfig, syntheticMetadata, discoveryInfo, cancellationToken);
+                        return discoveryInfo;
                     }
                 }
 

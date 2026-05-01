@@ -8,6 +8,7 @@ using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
+using Mcp.Benchmark.Infrastructure.Utilities;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -802,19 +803,19 @@ public class McpValidatorService : IMcpValidatorService
             compliance.Initialization = initialization;
         }
 
-        var advertisedCapabilities = new List<string>();
-        var initCapabilities = result.InitializationHandshake?.Payload?.Capabilities;
-        if (initCapabilities != null)
-        {
-            if (initCapabilities.Tools != null) advertisedCapabilities.Add("tools");
-            if (initCapabilities.Resources != null) advertisedCapabilities.Add("resources");
-            if (initCapabilities.Prompts != null) advertisedCapabilities.Add("prompts");
-            if (initCapabilities.Logging != null) advertisedCapabilities.Add("logging");
-            if (initCapabilities.Completions != null) advertisedCapabilities.Add("completions");
-        }
+        var advertisedCapabilities = CapabilitySnapshotUtils
+            .ExtractAdvertisedCapabilities(result.InitializationHandshake?.Payload)
+            .ToList();
+        var capabilityDeclarationsAvailable = CapabilitySnapshotUtils.HasCapabilityDeclarations(result.InitializationHandshake?.Payload);
 
         if (result.CapabilitySnapshot?.Payload is { } snapshot)
         {
+            if (snapshot.CapabilityDeclarationsAvailable)
+            {
+                advertisedCapabilities = snapshot.AdvertisedCapabilities.ToList();
+                capabilityDeclarationsAvailable = true;
+            }
+
             var capability = compliance.CapabilityNegotiation ?? new CapabilityTestResult();
             var implementedCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (snapshot.ToolListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Tools);
@@ -822,16 +823,17 @@ public class McpValidatorService : IMcpValidatorService
             if (snapshot.PromptListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Prompts);
             AddOptionalImplementedCapabilities(implementedCapabilities, compliance.Findings);
 
-            capability.CapabilityExchangeSuccessful = implementedCapabilities.Any();
+            capability.CapabilityExchangeSuccessful = capabilityDeclarationsAvailable || implementedCapabilities.Any();
             capability.CapabilityComplianceScore = snapshot.Score;
             capability.ImplementedCapabilities = implementedCapabilities
                 .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (advertisedCapabilities.Any())
+            if (capabilityDeclarationsAvailable || advertisedCapabilities.Any())
             {
                 capability.AdvertisedCapabilities = advertisedCapabilities;
                 capability.MissingCapabilities = advertisedCapabilities
+                    .Where(static capability => !capability.Contains('.', StringComparison.Ordinal))
                     .Except(implementedCapabilities, StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
@@ -843,7 +845,7 @@ public class McpValidatorService : IMcpValidatorService
             var optionalCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             AddOptionalImplementedCapabilities(optionalCapabilities, compliance.Findings);
 
-            if (optionalCapabilities.Any() || advertisedCapabilities.Any())
+            if (optionalCapabilities.Any() || advertisedCapabilities.Any() || capabilityDeclarationsAvailable)
             {
                 compliance.CapabilityNegotiation = new CapabilityTestResult
                 {
@@ -852,17 +854,19 @@ public class McpValidatorService : IMcpValidatorService
                         .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
                         .ToList(),
                     MissingCapabilities = advertisedCapabilities
+                        .Where(static capability => !capability.Contains('.', StringComparison.Ordinal))
                         .Except(optionalCapabilities, StringComparer.OrdinalIgnoreCase)
                         .ToList(),
-                    CapabilityExchangeSuccessful = optionalCapabilities.Any()
+                    CapabilityExchangeSuccessful = capabilityDeclarationsAvailable || optionalCapabilities.Any()
                 };
             }
         }
-        else if (advertisedCapabilities.Any() && compliance.CapabilityNegotiation == null)
+        else if ((advertisedCapabilities.Any() || capabilityDeclarationsAvailable) && compliance.CapabilityNegotiation == null)
         {
             compliance.CapabilityNegotiation = new CapabilityTestResult
             {
-                AdvertisedCapabilities = advertisedCapabilities
+                AdvertisedCapabilities = advertisedCapabilities,
+                CapabilityExchangeSuccessful = capabilityDeclarationsAvailable
             };
         }
     }

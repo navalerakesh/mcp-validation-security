@@ -441,7 +441,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.Initialize,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{}},\"id\":\"init\"}"));
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"roots\":{},\"logging\":{},\"sampling\":{},\"completions\":{}}},\"id\":\"init\"}"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -483,8 +483,59 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilitySamplingSupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported);
-        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupportedButUndeclared);
-        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupportedButUndeclared);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared);
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithClientSideCapabilities_ShouldEmitAiSafetyAdvisories()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"roots\":{},\"sampling\":{\"tools\":{}},\"elicitation\":{\"url\":{}},\"tasks\":{\"list\":{},\"requests\":{\"tools\":{\"call\":{}},\"sampling\":{\"createMessage\":{}},\"elicitation\":{\"create\":{}}}}}},\"id\":\"init\"}"));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
+
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer &&
+            finding.Metadata["capability"] == McpSpecConstants.Capabilities.Roots);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer &&
+            finding.Metadata["capability"] == McpSpecConstants.Capabilities.Sampling);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer &&
+            finding.Metadata["capability"] == McpSpecConstants.Capabilities.Elicitation);
+        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.AiRootsBoundaryAdvisory);
+        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.AiSamplingHumanReviewAdvisory);
+        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.AiElicitationConsentAdvisory);
+
+        var taskFinding = result.Findings.Should().ContainSingle(finding => finding.RuleId == ValidationFindingRuleIds.AiTasksIsolationAdvisory).Subject;
+        taskFinding.Metadata["taskCapabilities"].Should().Contain(McpSpecConstants.Capabilities.TasksRequestsToolsCall);
+        taskFinding.Metadata["taskCapabilities"].Should().Contain(McpSpecConstants.Capabilities.TasksList);
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithoutAiCapabilities_ShouldNotEmitAiSafetyAdvisories()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"tools\":{}}},\"id\":\"init\"}"));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
+
+        result.Findings.Should().NotContain(finding => finding.Category == "AiSafety");
     }
 
     [Fact]

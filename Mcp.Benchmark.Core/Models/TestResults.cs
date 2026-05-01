@@ -389,6 +389,11 @@ public class PerformanceTestResult : TestResultBase
     /// Gets or sets performance bottlenecks identified.
     /// </summary>
     public List<string> PerformanceBottlenecks { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets structured records for performance status or score calibration overrides.
+    /// </summary>
+    public List<PerformanceCalibrationOverride> CalibrationOverrides { get; set; } = new();
 }
 
 /// <summary>
@@ -492,6 +497,21 @@ public class AuthenticationTestResult
     /// Gets or sets the list of authentication test scenarios.
     /// </summary>
     public List<AuthenticationScenario> TestScenarios { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the protected resource metadata URL discovered from WWW-Authenticate.
+    /// </summary>
+    public string? ProtectedResourceMetadataUrl { get; set; }
+
+    /// <summary>
+    /// Gets or sets the protected resource metadata document discovered during authentication validation.
+    /// </summary>
+    public AuthMetadata? ProtectedResourceMetadata { get; set; }
+
+    /// <summary>
+    /// Gets or sets structured authentication findings produced during validation.
+    /// </summary>
+    public List<ValidationFinding> Findings { get; set; } = new();
 }
 
 /// <summary>

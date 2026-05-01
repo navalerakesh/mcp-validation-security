@@ -136,6 +136,8 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderDecisionSignalSummary(document.ReleaseDecision));
         sb.AppendLine(RenderSectionCardClose());
 
+        sb.AppendLine(RenderRemediationOrder(document.RemediationOrder));
+
         if (document.DecisionTrace.Count > 0 || document.Hotspots.Count > 0)
         {
             var decisionTraceAbstract = new (string Label, string Value, HtmlReportTone Tone)[]
@@ -175,6 +177,58 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderDomainEvidenceMatrix(document.DomainSummaries));
         sb.AppendLine(RenderSectionCardClose());
 
+        return sb.ToString();
+    }
+
+    private static string RenderRemediationOrder(IReadOnlyList<RemediationOrderGroup> remediationOrder)
+    {
+        if (remediationOrder.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var abstractItems = remediationOrder
+            .Select(group => ($"P{group.Priority}", group.Items.Count.ToString(CultureInfo.InvariantCulture), MapRemediationTone(group.Priority)))
+            .ToArray();
+        var sb = new StringBuilder();
+        sb.AppendLine(RenderSectionCardOpen(
+            "Remediation Roadmap",
+            "Recommended Remediation Order",
+            "Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.",
+            abstractItems,
+            remediationOrder.Any(group => group.Priority <= 2) ? HtmlReportTone.Warning : HtmlReportTone.Info,
+            openByDefault: false));
+        sb.AppendLine("          <div class=\"ledger-list\">");
+        foreach (var group in remediationOrder)
+        {
+            var tone = MapRemediationTone(group.Priority);
+            sb.AppendLine($"            <article class=\"ledger-entry ledger-entry--{ValidationHtmlReportTheme.ToCssTone(tone)}\">");
+            sb.AppendLine("              <div class=\"ledger-rail\">");
+            sb.AppendLine($"                <div class=\"ledger-kicker\">Priority {group.Priority}</div>");
+            sb.AppendLine($"                <div class=\"ledger-title\">{Encode(group.Title)}</div>");
+            sb.AppendLine($"                {RenderToneChip($"{group.Items.Count} item{(group.Items.Count == 1 ? string.Empty : "s")}", tone)}");
+            sb.AppendLine("              </div>");
+            sb.AppendLine("              <div class=\"ledger-body\">");
+            sb.AppendLine($"                <p class=\"ledger-copy\"><strong>Impact after fix:</strong> {Encode(group.Impact)}</p>");
+            sb.AppendLine("                <ul class=\"compact-list\">");
+            foreach (var item in group.Items)
+            {
+                sb.AppendLine("                  <li>");
+                sb.AppendLine($"                    <strong>{Encode(item.Issue)}</strong>");
+                sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Fix:</strong> {Encode(item.Remediation)}</div>");
+                sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Component:</strong> <code>{Encode(item.Component)}</code> · <strong>Evidence:</strong> {Encode(item.Authority)} <code>{Encode(item.Evidence)}</code> · <strong>Severity:</strong> {Encode(item.Severity)}</div>");
+                if (!string.IsNullOrWhiteSpace(item.SpecReference))
+                {
+                    sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Spec:</strong> {BuildSpecCell(item.SpecReference)}</div>");
+                }
+                sb.AppendLine("                  </li>");
+            }
+            sb.AppendLine("                </ul>");
+            sb.AppendLine("              </div>");
+            sb.AppendLine("            </article>");
+        }
+        sb.AppendLine("          </div>");
+        sb.AppendLine(RenderSectionCardClose());
         return sb.ToString();
     }
 
@@ -1002,6 +1056,10 @@ internal sealed class ValidationHtmlReportComposer
             {
                 sb.AppendLine($"                  <div class=\"ledger-links\">Spec: {BuildSpecCell(violation.SpecReference)}</div>");
             }
+            if (ReportContextFormatter.ShouldRenderHumanContext(violation))
+            {
+                sb.AppendLine($"                  <div class=\"ledger-code-block\"><strong>Context</strong><code>{Encode(ReportContextFormatter.FormatPlainText(violation.Context))}</code></div>");
+            }
             sb.AppendLine("                </div>");
             sb.AppendLine("              </article>");
         }
@@ -1615,7 +1673,48 @@ internal sealed class ValidationHtmlReportComposer
             }
         }
 
+        if (perf.CalibrationOverrides.Count > 0)
+        {
+            sb.AppendLine(RenderPerformanceCalibrationOverrides(perf.CalibrationOverrides));
+        }
+
         sb.AppendLine(RenderSectionCardClose());
+        return sb.ToString();
+    }
+
+    private static string RenderPerformanceCalibrationOverrides(IReadOnlyList<PerformanceCalibrationOverride> overrides)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("          <h3>Calibration Override Audit</h3>");
+        sb.AppendLine("          <div class=\"table-scroll\">");
+        sb.AppendLine("            <table class=\"data-table\">");
+        sb.AppendLine("              <thead><tr><th>Rule</th><th>Affected tests</th><th>Status</th><th>Score</th><th>Severity</th><th>Deterministic verdict</th><th>Reason</th></tr></thead>");
+        sb.AppendLine("              <tbody>");
+        foreach (var overrideRecord in overrides)
+        {
+            var affectedTests = overrideRecord.AffectedTests.Count > 0 ? string.Join(", ", overrideRecord.AffectedTests) : "-";
+            sb.AppendLine("                <tr>");
+            sb.AppendLine($"                  <td><code>{Encode(overrideRecord.RuleId)}</code></td>");
+            sb.AppendLine($"                  <td>{Encode(affectedTests)}</td>");
+            sb.AppendLine($"                  <td>{Encode(overrideRecord.BeforeStatus.ToString())} -> {Encode(overrideRecord.AfterStatus.ToString())}</td>");
+            sb.AppendLine($"                  <td>{overrideRecord.BeforeScore:F1} -> {overrideRecord.AfterScore:F1}</td>");
+            sb.AppendLine($"                  <td>{Encode(overrideRecord.BeforeSeverity.ToString())} -> {Encode(overrideRecord.AfterSeverity.ToString())}</td>");
+            sb.AppendLine($"                  <td>{(overrideRecord.ChangedDeterministicVerdict ? "Changed" : "Preserved")}</td>");
+            sb.AppendLine($"                  <td>{Encode(overrideRecord.Reason)}</td>");
+            sb.AppendLine("                </tr>");
+        }
+        sb.AppendLine("              </tbody>");
+        sb.AppendLine("            </table>");
+        sb.AppendLine("          </div>");
+        sb.AppendLine("          <ul class=\"compact-list\">");
+        foreach (var overrideRecord in overrides)
+        {
+            var inputs = overrideRecord.Inputs.Count > 0
+                ? string.Join("; ", overrideRecord.Inputs.Select(input => $"{input.Key}={input.Value}"))
+                : "-";
+            sb.AppendLine($"            <li><code>{Encode(overrideRecord.RuleId)}</code> inputs: {Encode(inputs)}</li>");
+        }
+        sb.AppendLine("          </ul>");
         return sb.ToString();
     }
 
@@ -1991,36 +2090,38 @@ internal sealed class ValidationHtmlReportComposer
 
     private static HtmlReportTone MapViolationTone(ViolationSeverity severity)
     {
-        return severity switch
+        return MapReportSeverityTone(ReportSeverityNormalizer.From(severity));
+    }
+
+    private static HtmlReportTone MapRemediationTone(int priority)
+    {
+        return priority switch
         {
-            ViolationSeverity.Critical => HtmlReportTone.Danger,
-            ViolationSeverity.High => HtmlReportTone.Danger,
-            ViolationSeverity.Medium => HtmlReportTone.Warning,
-            ViolationSeverity.Low => HtmlReportTone.Info,
+            1 => HtmlReportTone.Danger,
+            2 => HtmlReportTone.Warning,
+            3 => HtmlReportTone.Info,
             _ => HtmlReportTone.Neutral
         };
     }
 
     private static HtmlReportTone MapVulnerabilityTone(VulnerabilitySeverity severity)
     {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => HtmlReportTone.Danger,
-            VulnerabilitySeverity.High => HtmlReportTone.Danger,
-            VulnerabilitySeverity.Medium => HtmlReportTone.Warning,
-            VulnerabilitySeverity.Low => HtmlReportTone.Info,
-            _ => HtmlReportTone.Neutral
-        };
+        return MapReportSeverityTone(ReportSeverityNormalizer.From(severity));
     }
 
     private static HtmlReportTone MapFindingSeverityTone(ValidationFindingSeverity severity)
     {
+        return MapReportSeverityTone(ReportSeverityNormalizer.From(severity));
+    }
+
+    private static HtmlReportTone MapReportSeverityTone(ReportSeverity severity)
+    {
         return severity switch
         {
-            ValidationFindingSeverity.Critical => HtmlReportTone.Danger,
-            ValidationFindingSeverity.High => HtmlReportTone.Danger,
-            ValidationFindingSeverity.Medium => HtmlReportTone.Warning,
-            ValidationFindingSeverity.Low => HtmlReportTone.Info,
+            ReportSeverity.Critical => HtmlReportTone.Danger,
+            ReportSeverity.High => HtmlReportTone.Danger,
+            ReportSeverity.Medium => HtmlReportTone.Warning,
+            ReportSeverity.Low => HtmlReportTone.Info,
             _ => HtmlReportTone.Success
         };
     }

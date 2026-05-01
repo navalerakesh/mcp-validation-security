@@ -76,6 +76,11 @@ public static class ValidationConstants
         public const string RootsList = "roots/list";
         public const string LoggingSetLevel = "logging/setLevel";
         public const string SamplingCreateMessage = "sampling/createMessage";
+        public const string ElicitationCreate = "elicitation/create";
+        public const string TasksList = "tasks/list";
+        public const string TasksGet = "tasks/get";
+        public const string TasksResult = "tasks/result";
+        public const string TasksCancel = "tasks/cancel";
         public const string Ping = "ping";
     }
 

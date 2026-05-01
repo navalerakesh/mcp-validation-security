@@ -134,6 +134,7 @@ internal class Program
         validate.Options.Add(new Option<string>("--output", "-o") { Description = "Output directory for reports" });
         validate.Options.Add(new Option<string>("--mcpspec") { Description = "Target MCP spec profile (e.g., latest, 2025-11-25)" });
         validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
+        validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
         validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
         var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles") { Description = BuildClientProfileOptionDescription() };
         clientProfileOption.AllowMultipleArgumentsPerToken = true;
@@ -423,6 +424,19 @@ internal class Program
         };
         serverProfileOption.AcceptOnlyFromAmong("public", "authenticated", "enterprise", "unspecified");
 
+        var contentSafetyContextOption = new Option<string?>("--risk-context")
+        {
+            Description = "Content safety context profile (public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal)"
+        };
+        contentSafetyContextOption.AcceptOnlyFromAmong(
+            "public-unauthenticated",
+            "public-authenticated",
+            "enterprise-governed",
+            "local-developer",
+            "ci-only",
+            "internal",
+            "unspecified");
+
         var tokenOption = new Option<string?>("--token", "-t")
         {
             Description = "Bearer token for authentication"
@@ -530,6 +544,7 @@ internal class Program
         validateCommand.Options.Add(outputOption);
         validateCommand.Options.Add(specProfileOption);
         validateCommand.Options.Add(serverProfileOption);
+        validateCommand.Options.Add(contentSafetyContextOption);
         validateCommand.Options.Add(tokenOption);
         validateCommand.Options.Add(interactiveOption);
         validateCommand.Options.Add(maxConcurrencyOption);
@@ -553,6 +568,7 @@ internal class Program
             var server = parseResult.GetValue(serverOption);
             var specProfile = parseResult.GetValue(specProfileOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
+            var contentSafetyContext = parseResult.GetValue(contentSafetyContextOption);
             var config = parseResult.GetValue(configOption);
             var verbose = parseResult.GetValue(verboseOption);
             var token = parseResult.GetValue(tokenOption);
@@ -575,7 +591,7 @@ internal class Program
             var reportDetail = parseResult.GetValue(reportDetailOption);
 
             var command = serviceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext);
         });
 
         return validateCommand;

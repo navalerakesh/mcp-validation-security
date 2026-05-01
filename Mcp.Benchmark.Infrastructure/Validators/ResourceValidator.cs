@@ -39,6 +39,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.ResourceListResponse);
             var templateSpecFailure = false;
 
+            if (CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Resources))
+            {
+                result.Status = TestStatus.Skipped;
+                result.Score = 100.0;
+                result.Message = "Server does not advertise the resources capability.";
+                result.Issues.Add("Resources capability was not advertised during initialize; resources/list, resources/read, templates, and subscription probes were skipped.");
+                return result;
+            }
+
             // Test resources/list
             var response = cachedResponse;
             if (response == null)
@@ -132,13 +141,14 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                         resourceResult.MimeType = mimeTypeElement.GetString();
                     }
 
-                    ApplyResourceGuidelineFindings(result, resourceResult);
+                    ApplyResourceGuidelineFindings(result, resourceResult, serverConfig, resource);
                     resourceResult.Status = resourceResult.MetadataValid ? TestStatus.Passed : TestStatus.Failed;
 
                     // Static, metadata-only content safety analysis
                     if (!string.IsNullOrWhiteSpace(resourceResult.ResourceUri) || !string.IsNullOrWhiteSpace(resourceResult.ResourceName))
                     {
-                        var safetyFindings = _contentSafetyAnalyzer.AnalyzeResource(resourceResult.ResourceName, resourceResult.ResourceUri);
+                        var safetyContext = ContentSafetyAnalysisContext.FromServerConfig(serverConfig);
+                        var safetyFindings = _contentSafetyAnalyzer.AnalyzeResource(resourceResult.ResourceName, resourceResult.ResourceUri, safetyContext);
                         if (safetyFindings.Count > 0)
                         {
                             resourceResult.ContentSafetyFindings.AddRange(safetyFindings);
@@ -193,6 +203,8 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
                                     if (firstContent.TryGetProperty("mimeType", out var mime)) 
                                         resourceResult.MimeType = mime.GetString();
+
+                                    ValidateResourceReadContentItem(result, resourceResult, firstContent);
                                     
                                     // MUST have text OR blob
                                     if (firstContent.TryGetProperty("text", out var text))
@@ -238,6 +250,8 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     }
                 }
             }
+
+            await ValidateResourceSubscriptionsIfAdvertisedAsync(serverConfig, config, result, capabilitySnapshot, ct);
 
                     // Schema-based validation of resources/list response shape (best-effort)
                     var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
@@ -340,6 +354,33 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                                     Recommendation = "Add a description for parameterized resource templates so clients know how to form valid URIs."
                                 });
                             }
+
+                            foreach (var finding in McpContentValidationUtils.ValidateAnnotations(
+                                template,
+                                component,
+                                ValidationFindingRuleIds.ResourceAnnotationInvalid,
+                                "ProtocolCompliance"))
+                            {
+                                result.Findings.Add(finding);
+                            }
+
+                            if (hasUriTemplate && ResourceTemplateNeedsBoundaryGuidance(uriTemplateElement.GetString(), hasDescription ? descriptionElement.GetString() : null))
+                            {
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateBoundaryGuidanceMissing,
+                                    Category = "AiSafety",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.Medium,
+                                    Summary = $"Resource template '{component}' accepts broad URI parameters without access-boundary guidance.",
+                                    Recommendation = "Document allowed path/URI boundaries, authorization requirements, and validation rules for parameterized resource templates that can read files, URLs, or user-selected targets.",
+                                    Metadata =
+                                    {
+                                        ["uriTemplate"] = uriTemplateElement.GetString() ?? string.Empty,
+                                        ["safetyLane"] = "resource-access-boundary"
+                                    }
+                                });
+                            }
                         }
                     }
                 }
@@ -384,15 +425,135 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
         return await ValidateResourceDiscoveryAsync(serverConfig, config, cancellationToken);
     }
 
-    private static void ApplyResourceGuidelineFindings(ResourceTestResult aggregateResult, IndividualResourceResult resourceResult)
+    private async Task ValidateResourceSubscriptionsIfAdvertisedAsync(
+        McpServerConfig serverConfig,
+        ResourceTestingConfig config,
+        ResourceTestResult result,
+        TransportResult<CapabilitySummary>? capabilitySnapshot,
+        CancellationToken ct)
     {
+        if (!config.TestSubscriptions)
+        {
+            return;
+        }
+
+        if (CapabilitySnapshotUtils.HasCapabilityDeclarations(capabilitySnapshot) &&
+            !CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.ResourcesSubscribe))
+        {
+            result.Issues.Add("resources.subscribe was not advertised during initialize; resource subscription probes were skipped.");
+            return;
+        }
+
+        if (!CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.ResourcesSubscribe))
+        {
+            return;
+        }
+
+        var resourceUri = result.ResourceResults
+            .FirstOrDefault(resource => resource.MetadataValid && !string.IsNullOrWhiteSpace(resource.ResourceUri))
+            ?.ResourceUri;
+
+        if (string.IsNullOrWhiteSpace(resourceUri))
+        {
+            result.Issues.Add("resources.subscribe was advertised, but no valid resource URI was available for a subscription probe.");
+            return;
+        }
+
+        var subscriptionResult = new SubscriptionTestResult { ResourceUri = resourceUri };
+        result.SubscriptionResults.Add(subscriptionResult);
+
+        try
+        {
+            var subscribeResponse = await _httpClient.CallAsync(
+                serverConfig.Endpoint!,
+                ValidationConstants.Methods.ResourcesSubscribe,
+                new { uri = resourceUri },
+                serverConfig.Authentication,
+                ct);
+
+            if (AuthenticationChallengeInterpreter.Inspect(subscribeResponse).RequiresAuthentication)
+            {
+                subscriptionResult.Issues.Add("Auth required for resources/subscribe; subscription behavior was not validated.");
+                result.Issues.Add("resources.subscribe advertised but requires authentication before subscription behavior can be validated.");
+                return;
+            }
+
+            if (!subscribeResponse.IsSuccess)
+            {
+                AddSubscriptionFailureFinding(result, subscriptionResult, ValidationConstants.Methods.ResourcesSubscribe, resourceUri, subscribeResponse.Error);
+                return;
+            }
+
+            subscriptionResult.SubscriptionSuccessful = true;
+            subscriptionResult.Issues.Add("resources/subscribe succeeded for an advertised subscription-capable resource surface.");
+
+            var unsubscribeResponse = await _httpClient.CallAsync(
+                serverConfig.Endpoint!,
+                ValidationConstants.Methods.ResourcesUnsubscribe,
+                new { uri = resourceUri },
+                serverConfig.Authentication,
+                ct);
+
+            if (unsubscribeResponse.IsSuccess)
+            {
+                subscriptionResult.UnsubscriptionSuccessful = true;
+                subscriptionResult.Issues.Add("resources/unsubscribe succeeded after subscription probe.");
+            }
+            else if (!AuthenticationChallengeInterpreter.Inspect(unsubscribeResponse).RequiresAuthentication)
+            {
+                AddSubscriptionFailureFinding(result, subscriptionResult, ValidationConstants.Methods.ResourcesUnsubscribe, resourceUri, unsubscribeResponse.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddSubscriptionFailureFinding(result, subscriptionResult, ValidationConstants.Methods.ResourcesSubscribe, resourceUri, ex.Message);
+        }
+    }
+
+    private static void AddSubscriptionFailureFinding(
+        ResourceTestResult result,
+        SubscriptionTestResult subscriptionResult,
+        string method,
+        string resourceUri,
+        string? error)
+    {
+        result.Status = TestStatus.Failed;
+        result.ResourcesTestFailed++;
+        var issue = $"{method} was advertised but failed for resource '{resourceUri}': {error ?? "no JSON-RPC error detail"}";
+        subscriptionResult.Issues.Add(issue);
+        result.Issues.Add(issue);
+        result.Findings.Add(new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.ResourceSubscribeAdvertisedButUnsupported,
+            Category = "ProtocolCompliance",
+            Component = method,
+            Severity = ValidationFindingSeverity.High,
+            Summary = $"Server advertises resources.subscribe but {method} is not callable.",
+            Recommendation = "Implement the advertised resource subscription method or stop advertising resources.subscribe.",
+            Metadata =
+            {
+                ["capability"] = McpSpecConstants.Capabilities.ResourcesSubscribe,
+                ["method"] = method,
+                ["resourceUri"] = resourceUri
+            }
+        });
+    }
+
+    private static void ApplyResourceGuidelineFindings(
+        ResourceTestResult aggregateResult,
+        IndividualResourceResult resourceResult,
+        McpServerConfig serverConfig,
+        JsonElement resource)
+    {
+        var component = string.IsNullOrWhiteSpace(resourceResult.ResourceUri) ? resourceResult.ResourceName : resourceResult.ResourceUri;
+
         if (resourceResult.MetadataValid && string.IsNullOrWhiteSpace(resourceResult.MimeType))
         {
             var finding = new ValidationFinding
             {
                 RuleId = ValidationFindingRuleIds.ResourceGuidelineMimeTypeMissing,
                 Category = "McpGuideline",
-                Component = string.IsNullOrWhiteSpace(resourceResult.ResourceUri) ? resourceResult.ResourceName : resourceResult.ResourceUri,
+                Component = component,
                 Severity = ValidationFindingSeverity.Low,
                 Summary = $"Resource '{resourceResult.ResourceName}' does not declare mimeType.",
                 Recommendation = "Add mimeType metadata so clients can render or route resources correctly."
@@ -417,11 +578,172 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             resourceResult.Findings.Add(finding);
             aggregateResult.Findings.Add(finding);
         }
+
+        foreach (var finding in McpContentValidationUtils.ValidateAnnotations(
+            resource,
+            component,
+            ValidationFindingRuleIds.ResourceAnnotationInvalid,
+            "ProtocolCompliance"))
+        {
+            AddResourceFinding(aggregateResult, resourceResult, finding, finding.Summary);
+        }
+
+        if (ResourceNeedsAccessControlAdvisory(resourceResult, serverConfig))
+        {
+            var context = ContentSafetyAnalysisContext.FromServerConfig(serverConfig);
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ResourceAccessControlAdvisory,
+                Category = "AiSafety",
+                Component = component,
+                Severity = ValidationFindingSeverity.High,
+                Summary = $"Resource '{component}' appears sensitive and was exposed without an observable authentication boundary.",
+                Recommendation = "Require authorization before listing or reading sensitive resources, enforce per-resource permissions, and avoid exposing file, credential, customer, or database resources on unauthenticated public surfaces.",
+                Metadata =
+                {
+                    ["resourceUri"] = resourceResult.ResourceUri,
+                    ["resourceName"] = resourceResult.ResourceName,
+                    ["contextProfile"] = context.Profile.ToString(),
+                    ["authenticationRequired"] = context.AuthenticationRequired.ToString().ToLowerInvariant(),
+                    ["safetyLane"] = "resource-access-control"
+                }
+            };
+
+            AddResourceFinding(aggregateResult, resourceResult, finding, finding.Summary);
+        }
+    }
+
+    private static void ValidateResourceReadContentItem(
+        ResourceTestResult aggregateResult,
+        IndividualResourceResult resourceResult,
+        JsonElement content)
+    {
+        var component = string.IsNullOrWhiteSpace(resourceResult.ResourceUri) ? resourceResult.ResourceName : resourceResult.ResourceUri;
+
+        if (content.TryGetProperty("uri", out var contentUri) &&
+            contentUri.ValueKind == JsonValueKind.String &&
+            !string.IsNullOrWhiteSpace(contentUri.GetString()) &&
+            !string.Equals(contentUri.GetString(), resourceResult.ResourceUri, StringComparison.Ordinal))
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ResourceReadContentUriMismatch,
+                Category = "AiSafety",
+                Component = component,
+                Severity = ValidationFindingSeverity.Medium,
+                Summary = "resources/read returned content for a URI that does not match the requested resource URI.",
+                Recommendation = "Return content only for the requested URI unless the response explicitly documents authorized related resources; mismatches can confuse clients and leak unintended resource context.",
+                Metadata =
+                {
+                    ["requestedUri"] = resourceResult.ResourceUri,
+                    ["returnedUri"] = contentUri.GetString() ?? string.Empty,
+                    ["safetyLane"] = "resource-access-control"
+                }
+            };
+
+            AddResourceFinding(aggregateResult, resourceResult, finding, finding.Summary);
+        }
+
+        if (content.TryGetProperty("blob", out var blob) &&
+            (blob.ValueKind != JsonValueKind.String || !McpContentValidationUtils.IsValidBase64(blob.GetString())))
+        {
+            var finding = new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ResourceReadBlobInvalidBase64,
+                Category = "ProtocolCompliance",
+                Component = component,
+                Severity = ValidationFindingSeverity.High,
+                Summary = "resources/read returned blob content that is not valid base64.",
+                Recommendation = "Encode binary resource contents as base64 strings before returning them in the blob field."
+            };
+
+            AddResourceFinding(aggregateResult, resourceResult, finding, finding.Summary);
+        }
+
+        foreach (var finding in McpContentValidationUtils.ValidateAnnotations(
+            content,
+            component,
+            ValidationFindingRuleIds.ResourceAnnotationInvalid,
+            "ProtocolCompliance"))
+        {
+            AddResourceFinding(aggregateResult, resourceResult, finding, finding.Summary);
+        }
+    }
+
+    private static void AddResourceFinding(
+        ResourceTestResult aggregateResult,
+        IndividualResourceResult resourceResult,
+        ValidationFinding finding,
+        string issue)
+    {
+        if (IsBlockingProtocolFinding(finding))
+        {
+            resourceResult.MetadataValid = false;
+            resourceResult.Status = TestStatus.Failed;
+        }
+
+        resourceResult.AddFinding(finding, issue);
+        aggregateResult.Findings.Add(finding);
+    }
+
+    private static bool IsBlockingProtocolFinding(ValidationFinding finding)
+    {
+        return string.Equals(finding.Category, "ProtocolCompliance", StringComparison.OrdinalIgnoreCase) &&
+            finding.Severity >= ValidationFindingSeverity.High;
     }
 
     private static bool HasAbsoluteUriScheme(string resourceUri)
     {
         return Uri.TryCreate(resourceUri, UriKind.Absolute, out var parsed) && !string.IsNullOrWhiteSpace(parsed.Scheme);
+    }
+
+    private static bool ResourceNeedsAccessControlAdvisory(IndividualResourceResult resourceResult, McpServerConfig serverConfig)
+    {
+        var context = ContentSafetyAnalysisContext.FromServerConfig(serverConfig);
+        if (context.AuthenticationRequired || context.Profile == ContentSafetyContextProfile.LocalDeveloper)
+        {
+            return false;
+        }
+
+        return ResourceLooksSensitive(resourceResult.ResourceUri) || ResourceLooksSensitive(resourceResult.ResourceName);
+    }
+
+    private static bool ResourceLooksSensitive(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme is "file" or "ssh" or "sftp" or "postgres" or "mysql" or "mongodb" or "redis" or "s3" or "vault")
+        {
+            return true;
+        }
+
+        return new[] { "secret", "token", "credential", "password", "private", "customer", "database", "admin", "ssh", "key" }
+            .Any(term => value.Contains(term, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static bool ResourceTemplateNeedsBoundaryGuidance(string? uriTemplate, string? description)
+    {
+        if (string.IsNullOrWhiteSpace(uriTemplate))
+        {
+            return false;
+        }
+
+        var broadParameters = new[] { "{path", "{file", "{url", "{uri", "{host", "{domain", "{target" };
+        if (!broadParameters.Any(parameter => uriTemplate.Contains(parameter, StringComparison.OrdinalIgnoreCase)))
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(description))
+        {
+            return true;
+        }
+
+        return !new[] { "allow", "allowed", "authorize", "permission", "scope", "boundary", "validate", "sanitize", "safe" }
+            .Any(cue => description.Contains(cue, StringComparison.OrdinalIgnoreCase));
     }
 
     private static string GetTemplateComponent(JsonElement template)

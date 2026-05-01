@@ -45,6 +45,8 @@ public sealed class TransportResult<TPayload>
 /// </summary>
 public sealed class CapabilitySummary
 {
+    public bool CapabilityDeclarationsAvailable { get; init; }
+    public IReadOnlyList<string> AdvertisedCapabilities { get; init; } = Array.Empty<string>();
     public IReadOnlyList<McpClientTool> Tools { get; init; } = Array.Empty<McpClientTool>();
     public bool ToolListingSucceeded { get; init; }
     public bool ToolInvocationSucceeded { get; init; }

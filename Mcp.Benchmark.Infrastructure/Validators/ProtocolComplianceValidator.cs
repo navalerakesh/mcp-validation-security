@@ -287,10 +287,14 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             // Calculate comprehensive compliance score (now 8 scored tests total)
             // Probe optional MCP capabilities for structured findings and capability-aware reporting.
-            var rootsSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.RootsList, ct);
-            var loggingSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct);
-            var samplingSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.SamplingCreateMessage, ct);
-            var completionSupported = await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.CompletionComplete, ct);
+            var rootsSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Roots) &&
+                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.RootsList, ct);
+            var loggingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) &&
+                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct);
+            var samplingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Sampling) &&
+                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.SamplingCreateMessage, ct);
+            var completionSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) &&
+                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.CompletionComplete, ct);
 
             ApplyOptionalCapabilityFindings(
                 result,
@@ -299,6 +303,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 loggingSupported,
                 samplingSupported,
                 completionSupported);
+
+            ApplyAiCapabilitySafetyFindings(result, declaredCapabilities);
 
             if (notificationProbe.IsCompliant == null)
             {
@@ -1164,46 +1170,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     private static HashSet<string> ParseDeclaredCapabilities(JsonElement capabilities)
     {
-        var declaredCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Tools, out _))
-        {
-            declaredCapabilities.Add(McpSpecConstants.Capabilities.Tools);
-        }
-
-        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Resources, out var resourceCapabilities))
-        {
-            declaredCapabilities.Add(McpSpecConstants.Capabilities.Resources);
-            if (resourceCapabilities.ValueKind == JsonValueKind.Object)
-            {
-                if (resourceCapabilities.TryGetProperty("subscribe", out var subscribe) && subscribe.ValueKind == JsonValueKind.True)
-                {
-                    declaredCapabilities.Add("resources.subscribe");
-                }
-
-                if (resourceCapabilities.TryGetProperty("listChanged", out var listChanged) && listChanged.ValueKind == JsonValueKind.True)
-                {
-                    declaredCapabilities.Add("resources.listChanged");
-                }
-            }
-        }
-
-        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Prompts, out _))
-        {
-            declaredCapabilities.Add(McpSpecConstants.Capabilities.Prompts);
-        }
-
-        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Logging, out _))
-        {
-            declaredCapabilities.Add(McpSpecConstants.Capabilities.Logging);
-        }
-
-        if (capabilities.TryGetProperty(McpSpecConstants.Capabilities.Completions, out _))
-        {
-            declaredCapabilities.Add(McpSpecConstants.Capabilities.Completions);
-        }
-
-        return declaredCapabilities;
+        return new HashSet<string>(CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(capabilities), StringComparer.OrdinalIgnoreCase);
     }
 
     private static string AppendCapabilityProbeMessage(
@@ -1225,12 +1192,26 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             segments.Add($"declared capabilities: {string.Join(", ", declaredCapabilities.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase))}");
         }
 
-        segments.Add($"roots/list: {(rootsSupported ? "supported" : "not supported")}");
-        segments.Add($"logging/setLevel: {(loggingSupported ? "supported" : "not supported")}");
-        segments.Add($"sampling/createMessage: {(samplingSupported ? "supported" : "not supported")}");
-        segments.Add($"completion/complete: {(completionSupported ? "supported" : "not supported")}");
+        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Roots, ValidationConstants.Methods.RootsList, rootsSupported));
+        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Logging, ValidationConstants.Methods.LoggingSetLevel, loggingSupported));
+        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Sampling, ValidationConstants.Methods.SamplingCreateMessage, samplingSupported));
+        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Completions, ValidationConstants.Methods.CompletionComplete, completionSupported));
 
         return string.Join(" | ", segments);
+    }
+
+    private static string FormatCapabilityProbeStatus(
+        IReadOnlySet<string> declaredCapabilities,
+        string capability,
+        string method,
+        bool supported)
+    {
+        if (!declaredCapabilities.Contains(capability))
+        {
+            return $"{method}: not advertised";
+        }
+
+        return $"{method}: {(supported ? "supported" : "not supported")}";
     }
 
     private static void ApplyOptionalCapabilityFindings(
@@ -1352,6 +1333,176 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 }
             });
         }
+    }
+
+    private static void ApplyAiCapabilitySafetyFindings(
+        ComplianceTestResult result,
+        IReadOnlySet<string> declaredCapabilities)
+    {
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Roots))
+        {
+            AddClientCapabilityAdvertisedFinding(
+                result,
+                McpSpecConstants.Capabilities.Roots,
+                ValidationConstants.Methods.RootsList,
+                "Server initialize response advertises roots, which is a client-side filesystem boundary capability.",
+                "Do not rely on roots workflows unless the client negotiated roots support; when roots are available, keep root URI validation, user consent, and filesystem boundary enforcement visible to the user.");
+
+            AddAiSafetyCapabilityFinding(
+                result,
+                ValidationFindingRuleIds.AiRootsBoundaryAdvisory,
+                McpSpecConstants.Capabilities.Roots,
+                ValidationConstants.Methods.RootsList,
+                ValidationFindingSeverity.Medium,
+                "Roots workflows expose filesystem boundaries and need explicit boundary controls.",
+                "Validate every root URI, enforce access only inside declared roots, and preserve user consent before using or expanding root access.",
+                new Dictionary<string, string>
+                {
+                    ["safetyControls"] = "user-consent,root-uri-validation,boundary-enforcement"
+                });
+        }
+
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Sampling) ||
+            declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksRequestsSamplingCreateMessage))
+        {
+            if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Sampling))
+            {
+                AddClientCapabilityAdvertisedFinding(
+                    result,
+                    McpSpecConstants.Capabilities.Sampling,
+                    ValidationConstants.Methods.SamplingCreateMessage,
+                    "Server initialize response advertises sampling, which is a client-side LLM request capability.",
+                    "Do not issue sampling/createMessage unless the client negotiated sampling support; preserve human review for prompts, tool use, and generated responses.");
+            }
+
+            AddAiSafetyCapabilityFinding(
+                result,
+                ValidationFindingRuleIds.AiSamplingHumanReviewAdvisory,
+                McpSpecConstants.Capabilities.Sampling,
+                ValidationConstants.Methods.SamplingCreateMessage,
+                ValidationFindingSeverity.Medium,
+                "Sampling-capable flows need human-in-the-loop prompt and response visibility.",
+                "Expose the sampling prompt for review/editing, allow users to reject generated responses, require approval for tool-enabled sampling, and enforce iteration/rate limits for recursive model calls.",
+                new Dictionary<string, string>
+                {
+                    ["safetyControls"] = "prompt-review,response-review,tool-use-approval,iteration-limits,rate-limits",
+                    ["tasksRequest"] = declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksRequestsSamplingCreateMessage).ToString().ToLowerInvariant()
+                });
+        }
+
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Elicitation) ||
+            declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksRequestsElicitationCreate))
+        {
+            if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Elicitation))
+            {
+                AddClientCapabilityAdvertisedFinding(
+                    result,
+                    McpSpecConstants.Capabilities.Elicitation,
+                    ValidationConstants.Methods.ElicitationCreate,
+                    "Server initialize response advertises elicitation, which is a client-side user-input capability.",
+                    "Do not issue elicitation/create unless the client negotiated elicitation support; keep requester identity, decline/cancel controls, and user review visible.");
+            }
+
+            AddAiSafetyCapabilityFinding(
+                result,
+                ValidationFindingRuleIds.AiElicitationConsentAdvisory,
+                McpSpecConstants.Capabilities.Elicitation,
+                ValidationConstants.Methods.ElicitationCreate,
+                ValidationFindingSeverity.Medium,
+                "Elicitation-capable flows need explicit user consent and sensitive-data boundaries.",
+                "Provide decline/cancel, allow users to review and modify responses, keep secrets out of form-mode fields, use URL mode for sensitive authentication or payment flows, and bind elicitation state to verified user identity.",
+                new Dictionary<string, string>
+                {
+                    ["safetyControls"] = "decline,cancel,response-review,sensitive-data-separation,identity-binding",
+                    ["tasksRequest"] = declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksRequestsElicitationCreate).ToString().ToLowerInvariant()
+                });
+        }
+
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Tasks))
+        {
+            var taskCapabilities = declaredCapabilities
+                .Where(static capability => capability.StartsWith($"{McpSpecConstants.Capabilities.Tasks}.", StringComparison.OrdinalIgnoreCase))
+                .OrderBy(static capability => capability, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            AddAiSafetyCapabilityFinding(
+                result,
+                ValidationFindingRuleIds.AiTasksIsolationAdvisory,
+                McpSpecConstants.Capabilities.Tasks,
+                ValidationConstants.Methods.TasksList,
+                ValidationFindingSeverity.Medium,
+                "Server advertises task-augmented workflows that require identity, lifetime, and visibility controls.",
+                "Bind task IDs to the authorization/user context where available, document single-user limitations, apply TTL and rate limits, audit task operations, and keep task visibility aligned with declared tasks requests.",
+                new Dictionary<string, string>
+                {
+                    ["taskCapabilities"] = taskCapabilities.Length == 0 ? McpSpecConstants.Capabilities.Tasks : string.Join(",", taskCapabilities),
+                    ["hasTasksList"] = declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksList).ToString().ToLowerInvariant(),
+                    ["hasToolsCallTasks"] = declaredCapabilities.Contains(McpSpecConstants.Capabilities.TasksRequestsToolsCall).ToString().ToLowerInvariant()
+                });
+        }
+    }
+
+    private static void AddClientCapabilityAdvertisedFinding(
+        ComplianceTestResult result,
+        string capability,
+        string method,
+        string summary,
+        string recommendation)
+    {
+        AddAiSafetyCapabilityFinding(
+            result,
+            ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer,
+            capability,
+            method,
+            ValidationFindingSeverity.Medium,
+            summary,
+            recommendation,
+            new Dictionary<string, string>
+            {
+                ["capabilityAuthority"] = "client",
+                ["advertisedBy"] = "server",
+                ["negotiationRisk"] = "server-may-exceed-client-capabilities"
+            });
+    }
+
+    private static void AddAiSafetyCapabilityFinding(
+        ComplianceTestResult result,
+        string ruleId,
+        string capability,
+        string method,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation,
+        IDictionary<string, string>? metadata = null)
+    {
+        var findingMetadata = new Dictionary<string, string>
+        {
+            ["capability"] = capability,
+            ["method"] = method,
+            ["declared"] = "true",
+            ["safetyLane"] = "capability-negotiation",
+            ["specReference"] = "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#capabilities"
+        };
+
+        if (metadata != null)
+        {
+            foreach (var (key, value) in metadata)
+            {
+                findingMetadata[key] = value;
+            }
+        }
+
+        result.Findings.Add(new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "AiSafety",
+            Component = capability,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation,
+            SpecReference = findingMetadata["specReference"],
+            Metadata = findingMetadata
+        });
     }
 
     private static void AddOptionalCapabilitySupportedFinding(
@@ -1689,20 +1840,6 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         foreach (var method in preferredMethods.Distinct(StringComparer.OrdinalIgnoreCase))
         {
             return method;
-        }
-
-        foreach (var method in new[]
-                 {
-                     ValidationConstants.Methods.ToolsList,
-                     ValidationConstants.Methods.ResourcesList,
-                     ValidationConstants.Methods.PromptsList,
-                     ValidationConstants.Methods.RootsList
-                 })
-        {
-            if (await ProbeMethodSupportAsync(endpoint, method, cancellationToken))
-            {
-                return method;
-            }
         }
 
         return null;

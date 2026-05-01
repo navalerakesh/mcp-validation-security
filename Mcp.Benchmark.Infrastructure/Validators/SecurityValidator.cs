@@ -61,6 +61,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             // 1. Authentication Testing
             var authTestResult = await _authValidator.ValidateAuthenticationComplianceAsync(serverConfig, ct);
             result.AuthenticationTestResult = authTestResult;
+            result.Findings.AddRange(authTestResult.Findings);
             
             if (authTestResult.Status == TestStatus.Error)
             {

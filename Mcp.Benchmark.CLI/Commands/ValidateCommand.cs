@@ -94,7 +94,8 @@ public class ValidateCommand
         string? redactLevel = null,
         string? traceMode = null,
         bool? confirmElevatedRisk = null,
-        bool? enableModelEval = null)
+        bool? enableModelEval = null,
+        string? contentSafetyContext = null)
     {
         _consoleOutput.SetVerbose(verbose);
         _nextStepAdvisor.Reset();
@@ -115,7 +116,8 @@ public class ValidateCommand
 
             // Load and normalize configuration
             var profileOverride = ParseServerProfile(serverProfile);
-            configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride);
+            var contentSafetyContextOverride = ParseContentSafetyContextProfile(contentSafetyContext);
+            configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride, contentSafetyContextOverride);
             ApplyPolicyOverride(configuration, policyMode);
             ApplyClientProfileOverride(configuration, clientProfiles);
             ApplyReportingOverrides(configuration, reportDetail);
@@ -143,11 +145,13 @@ public class ValidateCommand
                 effectiveProfile = profileOverride.Value;
             }
 
+            var effectiveContentSafetyContext = ContentSafetyAnalysisContext.FromServerConfig(configuration.Server).Profile;
+
             // Surface effective access profile and spec profile to the user
             var activeSpecProfile = string.IsNullOrWhiteSpace(configuration.Reporting.SpecProfile)
                 ? "default (latest)"
                 : configuration.Reporting.SpecProfile;
-            _consoleOutput.WriteInfo($"Access profile: {effectiveProfile}; MCP spec profile: {activeSpecProfile}");
+            _consoleOutput.WriteInfo($"Access profile: {effectiveProfile}; risk context: {effectiveContentSafetyContext}; MCP spec profile: {activeSpecProfile}");
 
             if (!EnsureAuthenticationPrerequisites(effectiveProfile, configuration, token, interactive, targetEndpoint))
             {
@@ -451,7 +455,8 @@ public class ValidateCommand
         string server,
         string? specProfile,
         FileInfo? configFile,
-        McpServerProfile? serverProfileOverride)
+        McpServerProfile? serverProfileOverride,
+        ContentSafetyContextProfile? contentSafetyContextOverride)
     {
         McpValidatorConfiguration configuration;
 
@@ -468,6 +473,7 @@ public class ValidateCommand
         NormalizeServerConfig(configuration.Server, server);
         ApplySpecProfile(configuration, specProfile);
         ApplyServerProfileOverride(configuration, serverProfileOverride);
+        ApplyContentSafetyContextOverride(configuration, contentSafetyContextOverride);
 
         return configuration;
     }
@@ -509,6 +515,16 @@ public class ValidateCommand
         }
     }
 
+    private static void ApplyContentSafetyContextOverride(
+        McpValidatorConfiguration configuration,
+        ContentSafetyContextProfile? contentSafetyContextOverride)
+    {
+        if (contentSafetyContextOverride.HasValue)
+        {
+            configuration.Server.ContentSafetyContext = contentSafetyContextOverride.Value;
+        }
+    }
+
     private static McpServerProfile? ParseServerProfile(string? rawProfile)
     {
         if (string.IsNullOrWhiteSpace(rawProfile))
@@ -519,6 +535,28 @@ public class ValidateCommand
         return Enum.TryParse<McpServerProfile>(rawProfile, ignoreCase: true, out var parsed)
             ? parsed
             : null;
+    }
+
+    private static ContentSafetyContextProfile? ParseContentSafetyContextProfile(string? rawProfile)
+    {
+        if (string.IsNullOrWhiteSpace(rawProfile))
+        {
+            return null;
+        }
+
+        var normalized = rawProfile.Replace("-", string.Empty, StringComparison.Ordinal)
+            .Replace("_", string.Empty, StringComparison.Ordinal)
+            .Trim();
+
+        foreach (var profile in Enum.GetValues<ContentSafetyContextProfile>())
+        {
+            if (string.Equals(profile.ToString(), normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return profile;
+            }
+        }
+
+        return null;
     }
 
     private void DisplayPolicyOutcome(ValidationPolicyOutcome? policyOutcome)

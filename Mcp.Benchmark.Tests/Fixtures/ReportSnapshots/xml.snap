@@ -240,11 +240,11 @@
     <HandshakeHttpStatus>401</HandshakeHttpStatus>
   </BootstrapHealth>
   <SeverityBreakdown>
-    <Severity level="Critical" count="1" />
-    <Severity level="High" count="1" />
-    <Severity level="Medium" count="0" />
-    <Severity level="Low" count="0" />
-    <Severity level="Informational" count="0" />
+    <Severity level="Critical" machineLevel="critical" rank="4" count="1" />
+    <Severity level="High" machineLevel="high" rank="3" count="1" />
+    <Severity level="Medium" machineLevel="medium" rank="2" count="0" />
+    <Severity level="Low" machineLevel="low" rank="1" count="0" />
+    <Severity level="Info" machineLevel="info" rank="0" count="0" />
   </SeverityBreakdown>
   <ValidationEnvelope>
     <Layers>
@@ -362,7 +362,7 @@
     <ProtocolCompliance status="Failed" score="84.0" durationSeconds="2.1">
       <ViolationsCount>1</ViolationsCount>
       <Violations>
-        <Violation severity="High" source="spec" category="Initialization" checkId="MCP.INIT.VERSION_NEGOTIATION" rule="initialize.result.protocolVersion must reflect negotiation.">
+        <Violation severity="High" normalizedSeverity="high" normalizedSeverityRank="3" source="spec" category="Initialization" checkId="MCP.INIT.VERSION_NEGOTIATION" rule="initialize.result.protocolVersion must reflect negotiation.">
           <Description>Server ignored the requested MCP protocol version.</Description>
           <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
           <Recommendation>Echo the negotiated protocol version in initialize.result.</Recommendation>
@@ -372,7 +372,7 @@
     <SecurityTesting status="Failed" securityScore="69.0" durationSeconds="2.6">
       <VulnerabilitiesCount>1</VulnerabilitiesCount>
       <Vulnerabilities>
-        <Vulnerability severity="Critical" source="heuristic" category="PromptInjection" id="MCP.SECURITY.PROMPT_INJECTION">
+        <Vulnerability severity="Critical" normalizedSeverity="critical" normalizedSeverityRank="4" source="heuristic" category="PromptInjection" id="MCP.SECURITY.PROMPT_INJECTION">
           <Name>Prompt injection reflection</Name>
           <Description>Server reflected untrusted prompt content without sanitization.</Description>
           <AffectedComponent>prompt:get</AffectedComponent>

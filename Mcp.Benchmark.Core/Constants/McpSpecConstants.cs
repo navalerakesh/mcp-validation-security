@@ -51,6 +51,21 @@ public static class McpSpecConstants
         public const string Completions = "completions";
         public const string Roots = "roots";
         public const string Sampling = "sampling";
+        public const string Elicitation = "elicitation";
+        public const string Tasks = "tasks";
+        public const string TasksList = "tasks.list";
+        public const string TasksCancel = "tasks.cancel";
+        public const string TasksRequestsToolsCall = "tasks.requests.tools.call";
+        public const string TasksRequestsSamplingCreateMessage = "tasks.requests.sampling.createMessage";
+        public const string TasksRequestsElicitationCreate = "tasks.requests.elicitation.create";
+        public const string SamplingTools = "sampling.tools";
+        public const string SamplingContext = "sampling.context";
+        public const string ElicitationForm = "elicitation.form";
+        public const string ElicitationUrl = "elicitation.url";
+        public const string ToolsListChanged = "tools.listChanged";
+        public const string ResourcesSubscribe = "resources.subscribe";
+        public const string ResourcesListChanged = "resources.listChanged";
+        public const string PromptsListChanged = "prompts.listChanged";
     }
 
     /// <summary>

@@ -1603,6 +1603,95 @@ a:hover {
         </details>
       </section>
       <section class="section">
+        <details class="section-card section-card--tone-warning">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Remediation Roadmap</div>
+              <h2 class="section-title section-title--card">Recommended Remediation Order</h2>
+              <p class="section-intro section-intro--card">Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">P1</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P3</div><div class="section-abstract__value">2</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">P4</div><div class="section-abstract__value">2</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="ledger-list">
+            <article class="ledger-entry ledger-entry--danger">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 1</div>
+                <div class="ledger-title">Bootstrap &amp; Protocol Version</div>
+                <span class="tone-chip tone-danger">1 item</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Server ignored the requested MCP protocol version.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Echo the negotiated protocol version in initialize.result.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>Initialization</code> · <strong>Evidence:</strong> [Spec] <code>MCP.INIT.VERSION_NEGOTIATION</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--info">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 3</div>
+                <div class="ledger-title">Advertised Capabilities</div>
+                <span class="tone-chip tone-info">2 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Prompt output includes reflected untrusted content.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>PromptInjection</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt-surface</code> · <strong>Evidence:</strong> [Heuristic] <code>Coverage</code> · <strong>Severity:</strong> Medium</div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--neutral">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 4</div>
+                <div class="ledger-title">AI Safety, Security, And Performance</div>
+                <span class="tone-chip tone-neutral">2 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Server reflected untrusted prompt content without sanitization.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Sanitize and label untrusted content before returning it.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.SECURITY.PROMPT_INJECTION</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>validation-run</code> · <strong>Evidence:</strong> [Operational] <code>Execution</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+          </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="section">
         <details class="section-card section-card--tone-danger">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">

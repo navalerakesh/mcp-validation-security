@@ -252,6 +252,143 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithHighSeverityViolationContext_ShouldRenderContextDetails()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.INIT.VERSION_NEGOTIATION",
+                    Category = "Initialization",
+                    Description = "Server ignored the requested MCP protocol version.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Return the negotiated protocol version.",
+                    Context = new Dictionary<string, object>
+                    {
+                        ["requestedProtocolVersion"] = "2025-11-25",
+                        ["serverProtocolVersion"] = "2025-03-26",
+                        ["expected"] = "initialize.result.protocolVersion matches negotiated version",
+                        ["actual"] = "2025-03-26"
+                    }
+                },
+                new()
+                {
+                    CheckId = "MCP.LOW.CONTEXT",
+                    Category = "Initialization",
+                    Description = "Low severity detail.",
+                    Severity = ViolationSeverity.Low,
+                    Context = new Dictionary<string, object>
+                    {
+                        ["probeId"] = "low-severity-probe"
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("#### Violation Context");
+        report.Should().Contain("| `MCP.INIT.VERSION_NEGOTIATION` | **Requested protocol:** `2025-11-25`; **Server protocol:** `2025-03-26`; **Expected:** `initialize.result.protocolVersion matches negotiated version`; **Actual:** `2025-03-26` |");
+        report.Should().NotContain("low-severity-probe");
+    }
+
+    [Fact]
+    public void GenerateReport_WithMixedRemediationSignals_ShouldShowDependencyOrderedRemediationOrder()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.INIT.VERSION_NEGOTIATION",
+                    Category = "Initialization",
+                    Description = "Server ignored the requested MCP protocol version.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Return the negotiated protocol version."
+                }
+            }
+        };
+        result.SecurityTesting = new SecurityTestResult
+        {
+            Vulnerabilities = new List<SecurityVulnerability>
+            {
+                new()
+                {
+                    Id = "MCP.SECURITY.PROMPT_INJECTION",
+                    Category = "PromptInjection",
+                    AffectedComponent = "prompt:get",
+                    Description = "Prompt reflected untrusted instructions.",
+                    Severity = VulnerabilitySeverity.High,
+                    Remediation = "Sanitize and label untrusted prompt content."
+                }
+            }
+        };
+        result.VerdictAssessment = new VerdictAssessment
+        {
+            BlockingDecisions =
+            {
+                new()
+                {
+                    DecisionId = "auth-boundary",
+                    Lane = EvaluationLane.Baseline,
+                    Authority = ValidationRuleSource.Spec,
+                    Origin = EvidenceOrigin.DeterministicObservation,
+                    Gate = GateOutcome.ReviewRequired,
+                    Severity = ValidationFindingSeverity.High,
+                    Category = "Authentication",
+                    Component = "oauth",
+                    Summary = "Bearer token audience was not enforced.",
+                    ImpactAreas = [ImpactArea.AuthenticationBoundary],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["recommendation"] = "Reject bearer tokens with the wrong resource audience."
+                    }
+                },
+                new()
+                {
+                    DecisionId = "capability-contract",
+                    Lane = EvaluationLane.Baseline,
+                    Authority = ValidationRuleSource.Spec,
+                    Origin = EvidenceOrigin.DeterministicObservation,
+                    Gate = GateOutcome.ReviewRequired,
+                    Severity = ValidationFindingSeverity.High,
+                    Category = "CapabilityCoverage",
+                    Component = "tools/call",
+                    Summary = "tools/call was exercised even though tools were not advertised.",
+                    ImpactAreas = [ImpactArea.CapabilityContract],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["recommendation"] = "Align initialize capabilities with implemented tool support."
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Recommended Remediation Order");
+        var bootstrapIndex = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
+        var authIndex = report.IndexOf("Priority 2: Authentication Boundary", StringComparison.Ordinal);
+        var capabilityIndex = report.IndexOf("Priority 3: Advertised Capabilities", StringComparison.Ordinal);
+        var safetyIndex = report.IndexOf("Priority 4: AI Safety, Security, And Performance", StringComparison.Ordinal);
+
+        bootstrapIndex.Should().BeGreaterThanOrEqualTo(0);
+        authIndex.Should().BeGreaterThan(bootstrapIndex);
+        capabilityIndex.Should().BeGreaterThan(authIndex);
+        safetyIndex.Should().BeGreaterThan(capabilityIndex);
+        report.Should().Contain("Return the negotiated protocol version.");
+        report.Should().Contain("Reject bearer tokens with the wrong resource audience.");
+        report.Should().Contain("Align initialize capabilities with implemented tool support.");
+        report.Should().Contain("Sanitize and label untrusted prompt content.");
+        report.Should().Contain("Impact after fix");
+    }
+
+    [Fact]
     public void GenerateReport_WithRepeatedAiReadinessFindings_ShouldShowCoverageInsteadOfRawRows()
     {
         var originalCulture = CultureInfo.CurrentCulture;
@@ -414,6 +551,51 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("**Probe Rounds** | 3 | ℹ️ Calibrated");
         report.Should().Contain("**Observed Rate Limits** | 4 request(s) | ⚠️ Throttling observed");
         report.Should().Contain("**Observed Transient Failures** | 2 request(s) | ⚠️ Retry pressure observed");
+    }
+
+    [Fact]
+    public void GenerateReport_WithPerformanceCalibrationOverride_ShouldShowAuditEvidence()
+    {
+        var result = BuildMinimalResult();
+        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 70,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 250
+            },
+            CalibrationOverrides =
+            [
+                new()
+                {
+                    RuleId = ValidationFindingRuleIds.PerformancePublicRemoteAdvisory,
+                    Reason = "Synthetic load probe hit remote capacity limits.",
+                    AffectedTests = ["performance/load-testing"],
+                    Inputs = new Dictionary<string, string>
+                    {
+                        ["serverProfile"] = "Public",
+                        ["successRatio"] = "0.900"
+                    },
+                    BeforeStatus = TestStatus.Failed,
+                    AfterStatus = TestStatus.Skipped,
+                    BeforeScore = 55,
+                    AfterScore = 70,
+                    BeforeSeverity = ValidationFindingSeverity.Medium,
+                    AfterSeverity = ValidationFindingSeverity.Info
+                }
+            ]
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("### Calibration Override Audit");
+        report.Should().Contain("`MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY` | performance/load-testing | `Failed` -> `Skipped` | 55.0 -> 70.0 | `Medium` -> `Info` | Preserved | Synthetic load probe hit remote capacity limits.");
+        report.Should().Contain("serverProfile=Public; successRatio=0.900");
     }
 
     [Fact]

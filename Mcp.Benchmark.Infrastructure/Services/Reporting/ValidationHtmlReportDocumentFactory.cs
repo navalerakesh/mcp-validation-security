@@ -20,6 +20,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var decisionTrace = BuildDecisionTrace(result);
         var compatibilityThemes = BuildCompatibilityThemes(result);
         var priorityFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
+        var remediationOrder = RemediationOrderBuilder.Build(result);
         var actionHints = ReportActionHintBuilder.Build(result)
             .Where(hint => !MatchesPolicySummary(hint, result.PolicyOutcome?.Summary))
             .ToList();
@@ -46,6 +47,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
             CompatibilityThemes = compatibilityThemes,
             PriorityFindings = priorityFindings,
             ActionHints = actionHints,
+            RemediationOrder = remediationOrder,
             AdditionalRecommendations = recommendations,
             Bootstrap = BuildBootstrapSummary(result, bootstrap)
         };

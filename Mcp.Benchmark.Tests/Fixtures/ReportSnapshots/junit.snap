@@ -60,7 +60,12 @@ Reason: Server reflected untrusted prompt content without sanitization.
 Reason: Prompt output includes reflected untrusted content.
 Reason: Tool 'delete_repo' has parameters without descriptions.
 Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</failure>
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
+Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</failure>
       <system-out>Strict policy blocked the validation result with 9 unsuppressed signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
@@ -72,7 +77,12 @@ Reason: Server reflected untrusted prompt content without sanitization.
 Reason: Prompt output includes reflected untrusted content.
 Reason: Tool 'delete_repo' has parameters without descriptions.
 Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</system-out>
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
+Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">

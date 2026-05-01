@@ -68,7 +68,13 @@ public class ValidationReportRendererTests
                         Description = "Server ignored the requested MCP protocol version.",
                         Rule = "initialize.result.protocolVersion must reflect negotiation.",
                         Recommendation = "Return the negotiated protocol version.",
-                        SpecReference = "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle"
+                        SpecReference = "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+                        Context = new Dictionary<string, object>
+                        {
+                            ["requestedProtocolVersion"] = "2025-11-25",
+                            ["serverProtocolVersion"] = "2025-03-26",
+                            ["statusCode"] = 200
+                        }
                     }
                 }
             },
@@ -138,6 +144,26 @@ public class ValidationReportRendererTests
         results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
             .GetProperty("properties").GetProperty("authorityPriority").GetInt32().Should().Be(0);
+
+        var violationContext = results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
+            .GetProperty("properties")
+            .GetProperty("context");
+        violationContext.GetProperty("requestedProtocolVersion").GetString().Should().Be("2025-11-25");
+        violationContext.GetProperty("serverProtocolVersion").GetString().Should().Be("2025-03-26");
+        violationContext.GetProperty("statusCode").GetString().Should().Be("200");
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
+            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("high");
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
+            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("low");
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
+            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("critical");
 
         results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
@@ -214,6 +240,7 @@ public class ValidationReportRendererTests
         var policyCase = policySuite.Elements("testcase").Single();
         policyCase.Attribute("name")!.Value.Should().Be("Policy Gate (strict)");
         policyCase.Element("failure")!.Value.Should().Contain("Strict policy blocked the validation result");
+        policyCase.Element("failure")!.Value.Should().Contain("Blocking Decision Priority: critical");
 
         var promptSuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "prompt-testing");
         promptSuite.Attribute("skipped")!.Value.Should().Be("1");
@@ -377,6 +404,42 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithHighSeverityViolationContext_ShouldRenderContextDetails()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ProtocolCompliance!.Violations[0].Context = new Dictionary<string, object>
+        {
+            ["requestedProtocolVersion"] = "2025-11-25",
+            ["serverProtocolVersion"] = "2025-03-26",
+            ["expected"] = "initialize.result.protocolVersion matches negotiated version",
+            ["actual"] = "2025-03-26"
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("<strong>Context</strong>");
+        html.Should().Contain("Requested protocol=2025-11-25");
+        html.Should().Contain("Server protocol=2025-03-26");
+        html.Should().Contain("Expected=initialize.result.protocolVersion matches negotiated version");
+        html.Should().Contain("Actual=2025-03-26");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithRemediationOrder_ShouldRenderRoadmapSection()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Recommended Remediation Order");
+        html.Should().Contain("Remediation Roadmap");
+        html.Should().Contain("Priority 1");
+        html.Should().Contain("Bootstrap &amp; Protocol Version");
+        html.Should().Contain("Impact after fix");
+        html.Should().Contain("Echo the negotiated protocol version in initialize.result.");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_WithObservedProbePressureSignals_ShouldShowCalibrationTelemetry()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
@@ -403,6 +466,22 @@ public class ValidationReportRendererTests
         html.Should().Contain("Probe rounds executed: 2");
         html.Should().Contain("Rate-limited requests observed across calibration: 3");
         html.Should().Contain("Retryable transient failures observed across calibration: 1");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithPerformanceCalibrationOverride_ShouldShowAuditEvidence()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.PerformanceTesting = CreatePerformanceResultWithCalibrationOverride();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Calibration Override Audit");
+        html.Should().Contain("MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY");
+        html.Should().Contain("Failed -> Skipped");
+        html.Should().Contain("55.0 -> 70.0");
+        html.Should().Contain("Deterministic verdict");
+        html.Should().Contain("serverProfile=Public; successRatio=0.900");
     }
 
     [Fact]
@@ -467,6 +546,33 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateXmlReport_WithViolationsAndVulnerabilities_ShouldIncludeNormalizedSeverity()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var xml = _renderer.GenerateXmlReport(result, verbose: true);
+
+        var document = XDocument.Parse(xml);
+        var violation = document.Root!
+            .Element("TestCategories")!
+            .Element("ProtocolCompliance")!
+            .Element("Violations")!
+            .Elements("Violation")
+            .Single();
+        violation.Attribute("normalizedSeverity")!.Value.Should().Be("high");
+        violation.Attribute("normalizedSeverityRank")!.Value.Should().Be(((int)ReportSeverity.High).ToString());
+
+        var vulnerability = document.Root
+            .Element("TestCategories")!
+            .Element("SecurityTesting")!
+            .Element("Vulnerabilities")!
+            .Elements("Vulnerability")
+            .Single();
+        vulnerability.Attribute("normalizedSeverity")!.Value.Should().Be("critical");
+        vulnerability.Attribute("normalizedSeverityRank")!.Value.Should().Be(((int)ReportSeverity.Critical).ToString());
+    }
+
+    [Fact]
     public void GenerateXmlReport_WithTimedOutPerformanceAndNoMeasurements_ShouldMarkMetricsUnavailable()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
@@ -488,5 +594,91 @@ public class ValidationReportRendererTests
         performance!.Element("MeasurementStatus")!.Value.Should().Be("Unavailable");
         performance.Element("Reason")!.Value.Should().Be("Operation timed out or was cancelled");
         performance.Element("LoadTesting").Should().BeNull();
+    }
+
+    [Fact]
+    public void GenerateXmlReport_WithPerformanceCalibrationOverride_ShouldIncludeAuditEvidence()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.PerformanceTesting = CreatePerformanceResultWithCalibrationOverride();
+
+        var xml = _renderer.GenerateXmlReport(result, verbose: true);
+
+        var document = XDocument.Parse(xml);
+        var overrideElement = document.Root!
+            .Element("TestCategories")!
+            .Element("PerformanceTesting")!
+            .Element("CalibrationOverrides")!
+            .Element("Override");
+
+        overrideElement.Should().NotBeNull();
+        overrideElement!.Attribute("ruleId")!.Value.Should().Be(ValidationFindingRuleIds.PerformancePublicRemoteAdvisory);
+        overrideElement.Attribute("beforeStatus")!.Value.Should().Be("Failed");
+        overrideElement.Attribute("afterStatus")!.Value.Should().Be("Skipped");
+        overrideElement.Attribute("beforeSeverity")!.Value.Should().Be("Medium");
+        overrideElement.Attribute("afterSeverity")!.Value.Should().Be("Info");
+        overrideElement.Attribute("changedDeterministicVerdict")!.Value.Should().Be("False");
+        overrideElement.Element("AffectedTests")!.Elements("Test").Single().Value.Should().Be("performance/load-testing");
+        overrideElement.Element("Inputs")!.Elements("Input").Single(input => input.Attribute("name")!.Value == "successRatio").Value.Should().Be("0.900");
+    }
+
+    [Fact]
+    public void GenerateJunitReport_WithPerformanceCalibrationOverride_ShouldIncludeAuditEvidence()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.PerformanceTesting = CreatePerformanceResultWithCalibrationOverride();
+
+        var junit = _renderer.GenerateJunitReport(result);
+
+        var document = XDocument.Parse(junit);
+        var performanceCase = document.Root!
+            .Elements("testsuite")
+            .Single(suite => suite.Attribute("name")!.Value == "performance-testing")
+            .Elements("testcase")
+            .Single();
+
+        performanceCase.Element("skipped")!.Value.Should().Contain("Calibration Override [MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY]");
+        performanceCase.Element("skipped")!.Value.Should().Contain("deterministic verdict changed: False");
+    }
+
+    private static PerformanceTestResult CreatePerformanceResultWithCalibrationOverride()
+    {
+        return new PerformanceTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 70,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 250,
+                P95ResponseTimeMs = 400,
+                RequestsPerSecond = 12
+            },
+            CalibrationOverrides =
+            [
+                new()
+                {
+                    RuleId = ValidationFindingRuleIds.PerformancePublicRemoteAdvisory,
+                    Reason = "Synthetic load probe hit remote capacity limits.",
+                    Recommendation = "Use endpoint-specific benchmarks or production telemetry for final capacity judgments.",
+                    AffectedTests = ["performance/load-testing"],
+                    Inputs = new Dictionary<string, string>
+                    {
+                        ["serverProfile"] = "Public",
+                        ["successRatio"] = "0.900"
+                    },
+                    BeforeStatus = TestStatus.Failed,
+                    AfterStatus = TestStatus.Skipped,
+                    BeforeScore = 55,
+                    AfterScore = 70,
+                    BeforeSeverity = ValidationFindingSeverity.Medium,
+                    AfterSeverity = ValidationFindingSeverity.Info,
+                    ChangedComponentStatus = true,
+                    ChangedDeterministicVerdict = false
+                }
+            ]
+        };
     }
 }

@@ -53,6 +53,28 @@ public static class ValidationFindingRuleIds
     public const string PerformancePublicRemoteRampUp = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP";
     public const string PerformancePressureSignalsObserved = "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED";
 
+    public const string AuthWwwAuthenticateMissing = "MCP.AUTH.WWW_AUTHENTICATE_MISSING";
+    public const string AuthProtectedResourceMetadataMissing = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_MISSING";
+    public const string AuthProtectedResourceMetadataInvalid = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_INVALID";
+    public const string AuthProtectedResourceMetadataFetchFailed = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_FETCH_FAILED";
+    public const string AuthAuthorizationServersMissing = "MCP.AUTH.AUTHORIZATION_SERVERS_MISSING";
+    public const string AuthAuthorizationServerInsecure = "MCP.AUTH.AUTHORIZATION_SERVER_INSECURE";
+    public const string AuthAuthorizationHeaderMissing = "MCP.AUTH.AUTHORIZATION_HEADER_MISSING";
+    public const string AuthBearerHeaderUnsupported = "MCP.AUTH.BEARER_HEADER_UNSUPPORTED";
+    public const string AuthQueryTokenAccepted = "MCP.AUTH.QUERY_TOKEN_ACCEPTED";
+    public const string AuthInvalidTokenStatus = "MCP.AUTH.INVALID_TOKEN_STATUS";
+    public const string AuthInvalidTokenAccepted = "MCP.AUTH.INVALID_TOKEN_ACCEPTED";
+    public const string AuthWrongAudienceAccepted = "MCP.AUTH.WRONG_AUDIENCE_ACCEPTED";
+    public const string AuthTokenPassthroughRisk = "MCP.AUTH.TOKEN_PASSTHROUGH_RISK";
+    public const string AuthResourceIndicatorMissing = "MCP.AUTH.RESOURCE_INDICATOR_MISSING";
+
+    public const string AiClientCapabilityAdvertisedByServer = "MCP.AI.CLIENT_CAPABILITY_ADVERTISED_BY_SERVER";
+    public const string AiSamplingHumanReviewAdvisory = "MCP.AI.SAMPLING.HUMAN_REVIEW_ADVISORY";
+    public const string AiRootsBoundaryAdvisory = "MCP.AI.ROOTS.BOUNDARY_ADVISORY";
+    public const string AiElicitationConsentAdvisory = "MCP.AI.ELICITATION.CONSENT_ADVISORY";
+    public const string AiTasksIsolationAdvisory = "MCP.AI.TASKS.ISOLATION_ADVISORY";
+    public const string AiTaskSupportWithoutCapability = "MCP.AI.TASKS.TOOL_SUPPORT_WITHOUT_CAPABILITY";
+
     public const string ToolGuidelineDisplayTitleMissing = "MCP.GUIDELINE.TOOL.DISPLAY_TITLE_MISSING";
     public const string ToolGuidelineReadOnlyHintMissing = "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING";
     public const string ToolGuidelineDestructiveHintMissing = "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING";
@@ -97,9 +119,15 @@ public static class ValidationFindingRuleIds
     public const string ResourceMissingName = "MCP.RESOURCE.LIST.NAME_MISSING";
     public const string ResourceGuidelineMimeTypeMissing = "MCP.GUIDELINE.RESOURCE.MIMETYPE_MISSING";
     public const string ResourceUriSchemeUnclear = "AI.RESOURCE.URI_SCHEME_UNCLEAR";
+    public const string ResourceAnnotationInvalid = "MCP.RESOURCE.ANNOTATION_INVALID";
+    public const string ResourceReadBlobInvalidBase64 = "MCP.RESOURCE.READ.BLOB_BASE64_INVALID";
+    public const string ResourceReadContentUriMismatch = "MCP.RESOURCE.READ.CONTENT_URI_MISMATCH";
+    public const string ResourceAccessControlAdvisory = "AI.RESOURCE.ACCESS_CONTROL_ADVISORY";
+    public const string ResourceTemplateBoundaryGuidanceMissing = "AI.RESOURCE_TEMPLATE.BOUNDARY_GUIDANCE_MISSING";
     public const string ResourceReadMissingContentArray = "MCP.RESOURCE.READ.CONTENT_ARRAY_MISSING";
     public const string ResourceReadMissingContentUri = "MCP.RESOURCE.READ.CONTENT_URI_MISSING";
     public const string ResourceReadMissingTextOrBlob = "MCP.RESOURCE.READ.CONTENT_PAYLOAD_MISSING";
+    public const string ResourceSubscribeAdvertisedButUnsupported = "MCP.RESOURCE.SUBSCRIBE.ADVERTISED_BUT_UNSUPPORTED";
     public const string ResourceTemplateMissingUriTemplate = "MCP.RESOURCE_TEMPLATE.URITEMPLATE_MISSING";
     public const string ResourceTemplateNameMissing = "MCP.GUIDELINE.RESOURCE_TEMPLATE.NAME_MISSING";
     public const string ResourceTemplateDescriptionMissing = "MCP.GUIDELINE.RESOURCE_TEMPLATE.DESCRIPTION_MISSING";
@@ -107,6 +135,12 @@ public static class ValidationFindingRuleIds
     public const string PromptGuidelineArgumentDescriptionMissing = "MCP.GUIDELINE.PROMPT.ARGUMENT_DESCRIPTION_MISSING";
     public const string PromptArgumentComplexityGuidanceMissing = "AI.PROMPT.ARGUMENTS.COMPLEXITY_GUIDANCE_MISSING";
     public const string PromptSafetyGuidanceMissing = "AI.PROMPT.SAFETY.CONFIRMATION_GUIDANCE_MISSING";
+    public const string PromptInjectionGuidanceMissing = "AI.PROMPT.ARGUMENTS.INJECTION_GUARDRAIL_MISSING";
+    public const string PromptInputOutputValidationAdvisory = "AI.PROMPT.INPUT_OUTPUT_VALIDATION_ADVISORY";
+    public const string PromptEmbeddedResourceSafetyAdvisory = "AI.PROMPT.EMBEDDED_RESOURCE.SAFETY_ADVISORY";
+    public const string PromptAnnotationInvalid = "MCP.PROMPT.ANNOTATION_INVALID";
+    public const string PromptContentBlobInvalidBase64 = "MCP.PROMPT.GET.CONTENT_BLOB_BASE64_INVALID";
+    public const string PromptEmbeddedResourceInvalid = "MCP.PROMPT.GET.EMBEDDED_RESOURCE_INVALID";
     public const string OptionalCapabilityRootsSupported = "MCP.GUIDELINE.CAPABILITY.ROOTS_SUPPORTED";
     public const string OptionalCapabilityLoggingSupported = "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED";
     public const string OptionalCapabilitySamplingSupported = "MCP.GUIDELINE.CAPABILITY.SAMPLING_SUPPORTED";
@@ -192,17 +226,35 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.AiReadinessFormatHintMissing] = HeuristicRule(ValidationFindingRuleIds.AiReadinessFormatHintMissing);
         descriptors[ValidationFindingRuleIds.AiReadinessTokenBudgetExceeded] = HeuristicRule(ValidationFindingRuleIds.AiReadinessTokenBudgetExceeded);
         descriptors[ValidationFindingRuleIds.AiReadinessTokenBudgetWarning] = HeuristicRule(ValidationFindingRuleIds.AiReadinessTokenBudgetWarning);
+        descriptors[ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer] = HeuristicRule(ValidationFindingRuleIds.AiClientCapabilityAdvertisedByServer);
+        descriptors[ValidationFindingRuleIds.AiSamplingHumanReviewAdvisory] = HeuristicRule(ValidationFindingRuleIds.AiSamplingHumanReviewAdvisory);
+        descriptors[ValidationFindingRuleIds.AiRootsBoundaryAdvisory] = HeuristicRule(ValidationFindingRuleIds.AiRootsBoundaryAdvisory);
+        descriptors[ValidationFindingRuleIds.AiElicitationConsentAdvisory] = HeuristicRule(ValidationFindingRuleIds.AiElicitationConsentAdvisory);
+        descriptors[ValidationFindingRuleIds.AiTasksIsolationAdvisory] = HeuristicRule(ValidationFindingRuleIds.AiTasksIsolationAdvisory);
+        descriptors[ValidationFindingRuleIds.AiTaskSupportWithoutCapability] = HeuristicRule(ValidationFindingRuleIds.AiTaskSupportWithoutCapability);
 
         descriptors[ValidationFindingRuleIds.ResourceMissingUri] = SpecRule(ValidationFindingRuleIds.ResourceMissingUri);
         descriptors[ValidationFindingRuleIds.ResourceMissingName] = SpecRule(ValidationFindingRuleIds.ResourceMissingName);
         descriptors[ValidationFindingRuleIds.ResourceUriSchemeUnclear] = HeuristicRule(ValidationFindingRuleIds.ResourceUriSchemeUnclear);
+        descriptors[ValidationFindingRuleIds.ResourceAnnotationInvalid] = SpecRule(ValidationFindingRuleIds.ResourceAnnotationInvalid);
+        descriptors[ValidationFindingRuleIds.ResourceReadBlobInvalidBase64] = SpecRule(ValidationFindingRuleIds.ResourceReadBlobInvalidBase64);
+        descriptors[ValidationFindingRuleIds.ResourceReadContentUriMismatch] = HeuristicRule(ValidationFindingRuleIds.ResourceReadContentUriMismatch);
+        descriptors[ValidationFindingRuleIds.ResourceAccessControlAdvisory] = HeuristicRule(ValidationFindingRuleIds.ResourceAccessControlAdvisory);
+        descriptors[ValidationFindingRuleIds.ResourceTemplateBoundaryGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.ResourceTemplateBoundaryGuidanceMissing);
         descriptors[ValidationFindingRuleIds.ResourceReadMissingContentArray] = SpecRule(ValidationFindingRuleIds.ResourceReadMissingContentArray);
         descriptors[ValidationFindingRuleIds.ResourceReadMissingContentUri] = SpecRule(ValidationFindingRuleIds.ResourceReadMissingContentUri);
         descriptors[ValidationFindingRuleIds.ResourceReadMissingTextOrBlob] = SpecRule(ValidationFindingRuleIds.ResourceReadMissingTextOrBlob);
+        descriptors[ValidationFindingRuleIds.ResourceSubscribeAdvertisedButUnsupported] = SpecRule(ValidationFindingRuleIds.ResourceSubscribeAdvertisedButUnsupported);
         descriptors[ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate] = SpecRule(ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate);
 
         descriptors[ValidationFindingRuleIds.PromptArgumentComplexityGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.PromptArgumentComplexityGuidanceMissing);
         descriptors[ValidationFindingRuleIds.PromptSafetyGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.PromptSafetyGuidanceMissing);
+        descriptors[ValidationFindingRuleIds.PromptInjectionGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.PromptInjectionGuidanceMissing);
+        descriptors[ValidationFindingRuleIds.PromptInputOutputValidationAdvisory] = HeuristicRule(ValidationFindingRuleIds.PromptInputOutputValidationAdvisory);
+        descriptors[ValidationFindingRuleIds.PromptEmbeddedResourceSafetyAdvisory] = HeuristicRule(ValidationFindingRuleIds.PromptEmbeddedResourceSafetyAdvisory);
+        descriptors[ValidationFindingRuleIds.PromptAnnotationInvalid] = SpecRule(ValidationFindingRuleIds.PromptAnnotationInvalid);
+        descriptors[ValidationFindingRuleIds.PromptContentBlobInvalidBase64] = SpecRule(ValidationFindingRuleIds.PromptContentBlobInvalidBase64);
+        descriptors[ValidationFindingRuleIds.PromptEmbeddedResourceInvalid] = SpecRule(ValidationFindingRuleIds.PromptEmbeddedResourceInvalid);
         descriptors[ValidationFindingRuleIds.PromptMissingName] = SpecRule(ValidationFindingRuleIds.PromptMissingName);
         descriptors[ValidationFindingRuleIds.PromptArgumentsNotArray] = SpecRule(ValidationFindingRuleIds.PromptArgumentsNotArray);
         descriptors[ValidationFindingRuleIds.PromptArgumentMissingName] = SpecRule(ValidationFindingRuleIds.PromptArgumentMissingName);

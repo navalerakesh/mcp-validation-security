@@ -1423,7 +1423,10 @@
               "metadata": {}
             }
           }
-        ]
+        ],
+        "protectedResourceMetadataUrl": null,
+        "protectedResourceMetadata": null,
+        "findings": []
       },
       "status": 3,
       "duration": "00:00:02.6000000",
@@ -1492,6 +1495,7 @@
         "meetsPerformanceTargets": false
       },
       "performanceBottlenecks": [],
+      "calibrationOverrides": [],
       "status": 2,
       "duration": "00:00:01.2000000",
       "message": "Performance is acceptable under moderate load.",

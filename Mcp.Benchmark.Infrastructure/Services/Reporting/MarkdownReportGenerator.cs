@@ -19,6 +19,7 @@ public class MarkdownReportGenerator : IReportGenerator
         var bootstrapHealth = ResolveBootstrapHealth(result);
         var includeDetailedSections = ShouldIncludeDetailedSections(result);
         var actionHints = ReportActionHintBuilder.Build(result);
+        var remediationOrder = RemediationOrderBuilder.Build(result);
         var evidenceSummary = ResolveEvidenceSummary(result);
 
         // Header
@@ -75,6 +76,7 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendBootstrapSection(sb, result, bootstrapHealth, ref sectionNumber);
         AppendPriorityFindingsSection(sb, result, ref sectionNumber);
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
+        AppendRemediationOrderSection(sb, remediationOrder, ref sectionNumber);
 
         if (result.VerdictAssessment != null)
         {
@@ -260,6 +262,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 }
                 sb.AppendLine();
             }
+            AppendPerformanceCalibrationOverrides(sb, result.PerformanceTesting.CalibrationOverrides);
         }
 
         // Detailed Findings - Security
@@ -345,6 +348,24 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine($"| {issue.CheckId} | `{ValidationRuleSourceClassifier.GetLabel(issue)}` | {issue.Description} | {issue.Severity} | {EscapeTableCell(recommendation)} |");
                 }
                 sb.AppendLine();
+
+                var violationsWithContext = result.ProtocolCompliance.Violations
+                    .Where(ReportContextFormatter.ShouldRenderHumanContext)
+                    .ToList();
+                if (violationsWithContext.Count > 0)
+                {
+                    sb.AppendLine("#### Violation Context");
+                    sb.AppendLine();
+                    sb.AppendLine("| ID | Context |");
+                    sb.AppendLine("| :--- | :--- |");
+                    foreach (var issue in violationsWithContext)
+                    {
+                        var checkId = !string.IsNullOrWhiteSpace(issue.CheckId) ? issue.CheckId : issue.Rule;
+                        var context = ReportContextFormatter.FormatMarkdownInline(issue.Context);
+                        sb.AppendLine($"| `{EscapeTableCell(checkId ?? "-")}` | {EscapeTableCell(context)} |");
+                    }
+                    sb.AppendLine();
+                }
             }
             else
             {
@@ -752,6 +773,64 @@ public class MarkdownReportGenerator : IReportGenerator
         foreach (var hint in actionHints)
         {
             sb.AppendLine($"- {hint}");
+        }
+        sb.AppendLine();
+    }
+
+    private void AppendRemediationOrderSection(StringBuilder sb, IReadOnlyList<RemediationOrderGroup> remediationOrder, ref int sectionNumber)
+    {
+        if (remediationOrder.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Recommended Remediation Order");
+        sb.AppendLine();
+        sb.AppendLine("Fix blocking dependencies in this order so later validation evidence becomes trustworthy instead of merely quieter.");
+        sb.AppendLine();
+
+        foreach (var group in remediationOrder)
+        {
+            sb.AppendLine($"### Priority {group.Priority}: {group.Title}");
+            sb.AppendLine();
+            sb.AppendLine($"**Impact after fix:** {group.Impact}");
+            sb.AppendLine();
+            sb.AppendLine("| Issue | Fix | Component | Evidence |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            foreach (var item in group.Items)
+            {
+                sb.AppendLine($"| {EscapeTableCell(item.Issue)} | {EscapeTableCell(item.Remediation)} | `{EscapeTableCell(item.Component)}` | {EscapeTableCell(item.Authority)} · `{EscapeTableCell(item.Evidence)}` · {EscapeTableCell(item.Severity)} |");
+            }
+            sb.AppendLine();
+        }
+    }
+
+    private static void AppendPerformanceCalibrationOverrides(StringBuilder sb, IReadOnlyList<PerformanceCalibrationOverride> overrides)
+    {
+        if (overrides.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("### Calibration Override Audit");
+        sb.AppendLine();
+        sb.AppendLine("| Rule | Affected Tests | Status | Score | Severity | Deterministic Verdict | Reason |");
+        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- | :--- | :--- |");
+        foreach (var overrideRecord in overrides)
+        {
+            var affectedTests = overrideRecord.AffectedTests.Count > 0 ? string.Join(", ", overrideRecord.AffectedTests) : "-";
+            sb.AppendLine($"| `{EscapeTableCell(overrideRecord.RuleId)}` | {EscapeTableCell(affectedTests)} | `{overrideRecord.BeforeStatus}` -> `{overrideRecord.AfterStatus}` | {overrideRecord.BeforeScore:F1} -> {overrideRecord.AfterScore:F1} | `{overrideRecord.BeforeSeverity}` -> `{overrideRecord.AfterSeverity}` | {(overrideRecord.ChangedDeterministicVerdict ? "Changed" : "Preserved")} | {EscapeTableCell(overrideRecord.Reason)} |");
+        }
+        sb.AppendLine();
+
+        sb.AppendLine("| Rule | Inputs |");
+        sb.AppendLine("| :--- | :--- |");
+        foreach (var overrideRecord in overrides)
+        {
+            var inputs = overrideRecord.Inputs.Count > 0
+                ? string.Join("; ", overrideRecord.Inputs.Select(input => $"{input.Key}={input.Value}"))
+                : "-";
+            sb.AppendLine($"| `{EscapeTableCell(overrideRecord.RuleId)}` | {EscapeTableCell(inputs)} |");
         }
         sb.AppendLine();
     }
@@ -1321,12 +1400,12 @@ public class MarkdownReportGenerator : IReportGenerator
             return "-";
         }
 
-        return severity.Value switch
+        return ReportSeverityNormalizer.From(severity.Value) switch
         {
-            ValidationFindingSeverity.Critical => "🔴 Critical",
-            ValidationFindingSeverity.High => "🟠 High",
-            ValidationFindingSeverity.Medium => "🟡 Medium",
-            ValidationFindingSeverity.Low => "🔵 Low",
+            ReportSeverity.Critical => "🔴 Critical",
+            ReportSeverity.High => "🟠 High",
+            ReportSeverity.Medium => "🟡 Medium",
+            ReportSeverity.Low => "🔵 Low",
             _ => "⚪ Info"
         };
     }

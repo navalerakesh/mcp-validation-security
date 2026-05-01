@@ -83,6 +83,85 @@ public class ValidationCalibrationTests
     }
 
     [Fact]
+    public void ApplyPerformanceOutcomeCalibration_WithPublicPartialFailures_ShouldRecordStructuredOverrideAudit()
+    {
+        var serverConfig = new McpServerConfig { Profile = McpServerProfile.Public };
+        var performanceResult = new PerformanceTestResult
+        {
+            Status = TestStatus.Failed,
+            Score = 55,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 250,
+                ConnectionErrors = new List<string>()
+            }
+        };
+
+        ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, performanceResult);
+        ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, performanceResult);
+
+        performanceResult.Status.Should().Be(TestStatus.Skipped);
+        performanceResult.Score.Should().Be(ValidationCalibration.AdvisoryPerformanceScore);
+        performanceResult.CalibrationOverrides.Should().ContainSingle();
+
+        var overrideRecord = performanceResult.CalibrationOverrides.Single();
+        overrideRecord.RuleId.Should().Be(ValidationFindingRuleIds.PerformancePublicRemoteAdvisory);
+        overrideRecord.AffectedTests.Should().ContainSingle().Which.Should().Be("performance/load-testing");
+        overrideRecord.BeforeStatus.Should().Be(TestStatus.Failed);
+        overrideRecord.AfterStatus.Should().Be(TestStatus.Skipped);
+        overrideRecord.BeforeScore.Should().Be(55);
+        overrideRecord.AfterScore.Should().Be(ValidationCalibration.AdvisoryPerformanceScore);
+        overrideRecord.BeforeSeverity.Should().Be(ValidationFindingSeverity.Medium);
+        overrideRecord.AfterSeverity.Should().Be(ValidationFindingSeverity.Info);
+        overrideRecord.ChangedComponentStatus.Should().BeTrue();
+        overrideRecord.ChangedDeterministicVerdict.Should().BeFalse();
+        overrideRecord.Inputs.Should().Contain("serverProfile", "Public");
+        overrideRecord.Inputs.Should().Contain("totalRequests", "20");
+        overrideRecord.Inputs.Should().Contain("successfulRequests", "18");
+        overrideRecord.Inputs.Should().Contain("failedRequests", "2");
+        overrideRecord.Inputs.Should().Contain("successRatio", "0.900");
+        overrideRecord.Inputs.Should().Contain("averageResponseTimeMs", "250.0");
+        overrideRecord.Inputs.Should().Contain("advisoryScoreFloor", "70.0");
+
+        var finding = performanceResult.Findings.Should()
+            .ContainSingle(finding => finding.RuleId == ValidationFindingRuleIds.PerformancePublicRemoteAdvisory)
+            .Subject;
+        finding.Metadata.Should().Contain("calibrationOverride", "true");
+        finding.Metadata.Should().Contain("beforeSeverity", "Medium");
+        finding.Metadata.Should().Contain("afterSeverity", "Info");
+        finding.Metadata.Should().Contain("changedDeterministicVerdict", "false");
+    }
+
+    [Fact]
+    public void ApplyPerformanceOutcomeCalibration_WithPublicTimeoutAndNoMeasurements_ShouldRecordOriginalReason()
+    {
+        var serverConfig = new McpServerConfig { Profile = McpServerProfile.Public };
+        var performanceResult = new PerformanceTestResult
+        {
+            Status = TestStatus.Failed,
+            Score = 0,
+            CriticalErrors = ["The performance probe timed out before samples were captured."],
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 5,
+                FailedRequests = 5
+            }
+        };
+
+        ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, performanceResult);
+
+        var overrideRecord = performanceResult.CalibrationOverrides.Should().ContainSingle().Subject;
+        overrideRecord.RuleId.Should().Be(ValidationFindingRuleIds.PerformancePublicRemoteTimeoutAdvisory);
+        overrideRecord.BeforeSeverity.Should().Be(ValidationFindingSeverity.Critical);
+        overrideRecord.AfterSeverity.Should().Be(ValidationFindingSeverity.Info);
+        overrideRecord.Inputs.Should().Contain("metricsCaptured", "False");
+        overrideRecord.Inputs.Should().Contain("unavailableReason", "The performance probe timed out before samples were captured.");
+    }
+
+    [Fact]
     public void GetOperationalReadinessScore_WithObservedCalibrationPressureButHealthyFinalRound_ShouldPreserveFinalScore()
     {
         var serverConfig = new McpServerConfig { Profile = McpServerProfile.Public };

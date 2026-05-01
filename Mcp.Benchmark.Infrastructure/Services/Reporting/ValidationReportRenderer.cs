@@ -127,8 +127,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 var violationsElement = new XElement("Violations",
                     protocol.Violations.Select(v =>
                     {
+                        var normalizedSeverity = ReportSeverityNormalizer.From(v.Severity);
                         var violationElement = new XElement("Violation",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("normalizedSeverity", ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity)),
+                            new XAttribute("normalizedSeverityRank", (int)normalizedSeverity),
                             new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
@@ -185,8 +188,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 var vulnerabilitiesElement = new XElement("Vulnerabilities",
                     security.Vulnerabilities.Select(v =>
                     {
+                        var normalizedSeverity = ReportSeverityNormalizer.From(v.Severity);
                         var vulnerabilityElement = new XElement("Vulnerability",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("normalizedSeverity", ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity)),
+                            new XAttribute("normalizedSeverityRank", (int)normalizedSeverity),
                             new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
@@ -379,6 +385,28 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         PerformanceMeasurementEvaluator.GetUnavailableReason(
                             perf,
                             "Performance measurements were not captured before the run ended.")));
+            }
+
+            if (verbose && perf.CalibrationOverrides.Count > 0)
+            {
+                perfElement.Add(new XElement("CalibrationOverrides", perf.CalibrationOverrides.Select(overrideRecord =>
+                    new XElement("Override",
+                        new XAttribute("ruleId", overrideRecord.RuleId),
+                        new XAttribute("beforeStatus", overrideRecord.BeforeStatus.ToString()),
+                        new XAttribute("afterStatus", overrideRecord.AfterStatus.ToString()),
+                        new XAttribute("beforeScore", overrideRecord.BeforeScore.ToString("F1", CultureInfo.InvariantCulture)),
+                        new XAttribute("afterScore", overrideRecord.AfterScore.ToString("F1", CultureInfo.InvariantCulture)),
+                        new XAttribute("beforeSeverity", overrideRecord.BeforeSeverity.ToString()),
+                        new XAttribute("afterSeverity", overrideRecord.AfterSeverity.ToString()),
+                        new XAttribute("changedComponentStatus", overrideRecord.ChangedComponentStatus.ToString()),
+                        new XAttribute("changedDeterministicVerdict", overrideRecord.ChangedDeterministicVerdict.ToString()),
+                        new XElement("Reason", overrideRecord.Reason),
+                        new XElement("Recommendation", overrideRecord.Recommendation),
+                        new XElement("AffectedTests", overrideRecord.AffectedTests.Select(test => new XElement("Test", test))),
+                        new XElement("Inputs", overrideRecord.Inputs.Select(input =>
+                            new XElement("Input",
+                                new XAttribute("name", input.Key),
+                                input.Value)))))));
             }
 
             testCategories.Add(perfElement);
@@ -894,9 +922,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
         };
     }
 
-    private static Dictionary<string, int> BuildSeverityBuckets(IEnumerable<ComplianceViolation> violations, IEnumerable<SecurityVulnerability> vulnerabilities)
+    private static Dictionary<ReportSeverity, int> BuildSeverityBuckets(IEnumerable<ComplianceViolation> violations, IEnumerable<SecurityVulnerability> vulnerabilities)
     {
-        var buckets = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var buckets = new Dictionary<ReportSeverity, int>();
         foreach (var severity in SeverityOrder)
         {
             buckets[severity] = 0;
@@ -904,45 +932,27 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
         foreach (var violation in violations)
         {
-            var bucket = MapViolationSeverity(violation.Severity);
+            var bucket = ReportSeverityNormalizer.From(violation.Severity);
             buckets[bucket]++;
         }
 
         foreach (var vulnerability in vulnerabilities)
         {
-            var bucket = MapVulnerabilitySeverity(vulnerability.Severity);
+            var bucket = ReportSeverityNormalizer.From(vulnerability.Severity);
             buckets[bucket]++;
         }
 
         return buckets;
     }
 
-    private static string MapViolationSeverity(ViolationSeverity severity)
-    {
-        return severity switch
-        {
-            ViolationSeverity.Critical => "Critical",
-            ViolationSeverity.High => "High",
-            ViolationSeverity.Medium => "Medium",
-            ViolationSeverity.Low => "Low",
-            _ => "Low"
-        };
-    }
-
-    private static string MapVulnerabilitySeverity(VulnerabilitySeverity severity)
-    {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => "Critical",
-            VulnerabilitySeverity.High => "High",
-            VulnerabilitySeverity.Medium => "Medium",
-            VulnerabilitySeverity.Low => "Low",
-            VulnerabilitySeverity.Informational => "Informational",
-            _ => "Low"
-        };
-    }
-
-    private static readonly string[] SeverityOrder = new[] { "Critical", "High", "Medium", "Low", "Informational" };
+    private static readonly ReportSeverity[] SeverityOrder =
+    [
+        ReportSeverity.Critical,
+        ReportSeverity.High,
+        ReportSeverity.Medium,
+        ReportSeverity.Low,
+        ReportSeverity.Info
+    ];
 
     private XElement? BuildSeverityBreakdownElement(ValidationResult validationResult)
     {
@@ -965,7 +975,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
         {
             buckets.TryGetValue(severity, out var count);
             element.Add(new XElement("Severity",
-                new XAttribute("level", severity),
+                new XAttribute("level", ReportSeverityNormalizer.ToDisplayLabel(severity)),
+                new XAttribute("machineLevel", ReportSeverityNormalizer.ToMachineLabel(severity)),
+                new XAttribute("rank", (int)severity),
                 new XAttribute("count", count)));
         }
 
@@ -1084,6 +1096,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
     {
         var component = string.IsNullOrWhiteSpace(finding.Component) ? defaultComponent : finding.Component;
         var authority = ValidationRuleSourceClassifier.GetSource(finding);
+        var normalizedSeverity = ReportSeverityNormalizer.From(finding.Severity);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "structured-finding",
@@ -1093,7 +1106,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["authorityLegend"] = ValidationAuthorityHierarchy.Legend,
             ["category"] = finding.Category,
             ["component"] = component,
-            ["severity"] = finding.Severity.ToString()
+            ["severity"] = finding.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity
         };
 
         if (!string.IsNullOrWhiteSpace(finding.Recommendation))
@@ -1110,7 +1125,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             RuleId: finding.RuleId,
             Category: string.IsNullOrWhiteSpace(finding.Category) ? "validation" : finding.Category,
             Component: component,
-            Level: MapFindingLevel(finding.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: finding.Summary,
             ShortDescription: finding.Summary,
             FullDescription: finding.Summary,
@@ -1129,6 +1144,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
         var component = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category;
         var authority = ValidationRuleSourceClassifier.GetSource(violation);
+        var normalizedSeverity = ReportSeverityNormalizer.From(violation.Severity);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "protocol-violation",
@@ -1139,6 +1155,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["category"] = violation.Category,
             ["component"] = component,
             ["severity"] = violation.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["rule"] = violation.Rule
         };
 
@@ -1156,7 +1174,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             RuleId: ruleId,
             Category: string.IsNullOrWhiteSpace(violation.Category) ? "ProtocolCompliance" : violation.Category,
             Component: component,
-            Level: MapViolationLevel(violation.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: violation.Description,
             ShortDescription: violation.Rule ?? violation.Description,
             FullDescription: violation.Description,
@@ -1178,6 +1196,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             : vulnerability.AffectedComponent;
 
         var authority = ValidationRuleSourceClassifier.GetSource(vulnerability);
+    var normalizedSeverity = ReportSeverityNormalizer.From(vulnerability.Severity);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "security-vulnerability",
@@ -1188,6 +1207,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["category"] = vulnerability.Category,
             ["component"] = component,
             ["severity"] = vulnerability.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["isExploitable"] = vulnerability.IsExploitable
         };
 
@@ -1215,7 +1236,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             RuleId: ruleId,
             Category: string.IsNullOrWhiteSpace(vulnerability.Category) ? "SecurityTesting" : vulnerability.Category,
             Component: component,
-            Level: MapVulnerabilityLevel(vulnerability.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: vulnerability.Description,
             ShortDescription: vulnerability.Name,
             FullDescription: vulnerability.Description,
@@ -1232,6 +1253,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var ruleId = BuildFallbackRuleId("MCP", "COVERAGE", coverage.LayerId, coverage.Scope, coverage.Status.ToString());
         var component = string.IsNullOrWhiteSpace(coverage.LayerId) ? "coverage" : coverage.LayerId;
         var summary = BuildCoverageSummary(coverage);
+        var normalizedSeverity = ValidationEvidenceSummarizer.IsCoverageBlocking(coverage)
+            ? ReportSeverity.High
+            : ReportSeverity.Medium;
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "coverage-declaration",
@@ -1244,7 +1268,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ["coverageStatus"] = coverage.Status.ToString(),
             ["blocker"] = coverage.Blocker.ToString(),
             ["confidence"] = coverage.Confidence.ToString(),
-            ["reason"] = coverage.Reason
+            ["reason"] = coverage.Reason,
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity
         };
 
         if (coverage.ProbeContext != null)
@@ -1256,7 +1282,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             RuleId: ruleId,
             Category: "Coverage",
             Component: component,
-            Level: ValidationEvidenceSummarizer.IsCoverageBlocking(coverage) ? "error" : "warning",
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: summary,
             ShortDescription: $"Coverage {coverage.Status}: {coverage.LayerId}/{coverage.Scope}",
             FullDescription: summary,
@@ -1292,43 +1318,6 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ? string.Empty
             : $" {coverage.Reason.Trim()}";
         return $"Coverage is {coverage.Status} for {coverage.LayerId}/{coverage.Scope}.{reason}".Trim();
-    }
-
-    private static string MapFindingLevel(ValidationFindingSeverity severity)
-    {
-        return severity switch
-        {
-            ValidationFindingSeverity.Critical => "error",
-            ValidationFindingSeverity.High => "error",
-            ValidationFindingSeverity.Medium => "warning",
-            ValidationFindingSeverity.Low => "note",
-            _ => "note"
-        };
-    }
-
-    private static string MapViolationLevel(ViolationSeverity severity)
-    {
-        return severity switch
-        {
-            ViolationSeverity.Critical => "error",
-            ViolationSeverity.High => "error",
-            ViolationSeverity.Medium => "warning",
-            ViolationSeverity.Low => "note",
-            _ => "note"
-        };
-    }
-
-    private static string MapVulnerabilityLevel(VulnerabilitySeverity severity)
-    {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => "error",
-            VulnerabilitySeverity.High => "error",
-            VulnerabilitySeverity.Medium => "warning",
-            VulnerabilitySeverity.Low => "note",
-            VulnerabilitySeverity.Informational => "note",
-            _ => "note"
-        };
     }
 
     private static string[] BuildSarifTags(string source, string category, string component)
@@ -1524,6 +1513,15 @@ public class ValidationReportRenderer : IValidationReportRenderer
         if (policyOutcome.Reasons.Count > 0)
         {
             details.AddRange(policyOutcome.Reasons.Select(reason => $"Reason: {reason}"));
+        }
+
+        if (validationResult.VerdictAssessment?.BlockingDecisions.Count > 0)
+        {
+            details.AddRange(validationResult.VerdictAssessment.BlockingDecisions
+                .OrderByDescending(decision => ReportSeverityNormalizer.PriorityFrom(decision))
+                .ThenByDescending(decision => decision.Severity)
+                .Take(5)
+                .Select(decision => $"Blocking Decision Priority: {ReportSeverityNormalizer.ToMachineLabel(ReportSeverityNormalizer.PriorityFrom(decision))} - {decision.Category}/{decision.Component}: {decision.Summary}"));
         }
 
         if (policyOutcome.AppliedSuppressions.Count > 0)
@@ -1772,6 +1770,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"P95 Latency Ms: {result.LoadTesting.P95ResponseTimeMs:F2}",
             $"Requests Per Second: {result.LoadTesting.RequestsPerSecond:F2}",
             $"Error Rate: {result.LoadTesting.ErrorRate:F2}");
+        lines.AddRange(result.CalibrationOverrides.Select(overrideRecord =>
+            $"Calibration Override [{overrideRecord.RuleId}]: status {overrideRecord.BeforeStatus}->{overrideRecord.AfterStatus}; score {overrideRecord.BeforeScore:F1}->{overrideRecord.AfterScore:F1}; severity {overrideRecord.BeforeSeverity}->{overrideRecord.AfterSeverity}; deterministic verdict changed: {overrideRecord.ChangedDeterministicVerdict}; reason: {overrideRecord.Reason}"));
         lines.AddRange(result.PerformanceBottlenecks.Select(bottleneck => $"Bottleneck: {bottleneck}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }

@@ -71,6 +71,11 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
         }
 
         var capabilities = new List<string>();
+        if (capabilitySnapshot.Payload.CapabilityDeclarationsAvailable)
+        {
+            return capabilitySnapshot.Payload.AdvertisedCapabilities;
+        }
+
         if (capabilitySnapshot.Payload.ToolListingSucceeded)
         {
             capabilities.Add("tools");

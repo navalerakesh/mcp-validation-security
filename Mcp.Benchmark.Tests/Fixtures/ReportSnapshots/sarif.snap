@@ -193,7 +193,9 @@
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "ProtocolCompliance",
             "component": "tools/call",
-            "severity": "Medium"
+            "severity": "Medium",
+            "normalizedSeverity": "medium",
+            "normalizedSeverityRank": 2
           }
         },
         {
@@ -224,7 +226,9 @@
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "AiReadiness",
             "component": "delete_repo",
-            "severity": "Medium"
+            "severity": "Medium",
+            "normalizedSeverity": "medium",
+            "normalizedSeverityRank": 2
           }
         },
         {
@@ -256,6 +260,8 @@
             "category": "Initialization",
             "component": "Initialization",
             "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
             "rule": "initialize.result.protocolVersion must reflect negotiation.",
             "recommendation": "Echo the negotiated protocol version in initialize.result."
           }
@@ -288,7 +294,9 @@
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "McpGuideline",
             "component": "delete_repo",
-            "severity": "High"
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3
           }
         },
         {
@@ -320,6 +328,8 @@
             "category": "PromptInjection",
             "component": "prompt:get",
             "severity": "Critical",
+            "normalizedSeverity": "critical",
+            "normalizedSeverityRank": 4,
             "isExploitable": true,
             "cvssScore": 9.1,
             "recommendation": "Sanitize and label untrusted content before returning it.",
@@ -372,7 +382,9 @@
             "coverageStatus": "Skipped",
             "blocker": "None",
             "confidence": "None",
-            "reason": "Server does not advertise prompts capability."
+            "reason": "Server does not advertise prompts capability.",
+            "normalizedSeverity": "medium",
+            "normalizedSeverityRank": 2
           }
         }
       ]

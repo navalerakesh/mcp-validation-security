@@ -92,6 +92,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 });
             }
 
+            if (CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools))
+            {
+                result.Status = TestStatus.Skipped;
+                result.Score = 100.0;
+                result.Message = "Server does not advertise the tools capability.";
+                result.Issues.Add("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped.");
+                return result;
+            }
+
             Logger.LogDebug("Performing comprehensive tool discovery via MCP tools/list");
 
             var toolsListStartTime = DateTime.UtcNow;
@@ -381,7 +390,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             {
                 result.Status = TestStatus.Passed;
                 result.ToolsTestPassed++;
-                result.Issues.Add("Server returned no tools - this is allowed but unusual");
+                result.Issues.Add(CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools)
+                    ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+                    : "No tools were returned by tools/list; no tool executions were required.");
                 result.ToolResults.Add(new IndividualToolResult
                 {
                     ToolName = "tools/list",
@@ -399,11 +410,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             foreach (var tool in toolsList)
             {
                 var toolResult = await ValidateIndividualToolAsync(serverConfig, tool, config, ct);
-                ApplyGuidelineFindings(result, tool, toolResult);
+                ApplyGuidelineFindings(result, tool, toolResult, config.CapabilitySnapshot);
                 result.AiSafetyControlEvidence.AddRange(toolResult.AiSafetyControlEvidence);
 
                 // Static, metadata-only content safety analysis
-                var safetyFindings = _contentSafetyAnalyzer.AnalyzeTool(tool.Name);
+                var safetyContext = ContentSafetyAnalysisContext.FromServerConfig(serverConfig, toolResult.AiSafetyControlEvidence);
+                var safetyFindings = _contentSafetyAnalyzer.AnalyzeTool(tool.Name, safetyContext);
                 if (safetyFindings.Count > 0)
                 {
                     toolResult.ContentSafetyFindings.AddRange(safetyFindings);
@@ -1613,7 +1625,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public long? AnthropicMaxResultSizeChars { get; set; }
     }
 
-    private static void ApplyGuidelineFindings(ToolTestResult aggregateResult, ToolInfo tool, IndividualToolResult toolResult)
+    private static void ApplyGuidelineFindings(
+        ToolTestResult aggregateResult,
+        ToolInfo tool,
+        IndividualToolResult toolResult,
+        TransportResult<CapabilitySummary>? capabilitySnapshot)
     {
         AddGuidelineFindingIfMissing(
             aggregateResult,
@@ -1690,6 +1706,66 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             toolResult.AddFinding(finding, finding.Summary);
             aggregateResult.Findings.Add(finding);
         }
+
+        ApplyTaskSupportCapabilityFinding(aggregateResult, tool, toolResult, capabilitySnapshot);
+    }
+
+    private static void ApplyTaskSupportCapabilityFinding(
+        ToolTestResult aggregateResult,
+        ToolInfo tool,
+        IndividualToolResult toolResult,
+        TransportResult<CapabilitySummary>? capabilitySnapshot)
+    {
+        var taskSupport = GetTaskSupport(tool);
+        if (taskSupport is not ("optional" or "required"))
+        {
+            return;
+        }
+
+        if (!CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.TasksRequestsToolsCall))
+        {
+            return;
+        }
+
+        var finding = new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.AiTaskSupportWithoutCapability,
+            Category = "AiSafety",
+            Component = tool.Name,
+            Severity = string.Equals(taskSupport, "required", StringComparison.OrdinalIgnoreCase)
+                ? ValidationFindingSeverity.High
+                : ValidationFindingSeverity.Medium,
+            Summary = $"Tool '{tool.Name}' declares execution.taskSupport={taskSupport}, but the server did not advertise tasks.requests.tools.call.",
+            Recommendation = "Only declare tool task support when initialize advertises tasks.requests.tools.call, or set execution.taskSupport to forbidden so clients do not schedule unsupported task-augmented tool calls.",
+            SpecReference = "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#capabilities",
+            Metadata = new Dictionary<string, string>
+            {
+                ["tool"] = tool.Name,
+                ["taskSupport"] = taskSupport,
+                ["capability"] = McpSpecConstants.Capabilities.TasksRequestsToolsCall,
+                ["declared"] = "false",
+                ["serverTasksDeclared"] = CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tasks).ToString().ToLowerInvariant(),
+                ["safetyLane"] = "task-augmented-tools"
+            }
+        };
+
+        toolResult.AddFinding(finding, finding.Summary);
+        aggregateResult.Findings.Add(finding);
+    }
+
+    private static string? GetTaskSupport(ToolInfo tool)
+    {
+        if (!tool.HasExecution || tool.Execution.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!tool.Execution.TryGetProperty("taskSupport", out var taskSupport) || taskSupport.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return taskSupport.GetString();
     }
 
     private static bool MissingDestructiveConfirmationGuidance(string? description)
