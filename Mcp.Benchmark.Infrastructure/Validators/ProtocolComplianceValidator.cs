@@ -1902,7 +1902,14 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     private static bool HasInconclusiveProbe(params ProtocolProbeOutcome[] probes)
     {
-        return probes.Any(probe => probe.IsCompliant == null && !string.IsNullOrWhiteSpace(probe.Reason));
+        return probes.Any(probe => probe.IsCompliant == null &&
+                                   !string.IsNullOrWhiteSpace(probe.Reason) &&
+                                   !IsNonBlockingProbeSkip(probe.Reason));
+    }
+
+    private static bool IsNonBlockingProbeSkip(string reason)
+    {
+        return reason.StartsWith("Batch processing probe skipped", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool HasInconclusiveTransportProbe(StreamableHttpTransportTestResult? transport)

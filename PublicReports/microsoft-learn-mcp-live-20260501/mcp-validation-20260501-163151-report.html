@@ -268,7 +268,8 @@ body {
 .decision-brief--tone-danger,
 .report-note--danger { border-left-color: var(--tone-danger); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.88)); }
 .decision-brief--tone-info,
-.report-note--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
+.report-note--info,
+.status-callout--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
 .decision-brief--tone-neutral,
 .report-note--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); }
 .decision-title {
@@ -1482,8 +1483,8 @@ a:hover {
         <div class="hero-grid">
           <div class="hero-main">
             <div class="eyebrow">MCP Validation Report</div>
-            <h1 class="hero-title">Release Hold</h1>
-            <p class="hero-subtitle">Balanced policy blocked release readiness with 9 blocking signal(s) across 9 unsuppressed signal(s).</p>
+            <h1 class="hero-title">Validation Review Required</h1>
+            <p class="hero-subtitle">Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=13.</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1491,11 +1492,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">92d649d4-d445-4962-834d-4562d8264cd8</div>
+                <div class="fact-item__value">73172173-6e1c-44f3-ba96-fb7bcfc4603f</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">28.7s</div>
+                <div class="fact-item__value">19.6s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1513,10 +1514,10 @@ a:hover {
 
           </div>
           <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Run Status</span>
-    <div class="focus-value">Hold Release</div>
-    <div class="focus-label">Generated on 2026-04-25 05:34:11 UTC</div>
+<div class="panel status-panel panel--soft panel--tone-warning">
+    <span class="status-chip status-chip--warning">Run Status</span>
+    <div class="focus-value">Review Before Release</div>
+    <div class="focus-label">Generated on 2026-05-01 16:31:51 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
     <span class="status-chip status-chip--danger">Deterministic Verdict</span>
@@ -1528,7 +1529,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-danger">
+        <details class="section-card section-card--tone-warning">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Executive Summary</div>
@@ -1536,10 +1537,10 @@ a:hover {
               <p class="section-intro section-intro--card">This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Hold release until blocking signals are resolved</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">9</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Balanced</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Resolve failed validation areas before rollout</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Advisory</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1550,21 +1551,21 @@ a:hover {
           <div class="section-card__content">
 
           <div class="brief-grid">
-            <div class="decision-brief decision-brief--tone-danger">
+            <div class="decision-brief decision-brief--tone-warning">
               <div class="section-kicker">Release Decision</div>
-              <h3 class="decision-title">Hold release until blocking signals are resolved</h3>
-              <p class="decision-summary">Balanced policy blocked the validation result with 9 unsuppressed signal(s).</p>
+              <h3 class="decision-title">Resolve failed validation areas before rollout</h3>
+              <p class="decision-summary">Deterministic validation failed even though no additional host policy block was applied. Use the decision trace to verify which domains still need remediation.</p>
               <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Verdict</div><div class="summary-card__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
-                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Balanced</div></div>
-                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Advisory</div></div>
+                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">0</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">0</div></div>
               </div>
               <ul class="compact-list">
-                <li>9 blocking signal(s) remain under Balanced policy.</li>
+                <li>MCP-PROTO-ERR</li>
                 <li>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</li>
-                <li>TierCheck</li>
-                <li>[Spec] 4 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
+                <li>[Spec] 8 protocol violation(s), led by MCP-PROTO-ERR: JSON-RPC Error Code Violation: Parse Error</li>
+                <li>[Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING: Tool &#39;microsoft_code_sample_search&#39; does not declare annotations.openWorldHint.</li>
               </ul>
             </div>
 
@@ -1572,9 +1573,11 @@ a:hover {
               <section class="report-note report-note--warning">
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
+                <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
                 <ul class="compact-list">
-                  <li>[Spec] 4 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
-                  <li>[Heuristic] 2 AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING: Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</li>
+                  <li>[Spec] 8 protocol violation(s), led by MCP-PROTO-ERR: JSON-RPC Error Code Violation: Parse Error</li>
+                  <li>[Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING: Tool &#39;microsoft_code_sample_search&#39; does not declare annotations.openWorldHint.</li>
+                  <li>[Heuristic] 2 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING: Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</li>
                 </ul>
               </section>
 
@@ -1582,8 +1585,8 @@ a:hover {
                 <div class="report-note__eyebrow">Then review</div>
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
-                  <li>[Spec] Protocol: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if pres....</li>
-                  <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must b....</li>
+                  <li>[Spec] Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (....</li>
+                  <li>[Guideline] McpGuideline: Tool &#39;microsoft_code_sample_search&#39; does not declare annotations.openWorldHint.</li>
                   <li>Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error....</li>
                 </ul>
               </section>
@@ -1591,15 +1594,104 @@ a:hover {
             </div>
           </div>
           <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">9</div></div>
-                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">13</div></div>
+                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">13</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">0</div></div>
           </div>
 
           </div>
         </details>
       </section>
+      <section class="section">
+        <details class="section-card section-card--tone-warning">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Remediation Roadmap</div>
+              <h2 class="section-title section-title--card">Recommended Remediation Order</h2>
+              <p class="section-intro section-intro--card">Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">P1</div><div class="section-abstract__value">5</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P3</div><div class="section-abstract__value">2</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="ledger-list">
+            <article class="ledger-entry ledger-entry--danger">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 1</div>
+                <div class="ledger-title">Bootstrap &amp; Protocol Version</div>
+                <span class="tone-chip tone-danger">5 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Fix the lifecycle or protocol contract first, then rerun validation before interpreting downstream surface results.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>errors</code> · <strong>Evidence:</strong> [Spec] <code>TierCheck</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Content-Type requirements not enforced (Server should reject non-JSON)</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Set the Content-Type header to &#39;application/json&#39; for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>Transport</code> · <strong>Evidence:</strong> [Spec] <code>MCP-HTTP-001</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</a></div>
+                  </li>
+                  <li>
+                    <strong>Error codes do not comply with JSON-RPC 2.0 standard error codes</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>JSON-RPC Compliance</code> · <strong>Evidence:</strong> [Spec] <code>MCP-PROTO-ERR</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                  </li>
+                  <li>
+                    <strong>JSON-RPC Error Code Violation: Invalid Params</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>JSON-RPC Compliance</code> · <strong>Evidence:</strong> [Spec] <code>MCP-PROTO-ERR</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                  </li>
+                  <li>
+                    <strong>Request format does not comply with JSON-RPC 2.0 specification</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>JSON-RPC Compliance</code> · <strong>Evidence:</strong> [Spec] <code>MCP-PROTO-JSONRPC</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--info">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 3</div>
+                <div class="ledger-title">Advertised Capabilities</div>
+                <span class="tone-chip tone-info">2 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>microsoft_code_sample_search</code> · <strong>Evidence:</strong> [Heuristic] <code>AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING</code> · <strong>Severity:</strong> Low</div>
+                  </li>
+                  <li>
+                    <strong>Synthetic load probe executed against tools/list using 20 requests at concurrency 4.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>tools/list</code> · <strong>Evidence:</strong> [Guideline] <code>MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE</code> · <strong>Severity:</strong> Info</div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+          </div>
+          </div>
+        </details>
+      </section>
+
       <section class="section">
         <details class="section-card section-card--tone-danger">
           <summary class="section-card__summary">
@@ -1624,7 +1716,34 @@ a:hover {
           <div class="dual-grid">
             <div>
               <h3 class="minor-title">Decision Themes</h3>
+              <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
+                <article class="ledger-entry ledger-entry--danger">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP-PROTO-ERR</div>
+                    <div class="ledger-subtle">JSON-RPC Compliance</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-danger">Reject</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">4 related decision(s) across 1 component(s). Representative issue: JSON-RPC Error Code Violation: Parse Error</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 5 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-ERR</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                    <div class="summary-grid">
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
+                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">4</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--parse-error, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-jsonrpc, protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
+                    </div>
+                  </div>
+                </article>
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
                     <div class="ledger-title">MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</div>
@@ -1638,13 +1757,16 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">2 related decision(s) across 2 component(s). Representative issue: Error-handling scenario &#39;Graceful Degradation On Invalid Request&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32600.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 2 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> invalid-request, malformed-json</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</code></div>
                     <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">invalid-request, malformed-json</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">2</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600, error-graceful-degradation-on-invalid-request, structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700, error-malformed-json-payload</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">HTTP 500; Invalid or missing jsonrpc version</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
                 <div class="summary-card"><div class="summary-card__label">expectedErrorCode</div><div class="summary-card__value">-32600</div></div>
                 <div class="summary-card"><div class="summary-card__label">actualResponse</div><div class="summary-card__value">HTTP 500; Invalid or missing jsonrpc version</div></div>
                 <div class="summary-card"><div class="summary-card__label">responseSurface</div><div class="summary-card__value">http-front-door</div></div>
@@ -1663,12 +1785,14 @@ a:hover {
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes in: malformed-json, invalid-request</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic aggregation</div>
+                    <p class="ledger-copy">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic aggregation &#183; 1 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> errors</div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">errors</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">tier-check:must:errors:must--use-standard-json-rpc-error-codes</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Non-standard error codes</div></div>
                     </div>
                   </div>
                 </article>
@@ -1685,78 +1809,68 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Request format does not comply with JSON-RPC 2.0 specification</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 5 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-JSONRPC</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification, protocol-mcp-proto-err, protocol-mcp-proto-err-2, protocol-mcp-proto-err-3, protocol-mcp-proto-jsonrpc</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">JSON-RPC Error Code Violation: Parse Error</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</div></div>
                     </div>
                   </div>
                 </article>
-                <article class="ledger-entry ledger-entry--warning">
+                <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
-                    <div class="ledger-title">MCP-PROTO-ERR</div>
-                    <div class="ledger-subtle">JSON-RPC Compliance</div>
+                    <div class="ledger-title">MCP-HTTP-001</div>
+                    <div class="ledger-subtle">Transport</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-warning">Review Required</span>
+                      <span class="tone-chip tone-danger">Reject</span>
                       <span class="tone-chip tone-info">spec</span>
                       <span class="tag">Protocol interoperability</span>
                       <span class="tag">Capability contract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">3 related decision(s) across 1 component(s). Representative issue: JSON-RPC Error Code Violation: Parse Error</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> JSON-RPC Compliance</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP-PROTO-ERR</code></div>
+                    <p class="ledger-copy">Content-Type requirements not enforced (Server should reject non-JSON)</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 4 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> Transport</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP-HTTP-001</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</a></div>
                     <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">JSON-RPC Compliance</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Transport</div></div>
+                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-http-001:transport:content-type-requirements-not-enforced--server-should-reject-non-json, protocol-mcp-http-001, protocol-mcp-http-004, protocol-mcp-http-005</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Content-Type requirements not enforced (Server should reject non-JSON)</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Set the Content-Type header to &#39;application/json&#39; for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</div></div>
                     </div>
                   </div>
                 </article>
-                <article class="ledger-entry ledger-entry--warning">
+                <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
-                    <div class="ledger-title">AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING</div>
-                    <div class="ledger-subtle">AiReadiness</div>
+                    <div class="ledger-title">MCP-HTTP-004</div>
+                    <div class="ledger-subtle">Transport</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-warning">Review Required</span>
-                      <span class="tone-chip tone-info">heuristic</span>
+                      <span class="tone-chip tone-danger">Reject</span>
+                      <span class="tone-chip tone-info">spec</span>
                       <span class="tag">Protocol interoperability</span>
                       <span class="tag">Capability contract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
-                    <div class="ledger-links"><strong>Components:</strong> microsoft_code_sample_search</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING</code></div>
+                    <p class="ledger-copy">Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 4 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> Transport</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP-HTTP-004</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http</a></div>
                     <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">microsoft_code_sample_search</div></div>
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Transport</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--warning">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">AI.TOOL.SCHEMA.FORMAT_HINT_MISSING</div>
-                    <div class="ledger-subtle">AiReadiness</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-warning">Review Required</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Protocol interoperability</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Tool &#39;microsoft_docs_fetch&#39;: 1/1 string parameters look like structured values but do not declare format/pattern hints</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
-                    <div class="ledger-links"><strong>Components:</strong> microsoft_docs_fetch</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>AI.TOOL.SCHEMA.FORMAT_HINT_MISSING</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">microsoft_docs_fetch</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-http-004:transport:streamable-http-transport-violation--invalid-protocol-version-400---requests-with-an-unsupported-mcp-protocol-version-header-must-be-rejected-before-normal-json-rpc-handling--expected--http-400-bad-request--observed--http-200--content-type-text-event-stream--body-length-85, protocol-mcp-http-001, protocol-mcp-http-004, protocol-mcp-http-005</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Content-Type requirements not enforced (Server should reject non-JSON)</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header</div></div>
                     </div>
                   </div>
                 </article>
@@ -1769,13 +1883,19 @@ a:hover {
                 <article class="report-note report-note--danger">
                   <div class="report-note__eyebrow">Protocol</div>
                   <h3 class="report-note__title">JSON-RPC Compliance</h3>
-                  <p class="report-note__empty">4 escalated decisions. Representative issue: Request format does not comply with JSON-RPC 2.0 specification</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 4</div>
+                  <p class="report-note__empty">5 escalated decisions. Representative issue: JSON-RPC Error Code Violation: Parse Error</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 5</div>
+                </article>
+                <article class="report-note report-note--danger">
+                  <div class="report-note__eyebrow">Protocol</div>
+                  <h3 class="report-note__title">Transport</h3>
+                  <p class="report-note__empty">3 escalated decisions. Representative issue: Content-Type requirements not enforced (Server should reject non-JSON)</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 3</div>
                 </article>
                 <article class="report-note report-note--danger">
                   <div class="report-note__eyebrow">Protocol</div>
                   <h3 class="report-note__title">errors</h3>
-                  <p class="report-note__empty">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes in: malformed-json, invalid-request</p>
+                  <p class="report-note__empty">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
                 <article class="report-note report-note--danger">
@@ -1794,12 +1914,6 @@ a:hover {
                   <div class="report-note__eyebrow">AI Safety</div>
                   <h3 class="report-note__title">microsoft_code_sample_search</h3>
                   <p class="report-note__empty">Tool &#39;microsoft_code_sample_search&#39;: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
-                </article>
-                <article class="report-note report-note--warning">
-                  <div class="report-note__eyebrow">AI Safety</div>
-                  <h3 class="report-note__title">microsoft_docs_fetch</h3>
-                  <p class="report-note__empty">Tool &#39;microsoft_docs_fetch&#39;: 1/1 string parameters look like structured values but do not declare format/pattern hints</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
               </div>
@@ -1821,7 +1935,7 @@ a:hover {
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Baseline Verdict</div><div class="section-abstract__value">Reject</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Protocol Verdict</div><div class="section-abstract__value">Reject</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Coverage Verdict</div><div class="section-abstract__value">Trusted</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">75.5%</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">67.7%</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1870,10 +1984,15 @@ a:hover {
               <div class="score-pill__value">Trusted</div>
               <div class="score-pill__meta">Evidence completeness across enabled checks</div>
             </div>
-            <div class="score-pill score-pill--info">
+            <div class="score-pill score-pill--warning">
               <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">75.5%</div>
+              <div class="score-pill__value">67.7%</div>
               <div class="score-pill__meta">Descriptive benchmarking signal</div>
+            </div>
+            <div class="score-pill score-pill--success">
+              <div class="score-pill__eyebrow">Evidence Confidence</div>
+              <div class="score-pill__value">100.0%</div>
+              <div class="score-pill__meta">High; coverage 100.0%</div>
             </div>
             <div class="score-pill score-pill--warning">
               <div class="score-pill__eyebrow">Trust Profile</div>
@@ -1888,7 +2007,7 @@ a:hover {
               <tbody>
                 <tr>
                   <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-info">75%</span></td>
+                  <td><span class="tone-chip tone-danger">49%</span></td>
                   <td>Spec adherence and response structure</td>
                 </tr>
                 <tr>
@@ -1917,9 +2036,9 @@ a:hover {
                 <tr>
                   <td><div class="cell-title">Protocol</div></td>
                   <td><span class="tone-chip tone-danger">Reject</span></td>
-                  <td>5 blocking / 8 total</td>
-                  <td>4 protocol violation(s) &#183; 3/5 error scenarios handled correctly</td>
-                  <td>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes in: malformed-json, invalid-request</td>
+                  <td>9 blocking / 12 total</td>
+                  <td>8 protocol violation(s) &#183; 3/5 error scenarios handled correctly</td>
+                  <td>MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</td>
                   <td>This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</td>
                 </tr>
                 <tr>
@@ -1942,7 +2061,7 @@ a:hover {
                   <td><div class="cell-title">Operations</div></td>
                   <td><span class="tone-chip tone-danger">100%</span></td>
                   <td>2 blocking / 2 total</td>
-                  <td>Avg 73.4 ms &#183; P95 83.8 ms &#183; 0.00% errors</td>
+                  <td>Avg 88.3 ms &#183; P95 100.8 ms &#183; 0.00% errors</td>
                   <td>Error-handling scenario &#39;Graceful Degradation On Invalid Request&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32600.</td>
                   <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
                 </tr>
@@ -1982,7 +2101,7 @@ a:hover {
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Bootstrap State</div><div class="section-abstract__value">Healthy</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Deferred Validation</div><div class="section-abstract__value">No</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake HTTP</div><div class="section-abstract__value">HTTP 200</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">658.4 ms</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">673.8 ms</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2012,7 +2131,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">658.4 ms</div>
+                <div class="fact-item__value">673.8 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -2158,7 +2277,7 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, resources, resources.listChanged, tools | roots/list: not supported | logging/setLevel: supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
+                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</td></tr>
                 <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>5</td><td>-</td></tr>
                 <tr><td><code>resource-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
                 <tr><td><code>prompt-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>-</td></tr>
@@ -2170,23 +2289,37 @@ a:hover {
           </div>
           <div class="table-shell">
             <table class="data-table">
-              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resources/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-assessment</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>performance</code></td><td><code>load-testing</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>bootstrap</code></td><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>protocol-core</code></td><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>resource-surface</code></td><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>client-profiles</code></td><td><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>
+                <tr><td><code>bootstrap</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>client-profiles</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>error-handling</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>performance</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>prompt-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>protocol-core</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>resource-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>security-boundaries</code></td><td>100.0%</td><td>High (100.0%)</td><td>3</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>tool-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+              </tbody></table>
+          </div>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>
+                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>resource-surface</code></td><td><code>resources/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>security-boundaries</code></td><td><code>security-assessment</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>performance</code></td><td><code>load-testing</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>High</td><td>-</td><td>-</td></tr>
+                <tr><td><code>bootstrap</code></td><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>protocol-core</code></td><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>resource-surface</code></td><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>prompt-surface</code></td><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>security-boundaries</code></td><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>client-profiles</code></td><td><code>claude-code,vscode-copilot-agent,github-copilot-cli,github-copilot-cloud-agent,visual-studio-copilot</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
               </tbody></table>
           </div>
           <div class="ledger-group">
@@ -2240,11 +2373,11 @@ a:hover {
             <table class="data-table">
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
                 <tr><td><code>bootstrap-initialize-handshake</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Bootstrap health checks completed successfully.</td></tr>
-                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, resources, resources.listChanged, tools | roots/list: not supported | logging/setLevel: supported | sampling/createMessage: not supported | completion/complete: not supported</td></tr>
+                <tr><td><code>protocol-compliance-review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>2</td><td>declared capabilities: logging, prompts, prompts.listChanged, resources, resources.listChanged, tools, tools.listChanged | roots/list: not advertised | logging/setLevel: supported | sampling/createMessage: not advertised | completion/complete: not advertised</td></tr>
                 <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>5</td><td>Tool validation completed.</td></tr>
                 <tr><td><code>resource-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>No resources were discovered during validation.</td></tr>
                 <tr><td><code>prompt-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>No prompts were discovered during validation.</td></tr>
-                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Evaluated 57 authentication challenge scenario(s).</td></tr>
+                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Evaluated 61 authentication challenge scenario(s).</td></tr>
                 <tr><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Evaluated 7 attack simulation(s).</td></tr>
                 <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>2</td><td>Validated 5 error scenario(s); 3 handled correctly.</td></tr>
               </tbody></table>
@@ -2257,6 +2390,10 @@ a:hover {
                 <tr><td><code>protocol-mcp-proto-err-2</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc</td></tr>
                 <tr><td><code>protocol-mcp-proto-err-3</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>JSON-RPC Error Code Violation: Invalid Params</td></tr>
                 <tr><td><code>protocol-mcp-proto-jsonrpc</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>Request format does not comply with JSON-RPC 2.0 specification</td></tr>
+                <tr><td><code>protocol-mcp-proto-err-4</code></td><td><code>protocol-core</code></td><td><code>JSON-RPC Compliance</code></td><td><code>protocol-violation</code></td><td>Error codes do not comply with JSON-RPC 2.0 standard error codes</td></tr>
+                <tr><td><code>protocol-mcp-http-001</code></td><td><code>protocol-core</code></td><td><code>Transport</code></td><td><code>protocol-violation</code></td><td>Content-Type requirements not enforced (Server should reject non-JSON)</td></tr>
+                <tr><td><code>protocol-mcp-http-004</code></td><td><code>protocol-core</code></td><td><code>Transport</code></td><td><code>protocol-violation</code></td><td>Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85</td></tr>
+                <tr><td><code>protocol-mcp-http-005</code></td><td><code>protocol-core</code></td><td><code>Transport</code></td><td><code>protocol-violation</code></td><td>Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</td></tr>
                 <tr><td><code>tool-tools-list-schema-compliance</code></td><td><code>tool-surface</code></td><td><code>tools/list (Schema Compliance)</code></td><td><code>tool-result</code></td><td>⚠️ Schema validation warning: tools/list schema could not be fully processed</td></tr>
                 <tr><td><code>tool-microsoft-docs-search</code></td><td><code>tool-surface</code></td><td><code>microsoft_docs_search</code></td><td><code>tool-result</code></td><td>Tool &#39;microsoft_docs_search&#39; does not declare annotations.openWorldHint.</td></tr>
                 <tr><td><code>tool-microsoft-code-sample-search</code></td><td><code>tool-surface</code></td><td><code>microsoft_code_sample_search</code></td><td><code>tool-result</code></td><td>Tool &#39;microsoft_code_sample_search&#39; does not declare annotations.openWorldHint.</td></tr>
@@ -2270,6 +2407,7 @@ a:hover {
                 <tr><td><code>auth-insufficient-permissions-logging-setlevel</code></td><td><code>security-boundaries</code></td><td><code>logging/setLevel</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ❌ INSECURE: Sensitive operation succeeded without valid authentication.</td></tr>
                 <tr><td><code>auth-revoked-token-logging-setlevel</code></td><td><code>security-boundaries</code></td><td><code>logging/setLevel</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ❌ INSECURE: Sensitive operation succeeded without valid authentication.</td></tr>
                 <tr><td><code>auth-wrong-audience-rfc-8707-logging-setlevel</code></td><td><code>security-boundaries</code></td><td><code>logging/setLevel</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ❌ INSECURE: Sensitive operation succeeded without valid authentication.</td></tr>
+                <tr><td><code>auth-query-token-logging-setlevel</code></td><td><code>security-boundaries</code></td><td><code>logging/setLevel</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ❌ INSECURE: Sensitive operation succeeded without valid authentication.</td></tr>
                 <tr><td><code>auth-no-auth-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-malformed-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-invalid-token-prompts-list</code></td><td><code>security-boundaries</code></td><td><code>prompts/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
@@ -2286,6 +2424,7 @@ a:hover {
                 <tr><td><code>auth-insufficient-permissions-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-revoked-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-wrong-audience-rfc-8707-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
+                <tr><td><code>auth-query-token-prompts-get</code></td><td><code>security-boundaries</code></td><td><code>prompts/get</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-no-auth-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-malformed-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-invalid-token-resources-list</code></td><td><code>security-boundaries</code></td><td><code>resources/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
@@ -2302,6 +2441,7 @@ a:hover {
                 <tr><td><code>auth-insufficient-permissions-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-revoked-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-wrong-audience-rfc-8707-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
+                <tr><td><code>auth-query-token-resources-read</code></td><td><code>security-boundaries</code></td><td><code>resources/read</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-no-auth-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-malformed-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
                 <tr><td><code>auth-invalid-token-tools-list</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Discovery metadata was exposed without authentication.</td></tr>
@@ -2318,14 +2458,15 @@ a:hover {
                 <tr><td><code>auth-insufficient-permissions-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-revoked-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>auth-wrong-audience-rfc-8707-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
+                <tr><td><code>auth-query-token-tools-call</code></td><td><code>security-boundaries</code></td><td><code>tools/call</code></td><td><code>authentication-scenario</code></td><td>ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</td></tr>
                 <tr><td><code>attack-inj-001-input-validation</code></td><td><code>security-boundaries</code></td><td><code>INJ-001 (Input Validation)</code></td><td><code>attack-simulation</code></td><td>&lt;HTML&gt;&lt;HEAD&gt;
 &lt;TITLE&gt;Access Denied&lt;/TITLE&gt;
 &lt;/HEAD&gt;&lt;BODY&gt;
 &lt;H1&gt;Access Denied&lt;/H1&gt;
  
 You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt;
-Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f4fd5
-&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f4fd5&lt;/P&gt;
+Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c9116d2
+&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c9116d2&lt;/P&gt;
 &lt;/BODY&gt;
 &lt;/HTML&gt;
 </td></tr>
@@ -2335,8 +2476,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f4f
 &lt;H1&gt;Access Denied&lt;/H1&gt;
  
 You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt;
-Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f506b
-&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f506b&lt;/P&gt;
+Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c90c1ea
+&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c90c1ea&lt;/P&gt;
 &lt;/BODY&gt;
 &lt;/HTML&gt;
 </td></tr>
@@ -2346,8 +2487,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f50
 &lt;H1&gt;Access Denied&lt;/H1&gt;
  
 You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt;
-Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f511c
-&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f511c&lt;/P&gt;
+Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c911899
+&lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c911899&lt;/P&gt;
 &lt;/BODY&gt;
 &lt;/HTML&gt;
 </td></tr>
@@ -2414,7 +2555,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 3</span>
-        <span class="probe-metric"><strong>Duration</strong> 81.6 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 85.1 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool microsoft_docs_search responded successfully.</div>
 </article>
@@ -2426,7 +2567,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 69.2 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 77.6 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -2438,7 +2579,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 70.0 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 80.0 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -2456,9 +2597,9 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
               <p class="section-intro section-intro--card">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Violations</div><div class="section-abstract__value">4</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Violations</div><div class="section-abstract__value">8</div></div>
               <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Spec-linked</div><div class="section-abstract__value">4</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Spec-linked</div><div class="section-abstract__value">8</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2473,33 +2614,26 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
             <div class="distribution-summary__cards">
               <div class="distribution-card distribution-card--danger">
                 <div class="distribution-card__label">High</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">25% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--info">
-                <div class="distribution-card__label">Low</div>
-                <div class="distribution-card__value">3</div>
-                <div class="distribution-card__meta">75% of observed outcomes</div>
+                <div class="distribution-card__value">8</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
-              <span class="distribution-segment distribution-segment--info" style="flex:3;"></span>
+              <span class="distribution-segment distribution-segment--danger" style="flex:8;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 1 (25%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Low 3 (75%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 8 (100%)</span>
             </div>
           </div>
 
           <div class="ledger-group">
             <h3 class="minor-title">Protocol and Compliance Findings</h3>
             <div class="ledger-list">
-              <article class="ledger-entry ledger-entry--info">
+              <article class="ledger-entry ledger-entry--danger">
                 <div class="ledger-rail">
                   <div class="ledger-kicker">Rule</div>
                   <code>MCP-PROTO-ERR</code>
-                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-info">Low</span></div>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
                   <div class="ledger-subtle">JSON-RPC Compliance</div>
                 </div>
                 <div class="ledger-body">
@@ -2508,11 +2642,11 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
                 </div>
               </article>
-              <article class="ledger-entry ledger-entry--info">
+              <article class="ledger-entry ledger-entry--danger">
                 <div class="ledger-rail">
                   <div class="ledger-kicker">Rule</div>
                   <code>MCP-PROTO-ERR</code>
-                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-info">Low</span></div>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
                   <div class="ledger-subtle">JSON-RPC Compliance</div>
                 </div>
                 <div class="ledger-body">
@@ -2521,11 +2655,11 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
                 </div>
               </article>
-              <article class="ledger-entry ledger-entry--info">
+              <article class="ledger-entry ledger-entry--danger">
                 <div class="ledger-rail">
                   <div class="ledger-kicker">Rule</div>
                   <code>MCP-PROTO-ERR</code>
-                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-info">Low</span></div>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
                   <div class="ledger-subtle">JSON-RPC Compliance</div>
                 </div>
                 <div class="ledger-body">
@@ -2543,8 +2677,62 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <div class="ledger-title">Request format does not comply with JSON-RPC 2.0 specification</div>
-                  <p class="ledger-copy"><strong>Remediation:</strong> Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</p>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</p>
                   <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-PROTO-ERR</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                  <div class="ledger-subtle">JSON-RPC Compliance</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Error codes do not comply with JSON-RPC 2.0 standard error codes</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-HTTP-001</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                  <div class="ledger-subtle">Transport</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Content-Type requirements not enforced (Server should reject non-JSON)</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Set the Content-Type header to &#39;application/json&#39; for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</a></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-HTTP-004</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                  <div class="ledger-subtle">Transport</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http</a></div>
+                  <div class="ledger-code-block"><strong>Context</strong><code>Probe ID=invalid-protocol-version-400; HTTP status=200; Content-Type=text/event-stream; Expected=HTTP 400 Bad Request.; Actual=HTTP 200; Content-Type=text/event-stream; body length 85</code></div>
+                </div>
+              </article>
+              <article class="ledger-entry ledger-entry--danger">
+                <div class="ledger-rail">
+                  <div class="ledger-kicker">Rule</div>
+                  <code>MCP-HTTP-005</code>
+                  <div class="ledger-chip-row"><span class="tone-chip tone-info">spec</span> <span class="tone-chip tone-danger">High</span></div>
+                  <div class="ledger-subtle">Transport</div>
+                </div>
+                <div class="ledger-body">
+                  <div class="ledger-title">Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84</div>
+                  <p class="ledger-copy"><strong>Remediation:</strong> Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation</p>
+                  <div class="ledger-links">Spec: <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http</a></div>
+                  <div class="ledger-code-block"><strong>Context</strong><code>Probe ID=invalid-origin-403; HTTP status=200; Content-Type=text/event-stream; Expected=HTTP 403 Forbidden.; Actual=HTTP 200; Content-Type=text/event-stream; body length 84</code></div>
                 </div>
               </article>
           </div>
@@ -2565,7 +2753,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Security Score</div><div class="section-abstract__value">100.0%</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">57</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">61</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">7</div></div>
             </div>
             <div class="section-card__toggle-row">
@@ -2583,15 +2771,15 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
             <div class="distribution-summary__cards">
               <div class="distribution-card distribution-card--info">
                 <div class="distribution-card__label">Observed</div>
-                <div class="distribution-card__value">57</div>
+                <div class="distribution-card__value">61</div>
                 <div class="distribution-card__meta">100% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--info" style="flex:57;"></span>
+              <span class="distribution-segment distribution-segment--info" style="flex:61;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Observed 57 (100%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--info"></span>Observed 61 (100%)</span>
             </div>
           </div>
 
@@ -2755,10 +2943,10 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div>
                     <div class="ledger-kicker">Test surface</div>
                     <div class="auth-surface__title">prompts/get</div>
-                    <div class="auth-surface__meta">8 scenarios &#183; 8 observed</div>
+                    <div class="auth-surface__meta">9 scenarios &#183; 9 observed</div>
                   </div>
                   <div class="ledger-chip-row">
-                    <span class="tone-chip tone-info">8 observed</span>
+                    <span class="tone-chip tone-info">9 observed</span>
                   </div>
                 </div>
                 <div class="auth-scenario-list">
@@ -2863,6 +3051,20 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <article class="auth-scenario auth-scenario--info">
                     <div class="auth-scenario__header">
                       <div class="auth-scenario__title">Wrong Audience (RFC 8707)</div>
+                      <span class="tone-chip tone-info">Observed</span>
+                    </div>
+                    <div class="auth-scenario__comparison">
+                      <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
+                    </div>
+                    <div class="auth-scenario__metrics">
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--info">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Query Token</div>
                       <span class="tone-chip tone-info">Observed</span>
                     </div>
                     <div class="auth-scenario__comparison">
@@ -3007,10 +3209,10 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div>
                     <div class="ledger-kicker">Test surface</div>
                     <div class="auth-surface__title">resources/read</div>
-                    <div class="auth-surface__meta">8 scenarios &#183; 8 observed</div>
+                    <div class="auth-surface__meta">9 scenarios &#183; 9 observed</div>
                   </div>
                   <div class="ledger-chip-row">
-                    <span class="tone-chip tone-info">8 observed</span>
+                    <span class="tone-chip tone-info">9 observed</span>
                   </div>
                 </div>
                 <div class="auth-scenario-list">
@@ -3115,6 +3317,20 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <article class="auth-scenario auth-scenario--info">
                     <div class="auth-scenario__header">
                       <div class="auth-scenario__title">Wrong Audience (RFC 8707)</div>
+                      <span class="tone-chip tone-info">Observed</span>
+                    </div>
+                    <div class="auth-scenario__comparison">
+                      <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
+                    </div>
+                    <div class="auth-scenario__metrics">
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--info">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Query Token</div>
                       <span class="tone-chip tone-info">Observed</span>
                     </div>
                     <div class="auth-scenario__comparison">
@@ -3259,10 +3475,10 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div>
                     <div class="ledger-kicker">Test surface</div>
                     <div class="auth-surface__title">tools/call</div>
-                    <div class="auth-surface__meta">8 scenarios &#183; 8 observed</div>
+                    <div class="auth-surface__meta">9 scenarios &#183; 9 observed</div>
                   </div>
                   <div class="ledger-chip-row">
-                    <span class="tone-chip tone-info">8 observed</span>
+                    <span class="tone-chip tone-info">9 observed</span>
                   </div>
                 </div>
                 <div class="auth-scenario-list">
@@ -3367,6 +3583,20 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <article class="auth-scenario auth-scenario--info">
                     <div class="auth-scenario__header">
                       <div class="auth-scenario__title">Wrong Audience (RFC 8707)</div>
+                      <span class="tone-chip tone-info">Observed</span>
+                    </div>
+                    <div class="auth-scenario__comparison">
+                      <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Request rejected in JSON-RPC layer</div></div>
+                    </div>
+                    <div class="auth-scenario__metrics">
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--info">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Query Token</div>
                       <span class="tone-chip tone-info">Observed</span>
                     </div>
                     <div class="auth-scenario__comparison">
@@ -3385,10 +3615,10 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <div>
                     <div class="ledger-kicker">Test surface</div>
                     <div class="auth-surface__title">logging/setLevel</div>
-                    <div class="auth-surface__meta">8 scenarios &#183; 8 observed</div>
+                    <div class="auth-surface__meta">9 scenarios &#183; 9 observed</div>
                   </div>
                   <div class="ledger-chip-row">
-                    <span class="tone-chip tone-info">8 observed</span>
+                    <span class="tone-chip tone-info">9 observed</span>
                   </div>
                 </div>
                 <div class="auth-scenario-list">
@@ -3493,6 +3723,20 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <article class="auth-scenario auth-scenario--info">
                     <div class="auth-scenario__header">
                       <div class="auth-scenario__title">Wrong Audience (RFC 8707)</div>
+                      <span class="tone-chip tone-info">Observed</span>
+                    </div>
+                    <div class="auth-scenario__comparison">
+                      <div class="auth-fact"><div class="auth-fact__label">Expected</div><div class="auth-fact__value">Informational (public profile)</div></div>
+                      <div class="auth-fact"><div class="auth-fact__label">Observed</div><div class="auth-fact__value">Sensitive operation succeeded</div></div>
+                    </div>
+                    <div class="auth-scenario__metrics">
+                      <span class="probe-metric"><strong>HTTP</strong> 200</span>
+                    </div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">ℹ️ INFO (Public profile): ❌ INSECURE: Sensitive operation succeeded without valid authentication.</div></div>
+                  </article>
+                  <article class="auth-scenario auth-scenario--info">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">Query Token</div>
                       <span class="tone-chip tone-info">Observed</span>
                     </div>
                     <div class="auth-scenario__comparison">
@@ -3542,7 +3786,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f4fd5 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f4fd5&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c9116d2 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c9116d2&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -3552,7 +3797,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f506b &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f506b&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c90c1ea &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c90c1ea&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -3562,7 +3808,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on microsoft_docs_search</p>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f511c &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f511c&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>&lt;HTML&gt;&lt;HEAD&gt; &lt;TITLE&gt;Access Denied&lt;/TITLE&gt; &lt;/HEAD&gt;&lt;BODY&gt; &lt;H1&gt;Access Denied&lt;/H1&gt;   You don&#39;t have permission to access &quot;http&amp;#58;&amp;#47;&amp;#47;learn&amp;#46;microsoft&amp;#46;com&amp;#47;api&amp;#47;mcp&quot; on this server.&lt;P&gt; Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c911899 &lt;P&gt;https&amp;#58;&amp;#47;&amp;#47;errors&amp;#46;edgesuite&amp;#46;net&amp;#47;18&amp;#46;49d02e17&amp;#46;1777653101&amp;#46;1c911899&lt;/P&gt; &lt;/BODY&gt; &lt;/HTML&gt; </code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -3572,6 +3819,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">JSON-RPC Error Smuggling</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>rpc.system.invalid (http) Success HTTP 200</code></div>
                   <div class="ledger-code-block"><strong>Server response</strong><code>Server handled malformed requests gracefully with standard errors.</code></div>
                 </div>
               </article>
@@ -3582,6 +3830,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Metadata Enumeration</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>resources/list (http) Success HTTP 200</code></div>
                   <div class="ledger-code-block"><strong>Server response</strong><code>Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</code></div>
                 </div>
               </article>
@@ -3592,6 +3841,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Schema Confusion</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
                   <div class="ledger-code-block"><strong>Server response</strong><code>Server correctly rejected invalid schema.</code></div>
                 </div>
               </article>
@@ -3602,6 +3852,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                 </div>
                 <div class="ledger-body">
                   <p class="ledger-copy">Hallucination Fuzzing</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
                   <div class="ledger-code-block"><strong>Server response</strong><code>Error clarity: 55/100 (Fair). Error messages partially helpful for AI.</code></div>
                 </div>
               </article>
@@ -3636,8 +3887,22 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
           <div class="evidence-card">
             <div class="evidence-card__header">
               <div>
+                <div class="evidence-card__title">AI Readiness Evidence Basis</div>
+                <div class="evidence-card__subtle">Deterministic schema and payload heuristics are reported separately from measured model-evaluation impact.</div>
+              </div>
+              <span class="tone-chip tone-warning">94/100</span>
+            </div>
+            <ul class="compact-list">
+              <li>Measured model-evaluation results, when enabled, are emitted as a separate companion artifact and do not change this deterministic score.</li>
+              <li>Deterministic schema heuristic: 2 finding(s).</li>
+            </ul>
+          </div>
+
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
                 <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
-                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and deterministic AI-oriented heuristics.</div>
               </div>
               <span class="tone-chip tone-info">3 tools</span>
             </div>
@@ -3694,22 +3959,122 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
                   <li>Tool &#39;microsoft_docs_fetch&#39;: 1/1 string parameters look like structured values but do not declare format/pattern hints</li>
                 </ul>
               </article>
+              <article class="authority-card authority-card--neutral">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Operational</div>
+                  </div>
+                  <span class="tone-chip tone-neutral">0 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">0/3 (0%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">None</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>No current catalog-wide tool advisories.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <div class="ledger-group">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">AI Safety Controls</p>
+                <h3>Consent & Human-Control Evidence</h3>
+              </div>
+              <p class="evidence-note">Server-declared tool metadata is separated from host controls that are not directly observable.</p>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead><tr><th>Control</th><th>Declared</th><th>Missing</th><th>Not Observable</th><th>Not Applicable</th><th>Representative Note</th></tr></thead><tbody>
+                <tr><td>User confirmation</td><td>0</td><td>0</td><td>0</td><td>3</td><td>No destructive tool behavior was declared or inferred from tool metadata.</td></tr>
+                <tr><td>Audit trail</td><td>0</td><td>0</td><td>3</td><td>0</td><td>Audit trail behavior is not observable from tool metadata.</td></tr>
+                <tr><td>Data-sharing disclosure</td><td>0</td><td>3</td><td>0</td><td>0</td><td>Tool metadata does not declare open-world/data-sharing behavior.</td></tr>
+                <tr><td>Destructive-action confirmation</td><td>0</td><td>0</td><td>0</td><td>3</td><td>Tool is not declared or inferred as destructive.</td></tr>
+                <tr><td>Host/server responsibility split</td><td>0</td><td>0</td><td>3</td><td>0</td><td>Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.</td></tr>
+                </tbody></table>
             </div>
           </div>
 
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>81.59 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>microsoft_docs_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>11153.59 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
-                <tr><td><code>microsoft_code_sample_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1046.53 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
-                <tr><td><code>microsoft_docs_fetch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>216.49 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>85.09 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>microsoft_docs_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>837.38 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>microsoft_code_sample_search</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>880.38 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
+                <tr><td><code>microsoft_docs_fetch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>232.09 ms</td><td>title, description, readOnlyHint, destructiveHint, idempotentHint</td></tr>
               </tbody></table>
           </div>
           </div>
         </details>
       </section>
 
+      <section class="section">
+        <details class="section-card section-card--tone-success">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Resource Surface</div>
+              <h2 class="section-title section-title--card">Resource Capabilities</h2>
+              <p class="section-intro section-intro--card">Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Accessible</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="status-callout status-callout--info">
+            <div class="status-callout__title">Resource catalog applicability</div>
+            <div class="status-callout__body">Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.</div>
+            <div class="status-callout__body">resources.subscribe was not advertised during initialize; resource subscription probes were skipped.</div>
+            <div class="status-callout__body">✅ Resource templates: 0 templates discovered</div>
+            <div class="status-callout__body">✅ COMPLIANT: 0 resources discovered and validated</div>
+          </div>
+
+          </div>
+        </details>
+      </section>
+
+      <section class="section">
+        <details class="section-card section-card--tone-success">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Prompt Surface</div>
+              <h2 class="section-title section-title--card">Prompt Capabilities</h2>
+              <p class="section-intro section-intro--card">Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Passed</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="status-callout status-callout--info">
+            <div class="status-callout__title">Prompt catalog applicability</div>
+            <div class="status-callout__body">Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required.</div>
+            <div class="status-callout__body">✅ COMPLIANT: No prompts were advertised; no prompt executions were required</div>
+          </div>
+
+          </div>
+        </details>
+      </section>
 
       <section class="section">
         <details class="section-card section-card--tone-success">
@@ -3720,8 +4085,8 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
               <p class="section-intro section-intro--card">Observed values from the completed runtime probe.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">73.4 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">83.8 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">88.3 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">100.8 ms</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Requests</div><div class="section-abstract__value">20</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Error Rate</div><div class="section-abstract__value">0.00%</div></div>
             </div>
@@ -3736,17 +4101,17 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
           <div class="score-strip">
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">73.4 ms</div>
+              <div class="score-pill__value">88.3 ms</div>
               <div class="score-pill__meta">Target ≤ 300 ms</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">83.8 ms</div>
+              <div class="score-pill__value">100.8 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">13.56</div>
+              <div class="score-pill__value">11.31</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -3771,7 +4136,7 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">3</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">5</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">6</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -3787,17 +4152,18 @@ Reference&amp;#32;&amp;#35;18&amp;#46;49d02e17&amp;#46;1777095241&amp;#46;267f51
               <ul class="compact-list">
                 <li>INFO: Authentication challenge observations are informational for the declared public profile.</li>
                 <li>SPEC: JSON-RPC 2.0 format deviations detected. Score reduced by 15%.</li>
-                <li>Score meets the preferred target with non-blocking improvement opportunities.</li>
+                <li>Score is below the preferred target, but no blocking failure was observed in this run.</li>
               </ul>
             </div>
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
-                <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and an integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</li>
                 <li>Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
-                <li>Guideline: Declare openWorldHint so agents can reason about whether execution can affect unknown external systems Gap affects 3/3 tools</li>
-                <li>Heuristic: Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing Gap affects 1/3 tool</li>
-                <li>Heuristic: Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings Gap affects 1/3 tool</li>
+                <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc</li>
+                <li>Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
+                <li>Spec: Set the Content-Type header to &#39;application/json&#39; for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http</li>
+                <li>Spec: Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header</li>
+                <li>Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation</li>
               </ul>
             </div>
           </div>

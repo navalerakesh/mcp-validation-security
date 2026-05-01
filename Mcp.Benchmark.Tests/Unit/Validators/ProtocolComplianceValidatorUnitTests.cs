@@ -169,6 +169,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
 
         var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig());
 
+        result.Status.Should().Be(TestStatus.Passed);
         result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
         result.Findings.Should().Contain(f => f.RuleId == "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED");
     }
@@ -201,6 +202,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             ProtocolVersion = "2025-06-18"
         });
 
+        result.Status.Should().Be(TestStatus.Passed);
         result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
         result.Findings.Should().Contain(f =>
             f.RuleId == "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED" &&

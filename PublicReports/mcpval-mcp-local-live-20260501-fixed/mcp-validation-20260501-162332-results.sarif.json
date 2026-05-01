@@ -1,0 +1,228 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "name": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "shortDescription": {
+                "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+              },
+              "fullDescription": {
+                "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+              },
+              "help": {
+                "text": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "batch"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "logging/setLevel"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "shortDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "help": {
+                "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "tools/list"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-05-01T16:23:20.7217670Z",
+          "endTimeUtc": "2026-05-01T16:23:32.1622720Z",
+          "properties": {
+            "validationId": "3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7",
+            "endpoint": "node mcpval-mcp/dist/index.js",
+            "transport": "stdio",
+            "overallStatus": "Passed",
+            "serverProfile": "Public",
+            "specProfile": "latest"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED|batch|Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "batch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-protocol-batch-probe-skipped:batch:batch-processing-probe-skipped-because-the-active-embedded-schema-context-does-not-advertise-batch-json-rpc-envelopes",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "batch",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED|logging/setLevel|Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "logging/setLevel"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-capability-logging-supported:logging-setlevel:server-responded-to-logging-setlevel--indicating-optional-logging-controls-are-available",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "logging/setLevel",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "logging",
+              "method": "logging/setLevel",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-performance-synthetic-probe:tools-list:synthetic-load-probe-executed-against-tools-list-using-20-requests-at-concurrency-4",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "metadata": {
+              "requests": "20",
+              "concurrency": "4",
+              "operation": "tools/list"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
