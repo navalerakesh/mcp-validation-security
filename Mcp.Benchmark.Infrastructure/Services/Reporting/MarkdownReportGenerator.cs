@@ -463,13 +463,20 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine("---");
                     sb.AppendLine();
                 }
+            }
+            else
+            {
+                sb.AppendLine($"**Catalog Applicability:** {BuildToolCatalogApplicabilityNote(result.ToolValidation)}");
+                AppendSurfaceIssues(sb, result.ToolValidation.Issues);
+                sb.AppendLine();
+            }
 
                 var authoritySummaries = ToolCatalogAuthoritySummaryBuilder.Build(result.ToolValidation);
                 if (authoritySummaries.Count > 0)
                 {
                     sb.AppendLine("### Tool Catalog Advisory Breakdown");
                     sb.AppendLine();
-                    sb.AppendLine("Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or AI-oriented heuristics.");
+                    sb.AppendLine("Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or deterministic AI-oriented heuristics.");
                     sb.AppendLine();
                     sb.AppendLine("| Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |");
                     sb.AppendLine("| :--- | :---: | :--- | :---: | :--- |");
@@ -482,7 +489,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 }
 
                 var guidelineFindings = ValidationFindingAggregator.SummarizeFindingsByRule(
-                    result.ToolValidation.ToolResults
+                    (result.ToolValidation.ToolResults ?? new List<IndividualToolResult>())
                         .SelectMany(tool => tool.Findings.Where(f => f.Category == "McpGuideline")),
                     ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation));
 
@@ -511,7 +518,6 @@ public class MarkdownReportGenerator : IReportGenerator
                     sb.AppendLine();
                 }
             }
-        }
 
         // Detailed Findings - Resources
         if (includeDetailedSections && result.ResourceTesting != null)
@@ -531,6 +537,38 @@ public class MarkdownReportGenerator : IReportGenerator
                 }
                 sb.AppendLine();
             }
+            else
+            {
+                sb.AppendLine($"**Catalog Applicability:** {BuildResourceCatalogApplicabilityNote(result.ResourceTesting)}");
+                AppendSurfaceIssues(sb, result.ResourceTesting.Issues);
+                sb.AppendLine();
+            }
+        }
+
+        if (includeDetailedSections && result.PromptTesting != null)
+        {
+            sb.AppendLine($"## {sectionNumber++}. Prompt Capabilities");
+            sb.AppendLine();
+            sb.AppendLine($"**Prompts Discovered:** {result.PromptTesting.PromptsDiscovered}");
+            sb.AppendLine();
+
+            if (result.PromptTesting.PromptResults?.Any() == true)
+            {
+                sb.AppendLine("| Prompt Name | Status | Issues |");
+                sb.AppendLine("| :--- | :---: | :--- |");
+                foreach (var prompt in result.PromptTesting.PromptResults)
+                {
+                    var issues = prompt.Issues.Count > 0 ? string.Join("; ", prompt.Issues.Select(EscapeTableCell)) : "-";
+                    sb.AppendLine($"| {EscapeTableCell(prompt.PromptName)} | {GetStatusIcon(prompt.Status)} {prompt.Status} | {issues} |");
+                }
+                sb.AppendLine();
+            }
+            else
+            {
+                sb.AppendLine($"**Catalog Applicability:** {BuildPromptCatalogApplicabilityNote(result.PromptTesting)}");
+                AppendSurfaceIssues(sb, result.PromptTesting.Issues);
+                sb.AppendLine();
+            }
         }
 
         // AI Readiness Assessment
@@ -543,7 +581,7 @@ public class MarkdownReportGenerator : IReportGenerator
             var gradeIcon = aiScore >= 80 ? "✅" : aiScore >= 50 ? "⚠️" : "❌";
             sb.AppendLine($"**AI Readiness Score:** {gradeIcon} **{aiScore:F0}/100** ({grade})");
             sb.AppendLine();
-            sb.AppendLine("This score measures how well the server's tool schemas are optimized for consumption by AI agents (LLMs).");
+            sb.AppendLine("**Evidence basis:** Deterministic schema and payload heuristics. Measured model-evaluation results, when enabled, are written as a separate companion artifact and are not blended into this score.");
             sb.AppendLine();
             sb.AppendLine("| Criterion | What It Measures |");
             sb.AppendLine("| :--- | :--- |");
@@ -562,8 +600,8 @@ public class MarkdownReportGenerator : IReportGenerator
                         result.ToolValidation.AiReadinessFindings,
                         ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation));
 
-                    sb.AppendLine("| Rule ID | Source | Coverage | Severity | Finding |");
-                    sb.AppendLine("| :--- | :--- | :--- | :---: | :--- |");
+                    sb.AppendLine("| Rule ID | Evidence Basis | Source | Coverage | Severity | Finding |");
+                    sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- |");
                     foreach (var finding in aiReadinessFindings)
                     {
                         var severity = finding.Severity switch
@@ -575,7 +613,8 @@ public class MarkdownReportGenerator : IReportGenerator
                             _ => "⚪ Info"
                         };
 
-                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severity} | {finding.Summary} |");
+                        var evidenceBasis = AiReadinessEvidenceKinds.ToDisplayLabel(finding.EvidenceKind, finding.RuleId);
+                        sb.AppendLine($"| `{finding.RuleId}` | {evidenceBasis} | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severity} | {finding.Summary} |");
                     }
                 }
                 else foreach (var issue in result.ToolValidation.AiReadinessIssues)
@@ -1426,6 +1465,62 @@ public class MarkdownReportGenerator : IReportGenerator
         ClientProfileRequirementOutcome.NotApplicable => "➖ Not applicable",
         _ => "ℹ️ Unknown"
     };
+
+    private static string BuildToolCatalogApplicabilityNote(ToolTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.";
+        }
+
+        return result.ToolsDiscovered == 0
+            ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+            : "Tool catalog details were unavailable for this report.";
+    }
+
+    private static string BuildResourceCatalogApplicabilityNote(ResourceTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.";
+        }
+
+        return result.ResourcesDiscovered == 0
+            ? "Resources capability was advertised, but resources/list returned an empty catalog; no resource reads were required."
+            : "Resource catalog details were unavailable for this report.";
+    }
+
+    private static string BuildPromptCatalogApplicabilityNote(PromptTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.";
+        }
+
+        return result.PromptsDiscovered == 0
+            ? "Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required."
+            : "Prompt catalog details were unavailable for this report.";
+    }
+
+    private static bool IsNotAdvertised(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("not advertised", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("does not advertise", StringComparison.OrdinalIgnoreCase));
+
+    private static void AppendSurfaceIssues(StringBuilder sb, IReadOnlyCollection<string> issues)
+    {
+        if (issues.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine();
+        sb.AppendLine("**Surface Notes:**");
+        foreach (var issue in issues)
+        {
+            sb.AppendLine($"- {issue}");
+        }
+    }
 
     private static string EscapeTableCell(string value)
     {

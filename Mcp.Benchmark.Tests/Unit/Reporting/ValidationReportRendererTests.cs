@@ -256,6 +256,57 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateReports_WithZeroCatalogs_ShouldUseApplicabilityLanguage()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-zero-catalogs",
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            ValidationConfig = new McpValidatorConfiguration
+            {
+                Reporting = new ReportingConfig { SpecProfile = "2025-11-25" }
+            },
+            OverallStatus = ValidationStatus.Passed,
+            ComplianceScore = 100,
+            ToolValidation = new ToolTestResult
+            {
+                Status = TestStatus.Skipped,
+                Score = 100,
+                Message = "Server does not advertise the tools capability.",
+                Issues = new List<string> { "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped." }
+            },
+            ResourceTesting = new ResourceTestResult
+            {
+                Status = TestStatus.Skipped,
+                Score = 100,
+                Message = "Server does not advertise the resources capability.",
+                Issues = new List<string> { "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped." }
+            },
+            PromptTesting = new PromptTestResult
+            {
+                Status = TestStatus.Skipped,
+                Score = 100,
+                Message = "Server does not advertise the prompts capability.",
+                Issues = new List<string> { "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped." }
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+        var junit = _renderer.GenerateJunitReport(result);
+
+        html.Should().Contain("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.");
+        html.Should().Contain("Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.");
+        html.Should().Contain("Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.");
+        html.Should().NotContain("Tools discovered 0; passed 0; failed 0.");
+        html.Should().NotContain("Resources discovered 0; accessible 0.");
+        html.Should().NotContain("Prompts discovered 0; passed 0; failed 0.");
+
+        junit.Should().Contain("Catalog Applicability: Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.");
+        junit.Should().Contain("Catalog Applicability: Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.");
+        junit.Should().Contain("Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_WithBootstrapHealth_ShouldIncludeConnectivitySection()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
@@ -492,13 +543,15 @@ public class ValidationReportRendererTests
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().Contain("Tool Catalog Advisory Breakdown");
-        html.Should().Contain("Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.");
-    html.Should().Contain("authority-summary-grid");
-    html.Should().Contain("authority-card__title\">Spec");
+        html.Should().Contain("Remaining tool-catalog debt grouped by specification, MCP guidance, and deterministic AI-oriented heuristics.");
+        html.Should().Contain("AI Readiness Evidence Basis");
+        html.Should().Contain("Deterministic schema and payload heuristics are reported separately from measured model-evaluation impact.");
+        html.Should().Contain("authority-summary-grid");
+        html.Should().Contain("authority-card__title\">Spec");
         html.Should().Contain("authority-card__metric-label\">Coverage");
-    html.Should().Contain("authority-card__title\">Guideline");
-    html.Should().Contain("authority-card__metric-value\">1/2 (50%)");
-    html.Should().Contain("authority-card__title\">Heuristic");
+        html.Should().Contain("authority-card__title\">Guideline");
+        html.Should().Contain("authority-card__metric-value\">1/2 (50%)");
+        html.Should().Contain("authority-card__title\">Heuristic");
     }
 
     [Fact]

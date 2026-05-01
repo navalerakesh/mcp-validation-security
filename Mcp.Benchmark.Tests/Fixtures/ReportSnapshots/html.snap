@@ -268,7 +268,8 @@ body {
 .decision-brief--tone-danger,
 .report-note--danger { border-left-color: var(--tone-danger); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.88)); }
 .decision-brief--tone-info,
-.report-note--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
+.report-note--info,
+.status-callout--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
 .decision-brief--tone-neutral,
 .report-note--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); }
 .decision-title {
@@ -2519,8 +2520,22 @@ a:hover {
           <div class="evidence-card">
             <div class="evidence-card__header">
               <div>
+                <div class="evidence-card__title">AI Readiness Evidence Basis</div>
+                <div class="evidence-card__subtle">Deterministic schema and payload heuristics are reported separately from measured model-evaluation impact.</div>
+              </div>
+              <span class="tone-chip tone-warning">No score</span>
+            </div>
+            <ul class="compact-list">
+              <li>Measured model-evaluation results, when enabled, are emitted as a separate companion artifact and do not change this deterministic score.</li>
+              <li>Deterministic schema heuristic: 1 finding(s).</li>
+            </ul>
+          </div>
+
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
                 <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
-                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and deterministic AI-oriented heuristics.</div>
               </div>
               <span class="tone-chip tone-info">2 tools</span>
             </div>
@@ -2654,6 +2669,36 @@ a:hover {
                 <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
               </tbody></table>
           </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="section">
+        <details class="section-card section-card--tone-success">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Prompt Surface</div>
+              <h2 class="section-title section-title--card">Prompt Capabilities</h2>
+              <p class="section-intro section-intro--card">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Passed</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="status-callout status-callout--info">
+            <div class="status-callout__title">Prompt catalog applicability</div>
+            <div class="status-callout__body">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</div>
+          </div>
+
           </div>
         </details>
       </section>

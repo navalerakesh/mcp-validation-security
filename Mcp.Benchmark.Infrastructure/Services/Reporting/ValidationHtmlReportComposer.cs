@@ -980,6 +980,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderSecurityDetails(result));
         sb.AppendLine(RenderToolDetails(result));
         sb.AppendLine(RenderResourceDetails(result));
+        sb.AppendLine(RenderPromptDetails(result));
         sb.AppendLine(RenderPerformanceDetails(result));
         sb.AppendLine(RenderAppendix(document));
         return sb.ToString();
@@ -1326,7 +1327,7 @@ internal sealed class ValidationHtmlReportComposer
 
     private static string RenderToolDetails(ValidationResult result)
     {
-        if (result.ToolValidation?.ToolResults?.Any() != true)
+        if (result.ToolValidation == null)
         {
             return string.Empty;
         }
@@ -1343,10 +1344,19 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderSectionCardOpen(
             "Tool Surface",
             "Tool Validation Details",
-            $"Tools discovered {tools.ToolsDiscovered}; passed {tools.ToolsTestPassed}; failed {tools.ToolsTestFailed}.",
+            tools.ToolResults.Any()
+                ? $"Tools discovered {tools.ToolsDiscovered}; passed {tools.ToolsTestPassed}; failed {tools.ToolsTestFailed}."
+                : BuildToolCatalogApplicabilityNote(tools),
             abstractItems,
             MapScoreTone(tools.Score),
             openByDefault: false));
+
+        if (!tools.ToolResults.Any())
+        {
+            sb.AppendLine(RenderSurfaceApplicabilityCallout("Tool catalog applicability", BuildToolCatalogApplicabilityNote(tools), tools.Issues));
+            sb.AppendLine(RenderSectionCardClose());
+            return sb.ToString();
+        }
 
         if (tools.AuthenticationSecurity != null)
         {
@@ -1356,6 +1366,7 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("          </div>");
         }
 
+        sb.AppendLine(RenderAiReadinessEvidenceBasis(tools));
         sb.AppendLine(RenderToolAuthorityBreakdown(tools));
         sb.AppendLine(RenderAiSafetyControlEvidence(tools));
 
@@ -1370,6 +1381,47 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              </tbody></table>");
         sb.AppendLine("          </div>");
         sb.AppendLine(RenderSectionCardClose());
+        return sb.ToString();
+    }
+
+    private static string RenderAiReadinessEvidenceBasis(ToolTestResult tools)
+    {
+        if (tools.AiReadinessScore < 0 && tools.AiReadinessFindings.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var groupedFindings = tools.AiReadinessFindings
+            .GroupBy(finding => AiReadinessEvidenceKinds.ToDisplayLabel(
+                finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var evidenceKind) ? evidenceKind : null,
+                finding.RuleId), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("          <div class=\"evidence-card\">");
+        sb.AppendLine("            <div class=\"evidence-card__header\">");
+        sb.AppendLine("              <div>");
+        sb.AppendLine("                <div class=\"evidence-card__title\">AI Readiness Evidence Basis</div>");
+        sb.AppendLine("                <div class=\"evidence-card__subtle\">Deterministic schema and payload heuristics are reported separately from measured model-evaluation impact.</div>");
+        sb.AppendLine("              </div>");
+        sb.AppendLine($"              {RenderToneChip(tools.AiReadinessScore >= 0 ? $"{tools.AiReadinessScore:F0}/100" : "No score", tools.AiReadinessFindings.Count > 0 ? HtmlReportTone.Warning : HtmlReportTone.Info)}");
+        sb.AppendLine("            </div>");
+        sb.AppendLine("            <ul class=\"compact-list\">");
+        sb.AppendLine("              <li>Measured model-evaluation results, when enabled, are emitted as a separate companion artifact and do not change this deterministic score.</li>");
+        if (groupedFindings.Count == 0)
+        {
+            sb.AppendLine("              <li>No active deterministic AI-readiness findings were recorded.</li>");
+        }
+        else
+        {
+            foreach (var group in groupedFindings)
+            {
+                sb.AppendLine($"              <li>{Encode(group.Key)}: {group.Count().ToString(CultureInfo.InvariantCulture)} finding(s).</li>");
+            }
+        }
+        sb.AppendLine("            </ul>");
+        sb.AppendLine("          </div>");
         return sb.ToString();
     }
 
@@ -1489,7 +1541,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("            <div class=\"evidence-card__header\">");
         sb.AppendLine("              <div>");
         sb.AppendLine("                <div class=\"evidence-card__title\">Tool Catalog Advisory Breakdown</div>");
-        sb.AppendLine("                <div class=\"evidence-card__subtle\">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>");
+        sb.AppendLine("                <div class=\"evidence-card__subtle\">Remaining tool-catalog debt grouped by specification, MCP guidance, and deterministic AI-oriented heuristics.</div>");
         sb.AppendLine("              </div>");
         sb.AppendLine($"              {RenderToneChip(toolCountLabel, HtmlReportTone.Info)}");
         sb.AppendLine("            </div>");
@@ -1541,7 +1593,7 @@ internal sealed class ValidationHtmlReportComposer
 
     private static string RenderResourceDetails(ValidationResult result)
     {
-        if (result.ResourceTesting?.ResourceResults?.Any() != true)
+        if (result.ResourceTesting == null)
         {
             return string.Empty;
         }
@@ -1557,16 +1609,127 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderSectionCardOpen(
             "Resource Surface",
             "Resource Capabilities",
-            $"Resources discovered {resources.ResourcesDiscovered}; accessible {resources.ResourcesAccessible}.",
+            resources.ResourceResults.Any()
+                ? $"Resources discovered {resources.ResourcesDiscovered}; accessible {resources.ResourcesAccessible}."
+                : BuildResourceCatalogApplicabilityNote(resources),
             abstractItems,
             resources.ResourcesTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success,
             openByDefault: false));
+
+        if (!resources.ResourceResults.Any())
+        {
+            sb.AppendLine(RenderSurfaceApplicabilityCallout("Resource catalog applicability", BuildResourceCatalogApplicabilityNote(resources), resources.Issues));
+            sb.AppendLine(RenderSectionCardClose());
+            return sb.ToString();
+        }
+
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
         sb.AppendLine("              <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Status</th></tr></thead><tbody>");
         foreach (var resource in resources.ResourceResults)
         {
             sb.AppendLine($"                <tr><td>{Encode(resource.ResourceName)}</td><td><code>{Encode(resource.ResourceUri)}</code></td><td>{Encode(resource.MimeType ?? "—")}</td><td>{Encode(resource.ContentSize?.ToString() ?? "—")}</td><td>{RenderToneChip(resource.Status.ToString(), MapTestTone(resource.Status))}</td></tr>");
+        }
+        sb.AppendLine("              </tbody></table>");
+        sb.AppendLine("          </div>");
+        sb.AppendLine(RenderSectionCardClose());
+        return sb.ToString();
+    }
+
+    private static string BuildToolCatalogApplicabilityNote(ToolTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.";
+        }
+
+        return result.ToolsDiscovered == 0
+            ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+            : "Tool catalog details were unavailable for this report.";
+    }
+
+    private static string BuildResourceCatalogApplicabilityNote(ResourceTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.";
+        }
+
+        return result.ResourcesDiscovered == 0
+            ? "Resources capability was advertised, but resources/list returned an empty catalog; no resource reads were required."
+            : "Resource catalog details were unavailable for this report.";
+    }
+
+    private static string BuildPromptCatalogApplicabilityNote(PromptTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.";
+        }
+
+        return result.PromptsDiscovered == 0
+            ? "Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required."
+            : "Prompt catalog details were unavailable for this report.";
+    }
+
+    private static bool IsNotAdvertised(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("not advertised", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("does not advertise", StringComparison.OrdinalIgnoreCase));
+
+    private static string RenderSurfaceApplicabilityCallout(string title, string body, IReadOnlyCollection<string> issues)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("          <div class=\"status-callout status-callout--info\">");
+        sb.AppendLine($"            <div class=\"status-callout__title\">{Encode(title)}</div>");
+        sb.AppendLine($"            <div class=\"status-callout__body\">{Encode(body)}</div>");
+        foreach (var issue in issues)
+        {
+            sb.AppendLine($"            <div class=\"status-callout__body\">{Encode(issue)}</div>");
+        }
+        sb.AppendLine("          </div>");
+        return sb.ToString();
+    }
+
+    private static string RenderPromptDetails(ValidationResult result)
+    {
+        if (result.PromptTesting == null)
+        {
+            return string.Empty;
+        }
+
+        var prompts = result.PromptTesting;
+        var abstractItems = new (string Label, string Value, HtmlReportTone Tone)[]
+        {
+            ("Discovered", prompts.PromptsDiscovered.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
+            ("Passed", prompts.PromptsTestPassed.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
+            ("Failed", prompts.PromptsTestFailed.ToString(CultureInfo.InvariantCulture), prompts.PromptsTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success)
+        };
+        var sb = new StringBuilder();
+        sb.AppendLine(RenderSectionCardOpen(
+            "Prompt Surface",
+            "Prompt Capabilities",
+            prompts.PromptResults.Any()
+                ? $"Prompts discovered {prompts.PromptsDiscovered}; passed {prompts.PromptsTestPassed}; failed {prompts.PromptsTestFailed}."
+                : BuildPromptCatalogApplicabilityNote(prompts),
+            abstractItems,
+            prompts.PromptsTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success,
+            openByDefault: false));
+
+        if (!prompts.PromptResults.Any())
+        {
+            sb.AppendLine(RenderSurfaceApplicabilityCallout("Prompt catalog applicability", BuildPromptCatalogApplicabilityNote(prompts), prompts.Issues));
+            sb.AppendLine(RenderSectionCardClose());
+            return sb.ToString();
+        }
+
+        sb.AppendLine("          <div class=\"table-shell\">");
+        sb.AppendLine("            <table class=\"data-table\">");
+        sb.AppendLine("              <thead><tr><th>Name</th><th>Status</th><th>Arguments</th><th>Execution Time</th><th>Issues</th></tr></thead><tbody>");
+        foreach (var prompt in prompts.PromptResults)
+        {
+            var issues = prompt.Issues.Count > 0 ? string.Join("; ", prompt.Issues) : "—";
+            sb.AppendLine($"                <tr><td><code>{Encode(prompt.PromptName)}</code></td><td>{RenderToneChip(prompt.Status.ToString(), MapTestTone(prompt.Status))}</td><td>{prompt.ArgumentsCount.ToString(CultureInfo.InvariantCulture)}</td><td>{prompt.ExecutionTimeMs:F2} ms</td><td>{Encode(issues)}</td></tr>");
         }
         sb.AppendLine("              </tbody></table>");
         sb.AppendLine("          </div>");

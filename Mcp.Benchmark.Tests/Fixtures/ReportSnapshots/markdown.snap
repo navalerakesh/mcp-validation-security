@@ -325,7 +325,7 @@ This table separates server-declared tool metadata from host-side controls that 
 
 ### Tool Catalog Advisory Breakdown
 
-Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or AI-oriented heuristics.
+Remaining tool-catalog debt is grouped by authority so MCP specification failures are not conflated with guidance or deterministic AI-oriented heuristics.
 
 | Authority | Active Rules | Coverage | Highest Severity | Representative Gaps |
 | :--- | :---: | :--- | :---: | :--- |
@@ -351,7 +351,13 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | :--- | :--- | :--- | :--- | :---: |
 | repo://snapshot/README.md | `repo://snapshot/README.md` | text/markdown | - | ✅ |
 
-## 15. Performance Metrics
+## 15. Prompt Capabilities
+
+**Prompts Discovered:** 0
+
+**Catalog Applicability:** Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.
+
+## 16. Performance Metrics
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
@@ -361,7 +367,7 @@ Coverage shows how prevalent each issue is across the discovered tool catalog so
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 120/120 successful | - |
 
-## 16. Recommendations
+## 17. Recommendations
 
 - 💡 Add destructive hints to write-capable tools.
 - 💡 Return the negotiated protocol version explicitly during initialize.

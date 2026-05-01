@@ -127,6 +127,42 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithZeroCatalogs_ShouldUseApplicabilityLanguage()
+    {
+        var result = BuildMinimalResult();
+        result.ToolValidation = new ToolTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the tools capability.",
+            Issues = new List<string> { "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped." }
+        };
+        result.ResourceTesting = new ResourceTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the resources capability.",
+            Issues = new List<string> { "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped." }
+        };
+        result.PromptTesting = new PromptTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the prompts capability.",
+            Issues = new List<string> { "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped." }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.");
+        report.Should().Contain("Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.");
+        report.Should().Contain("Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.");
+        report.Should().NotContain("0 tools discovered and validated");
+        report.Should().NotContain("0 resources discovered and validated");
+        report.Should().NotContain("0 prompts discovered and validated");
+    }
+
+    [Fact]
     public void GenerateReport_WithAttackSimulations_ShouldShowBlockedAndReflected()
     {
         var result = BuildMinimalResult();
@@ -433,6 +469,9 @@ public class MarkdownReportGeneratorTests
             var report = _generator.GenerateReport(result);
 
             report.Should().Contain("AI Readiness Assessment");
+            report.Should().Contain("**Evidence basis:** Deterministic schema and payload heuristics.");
+            report.Should().Contain("| Rule ID | Evidence Basis | Source | Coverage | Severity | Finding |");
+            report.Should().Contain("Deterministic schema heuristic");
             report.Should().Contain("2/5 (40%)");
             report.Should().NotContain("2/5 (40 %)");
             report.Should().Contain(ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
@@ -676,7 +715,7 @@ public class MarkdownReportGeneratorTests
 
         report.Should().Contain("[Spec] 1 protocol violation(s), led by MCP.TEST.FAILURE: Protocol contract failed.");
         report.Should().Contain("[Guideline/Skip] 1 scope(s) skipped by validator design, led by batch-processing: Batch envelopes are not advertised for this schema profile.");
-        report.Should().Contain("[Heuristic] 1 AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
+        report.Should().Contain("[Heuristic] 1 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
     }
 
     [Fact]

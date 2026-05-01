@@ -114,7 +114,7 @@ internal static class ExecutiveFindingSummaryBuilder
         if (aiReadinessFindings is { Count: > 0 })
         {
             var representative = aiReadinessFindings[0];
-            return $"[Heuristic] {aiReadinessFindings.Count} AI-readiness advisory signal(s), led by {representative.RuleId}: {representative.Summary}";
+            return $"[Heuristic] {aiReadinessFindings.Count} deterministic AI-readiness advisory signal(s), led by {representative.RuleId}: {representative.Summary}";
         }
 
         var heuristicDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Heuristic, blockingOnly: false);

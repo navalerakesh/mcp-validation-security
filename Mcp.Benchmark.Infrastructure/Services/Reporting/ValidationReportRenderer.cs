@@ -1708,6 +1708,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Tools Discovered: {result.ToolsDiscovered}",
             $"Tool Pass Count: {result.ToolsTestPassed}",
             $"Tool Fail Count: {result.ToolsTestFailed}");
+        if (result.ToolResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildToolCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.ToolResults.Select(tool => $"Tool {tool.ToolName}: {tool.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
@@ -1724,6 +1728,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Resources Discovered: {result.ResourcesDiscovered}",
             $"Resources Accessible: {result.ResourcesAccessible}",
             $"Resources Failed: {result.ResourcesTestFailed}");
+        if (result.ResourceResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildResourceCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.ResourceResults.Select(resource => $"Resource {resource.ResourceName ?? resource.ResourceUri}: {resource.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
@@ -1740,10 +1748,55 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Prompts Discovered: {result.PromptsDiscovered}",
             $"Prompts Passed: {result.PromptsTestPassed}",
             $"Prompts Failed: {result.PromptsTestFailed}");
+        if (result.PromptResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildPromptCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.PromptResults.Select(prompt => $"Prompt {prompt.PromptName}: {prompt.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
+
+    private static string BuildToolCatalogApplicabilityNote(ToolTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.";
+        }
+
+        return result.ToolsDiscovered == 0
+            ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+            : "Tool catalog details were unavailable for this report.";
+    }
+
+    private static string BuildResourceCatalogApplicabilityNote(ResourceTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.";
+        }
+
+        return result.ResourcesDiscovered == 0
+            ? "Resources capability was advertised, but resources/list returned an empty catalog; no resource reads were required."
+            : "Resource catalog details were unavailable for this report.";
+    }
+
+    private static string BuildPromptCatalogApplicabilityNote(PromptTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.";
+        }
+
+        return result.PromptsDiscovered == 0
+            ? "Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required."
+            : "Prompt catalog details were unavailable for this report.";
+    }
+
+    private static bool IsNotAdvertised(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("not advertised", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("does not advertise", StringComparison.OrdinalIgnoreCase));
 
     private static string? BuildSecurityDetails(SecurityTestResult? result)
     {

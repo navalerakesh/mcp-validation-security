@@ -159,7 +159,12 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                     Severity = ValidationFindingSeverity.High,
                     Summary = $"⚠️ tools/list response is ~{estimatedTokenCount:N0} tokens — exceeds typical 32k context window. AI agents may truncate tool metadata.",
                     Recommendation = "Reduce tool discovery payload size or split metadata so large servers remain usable by agents.",
-                    Metadata = { ["tokenCount"] = estimatedTokenCount.ToString() }
+                    Metadata =
+                    {
+                        ["tokenCount"] = estimatedTokenCount.ToString(),
+                        [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicPayloadHeuristic,
+                        [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
+                    }
                 });
                 score = Math.Max(0, score - 10);
             }
@@ -173,7 +178,12 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                     Severity = ValidationFindingSeverity.Low,
                     Summary = $"ℹ️ tools/list response is ~{estimatedTokenCount:N0} tokens — consider reducing descriptions for token efficiency.",
                     Recommendation = "Trim overly long descriptions and examples to improve agent discovery efficiency.",
-                    Metadata = { ["tokenCount"] = estimatedTokenCount.ToString() }
+                    Metadata =
+                    {
+                        ["tokenCount"] = estimatedTokenCount.ToString(),
+                        [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicPayloadHeuristic,
+                        [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
+                    }
                 });
             }
         }
@@ -283,7 +293,9 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 {
                     ["score"] = score.ToString(),
                     ["grade"] = grade,
-                    ["messagePreview"] = Truncate(textLower, 120)
+                    ["messagePreview"] = Truncate(textLower, 120),
+                    [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicErrorHeuristic,
+                    [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
                 }
             },
             SupportingIssues = score < 70 ? insights.Take(2).ToList() : Array.Empty<string>()
@@ -304,7 +316,12 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
             Component = component,
             Severity = severity,
             Summary = summary,
-            Recommendation = recommendation
+            Recommendation = recommendation,
+            Metadata =
+            {
+                [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicSchemaHeuristic,
+                [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
+            }
         });
     }
 

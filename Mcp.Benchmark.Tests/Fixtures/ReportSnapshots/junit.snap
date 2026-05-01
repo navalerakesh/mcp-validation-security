@@ -154,11 +154,13 @@ Resource repo://snapshot/README.md: Passed</system-out>
       <skipped message="Server does not advertise prompts capability.">Message: Server does not advertise prompts capability.
 Prompts Discovered: 0
 Prompts Passed: 0
-Prompts Failed: 0</skipped>
+Prompts Failed: 0
+Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</skipped>
       <system-out>Message: Server does not advertise prompts capability.
 Prompts Discovered: 0
 Prompts Passed: 0
-Prompts Failed: 0</system-out>
+Prompts Failed: 0
+Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="security-testing" tests="1" failures="1" errors="0" skipped="0" time="2.600" timestamp="2026-04-20T10:00:00.0000000Z">
