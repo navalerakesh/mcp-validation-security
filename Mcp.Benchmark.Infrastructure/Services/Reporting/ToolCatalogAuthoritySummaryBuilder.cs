@@ -5,7 +5,13 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class ToolCatalogAuthoritySummaryBuilder
 {
-    private static readonly string[] AuthorityOrder = new[] { "spec", "guideline", "heuristic" };
+    private static readonly ValidationRuleSource[] AuthorityOrder =
+    {
+        ValidationRuleSource.Spec,
+        ValidationRuleSource.Guideline,
+        ValidationRuleSource.Heuristic,
+        ValidationRuleSource.Unspecified
+    };
 
     public static IReadOnlyList<ToolCatalogAuthoritySummary> Build(ToolTestResult? tools)
     {
@@ -40,6 +46,7 @@ internal static class ToolCatalogAuthoritySummaryBuilder
                 StringComparer.OrdinalIgnoreCase);
 
         return AuthorityOrder
+            .Select(authoritySource => ValidationAuthorityHierarchy.GetMachineLabel(authoritySource))
             .Select(authority => BuildSummary(
                 authority,
                 totalComponents,
@@ -94,7 +101,7 @@ internal static class ToolCatalogAuthoritySummaryBuilder
     private static string NormalizeAuthority(string? sourceLabel)
     {
         return string.IsNullOrWhiteSpace(sourceLabel)
-            ? "unspecified"
+            ? ValidationAuthorityHierarchy.GetMachineLabel(ValidationRuleSource.Unspecified)
             : sourceLabel.Trim().ToLowerInvariant();
     }
 }

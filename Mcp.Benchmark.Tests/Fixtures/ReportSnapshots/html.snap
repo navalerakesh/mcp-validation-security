@@ -1562,8 +1562,8 @@ a:hover {
               </div>
               <ul class="compact-list">
                 <li>9 blocking signal(s) remain under Strict policy.</li>
-                <li>Execution</li>
-                <li>MCP.SECURITY.PROMPT_INJECTION</li>
+                <li>MCP.INIT.VERSION_NEGOTIATION</li>
+                <li>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</li>
                 <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
               </ul>
             </div>
@@ -1572,10 +1572,11 @@ a:hover {
               <section class="report-note report-note--warning">
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
+                <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
                 <ul class="compact-list">
                   <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
+                  <li>[Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
-                  <li>[Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.</li>
                 </ul>
               </section>
 
@@ -1584,7 +1585,7 @@ a:hover {
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
                   <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
-                  <li>[Heuristic] Security: Sanitize and label untrusted content before returning it.</li>
+                  <li>[Guideline] McpGuideline: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
                 </ul>
               </section>
@@ -1625,24 +1626,76 @@ a:hover {
           <div class="dual-grid">
             <div>
               <h3 class="minor-title">Decision Themes</h3>
+              <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
-                    <div class="ledger-title">Execution</div>
-                    <div class="ledger-subtle">Execution</div>
+                    <div class="ledger-title">MCP.INIT.VERSION_NEGOTIATION</div>
+                    <div class="ledger-subtle">Initialization</div>
                     <div class="ledger-chip-row">
                       <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Operational resilience</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> validation-run</div>
+                    <p class="ledger-copy">Server ignored the requested MCP protocol version.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 1 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> Initialization</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.INIT.VERSION_NEGOTIATION</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
                     <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">validation-run</div></div>
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Initialization</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Echo the negotiated protocol version in initialize.result.</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--warning">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP.TOOL.CALL.RESULT_OBJECT_MISSING</div>
+                    <div class="ledger-subtle">ProtocolCompliance</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-warning">Review Required</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">One tool response omitted the outer result object.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; 1 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> tools/call</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code></div>
+                    <div class="summary-grid">
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">tools/call</div></div>
+                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--danger">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
+                    <div class="ledger-subtle">McpGuideline</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-danger">Review Required</span>
+                      <span class="tone-chip tone-info">guideline</span>
+                      <span class="tag">Unsafe autonomy</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> guideline &#183; heuristic inference &#183; 2 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
+                    <div class="summary-grid">
+                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
+                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint, obs-tool-delete-repo</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1659,12 +1712,15 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Server reflected untrusted prompt content without sanitization.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation &#183; 2 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.SECURITY.PROMPT_INJECTION</code></div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization, probe:probe-prompt-get-reflection-200</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Prompt response reflected untrusted content.</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize and label untrusted content before returning it.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1681,54 +1737,13 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Prompt output includes reflected untrusted content.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 1 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.INIT.VERSION_NEGOTIATION</div>
-                    <div class="ledger-subtle">Initialization</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">spec</span>
-                      <span class="tag">Protocol interoperability</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Server ignored the requested MCP protocol version.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> Initialization</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.INIT.VERSION_NEGOTIATION</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Initialization</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
-                    <div class="ledger-subtle">McpGuideline</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Review Required</span>
-                      <span class="tone-chip tone-info">guideline</span>
-                      <span class="tag">Unsafe autonomy</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> guideline &#183; heuristic inference</div>
-                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</div></div>
+                <div class="summary-card"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize or clearly label untrusted data.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1745,12 +1760,14 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 2 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</code></div>
                     <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
                 <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions, obs-tool-delete-repo</div></div>
+                <div class="summary-card"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1773,15 +1790,15 @@ a:hover {
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 2</div>
                 </article>
                 <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">Operations</div>
-                  <h3 class="report-note__title">validation-run</h3>
-                  <p class="report-note__empty">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
-                </article>
-                <article class="report-note report-note--danger">
                   <div class="report-note__eyebrow">Protocol</div>
                   <h3 class="report-note__title">Initialization</h3>
                   <p class="report-note__empty">Server ignored the requested MCP protocol version.</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
+                </article>
+                <article class="report-note report-note--danger">
+                  <div class="report-note__eyebrow">Operations</div>
+                  <h3 class="report-note__title">validation-run</h3>
+                  <p class="report-note__empty">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
                 <article class="report-note report-note--warning">
@@ -1869,6 +1886,11 @@ a:hover {
               <div class="score-pill__value">81.4%</div>
               <div class="score-pill__meta">Descriptive benchmarking signal</div>
             </div>
+            <div class="score-pill score-pill--success">
+              <div class="score-pill__eyebrow">Evidence Confidence</div>
+              <div class="score-pill__value">91.9%</div>
+              <div class="score-pill__meta">High; coverage 87.5%</div>
+            </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Trust Profile</div>
               <div class="score-pill__value">L3</div>
@@ -1920,7 +1942,7 @@ a:hover {
                   <td><div class="cell-title">Security</div></td>
                   <td><span class="tone-chip tone-danger">69%</span></td>
                   <td>1 blocking / 1 total</td>
-                  <td>1 vulnerability finding(s) &#183; 0 attack simulation(s)</td>
+                  <td>1 vulnerability finding(s) &#183; 1 attack simulation(s)</td>
                   <td>Prompt output includes reflected untrusted content.</td>
                   <td>Sanitize and label untrusted content before returning it.</td>
                 </tr>
@@ -1929,7 +1951,7 @@ a:hover {
                   <td><span class="tone-chip tone-danger">75%</span></td>
                   <td>3 blocking / 3 total</td>
                   <td>1 schema finding(s) &#183; 1 boundary finding(s) &#183; 0 content-safety finding(s)</td>
-                  <td>Server reflected untrusted prompt content without sanitization.</td>
+                  <td>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</td>
                   <td>Sanitize or clearly label untrusted data.</td>
                 </tr>
                 <tr>
@@ -2033,7 +2055,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Layers</div><div class="section-abstract__value">4</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Scenarios</div><div class="section-abstract__value">3</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Scenarios</div><div class="section-abstract__value">4</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Coverage Declarations</div><div class="section-abstract__value">8</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Applied Packs</div><div class="section-abstract__value">4</div></div>
             </div>
@@ -2056,15 +2078,26 @@ a:hover {
           </div>
           <div class="table-shell">
             <table class="data-table">
-              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-info">Skipped</span></td><td>Server does not advertise prompts capability.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><code>github-copilot-cli,github-copilot-cloud-agent</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>
+                <tr><td><code>client-profiles</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>error-handling</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>prompt-surface</code></td><td>0.0%</td><td>Low (35.0%)</td><td>0</td><td>0</td><td>0</td><td>1</td><td>0</td></tr>
+                <tr><td><code>protocol-core</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>security-boundaries</code></td><td>100.0%</td><td>High (100.0%)</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                <tr><td><code>tool-surface</code></td><td>100.0%</td><td>High (100.0%)</td><td>2</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+              </tbody></table>
+          </div>
+          <div class="table-shell">
+            <table class="data-table">
+              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>
+                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-info">Skipped</span></td><td><code>None</code></td><td>None</td><td>-</td><td>Server does not advertise prompts capability.</td></tr>
+                <tr><td><code>client-profiles</code></td><td><code>github-copilot-cli,github-copilot-cloud-agent</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
+                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td><code>None</code></td><td>None</td><td>-</td><td>-</td></tr>
               </tbody></table>
           </div>
           <div class="ledger-group">
@@ -2119,6 +2152,7 @@ a:hover {
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
                 <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Discovery and first invocation completed with expected metadata.</td></tr>
                 <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Authentication challenge completed under deferred bootstrap review.</td></tr>
+                <tr><td><code>security-attack-simulations</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 1 attack simulation(s).</td></tr>
                 <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
               </tbody></table>
           </div>
@@ -2131,6 +2165,7 @@ a:hover {
                 <tr><td><code>obs-init-401</code></td><td><code>protocol-core</code></td><td><code>initialize</code></td><td><code>handshake-response</code></td><td>401 Unauthorized — bootstrap encountered an authentication challenge.</td></tr>
                 <tr><td><code>obs-tool-delete-repo</code></td><td><code>tool-surface</code></td><td><code>delete_repo</code></td><td><code>tool-metadata</code></td><td>Tool metadata missing annotations.destructiveHint.</td></tr>
                 <tr><td><code>auth-unauthorized-tools-list-challenge</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>Returned 401 with WWW-Authenticate.</td></tr>
+                <tr><td><code>attack-mcp-sec-001</code></td><td><code>security-boundaries</code></td><td><code>MCP-SEC-001</code></td><td><code>attack-simulation</code></td><td>Rejected injected argument with JSON-RPC error -32602.</td></tr>
               </tbody></table>
           </div>
           </div>
@@ -2235,8 +2270,8 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Security Score</div><div class="section-abstract__value">69.0%</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">1</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2246,6 +2281,90 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
+          <div class="ledger-group">
+            <h3 class="minor-title">Authentication Scenarios</h3>
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Authentication Outcome Distribution</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--success">
+                <div class="distribution-card__label">Aligned</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Aligned 1 (100%)</span>
+            </div>
+          </div>
+
+            <div class="auth-surface-list">
+              <section class="auth-surface">
+                <div class="auth-surface__header">
+                  <div>
+                    <div class="ledger-kicker">Test surface</div>
+                    <div class="auth-surface__title">tools/list</div>
+                    <div class="auth-surface__meta">1 scenarios &#183; 1 aligned</div>
+                  </div>
+                  <div class="ledger-chip-row">
+                    <span class="tone-chip tone-success">1 aligned</span>
+                  </div>
+                </div>
+                <div class="auth-scenario-list">
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">No Auth</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> 401 Unauthorized with challenge</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 401</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer resource_metadata=&quot;https://snapshot.example.test/.well-known/oauth-protected-resource&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Returned 401 with WWW-Authenticate.</div></div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="ledger-group">
+            <h3 class="minor-title">Attack Simulation Outcomes</h3>
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Attack Outcome Distribution</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--success">
+                <div class="distribution-card__label">Blocked</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Blocked 1 (100%)</span>
+            </div>
+          </div>
+
+            <div class="ledger-list">
+              <article class="ledger-entry ledger-entry--success">
+                <div class="ledger-rail">
+                  <div class="ledger-title">MCP-SEC-001</div>
+                  <span class="tone-chip tone-success">Blocked</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">JSON-RPC Error Smuggling</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>Rejected injected argument with JSON-RPC error -32602.</code></div>
+                </div>
+              </article>
+            </div>
+          </div>
           </div>
         </details>
       </section>
@@ -2368,6 +2487,43 @@ a:hover {
                   <li>Tool &#39;delete_repo&#39; has parameters without descriptions.</li>
                 </ul>
               </article>
+              <article class="authority-card authority-card--neutral">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Operational</div>
+                  </div>
+                  <span class="tone-chip tone-neutral">0 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">0/2 (0%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">None</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>No current catalog-wide tool advisories.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <div class="ledger-group">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">AI Safety Controls</p>
+                <h3>Consent & Human-Control Evidence</h3>
+              </div>
+              <p class="evidence-note">Server-declared tool metadata is separated from host controls that are not directly observable.</p>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead><tr><th>Control</th><th>Declared</th><th>Missing</th><th>Not Observable</th><th>Not Applicable</th><th>Representative Note</th></tr></thead><tbody>
+                <tr><td>User confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.</td></tr>
+                <tr><td>Audit trail</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Audit trail behavior is not observable from tool metadata for this potentially destructive tool.</td></tr>
+                <tr><td>Data-sharing disclosure</td><td>0</td><td>2</td><td>0</td><td>0</td><td>Tool metadata does not declare open-world/data-sharing behavior.</td></tr>
+                <tr><td>Destructive-action confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Destructive action confirmation guidance is missing from tool metadata.</td></tr>
+                <tr><td>Host/server responsibility split</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.</td></tr>
+                </tbody></table>
             </div>
           </div>
 
@@ -2473,7 +2629,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">2</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2487,6 +2643,7 @@ a:hover {
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
+                <li>Add destructive hints to write-capable tools.</li>
                 <li>Return the negotiated protocol version explicitly during initialize.</li>
               </ul>
             </div>

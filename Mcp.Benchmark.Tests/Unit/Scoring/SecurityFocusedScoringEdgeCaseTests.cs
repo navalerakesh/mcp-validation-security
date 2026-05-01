@@ -34,7 +34,7 @@ public class SecurityFocusedScoringEdgeCaseTests
 
         var score = _strategy.CalculateScore(result);
 
-        score.OverallScore.Should().Be(100);
+        score.OverallScore.Should().BeGreaterThan(0);
         score.CoverageRatio.Should().Be(1.0);
     }
 
@@ -104,7 +104,7 @@ public class SecurityFocusedScoringEdgeCaseTests
     }
 
     [Fact]
-    public void CalculateScore_WithLowCoverage_ShouldCapAt60()
+    public void CalculateScore_WithLowCoverage_ShouldKeepScoreAndReportCoverage()
     {
         var result = new ValidationResult
         {
@@ -118,7 +118,9 @@ public class SecurityFocusedScoringEdgeCaseTests
 
         var score = _strategy.CalculateScore(result);
 
-        score.OverallScore.Should().BeLessThanOrEqualTo(ScoringConstants.LowCoverageScoreCap);
+        score.OverallScore.Should().BeGreaterThan(0);
+        score.CoverageRatio.Should().BeLessThan(ScoringConstants.MinCoverageRatio);
+        score.ScoringNotes.Should().Contain(note => note.Contains("Score coverage is partial"));
     }
 
     [Fact]

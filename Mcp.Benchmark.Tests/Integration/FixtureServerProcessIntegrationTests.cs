@@ -188,7 +188,7 @@ public class FixtureServerProcessIntegrationTests
         return new ToolValidator(
             new Mock<ILogger<ToolValidator>>().Object,
             client,
-            new Mock<ISchemaValidator>().Object,
+            new JsonSchemaValidator(),
             schemaRegistry.Object,
             new Mock<IAuthenticationService>().Object,
             contentSafetyAnalyzer.Object,

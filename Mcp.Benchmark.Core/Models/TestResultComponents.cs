@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Mcp.Benchmark.Core.Models;
 
 /// <summary>
@@ -260,6 +262,12 @@ public class SecurityVulnerability
     /// Gets or sets whether this vulnerability is exploitable.
     /// </summary>
     public bool IsExploitable { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the probe contexts that produced this vulnerability finding.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ProbeContext>? ProbeContexts { get; set; }
 }
 
 /// <summary>
@@ -342,6 +350,12 @@ public class AttackSimulationResult
     /// Gets or sets any evidence or details from the attack simulation.
     /// </summary>
     public Dictionary<string, object> Evidence { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the probe contexts that produced this attack simulation result.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ProbeContext>? ProbeContexts { get; set; }
 }
 
 /// <summary>

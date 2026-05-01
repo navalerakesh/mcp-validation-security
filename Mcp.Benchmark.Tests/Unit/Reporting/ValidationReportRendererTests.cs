@@ -134,6 +134,18 @@ public class ValidationReportRendererTests
         results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
             .GetProperty("properties").GetProperty("authority").GetString().Should().Be("heuristic");
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
+            .GetProperty("properties").GetProperty("authorityPriority").GetInt32().Should().Be(0);
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
+            .GetProperty("properties").GetProperty("authorityPriority").GetInt32().Should().Be(1);
+
+        results.EnumerateArray()
+            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
+            .GetProperty("properties").GetProperty("authorityLegend").GetString().Should().Contain("Authority order");
     }
 
     [Fact]
@@ -194,7 +206,7 @@ public class ValidationReportRendererTests
         var root = document.Root;
         root.Should().NotBeNull();
         root!.Name.LocalName.Should().Be("testsuites");
-        root.Attribute("tests")!.Value.Should().Be("9");
+        root.Attribute("tests")!.Value.Should().Be("17");
 
         var policySuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "host-policy");
         policySuite.Attribute("failures")!.Value.Should().Be("1");
@@ -205,6 +217,12 @@ public class ValidationReportRendererTests
 
         var promptSuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "prompt-testing");
         promptSuite.Attribute("skipped")!.Value.Should().Be("1");
+
+        var coverageSuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "evidence-coverage");
+        coverageSuite.Attribute("tests")!.Value.Should().Be("8");
+        coverageSuite.Attribute("skipped")!.Value.Should().Be("1");
+        var promptCoverageCase = coverageSuite.Elements("testcase").Single(testCase => testCase.Attribute("name")!.Value == "Coverage: prompt-surface/prompts/list");
+        promptCoverageCase.Element("skipped")!.Value.Should().Contain("EvidenceId: coverage:prompt-surface:prompts-list:Skipped");
 
         var securitySuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "security-testing");
         securitySuite.Elements("testcase").Single().Element("failure")!.Value.Should().Contain("MCP.SECURITY.PROMPT_INJECTION");
@@ -220,6 +238,35 @@ public class ValidationReportRendererTests
         html.Should().Contain("Connectivity &amp; Session Bootstrap");
         html.Should().Contain("Protected endpoint");
         html.Should().Contain("Deferred Validation");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithMixedEvidenceConfidence_ShouldRenderLayerConfidenceSummary()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-confidence",
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            ValidationConfig = new McpValidatorConfiguration
+            {
+                Reporting = new ReportingConfig { SpecProfile = "2025-11-25" }
+            },
+            OverallStatus = ValidationStatus.Passed,
+            ComplianceScore = 90
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "tool-surface",
+            Scope = "tools/list",
+            Status = ValidationCoverageStatus.Covered,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Only partial parser-boundary evidence was available."
+        });
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("<th>Coverage</th><th>Confidence</th>");
+        html.Should().Contain("<code>tool-surface</code></td><td>100.0%</td><td>Low (35.0%)</td>");
     }
 
     [Fact]

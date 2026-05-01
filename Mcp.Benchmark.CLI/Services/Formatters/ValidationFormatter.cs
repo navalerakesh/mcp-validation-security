@@ -237,6 +237,8 @@ public static class ValidationFormatter
                 TestStatus.Passed => ConsoleColor.Green,
                 TestStatus.Failed => ConsoleColor.Red,
                 TestStatus.Error => ConsoleColor.Red,
+                TestStatus.AuthRequired => ConsoleColor.Yellow,
+                TestStatus.Inconclusive => ConsoleColor.Yellow,
                 TestStatus.Skipped => ConsoleColor.DarkGray,
                 _ => ConsoleColor.Gray
             };
@@ -321,7 +323,7 @@ public static class ValidationFormatter
 
     private static bool IsAuthenticationLimitedSkip(TestResultBase? testResult, bool explicitAuthEvidence = false)
     {
-        if (testResult?.Status != TestStatus.Skipped)
+        if (testResult?.Status is not (TestStatus.Skipped or TestStatus.AuthRequired))
         {
             return false;
         }
@@ -541,7 +543,7 @@ public static class ValidationFormatter
 
     private static string FormatScoreText(object testResult, TestStatus status, double? score)
     {
-        if (status == TestStatus.Skipped)
+        if (status is TestStatus.Skipped or TestStatus.AuthRequired or TestStatus.Inconclusive)
         {
             return "-";
         }

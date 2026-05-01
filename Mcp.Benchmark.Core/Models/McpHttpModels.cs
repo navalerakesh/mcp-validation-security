@@ -26,6 +26,8 @@ public class JsonRpcResponse
     public string? Error { get; set; }
     public Dictionary<string, string> Headers { get; set; } = new();
 
+    public ProbeContext? ProbeContext { get; set; }
+
     /// <summary>
     /// Gets or sets the time taken by the underlying HTTP request/response
     /// cycle in milliseconds, excluding client-side backoff delays and

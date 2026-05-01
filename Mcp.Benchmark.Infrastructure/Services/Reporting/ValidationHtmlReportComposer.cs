@@ -300,6 +300,7 @@ internal sealed class ValidationHtmlReportComposer
         var sb = new StringBuilder();
         sb.AppendLine("            <div>");
         sb.AppendLine("              <h3 class=\"minor-title\">Decision Themes</h3>");
+        sb.AppendLine($"              <p class=\"evidence-note\">{Encode(ValidationAuthorityHierarchy.Legend)}</p>");
         sb.AppendLine("              <div class=\"ledger-list\">");
 
         foreach (var item in items)
@@ -425,6 +426,10 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine($"              <section class=\"report-note report-note--{toneCss}\">");
         sb.AppendLine($"                <div class=\"report-note__eyebrow\">{Encode(eyebrow)}</div>");
         sb.AppendLine($"                <h3 class=\"report-note__title\">{Encode(title)}</h3>");
+        if (string.Equals(title, "Priority Findings", StringComparison.Ordinal))
+        {
+            sb.AppendLine($"                <p class=\"evidence-note\">{Encode(ValidationAuthorityHierarchy.Legend)}</p>");
+        }
         if (items.Count == 0)
         {
             sb.AppendLine($"                <p class=\"report-note__empty\">{Encode("No elevated signals were recorded for this lane.")}</p>");
@@ -745,12 +750,26 @@ internal sealed class ValidationHtmlReportComposer
 
         if (result.Evidence.Coverage.Count > 0)
         {
+            var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+            if (evidenceSummary.Categories.Count > 0)
+            {
+                sb.AppendLine("          <div class=\"table-shell\">");
+                sb.AppendLine("            <table class=\"data-table\">");
+                sb.AppendLine("              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>");
+                foreach (var category in evidenceSummary.Categories)
+                {
+                    sb.AppendLine($"                <tr><td><code>{Encode(category.LayerId)}</code></td><td>{(category.EvidenceCoverageRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%</td><td>{Encode(category.ConfidenceLevel.ToString())} ({(category.EvidenceConfidenceRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%)</td><td>{category.Covered.ToString(CultureInfo.InvariantCulture)}</td><td>{category.AuthRequired.ToString(CultureInfo.InvariantCulture)}</td><td>{category.Inconclusive.ToString(CultureInfo.InvariantCulture)}</td><td>{category.Skipped.ToString(CultureInfo.InvariantCulture)}</td><td>{(category.Blocked + category.Unavailable).ToString(CultureInfo.InvariantCulture)}</td></tr>");
+                }
+                sb.AppendLine("              </tbody></table>");
+                sb.AppendLine("          </div>");
+            }
+
             sb.AppendLine("          <div class=\"table-shell\">");
             sb.AppendLine("            <table class=\"data-table\">");
-            sb.AppendLine("              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>");
+            sb.AppendLine("              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>");
             foreach (var coverage in result.Evidence.Coverage)
             {
-                sb.AppendLine($"                <tr><td><code>{Encode(coverage.LayerId)}</code></td><td><code>{Encode(coverage.Scope)}</code></td><td>{RenderToneChip(coverage.Status.ToString(), MapCoverageTone(coverage.Status))}</td><td>{Encode(coverage.Reason ?? "-")}</td></tr>");
+                sb.AppendLine($"                <tr><td><code>{Encode(coverage.LayerId)}</code></td><td><code>{Encode(coverage.Scope)}</code></td><td>{RenderToneChip(coverage.Status.ToString(), MapCoverageTone(coverage.Status))}</td><td><code>{Encode(coverage.Blocker.ToString())}</code></td><td>{Encode(coverage.Confidence.ToString())}</td><td>{Encode(FormatProbeContext(coverage.ProbeContext))}</td><td>{Encode(coverage.Reason ?? "-")}</td></tr>");
             }
             sb.AppendLine("              </tbody></table>");
             sb.AppendLine("          </div>");
@@ -817,10 +836,46 @@ internal sealed class ValidationHtmlReportComposer
         return status switch
         {
             ValidationCoverageStatus.Covered => HtmlReportTone.Success,
+            ValidationCoverageStatus.AuthRequired => HtmlReportTone.Warning,
+            ValidationCoverageStatus.Inconclusive => HtmlReportTone.Warning,
             ValidationCoverageStatus.Skipped => HtmlReportTone.Info,
             ValidationCoverageStatus.NotApplicable => HtmlReportTone.Neutral,
             ValidationCoverageStatus.Blocked => HtmlReportTone.Warning,
             _ => HtmlReportTone.Warning
+        };
+    }
+
+    private static string FormatProbeContext(ProbeContext? probeContext)
+    {
+        if (probeContext == null)
+        {
+            return "-";
+        }
+
+        var method = string.IsNullOrWhiteSpace(probeContext.Method) ? "probe" : probeContext.Method;
+        var transport = string.IsNullOrWhiteSpace(probeContext.Transport) ? "unknown" : probeContext.Transport;
+        var statusCode = probeContext.StatusCode.HasValue
+            ? $" HTTP {probeContext.StatusCode.Value.ToString(CultureInfo.InvariantCulture)}"
+            : string.Empty;
+
+        return $"{method} ({transport}) {probeContext.ResponseClassification}{statusCode}";
+    }
+
+    private static int CountStatus(IEnumerable<AiSafetyControlEvidence> evidence, AiSafetyControlStatus status)
+    {
+        return evidence.Count(item => item.Status == status);
+    }
+
+    private static string FormatControlKind(AiSafetyControlKind controlKind)
+    {
+        return controlKind switch
+        {
+            AiSafetyControlKind.UserConfirmation => "User confirmation",
+            AiSafetyControlKind.AuditTrail => "Audit trail",
+            AiSafetyControlKind.DataSharingDisclosure => "Data-sharing disclosure",
+            AiSafetyControlKind.DestructiveActionConfirmation => "Destructive-action confirmation",
+            AiSafetyControlKind.HostServerResponsibilitySplit => "Host/server responsibility split",
+            _ => controlKind.ToString()
         };
     }
 
@@ -1170,6 +1225,7 @@ internal sealed class ValidationHtmlReportComposer
                     _ => ("Reflected", HtmlReportTone.Warning)
                 };
                 var response = string.IsNullOrWhiteSpace(attack.ServerResponse) ? "—" : attack.ServerResponse.Replace("\n", " ");
+                var probeContext = attack.ProbeContexts?.FirstOrDefault();
                 sb.AppendLine($"              <article class=\"ledger-entry ledger-entry--{ValidationHtmlReportTheme.ToCssTone(resultTone)}\">");
                 sb.AppendLine("                <div class=\"ledger-rail\">");
                 sb.AppendLine($"                  <div class=\"ledger-title\">{Encode(attack.AttackVector)}</div>");
@@ -1177,6 +1233,11 @@ internal sealed class ValidationHtmlReportComposer
                 sb.AppendLine("                </div>");
                 sb.AppendLine("                <div class=\"ledger-body\">");
                 sb.AppendLine($"                  <p class=\"ledger-copy\">{Encode(attack.Description)}</p>");
+                if (probeContext != null)
+                {
+                    var suffix = attack.ProbeContexts!.Count > 1 ? $" (+{attack.ProbeContexts.Count - 1})" : string.Empty;
+                    sb.AppendLine($"                  <div class=\"ledger-code-block\"><strong>Probe</strong><code>{Encode(FormatProbeContext(probeContext) + suffix)}</code></div>");
+                }
                 sb.AppendLine($"                  <div class=\"ledger-code-block\"><strong>Server response</strong><code>{Encode(response)}</code></div>");
                 sb.AppendLine("                </div>");
                 sb.AppendLine("              </article>");
@@ -1238,6 +1299,7 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         sb.AppendLine(RenderToolAuthorityBreakdown(tools));
+        sb.AppendLine(RenderAiSafetyControlEvidence(tools));
 
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
@@ -1250,6 +1312,41 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              </tbody></table>");
         sb.AppendLine("          </div>");
         sb.AppendLine(RenderSectionCardClose());
+        return sb.ToString();
+    }
+
+    private static string RenderAiSafetyControlEvidence(ToolTestResult tools)
+    {
+        if (tools.AiSafetyControlEvidence.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var sb = new StringBuilder();
+        sb.AppendLine("          <div class=\"ledger-group\">");
+        sb.AppendLine("            <div class=\"section-heading\">");
+        sb.AppendLine("              <div>");
+        sb.AppendLine("                <p class=\"section-kicker\">AI Safety Controls</p>");
+        sb.AppendLine("                <h3>Consent & Human-Control Evidence</h3>");
+        sb.AppendLine("              </div>");
+        sb.AppendLine("              <p class=\"evidence-note\">Server-declared tool metadata is separated from host controls that are not directly observable.</p>");
+        sb.AppendLine("            </div>");
+        sb.AppendLine("            <div class=\"table-shell\">");
+        sb.AppendLine("              <table class=\"data-table\">");
+        sb.AppendLine("                <thead><tr><th>Control</th><th>Declared</th><th>Missing</th><th>Not Observable</th><th>Not Applicable</th><th>Representative Note</th></tr></thead><tbody>");
+
+        foreach (var group in tools.AiSafetyControlEvidence.GroupBy(item => item.ControlKind).OrderBy(group => group.Key))
+        {
+            var entries = group.ToList();
+            var representative = entries.FirstOrDefault(item => item.Status == AiSafetyControlStatus.Missing)
+                                 ?? entries.FirstOrDefault(item => item.Status == AiSafetyControlStatus.NotObservable)
+                                 ?? entries.FirstOrDefault();
+            sb.AppendLine($"                <tr><td>{Encode(FormatControlKind(group.Key))}</td><td>{CountStatus(entries, AiSafetyControlStatus.Declared)}</td><td>{CountStatus(entries, AiSafetyControlStatus.Missing)}</td><td>{CountStatus(entries, AiSafetyControlStatus.NotObservable)}</td><td>{CountStatus(entries, AiSafetyControlStatus.NotApplicable)}</td><td>{Encode(representative?.Summary ?? "-")}</td></tr>");
+        }
+
+        sb.AppendLine("                </tbody></table>");
+        sb.AppendLine("            </div>");
+        sb.AppendLine("          </div>");
         return sb.ToString();
     }
 
@@ -1934,7 +2031,7 @@ internal sealed class ValidationHtmlReportComposer
         {
             TestStatus.Passed => HtmlReportTone.Success,
             TestStatus.Failed => HtmlReportTone.Danger,
-            TestStatus.Skipped => HtmlReportTone.Warning,
+            TestStatus.Skipped or TestStatus.AuthRequired or TestStatus.Inconclusive => HtmlReportTone.Warning,
             _ => HtmlReportTone.Neutral
         };
     }

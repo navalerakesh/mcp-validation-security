@@ -19,6 +19,7 @@ public class MarkdownReportGenerator : IReportGenerator
         var bootstrapHealth = ResolveBootstrapHealth(result);
         var includeDetailedSections = ShouldIncludeDetailedSections(result);
         var actionHints = ReportActionHintBuilder.Build(result);
+        var evidenceSummary = ResolveEvidenceSummary(result);
 
         // Header
         sb.AppendLine("# MCP Server Compliance & Validation Report");
@@ -40,6 +41,11 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"| **Coverage Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** |");
         }
         sb.AppendLine($"| **Compliance Score** | **{result.ComplianceScore:F1}%** |");
+        if (evidenceSummary.TotalDeclarations > 0)
+        {
+            sb.AppendLine($"| **Evidence Coverage** | **{evidenceSummary.EvidenceCoverageRatio:P1}** |");
+            sb.AppendLine($"| **Evidence Confidence** | **{evidenceSummary.ConfidenceLevel} ({evidenceSummary.EvidenceConfidenceRatio:P1})** |");
+        }
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
         sb.AppendLine($"| **Transport** | {result.ServerConfig.Transport?.ToUpper() ?? "HTTP"} |");
@@ -75,6 +81,7 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"## {sectionNumber++}. Deterministic Verdicts");
             sb.AppendLine();
             sb.AppendLine("These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.");
+            sb.AppendLine($"> **Authority legend:** {ValidationAuthorityHierarchy.Legend}");
             sb.AppendLine();
             sb.AppendLine("| Lane | Verdict | Meaning |");
             sb.AppendLine("| :--- | :--- | :--- |");
@@ -96,6 +103,11 @@ public class MarkdownReportGenerator : IReportGenerator
                 foreach (var decision in result.VerdictAssessment.BlockingDecisions.Take(8))
                 {
                     sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{decision.Category}] `{decision.Component}`: {decision.Summary}");
+                    var evidence = FormatDecisionEvidence(decision);
+                    if (!string.IsNullOrWhiteSpace(evidence))
+                    {
+                        sb.AppendLine($"  - Evidence: {evidence}");
+                    }
                 }
                 sb.AppendLine();
             }
@@ -279,8 +291,8 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine("> * **BLOCKED**: The server correctly rejected or sanitized the input.");
                 sb.AppendLine("> * **SKIPPED**: Test could not be executed (e.g., no tools discovered for injection target).");
                 sb.AppendLine();
-                sb.AppendLine("| Attack Vector | Description | Result | Analysis |");
-                sb.AppendLine("| :--- | :--- | :---: | :--- |");
+                sb.AppendLine("| Attack Vector | Description | Result | Probe | Analysis |");
+                sb.AppendLine("| :--- | :--- | :---: | :--- | :--- |");
                 foreach (var attack in result.SecurityTesting.AttackSimulations)
                 {
                     var status = AttackSimulationOutcomeResolver.Resolve(attack) switch
@@ -294,7 +306,7 @@ public class MarkdownReportGenerator : IReportGenerator
                         ? "-" 
                         : $"`{attack.ServerResponse.Replace("|", "\\|").Replace("\n", " ")}`";
                     
-                    sb.AppendLine($"| {attack.AttackVector} | {attack.Description} | {status} | {response} |");
+                    sb.AppendLine($"| {attack.AttackVector} | {attack.Description} | {status} | {FormatProbeContexts(attack.ProbeContexts)} | {response} |");
                 }
                 sb.AppendLine();
             }
@@ -369,6 +381,7 @@ public class MarkdownReportGenerator : IReportGenerator
             if (result.ToolValidation.ToolResults?.Any() == true)
             {
                 AppendToolMetadataCompletenessMatrix(sb, result.ToolValidation.ToolResults);
+                AppendAiSafetyControlEvidence(sb, result.ToolValidation);
 
                 foreach (var tool in result.ToolValidation.ToolResults)
                 {
@@ -716,6 +729,7 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"## {sectionNumber++}. Priority Findings");
         sb.AppendLine();
         sb.AppendLine("These are the highest-signal outcomes from this validation run.");
+        sb.AppendLine($"> **Authority legend:** {ValidationAuthorityHierarchy.Legend}");
         sb.AppendLine();
         foreach (var finding in keyFindings)
         {
@@ -780,6 +794,116 @@ public class MarkdownReportGenerator : IReportGenerator
         };
     }
 
+    private static string FormatDecisionEvidence(DecisionRecord decision)
+    {
+        var parts = new List<string>();
+        var evidenceIds = decision.RelatedEvidenceIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(5)
+            .ToList();
+
+        if (evidenceIds.Count > 0)
+        {
+            parts.Add("IDs " + string.Join(", ", evidenceIds.Select(id => $"`{EscapeInline(id)}`")));
+        }
+
+        var preview = decision.EvidenceReferences
+            .Select(reference => reference.RedactedPayloadPreview)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(preview))
+        {
+            parts.Add($"preview: {EscapeInline(preview)}");
+        }
+
+        var specReference = decision.SpecReference ?? decision.EvidenceReferences
+            .Select(reference => reference.SpecReference)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(specReference))
+        {
+            parts.Add($"spec: {EscapeInline(specReference)}");
+        }
+
+        var remediation = decision.EvidenceReferences
+            .Select(reference => reference.Remediation)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(remediation))
+        {
+            parts.Add($"remediation: {EscapeInline(remediation)}");
+        }
+
+        return string.Join("; ", parts);
+    }
+
+    private static string EscapeInline(string value)
+    {
+        return value.Replace('`', '\'').Replace("\r", " ").Replace("\n", " ").Trim();
+    }
+
+    private static void AppendAiSafetyControlEvidence(StringBuilder sb, ToolTestResult tools)
+    {
+        if (tools.AiSafetyControlEvidence.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("### AI Safety Control Evidence");
+        sb.AppendLine();
+        sb.AppendLine("This table separates server-declared tool metadata from host-side controls that the validator cannot directly observe.");
+        sb.AppendLine();
+        sb.AppendLine("| Control | Declared | Missing | Not Observable | Not Applicable | Representative Note |");
+        sb.AppendLine("| :--- | ---: | ---: | ---: | ---: | :--- |");
+
+        foreach (var group in tools.AiSafetyControlEvidence
+                     .GroupBy(item => item.ControlKind)
+                     .OrderBy(group => group.Key))
+        {
+            var entries = group.ToList();
+            var representative = entries.FirstOrDefault(item => item.Status == AiSafetyControlStatus.Missing)
+                                 ?? entries.FirstOrDefault(item => item.Status == AiSafetyControlStatus.NotObservable)
+                                 ?? entries.FirstOrDefault();
+            sb.AppendLine($"| {FormatControlKind(group.Key)} | {CountStatus(entries, AiSafetyControlStatus.Declared)} | {CountStatus(entries, AiSafetyControlStatus.Missing)} | {CountStatus(entries, AiSafetyControlStatus.NotObservable)} | {CountStatus(entries, AiSafetyControlStatus.NotApplicable)} | {EscapeTableCell(representative?.Summary ?? "-")} |");
+        }
+
+        sb.AppendLine();
+    }
+
+    private static int CountStatus(IEnumerable<AiSafetyControlEvidence> evidence, AiSafetyControlStatus status)
+    {
+        return evidence.Count(item => item.Status == status);
+    }
+
+    private static string FormatControlKind(AiSafetyControlKind controlKind)
+    {
+        return controlKind switch
+        {
+            AiSafetyControlKind.UserConfirmation => "User confirmation",
+            AiSafetyControlKind.AuditTrail => "Audit trail",
+            AiSafetyControlKind.DataSharingDisclosure => "Data-sharing disclosure",
+            AiSafetyControlKind.DestructiveActionConfirmation => "Destructive-action confirmation",
+            AiSafetyControlKind.HostServerResponsibilitySplit => "Host/server responsibility split",
+            _ => controlKind.ToString()
+        };
+    }
+
+    private static string FormatProbeContexts(IReadOnlyList<ProbeContext>? probeContexts)
+    {
+        var probe = probeContexts?.FirstOrDefault();
+        if (probe == null)
+        {
+            return "-";
+        }
+
+        var method = string.IsNullOrWhiteSpace(probe.Method) ? "probe" : probe.Method;
+        var transport = string.IsNullOrWhiteSpace(probe.Transport) ? "unknown" : probe.Transport;
+        var statusCode = probe.StatusCode.HasValue
+            ? $" HTTP {probe.StatusCode.Value.ToString(CultureInfo.InvariantCulture)}"
+            : string.Empty;
+        var suffix = probeContexts!.Count > 1 ? $" (+{probeContexts.Count - 1})" : string.Empty;
+
+        return $"`{method}`/{transport}: {probe.ResponseClassification}{statusCode}; auth {probe.AuthStatus}{suffix}";
+    }
+
     private static ValidationProducerInfo ResolveProducer(ValidationResult result)
     {
         var defaults = ValidationProducerInfo.CreateDefault();
@@ -790,6 +914,13 @@ public class MarkdownReportGenerator : IReportGenerator
         producer.RepositoryUrl = string.IsNullOrWhiteSpace(producer.RepositoryUrl) ? defaults.RepositoryUrl : producer.RepositoryUrl;
         producer.PackageUrl = string.IsNullOrWhiteSpace(producer.PackageUrl) ? defaults.PackageUrl : producer.PackageUrl;
         return producer;
+    }
+
+    private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
+    {
+        return result.VerdictAssessment?.EvidenceSummary
+               ?? result.ScoringDetails?.EvidenceSummary
+               ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
     }
 
     private void AppendBootstrapSection(StringBuilder sb, ValidationResult result, HealthCheckResult? bootstrapHealth, ref int sectionNumber)
@@ -1001,13 +1132,41 @@ public class MarkdownReportGenerator : IReportGenerator
 
         if (hasCoverage)
         {
+            var evidenceSummary = ResolveEvidenceSummary(result);
+            sb.AppendLine("### Evidence Confidence");
+            sb.AppendLine();
+            sb.AppendLine("Score reflects observed behavior. Evidence coverage and confidence describe how much of the enabled surface was actually assessed.");
+            sb.AppendLine();
+            sb.AppendLine("| Metric | Value |");
+            sb.AppendLine("| :--- | :---: |");
+            sb.AppendLine($"| Evidence Coverage | {evidenceSummary.EvidenceCoverageRatio:P1} |");
+            sb.AppendLine($"| Evidence Confidence | {evidenceSummary.EvidenceConfidenceRatio:P1} |");
+            sb.AppendLine($"| Confidence Level | {evidenceSummary.ConfidenceLevel} |");
+            sb.AppendLine($"| Auth Required | {evidenceSummary.AuthRequired} |");
+            sb.AppendLine($"| Inconclusive | {evidenceSummary.Inconclusive} |");
+            sb.AppendLine($"| Blocked/Unavailable | {evidenceSummary.Blocked + evidenceSummary.Unavailable} |");
+            sb.AppendLine();
+
+            if (evidenceSummary.Categories.Count > 0)
+            {
+                sb.AppendLine("### Evidence Confidence By Layer");
+                sb.AppendLine();
+                sb.AppendLine("| Layer | Coverage | Confidence | Covered | Auth Required | Inconclusive | Skipped | Blocked/Unavailable |");
+                sb.AppendLine("| :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |");
+                foreach (var category in evidenceSummary.Categories)
+                {
+                    sb.AppendLine($"| `{category.LayerId}` | {category.EvidenceCoverageRatio:P1} | {category.ConfidenceLevel} ({category.EvidenceConfidenceRatio:P1}) | {category.Covered} | {category.AuthRequired} | {category.Inconclusive} | {category.Skipped} | {category.Blocked + category.Unavailable} |");
+                }
+                sb.AppendLine();
+            }
+
             sb.AppendLine("### Coverage Declarations");
             sb.AppendLine();
-            sb.AppendLine("| Layer | Scope | Status | Reason |");
-            sb.AppendLine("| :--- | :--- | :--- | :--- |");
+            sb.AppendLine("| Layer | Scope | Status | Blocker | Confidence | Reason |");
+            sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- |");
             foreach (var coverage in result.Evidence.Coverage)
             {
-                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | {EscapeTableCell(coverage.Reason ?? "-")} |");
+                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | `{coverage.Blocker}` | {coverage.Confidence} | {EscapeTableCell(coverage.Reason ?? "-")} |");
             }
             sb.AppendLine();
         }

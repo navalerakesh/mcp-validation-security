@@ -62,6 +62,14 @@ public static class ValidationFindingRuleIds
     public const string ToolListPaginationRecommended = "MCP.GUIDELINE.TOOL.PAGINATION_RECOMMENDED";
     public const string ToolListCursorLoopDetected = "AI.TOOL.PAGINATION.CURSOR_LOOP_DETECTED";
     public const string ToolDestructiveConfirmationGuidanceMissing = "AI.TOOL.SAFETY.CONFIRMATION_GUIDANCE_MISSING";
+    public const string ToolNameInvalid = "MCP.TOOL.LIST.NAME_INVALID";
+    public const string ToolInputSchemaMissing = "MCP.TOOL.LIST.INPUT_SCHEMA_MISSING";
+    public const string ToolInputSchemaInvalid = "MCP.TOOL.LIST.INPUT_SCHEMA_INVALID";
+    public const string ToolInputSchemaRootTypeInvalid = "MCP.TOOL.LIST.INPUT_SCHEMA_ROOT_TYPE_INVALID";
+    public const string ToolOutputSchemaInvalid = "MCP.TOOL.LIST.OUTPUT_SCHEMA_INVALID";
+    public const string ToolOutputSchemaRootTypeInvalid = "MCP.TOOL.LIST.OUTPUT_SCHEMA_ROOT_TYPE_INVALID";
+    public const string ToolIconInvalid = "MCP.TOOL.LIST.ICON_INVALID";
+    public const string ToolExecutionTaskSupportInvalid = "MCP.TOOL.LIST.EXECUTION_TASK_SUPPORT_INVALID";
 
     public const string ToolCallMissingResultObject = "MCP.TOOL.CALL.RESULT_OBJECT_MISSING";
     public const string ToolCallMissingContentArray = "MCP.TOOL.CALL.CONTENT_ARRAY_MISSING";
@@ -74,6 +82,9 @@ public static class ValidationFindingRuleIds
     public const string ToolCallContentMissingResource = "MCP.TOOL.CALL.RESOURCE_CONTENT_MISSING";
     public const string ToolCallMissingIsError = "MCP.TOOL.CALL.ISERROR_MISSING";
     public const string ToolCallResponseValidationFailed = "MCP.TOOL.CALL.RESPONSE_VALIDATION_FAILED";
+    public const string ToolCallStructuredContentMissing = "MCP.TOOL.CALL.STRUCTURED_CONTENT_MISSING";
+    public const string ToolCallStructuredContentInvalid = "MCP.TOOL.CALL.STRUCTURED_CONTENT_INVALID";
+    public const string ToolCallStructuredContentSchemaMismatch = "MCP.TOOL.CALL.STRUCTURED_CONTENT_SCHEMA_MISMATCH";
     public const string ToolLlmFriendliness = "AI.TOOL.ERROR.LLM_FRIENDLINESS";
     public const string AiReadinessMissingParameterDescriptions = "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING";
     public const string AiReadinessVagueStringSchema = "AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING";
@@ -149,6 +160,15 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.ToolListCursorLoopDetected] = HeuristicRule(ValidationFindingRuleIds.ToolListCursorLoopDetected);
         descriptors[ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing);
 
+        descriptors[ValidationFindingRuleIds.ToolNameInvalid] = SpecRule(ValidationFindingRuleIds.ToolNameInvalid);
+        descriptors[ValidationFindingRuleIds.ToolInputSchemaMissing] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaMissing);
+        descriptors[ValidationFindingRuleIds.ToolInputSchemaInvalid] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaInvalid);
+        descriptors[ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid);
+        descriptors[ValidationFindingRuleIds.ToolOutputSchemaInvalid] = SpecRule(ValidationFindingRuleIds.ToolOutputSchemaInvalid);
+        descriptors[ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid] = SpecRule(ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid);
+        descriptors[ValidationFindingRuleIds.ToolIconInvalid] = SpecRule(ValidationFindingRuleIds.ToolIconInvalid);
+        descriptors[ValidationFindingRuleIds.ToolExecutionTaskSupportInvalid] = SpecRule(ValidationFindingRuleIds.ToolExecutionTaskSupportInvalid);
+
         descriptors[ValidationFindingRuleIds.ToolCallMissingResultObject] = SpecRule(ValidationFindingRuleIds.ToolCallMissingResultObject);
         descriptors[ValidationFindingRuleIds.ToolCallMissingContentArray] = SpecRule(ValidationFindingRuleIds.ToolCallMissingContentArray);
         descriptors[ValidationFindingRuleIds.ToolCallContentNotArray] = SpecRule(ValidationFindingRuleIds.ToolCallContentNotArray);
@@ -160,6 +180,9 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.ToolCallContentMissingResource] = SpecRule(ValidationFindingRuleIds.ToolCallContentMissingResource);
         descriptors[ValidationFindingRuleIds.ToolCallMissingIsError] = SpecRule(ValidationFindingRuleIds.ToolCallMissingIsError);
         descriptors[ValidationFindingRuleIds.ToolCallResponseValidationFailed] = SpecRule(ValidationFindingRuleIds.ToolCallResponseValidationFailed);
+        descriptors[ValidationFindingRuleIds.ToolCallStructuredContentMissing] = SpecRule(ValidationFindingRuleIds.ToolCallStructuredContentMissing);
+        descriptors[ValidationFindingRuleIds.ToolCallStructuredContentInvalid] = SpecRule(ValidationFindingRuleIds.ToolCallStructuredContentInvalid);
+        descriptors[ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch] = SpecRule(ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
 
         descriptors[ValidationFindingRuleIds.ToolLlmFriendliness] = HeuristicRule(ValidationFindingRuleIds.ToolLlmFriendliness);
         descriptors[ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions] = HeuristicRule(ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
@@ -257,13 +280,7 @@ public static class ValidationRuleSourceClassifier
 
     public static string GetLabel(ValidationRuleSource source)
     {
-        return source switch
-        {
-            ValidationRuleSource.Spec => "spec",
-            ValidationRuleSource.Guideline => "guideline",
-            ValidationRuleSource.Heuristic => "heuristic",
-            _ => "unspecified"
-        };
+        return Mcp.Benchmark.Core.Services.ValidationAuthorityHierarchy.GetMachineLabel(source);
     }
 
     private static ValidationRuleSource InferSource(string? ruleId, string? category)

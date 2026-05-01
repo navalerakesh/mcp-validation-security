@@ -22,7 +22,7 @@ public class PerformanceValidatorIntegrationTests
     }
 
     [Fact]
-    public async Task PerformLoadTesting_WithAuthRequired_ShouldSkip()
+    public async Task PerformLoadTesting_WithAuthRequired_ShouldReturnAuthRequired()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
@@ -30,7 +30,7 @@ public class PerformanceValidatorIntegrationTests
 
         var result = await _validator.PerformLoadTestingAsync(config, new PerformanceTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
     [Fact]

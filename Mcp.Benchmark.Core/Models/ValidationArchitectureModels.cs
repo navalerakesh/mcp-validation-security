@@ -1,5 +1,7 @@
 using ModelContextProtocol.Protocol;
 
+using System.Text.Json.Serialization;
+
 namespace Mcp.Benchmark.Core.Models;
 
 public readonly record struct ValidationDescriptorKey(string Value)
@@ -219,6 +221,9 @@ public sealed class ValidationObservation
 
     public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ProbeContext>? ProbeContexts { get; init; }
+
     public string? RedactedPayloadPreview { get; init; }
 }
 
@@ -226,9 +231,87 @@ public enum ValidationCoverageStatus
 {
     Covered,
     Skipped,
+    AuthRequired,
+    Inconclusive,
     NotApplicable,
     Unavailable,
     Blocked
+}
+
+public enum ValidationEvidenceBlocker
+{
+    None = 0,
+    NotAdvertised,
+    ConfigDisabled,
+    AuthRequired,
+    TransientFailure,
+    UnsupportedTransport,
+    Unimplemented,
+    Timeout,
+    ParserBoundary,
+    NoSafeTarget,
+    TransportError
+}
+
+public enum EvidenceConfidenceLevel
+{
+    None = 0,
+    Low = 1,
+    Medium = 2,
+    High = 3
+}
+
+public enum ProbeAuthStatus
+{
+    Unknown = 0,
+    NotRequired,
+    NotApplied,
+    Applied,
+    AuthRequired,
+    InvalidOrExpired
+}
+
+public enum ProbeResponseClassification
+{
+    Unknown = 0,
+    Success,
+    ProtocolError,
+    AuthenticationChallenge,
+    AuthorizationFailure,
+    TransientFailure,
+    TransportFailure,
+    ParserBoundary,
+    Timeout,
+    NoResponse
+}
+
+public sealed class ProbeContext
+{
+    public string ProbeId { get; init; } = Guid.NewGuid().ToString("N");
+
+    public string? RequestId { get; init; }
+
+    public string? Method { get; init; }
+
+    public string? Transport { get; init; }
+
+    public string? ProtocolVersion { get; init; }
+
+    public bool AuthApplied { get; init; }
+
+    public string? AuthScheme { get; init; }
+
+    public ProbeAuthStatus AuthStatus { get; init; } = ProbeAuthStatus.Unknown;
+
+    public ProbeResponseClassification ResponseClassification { get; init; } = ProbeResponseClassification.Unknown;
+
+    public EvidenceConfidenceLevel Confidence { get; init; } = EvidenceConfidenceLevel.None;
+
+    public int? StatusCode { get; init; }
+
+    public string? Reason { get; init; }
+
+    public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class ValidationCoverageDeclaration
@@ -239,7 +322,69 @@ public sealed class ValidationCoverageDeclaration
 
     public required ValidationCoverageStatus Status { get; init; }
 
+    public ValidationEvidenceBlocker Blocker { get; init; } = ValidationEvidenceBlocker.None;
+
+    public EvidenceConfidenceLevel Confidence { get; init; } = EvidenceConfidenceLevel.None;
+
+    public ProbeContext? ProbeContext { get; init; }
+
     public string? Reason { get; init; }
+}
+
+public sealed class EvidenceCoverageSummary
+{
+    public int TotalDeclarations { get; init; }
+
+    public int ApplicableDeclarations { get; init; }
+
+    public int Covered { get; init; }
+
+    public int AuthRequired { get; init; }
+
+    public int Inconclusive { get; init; }
+
+    public int Skipped { get; init; }
+
+    public int NotApplicable { get; init; }
+
+    public int Unavailable { get; init; }
+
+    public int Blocked { get; init; }
+
+    public double EvidenceCoverageRatio { get; init; } = 1.0;
+
+    public double EvidenceConfidenceRatio { get; init; } = 1.0;
+
+    public EvidenceConfidenceLevel ConfidenceLevel { get; init; } = EvidenceConfidenceLevel.High;
+
+    public List<EvidenceCoverageCategory> Categories { get; init; } = new();
+}
+
+public sealed class EvidenceCoverageCategory
+{
+    public required string LayerId { get; init; }
+
+    public int TotalDeclarations { get; init; }
+
+    public int ApplicableDeclarations { get; init; }
+
+    public int Covered { get; init; }
+
+    public int AuthRequired { get; init; }
+
+    public int Inconclusive { get; init; }
+
+    public int Skipped { get; init; }
+
+    public int Unavailable { get; init; }
+
+    public int Blocked { get; init; }
+
+    public double EvidenceCoverageRatio { get; init; }
+
+    public double EvidenceConfidenceRatio { get; init; }
+
+    public EvidenceConfidenceLevel ConfidenceLevel { get; init; }
 }
 
 public enum EvaluationLane
@@ -291,6 +436,10 @@ public sealed class DecisionRecord
 {
     public required string DecisionId { get; init; }
 
+    public IReadOnlyList<string> RelatedEvidenceIds { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<DecisionEvidenceReference> EvidenceReferences { get; init; } = Array.Empty<DecisionEvidenceReference>();
+
     public string? RuleId { get; init; }
 
     public required EvaluationLane Lane { get; init; }
@@ -316,6 +465,23 @@ public sealed class DecisionRecord
     public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
+public sealed class DecisionEvidenceReference
+{
+    public required string EvidenceId { get; init; }
+
+    public required string EvidenceKind { get; init; }
+
+    public string? Summary { get; init; }
+
+    public string? SpecReference { get; init; }
+
+    public string? Remediation { get; init; }
+
+    public string? RedactedPayloadPreview { get; init; }
+
+    public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
+}
+
 public sealed class VerdictAssessment
 {
     public string RulesetVersion { get; set; } = "2026-04";
@@ -327,6 +493,8 @@ public sealed class VerdictAssessment
     public ValidationVerdict CoverageVerdict { get; set; } = ValidationVerdict.Unknown;
 
     public string Summary { get; set; } = string.Empty;
+
+    public EvidenceCoverageSummary EvidenceSummary { get; set; } = new();
 
     public List<DecisionRecord> TriggeredDecisions { get; init; } = new();
 

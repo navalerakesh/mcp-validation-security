@@ -192,6 +192,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         var scoringResult = new ScoringResult();
         var notes = new List<string>();
         var categoryScores = new Dictionary<string, double>();
+        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
 
         // 1. Calculate Component Scores (0-100) and capture coverage metadata
         var evaluations = CategoryDefinitions
@@ -202,9 +203,9 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         {
             categoryScores[evaluation.Name] = evaluation.Score;
 
-            if (!evaluation.IncludeInWeight && evaluation.Status == TestStatus.Skipped)
+            if (!evaluation.IncludeInWeight && evaluation.Status.HasValue)
             {
-                AppendSkipNote(evaluation.Name, notes);
+                AppendLimitedCoverageNote(evaluation.Name, evaluation.Status.Value, notes);
             }
         }
 
@@ -227,17 +228,6 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
 
         var coverageRatio = TotalCategoryWeight > 0 ? includedWeight / TotalCategoryWeight : 0;
 
-        // Enterprise fairness: enforce minimum coverage threshold.
-        // A server that only passes Security + Protocol (70% weight) should not score
-        // higher than a server that passes all 6 categories. The coverage ratio
-        // transparently communicates that untested categories reduce the ceiling.
-        // Additionally, if fewer than 50% of categories were tested, cap score at 60%.
-        if (coverageRatio < ScoringConstants.MinCoverageRatio && weightedScore > ScoringConstants.LowCoverageScoreCap)
-        {
-            notes.Add($"Coverage below {ScoringConstants.MinCoverageRatio:P0} ({coverageRatio:P0}). Score capped at {ScoringConstants.LowCoverageScoreCap}% \u2014 most categories were not validated.");
-            weightedScore = Math.Min(weightedScore, ScoringConstants.LowCoverageScoreCap);
-        }
-
         if (coverageRatio < 1 && TotalCategoryWeight > 0)
         {
             var limitedCategories = evaluations
@@ -249,12 +239,17 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             if (limitedCategories.Count > 0)
             {
                 var missingList = string.Join(", ", limitedCategories);
-                notes.Add($"Coverage multiplier applied ({coverageRatio:P0}). Missing or skipped categories: {missingList}.");
+                notes.Add($"Score coverage is partial ({coverageRatio:P0}). Missing, blocked, or inconclusive categories: {missingList}.");
             }
         }
 
+        if (evidenceSummary.ConfidenceLevel < EvidenceConfidenceLevel.High)
+        {
+            notes.Add($"Evidence confidence is {evidenceSummary.ConfidenceLevel} ({evidenceSummary.EvidenceConfidenceRatio:P0}); score should be interpreted with the coverage summary.");
+        }
+
         // 3. Apply Rule Engine
-        var context = new ScoringContext { Score = weightedScore * coverageRatio, Notes = notes };
+        var context = new ScoringContext { Score = weightedScore, Notes = notes };
 
         if (!ValidationCalibration.RequiresStrictAuthentication(result.ServerProfile) &&
             result.SecurityTesting?.AuthenticationTestResult?.TestScenarios?.Count > 0)
@@ -275,13 +270,14 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         scoringResult.CategoryScores = categoryScores;
         scoringResult.ScoringNotes = context.Notes;
         scoringResult.CoverageRatio = coverageRatio;
+        scoringResult.EvidenceSummary = evidenceSummary;
 
         // Determine Status
         if (context.HasBlockingFailure)
         {
             scoringResult.Status = ValidationStatus.Failed;
         }
-        else if (evaluations.All(e => !e.Status.HasValue || e.Status == TestStatus.Skipped))
+        else if (evaluations.All(e => !e.Status.HasValue || IsNotExecuted(e.Status.Value)))
         {
             scoringResult.Status = ValidationStatus.Failed;
         }
@@ -312,8 +308,25 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         public bool HasBlockingFailure { get; set; }
     }
 
-    private static void AppendSkipNote(string categoryName, List<string> notes)
+    private static void AppendLimitedCoverageNote(string categoryName, TestStatus status, List<string> notes)
     {
+        if (status == TestStatus.AuthRequired)
+        {
+            notes.Add($"{categoryName} validation blocked by authentication. Score confidence reduced; rerun with credentials for authoritative coverage.");
+            return;
+        }
+
+        if (status == TestStatus.Inconclusive)
+        {
+            notes.Add($"{categoryName} validation was inconclusive. Score confidence reduced; inspect probe evidence before relying on the result.");
+            return;
+        }
+
+        if (status != TestStatus.Skipped)
+        {
+            return;
+        }
+
         switch (categoryName)
         {
             case "Tools":
@@ -332,6 +345,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 notes.Add("Performance testing skipped (Auth required). Score coverage reduced accordingly.");
                 break;
         }
+    }
+
+    private static bool IsNotExecuted(TestStatus status)
+    {
+        return status is TestStatus.Skipped or TestStatus.AuthRequired or TestStatus.Inconclusive or TestStatus.NotRun;
     }
 
     private record ScoringRule(
@@ -357,7 +375,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         {
             var score = ScoreAccessor(result);
             var status = StatusAccessor(result);
-            var include = status.HasValue && status != TestStatus.Skipped;
+            var include = status is TestStatus.Passed or TestStatus.Failed;
             return new CategoryEvaluation(Name, Weight, score, status, include);
         }
     }

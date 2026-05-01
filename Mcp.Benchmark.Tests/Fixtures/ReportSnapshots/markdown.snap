@@ -12,6 +12,8 @@
 | **Protocol Verdict** | **Reject** |
 | **Coverage Verdict** | **Review Required** |
 | **Compliance Score** | **81.4%** |
+| **Evidence Coverage** | **87.5%** |
+| **Evidence Confidence** | **High (91.9%)** |
 | **Compliance Profile** | `Authenticated (UserDeclared)` |
 | **Duration** | 12.00s |
 | **Transport** | HTTP |
@@ -42,8 +44,10 @@ Validation continued because the endpoint was classified as protected rather tha
 ## 3. Priority Findings
 
 These are the highest-signal outcomes from this validation run.
+> **Authority legend:** Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.
 
 - [Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.
+- [Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool 'delete_repo' does not declare annotations.destructiveHint.
 - [Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.
 - [Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
 - [Operational] 1 critical execution error(s), led by: Prompt validation hit an unsafe reflection path.
@@ -53,13 +57,14 @@ These are the highest-signal outcomes from this validation run.
 Compact next-step guidance derived from the highest-signal evidence in this run.
 
 - [Spec] Protocol: Echo the negotiated protocol version in initialize.result.
-- [Heuristic] Security: Sanitize and label untrusted content before returning it.
+- [Guideline] McpGuideline: Tool 'delete_repo' does not declare annotations.destructiveHint.
 - [Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.
-- Add destructive hints to write-capable tools.
+- [Heuristic] Security: Sanitize and label untrusted content before returning it.
 
 ## 5. Deterministic Verdicts
 
 These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.
+> **Authority legend:** Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.
 
 | Lane | Verdict | Meaning |
 | :--- | :--- | :--- |
@@ -67,18 +72,26 @@ These verdicts are the authoritative gate for pass/fail and policy decisions. We
 | **Protocol** | **Reject** | Protocol correctness and contract integrity. |
 | **Coverage** | **Review Required** | Whether enabled validation surfaces produced authoritative evidence. |
 
-Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
+Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.
 
 ### Blocking Decisions
 
-- **Reject** [Execution] `validation-run`: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-- **Reject** [PromptInjection] `prompt:get`: Server reflected untrusted prompt content without sanitization.
-- **Reject** [PromptInjection] `prompt:get`: Prompt output includes reflected untrusted content.
 - **Reject** [Initialization] `Initialization`: Server ignored the requested MCP protocol version.
-- **Review Required** [McpGuideline] `delete_repo`: Tool 'delete_repo' does not declare annotations.destructiveHint.
-- **Review Required** [AiReadiness] `delete_repo`: Tool 'delete_repo' has parameters without descriptions.
+  - Evidence: IDs `protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version`; spec: https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle; remediation: Echo the negotiated protocol version in initialize.result.
 - **Review Required** [ProtocolCompliance] `tools/call`: One tool response omitted the outer result object.
+  - Evidence: IDs `structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object`
+- **Review Required** [McpGuideline] `delete_repo`: Tool 'delete_repo' does not declare annotations.destructiveHint.
+  - Evidence: IDs `structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint`, `obs-tool-delete-repo`; preview: Tool metadata missing annotations.destructiveHint.
+- **Reject** [PromptInjection] `prompt:get`: Server reflected untrusted prompt content without sanitization.
+  - Evidence: IDs `security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization`, `probe:probe-prompt-get-reflection-200`; preview: Prompt response reflected untrusted content.; remediation: Sanitize and label untrusted content before returning it.
+- **Reject** [PromptInjection] `prompt:get`: Prompt output includes reflected untrusted content.
+  - Evidence: IDs `boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content`; remediation: Sanitize or clearly label untrusted data.
+- **Review Required** [AiReadiness] `delete_repo`: Tool 'delete_repo' has parameters without descriptions.
+  - Evidence: IDs `structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions`, `obs-tool-delete-repo`; preview: Tool metadata missing annotations.destructiveHint.
 - **Coverage Debt** [Coverage] `prompt-surface`: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+  - Evidence: IDs `coverage:prompt-surface:prompts-list:Skipped`; preview: Server does not advertise prompts capability.
+- **Reject** [Execution] `validation-run`: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+  - Evidence: IDs `execution-error:prompt-validation-hit-an-unsafe-reflection-path`; preview: Prompt validation hit an unsafe reflection path.
 
 ## 6. Benchmark Trust Profile
 
@@ -125,20 +138,45 @@ This section exposes the structured validation envelope used for layered reporti
 | :--- | :--- | :---: | :--- |
 | `tool-catalog-smoke` | ✅ Passed | 0 | Discovery and first invocation completed with expected metadata. |
 | `security-authentication-challenge` | ➖ Skipped | 0 | Authentication challenge completed under deferred bootstrap review. |
+| `security-attack-simulations` | ✅ Passed | 0 | Evaluated 1 attack simulation(s). |
 | `error-handling-matrix` | ✅ Passed | 0 | Validated 3 error scenario(s); 3 handled correctly. |
+
+### Evidence Confidence
+
+Score reflects observed behavior. Evidence coverage and confidence describe how much of the enabled surface was actually assessed.
+
+| Metric | Value |
+| :--- | :---: |
+| Evidence Coverage | 87.5% |
+| Evidence Confidence | 91.9% |
+| Confidence Level | High |
+| Auth Required | 0 |
+| Inconclusive | 0 |
+| Blocked/Unavailable | 0 |
+
+### Evidence Confidence By Layer
+
+| Layer | Coverage | Confidence | Covered | Auth Required | Inconclusive | Skipped | Blocked/Unavailable |
+| :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |
+| `client-profiles` | 100.0% | High (100.0%) | 1 | 0 | 0 | 0 | 0 |
+| `error-handling` | 100.0% | High (100.0%) | 2 | 0 | 0 | 0 | 0 |
+| `prompt-surface` | 0.0% | Low (35.0%) | 0 | 0 | 0 | 1 | 0 |
+| `protocol-core` | 100.0% | High (100.0%) | 1 | 0 | 0 | 0 | 0 |
+| `security-boundaries` | 100.0% | High (100.0%) | 1 | 0 | 0 | 0 | 0 |
+| `tool-surface` | 100.0% | High (100.0%) | 2 | 0 | 0 | 0 | 0 |
 
 ### Coverage Declarations
 
-| Layer | Scope | Status | Reason |
-| :--- | :--- | :--- | :--- |
-| `protocol-core` | `json-rpc` | `Covered` | - |
-| `tool-surface` | `tools/list` | `Covered` | - |
-| `prompt-surface` | `prompts/list` | `Skipped` | Server does not advertise prompts capability. |
-| `client-profiles` | `github-copilot-cli,github-copilot-cloud-agent` | `Covered` | - |
-| `tool-surface` | `tool-catalog-smoke` | `Covered` | - |
-| `security-boundaries` | `security-authentication-challenge` | `Covered` | - |
-| `error-handling` | `error-handling` | `Covered` | - |
-| `error-handling` | `error-handling-matrix` | `Covered` | - |
+| Layer | Scope | Status | Blocker | Confidence | Reason |
+| :--- | :--- | :--- | :--- | :---: | :--- |
+| `protocol-core` | `json-rpc` | `Covered` | `None` | None | - |
+| `tool-surface` | `tools/list` | `Covered` | `None` | None | - |
+| `prompt-surface` | `prompts/list` | `Skipped` | `None` | None | Server does not advertise prompts capability. |
+| `client-profiles` | `github-copilot-cli,github-copilot-cloud-agent` | `Covered` | `None` | None | - |
+| `tool-surface` | `tool-catalog-smoke` | `Covered` | `None` | None | - |
+| `security-boundaries` | `security-authentication-challenge` | `Covered` | `None` | None | - |
+| `error-handling` | `error-handling` | `Covered` | `None` | None | - |
+| `error-handling` | `error-handling-matrix` | `Covered` | `None` | None | - |
 
 ### Applied Validation Packs
 
@@ -157,6 +195,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `obs-init-401` | `protocol-core` | `initialize` | `handshake-response` | 401 Unauthorized — bootstrap encountered an authentication challenge. |
 | `obs-tool-delete-repo` | `tool-surface` | `delete_repo` | `tool-metadata` | Tool metadata missing annotations.destructiveHint. |
 | `auth-unauthorized-tools-list-challenge` | `security-boundaries` | `tools/list` | `authentication-scenario` | Returned 401 with WWW-Authenticate. |
+| `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Rejected injected argument with JSON-RPC error -32602. |
 
 ## 8. Compliance Matrix
 
@@ -177,6 +216,22 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 ## 10. Security Assessment
 
 **Security Score:** 69.0%
+
+### Authentication Analysis
+| Scenario | Method | Expected | Actual | HTTP | Analysis | Status |
+| :--- | :--- | :--- | :--- | :---: | :--- | :---: |
+| No Auth - tools/list | `tools/list` | 4xx (Secure Rejection) | 401 Unauthorized with challenge | 401 | Returned 401 with WWW-Authenticate. | ✅ |
+
+### Adversarial Input Handling
+
+> **Legend:**
+> * **REFLECTED / UNSAFE ECHO**: The server reflected the payload back without sanitization. No execution confirmed.
+> * **BLOCKED**: The server correctly rejected or sanitized the input.
+> * **SKIPPED**: Test could not be executed (e.g., no tools discovered for injection target).
+
+| Attack Vector | Description | Result | Probe | Analysis |
+| :--- | :--- | :---: | :--- | :--- |
+| MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `Rejected injected argument with JSON-RPC error -32602.` |
 
 ## 11. Protocol Compliance
 
@@ -201,6 +256,18 @@ Annotation coverage across the discovered tool catalog. Missing annotations redu
 | `delete_repo` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | `list_repos` | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | **Coverage** | **2/2** | **0/2** | **0/2** | **0/2** | **0/2** | **0/2** |
+
+### AI Safety Control Evidence
+
+This table separates server-declared tool metadata from host-side controls that the validator cannot directly observe.
+
+| Control | Declared | Missing | Not Observable | Not Applicable | Representative Note |
+| :--- | ---: | ---: | ---: | ---: | :--- |
+| User confirmation | 0 | 1 | 0 | 1 | Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action. |
+| Audit trail | 0 | 0 | 2 | 0 | Audit trail behavior is not observable from tool metadata for this potentially destructive tool. |
+| Data-sharing disclosure | 0 | 2 | 0 | 0 | Tool metadata does not declare open-world/data-sharing behavior. |
+| Destructive-action confirmation | 0 | 1 | 0 | 1 | Destructive action confirmation guidance is missing from tool metadata. |
+| Host/server responsibility split | 0 | 0 | 2 | 0 | Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone. |
 
 ### Tool: `delete_repo`
 
@@ -235,6 +302,7 @@ Remaining tool-catalog debt is grouped by authority so MCP specification failure
 | Spec | 0 | 0/2 (0%) | - | No current catalog-wide tool advisories. |
 | Guideline | 1 | 1/2 (50%) | 🟠 High | Tool 'delete_repo' does not declare annotations.destructiveHint. |
 | Heuristic | 1 | 1/2 (50%) | 🟡 Medium | Tool 'delete_repo' has parameters without descriptions. |
+| Operational | 0 | 0/2 (0%) | - | No current catalog-wide tool advisories. |
 
 ### MCP Guideline Findings
 

@@ -28,7 +28,7 @@ public class HallucinationFuzzer : BaseAttackVector
 
         if (!toolsResponse.IsSuccess || string.IsNullOrEmpty(toolsResponse.RawJson))
         {
-            return CreateResult(true, "Skipped: Could not list tools for fuzzing.", "No tools available.", "Low");
+            return CreateSkippedResult("Skipped: Could not list tools for fuzzing.", "No tools available.", "Low", CollectProbeContexts(toolsResponse.ProbeContext));
         }
 
         // 2. Find a tool with typed parameters
@@ -92,7 +92,7 @@ public class HallucinationFuzzer : BaseAttackVector
 
         if (toolName == null)
         {
-            return CreateResult(true, "Skipped: No suitable tool found for hallucination fuzzing.", "No typed parameters discovered.", "Low");
+            return CreateSkippedResult("Skipped: No suitable tool found for hallucination fuzzing.", "No typed parameters discovered.", "Low", CollectProbeContexts(toolsResponse.ProbeContext));
         }
 
         // 3. Send type-mismatched payload
@@ -127,7 +127,7 @@ public class HallucinationFuzzer : BaseAttackVector
                        $"Response: {(response.Error ?? response.RawJson ?? "empty")?.Substring(0, Math.Min(200, (response.Error ?? response.RawJson ?? "empty").Length))}";
 
         // This test doesn't "fail" the server — it's informational for AI readiness
-        return CreateResult(true, analysis, evidence, clarityScore < 40 ? "Medium" : "Low");
+        return CreateResult(true, analysis, evidence, clarityScore < 40 ? "Medium" : "Low", probeContexts: CollectProbeContexts(toolsResponse.ProbeContext, response.ProbeContext));
     }
 
     /// <summary>

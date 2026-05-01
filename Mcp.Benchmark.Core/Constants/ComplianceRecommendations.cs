@@ -56,6 +56,10 @@ public static class ComplianceRecommendations
                 "Include a \"protocolVersion\" string in the initialize response indicating the protocol version the server supports. This is required for version negotiation. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
             },
             {
+                ValidationConstants.CheckIds.ProtocolInitializeUnsupportedProtocolVersion,
+                "Return an MCP protocolVersion supported by the client/validator or run the validator with a schema bundle that supports the server-declared version. Compatibility fallback is not authoritative for version-specific compliance. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation"
+            },
+            {
                 ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities,
                 "The initialize response MUST include a \"capabilities\" object declaring which MCP features the server supports (tools, resources, prompts, etc.). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#initialization"
             },
@@ -78,6 +82,54 @@ public static class ComplianceRecommendations
             {
                 ValidationConstants.CheckIds.HttpContentType,
                 "Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+            },
+            {
+                ValidationConstants.CheckIds.HttpNotificationStatus,
+                "For Streamable HTTP, POST requests containing only JSON-RPC notifications or responses MUST return HTTP 202 Accepted with no body. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http"
+            },
+            {
+                ValidationConstants.CheckIds.HttpGetSseOrMethodNotAllowed,
+                "Streamable HTTP endpoints that receive GET MUST either open an SSE stream with Content-Type 'text/event-stream' or return HTTP 405 Method Not Allowed. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http"
+            },
+            {
+                ValidationConstants.CheckIds.HttpInvalidProtocolVersion,
+                "Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header"
+            },
+            {
+                ValidationConstants.CheckIds.HttpOriginValidation,
+                "Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation"
+            },
+            {
+                ValidationConstants.CheckIds.HttpSessionId,
+                "Only issue MCP-Session-Id values containing visible ASCII characters, and treat them as opaque session identifiers. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management"
+            },
+            {
+                ValidationConstants.CheckIds.HttpSseEventStream,
+                "When using SSE for Streamable HTTP responses, emit valid Server-Sent Events and preserve each complete JSON-RPC message in data fields. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http"
+            },
+            {
+                ValidationConstants.CheckIds.HttpSessionPropagation,
+                "After returning MCP-Session-Id during initialization, require or honor the same session id on subsequent HTTP requests for that logical session. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#session-management"
+            },
+            {
+                ValidationConstants.CheckIds.StdioNewlineFraming,
+                "Ensure each STDIO message is a single UTF-8 JSON-RPC message terminated by one newline, with no embedded literal newline characters. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+            },
+            {
+                ValidationConstants.CheckIds.StdioStdoutJsonRpcOnly,
+                "Write only valid MCP JSON-RPC messages to stdout. Logs and diagnostics belong on stderr, not stdout. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+            },
+            {
+                ValidationConstants.CheckIds.StdioStderrLogging,
+                "Keep informational/debug/error logs on stderr and treat stderr as logging evidence, not as an MCP message stream. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+            },
+            {
+                ValidationConstants.CheckIds.StdioLifecycleShutdown,
+                "Handle STDIO process shutdown cleanly when the client closes stdin and terminates the subprocess; avoid orphaned child processes. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
+            },
+            {
+                ValidationConstants.CheckIds.StdioParserBoundary,
+                "Treat malformed raw STDIO parser-boundary probes as inconclusive unless a structured JSON-RPC error response is actually observed from the server. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#stdio"
             }
         }.ToFrozenDictionary();
 

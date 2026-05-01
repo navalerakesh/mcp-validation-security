@@ -97,11 +97,12 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
             if (authChallenge.RequiresAuthentication)
             {
-                result.Status = TestStatus.Skipped;
+                result.Status = TestStatus.AuthRequired;
                 result.PromptsDiscovered = 0;
+                result.Score = 0;
                 result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
-                    ? "✅ COMPLIANT: Server properly secured with authentication (OAuth 2.1)"
-                    : "⚠️  ACCEPTED: Authentication required but missing WWW-Authenticate header");
+                    ? "Auth required: server returned an authentication challenge; prompt contents were not validated."
+                    : "Auth required: server rejected prompt discovery but did not include WWW-Authenticate metadata.");
                 return result;
             }
 

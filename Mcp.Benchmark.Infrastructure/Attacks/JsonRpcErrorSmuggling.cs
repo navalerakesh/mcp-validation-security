@@ -64,11 +64,11 @@ public class JsonRpcErrorSmuggling : BaseAttackVector
         
         if (passed)
         {
-            return CreateResult(true, "Server handled malformed requests gracefully with standard errors.", evidence);
+            return CreateResult(true, "Server handled malformed requests gracefully with standard errors.", evidence, probeContexts: CollectProbeContexts(response2.ProbeContext));
         }
         else
         {
-            return CreateResult(false, "Server failed to handle malformed JSON-RPC requests correctly.", evidence, "Critical");
+            return CreateResult(false, "Server failed to handle malformed JSON-RPC requests correctly.", evidence, "Critical", probeContexts: CollectProbeContexts(response2.ProbeContext));
         }
     }
 }

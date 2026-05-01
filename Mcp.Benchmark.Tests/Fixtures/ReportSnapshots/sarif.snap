@@ -117,6 +117,28 @@
                   "prompt:get"
                 ]
               }
+            },
+            {
+              "id": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
+              "name": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
+              "shortDescription": {
+                "text": "Coverage Skipped: prompt-surface/prompts/list"
+              },
+              "fullDescription": {
+                "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
+              },
+              "help": {
+                "text": "Collect the missing evidence or document why this validation surface cannot be safely assessed."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "coverage",
+                "category": "Coverage",
+                "tags": [
+                  "coverage",
+                  "prompt-surface"
+                ]
+              }
             }
           ]
         }
@@ -165,7 +187,10 @@
           ],
           "properties": {
             "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
             "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "ProtocolCompliance",
             "component": "tools/call",
             "severity": "Medium"
@@ -193,7 +218,10 @@
           ],
           "properties": {
             "source": "structured-finding",
+            "evidenceId": "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
             "authority": "heuristic",
+            "authorityPriority": 2,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "AiReadiness",
             "component": "delete_repo",
             "severity": "Medium"
@@ -221,7 +249,10 @@
           ],
           "properties": {
             "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
             "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "Initialization",
             "component": "Initialization",
             "severity": "High",
@@ -251,7 +282,10 @@
           ],
           "properties": {
             "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
             "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "McpGuideline",
             "component": "delete_repo",
             "severity": "High"
@@ -279,13 +313,66 @@
           ],
           "properties": {
             "source": "security-vulnerability",
+            "evidenceId": "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
             "authority": "heuristic",
+            "authorityPriority": 2,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "PromptInjection",
             "component": "prompt:get",
             "severity": "Critical",
             "isExploitable": true,
             "cvssScore": 9.1,
-            "recommendation": "Sanitize and label untrusted content before returning it."
+            "recommendation": "Sanitize and label untrusted content before returning it.",
+            "probeContexts": [
+              {
+                "probeId": "probe-prompt-get-reflection-200",
+                "requestId": null,
+                "method": "prompts/get",
+                "transport": "http",
+                "protocolVersion": "2025-11-25",
+                "authApplied": true,
+                "authScheme": null,
+                "authStatus": "Applied",
+                "responseClassification": "Success",
+                "confidence": "High",
+                "statusCode": 200,
+                "reason": "Prompt response reflected untrusted content."
+              }
+            ]
+          }
+        },
+        {
+          "ruleId": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "coverage|coverage:prompt-surface:prompts-list:Skipped"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "prompt-surface"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "coverage-declaration",
+            "evidenceId": "coverage:prompt-surface:prompts-list:Skipped",
+            "authority": "coverage",
+            "category": "Coverage",
+            "component": "prompt-surface",
+            "layerId": "prompt-surface",
+            "scope": "prompts/list",
+            "coverageStatus": "Skipped",
+            "blocker": "None",
+            "confidence": "None",
+            "reason": "Server does not advertise prompts capability."
           }
         }
       ]

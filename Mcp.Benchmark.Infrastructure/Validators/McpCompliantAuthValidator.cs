@@ -437,6 +437,7 @@ public class McpCompliantAuthValidator
 
     private void AnalyzeAuthenticationResponse(AuthenticationScenario scenario, JsonRpcResponse response, string testType, string method)
     {
+        scenario.ProbeContext = response.ProbeContext;
         var hasWWWAuth = response.Headers?.Keys.Any(k => k.Equals("WWW-Authenticate", StringComparison.OrdinalIgnoreCase)) == true;
 
         if (hasWWWAuth && response.Headers != null)

@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using FluentAssertions;
@@ -187,6 +188,67 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Coverage shows how prevalent each issue is across the discovered tool catalog");
         report.Should().Contain("1/5 (20%)");
         report.Should().Contain(ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing);
+    }
+
+    [Fact]
+    public void GenerateReport_WithMixedAuthorityFindings_ShouldShowNormativeOrderAndLegend()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.SPEC.BLOCKER",
+                    Category = "Protocol",
+                    Description = "Spec violation.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Fix the spec violation."
+                }
+            }
+        };
+        result.ToolValidation = new ToolTestResult
+        {
+            Findings = new List<ValidationFinding>
+            {
+                new()
+                {
+                    RuleId = "MCP.GUIDELINE.HINT",
+                    Category = "Guidance",
+                    Component = "tool",
+                    Source = ValidationRuleSource.Guideline,
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = "Guideline finding."
+                }
+            }
+        };
+        result.SecurityTesting = new SecurityTestResult
+        {
+            Vulnerabilities = new List<SecurityVulnerability>
+            {
+                new()
+                {
+                    Id = "MCP.HEURISTIC.WARNING",
+                    Category = "Security",
+                    AffectedComponent = "tool",
+                    Severity = VulnerabilitySeverity.Critical,
+                    Description = "Heuristic warning."
+                }
+            }
+        };
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var report = _generator.GenerateReport(result);
+
+        var specIndex = report.IndexOf("- [Spec]", StringComparison.Ordinal);
+        var guidelineIndex = report.IndexOf("- [Guideline]", StringComparison.Ordinal);
+        var heuristicIndex = report.IndexOf("- [Heuristic]", StringComparison.Ordinal);
+
+        specIndex.Should().BeGreaterThanOrEqualTo(0);
+        guidelineIndex.Should().BeGreaterThan(specIndex);
+        heuristicIndex.Should().BeGreaterThan(guidelineIndex);
+        report.Should().Contain(ValidationAuthorityHierarchy.Legend);
     }
 
     [Fact]
@@ -433,6 +495,35 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("[Spec] 1 protocol violation(s), led by MCP.TEST.FAILURE: Protocol contract failed.");
         report.Should().Contain("[Guideline/Skip] 1 scope(s) skipped by validator design, led by batch-processing: Batch envelopes are not advertised for this schema profile.");
         report.Should().Contain("[Heuristic] 1 AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
+    }
+
+    [Fact]
+    public void GenerateReport_WithMixedEvidenceConfidence_ShouldShowLayerConfidenceSummary()
+    {
+        var result = BuildMinimalResult();
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "tool-surface",
+            Scope = "tools/list",
+            Status = ValidationCoverageStatus.Covered,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Only partial parser-boundary evidence was available."
+        });
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "security-boundaries",
+            Scope = "attack-simulation",
+            Status = ValidationCoverageStatus.AuthRequired,
+            Blocker = ValidationEvidenceBlocker.AuthRequired,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Protected surface required credentials."
+        });
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("### Evidence Confidence By Layer");
+        report.Should().Contain("| `tool-surface` | 100.0% | Low (35.0%) | 1 | 0 | 0 | 0 | 0 |");
+        report.Should().Contain("| `security-boundaries` | 0.0% | Low (35.0%) | 0 | 1 | 0 | 0 | 0 |");
     }
 
     [Fact]

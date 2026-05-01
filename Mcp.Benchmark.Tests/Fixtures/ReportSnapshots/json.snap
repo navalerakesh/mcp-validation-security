@@ -114,27 +114,257 @@
       "baselineVerdict": 1,
       "protocolVerdict": 1,
       "coverageVerdict": 2,
-      "summary": "Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.",
+      "summary": "Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.",
+      "evidenceSummary": {
+        "totalDeclarations": 8,
+        "applicableDeclarations": 8,
+        "covered": 7,
+        "authRequired": 0,
+        "inconclusive": 0,
+        "skipped": 1,
+        "notApplicable": 0,
+        "unavailable": 0,
+        "blocked": 0,
+        "evidenceCoverageRatio": 0.875,
+        "evidenceConfidenceRatio": 0.9188,
+        "confidenceLevel": 3,
+        "categories": [
+          {
+            "layerId": "client-profiles",
+            "totalDeclarations": 1,
+            "applicableDeclarations": 1,
+            "covered": 1,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 0,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 1,
+            "evidenceConfidenceRatio": 1,
+            "confidenceLevel": 3
+          },
+          {
+            "layerId": "error-handling",
+            "totalDeclarations": 2,
+            "applicableDeclarations": 2,
+            "covered": 2,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 0,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 1,
+            "evidenceConfidenceRatio": 1,
+            "confidenceLevel": 3
+          },
+          {
+            "layerId": "prompt-surface",
+            "totalDeclarations": 1,
+            "applicableDeclarations": 1,
+            "covered": 0,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 1,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 0,
+            "evidenceConfidenceRatio": 0.35,
+            "confidenceLevel": 1
+          },
+          {
+            "layerId": "protocol-core",
+            "totalDeclarations": 1,
+            "applicableDeclarations": 1,
+            "covered": 1,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 0,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 1,
+            "evidenceConfidenceRatio": 1,
+            "confidenceLevel": 3
+          },
+          {
+            "layerId": "security-boundaries",
+            "totalDeclarations": 1,
+            "applicableDeclarations": 1,
+            "covered": 1,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 0,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 1,
+            "evidenceConfidenceRatio": 1,
+            "confidenceLevel": 3
+          },
+          {
+            "layerId": "tool-surface",
+            "totalDeclarations": 2,
+            "applicableDeclarations": 2,
+            "covered": 2,
+            "authRequired": 0,
+            "inconclusive": 0,
+            "skipped": 0,
+            "unavailable": 0,
+            "blocked": 0,
+            "evidenceCoverageRatio": 1,
+            "evidenceConfidenceRatio": 1,
+            "confidenceLevel": 3
+          }
+        ]
+      },
       "triggeredDecisions": [
         {
-          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-          "ruleId": null,
+          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+          "relatedEvidenceIds": [
+            "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+              "evidenceKind": "protocol-violation",
+              "summary": "Server ignored the requested MCP protocol version.",
+              "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+              "remediation": "Echo the negotiated protocol version in initialize.result.",
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            }
+          ],
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
           "lane": 0,
-          "authority": 3,
+          "authority": 1,
           "origin": 0,
           "gate": 3,
-          "severity": 4,
-          "category": "Execution",
-          "component": "validation-run",
-          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+          "severity": 3,
+          "category": "Initialization",
+          "component": "Initialization",
+          "summary": "Server ignored the requested MCP protocol version.",
+          "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+          "relatedEvidenceIds": [
+            "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+              "evidenceKind": "structured-finding",
+              "summary": "One tool response omitted the outer result object.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            }
+          ],
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 2,
+          "severity": 2,
+          "category": "ProtocolCompliance",
+          "component": "tools/call",
+          "summary": "One tool response omitted the outer result object.",
           "specReference": null,
           "impactAreas": [
-            7
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+          "relatedEvidenceIds": [
+            "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+            "obs-tool-delete-repo"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+              "evidenceKind": "structured-finding",
+              "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            },
+            {
+              "evidenceId": "obs-tool-delete-repo",
+              "evidenceKind": "tool-metadata",
+              "summary": "tool-surface/delete_repo",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Tool metadata missing annotations.destructiveHint.",
+              "metadata": {
+                "displayTitle": "Delete Repository"
+              }
+            }
+          ],
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "lane": 0,
+          "authority": 2,
+          "origin": 2,
+          "gate": 2,
+          "severity": 3,
+          "category": "McpGuideline",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+          "specReference": null,
+          "impactAreas": [
+            3
           ],
           "metadata": {}
         },
         {
           "decisionId": "baseline:security:mcp-security-prompt-injection:prompt-get",
+          "relatedEvidenceIds": [
+            "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
+            "probe:probe-prompt-get-reflection-200"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
+              "evidenceKind": "security-vulnerability",
+              "summary": "Prompt injection reflection",
+              "specReference": null,
+              "remediation": "Sanitize and label untrusted content before returning it.",
+              "redactedPayloadPreview": null,
+              "metadata": {
+                "category": "PromptInjection",
+                "affectedComponent": "prompt:get",
+                "severity": "Critical",
+                "isExploitable": "True"
+              }
+            },
+            {
+              "evidenceId": "probe:probe-prompt-get-reflection-200",
+              "evidenceKind": "probe-context",
+              "summary": "prompts/get -\u003E Success",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Prompt response reflected untrusted content.",
+              "metadata": {
+                "requestId": "",
+                "method": "prompts/get",
+                "transport": "http",
+                "protocolVersion": "2025-11-25",
+                "authApplied": "True",
+                "authScheme": "",
+                "authStatus": "Applied",
+                "responseClassification": "Success",
+                "confidence": "High",
+                "statusCode": "200"
+              }
+            }
+          ],
           "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
           "lane": 0,
           "authority": 3,
@@ -155,6 +385,24 @@
         },
         {
           "decisionId": "baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+          "relatedEvidenceIds": [
+            "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+              "evidenceKind": "ai-boundary-finding",
+              "summary": "Prompt output includes reflected untrusted content.",
+              "specReference": null,
+              "remediation": "Sanitize or clearly label untrusted data.",
+              "redactedPayloadPreview": null,
+              "metadata": {
+                "category": "PromptInjection",
+                "component": "prompt:get",
+                "severity": "Critical"
+              }
+            }
+          ],
           "ruleId": null,
           "lane": 0,
           "authority": 3,
@@ -175,42 +423,33 @@
           "metadata": {}
         },
         {
-          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
-          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
-          "lane": 0,
-          "authority": 1,
-          "origin": 0,
-          "gate": 3,
-          "severity": 3,
-          "category": "Initialization",
-          "component": "Initialization",
-          "summary": "Server ignored the requested MCP protocol version.",
-          "specReference": null,
-          "impactAreas": [
-            0,
-            1
-          ],
-          "metadata": {}
-        },
-        {
-          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
-          "lane": 0,
-          "authority": 2,
-          "origin": 2,
-          "gate": 2,
-          "severity": 3,
-          "category": "McpGuideline",
-          "component": "delete_repo",
-          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
-          "specReference": null,
-          "impactAreas": [
-            3
-          ],
-          "metadata": {}
-        },
-        {
           "decisionId": "baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+          "relatedEvidenceIds": [
+            "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+            "obs-tool-delete-repo"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+              "evidenceKind": "structured-finding",
+              "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            },
+            {
+              "evidenceId": "obs-tool-delete-repo",
+              "evidenceKind": "tool-metadata",
+              "summary": "tool-surface/delete_repo",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Tool metadata missing annotations.destructiveHint.",
+              "metadata": {
+                "displayTitle": "Delete Repository"
+              }
+            }
+          ],
           "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
           "lane": 0,
           "authority": 3,
@@ -228,44 +467,187 @@
           "metadata": {}
         },
         {
-          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
-          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
+          "relatedEvidenceIds": [
+            "execution-error:prompt-validation-hit-an-unsafe-reflection-path"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "execution-error:prompt-validation-hit-an-unsafe-reflection-path",
+              "evidenceKind": "execution-error",
+              "summary": "Critical execution error recorded.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Prompt validation hit an unsafe reflection path.",
+              "metadata": {}
+            }
+          ],
+          "ruleId": null,
           "lane": 0,
-          "authority": 1,
+          "authority": 0,
           "origin": 0,
-          "gate": 2,
-          "severity": 2,
-          "category": "ProtocolCompliance",
-          "component": "tools/call",
-          "summary": "One tool response omitted the outer result object.",
+          "gate": 3,
+          "severity": 4,
+          "category": "Execution",
+          "component": "validation-run",
+          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
           "specReference": null,
           "impactAreas": [
-            0,
-            1
+            7
           ],
           "metadata": {}
         }
       ],
       "blockingDecisions": [
         {
-          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-          "ruleId": null,
+          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+          "relatedEvidenceIds": [
+            "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+              "evidenceKind": "protocol-violation",
+              "summary": "Server ignored the requested MCP protocol version.",
+              "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+              "remediation": "Echo the negotiated protocol version in initialize.result.",
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            }
+          ],
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
           "lane": 0,
-          "authority": 3,
+          "authority": 1,
           "origin": 0,
           "gate": 3,
-          "severity": 4,
-          "category": "Execution",
-          "component": "validation-run",
-          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+          "severity": 3,
+          "category": "Initialization",
+          "component": "Initialization",
+          "summary": "Server ignored the requested MCP protocol version.",
+          "specReference": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
+          "impactAreas": [
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+          "relatedEvidenceIds": [
+            "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+              "evidenceKind": "structured-finding",
+              "summary": "One tool response omitted the outer result object.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            }
+          ],
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "lane": 0,
+          "authority": 1,
+          "origin": 0,
+          "gate": 2,
+          "severity": 2,
+          "category": "ProtocolCompliance",
+          "component": "tools/call",
+          "summary": "One tool response omitted the outer result object.",
           "specReference": null,
           "impactAreas": [
-            7
+            0,
+            1
+          ],
+          "metadata": {}
+        },
+        {
+          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+          "relatedEvidenceIds": [
+            "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+            "obs-tool-delete-repo"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+              "evidenceKind": "structured-finding",
+              "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            },
+            {
+              "evidenceId": "obs-tool-delete-repo",
+              "evidenceKind": "tool-metadata",
+              "summary": "tool-surface/delete_repo",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Tool metadata missing annotations.destructiveHint.",
+              "metadata": {
+                "displayTitle": "Delete Repository"
+              }
+            }
+          ],
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "lane": 0,
+          "authority": 2,
+          "origin": 2,
+          "gate": 2,
+          "severity": 3,
+          "category": "McpGuideline",
+          "component": "delete_repo",
+          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
+          "specReference": null,
+          "impactAreas": [
+            3
           ],
           "metadata": {}
         },
         {
           "decisionId": "baseline:security:mcp-security-prompt-injection:prompt-get",
+          "relatedEvidenceIds": [
+            "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
+            "probe:probe-prompt-get-reflection-200"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
+              "evidenceKind": "security-vulnerability",
+              "summary": "Prompt injection reflection",
+              "specReference": null,
+              "remediation": "Sanitize and label untrusted content before returning it.",
+              "redactedPayloadPreview": null,
+              "metadata": {
+                "category": "PromptInjection",
+                "affectedComponent": "prompt:get",
+                "severity": "Critical",
+                "isExploitable": "True"
+              }
+            },
+            {
+              "evidenceId": "probe:probe-prompt-get-reflection-200",
+              "evidenceKind": "probe-context",
+              "summary": "prompts/get -\u003E Success",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Prompt response reflected untrusted content.",
+              "metadata": {
+                "requestId": "",
+                "method": "prompts/get",
+                "transport": "http",
+                "protocolVersion": "2025-11-25",
+                "authApplied": "True",
+                "authScheme": "",
+                "authStatus": "Applied",
+                "responseClassification": "Success",
+                "confidence": "High",
+                "statusCode": "200"
+              }
+            }
+          ],
           "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
           "lane": 0,
           "authority": 3,
@@ -286,6 +668,24 @@
         },
         {
           "decisionId": "baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+          "relatedEvidenceIds": [
+            "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
+              "evidenceKind": "ai-boundary-finding",
+              "summary": "Prompt output includes reflected untrusted content.",
+              "specReference": null,
+              "remediation": "Sanitize or clearly label untrusted data.",
+              "redactedPayloadPreview": null,
+              "metadata": {
+                "category": "PromptInjection",
+                "component": "prompt:get",
+                "severity": "Critical"
+              }
+            }
+          ],
           "ruleId": null,
           "lane": 0,
           "authority": 3,
@@ -306,42 +706,33 @@
           "metadata": {}
         },
         {
-          "decisionId": "baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
-          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
-          "lane": 0,
-          "authority": 1,
-          "origin": 0,
-          "gate": 3,
-          "severity": 3,
-          "category": "Initialization",
-          "component": "Initialization",
-          "summary": "Server ignored the requested MCP protocol version.",
-          "specReference": null,
-          "impactAreas": [
-            0,
-            1
-          ],
-          "metadata": {}
-        },
-        {
-          "decisionId": "baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
-          "lane": 0,
-          "authority": 2,
-          "origin": 2,
-          "gate": 2,
-          "severity": 3,
-          "category": "McpGuideline",
-          "component": "delete_repo",
-          "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
-          "specReference": null,
-          "impactAreas": [
-            3
-          ],
-          "metadata": {}
-        },
-        {
           "decisionId": "baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+          "relatedEvidenceIds": [
+            "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+            "obs-tool-delete-repo"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+              "evidenceKind": "structured-finding",
+              "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": null,
+              "metadata": {}
+            },
+            {
+              "evidenceId": "obs-tool-delete-repo",
+              "evidenceKind": "tool-metadata",
+              "summary": "tool-surface/delete_repo",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Tool metadata missing annotations.destructiveHint.",
+              "metadata": {
+                "displayTitle": "Delete Repository"
+              }
+            }
+          ],
           "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
           "lane": 0,
           "authority": 3,
@@ -351,24 +742,6 @@
           "category": "AiReadiness",
           "component": "delete_repo",
           "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
-          "specReference": null,
-          "impactAreas": [
-            0,
-            1
-          ],
-          "metadata": {}
-        },
-        {
-          "decisionId": "baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
-          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
-          "lane": 0,
-          "authority": 1,
-          "origin": 0,
-          "gate": 2,
-          "severity": 2,
-          "category": "ProtocolCompliance",
-          "component": "tools/call",
-          "summary": "One tool response omitted the outer result object.",
           "specReference": null,
           "impactAreas": [
             0,
@@ -378,6 +751,26 @@
         },
         {
           "decisionId": "coverage:prompt-surface:prompts-list:Skipped",
+          "relatedEvidenceIds": [
+            "coverage:prompt-surface:prompts-list:Skipped"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "coverage:prompt-surface:prompts-list:Skipped",
+              "evidenceKind": "coverage-declaration",
+              "summary": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Server does not advertise prompts capability.",
+              "metadata": {
+                "layerId": "prompt-surface",
+                "scope": "prompts/list",
+                "status": "Skipped",
+                "blocker": "None",
+                "confidence": "None"
+              }
+            }
+          ],
           "ruleId": null,
           "lane": 0,
           "authority": 3,
@@ -392,11 +785,62 @@
             8
           ],
           "metadata": {}
+        },
+        {
+          "decisionId": "baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
+          "relatedEvidenceIds": [
+            "execution-error:prompt-validation-hit-an-unsafe-reflection-path"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "execution-error:prompt-validation-hit-an-unsafe-reflection-path",
+              "evidenceKind": "execution-error",
+              "summary": "Critical execution error recorded.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Prompt validation hit an unsafe reflection path.",
+              "metadata": {}
+            }
+          ],
+          "ruleId": null,
+          "lane": 0,
+          "authority": 0,
+          "origin": 0,
+          "gate": 3,
+          "severity": 4,
+          "category": "Execution",
+          "component": "validation-run",
+          "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+          "specReference": null,
+          "impactAreas": [
+            7
+          ],
+          "metadata": {}
         }
       ],
       "coverageDecisions": [
         {
           "decisionId": "coverage:prompt-surface:prompts-list:Skipped",
+          "relatedEvidenceIds": [
+            "coverage:prompt-surface:prompts-list:Skipped"
+          ],
+          "evidenceReferences": [
+            {
+              "evidenceId": "coverage:prompt-surface:prompts-list:Skipped",
+              "evidenceKind": "coverage-declaration",
+              "summary": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.",
+              "specReference": null,
+              "remediation": null,
+              "redactedPayloadPreview": "Server does not advertise prompts capability.",
+              "metadata": {
+                "layerId": "prompt-surface",
+                "scope": "prompts/list",
+                "status": "Skipped",
+                "blocker": "None",
+                "confidence": "None"
+              }
+            }
+          ],
           "ruleId": null,
           "lane": 0,
           "authority": 3,
@@ -455,7 +899,79 @@
           ],
           "wwwAuthenticateHeader": null,
           "authMetadata": null,
-          "contentSafetyFindings": []
+          "contentSafetyFindings": [],
+          "aiSafetyControlEvidence": [
+            {
+              "subjectKind": "tool",
+              "subjectName": "delete_repo",
+              "controlKind": 0,
+              "status": 2,
+              "authority": 3,
+              "summary": "Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.",
+              "recommendation": "Document the expected confirmation/approval flow and ensure the host can deny the invocation before execution.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "delete_repo",
+              "controlKind": 3,
+              "status": 2,
+              "authority": 2,
+              "summary": "Destructive action confirmation guidance is missing from tool metadata.",
+              "recommendation": "Add explicit confirmation, approval, warning, or consent language for destructive operations.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "delete_repo",
+              "controlKind": 2,
+              "status": 2,
+              "authority": 2,
+              "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
+              "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "delete_repo",
+              "controlKind": 1,
+              "status": 3,
+              "authority": 3,
+              "summary": "Audit trail behavior is not observable from tool metadata for this potentially destructive tool.",
+              "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "delete_repo",
+              "controlKind": 4,
+              "status": 3,
+              "authority": 2,
+              "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
+              "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            }
+          ]
         },
         {
           "toolName": "list_repos",
@@ -477,7 +993,79 @@
           "findings": [],
           "wwwAuthenticateHeader": null,
           "authMetadata": null,
-          "contentSafetyFindings": []
+          "contentSafetyFindings": [],
+          "aiSafetyControlEvidence": [
+            {
+              "subjectKind": "tool",
+              "subjectName": "list_repos",
+              "controlKind": 0,
+              "status": 0,
+              "authority": 2,
+              "summary": "No destructive tool behavior was declared or inferred from tool metadata.",
+              "recommendation": null,
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "list_repos",
+              "controlKind": 3,
+              "status": 0,
+              "authority": 2,
+              "summary": "Tool is not declared or inferred as destructive.",
+              "recommendation": null,
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "list_repos",
+              "controlKind": 2,
+              "status": 2,
+              "authority": 2,
+              "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
+              "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "list_repos",
+              "controlKind": 1,
+              "status": 3,
+              "authority": 3,
+              "summary": "Audit trail behavior is not observable from tool metadata.",
+              "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            },
+            {
+              "subjectKind": "tool",
+              "subjectName": "list_repos",
+              "controlKind": 4,
+              "status": 3,
+              "authority": 2,
+              "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
+              "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
+              "metadata": {
+                "readOnlyHint": "unknown",
+                "destructiveHint": "unknown",
+                "openWorldHint": "unknown"
+              }
+            }
+          ]
         }
       ],
       "parameterValidation": [],
@@ -518,6 +1106,148 @@
           "effectiveSource": 3,
           "effectiveSourceLabel": "heuristic",
           "effectiveSpecReference": null
+        }
+      ],
+      "aiSafetyControlEvidence": [
+        {
+          "subjectKind": "tool",
+          "subjectName": "delete_repo",
+          "controlKind": 0,
+          "status": 2,
+          "authority": 3,
+          "summary": "Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.",
+          "recommendation": "Document the expected confirmation/approval flow and ensure the host can deny the invocation before execution.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "delete_repo",
+          "controlKind": 3,
+          "status": 2,
+          "authority": 2,
+          "summary": "Destructive action confirmation guidance is missing from tool metadata.",
+          "recommendation": "Add explicit confirmation, approval, warning, or consent language for destructive operations.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "delete_repo",
+          "controlKind": 2,
+          "status": 2,
+          "authority": 2,
+          "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
+          "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "delete_repo",
+          "controlKind": 1,
+          "status": 3,
+          "authority": 3,
+          "summary": "Audit trail behavior is not observable from tool metadata for this potentially destructive tool.",
+          "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "delete_repo",
+          "controlKind": 4,
+          "status": 3,
+          "authority": 2,
+          "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
+          "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "list_repos",
+          "controlKind": 0,
+          "status": 0,
+          "authority": 2,
+          "summary": "No destructive tool behavior was declared or inferred from tool metadata.",
+          "recommendation": null,
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "list_repos",
+          "controlKind": 3,
+          "status": 0,
+          "authority": 2,
+          "summary": "Tool is not declared or inferred as destructive.",
+          "recommendation": null,
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "list_repos",
+          "controlKind": 2,
+          "status": 2,
+          "authority": 2,
+          "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
+          "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "list_repos",
+          "controlKind": 1,
+          "status": 3,
+          "authority": 3,
+          "summary": "Audit trail behavior is not observable from tool metadata.",
+          "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
+        },
+        {
+          "subjectKind": "tool",
+          "subjectName": "list_repos",
+          "controlKind": 4,
+          "status": 3,
+          "authority": 2,
+          "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
+          "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
+          "metadata": {
+            "readOnlyHint": "unknown",
+            "destructiveHint": "unknown",
+            "openWorldHint": "unknown"
+          }
         }
       ],
       "estimatedTokenCount": 0,
@@ -585,15 +1315,116 @@
           "affectedComponent": "prompt:get",
           "proofOfConcept": null,
           "remediation": "Sanitize and label untrusted content before returning it.",
-          "isExploitable": true
+          "isExploitable": true,
+          "probeContexts": [
+            {
+              "probeId": "probe-prompt-get-reflection-200",
+              "requestId": null,
+              "method": "prompts/get",
+              "transport": "http",
+              "protocolVersion": "2025-11-25",
+              "authApplied": true,
+              "authScheme": null,
+              "authStatus": 3,
+              "responseClassification": 1,
+              "confidence": 3,
+              "statusCode": 200,
+              "reason": "Prompt response reflected untrusted content.",
+              "metadata": {}
+            }
+          ]
         }
       ],
       "inputValidationResults": [],
-      "attackSimulations": [],
+      "attackSimulations": [
+        {
+          "attackVector": "MCP-SEC-001",
+          "description": "JSON-RPC Error Smuggling",
+          "attackSuccessful": false,
+          "defenseSuccessful": true,
+          "serverResponse": "Rejected injected argument with JSON-RPC error -32602.",
+          "executionTimeMs": 18,
+          "evidence": {
+            "outcome": "blocked",
+            "probeIds": "probe-attack-tools-list-200,probe-attack-tools-call-400",
+            "probeResponseClassifications": "Success,ProtocolError",
+            "probeAuthStatuses": "Applied,Applied"
+          },
+          "probeContexts": [
+            {
+              "probeId": "probe-attack-tools-list-200",
+              "requestId": null,
+              "method": "tools/list",
+              "transport": "http",
+              "protocolVersion": "2025-11-25",
+              "authApplied": true,
+              "authScheme": null,
+              "authStatus": 3,
+              "responseClassification": 1,
+              "confidence": 3,
+              "statusCode": 200,
+              "reason": null,
+              "metadata": {}
+            },
+            {
+              "probeId": "probe-attack-tools-call-400",
+              "requestId": null,
+              "method": "tools/call",
+              "transport": "http",
+              "protocolVersion": "2025-11-25",
+              "authApplied": true,
+              "authScheme": null,
+              "authStatus": 3,
+              "responseClassification": 2,
+              "confidence": 3,
+              "statusCode": 400,
+              "reason": "Injected argument rejected with JSON-RPC error.",
+              "metadata": {}
+            }
+          ]
+        }
+      ],
       "securityRecommendations": [
         "Label or sanitize untrusted prompt content before returning it."
       ],
-      "authenticationTestResult": null,
+      "authenticationTestResult": {
+        "status": 2,
+        "complianceScore": 100,
+        "duration": "00:00:00",
+        "testScenarios": [
+          {
+            "scenarioName": "No Auth - tools/list",
+            "testType": "No Auth",
+            "method": "tools/list",
+            "expectedBehavior": "4xx (Secure Rejection)",
+            "actualBehavior": "401 Unauthorized with challenge",
+            "statusCode": "401",
+            "analysis": "Returned 401 with WWW-Authenticate.",
+            "isCompliant": true,
+            "isSecure": true,
+            "isStandardsAligned": true,
+            "assessmentScore": -1,
+            "assessmentDisposition": 3,
+            "complianceReason": "Authentication challenge was standards-aligned.",
+            "wwwAuthenticateHeader": "Bearer resource_metadata=\u0022https://snapshot.example.test/.well-known/oauth-protected-resource\u0022",
+            "probeContext": {
+              "probeId": "probe-auth-tools-list-401",
+              "requestId": null,
+              "method": "tools/list",
+              "transport": "http",
+              "protocolVersion": "2025-11-25",
+              "authApplied": false,
+              "authScheme": null,
+              "authStatus": 4,
+              "responseClassification": 3,
+              "confidence": 3,
+              "statusCode": 401,
+              "reason": "Unauthenticated tools/list returned WWW-Authenticate.",
+              "metadata": {}
+            }
+          }
+        ]
+      },
       "status": 3,
       "duration": "00:00:02.6000000",
       "message": "Security testing found one exploitable prompt reflection.",
@@ -772,6 +1603,13 @@
         "findings": []
       },
       {
+        "scenarioId": "security-attack-simulations",
+        "displayName": "Attack Simulation Matrix",
+        "status": 2,
+        "summary": "Evaluated 1 attack simulation(s).",
+        "findings": []
+      },
+      {
         "scenarioId": "error-handling-matrix",
         "displayName": "Error Handling Matrix",
         "status": 2,
@@ -850,7 +1688,68 @@
           "statusCode": "401",
           "disposition": "StandardsAligned"
         },
+        "probeContexts": [
+          {
+            "probeId": "probe-auth-tools-list-401",
+            "requestId": null,
+            "method": "tools/list",
+            "transport": "http",
+            "protocolVersion": "2025-11-25",
+            "authApplied": false,
+            "authScheme": null,
+            "authStatus": 4,
+            "responseClassification": 3,
+            "confidence": 3,
+            "statusCode": 401,
+            "reason": "Unauthenticated tools/list returned WWW-Authenticate.",
+            "metadata": {}
+          }
+        ],
         "redactedPayloadPreview": "Returned 401 with WWW-Authenticate."
+      },
+      {
+        "id": "attack-mcp-sec-001",
+        "layerId": "security-boundaries",
+        "component": "MCP-SEC-001",
+        "observationKind": "attack-simulation",
+        "scenarioId": "security-attack-simulations",
+        "metadata": {
+          "attackSuccessful": "False",
+          "defenseSuccessful": "True"
+        },
+        "probeContexts": [
+          {
+            "probeId": "probe-attack-tools-list-200",
+            "requestId": null,
+            "method": "tools/list",
+            "transport": "http",
+            "protocolVersion": "2025-11-25",
+            "authApplied": true,
+            "authScheme": null,
+            "authStatus": 3,
+            "responseClassification": 1,
+            "confidence": 3,
+            "statusCode": 200,
+            "reason": null,
+            "metadata": {}
+          },
+          {
+            "probeId": "probe-attack-tools-call-400",
+            "requestId": null,
+            "method": "tools/call",
+            "transport": "http",
+            "protocolVersion": "2025-11-25",
+            "authApplied": true,
+            "authScheme": null,
+            "authStatus": 3,
+            "responseClassification": 2,
+            "confidence": 3,
+            "statusCode": 400,
+            "reason": "Injected argument rejected with JSON-RPC error.",
+            "metadata": {}
+          }
+        ],
+        "redactedPayloadPreview": "Rejected injected argument with JSON-RPC error -32602."
       }
     ],
     "coverage": [
@@ -858,48 +1757,72 @@
         "layerId": "protocol-core",
         "scope": "json-rpc",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "tool-surface",
         "scope": "tools/list",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "prompt-surface",
         "scope": "prompts/list",
         "status": 1,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": "Server does not advertise prompts capability."
       },
       {
         "layerId": "client-profiles",
         "scope": "github-copilot-cli,github-copilot-cloud-agent",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "tool-surface",
         "scope": "tool-catalog-smoke",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "security-boundaries",
         "scope": "security-authentication-challenge",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "error-handling",
         "scope": "error-handling",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       },
       {
         "layerId": "error-handling",
         "scope": "error-handling-matrix",
         "status": 0,
+        "blocker": 0,
+        "confidence": 0,
+        "probeContext": null,
         "reason": null
       }
     ],
@@ -1098,10 +2021,13 @@
     "passedTests": 4,
     "failedTests": 2,
     "skippedTests": 1,
+    "authRequiredTests": 0,
+    "inconclusiveTests": 0,
     "criticalIssues": 1,
     "warnings": 2,
     "passRate": 57.14285714285714,
-    "coverageRatio": 0.875
+    "coverageRatio": 0.875,
+    "evidenceConfidenceRatio": 1
   },
   "trustAssessment": {
     "trustLevel": 3,
@@ -1144,13 +2070,13 @@
     "blockingSignalCount": 9,
     "reasons": [
       "Critical error recorded: Prompt validation hit an unsafe reflection path.",
-      "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
+      "Server ignored the requested MCP protocol version.",
+      "One tool response omitted the outer result object.",
+      "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
       "Server reflected untrusted prompt content without sanitization.",
       "Prompt output includes reflected untrusted content.",
-      "Server ignored the requested MCP protocol version.",
-      "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
       "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
-      "One tool response omitted the outer result object.",
+      "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
       "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
     ],
     "suppressedSignalCount": 0,

@@ -29,15 +29,24 @@ public sealed class ContentTypeRule : IVersionedValidationRule<ProtocolValidatio
         var content = new StringContent("{\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}", Encoding.UTF8, "text/plain");
         var response = await context.Client.SendAsync(context.Endpoint, content, cancellationToken);
         
-        // Strict servers should reject this with 406 or 415
+        // Strict servers should reject this with 415 (or 406 for older implementations).
         if (response.StatusCode == System.Net.HttpStatusCode.NotAcceptable || 
             response.StatusCode == System.Net.HttpStatusCode.UnsupportedMediaType)
         {
             return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
         }
 
-        // Many servers are lenient, so we also accept success
-        // But we might want to note it if we were being strict
-        return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
+        if ((int)response.StatusCode is 401 or 403)
+        {
+            return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
+        }
+
+        return new RuleResult
+        {
+            IsCompliant = false,
+            FailureReason = $"Server accepted or mishandled a JSON-RPC request with Content-Type text/plain (HTTP {(int)response.StatusCode}).",
+            Severity = ViolationSeverity.High,
+            ScoreImpact = 10
+        };
     }
 }

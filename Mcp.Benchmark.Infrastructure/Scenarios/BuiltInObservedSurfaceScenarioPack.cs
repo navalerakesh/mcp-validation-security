@@ -407,7 +407,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     {
                         ["statusCode"] = scenario.StatusCode,
                         ["disposition"] = scenario.AssessmentDisposition.ToString()
-                    }
+                    },
+                    ProbeContexts = BuildProbeContexts(scenario.ProbeContext)
                 })
                 .ToList()
         };
@@ -464,10 +465,17 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     {
                         ["attackSuccessful"] = attack.AttackSuccessful.ToString(),
                         ["defenseSuccessful"] = attack.DefenseSuccessful.ToString()
-                    }
+                    },
+                    ProbeContexts = attack.ProbeContexts
                 })
                 .ToList()
         };
+    }
+
+    private static List<ProbeContext>? BuildProbeContexts(params ProbeContext?[] probeContexts)
+    {
+        var contexts = probeContexts.Where(context => context != null).Cast<ProbeContext>().ToList();
+        return contexts.Count > 0 ? contexts : null;
     }
 
     private static ValidationScenarioExecutionResult ExecuteErrorHandlingScenario(ValidationScenarioContext context)
@@ -570,6 +578,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = layerId,
                     Scope = scenarioId,
                     Status = coverageStatus,
+                    Blocker = MapCoverageBlocker(coverageStatus),
+                    Confidence = MapCoverageConfidence(coverageStatus),
                     Reason = reason
                 }
             ]
@@ -583,6 +593,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             (TestStatus.Failed, _) or (_, TestStatus.Failed) => TestStatus.Failed,
             (TestStatus.Error, _) or (_, TestStatus.Error) => TestStatus.Error,
             (TestStatus.Cancelled, _) or (_, TestStatus.Cancelled) => TestStatus.Cancelled,
+            (TestStatus.AuthRequired, _) or (_, TestStatus.AuthRequired) => TestStatus.AuthRequired,
+            (TestStatus.Inconclusive, _) or (_, TestStatus.Inconclusive) => TestStatus.Inconclusive,
             (TestStatus.NotRun, _) => next,
             (_, TestStatus.NotRun) => current,
             (TestStatus.Skipped, TestStatus.Passed) => TestStatus.Skipped,
@@ -597,7 +609,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
         {
             AuthenticationAssessmentDisposition.StandardsAligned or AuthenticationAssessmentDisposition.SecureCompatible => TestStatus.Passed,
             AuthenticationAssessmentDisposition.Insecure => TestStatus.Failed,
-            AuthenticationAssessmentDisposition.Informational or AuthenticationAssessmentDisposition.Inconclusive => TestStatus.Skipped,
+            AuthenticationAssessmentDisposition.Inconclusive => TestStatus.Inconclusive,
+            AuthenticationAssessmentDisposition.Informational => TestStatus.Skipped,
             _ => scenario.IsSecure || scenario.IsCompliant ? TestStatus.Passed : TestStatus.Failed
         };
     }
@@ -608,8 +621,34 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
         {
             TestStatus.Passed or TestStatus.Failed => ValidationCoverageStatus.Covered,
             TestStatus.Skipped => ValidationCoverageStatus.Skipped,
+            TestStatus.AuthRequired => ValidationCoverageStatus.AuthRequired,
+            TestStatus.Inconclusive => ValidationCoverageStatus.Inconclusive,
             TestStatus.Error or TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
             _ => ValidationCoverageStatus.Unavailable
+        };
+    }
+
+    private static ValidationEvidenceBlocker MapCoverageBlocker(ValidationCoverageStatus status)
+    {
+        return status switch
+        {
+            ValidationCoverageStatus.Skipped => ValidationEvidenceBlocker.ConfigDisabled,
+            ValidationCoverageStatus.AuthRequired => ValidationEvidenceBlocker.AuthRequired,
+            ValidationCoverageStatus.Inconclusive => ValidationEvidenceBlocker.TransientFailure,
+            ValidationCoverageStatus.Unavailable => ValidationEvidenceBlocker.Unimplemented,
+            ValidationCoverageStatus.Blocked => ValidationEvidenceBlocker.TransportError,
+            _ => ValidationEvidenceBlocker.None
+        };
+    }
+
+    private static EvidenceConfidenceLevel MapCoverageConfidence(ValidationCoverageStatus status)
+    {
+        return status switch
+        {
+            ValidationCoverageStatus.Covered => EvidenceConfidenceLevel.High,
+            ValidationCoverageStatus.AuthRequired or ValidationCoverageStatus.Inconclusive or ValidationCoverageStatus.Skipped => EvidenceConfidenceLevel.Low,
+            ValidationCoverageStatus.NotApplicable => EvidenceConfidenceLevel.High,
+            _ => EvidenceConfidenceLevel.None
         };
     }
 

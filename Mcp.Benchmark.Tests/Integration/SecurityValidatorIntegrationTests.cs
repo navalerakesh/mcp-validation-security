@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
@@ -107,17 +108,31 @@ public class SecurityValidatorIntegrationTests
             }
         };
 
-        // Mock HTTP responses that indicate potential vulnerabilities
         _httpClientMock.Setup(x => x.CallAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                ValidationConstants.Methods.ToolsList,
                 It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse
             {
-                StatusCode = 500,
-                IsSuccess = false,
-                RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32602,\"message\":\"Invalid params\"},\"id\":\"test\"}"
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}}}}]}}"
+            });
+
+        // Mock HTTP responses that reflect one payload and therefore indicate a potential vulnerability.
+        _httpClientMock.Setup(x => x.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.ToolsCall,
+                It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"'; DROP TABLE users; --\"}]},\"id\":\"test\"}"
             });
 
         // Act  
@@ -126,7 +141,7 @@ public class SecurityValidatorIntegrationTests
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
+        result.Status.Should().Be(TestStatus.Failed);
     }
 
     [Fact]
@@ -147,11 +162,25 @@ public class SecurityValidatorIntegrationTests
             "information_disclosure"
         };
 
-        // Mock various response scenarios for different attack vectors
         _httpClientMock.Setup(x => x.CallAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                ValidationConstants.Methods.ToolsList,
                 It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"query\":{\"type\":\"string\"}}}}]}}"
+            });
+
+        // Mock blocked tool-call responses for each attack vector.
+        _httpClientMock.Setup(x => x.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.ToolsCall,
+                It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse
             {
@@ -166,7 +195,8 @@ public class SecurityValidatorIntegrationTests
 
         // Assert 
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
+        result.Status.Should().Be(TestStatus.Passed);
+        result.AttackSimulations.Should().HaveCount(attackVectors.Count);
     }
 
     [Fact]

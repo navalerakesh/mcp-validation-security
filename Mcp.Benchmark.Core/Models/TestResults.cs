@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Mcp.Benchmark.Core.Models;
 
 /// <summary>
@@ -39,6 +41,18 @@ public class ComplianceTestResult : TestResultBase
     /// Gets or sets the message format validation results.
     /// </summary>
     public MessageFormatTestResult MessageFormat { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets Streamable HTTP transport probe results when applicable.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public StreamableHttpTransportTestResult? StreamableHttpTransport { get; set; }
+
+    /// <summary>
+    /// Gets or sets STDIO transport probe results when applicable.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public StdioTransportTestResult? StdioTransport { get; set; }
 
     /// <summary>
     /// Gets or sets specific compliance violations found.
@@ -122,6 +136,11 @@ public class ToolTestResult : TestResultBase
     /// Structured findings produced during AI readiness analysis.
     /// </summary>
     public List<ValidationFinding> AiReadinessFindings { get; set; } = new();
+
+    /// <summary>
+    /// Structured consent, human-control, audit, and data-boundary evidence derived from tool metadata.
+    /// </summary>
+    public List<AiSafetyControlEvidence> AiSafetyControlEvidence { get; set; } = new();
 
     /// <summary>
     /// Estimated token count for the full tools/list response payload.
@@ -429,6 +448,16 @@ public enum TestStatus
     Skipped,
 
     /// <summary>
+    /// Test could not execute because the target surface requires authentication.
+    /// </summary>
+    AuthRequired,
+
+    /// <summary>
+    /// Test executed enough to observe the target surface, but evidence was insufficient for a pass/fail judgment.
+    /// </summary>
+    Inconclusive,
+
+    /// <summary>
     /// Test encountered an error during execution.
     /// </summary>
     Error,
@@ -542,6 +571,12 @@ public class AuthenticationScenario
     /// Gets or sets the WWW-Authenticate header value if present.
     /// </summary>
     public string? WwwAuthenticateHeader { get; set; }
+
+    /// <summary>
+    /// Gets or sets the low-level probe context observed while executing this scenario.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ProbeContext? ProbeContext { get; set; }
 }
 
 /// <summary>

@@ -164,6 +164,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildOverviewMetrics(ValidationResult result)
     {
+        var evidenceSummary = ResolveEvidenceSummary(result);
+
         if (result.VerdictAssessment != null)
         {
             var verdictCards = new List<ValidationHtmlMetricCard>
@@ -180,6 +182,18 @@ internal sealed class ValidationHtmlReportDocumentFactory
                     Tone = MapScoreTone(result.ComplianceScore)
                 }
             };
+
+            if (evidenceSummary.TotalDeclarations > 0)
+            {
+                verdictCards.Add(new ValidationHtmlMetricCard
+                {
+                    Eyebrow = "Evidence",
+                    Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
+                    Label = "Evidence Confidence",
+                    SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
+                    Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
+                });
+            }
 
             if (result.TrustAssessment != null)
             {
@@ -236,7 +250,26 @@ internal sealed class ValidationHtmlReportDocumentFactory
             });
         }
 
+        if (evidenceSummary.TotalDeclarations > 0)
+        {
+            cards.Add(new ValidationHtmlMetricCard
+            {
+                Eyebrow = "Evidence",
+                Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
+                Label = "Evidence Confidence",
+                SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
+                Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
+            });
+        }
+
         return cards;
+    }
+
+    private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
+    {
+        return result.VerdictAssessment?.EvidenceSummary
+               ?? result.ScoringDetails?.EvidenceSummary
+               ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
     }
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildRiskMetrics(ValidationResult result)
@@ -469,7 +502,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return sourceDecisions
             .Where(decision => !string.IsNullOrWhiteSpace(decision.Summary))
             .GroupBy(BuildDecisionThemeKey, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(group => group.Max(item => item.Gate))
+            .OrderBy(group => group.Min(item => ValidationAuthorityHierarchy.GetSortOrder(item.Authority)))
+            .ThenByDescending(group => group.Max(item => item.Gate))
             .ThenByDescending(group => group.Count())
             .ThenByDescending(group => group.Max(item => item.Severity))
             .Take(MaxDecisionTraceItems)
@@ -496,6 +530,35 @@ internal sealed class ValidationHtmlReportDocumentFactory
             new() { Label = "Affected Components", Value = FormatComponentSet(affectedComponents) },
             new() { Label = "Decision Count", Value = group.Count().ToString() }
         };
+
+        var evidenceIds = group
+            .SelectMany(item => item.RelatedEvidenceIds)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(6)
+            .ToList();
+        if (evidenceIds.Count > 0)
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Evidence IDs", Value = string.Join(", ", evidenceIds) });
+        }
+
+        var payloadPreview = group
+            .SelectMany(item => item.EvidenceReferences)
+            .Select(reference => reference.RedactedPayloadPreview)
+            .FirstOrDefault(preview => !string.IsNullOrWhiteSpace(preview));
+        if (!string.IsNullOrWhiteSpace(payloadPreview))
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Payload Preview", Value = payloadPreview });
+        }
+
+        var remediation = group
+            .SelectMany(item => item.EvidenceReferences)
+            .Select(reference => reference.Remediation)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(remediation))
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Remediation", Value = remediation });
+        }
 
         foreach (var pair in representative.Metadata.Take(3))
         {
@@ -904,8 +967,15 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
 
         return !string.IsNullOrWhiteSpace(representative.SpecReference)
-            ? $"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin} · spec-linked"
-            : $"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin}";
+            ? AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin} · spec-linked", representative)
+            : AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin}", representative);
+    }
+
+    private static string AppendEvidenceCount(string label, DecisionRecord representative)
+    {
+        return representative.RelatedEvidenceIds.Count == 0
+            ? label
+            : $"{label} · {representative.RelatedEvidenceIds.Count} evidence link(s)";
     }
 
     private static string FormatComponentSet(IReadOnlyList<string> components)

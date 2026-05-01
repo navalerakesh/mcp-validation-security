@@ -86,7 +86,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         Category = ValidationConstants.Categories.AuthenticationSecurity,
                         AffectedComponent = scenario.Method,
                         IsExploitable = true,
-                        Remediation = ValidationMessages.Security.RemediationAuth
+                        Remediation = ValidationMessages.Security.RemediationAuth,
+                        ProbeContexts = BuildProbeContexts(scenario.ProbeContext)
                     });
                     continue;
                 }
@@ -145,11 +146,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 try
                 {
                     var attackResult = await vector.ExecuteAsync(serverConfig, _httpClient, ct);
-                    var outcome = attackResult.Analysis.Contains("Skipped", StringComparison.OrdinalIgnoreCase)
-                        ? AttackSimulationOutcome.Skipped
-                        : attackResult.IsBlocked
-                            ? AttackSimulationOutcome.Blocked
-                            : AttackSimulationOutcome.Detected;
+                    var probeContexts = attackResult.ProbeContexts.Count > 0 ? attackResult.ProbeContexts : null;
+                    var outcome = attackResult.Outcome;
                     
                     // Add to attack simulations for reporting
                     result.AttackSimulations.Add(new AttackSimulationResult
@@ -163,8 +161,11 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         {
                             ["evidence"] = attackResult.Evidence,
                             ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(outcome)
-                        }
+                        },
+                        ProbeContexts = probeContexts
                     });
+
+                    AddProbeContextEvidence(result.AttackSimulations[^1].Evidence, probeContexts);
 
                     // If vulnerable, add to vulnerabilities list
                     if (outcome == AttackSimulationOutcome.Detected)
@@ -178,7 +179,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                             Category = vector.Category,
                             AffectedComponent = "MCP Protocol/Tooling",
                             IsExploitable = true,
-                            Remediation = "Review MCP implementation against security best practices."
+                            Remediation = "Review MCP implementation against security best practices.",
+                            ProbeContexts = probeContexts
                         });
                     }
                 }
@@ -260,26 +262,33 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 Logger.LogWarning(ex, "Failed to discover tools for input sanitization testing.");
             }
 
+            if (targetTool == null || targetArgument == null)
+            {
+                foreach (var payload in payloads)
+                {
+                    result.InputValidationResults.Add(new InputValidationResult
+                    {
+                        InputField = payload.Name,
+                        TestPayload = payload.Payload,
+                        ExpectedBehavior = "executable tools/call string argument target",
+                        ValidationPassed = true,
+                        ActualResponse = "Skipped: no tool with a string argument was available for executable input-sanitization testing.",
+                        PropertySanitized = false
+                    });
+                }
+
+                result.Status = TestStatus.Skipped;
+                result.Message = "Input sanitization testing skipped because no executable string-argument tool target was discovered.";
+                return result;
+            }
+
             foreach (var payload in payloads)
             {
                 try
                 {
-                    object requestParams;
-                    string method;
-
-                    if (targetTool != null && targetArgument != null)
-                    {
-                        // Real test: inject payload into a valid tool argument via tools/call
-                        method = ValidationConstants.Methods.ToolsCall;
-                        var args = new Dictionary<string, object> { { targetArgument, payload.Payload } };
-                        requestParams = new { name = targetTool, arguments = args };
-                    }
-                    else
-                    {
-                        // Fallback: connectivity test only (no tool with string args found)
-                        method = ValidationConstants.Methods.ToolsList;
-                        requestParams = new { testPayload = payload.Payload };
-                    }
+                    var method = ValidationConstants.Methods.ToolsCall;
+                    var args = new Dictionary<string, object> { { targetArgument, payload.Payload } };
+                    object requestParams = new { name = targetTool, arguments = args };
 
                     var response = await _httpClient.CallAsync(serverConfig.Endpoint!, method, requestParams, serverConfig.Authentication, ct);
 
@@ -336,10 +345,12 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             Logger.LogInformation("Discovering potential attack targets via tools/list...");
             string? targetTool = null;
             string? targetArgument = null;
+            ProbeContext? discoveryProbeContext = null;
 
             try 
             {
                 var discoveryResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
+                discoveryProbeContext = discoveryResponse.ProbeContext;
                 
                 if (discoveryResponse.IsSuccess && !string.IsNullOrEmpty(discoveryResponse.RawJson))
                 {
@@ -373,16 +384,46 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             }
             catch(Exception ex)
             {
-                Logger.LogWarning(ex, "Failed to discover tools for security testing. Defaulting to 'tools/list' check which may be shallow.");
+                Logger.LogWarning(ex, "Failed to discover tools for security testing. Security attacks against 'tools/call' will be skipped.");
             }
 
             if (targetTool == null)
             {
-                Logger.LogWarning("No suitable tool found with string arguments. Security attacks against 'tools/call' will be skipped/simulated on list endpoint.");
+                Logger.LogWarning("No suitable tool found with string arguments. Security attacks against 'tools/call' will be skipped.");
             }
             else
             {
                 Logger.LogInformation("Selected target tool '{Tool}' and argument '{Arg}' for injection testing.", targetTool, targetArgument);
+            }
+
+            if (targetTool == null || targetArgument == null)
+            {
+                var probeContexts = BuildProbeContexts(discoveryProbeContext);
+                foreach (var attackVector in attackVectors)
+                {
+                    var evidence = new Dictionary<string, object>
+                    {
+                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(AttackSimulationOutcome.Skipped),
+                        ["target"] = "tools/call",
+                        ["reason"] = "No discovered tool exposed a string argument for injection testing."
+                    };
+                    AddProbeContextEvidence(evidence, probeContexts);
+
+                    result.AttackSimulations.Add(new AttackSimulationResult
+                    {
+                        AttackVector = attackVector,
+                        Description = $"Skipped {attackVector} attack; no tool with a string argument was discovered.",
+                        AttackSuccessful = false,
+                        DefenseSuccessful = false,
+                        ServerResponse = "Skipped: no tool with a string argument was available for an executable injection probe.",
+                        Evidence = evidence,
+                        ProbeContexts = probeContexts
+                    });
+                }
+
+                result.Status = TestStatus.Skipped;
+                result.Message = "Attack simulation skipped because no executable string-argument tool target was discovered.";
+                return result;
             }
 
             foreach (var attackVector in attackVectors)
@@ -390,24 +431,10 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 try
                 {
                     var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-                    object payload;
-                    string method;
-
-                    if (targetTool != null && targetArgument != null)
-                    {
-                        // Real attack: Call the tool with the injection payload
-                        method = ValidationConstants.Methods.ToolsCall;
-                        var attackString = GetAttackString(attackVector);
-                        var args = new Dictionary<string, object> { { targetArgument, attackString } };
-                        payload = new { name = targetTool, arguments = args };
-                    }
-                    else
-                    {
-                        // Fallback (Legacy/Shallow): Send payload to tools/list (Fake check, but keeping for now if discovery fails)
-                        // Ideally we should SKIP here if we want to be "fake-free", but let's keep it as a connectivity check
-                        method = ValidationConstants.Methods.ToolsList;
-                        payload = GetAttackPayload(attackVector); 
-                    }
+                    var method = ValidationConstants.Methods.ToolsCall;
+                    var attackString = GetAttackString(attackVector);
+                    var args = new Dictionary<string, object> { { targetArgument, attackString } };
+                    object payload = new { name = targetTool, arguments = args };
                     
                     var response = await _httpClient.CallAsync(serverConfig.Endpoint!, method, payload, serverConfig.Authentication, ct);
                     stopwatch.Stop();
@@ -439,7 +466,6 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                             // 3. Check if payload appears in the response — but distinguish raw echo from structured output
                             else if (targetTool != null)
                             {
-                                var attackString = GetAttackString(attackVector);
                                 var responseText = response.RawJson ?? "";
                                 
                                 if (responseText.Contains(attackString, StringComparison.OrdinalIgnoreCase))
@@ -509,6 +535,19 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                     }
 
                     var defenseMechanism = DetermineDefenseMechanism(response.StatusCode, response.IsSuccess, response.RawJson);
+                    var probeContexts = BuildProbeContexts(discoveryProbeContext, response.ProbeContext);
+                    var evidence = new Dictionary<string, object>
+                    {
+                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isBlocked ? AttackSimulationOutcome.Blocked : AttackSimulationOutcome.Detected),
+                        ["target"] = $"tools/call ({targetTool})",
+                        ["result"] = !isBlocked ? "Server accepted attack payload (Review output for reflection)" : $"Server blocked attack: {defenseDetails} (SECURE)",
+                        ["isSuccess"] = response.IsSuccess,
+                        ["statusCode"] = response.StatusCode,
+                        ["defenseMechanism"] = defenseMechanism,
+                        ["error"] = response.Error ?? string.Empty,
+                        ["actualExecutionTimeMs"] = stopwatch.ElapsedMilliseconds
+                    };
+                    AddProbeContextEvidence(evidence, probeContexts);
 
                     result.AttackSimulations.Add(new AttackSimulationResult
                     {
@@ -518,23 +557,26 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         DefenseSuccessful = isBlocked,
                         ServerResponse = response.RawJson ?? response.Error ?? "No response",
                         ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
-                        Evidence = new Dictionary<string, object>
-                        {
-                            ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isBlocked ? AttackSimulationOutcome.Blocked : AttackSimulationOutcome.Detected),
-                            ["target"] = targetTool != null ? $"tools/call ({targetTool})" : "tools/list",
-                            ["result"] = !isBlocked ? "Server accepted attack payload (Review output for reflection)" : $"Server blocked attack: {defenseDetails} (SECURE)",
-                            ["isSuccess"] = response.IsSuccess,
-                            ["statusCode"] = response.StatusCode,
-                            ["defenseMechanism"] = defenseMechanism,
-                            ["error"] = response.Error ?? string.Empty,
-                            ["actualExecutionTimeMs"] = stopwatch.ElapsedMilliseconds
-                        }
+                        Evidence = evidence,
+                        ProbeContexts = probeContexts
                     });
                 }
                 catch (Exception ex)
                 {
                     var isServerError = ex.Message.Contains("500") || ex.Message.Contains("Internal Server Error");
                     var defenseMechanism = DetermineDefenseMechanismFromException(ex);
+                    var probeContexts = BuildProbeContexts(discoveryProbeContext);
+                    var evidence = new Dictionary<string, object>
+                    {
+                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isServerError ? AttackSimulationOutcome.Detected : AttackSimulationOutcome.Blocked),
+                        ["exception"] = ex.Message,
+                        ["attackSuccessful"] = isServerError,
+                        ["defenseSuccessful"] = !isServerError,
+                        ["defenseMechanism"] = defenseMechanism,
+                        ["statusCode"] = isServerError ? 500 : 401,
+                        ["analysis"] = isServerError ? "Server error - potential vulnerability" : "Attack blocked at network/auth layer"
+                    };
+                    AddProbeContextEvidence(evidence, probeContexts);
                     
                     result.AttackSimulations.Add(new AttackSimulationResult
                     {
@@ -544,16 +586,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         DefenseSuccessful = !isServerError,
                         ServerResponse = $"Exception: {ex.Message}",
                         ExecutionTimeMs = 0,
-                        Evidence = new Dictionary<string, object>
-                        {
-                            ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isServerError ? AttackSimulationOutcome.Detected : AttackSimulationOutcome.Blocked),
-                            ["exception"] = ex.Message,
-                            ["attackSuccessful"] = isServerError,
-                            ["defenseSuccessful"] = !isServerError,
-                            ["defenseMechanism"] = defenseMechanism,
-                            ["statusCode"] = isServerError ? 500 : 401,
-                            ["analysis"] = isServerError ? "Server error - potential vulnerability" : "Attack blocked at network/auth layer"
-                        }
+                        Evidence = evidence,
+                        ProbeContexts = probeContexts
                     });
                 }
             }
@@ -588,6 +622,24 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
         }
 
         return ValidationMessages.Security.Defense.Unknown;
+    }
+
+    private static List<ProbeContext>? BuildProbeContexts(params ProbeContext?[] probeContexts)
+    {
+        var contexts = probeContexts.Where(context => context != null).Cast<ProbeContext>().ToList();
+        return contexts.Count > 0 ? contexts : null;
+    }
+
+    private static void AddProbeContextEvidence(Dictionary<string, object> evidence, IReadOnlyList<ProbeContext>? probeContexts)
+    {
+        if (probeContexts?.Count > 0 != true)
+        {
+            return;
+        }
+
+        evidence["probeIds"] = string.Join(",", probeContexts.Select(context => context.ProbeId));
+        evidence["probeResponseClassifications"] = string.Join(",", probeContexts.Select(context => context.ResponseClassification.ToString()));
+        evidence["probeAuthStatuses"] = string.Join(",", probeContexts.Select(context => context.AuthStatus.ToString()));
     }
 
     private string DetermineDefenseMechanismFromException(Exception ex)
@@ -640,17 +692,6 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
         if (result.AttackSimulations.Any(a => a.AttackSuccessful)) recommendations.Add(ValidationMessages.Security.Recommendation.Defense);
         if (result.InputValidationResults.Any(i => i.SecurityConcerns.Count > 0)) recommendations.Add(ValidationMessages.Security.Recommendation.Injection);
         return recommendations;
-    }
-
-    private object GetAttackPayload(string attackVector)
-    {
-        return attackVector switch
-        {
-            ValidationConstants.AttackVectors.InputValidation1 => new { query = "'; DROP TABLE users; --" },
-            ValidationConstants.AttackVectors.InputValidation2 => new { input = "<script>alert('XSS')</script>" },
-            ValidationConstants.AttackVectors.InputValidation3 => new { command = "; rm -rf /" },
-            _ => new { payload = $"test-{attackVector}" }
-        };
     }
 
     private string GetAttackString(string attackVector)

@@ -27,7 +27,36 @@ public class ScoringResult
 
     /// <summary>
     /// Gets or sets the fraction of total weighting that was executed during scoring.
-    /// Values less than 1 indicate partial coverage, which is used as a multiplier.
+    /// Values less than 1 indicate partial category coverage and should be interpreted separately from the score.
     /// </summary>
     public double CoverageRatio { get; set; } = 1.0;
+
+    /// <summary>
+    /// Gets or sets the evidence coverage and confidence summary used to interpret the score.
+    /// </summary>
+    public EvidenceCoverageSummary EvidenceSummary { get; set; } = new();
+
+    /// <summary>
+    /// Gets the fraction of applicable evidence declarations that were directly covered.
+    /// </summary>
+    public double EvidenceCoverageRatio
+    {
+        get => EvidenceSummary.EvidenceCoverageRatio;
+        set => EvidenceSummary = new EvidenceCoverageSummary
+        {
+            TotalDeclarations = EvidenceSummary.TotalDeclarations,
+            ApplicableDeclarations = EvidenceSummary.ApplicableDeclarations,
+            Covered = EvidenceSummary.Covered,
+            AuthRequired = EvidenceSummary.AuthRequired,
+            Inconclusive = EvidenceSummary.Inconclusive,
+            Skipped = EvidenceSummary.Skipped,
+            NotApplicable = EvidenceSummary.NotApplicable,
+            Unavailable = EvidenceSummary.Unavailable,
+            Blocked = EvidenceSummary.Blocked,
+            EvidenceCoverageRatio = value,
+            EvidenceConfidenceRatio = EvidenceSummary.EvidenceConfidenceRatio,
+            ConfidenceLevel = EvidenceSummary.ConfidenceLevel,
+            Categories = EvidenceSummary.Categories
+        };
+    }
 }
