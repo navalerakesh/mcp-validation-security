@@ -82,16 +82,17 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 
 ## 5. Review The Generated Artifacts
 
-`validate --output <folder>` writes four files for every run:
+`validate --output <folder>` writes the standard artifact set for every run:
 
 - `mcp-validation-<timestamp>-report.md` - Markdown report for people
 - `mcp-validation-<timestamp>-report.html` - HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable result object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF feed for CI and code scanning
+- `mcp-validation-<timestamp>-audit.json` - execution audit manifest for the run
 
 The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
-Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. Use `--report-detail minimal` when you want the executive-only view.
+Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Run Status, Deterministic Verdict, and Trust Level cards so the gating decision and L1-L5 posture are visible immediately. Use `--report-detail minimal` when you want the executive-only view.
 
 ## 6. Render Additional Offline Formats
 
