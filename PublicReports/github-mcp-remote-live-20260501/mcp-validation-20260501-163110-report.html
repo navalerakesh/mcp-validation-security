@@ -175,6 +175,16 @@ body {
     flex-direction: column;
     gap: 12px;
 }
+.hero-side .status-panel {
+    padding: 16px;
+}
+.hero-side .focus-value {
+    font-size: 1.5rem;
+    letter-spacing: -0.03em;
+}
+.hero-side .focus-label {
+    font-size: 0.84rem;
+}
 .panel {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -205,6 +215,7 @@ body {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid transparent;
+    white-space: nowrap;
     overflow-wrap: normal;
     word-break: normal;
 }
@@ -1737,12 +1748,17 @@ a:hover {
 <div class="panel status-panel panel--soft panel--tone-warning">
     <span class="status-chip status-chip--warning">Run Status</span>
     <div class="focus-value">Review Before Release</div>
-    <div class="focus-label">Generated on 2026-05-01 16:48:47 UTC</div>
+    <div class="focus-label">Generated on 2026-05-01 16:55:40 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
     <span class="status-chip status-chip--danger">Deterministic Verdict</span>
-    <div class="focus-value">Baseline Reject &#183; Coverage Trusted</div>
+    <div class="focus-value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div>
     <div class="focus-label">Authoritative gate</div>
+</div>
+<div class="panel status-panel panel--soft panel--tone-warning">
+    <span class="status-chip status-chip--warning">Trust Level</span>
+    <div class="focus-value">L2</div>
+    <div class="focus-label">Caution — Significant gaps in safety or compliance</div>
 </div>
           </div>
         </div>

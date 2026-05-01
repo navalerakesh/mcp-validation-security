@@ -82,7 +82,8 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("          </div>");
         sb.AppendLine("          <div class=\"hero-side\">");
         sb.AppendLine(RenderStatusPanel("Run Status", hero.StatusLabel, hero.StatusTone, document.GeneratedAtLabel));
-        sb.AppendLine(RenderStatusPanel(document.Result.VerdictAssessment != null ? "Deterministic Verdict" : "Benchmark Trust", hero.TrustLabel, hero.TrustTone, document.Result.VerdictAssessment != null ? "Authoritative gate" : "Human decision signal"));
+        sb.AppendLine(RenderStatusPanel("Deterministic Verdict", hero.VerdictLabel, hero.VerdictTone, document.Result.VerdictAssessment != null ? "Authoritative gate" : "No deterministic gate available"));
+        sb.AppendLine(RenderStatusPanel("Trust Level", hero.TrustLevelLabel, hero.TrustLevelTone, hero.TrustLevelDetail));
         sb.AppendLine("          </div>");
         sb.AppendLine("        </div>");
         sb.AppendLine("      </section>");

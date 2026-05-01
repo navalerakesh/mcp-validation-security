@@ -53,9 +53,15 @@ internal sealed class ValidationHtmlHero
 
     public required HtmlReportTone StatusTone { get; init; }
 
-    public required string TrustLabel { get; init; }
+    public required string VerdictLabel { get; init; }
 
-    public required HtmlReportTone TrustTone { get; init; }
+    public required HtmlReportTone VerdictTone { get; init; }
+
+    public required string TrustLevelLabel { get; init; }
+
+    public required string TrustLevelDetail { get; init; }
+
+    public required HtmlReportTone TrustLevelTone { get; init; }
 
     public required IReadOnlyList<ValidationHtmlMetaItem> MetaItems { get; init; }
 }

@@ -175,6 +175,16 @@ body {
     flex-direction: column;
     gap: 12px;
 }
+.hero-side .status-panel {
+    padding: 16px;
+}
+.hero-side .focus-value {
+    font-size: 1.5rem;
+    letter-spacing: -0.03em;
+}
+.hero-side .focus-label {
+    font-size: 0.84rem;
+}
 .panel {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -205,6 +215,7 @@ body {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid transparent;
+    white-space: nowrap;
     overflow-wrap: normal;
     word-break: normal;
 }

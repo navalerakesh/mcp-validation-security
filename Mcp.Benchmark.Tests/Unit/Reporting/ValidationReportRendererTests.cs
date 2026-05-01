@@ -403,6 +403,20 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_ShouldExposeHeroDecisionSignals()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("<span class=\"status-chip status-chip--danger\">Run Status</span>");
+        html.Should().Contain("<span class=\"status-chip status-chip--danger\">Deterministic Verdict</span>");
+        html.Should().Contain("<span class=\"status-chip status-chip--info\">Trust Level</span>");
+        html.Should().Contain("<div class=\"focus-value\">L3</div>");
+        html.Should().Contain("<div class=\"focus-label\">Acceptable");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_WithMixedEvidenceConfidence_ShouldRenderLayerConfidenceSummary()
     {
         var result = new ValidationResult

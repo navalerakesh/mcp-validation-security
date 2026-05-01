@@ -79,10 +79,13 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Subtitle = BuildHeroSubtitle(result),
             StatusLabel = ResolveReleaseStatusLabel(result),
             StatusTone = releaseTone,
-            TrustLabel = BuildEvidencePostureLabel(result),
-            TrustTone = result.VerdictAssessment != null
+            VerdictLabel = BuildHeroVerdictLabel(result),
+            VerdictTone = result.VerdictAssessment != null
                 ? MapVerdictTone(result.VerdictAssessment.BaselineVerdict)
-                : MapTrustTone(result.TrustAssessment?.TrustLevel),
+                : HtmlReportTone.Neutral,
+            TrustLevelLabel = BuildTrustLevelValue(result.TrustAssessment),
+            TrustLevelDetail = BuildTrustLevelDetail(result.TrustAssessment),
+            TrustLevelTone = MapTrustTone(result.TrustAssessment?.TrustLevel),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
                 new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "n/a" },
@@ -93,6 +96,39 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 new() { Label = "Protocol Version", Value = protocolVersion }
             }
         };
+    }
+
+    private static string BuildHeroVerdictLabel(ValidationResult result)
+    {
+        return result.VerdictAssessment == null
+            ? "Not evaluated"
+            : BuildVerdictCompositeLabel(result);
+    }
+
+    private static string BuildTrustLevelValue(McpTrustAssessment? assessment)
+    {
+        if (assessment == null)
+        {
+            return "n/a";
+        }
+
+        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
+        return separatorIndex > 0
+            ? assessment.TrustLabel[..separatorIndex]
+            : assessment.TrustLevel.ToString().Split('_', 2)[0];
+    }
+
+    private static string BuildTrustLevelDetail(McpTrustAssessment? assessment)
+    {
+        if (assessment == null)
+        {
+            return "Trust assessment unavailable";
+        }
+
+        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? assessment.TrustLabel[(separatorIndex + 1)..].Trim()
+            : assessment.TrustLabel;
     }
 
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(
