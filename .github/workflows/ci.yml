@@ -3,40 +3,8 @@ name: Build & Release
 on:
   push:
     branches: [ "main" ]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'reports/**'
-      - 'TEMP/**'
-      - 'PublicReports/**'
-      - 'assets/**'
-      - 'LICENSE'
-      - 'LICENSE copy'
-      - 'CODE_OF_CONDUCT.md'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - '.github/CODEOWNERS'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
-      - '.github/dependabot.yml'
   pull_request:
     branches: [ "main" ]
-    paths-ignore:
-      - '**/*.md'
-      - 'docs/**'
-      - 'reports/**'
-      - 'TEMP/**'
-      - 'PublicReports/**'
-      - 'assets/**'
-      - 'LICENSE'
-      - 'LICENSE copy'
-      - 'CODE_OF_CONDUCT.md'
-      - 'CONTRIBUTING.md'
-      - 'SECURITY.md'
-      - '.github/CODEOWNERS'
-      - '.github/ISSUE_TEMPLATE/**'
-      - '.github/pull_request_template.md'
-      - '.github/dependabot.yml'
 
   workflow_dispatch:
 
@@ -57,22 +25,22 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
           cache-dependency-path: mcpval-mcp/package-lock.json
           
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore --locked-mode
 
       - name: Install npm dependencies
         working-directory: mcpval-mcp
@@ -155,14 +123,14 @@ jobs:
         run: dotnet test --no-build --configuration Debug --verbosity normal --logger "trx;LogFileName=test-results.trx"
         
       - name: Upload Test Results
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         if: always()
         with:
           name: test-results
           path: '**/test-results.trx'
 
       - name: Upload Audit Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: audit-results
@@ -190,12 +158,12 @@ jobs:
             os: osx
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -243,7 +211,7 @@ jobs:
           fi
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: mcpval-${{ matrix.rid }}
           path: publish/${{ matrix.rid }}/mcpval-${{ matrix.rid }}*
@@ -264,12 +232,12 @@ jobs:
       version: ${{ steps.tag.outputs.version }}
       tag: ${{ steps.tag.outputs.tag }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
       
       - name: Download Artifacts
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           pattern: mcpval-*
           path: release-assets
@@ -312,20 +280,43 @@ jobs:
           shasum -a 256 "${artifacts[@]}" > SHA256SUMS.txt
 
       - name: Generate Release SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: release-assets
           format: spdx-json
           output-file: release-assets/sbom-release-binaries.spdx.json
 
       - name: Attest Release Binaries
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
             release-assets/mcpval-*
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@398d4b0eeef1380460a10c8013a76f728fb906ac # v3
+        with:
+          cosign-release: v2.6.3
+
+      - name: Sign Release Assets
+        shell: bash
+        run: |
+          cd release-assets
+          shopt -s nullglob
+          artifacts=(mcpval-* SHA256SUMS.txt sbom-release-binaries.spdx.json)
+          if [ "${#artifacts[@]}" -eq 0 ]; then
+            echo "No release artifacts found to sign." >&2
+            exit 1
+          fi
+
+          for artifact in "${artifacts[@]}"; do
+            cosign sign-blob --yes "$artifact" \
+              --bundle "$artifact.sigstore.json" \
+              --output-signature "$artifact.sig" \
+              --output-certificate "$artifact.pem"
+          done
+
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: Release ${{ steps.tag.outputs.tag }}
@@ -384,12 +375,12 @@ jobs:
       attestations: write
       id-token: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -408,20 +399,20 @@ jobs:
             -o ./artifacts/nuget
 
       - name: Generate NuGet SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: artifacts/nuget
           format: spdx-json
           output-file: artifacts/nuget/mcpval.nuget.spdx.json
 
       - name: Attest NuGet Package
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
             artifacts/nuget/*.nupkg
 
       - name: Upload NuGet Package Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: nuget-package-artifacts
           path: |
@@ -457,12 +448,12 @@ jobs:
       run:
         working-directory: mcpval-mcp
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           registry-url: 'https://registry.npmjs.org'
@@ -484,20 +475,20 @@ jobs:
           npm pack --pack-destination ./dist-pack
 
       - name: Generate npm SBOM
-        uses: anchore/sbom-action@v0
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           path: ./mcpval-mcp/dist-pack
           format: spdx-json
           output-file: ./mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
 
       - name: Attest npm Package
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-path: |
             mcpval-mcp/dist-pack/*.tgz
 
       - name: Upload npm Package Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: npm-package-artifacts
           path: |
@@ -527,15 +518,15 @@ jobs:
       attestations: write
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           fetch-depth: 0
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -543,7 +534,7 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
@@ -552,7 +543,7 @@ jobs:
             type=raw,value=${{ needs.publish.outputs.tag }}
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ./Dockerfile

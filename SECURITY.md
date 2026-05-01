@@ -4,7 +4,11 @@
 
 If you discover a security issue in MCP Validator itself, do not open a public GitHub issue.
 
-Report it privately to the maintainer by email using the contact details listed on the GitHub profile.
+Report it privately through GitHub private vulnerability reporting:
+
+[Submit a private vulnerability report](https://github.com/navalerakesh/mcp-validation-security/security/advisories/new)
+
+If GitHub private vulnerability reporting is unavailable, contact the maintainer by email using the contact details listed on the GitHub profile.
 
 Include the following information:
 
