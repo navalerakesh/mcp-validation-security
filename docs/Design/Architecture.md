@@ -102,7 +102,7 @@ stateDiagram-v2
 `validate --output <folder>` writes the standard explicit-output artifact set:
 
 - Markdown report for human review
-- HTML report for sharing
+- HTML report for sharing, with Run Status, Deterministic Verdict, and Trust Level surfaced as the top decision cards
 - JSON result as the canonical machine-readable record
 - SARIF for CI and code-scanning pipelines
 - Audit manifest describing the execution plan, saved artifacts, and persistence context

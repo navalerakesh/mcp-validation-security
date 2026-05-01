@@ -19,18 +19,213 @@
     <BaselineVerdict>Reject</BaselineVerdict>
     <ProtocolVerdict>Reject</ProtocolVerdict>
     <CoverageVerdict>ReviewRequired</CoverageVerdict>
-    <Summary>Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.</Summary>
+    <Summary>Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.</Summary>
     <BlockingDecisionCount>8</BlockingDecisionCount>
+    <BlockingDecisions>
+      <Decision id="baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" gate="Reject" authority="spec" authorityPriority="0" origin="DeterministicObservation" severity="High">
+        <Category>Initialization</Category>
+        <Component>Initialization</Component>
+        <Summary>Server ignored the requested MCP protocol version.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" kind="protocol-violation">
+            <Summary>Server ignored the requested MCP protocol version.</Summary>
+            <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
+            <Remediation>Echo the negotiated protocol version in initialize.result.</Remediation>
+          </EvidenceReference>
+        </EvidenceReferences>
+        <RuleId>MCP.INIT.VERSION_NEGOTIATION</RuleId>
+        <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
+      </Decision>
+      <Decision id="baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" gate="ReviewRequired" authority="spec" authorityPriority="0" origin="DeterministicObservation" severity="Medium">
+        <Category>ProtocolCompliance</Category>
+        <Component>tools/call</Component>
+        <Summary>One tool response omitted the outer result object.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" kind="structured-finding">
+            <Summary>One tool response omitted the outer result object.</Summary>
+          </EvidenceReference>
+        </EvidenceReferences>
+        <RuleId>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</RuleId>
+      </Decision>
+      <Decision id="baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" gate="ReviewRequired" authority="guideline" authorityPriority="1" origin="HeuristicInference" severity="High">
+        <Category>McpGuideline</Category>
+        <Component>delete_repo</Component>
+        <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint</EvidenceId>
+          <EvidenceId>obs-tool-delete-repo</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" kind="structured-finding">
+            <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
+          </EvidenceReference>
+          <EvidenceReference id="obs-tool-delete-repo" kind="tool-metadata">
+            <Summary>tool-surface/delete_repo</Summary>
+            <RedactedPayloadPreview>Tool metadata missing annotations.destructiveHint.</RedactedPayloadPreview>
+            <Metadata>
+              <Entry key="displayTitle">Delete Repository</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+        <RuleId>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</RuleId>
+      </Decision>
+      <Decision id="baseline:security:mcp-security-prompt-injection:prompt-get" gate="Reject" authority="heuristic" authorityPriority="2" origin="DeterministicObservation" severity="Critical">
+        <Category>PromptInjection</Category>
+        <Component>prompt:get</Component>
+        <Summary>Server reflected untrusted prompt content without sanitization.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization</EvidenceId>
+          <EvidenceId>probe:probe-prompt-get-reflection-200</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization" kind="security-vulnerability">
+            <Summary>Prompt injection reflection</Summary>
+            <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
+            <Metadata>
+              <Entry key="category">PromptInjection</Entry>
+              <Entry key="affectedComponent">prompt:get</Entry>
+              <Entry key="severity">Critical</Entry>
+              <Entry key="isExploitable">True</Entry>
+            </Metadata>
+          </EvidenceReference>
+          <EvidenceReference id="probe:probe-prompt-get-reflection-200" kind="probe-context">
+            <Summary>prompts/get -&gt; Success</Summary>
+            <RedactedPayloadPreview>Prompt response reflected untrusted content.</RedactedPayloadPreview>
+            <Metadata>
+              <Entry key="requestId"></Entry>
+              <Entry key="method">prompts/get</Entry>
+              <Entry key="transport">http</Entry>
+              <Entry key="protocolVersion">2025-11-25</Entry>
+              <Entry key="authApplied">True</Entry>
+              <Entry key="authScheme"></Entry>
+              <Entry key="authStatus">Applied</Entry>
+              <Entry key="responseClassification">Success</Entry>
+              <Entry key="confidence">High</Entry>
+              <Entry key="statusCode">200</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+        <RuleId>MCP.SECURITY.PROMPT_INJECTION</RuleId>
+      </Decision>
+      <Decision id="baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" gate="Reject" authority="heuristic" authorityPriority="2" origin="HeuristicInference" severity="Critical">
+        <Category>PromptInjection</Category>
+        <Component>prompt:get</Component>
+        <Summary>Prompt output includes reflected untrusted content.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" kind="ai-boundary-finding">
+            <Summary>Prompt output includes reflected untrusted content.</Summary>
+            <Remediation>Sanitize or clearly label untrusted data.</Remediation>
+            <Metadata>
+              <Entry key="category">PromptInjection</Entry>
+              <Entry key="component">prompt:get</Entry>
+              <Entry key="severity">Critical</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+      </Decision>
+      <Decision id="baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" gate="ReviewRequired" authority="heuristic" authorityPriority="2" origin="HeuristicInference" severity="Medium">
+        <Category>AiReadiness</Category>
+        <Component>delete_repo</Component>
+        <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions</EvidenceId>
+          <EvidenceId>obs-tool-delete-repo</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" kind="structured-finding">
+            <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
+          </EvidenceReference>
+          <EvidenceReference id="obs-tool-delete-repo" kind="tool-metadata">
+            <Summary>tool-surface/delete_repo</Summary>
+            <RedactedPayloadPreview>Tool metadata missing annotations.destructiveHint.</RedactedPayloadPreview>
+            <Metadata>
+              <Entry key="displayTitle">Delete Repository</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+        <RuleId>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</RuleId>
+      </Decision>
+      <Decision id="coverage:prompt-surface:prompts-list:Skipped" gate="CoverageDebt" authority="heuristic" authorityPriority="2" origin="DeterministicAggregation" severity="Medium">
+        <Category>Coverage</Category>
+        <Component>prompt-surface</Component>
+        <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>coverage:prompt-surface:prompts-list:Skipped</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="coverage:prompt-surface:prompts-list:Skipped" kind="coverage-declaration">
+            <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
+            <RedactedPayloadPreview>Server does not advertise prompts capability.</RedactedPayloadPreview>
+            <Metadata>
+              <Entry key="layerId">prompt-surface</Entry>
+              <Entry key="scope">prompts/list</Entry>
+              <Entry key="status">Skipped</Entry>
+              <Entry key="blocker">None</Entry>
+              <Entry key="confidence">None</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+      </Decision>
+      <Decision id="baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" gate="Reject" authority="operational" authorityPriority="3" origin="DeterministicObservation" severity="Critical">
+        <Category>Execution</Category>
+        <Component>validation-run</Component>
+        <Summary>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>execution-error:prompt-validation-hit-an-unsafe-reflection-path</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="execution-error:prompt-validation-hit-an-unsafe-reflection-path" kind="execution-error">
+            <Summary>Critical execution error recorded.</Summary>
+            <RedactedPayloadPreview>Prompt validation hit an unsafe reflection path.</RedactedPayloadPreview>
+          </EvidenceReference>
+        </EvidenceReferences>
+      </Decision>
+    </BlockingDecisions>
+    <CoverageDecisions>
+      <Decision id="coverage:prompt-surface:prompts-list:Skipped" gate="CoverageDebt" authority="heuristic" authorityPriority="2" origin="DeterministicAggregation" severity="Medium">
+        <Category>Coverage</Category>
+        <Component>prompt-surface</Component>
+        <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
+        <RelatedEvidenceIds>
+          <EvidenceId>coverage:prompt-surface:prompts-list:Skipped</EvidenceId>
+        </RelatedEvidenceIds>
+        <EvidenceReferences>
+          <EvidenceReference id="coverage:prompt-surface:prompts-list:Skipped" kind="coverage-declaration">
+            <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
+            <RedactedPayloadPreview>Server does not advertise prompts capability.</RedactedPayloadPreview>
+            <Metadata>
+              <Entry key="layerId">prompt-surface</Entry>
+              <Entry key="scope">prompts/list</Entry>
+              <Entry key="status">Skipped</Entry>
+              <Entry key="blocker">None</Entry>
+              <Entry key="confidence">None</Entry>
+            </Metadata>
+          </EvidenceReference>
+        </EvidenceReferences>
+      </Decision>
+    </CoverageDecisions>
   </Verdicts>
   <Summary>
     <TotalTests>7</TotalTests>
     <PassedTests>4</PassedTests>
     <FailedTests>2</FailedTests>
     <SkippedTests>1</SkippedTests>
+    <AuthRequiredTests>0</AuthRequiredTests>
+    <InconclusiveTests>0</InconclusiveTests>
     <PassRate>57.1</PassRate>
     <CriticalIssues>1</CriticalIssues>
     <Warnings>2</Warnings>
     <CoverageRatio>0.875</CoverageRatio>
+    <EvidenceConfidenceRatio>1.000</EvidenceConfidenceRatio>
   </Summary>
   <Profiles>
     <ServerProfile>Authenticated</ServerProfile>
@@ -45,11 +240,11 @@
     <HandshakeHttpStatus>401</HandshakeHttpStatus>
   </BootstrapHealth>
   <SeverityBreakdown>
-    <Severity level="Critical" count="1" />
-    <Severity level="High" count="1" />
-    <Severity level="Medium" count="0" />
-    <Severity level="Low" count="0" />
-    <Severity level="Informational" count="0" />
+    <Severity level="Critical" machineLevel="critical" rank="4" count="1" />
+    <Severity level="High" machineLevel="high" rank="3" count="1" />
+    <Severity level="Medium" machineLevel="medium" rank="2" count="0" />
+    <Severity level="Low" machineLevel="low" rank="1" count="0" />
+    <Severity level="Info" machineLevel="info" rank="0" count="0" />
   </SeverityBreakdown>
   <ValidationEnvelope>
     <Layers>
@@ -79,34 +274,38 @@
         <DisplayName>Authentication Challenge Matrix</DisplayName>
         <Summary>Authentication challenge completed under deferred bootstrap review.</Summary>
       </Scenario>
+      <Scenario id="security-attack-simulations" status="Passed" findingCount="0">
+        <DisplayName>Attack Simulation Matrix</DisplayName>
+        <Summary>Evaluated 1 attack simulation(s).</Summary>
+      </Scenario>
       <Scenario id="error-handling-matrix" status="Passed" findingCount="0">
         <DisplayName>Error Handling Matrix</DisplayName>
         <Summary>Validated 3 error scenario(s); 3 handled correctly.</Summary>
       </Scenario>
     </Scenarios>
     <Coverage>
-      <Declaration layerId="protocol-core" scope="json-rpc" status="Covered">
+      <Declaration layerId="protocol-core" scope="json-rpc" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="tool-surface" scope="tools/list" status="Covered">
+      <Declaration layerId="tool-surface" scope="tools/list" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="prompt-surface" scope="prompts/list" status="Skipped">
+      <Declaration layerId="prompt-surface" scope="prompts/list" status="Skipped" blocker="None" confidence="None">
         <Reason>Server does not advertise prompts capability.</Reason>
       </Declaration>
-      <Declaration layerId="client-profiles" scope="github-copilot-cli,github-copilot-cloud-agent" status="Covered">
+      <Declaration layerId="client-profiles" scope="github-copilot-cli,github-copilot-cloud-agent" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="tool-surface" scope="tool-catalog-smoke" status="Covered">
+      <Declaration layerId="tool-surface" scope="tool-catalog-smoke" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="security-boundaries" scope="security-authentication-challenge" status="Covered">
+      <Declaration layerId="security-boundaries" scope="security-authentication-challenge" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="error-handling" scope="error-handling" status="Covered">
+      <Declaration layerId="error-handling" scope="error-handling" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="error-handling" scope="error-handling-matrix" status="Covered">
+      <Declaration layerId="error-handling" scope="error-handling-matrix" status="Covered" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
     </Coverage>
@@ -153,13 +352,17 @@
         <ScenarioId>security-authentication-challenge</ScenarioId>
         <RedactedPayloadPreview>Returned 401 with WWW-Authenticate.</RedactedPayloadPreview>
       </Observation>
+      <Observation id="attack-mcp-sec-001" layerId="security-boundaries" component="MCP-SEC-001" kind="attack-simulation">
+        <ScenarioId>security-attack-simulations</ScenarioId>
+        <RedactedPayloadPreview>Rejected injected argument with JSON-RPC error -32602.</RedactedPayloadPreview>
+      </Observation>
     </Observations>
   </ValidationEnvelope>
   <TestCategories>
     <ProtocolCompliance status="Failed" score="84.0" durationSeconds="2.1">
       <ViolationsCount>1</ViolationsCount>
       <Violations>
-        <Violation severity="High" source="spec" category="Initialization" checkId="MCP.INIT.VERSION_NEGOTIATION" rule="initialize.result.protocolVersion must reflect negotiation.">
+        <Violation severity="High" normalizedSeverity="high" normalizedSeverityRank="3" source="spec" category="Initialization" checkId="MCP.INIT.VERSION_NEGOTIATION" rule="initialize.result.protocolVersion must reflect negotiation.">
           <Description>Server ignored the requested MCP protocol version.</Description>
           <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
           <Recommendation>Echo the negotiated protocol version in initialize.result.</Recommendation>
@@ -169,15 +372,90 @@
     <SecurityTesting status="Failed" securityScore="69.0" durationSeconds="2.6">
       <VulnerabilitiesCount>1</VulnerabilitiesCount>
       <Vulnerabilities>
-        <Vulnerability severity="Critical" source="heuristic" category="PromptInjection" id="MCP.SECURITY.PROMPT_INJECTION">
+        <Vulnerability severity="Critical" normalizedSeverity="critical" normalizedSeverityRank="4" source="heuristic" category="PromptInjection" id="MCP.SECURITY.PROMPT_INJECTION">
           <Name>Prompt injection reflection</Name>
           <Description>Server reflected untrusted prompt content without sanitization.</Description>
           <AffectedComponent>prompt:get</AffectedComponent>
           <CvssScore>9.1</CvssScore>
           <IsExploitable>true</IsExploitable>
           <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
+          <ProbeContexts>
+            <ProbeContext>
+              <ProbeId>probe-prompt-get-reflection-200</ProbeId>
+              <RequestId></RequestId>
+              <Method>prompts/get</Method>
+              <Transport>http</Transport>
+              <ProtocolVersion>2025-11-25</ProtocolVersion>
+              <AuthApplied>true</AuthApplied>
+              <AuthScheme></AuthScheme>
+              <AuthStatus>Applied</AuthStatus>
+              <ResponseClassification>Success</ResponseClassification>
+              <Confidence>High</Confidence>
+              <StatusCode>200</StatusCode>
+              <Reason>Prompt response reflected untrusted content.</Reason>
+            </ProbeContext>
+          </ProbeContexts>
         </Vulnerability>
       </Vulnerabilities>
+      <AuthenticationScenarios>
+        <Scenario method="tools/list">
+          <ScenarioName>No Auth - tools/list</ScenarioName>
+          <ExpectedBehavior>4xx (Secure Rejection)</ExpectedBehavior>
+          <ActualBehavior>401 Unauthorized with challenge</ActualBehavior>
+          <Analysis>Returned 401 with WWW-Authenticate.</Analysis>
+          <ProbeContext>
+            <ProbeId>probe-auth-tools-list-401</ProbeId>
+            <RequestId></RequestId>
+            <Method>tools/list</Method>
+            <Transport>http</Transport>
+            <ProtocolVersion>2025-11-25</ProtocolVersion>
+            <AuthApplied>false</AuthApplied>
+            <AuthScheme></AuthScheme>
+            <AuthStatus>AuthRequired</AuthStatus>
+            <ResponseClassification>AuthenticationChallenge</ResponseClassification>
+            <Confidence>High</Confidence>
+            <StatusCode>401</StatusCode>
+            <Reason>Unauthenticated tools/list returned WWW-Authenticate.</Reason>
+          </ProbeContext>
+        </Scenario>
+      </AuthenticationScenarios>
+      <AttackSimulations>
+        <Simulation defenseSuccessful="true">
+          <AttackVector>MCP-SEC-001</AttackVector>
+          <Description>JSON-RPC Error Smuggling</Description>
+          <ServerResponse>Rejected injected argument with JSON-RPC error -32602.</ServerResponse>
+          <ProbeContexts>
+            <ProbeContext>
+              <ProbeId>probe-attack-tools-list-200</ProbeId>
+              <RequestId></RequestId>
+              <Method>tools/list</Method>
+              <Transport>http</Transport>
+              <ProtocolVersion>2025-11-25</ProtocolVersion>
+              <AuthApplied>true</AuthApplied>
+              <AuthScheme></AuthScheme>
+              <AuthStatus>Applied</AuthStatus>
+              <ResponseClassification>Success</ResponseClassification>
+              <Confidence>High</Confidence>
+              <StatusCode>200</StatusCode>
+              <Reason></Reason>
+            </ProbeContext>
+            <ProbeContext>
+              <ProbeId>probe-attack-tools-call-400</ProbeId>
+              <RequestId></RequestId>
+              <Method>tools/call</Method>
+              <Transport>http</Transport>
+              <ProtocolVersion>2025-11-25</ProtocolVersion>
+              <AuthApplied>true</AuthApplied>
+              <AuthScheme></AuthScheme>
+              <AuthStatus>Applied</AuthStatus>
+              <ResponseClassification>ProtocolError</ResponseClassification>
+              <Confidence>High</Confidence>
+              <StatusCode>400</StatusCode>
+              <Reason>Injected argument rejected with JSON-RPC error.</Reason>
+            </ProbeContext>
+          </ProbeContexts>
+        </Simulation>
+      </AttackSimulations>
     </SecurityTesting>
     <ToolValidation status="Passed" durationSeconds="1.8">
       <ToolsDiscovered>2</ToolsDiscovered>

@@ -1,4 +1,4 @@
-<testsuites name="MCP Validator" tests="9" failures="4" errors="0" skipped="1" time="33.700">
+<testsuites name="MCP Validator" tests="17" failures="4" errors="0" skipped="2" time="33.700">
   <testsuite name="overall-validation" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
@@ -10,24 +10,30 @@
     </properties>
     <testcase classname="validation.overall" name="Overall Validation Run" time="12.000">
       <failure message="Overall status: Failed">Compliance Score: 81.4%
-Summary: total=7, passed=4, failed=2, skipped=1
+Summary: total=7, passed=4, failed=2, skipped=1, authRequired=0, inconclusive=0
 Endpoint: https://snapshot.example.test/mcp
 Transport: http
 Baseline Verdict: Reject
 Protocol Verdict: Reject
 Coverage Verdict: ReviewRequired
-Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
+Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.
+Evidence Coverage: 87.5%
+Evidence Confidence: 91.9% (High)
+Coverage Decision: coverage:prompt-surface:prompts-list:Skipped -&gt; Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
 Critical Error: Prompt validation hit an unsafe reflection path.
 Recommendation: Add destructive hints to write-capable tools.
 Recommendation: Return the negotiated protocol version explicitly during initialize.</failure>
       <system-out>Compliance Score: 81.4%
-Summary: total=7, passed=4, failed=2, skipped=1
+Summary: total=7, passed=4, failed=2, skipped=1, authRequired=0, inconclusive=0
 Endpoint: https://snapshot.example.test/mcp
 Transport: http
 Baseline Verdict: Reject
 Protocol Verdict: Reject
 Coverage Verdict: ReviewRequired
-Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; BlockingDecisions=8.
+Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.
+Evidence Coverage: 87.5%
+Evidence Confidence: 91.9% (High)
+Coverage Decision: coverage:prompt-surface:prompts-list:Skipped -&gt; Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
 Critical Error: Prompt validation hit an unsafe reflection path.
 Recommendation: Add destructive hints to write-capable tools.
 Recommendation: Return the negotiated protocol version explicitly during initialize.</system-out>
@@ -47,26 +53,36 @@ Recommendation: Return the negotiated protocol version explicitly during initial
 Recommended Exit Code: 1
 Suppressed Signals: 0
 Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server ignored the requested MCP protocol version.
+Reason: One tool response omitted the outer result object.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
 Reason: Server reflected untrusted prompt content without sanitization.
 Reason: Prompt output includes reflected untrusted content.
-Reason: Server ignored the requested MCP protocol version.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
 Reason: Tool 'delete_repo' has parameters without descriptions.
-Reason: One tool response omitted the outer result object.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</failure>
+Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
+Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</failure>
       <system-out>Strict policy blocked the validation result with 9 unsuppressed signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
 Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server ignored the requested MCP protocol version.
+Reason: One tool response omitted the outer result object.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
 Reason: Server reflected untrusted prompt content without sanitization.
 Reason: Prompt output includes reflected untrusted content.
-Reason: Server ignored the requested MCP protocol version.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
 Reason: Tool 'delete_repo' has parameters without descriptions.
-Reason: One tool response omitted the outer result object.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</system-out>
+Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
+Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
+Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
+Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">
@@ -138,11 +154,13 @@ Resource repo://snapshot/README.md: Passed</system-out>
       <skipped message="Server does not advertise prompts capability.">Message: Server does not advertise prompts capability.
 Prompts Discovered: 0
 Prompts Passed: 0
-Prompts Failed: 0</skipped>
+Prompts Failed: 0
+Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</skipped>
       <system-out>Message: Server does not advertise prompts capability.
 Prompts Discovered: 0
 Prompts Passed: 0
-Prompts Failed: 0</system-out>
+Prompts Failed: 0
+Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="security-testing" tests="1" failures="1" errors="0" skipped="0" time="2.600" timestamp="2026-04-20T10:00:00.0000000Z">
@@ -198,6 +216,95 @@ Error Scenarios Handled Correctly: 3
 Scenario Invalid Method Call: Handled correctly
 Scenario Malformed JSON Payload: Handled correctly
 Scenario Graceful Degradation On Invalid Request: Handled correctly</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="evidence-coverage" tests="8" failures="0" errors="0" skipped="1" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="overallStatus" value="Failed" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.evidence.coverage" name="Coverage: protocol-core/json-rpc" time="0.000">
+      <system-out>EvidenceId: coverage:protocol-core:json-rpc:Covered
+Layer: protocol-core
+Scope: json-rpc
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: tool-surface/tools/list" time="0.000">
+      <system-out>EvidenceId: coverage:tool-surface:tools-list:Covered
+Layer: tool-surface
+Scope: tools/list
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: prompt-surface/prompts/list" time="0.000">
+      <skipped message="Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.">EvidenceId: coverage:prompt-surface:prompts-list:Skipped
+Layer: prompt-surface
+Scope: prompts/list
+Status: Skipped
+Blocker: None
+Confidence: None
+Reason: Server does not advertise prompts capability.</skipped>
+      <system-out>EvidenceId: coverage:prompt-surface:prompts-list:Skipped
+Layer: prompt-surface
+Scope: prompts/list
+Status: Skipped
+Blocker: None
+Confidence: None
+Reason: Server does not advertise prompts capability.</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: client-profiles/github-copilot-cli,github-copilot-cloud-agent" time="0.000">
+      <system-out>EvidenceId: coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered
+Layer: client-profiles
+Scope: github-copilot-cli,github-copilot-cloud-agent
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: tool-surface/tool-catalog-smoke" time="0.000">
+      <system-out>EvidenceId: coverage:tool-surface:tool-catalog-smoke:Covered
+Layer: tool-surface
+Scope: tool-catalog-smoke
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: security-boundaries/security-authentication-challenge" time="0.000">
+      <system-out>EvidenceId: coverage:security-boundaries:security-authentication-challenge:Covered
+Layer: security-boundaries
+Scope: security-authentication-challenge
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: error-handling/error-handling" time="0.000">
+      <system-out>EvidenceId: coverage:error-handling:error-handling:Covered
+Layer: error-handling
+Scope: error-handling
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
+    </testcase>
+    <testcase classname="validation.evidence.coverage" name="Coverage: error-handling/error-handling-matrix" time="0.000">
+      <system-out>EvidenceId: coverage:error-handling:error-handling-matrix:Covered
+Layer: error-handling
+Scope: error-handling-matrix
+Status: Covered
+Blocker: None
+Confidence: None
+Reason: -</system-out>
     </testcase>
   </testsuite>
 </testsuites>

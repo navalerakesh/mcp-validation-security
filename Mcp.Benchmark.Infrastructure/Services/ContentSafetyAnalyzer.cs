@@ -9,9 +9,10 @@ namespace Mcp.Benchmark.Infrastructure.Services;
 /// Default implementation of <see cref="IContentSafetyAnalyzer"/> that
 /// performs lightweight, metadata-only risk analysis for tools, resources,
 /// and prompts. It relies on simple keyword heuristics over names,
-/// descriptions, and URIs and is intentionally MCP-server agnostic.
+/// descriptions, and URIs, then calibrates risk by declared server context
+/// and observed AI-safety controls when provided.
 /// </summary>
-public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
+public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
 {
     private readonly ILogger<ContentSafetyAnalyzer> _logger;
 
@@ -55,7 +56,10 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         _logger = logger;
     }
 
-    public IReadOnlyList<ContentSafetyFinding> AnalyzeTool(string toolName)
+    public IReadOnlyList<ContentSafetyFinding> AnalyzeTool(string toolName) =>
+        AnalyzeTool(toolName, new ContentSafetyAnalysisContext());
+
+    public IReadOnlyList<ContentSafetyFinding> AnalyzeTool(string toolName, ContentSafetyAnalysisContext context)
     {
         if (string.IsNullOrWhiteSpace(toolName))
         {
@@ -65,7 +69,7 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         var normalized = Normalize(toolName);
         var findings = new List<ContentSafetyFinding>();
 
-        AddAxisFindings(findings, ContentItemKind.Tool, toolName, normalized);
+        AddAxisFindings(findings, ContentItemKind.Tool, toolName, normalized, context);
 
         if (findings.Count > 0)
         {
@@ -75,7 +79,10 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         return findings;
     }
 
-    public IReadOnlyList<ContentSafetyFinding> AnalyzeResource(string? resourceName, string resourceUri)
+    public IReadOnlyList<ContentSafetyFinding> AnalyzeResource(string? resourceName, string resourceUri) =>
+        AnalyzeResource(resourceName, resourceUri, new ContentSafetyAnalysisContext());
+
+    public IReadOnlyList<ContentSafetyFinding> AnalyzeResource(string? resourceName, string resourceUri, ContentSafetyAnalysisContext context)
     {
         if (string.IsNullOrWhiteSpace(resourceUri))
         {
@@ -90,7 +97,7 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         var normalized = Normalize(combined);
         var findings = new List<ContentSafetyFinding>();
 
-        AddAxisFindings(findings, ContentItemKind.Resource, label, normalized);
+        AddAxisFindings(findings, ContentItemKind.Resource, label, normalized, context);
 
         if (findings.Count > 0)
         {
@@ -100,7 +107,10 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         return findings;
     }
 
-    public IReadOnlyList<ContentSafetyFinding> AnalyzePrompt(string promptName, string? description, int argumentsCount)
+    public IReadOnlyList<ContentSafetyFinding> AnalyzePrompt(string promptName, string? description, int argumentsCount) =>
+        AnalyzePrompt(promptName, description, argumentsCount, new ContentSafetyAnalysisContext());
+
+    public IReadOnlyList<ContentSafetyFinding> AnalyzePrompt(string promptName, string? description, int argumentsCount, ContentSafetyAnalysisContext context)
     {
         if (string.IsNullOrWhiteSpace(promptName) && string.IsNullOrWhiteSpace(description))
         {
@@ -115,7 +125,7 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         var normalized = Normalize(combined);
         var findings = new List<ContentSafetyFinding>();
 
-        AddAxisFindings(findings, ContentItemKind.Prompt, label, normalized, argumentsCount);
+        AddAxisFindings(findings, ContentItemKind.Prompt, label, normalized, context, argumentsCount);
 
         if (findings.Count > 0)
         {
@@ -130,30 +140,34 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         ContentItemKind kind,
         string itemName,
         string normalized,
+        ContentSafetyAnalysisContext context,
         int argumentsCount = 0)
     {
         // System impact (create/update/delete/execute)
         AddFindingIfMatched(findings, kind, itemName, normalized,
             ContentRiskAxis.SystemImpact,
             SystemImpactHighKeywords,
-            SystemImpactMediumKeywords);
+            SystemImpactMediumKeywords,
+            context);
 
         // Data exfiltration (dump/export/all data)
         AddFindingIfMatched(findings, kind, itemName, normalized,
             ContentRiskAxis.DataExfiltration,
             DataExfiltrationHighKeywords,
-            DataExfiltrationMediumKeywords);
+            DataExfiltrationMediumKeywords,
+            context);
 
         // Abuse / mass messaging
         AddFindingIfMatched(findings, kind, itemName, normalized,
             ContentRiskAxis.Abuse,
             AbuseHighKeywords,
-            AbuseMediumKeywords);
+            AbuseMediumKeywords,
+            context);
 
         // Very argument-rich prompts can be higher risk for system impact
         if (kind == ContentItemKind.Prompt && argumentsCount > 5)
         {
-            findings.Add(new ContentSafetyFinding
+            var finding = new ContentSafetyFinding
             {
                 ItemKind = kind,
                 ItemName = itemName,
@@ -166,7 +180,10 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
                 {
                     ["argumentsCount"] = argumentsCount
                 }
-            });
+            };
+
+            CalibrateFinding(finding, context, ContentRiskLevel.Medium, 65.0);
+            findings.Add(finding);
         }
     }
 
@@ -177,7 +194,8 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
         string normalized,
         ContentRiskAxis axis,
         IEnumerable<string> highKeywords,
-        IEnumerable<string> mediumKeywords)
+        IEnumerable<string> mediumKeywords,
+        ContentSafetyAnalysisContext context)
     {
         var matchedHigh = FindFirstMatch(normalized, highKeywords);
         var matchedMedium = matchedHigh == null
@@ -217,7 +235,7 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
                 "Review this capability and apply least-privilege and strong validation."
         };
 
-        findings.Add(new ContentSafetyFinding
+        var finding = new ContentSafetyFinding
         {
             ItemKind = kind,
             ItemName = itemName,
@@ -230,7 +248,191 @@ public class ContentSafetyAnalyzer : IContentSafetyAnalyzer
             {
                 ["matchedKeyword"] = keyword
             }
-        });
+        };
+
+        CalibrateFinding(finding, context, level, score);
+        findings.Add(finding);
+    }
+
+    private static void CalibrateFinding(
+        ContentSafetyFinding finding,
+        ContentSafetyAnalysisContext? context,
+        ContentRiskLevel baseLevel,
+        double baseScore)
+    {
+        context ??= new ContentSafetyAnalysisContext();
+
+        var adjustedLevel = baseLevel;
+        var adjustedScore = baseScore;
+        var adjustment = "none";
+        var hasRelevantControls = HasRelevantDeclaredControls(context, finding.Axis);
+
+        switch (context.Profile)
+        {
+            case ContentSafetyContextProfile.PublicUnauthenticated:
+                adjustedLevel = IncreaseRisk(baseLevel);
+                adjustedScore = Math.Max(baseScore, adjustedLevel == ContentRiskLevel.High ? 95.0 : 75.0);
+                adjustment = adjustedLevel == baseLevel ? "public-anonymous-score-increase" : "public-anonymous-escalation";
+                break;
+
+            case ContentSafetyContextProfile.PublicAuthenticated:
+                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 90.0 : 65.0);
+                adjustment = "public-authenticated-calibration";
+                break;
+
+            case ContentSafetyContextProfile.EnterpriseGoverned when hasRelevantControls:
+                adjustedLevel = DecreaseRisk(baseLevel);
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 70.0));
+                adjustment = adjustedLevel == baseLevel ? "enterprise-controls-confirmed" : "enterprise-controls-reduced-risk";
+                break;
+
+            case ContentSafetyContextProfile.EnterpriseGoverned:
+                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 88.0 : 62.0);
+                adjustment = "enterprise-controls-not-observed";
+                break;
+
+            case ContentSafetyContextProfile.LocalDeveloper:
+                adjustedLevel = DecreaseRisk(baseLevel);
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 70.0));
+                adjustment = adjustedLevel == baseLevel ? "local-development-context" : "local-development-reduced-risk";
+                break;
+
+            case ContentSafetyContextProfile.CIOnly:
+                adjustedScore = finding.Axis == ContentRiskAxis.SystemImpact
+                    ? Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 92.0 : 68.0)
+                    : baseScore;
+                adjustment = "ci-only-calibration";
+                break;
+
+            case ContentSafetyContextProfile.Internal when hasRelevantControls:
+                adjustedLevel = DecreaseRisk(baseLevel);
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 72.0));
+                adjustment = adjustedLevel == baseLevel ? "internal-controls-confirmed" : "internal-controls-reduced-risk";
+                break;
+
+            case ContentSafetyContextProfile.Internal:
+                adjustedScore = Math.Min(Math.Max(baseScore, 55.0), baseLevel == ContentRiskLevel.High ? 85.0 : 65.0);
+                adjustment = "internal-context-without-observed-controls";
+                break;
+        }
+
+        finding.RiskLevel = adjustedLevel;
+        finding.RiskScore = Math.Clamp(adjustedScore, 0.0, 100.0);
+        AddContextMetadata(finding, context, baseLevel, baseScore, adjustment, hasRelevantControls);
+
+        var contextRecommendation = BuildContextRecommendation(context.Profile, hasRelevantControls);
+        if (!string.IsNullOrWhiteSpace(contextRecommendation))
+        {
+            finding.Recommendation = string.IsNullOrWhiteSpace(finding.Recommendation)
+                ? contextRecommendation
+                : contextRecommendation + " " + finding.Recommendation;
+        }
+    }
+
+    private static ContentRiskLevel IncreaseRisk(ContentRiskLevel level)
+    {
+        return level switch
+        {
+            ContentRiskLevel.None => ContentRiskLevel.Low,
+            ContentRiskLevel.Low => ContentRiskLevel.Medium,
+            ContentRiskLevel.Medium => ContentRiskLevel.High,
+            _ => ContentRiskLevel.High
+        };
+    }
+
+    private static ContentRiskLevel DecreaseRisk(ContentRiskLevel level)
+    {
+        return level switch
+        {
+            ContentRiskLevel.High => ContentRiskLevel.Medium,
+            ContentRiskLevel.Medium => ContentRiskLevel.Low,
+            ContentRiskLevel.Low => ContentRiskLevel.Low,
+            _ => ContentRiskLevel.None
+        };
+    }
+
+    private static double ScoreFor(ContentRiskLevel level, double fallbackScore)
+    {
+        return level switch
+        {
+            ContentRiskLevel.High => Math.Max(fallbackScore, 88.0),
+            ContentRiskLevel.Medium => Math.Min(fallbackScore, 70.0),
+            ContentRiskLevel.Low => Math.Min(fallbackScore, 40.0),
+            _ => 0.0
+        };
+    }
+
+    private static bool HasRelevantDeclaredControls(ContentSafetyAnalysisContext context, ContentRiskAxis axis)
+    {
+        if (context.ObservedControls.Count == 0)
+        {
+            return false;
+        }
+
+        var hasAuditTrail = HasDeclaredControl(context, AiSafetyControlKind.AuditTrail);
+        var hasUserConfirmation = HasDeclaredControl(context, AiSafetyControlKind.UserConfirmation) ||
+                                  HasDeclaredControl(context, AiSafetyControlKind.DestructiveActionConfirmation);
+        var hasDataDisclosure = axis != ContentRiskAxis.DataExfiltration ||
+                                HasDeclaredControl(context, AiSafetyControlKind.DataSharingDisclosure);
+
+        return hasAuditTrail && hasUserConfirmation && hasDataDisclosure;
+    }
+
+    private static bool HasDeclaredControl(ContentSafetyAnalysisContext context, AiSafetyControlKind controlKind)
+    {
+        return context.ObservedControls.Any(control =>
+            control.ControlKind == controlKind && control.Status == AiSafetyControlStatus.Declared);
+    }
+
+    private static void AddContextMetadata(
+        ContentSafetyFinding finding,
+        ContentSafetyAnalysisContext context,
+        ContentRiskLevel baseLevel,
+        double baseScore,
+        string adjustment,
+        bool hasRelevantControls)
+    {
+        finding.Context["contextProfile"] = context.Profile.ToString();
+        finding.Context["serverProfile"] = context.ServerProfile.ToString();
+        finding.Context["authenticationRequired"] = context.AuthenticationRequired;
+        finding.Context["baseRiskLevel"] = baseLevel.ToString();
+        finding.Context["baseRiskScore"] = baseScore;
+        finding.Context["severityAdjustment"] = adjustment;
+        finding.Context["relevantControlsDeclared"] = hasRelevantControls;
+
+        var declaredControls = context.ObservedControls
+            .Where(control => control.Status == AiSafetyControlStatus.Declared)
+            .Select(control => control.ControlKind.ToString())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(control => control, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+
+        if (declaredControls.Length > 0)
+        {
+            finding.Context["declaredControls"] = declaredControls;
+        }
+    }
+
+    private static string? BuildContextRecommendation(ContentSafetyContextProfile profile, bool hasRelevantControls)
+    {
+        return profile switch
+        {
+            ContentSafetyContextProfile.PublicUnauthenticated =>
+                "Do not expose this capability anonymously; require authentication, per-user authorization, rate limits, and audit before public use.",
+            ContentSafetyContextProfile.PublicAuthenticated =>
+                "Scope public access tokens narrowly and record user-level audit evidence for this capability.",
+            ContentSafetyContextProfile.EnterpriseGoverned when hasRelevantControls =>
+                "Keep the declared enterprise approval, confirmation, and audit controls attached to this capability.",
+            ContentSafetyContextProfile.EnterpriseGoverned =>
+                "Document the enterprise policy controls, approval path, and audit trail that govern this capability.",
+            ContentSafetyContextProfile.LocalDeveloper =>
+                "Keep this capability bound to local development contexts and avoid publishing it on shared or public endpoints.",
+            ContentSafetyContextProfile.CIOnly =>
+                "Restrict invocation to dedicated CI service identities, short-lived credentials, and auditable pipeline runs.",
+            ContentSafetyContextProfile.Internal =>
+                "Restrict this capability to authenticated internal users or networks and confirm audit coverage.",
+            _ => null
+        };
     }
 
     private static string? FindFirstMatch(string text, IEnumerable<string> keywords)

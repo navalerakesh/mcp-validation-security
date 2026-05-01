@@ -64,10 +64,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 new XElement("PassedTests", validationResult.Summary.PassedTests),
                 new XElement("FailedTests", validationResult.Summary.FailedTests),
                 new XElement("SkippedTests", validationResult.Summary.SkippedTests),
+                new XElement("AuthRequiredTests", validationResult.Summary.AuthRequiredTests),
+                new XElement("InconclusiveTests", validationResult.Summary.InconclusiveTests),
                 new XElement("PassRate", validationResult.Summary.PassRate.ToString("F1")),
                 new XElement("CriticalIssues", validationResult.Summary.CriticalIssues),
                 new XElement("Warnings", validationResult.Summary.Warnings),
-                new XElement("CoverageRatio", validationResult.Summary.CoverageRatio.ToString("F3"))
+                new XElement("CoverageRatio", validationResult.Summary.CoverageRatio.ToString("F3")),
+                new XElement("EvidenceConfidenceRatio", validationResult.Summary.EvidenceConfidenceRatio.ToString("F3"))
             )
         );
 
@@ -124,8 +127,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 var violationsElement = new XElement("Violations",
                     protocol.Violations.Select(v =>
                     {
+                        var normalizedSeverity = ReportSeverityNormalizer.From(v.Severity);
                         var violationElement = new XElement("Violation",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("normalizedSeverity", ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity)),
+                            new XAttribute("normalizedSeverityRank", (int)normalizedSeverity),
                             new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
@@ -182,8 +188,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 var vulnerabilitiesElement = new XElement("Vulnerabilities",
                     security.Vulnerabilities.Select(v =>
                     {
+                        var normalizedSeverity = ReportSeverityNormalizer.From(v.Severity);
                         var vulnerabilityElement = new XElement("Vulnerability",
                             new XAttribute("severity", v.Severity.ToString()),
+                            new XAttribute("normalizedSeverity", ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity)),
+                            new XAttribute("normalizedSeverityRank", (int)normalizedSeverity),
                             new XAttribute("source", ValidationRuleSourceClassifier.GetLabel(v)),
                             new XAttribute("category", v.Category ?? string.Empty));
 
@@ -217,6 +226,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                             vulnerabilityElement.Add(new XElement("Remediation", v.Remediation));
                         }
 
+                        if (v.ProbeContexts?.Count > 0)
+                        {
+                            vulnerabilityElement.Add(BuildProbeContextsElement(v.ProbeContexts));
+                        }
+
                         return vulnerabilityElement;
                     }));
                 securityElement.Add(vulnerabilitiesElement);
@@ -231,7 +245,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
                             new XElement("ScenarioName", s.ScenarioName ?? string.Empty),
                             new XElement("ExpectedBehavior", s.ExpectedBehavior ?? string.Empty),
                             new XElement("ActualBehavior", s.ActualBehavior ?? string.Empty),
-                            new XElement("Analysis", s.Analysis ?? string.Empty))));
+                            new XElement("Analysis", s.Analysis ?? string.Empty),
+                            s.ProbeContext == null ? null : BuildProbeContextElement(s.ProbeContext))));
                 securityElement.Add(authElement);
             }
 
@@ -239,11 +254,20 @@ public class ValidationReportRenderer : IValidationReportRenderer
             {
                 var attacksElement = new XElement("AttackSimulations",
                     security.AttackSimulations.Select(a =>
-                        new XElement("Simulation",
+                    {
+                        var simulationElement = new XElement("Simulation",
                             new XAttribute("defenseSuccessful", a.DefenseSuccessful),
                             new XElement("AttackVector", a.AttackVector ?? string.Empty),
                             new XElement("Description", a.Description ?? string.Empty),
-                            new XElement("ServerResponse", a.ServerResponse ?? string.Empty))));
+                            new XElement("ServerResponse", a.ServerResponse ?? string.Empty));
+
+                        if (a.ProbeContexts?.Count > 0)
+                        {
+                            simulationElement.Add(BuildProbeContextsElement(a.ProbeContexts));
+                        }
+
+                        return simulationElement;
+                    }));
                 securityElement.Add(attacksElement);
             }
 
@@ -363,6 +387,28 @@ public class ValidationReportRenderer : IValidationReportRenderer
                             "Performance measurements were not captured before the run ended.")));
             }
 
+            if (verbose && perf.CalibrationOverrides.Count > 0)
+            {
+                perfElement.Add(new XElement("CalibrationOverrides", perf.CalibrationOverrides.Select(overrideRecord =>
+                    new XElement("Override",
+                        new XAttribute("ruleId", overrideRecord.RuleId),
+                        new XAttribute("beforeStatus", overrideRecord.BeforeStatus.ToString()),
+                        new XAttribute("afterStatus", overrideRecord.AfterStatus.ToString()),
+                        new XAttribute("beforeScore", overrideRecord.BeforeScore.ToString("F1", CultureInfo.InvariantCulture)),
+                        new XAttribute("afterScore", overrideRecord.AfterScore.ToString("F1", CultureInfo.InvariantCulture)),
+                        new XAttribute("beforeSeverity", overrideRecord.BeforeSeverity.ToString()),
+                        new XAttribute("afterSeverity", overrideRecord.AfterSeverity.ToString()),
+                        new XAttribute("changedComponentStatus", overrideRecord.ChangedComponentStatus.ToString()),
+                        new XAttribute("changedDeterministicVerdict", overrideRecord.ChangedDeterministicVerdict.ToString()),
+                        new XElement("Reason", overrideRecord.Reason),
+                        new XElement("Recommendation", overrideRecord.Recommendation),
+                        new XElement("AffectedTests", overrideRecord.AffectedTests.Select(test => new XElement("Test", test))),
+                        new XElement("Inputs", overrideRecord.Inputs.Select(input =>
+                            new XElement("Input",
+                                new XAttribute("name", input.Key),
+                                input.Value)))))));
+            }
+
             testCategories.Add(perfElement);
         }
 
@@ -457,6 +503,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     {
                         source = first.Source,
                         category = first.Category,
+                        ruleIdSource = first.Properties.TryGetValue("ruleIdSource", out var ruleIdSource) ? ruleIdSource : null,
                         tags = BuildSarifTags(first.Source, first.Category, first.Component)
                     }
                 };
@@ -785,6 +832,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         new XAttribute("layerId", coverage.LayerId),
                         new XAttribute("scope", coverage.Scope),
                         new XAttribute("status", coverage.Status.ToString()),
+                        new XAttribute("blocker", coverage.Blocker.ToString()),
+                        new XAttribute("confidence", coverage.Confidence.ToString()),
+                        coverage.ProbeContext == null ? null : BuildProbeContextElement(coverage.ProbeContext),
                         new XElement("Reason", coverage.Reason ?? string.Empty)))));
         }
 
@@ -817,6 +867,38 @@ public class ValidationReportRenderer : IValidationReportRenderer
         return element;
     }
 
+    private static XElement BuildProbeContextElement(ProbeContext probeContext)
+    {
+        var element = new XElement("ProbeContext",
+            new XElement("ProbeId", probeContext.ProbeId),
+            new XElement("RequestId", probeContext.RequestId ?? string.Empty),
+            new XElement("Method", probeContext.Method ?? string.Empty),
+            new XElement("Transport", probeContext.Transport ?? string.Empty),
+            new XElement("ProtocolVersion", probeContext.ProtocolVersion ?? string.Empty),
+            new XElement("AuthApplied", probeContext.AuthApplied),
+            new XElement("AuthScheme", probeContext.AuthScheme ?? string.Empty),
+            new XElement("AuthStatus", probeContext.AuthStatus.ToString()),
+            new XElement("ResponseClassification", probeContext.ResponseClassification.ToString()),
+            new XElement("Confidence", probeContext.Confidence.ToString()),
+            new XElement("StatusCode", probeContext.StatusCode?.ToString(CultureInfo.InvariantCulture) ?? string.Empty),
+            new XElement("Reason", probeContext.Reason ?? string.Empty));
+
+        if (probeContext.Metadata.Count > 0)
+        {
+            element.Add(new XElement("Metadata",
+                probeContext.Metadata.Select(pair => new XElement("Entry",
+                    new XAttribute("key", pair.Key),
+                    pair.Value))));
+        }
+
+        return element;
+    }
+
+    private static XElement BuildProbeContextsElement(IEnumerable<ProbeContext> probeContexts)
+    {
+        return new XElement("ProbeContexts", probeContexts.Select(BuildProbeContextElement));
+    }
+
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult validationResult)
     {
         if (validationResult.BootstrapHealth != null)
@@ -841,9 +923,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
         };
     }
 
-    private static Dictionary<string, int> BuildSeverityBuckets(IEnumerable<ComplianceViolation> violations, IEnumerable<SecurityVulnerability> vulnerabilities)
+    private static Dictionary<ReportSeverity, int> BuildSeverityBuckets(IEnumerable<ComplianceViolation> violations, IEnumerable<SecurityVulnerability> vulnerabilities)
     {
-        var buckets = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var buckets = new Dictionary<ReportSeverity, int>();
         foreach (var severity in SeverityOrder)
         {
             buckets[severity] = 0;
@@ -851,45 +933,27 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
         foreach (var violation in violations)
         {
-            var bucket = MapViolationSeverity(violation.Severity);
+            var bucket = ReportSeverityNormalizer.From(violation.Severity);
             buckets[bucket]++;
         }
 
         foreach (var vulnerability in vulnerabilities)
         {
-            var bucket = MapVulnerabilitySeverity(vulnerability.Severity);
+            var bucket = ReportSeverityNormalizer.From(vulnerability.Severity);
             buckets[bucket]++;
         }
 
         return buckets;
     }
 
-    private static string MapViolationSeverity(ViolationSeverity severity)
-    {
-        return severity switch
-        {
-            ViolationSeverity.Critical => "Critical",
-            ViolationSeverity.High => "High",
-            ViolationSeverity.Medium => "Medium",
-            ViolationSeverity.Low => "Low",
-            _ => "Low"
-        };
-    }
-
-    private static string MapVulnerabilitySeverity(VulnerabilitySeverity severity)
-    {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => "Critical",
-            VulnerabilitySeverity.High => "High",
-            VulnerabilitySeverity.Medium => "Medium",
-            VulnerabilitySeverity.Low => "Low",
-            VulnerabilitySeverity.Informational => "Informational",
-            _ => "Low"
-        };
-    }
-
-    private static readonly string[] SeverityOrder = new[] { "Critical", "High", "Medium", "Low", "Informational" };
+    private static readonly ReportSeverity[] SeverityOrder =
+    [
+        ReportSeverity.Critical,
+        ReportSeverity.High,
+        ReportSeverity.Medium,
+        ReportSeverity.Low,
+        ReportSeverity.Info
+    ];
 
     private XElement? BuildSeverityBreakdownElement(ValidationResult validationResult)
     {
@@ -912,7 +976,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
         {
             buckets.TryGetValue(severity, out var count);
             element.Add(new XElement("Severity",
-                new XAttribute("level", severity),
+                new XAttribute("level", ReportSeverityNormalizer.ToDisplayLabel(severity)),
+                new XAttribute("machineLevel", ReportSeverityNormalizer.ToMachineLabel(severity)),
+                new XAttribute("rank", (int)severity),
                 new XAttribute("count", count)));
         }
 
@@ -1007,6 +1073,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
             entries.AddRange(vulnerabilities.Select(CreateSarifEntry));
         }
 
+        entries.AddRange(validationResult.Evidence.Coverage
+            .Where(ValidationEvidenceSummarizer.IsEvidenceDebt)
+            .Select(CreateCoverageSarifEntry));
+
         return entries;
     }
 
@@ -1026,14 +1096,29 @@ public class ValidationReportRenderer : IValidationReportRenderer
     private static SarifEntry CreateSarifEntry(ValidationFinding finding, string defaultComponent)
     {
         var component = string.IsNullOrWhiteSpace(finding.Component) ? defaultComponent : finding.Component;
+        var authority = ValidationRuleSourceClassifier.GetSource(finding);
+        var normalizedSeverity = ReportSeverityNormalizer.From(finding.Severity);
+        var ruleId = ResolveSarifRuleId(
+            finding.RuleId,
+            normalizedSeverity,
+            "MCP.FINDING",
+            finding.Category,
+            component,
+            finding.Summary);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "structured-finding",
-            ["authority"] = finding.EffectiveSourceLabel,
+            ["evidenceId"] = ValidationEvidenceIdBuilder.ForFinding(finding),
+            ["authority"] = ValidationRuleSourceClassifier.GetLabel(authority),
+            ["authorityPriority"] = ValidationAuthorityHierarchy.GetSortOrder(authority),
+            ["authorityLegend"] = ValidationAuthorityHierarchy.Legend,
             ["category"] = finding.Category,
             ["component"] = component,
-            ["severity"] = finding.Severity.ToString()
+            ["severity"] = finding.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (!string.IsNullOrWhiteSpace(finding.Recommendation))
         {
@@ -1046,36 +1131,47 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: finding.RuleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(finding.Category) ? "validation" : finding.Category,
             Component: component,
-            Level: MapFindingLevel(finding.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: finding.Summary,
             ShortDescription: finding.Summary,
             FullDescription: finding.Summary,
             Recommendation: finding.Recommendation,
             HelpUri: TryGetHelpUri(finding.Metadata),
             Properties: properties,
-                Source: finding.EffectiveSourceLabel,
-            Fingerprint: $"finding|{finding.RuleId}|{component}|{finding.Summary}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"finding|{ruleId.Value}|{component}|{finding.Summary}");
     }
 
     private static SarifEntry CreateSarifEntry(ComplianceViolation violation)
     {
-        var ruleId = string.IsNullOrWhiteSpace(violation.CheckId)
-            ? BuildFallbackRuleId("MCP.PROTOCOL", violation.Category, violation.Rule, violation.Description)
-            : violation.CheckId;
-
         var component = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category;
+        var authority = ValidationRuleSourceClassifier.GetSource(violation);
+        var normalizedSeverity = ReportSeverityNormalizer.From(violation.Severity);
+        var ruleId = ResolveSarifRuleId(
+            violation.CheckId,
+            normalizedSeverity,
+            "MCP.PROTOCOL",
+            violation.Category,
+            violation.Rule,
+            violation.Description);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "protocol-violation",
-            ["authority"] = ValidationRuleSourceClassifier.GetLabel(violation),
+            ["evidenceId"] = ValidationEvidenceIdBuilder.ForComplianceViolation(violation),
+            ["authority"] = ValidationRuleSourceClassifier.GetLabel(authority),
+            ["authorityPriority"] = ValidationAuthorityHierarchy.GetSortOrder(authority),
+            ["authorityLegend"] = ValidationAuthorityHierarchy.Legend,
             ["category"] = violation.Category,
             ["component"] = component,
             ["severity"] = violation.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["rule"] = violation.Rule
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (!string.IsNullOrWhiteSpace(violation.Recommendation))
         {
@@ -1088,39 +1184,50 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         return new SarifEntry(
-            RuleId: ruleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(violation.Category) ? "ProtocolCompliance" : violation.Category,
             Component: component,
-            Level: MapViolationLevel(violation.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: violation.Description,
             ShortDescription: violation.Rule ?? violation.Description,
             FullDescription: violation.Description,
             Recommendation: violation.Recommendation,
             HelpUri: violation.SpecReference,
             Properties: properties,
-                Source: ValidationRuleSourceClassifier.GetLabel(violation),
-            Fingerprint: $"protocol|{ruleId}|{component}|{violation.Description}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"protocol|{ruleId.Value}|{component}|{violation.Description}");
     }
 
     private static SarifEntry CreateSarifEntry(SecurityVulnerability vulnerability)
     {
-        var ruleId = string.IsNullOrWhiteSpace(vulnerability.Id)
-            ? BuildFallbackRuleId("MCP.SECURITY", vulnerability.Category, vulnerability.Name, vulnerability.AffectedComponent)
-            : vulnerability.Id;
-
         var component = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent)
             ? (string.IsNullOrWhiteSpace(vulnerability.Category) ? "security" : vulnerability.Category)
             : vulnerability.AffectedComponent;
 
+        var authority = ValidationRuleSourceClassifier.GetSource(vulnerability);
+        var normalizedSeverity = ReportSeverityNormalizer.From(vulnerability.Severity);
+        var ruleId = ResolveSarifRuleId(
+            vulnerability.Id,
+            normalizedSeverity,
+            "MCP.SECURITY",
+            vulnerability.Category,
+            vulnerability.Name,
+            vulnerability.AffectedComponent);
         var properties = new Dictionary<string, object?>
         {
             ["source"] = "security-vulnerability",
-            ["authority"] = ValidationRuleSourceClassifier.GetLabel(vulnerability),
+            ["evidenceId"] = ValidationEvidenceIdBuilder.ForSecurityVulnerability(vulnerability),
+            ["authority"] = ValidationRuleSourceClassifier.GetLabel(authority),
+            ["authorityPriority"] = ValidationAuthorityHierarchy.GetSortOrder(authority),
+            ["authorityLegend"] = ValidationAuthorityHierarchy.Legend,
             ["category"] = vulnerability.Category,
             ["component"] = component,
             ["severity"] = vulnerability.Severity.ToString(),
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity,
             ["isExploitable"] = vulnerability.IsExploitable
         };
+        AddRuleIdProvenance(properties, ruleId);
 
         if (vulnerability.CvssScore.HasValue)
         {
@@ -1137,56 +1244,101 @@ public class ValidationReportRenderer : IValidationReportRenderer
             properties["proofOfConcept"] = vulnerability.ProofOfConcept;
         }
 
+        if (vulnerability.ProbeContexts?.Count > 0)
+        {
+            properties["probeContexts"] = vulnerability.ProbeContexts.Select(BuildProbeContextProperties).ToList();
+        }
+
         return new SarifEntry(
-            RuleId: ruleId,
+            RuleId: ruleId.Value,
             Category: string.IsNullOrWhiteSpace(vulnerability.Category) ? "SecurityTesting" : vulnerability.Category,
             Component: component,
-            Level: MapVulnerabilityLevel(vulnerability.Severity),
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
             Message: vulnerability.Description,
             ShortDescription: vulnerability.Name,
             FullDescription: vulnerability.Description,
             Recommendation: vulnerability.Remediation,
             HelpUri: null,
             Properties: properties,
-                Source: ValidationRuleSourceClassifier.GetLabel(vulnerability),
-            Fingerprint: $"vuln|{ruleId}|{component}|{vulnerability.Description}");
+            Source: ValidationRuleSourceClassifier.GetLabel(authority),
+            Fingerprint: $"vuln|{ruleId.Value}|{component}|{vulnerability.Description}");
     }
 
-    private static string MapFindingLevel(ValidationFindingSeverity severity)
+    private static SarifEntry CreateCoverageSarifEntry(ValidationCoverageDeclaration coverage)
     {
-        return severity switch
+        var evidenceId = ValidationEvidenceIdBuilder.ForCoverage(coverage);
+        var component = string.IsNullOrWhiteSpace(coverage.LayerId) ? "coverage" : coverage.LayerId;
+        var summary = BuildCoverageSummary(coverage);
+        var normalizedSeverity = ValidationEvidenceSummarizer.IsCoverageBlocking(coverage)
+            ? ReportSeverity.High
+            : ReportSeverity.Medium;
+        var ruleId = new SarifRuleIdResolution(
+            BuildFallbackRuleId("MCP", "COVERAGE", coverage.LayerId, coverage.Scope, coverage.Status.ToString()),
+            "derived-coverage",
+            false);
+        var properties = new Dictionary<string, object?>
         {
-            ValidationFindingSeverity.Critical => "error",
-            ValidationFindingSeverity.High => "error",
-            ValidationFindingSeverity.Medium => "warning",
-            ValidationFindingSeverity.Low => "note",
-            _ => "note"
+            ["source"] = "coverage-declaration",
+            ["evidenceId"] = evidenceId,
+            ["authority"] = "coverage",
+            ["category"] = "Coverage",
+            ["component"] = component,
+            ["layerId"] = coverage.LayerId,
+            ["scope"] = coverage.Scope,
+            ["coverageStatus"] = coverage.Status.ToString(),
+            ["blocker"] = coverage.Blocker.ToString(),
+            ["confidence"] = coverage.Confidence.ToString(),
+            ["reason"] = coverage.Reason,
+            ["normalizedSeverity"] = ReportSeverityNormalizer.ToMachineLabel(normalizedSeverity),
+            ["normalizedSeverityRank"] = (int)normalizedSeverity
+        };
+        AddRuleIdProvenance(properties, ruleId);
+
+        if (coverage.ProbeContext != null)
+        {
+            properties["probeContext"] = BuildProbeContextProperties(coverage.ProbeContext);
+        }
+
+        return new SarifEntry(
+            RuleId: ruleId.Value,
+            Category: "Coverage",
+            Component: component,
+            Level: ReportSeverityNormalizer.ToSarifLevel(normalizedSeverity),
+            Message: summary,
+            ShortDescription: $"Coverage {coverage.Status}: {coverage.LayerId}/{coverage.Scope}",
+            FullDescription: summary,
+            Recommendation: "Collect the missing evidence or document why this validation surface cannot be safely assessed.",
+            HelpUri: null,
+            Properties: properties,
+            Source: "coverage",
+            Fingerprint: $"coverage|{evidenceId}");
+    }
+
+    private static Dictionary<string, object?> BuildProbeContextProperties(ProbeContext probeContext)
+    {
+        return new Dictionary<string, object?>
+        {
+            ["probeId"] = probeContext.ProbeId,
+            ["requestId"] = probeContext.RequestId,
+            ["method"] = probeContext.Method,
+            ["transport"] = probeContext.Transport,
+            ["protocolVersion"] = probeContext.ProtocolVersion,
+            ["authApplied"] = probeContext.AuthApplied,
+            ["authScheme"] = probeContext.AuthScheme,
+            ["authStatus"] = probeContext.AuthStatus.ToString(),
+            ["responseClassification"] = probeContext.ResponseClassification.ToString(),
+            ["confidence"] = probeContext.Confidence.ToString(),
+            ["statusCode"] = probeContext.StatusCode,
+            ["reason"] = probeContext.Reason
         };
     }
 
-    private static string MapViolationLevel(ViolationSeverity severity)
+    private static string BuildCoverageSummary(ValidationCoverageDeclaration coverage)
     {
-        return severity switch
-        {
-            ViolationSeverity.Critical => "error",
-            ViolationSeverity.High => "error",
-            ViolationSeverity.Medium => "warning",
-            ViolationSeverity.Low => "note",
-            _ => "note"
-        };
-    }
-
-    private static string MapVulnerabilityLevel(VulnerabilitySeverity severity)
-    {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => "error",
-            VulnerabilitySeverity.High => "error",
-            VulnerabilitySeverity.Medium => "warning",
-            VulnerabilitySeverity.Low => "note",
-            VulnerabilitySeverity.Informational => "note",
-            _ => "note"
-        };
+        var reason = string.IsNullOrWhiteSpace(coverage.Reason)
+            ? string.Empty
+            : $" {coverage.Reason.Trim()}";
+        return $"Coverage is {coverage.Status} for {coverage.LayerId}/{coverage.Scope}.{reason}".Trim();
     }
 
     private static string[] BuildSarifTags(string source, string category, string component)
@@ -1223,6 +1375,34 @@ public class ValidationReportRenderer : IValidationReportRenderer
         return null;
     }
 
+    private static SarifRuleIdResolution ResolveSarifRuleId(
+        string? explicitRuleId,
+        ReportSeverity normalizedSeverity,
+        string fallbackPrefix,
+        params string?[] fallbackParts)
+    {
+        if (!string.IsNullOrWhiteSpace(explicitRuleId))
+        {
+            return new SarifRuleIdResolution(explicitRuleId.Trim(), "explicit", false);
+        }
+
+        var fallback = BuildFallbackRuleId(new[] { fallbackPrefix }.Concat(fallbackParts).ToArray());
+        var missingExplicitRuleId = normalizedSeverity is ReportSeverity.Critical or ReportSeverity.High;
+        return new SarifRuleIdResolution(fallback, "fallback", missingExplicitRuleId);
+    }
+
+    private static void AddRuleIdProvenance(Dictionary<string, object?> properties, SarifRuleIdResolution ruleId)
+    {
+        properties["ruleIdSource"] = ruleId.Source;
+        if (!ruleId.MissingExplicitHighPriorityRuleId)
+        {
+            return;
+        }
+
+        properties["missingExplicitRuleId"] = true;
+        properties["ruleIdPolicy"] = "High and critical SARIF entries should provide explicit stable rule IDs before rendering.";
+    }
+
     private static string BuildFallbackRuleId(params string?[] parts)
     {
         var normalized = parts
@@ -1237,6 +1417,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var joined = string.Join('.', normalized);
         return string.IsNullOrWhiteSpace(joined) ? "MCP.UNKNOWN" : joined;
     }
+
+    private sealed record SarifRuleIdResolution(string Value, string Source, bool MissingExplicitHighPriorityRuleId);
 
     private sealed record SarifEntry(
         string RuleId,
@@ -1271,6 +1453,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         AddCategoryJunitTestCase(testCases, "security-testing", "Security Testing", validationResult.SecurityTesting, BuildSecurityDetails(validationResult.SecurityTesting));
         AddCategoryJunitTestCase(testCases, "performance-testing", "Performance Testing", validationResult.PerformanceTesting, BuildPerformanceDetails(validationResult.PerformanceTesting));
         AddCategoryJunitTestCase(testCases, "error-handling", "Error Handling", validationResult.ErrorHandling, BuildErrorHandlingDetails(validationResult.ErrorHandling));
+        AddCoverageJunitTestCases(testCases, validationResult);
 
         return testCases;
     }
@@ -1280,7 +1463,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         var details = new List<string>
         {
             $"Compliance Score: {validationResult.ComplianceScore:F1}%",
-            $"Summary: total={validationResult.Summary.TotalTests}, passed={validationResult.Summary.PassedTests}, failed={validationResult.Summary.FailedTests}, skipped={validationResult.Summary.SkippedTests}",
+            $"Summary: total={validationResult.Summary.TotalTests}, passed={validationResult.Summary.PassedTests}, failed={validationResult.Summary.FailedTests}, skipped={validationResult.Summary.SkippedTests}, authRequired={validationResult.Summary.AuthRequiredTests}, inconclusive={validationResult.Summary.InconclusiveTests}",
             $"Endpoint: {validationResult.ServerConfig.Endpoint}",
             $"Transport: {validationResult.ServerConfig.Transport}"
         };
@@ -1291,6 +1474,9 @@ public class ValidationReportRenderer : IValidationReportRenderer
             details.Add($"Protocol Verdict: {validationResult.VerdictAssessment.ProtocolVerdict}");
             details.Add($"Coverage Verdict: {validationResult.VerdictAssessment.CoverageVerdict}");
             details.Add($"Verdict Summary: {validationResult.VerdictAssessment.Summary}");
+            details.Add($"Evidence Coverage: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
+            details.Add($"Evidence Confidence: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.VerdictAssessment.EvidenceSummary.ConfidenceLevel})");
+            details.AddRange(validationResult.VerdictAssessment.CoverageDecisions.Select(decision => $"Coverage Decision: {decision.DecisionId} -> {decision.Summary}"));
         }
 
         if (validationResult.CriticalErrors.Count > 0)
@@ -1313,6 +1499,59 @@ public class ValidationReportRenderer : IValidationReportRenderer
             details: string.Join(Environment.NewLine, details));
     }
 
+    private static void AddCoverageJunitTestCases(ICollection<JunitTestCase> testCases, ValidationResult validationResult)
+    {
+        foreach (var coverage in validationResult.Evidence.Coverage)
+        {
+            testCases.Add(CreateJunitTestCase(
+                suiteName: "evidence-coverage",
+                className: "validation.evidence.coverage",
+                name: $"Coverage: {coverage.LayerId}/{coverage.Scope}",
+                status: MapCoverageToTestStatus(coverage),
+                duration: TimeSpan.Zero,
+                message: BuildCoverageSummary(coverage),
+                details: BuildCoverageDetails(coverage)));
+        }
+    }
+
+    private static TestStatus MapCoverageToTestStatus(ValidationCoverageDeclaration coverage)
+    {
+        return coverage.Status switch
+        {
+            ValidationCoverageStatus.Covered => TestStatus.Passed,
+            ValidationCoverageStatus.Blocked or ValidationCoverageStatus.Unavailable => TestStatus.Failed,
+            ValidationCoverageStatus.NotApplicable or ValidationCoverageStatus.Skipped or ValidationCoverageStatus.AuthRequired or ValidationCoverageStatus.Inconclusive => TestStatus.Skipped,
+            _ => TestStatus.Skipped
+        };
+    }
+
+    private static string BuildCoverageDetails(ValidationCoverageDeclaration coverage)
+    {
+        var details = new List<string>
+        {
+            $"EvidenceId: {ValidationEvidenceIdBuilder.ForCoverage(coverage)}",
+            $"Layer: {coverage.LayerId}",
+            $"Scope: {coverage.Scope}",
+            $"Status: {coverage.Status}",
+            $"Blocker: {coverage.Blocker}",
+            $"Confidence: {coverage.Confidence}",
+            $"Reason: {coverage.Reason ?? "-"}"
+        };
+
+        if (coverage.ProbeContext != null)
+        {
+            details.Add($"ProbeId: {coverage.ProbeContext.ProbeId}");
+            details.Add($"Probe Method: {coverage.ProbeContext.Method ?? "-"}");
+            details.Add($"Probe Transport: {coverage.ProbeContext.Transport ?? "-"}");
+            details.Add($"Probe Auth: {coverage.ProbeContext.AuthStatus}");
+            details.Add($"Probe Response: {coverage.ProbeContext.ResponseClassification}");
+            details.Add($"Probe Status Code: {coverage.ProbeContext.StatusCode?.ToString(CultureInfo.InvariantCulture) ?? "-"}");
+            details.Add($"Probe Reason: {coverage.ProbeContext.Reason ?? "-"}");
+        }
+
+        return string.Join(Environment.NewLine, details);
+    }
+
     private static JunitTestCase CreatePolicyJunitTestCase(ValidationPolicyOutcome policyOutcome, ValidationResult validationResult)
     {
         var details = new List<string>
@@ -1325,6 +1564,15 @@ public class ValidationReportRenderer : IValidationReportRenderer
         if (policyOutcome.Reasons.Count > 0)
         {
             details.AddRange(policyOutcome.Reasons.Select(reason => $"Reason: {reason}"));
+        }
+
+        if (validationResult.VerdictAssessment?.BlockingDecisions.Count > 0)
+        {
+            details.AddRange(validationResult.VerdictAssessment.BlockingDecisions
+                .OrderByDescending(decision => ReportSeverityNormalizer.PriorityFrom(decision))
+                .ThenByDescending(decision => decision.Severity)
+                .Take(5)
+                .Select(decision => $"Blocking Decision Priority: {ReportSeverityNormalizer.ToMachineLabel(ReportSeverityNormalizer.PriorityFrom(decision))} - {decision.Category}/{decision.Component}: {decision.Summary}"));
         }
 
         if (policyOutcome.AppliedSuppressions.Count > 0)
@@ -1382,7 +1630,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         return status switch
         {
             TestStatus.Passed => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Passed, message, null, normalizedDetails),
-            TestStatus.Skipped => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Skipped, message, normalizedDetails, normalizedDetails),
+            TestStatus.Skipped or TestStatus.AuthRequired or TestStatus.Inconclusive => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Skipped, message, normalizedDetails, normalizedDetails),
             TestStatus.Error or TestStatus.Cancelled or TestStatus.InProgress => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Error, message, normalizedDetails, normalizedDetails),
             _ => new JunitTestCase(suiteName, className, name, duration.TotalSeconds, JunitOutcome.Failure, message, normalizedDetails, normalizedDetails)
         };
@@ -1413,7 +1661,78 @@ public class ValidationReportRenderer : IValidationReportRenderer
             new XElement("ProtocolVerdict", validationResult.VerdictAssessment.ProtocolVerdict.ToString()),
             new XElement("CoverageVerdict", validationResult.VerdictAssessment.CoverageVerdict.ToString()),
             new XElement("Summary", validationResult.VerdictAssessment.Summary),
-            new XElement("BlockingDecisionCount", validationResult.VerdictAssessment.BlockingDecisions.Count));
+            new XElement("BlockingDecisionCount", validationResult.VerdictAssessment.BlockingDecisions.Count),
+            BuildDecisionRecordsElement("BlockingDecisions", validationResult.VerdictAssessment.BlockingDecisions),
+            BuildDecisionRecordsElement("CoverageDecisions", validationResult.VerdictAssessment.CoverageDecisions));
+    }
+
+    private static XElement BuildDecisionRecordsElement(string name, IEnumerable<DecisionRecord> decisions)
+    {
+        return new XElement(name,
+            decisions.Select(decision =>
+            {
+                var element = new XElement("Decision",
+                    new XAttribute("id", decision.DecisionId),
+                    new XAttribute("gate", decision.Gate.ToString()),
+                    new XAttribute("authority", ValidationRuleSourceClassifier.GetLabel(decision.Authority)),
+                    new XAttribute("authorityPriority", ValidationAuthorityHierarchy.GetSortOrder(decision.Authority)),
+                    new XAttribute("origin", decision.Origin.ToString()),
+                    new XAttribute("severity", decision.Severity.ToString()),
+                    new XElement("Category", decision.Category),
+                    new XElement("Component", decision.Component),
+                    new XElement("Summary", decision.Summary),
+                    new XElement("RelatedEvidenceIds", decision.RelatedEvidenceIds.Select(id => new XElement("EvidenceId", id))),
+                    new XElement("EvidenceReferences", decision.EvidenceReferences.Select(reference => BuildDecisionEvidenceReferenceElement(reference))));
+
+                if (!string.IsNullOrWhiteSpace(decision.RuleId))
+                {
+                    element.Add(new XElement("RuleId", decision.RuleId));
+                }
+
+                if (!string.IsNullOrWhiteSpace(decision.SpecReference))
+                {
+                    element.Add(new XElement("SpecReference", decision.SpecReference));
+                }
+
+                return element;
+            }));
+    }
+
+    private static XElement BuildDecisionEvidenceReferenceElement(DecisionEvidenceReference reference)
+    {
+        var element = new XElement("EvidenceReference",
+            new XAttribute("id", reference.EvidenceId),
+            new XAttribute("kind", reference.EvidenceKind));
+
+        if (!string.IsNullOrWhiteSpace(reference.Summary))
+        {
+            element.Add(new XElement("Summary", reference.Summary));
+        }
+
+        if (!string.IsNullOrWhiteSpace(reference.SpecReference))
+        {
+            element.Add(new XElement("SpecReference", reference.SpecReference));
+        }
+
+        if (!string.IsNullOrWhiteSpace(reference.Remediation))
+        {
+            element.Add(new XElement("Remediation", reference.Remediation));
+        }
+
+        if (!string.IsNullOrWhiteSpace(reference.RedactedPayloadPreview))
+        {
+            element.Add(new XElement("RedactedPayloadPreview", reference.RedactedPayloadPreview));
+        }
+
+        if (reference.Metadata.Count > 0)
+        {
+            element.Add(new XElement("Metadata",
+                reference.Metadata.Select(pair => new XElement("Entry",
+                    new XAttribute("key", pair.Key),
+                    pair.Value))));
+        }
+
+        return element;
     }
 
     private static string? BuildProtocolDetails(ComplianceTestResult? result)
@@ -1440,6 +1759,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Tools Discovered: {result.ToolsDiscovered}",
             $"Tool Pass Count: {result.ToolsTestPassed}",
             $"Tool Fail Count: {result.ToolsTestFailed}");
+        if (result.ToolResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildToolCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.ToolResults.Select(tool => $"Tool {tool.ToolName}: {tool.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
@@ -1456,6 +1779,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Resources Discovered: {result.ResourcesDiscovered}",
             $"Resources Accessible: {result.ResourcesAccessible}",
             $"Resources Failed: {result.ResourcesTestFailed}");
+        if (result.ResourceResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildResourceCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.ResourceResults.Select(resource => $"Resource {resource.ResourceName ?? resource.ResourceUri}: {resource.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
@@ -1472,10 +1799,55 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Prompts Discovered: {result.PromptsDiscovered}",
             $"Prompts Passed: {result.PromptsTestPassed}",
             $"Prompts Failed: {result.PromptsTestFailed}");
+        if (result.PromptResults.Count == 0)
+        {
+            lines.Add($"Catalog Applicability: {BuildPromptCatalogApplicabilityNote(result)}");
+        }
         lines.AddRange(result.PromptResults.Select(prompt => $"Prompt {prompt.PromptName}: {prompt.Status}"));
         lines.AddRange(result.Issues.Select(issue => $"Issue: {issue}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
+
+    private static string BuildToolCatalogApplicabilityNote(ToolTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.";
+        }
+
+        return result.ToolsDiscovered == 0
+            ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+            : "Tool catalog details were unavailable for this report.";
+    }
+
+    private static string BuildResourceCatalogApplicabilityNote(ResourceTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.";
+        }
+
+        return result.ResourcesDiscovered == 0
+            ? "Resources capability was advertised, but resources/list returned an empty catalog; no resource reads were required."
+            : "Resource catalog details were unavailable for this report.";
+    }
+
+    private static string BuildPromptCatalogApplicabilityNote(PromptTestResult result)
+    {
+        if (IsNotAdvertised(result.Message) || result.Issues.Any(IsNotAdvertised))
+        {
+            return "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.";
+        }
+
+        return result.PromptsDiscovered == 0
+            ? "Prompts capability was advertised, but prompts/list returned an empty catalog; no prompt executions were required."
+            : "Prompt catalog details were unavailable for this report.";
+    }
+
+    private static bool IsNotAdvertised(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        (value.Contains("not advertised", StringComparison.OrdinalIgnoreCase) ||
+         value.Contains("does not advertise", StringComparison.OrdinalIgnoreCase));
 
     private static string? BuildSecurityDetails(SecurityTestResult? result)
     {
@@ -1502,6 +1874,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"P95 Latency Ms: {result.LoadTesting.P95ResponseTimeMs:F2}",
             $"Requests Per Second: {result.LoadTesting.RequestsPerSecond:F2}",
             $"Error Rate: {result.LoadTesting.ErrorRate:F2}");
+        lines.AddRange(result.CalibrationOverrides.Select(overrideRecord =>
+            $"Calibration Override [{overrideRecord.RuleId}]: status {overrideRecord.BeforeStatus}->{overrideRecord.AfterStatus}; score {overrideRecord.BeforeScore:F1}->{overrideRecord.AfterScore:F1}; severity {overrideRecord.BeforeSeverity}->{overrideRecord.AfterSeverity}; deterministic verdict changed: {overrideRecord.ChangedDeterministicVerdict}; reason: {overrideRecord.Reason}"));
         lines.AddRange(result.PerformanceBottlenecks.Select(bottleneck => $"Bottleneck: {bottleneck}"));
         return lines.Count == 0 ? null : string.Join(Environment.NewLine, lines);
     }
@@ -1533,6 +1907,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
         lines.AddRange(result.CriticalErrors.Select(error => $"Critical Error: {error}"));
         lines.AddRange(result.Findings.Select(finding => $"Finding [{finding.EffectiveSourceLabel}/{finding.Severity}] {finding.RuleId}: {finding.Summary}"));
         return lines;
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 
     private enum JunitOutcome

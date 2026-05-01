@@ -118,6 +118,8 @@ The standard artifact set is:
 
 When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
+The HTML report opens on the decision surface: **Run Status**, **Deterministic Verdict**, and **Trust Level**. The deterministic verdict drives release gating, while the trust level remains the weighted L1-L5 posture for human review and trend tracking.
+
 When experimental model evaluation is enabled, `validate` writes `mcp-validation-<timestamp>-model-evaluation.json` as a separate companion artifact. The canonical `*-result.json` file remains deterministic and does not embed experimental model output. `--enable-model-eval` now fails fast when no provider is configured; this build currently includes the deterministic companion provider `builtin-rubric`.
 
 ### Other Commands
@@ -185,6 +187,8 @@ Once a tagged release is published, the same root action can be listed in GitHub
 Every validation run scores four dimensions: Protocol Compliance, Security Posture, AI Safety, and Operational Readiness.
 
 Trust level is determined by a weighted multi-dimensional score and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
+
+Trust level is intentionally separate from the deterministic verdict. Use the deterministic verdict and policy outcome for release gating; use the L1-L5 trust level to summarize overall protocol, security, AI-safety, and operational posture.
 
 | Level | Label | Meaning |
 | --- | --- | --- |

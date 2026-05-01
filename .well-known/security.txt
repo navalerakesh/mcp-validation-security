@@ -1,0 +1,6 @@
+Contact: https://github.com/navalerakesh/mcp-validation-security/security/advisories/new
+Contact: https://github.com/navalerakesh
+Expires: 2027-05-01T00:00:00Z
+Preferred-Languages: en
+Canonical: https://github.com/navalerakesh/mcp-validation-security/blob/main/.well-known/security.txt
+Policy: https://github.com/navalerakesh/mcp-validation-security/security/policy

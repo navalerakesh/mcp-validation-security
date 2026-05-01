@@ -8,6 +8,7 @@ using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
+using Mcp.Benchmark.Infrastructure.Utilities;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -504,6 +505,8 @@ public class McpValidatorService : IMcpValidatorService
                 LayerId = layerId,
                 Scope = scope,
                 Status = ValidationCoverageStatus.Skipped,
+                Blocker = ValidationEvidenceBlocker.ConfigDisabled,
+                Confidence = EvidenceConfidenceLevel.Low,
                 Reason = "Validation category disabled by configuration."
             });
             return;
@@ -516,6 +519,8 @@ public class McpValidatorService : IMcpValidatorService
                 LayerId = layerId,
                 Scope = scope,
                 Status = ValidationCoverageStatus.Unavailable,
+                Blocker = ValidationEvidenceBlocker.Unimplemented,
+                Confidence = EvidenceConfidenceLevel.None,
                 Reason = "Validation category did not produce a result."
             });
             return;
@@ -526,6 +531,8 @@ public class McpValidatorService : IMcpValidatorService
             LayerId = layerId,
             Scope = scope,
             Status = MapCoverageStatus(testResult.Status),
+            Blocker = MapCoverageBlocker(testResult.Status),
+            Confidence = MapCoverageConfidence(testResult.Status),
             Reason = testResult.Status is TestStatus.Passed or TestStatus.Failed ? null : testResult.Message
         });
     }
@@ -618,8 +625,34 @@ public class McpValidatorService : IMcpValidatorService
         {
             TestStatus.Passed or TestStatus.Failed => ValidationCoverageStatus.Covered,
             TestStatus.Skipped => ValidationCoverageStatus.Skipped,
+            TestStatus.AuthRequired => ValidationCoverageStatus.AuthRequired,
+            TestStatus.Inconclusive => ValidationCoverageStatus.Inconclusive,
             TestStatus.Error or TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
             _ => ValidationCoverageStatus.Unavailable
+        };
+    }
+
+    private static ValidationEvidenceBlocker MapCoverageBlocker(TestStatus status)
+    {
+        return status switch
+        {
+            TestStatus.AuthRequired => ValidationEvidenceBlocker.AuthRequired,
+            TestStatus.Inconclusive => ValidationEvidenceBlocker.TransientFailure,
+            TestStatus.Skipped => ValidationEvidenceBlocker.ConfigDisabled,
+            TestStatus.Error or TestStatus.Cancelled => ValidationEvidenceBlocker.TransportError,
+            TestStatus.NotRun or TestStatus.InProgress => ValidationEvidenceBlocker.Unimplemented,
+            _ => ValidationEvidenceBlocker.None
+        };
+    }
+
+    private static EvidenceConfidenceLevel MapCoverageConfidence(TestStatus status)
+    {
+        return status switch
+        {
+            TestStatus.Passed or TestStatus.Failed => EvidenceConfidenceLevel.High,
+            TestStatus.AuthRequired or TestStatus.Skipped => EvidenceConfidenceLevel.Low,
+            TestStatus.Inconclusive => EvidenceConfidenceLevel.Low,
+            _ => EvidenceConfidenceLevel.None
         };
     }
 
@@ -770,19 +803,19 @@ public class McpValidatorService : IMcpValidatorService
             compliance.Initialization = initialization;
         }
 
-        var advertisedCapabilities = new List<string>();
-        var initCapabilities = result.InitializationHandshake?.Payload?.Capabilities;
-        if (initCapabilities != null)
-        {
-            if (initCapabilities.Tools != null) advertisedCapabilities.Add("tools");
-            if (initCapabilities.Resources != null) advertisedCapabilities.Add("resources");
-            if (initCapabilities.Prompts != null) advertisedCapabilities.Add("prompts");
-            if (initCapabilities.Logging != null) advertisedCapabilities.Add("logging");
-            if (initCapabilities.Completions != null) advertisedCapabilities.Add("completions");
-        }
+        var advertisedCapabilities = CapabilitySnapshotUtils
+            .ExtractAdvertisedCapabilities(result.InitializationHandshake?.Payload)
+            .ToList();
+        var capabilityDeclarationsAvailable = CapabilitySnapshotUtils.HasCapabilityDeclarations(result.InitializationHandshake?.Payload);
 
         if (result.CapabilitySnapshot?.Payload is { } snapshot)
         {
+            if (snapshot.CapabilityDeclarationsAvailable)
+            {
+                advertisedCapabilities = snapshot.AdvertisedCapabilities.ToList();
+                capabilityDeclarationsAvailable = true;
+            }
+
             var capability = compliance.CapabilityNegotiation ?? new CapabilityTestResult();
             var implementedCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (snapshot.ToolListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Tools);
@@ -790,16 +823,17 @@ public class McpValidatorService : IMcpValidatorService
             if (snapshot.PromptListingSucceeded) implementedCapabilities.Add(McpSpecConstants.Capabilities.Prompts);
             AddOptionalImplementedCapabilities(implementedCapabilities, compliance.Findings);
 
-            capability.CapabilityExchangeSuccessful = implementedCapabilities.Any();
+            capability.CapabilityExchangeSuccessful = capabilityDeclarationsAvailable || implementedCapabilities.Any();
             capability.CapabilityComplianceScore = snapshot.Score;
             capability.ImplementedCapabilities = implementedCapabilities
                 .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
                 .ToList();
 
-            if (advertisedCapabilities.Any())
+            if (capabilityDeclarationsAvailable || advertisedCapabilities.Any())
             {
                 capability.AdvertisedCapabilities = advertisedCapabilities;
                 capability.MissingCapabilities = advertisedCapabilities
+                    .Where(static capability => !capability.Contains('.', StringComparison.Ordinal))
                     .Except(implementedCapabilities, StringComparer.OrdinalIgnoreCase)
                     .ToList();
             }
@@ -811,7 +845,7 @@ public class McpValidatorService : IMcpValidatorService
             var optionalCapabilities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             AddOptionalImplementedCapabilities(optionalCapabilities, compliance.Findings);
 
-            if (optionalCapabilities.Any() || advertisedCapabilities.Any())
+            if (optionalCapabilities.Any() || advertisedCapabilities.Any() || capabilityDeclarationsAvailable)
             {
                 compliance.CapabilityNegotiation = new CapabilityTestResult
                 {
@@ -820,17 +854,19 @@ public class McpValidatorService : IMcpValidatorService
                         .OrderBy(static value => value, StringComparer.OrdinalIgnoreCase)
                         .ToList(),
                     MissingCapabilities = advertisedCapabilities
+                        .Where(static capability => !capability.Contains('.', StringComparison.Ordinal))
                         .Except(optionalCapabilities, StringComparer.OrdinalIgnoreCase)
                         .ToList(),
-                    CapabilityExchangeSuccessful = optionalCapabilities.Any()
+                    CapabilityExchangeSuccessful = capabilityDeclarationsAvailable || optionalCapabilities.Any()
                 };
             }
         }
-        else if (advertisedCapabilities.Any() && compliance.CapabilityNegotiation == null)
+        else if ((advertisedCapabilities.Any() || capabilityDeclarationsAvailable) && compliance.CapabilityNegotiation == null)
         {
             compliance.CapabilityNegotiation = new CapabilityTestResult
             {
-                AdvertisedCapabilities = advertisedCapabilities
+                AdvertisedCapabilities = advertisedCapabilities,
+                CapabilityExchangeSuccessful = capabilityDeclarationsAvailable
             };
         }
     }
@@ -862,6 +898,8 @@ public class McpValidatorService : IMcpValidatorService
         var passedTests = 0;
         var failedTests = 0;
         var skippedTests = 0;
+        var authRequiredTests = 0;
+        var inconclusiveTests = 0;
 
         // Aggregate protocol compliance results
         if (result.ProtocolCompliance != null)
@@ -870,6 +908,8 @@ public class McpValidatorService : IMcpValidatorService
             if (result.ProtocolCompliance.Status == TestStatus.Passed) passedTests++;
             else if (result.ProtocolCompliance.Status == TestStatus.Failed) failedTests++;
             else if (result.ProtocolCompliance.Status == TestStatus.Skipped) skippedTests++;
+            else if (result.ProtocolCompliance.Status == TestStatus.AuthRequired) authRequiredTests++;
+            else if (result.ProtocolCompliance.Status == TestStatus.Inconclusive) inconclusiveTests++;
         }
 
         // Aggregate tool validation results
@@ -887,6 +927,8 @@ public class McpValidatorService : IMcpValidatorService
             if (result.SecurityTesting.Status == TestStatus.Passed) passedTests++;
             else if (result.SecurityTesting.Status == TestStatus.Failed) failedTests++;
             else if (result.SecurityTesting.Status == TestStatus.Skipped) skippedTests++;
+            else if (result.SecurityTesting.Status == TestStatus.AuthRequired) authRequiredTests++;
+            else if (result.SecurityTesting.Status == TestStatus.Inconclusive) inconclusiveTests++;
         }
 
         // Aggregate performance testing results
@@ -896,6 +938,8 @@ public class McpValidatorService : IMcpValidatorService
             if (result.PerformanceTesting.Status == TestStatus.Passed) passedTests++;
             else if (result.PerformanceTesting.Status == TestStatus.Failed) failedTests++;
             else if (result.PerformanceTesting.Status == TestStatus.Skipped) skippedTests++;
+            else if (result.PerformanceTesting.Status == TestStatus.AuthRequired) authRequiredTests++;
+            else if (result.PerformanceTesting.Status == TestStatus.Inconclusive) inconclusiveTests++;
         }
 
         if (result.ErrorHandling != null)
@@ -904,6 +948,8 @@ public class McpValidatorService : IMcpValidatorService
             if (result.ErrorHandling.Status == TestStatus.Passed) passedTests++;
             else if (result.ErrorHandling.Status == TestStatus.Failed) failedTests++;
             else if (result.ErrorHandling.Status == TestStatus.Skipped) skippedTests++;
+            else if (result.ErrorHandling.Status == TestStatus.AuthRequired) authRequiredTests++;
+            else if (result.ErrorHandling.Status == TestStatus.Inconclusive) inconclusiveTests++;
         }
 
         // Update summary statistics
@@ -911,6 +957,8 @@ public class McpValidatorService : IMcpValidatorService
         result.Summary.PassedTests = passedTests;
         result.Summary.FailedTests = failedTests;
         result.Summary.SkippedTests = skippedTests;
+        result.Summary.AuthRequiredTests = authRequiredTests;
+        result.Summary.InconclusiveTests = inconclusiveTests;
         result.Summary.CriticalIssues = result.CriticalErrors.Count;
 
         // Use the scoring strategy to calculate the score and status
@@ -921,6 +969,7 @@ public class McpValidatorService : IMcpValidatorService
         result.ScoringNotes = scoringResult.ScoringNotes;
         result.ScoringDetails = scoringResult;
         result.Summary.CoverageRatio = scoringResult.CoverageRatio;
+        result.Summary.EvidenceConfidenceRatio = scoringResult.EvidenceSummary.EvidenceConfidenceRatio;
 
         // Generate recommendations based on results
         GenerateRecommendations(result);

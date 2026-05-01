@@ -20,6 +20,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var decisionTrace = BuildDecisionTrace(result);
         var compatibilityThemes = BuildCompatibilityThemes(result);
         var priorityFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
+        var remediationOrder = RemediationOrderBuilder.Build(result);
         var actionHints = ReportActionHintBuilder.Build(result)
             .Where(hint => !MatchesPolicySummary(hint, result.PolicyOutcome?.Summary))
             .ToList();
@@ -46,6 +47,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
             CompatibilityThemes = compatibilityThemes,
             PriorityFindings = priorityFindings,
             ActionHints = actionHints,
+            RemediationOrder = remediationOrder,
             AdditionalRecommendations = recommendations,
             Bootstrap = BuildBootstrapSummary(result, bootstrap)
         };
@@ -77,10 +79,13 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Subtitle = BuildHeroSubtitle(result),
             StatusLabel = ResolveReleaseStatusLabel(result),
             StatusTone = releaseTone,
-            TrustLabel = BuildEvidencePostureLabel(result),
-            TrustTone = result.VerdictAssessment != null
+            VerdictLabel = BuildHeroVerdictLabel(result),
+            VerdictTone = result.VerdictAssessment != null
                 ? MapVerdictTone(result.VerdictAssessment.BaselineVerdict)
-                : MapTrustTone(result.TrustAssessment?.TrustLevel),
+                : HtmlReportTone.Neutral,
+            TrustLevelLabel = BuildTrustLevelValue(result.TrustAssessment),
+            TrustLevelDetail = BuildTrustLevelDetail(result.TrustAssessment),
+            TrustLevelTone = MapTrustTone(result.TrustAssessment?.TrustLevel),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
                 new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "n/a" },
@@ -91,6 +96,39 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 new() { Label = "Protocol Version", Value = protocolVersion }
             }
         };
+    }
+
+    private static string BuildHeroVerdictLabel(ValidationResult result)
+    {
+        return result.VerdictAssessment == null
+            ? "Not evaluated"
+            : BuildVerdictCompositeLabel(result);
+    }
+
+    private static string BuildTrustLevelValue(McpTrustAssessment? assessment)
+    {
+        if (assessment == null)
+        {
+            return "n/a";
+        }
+
+        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
+        return separatorIndex > 0
+            ? assessment.TrustLabel[..separatorIndex]
+            : assessment.TrustLevel.ToString().Split('_', 2)[0];
+    }
+
+    private static string BuildTrustLevelDetail(McpTrustAssessment? assessment)
+    {
+        if (assessment == null)
+        {
+            return "Trust assessment unavailable";
+        }
+
+        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
+        return separatorIndex >= 0
+            ? assessment.TrustLabel[(separatorIndex + 1)..].Trim()
+            : assessment.TrustLabel;
     }
 
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(
@@ -164,6 +202,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildOverviewMetrics(ValidationResult result)
     {
+        var evidenceSummary = ResolveEvidenceSummary(result);
+
         if (result.VerdictAssessment != null)
         {
             var verdictCards = new List<ValidationHtmlMetricCard>
@@ -180,6 +220,18 @@ internal sealed class ValidationHtmlReportDocumentFactory
                     Tone = MapScoreTone(result.ComplianceScore)
                 }
             };
+
+            if (evidenceSummary.TotalDeclarations > 0)
+            {
+                verdictCards.Add(new ValidationHtmlMetricCard
+                {
+                    Eyebrow = "Evidence",
+                    Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
+                    Label = "Evidence Confidence",
+                    SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
+                    Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
+                });
+            }
 
             if (result.TrustAssessment != null)
             {
@@ -236,7 +288,26 @@ internal sealed class ValidationHtmlReportDocumentFactory
             });
         }
 
+        if (evidenceSummary.TotalDeclarations > 0)
+        {
+            cards.Add(new ValidationHtmlMetricCard
+            {
+                Eyebrow = "Evidence",
+                Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
+                Label = "Evidence Confidence",
+                SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
+                Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
+            });
+        }
+
         return cards;
+    }
+
+    private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
+    {
+        return result.VerdictAssessment?.EvidenceSummary
+               ?? result.ScoringDetails?.EvidenceSummary
+               ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
     }
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildRiskMetrics(ValidationResult result)
@@ -469,7 +540,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return sourceDecisions
             .Where(decision => !string.IsNullOrWhiteSpace(decision.Summary))
             .GroupBy(BuildDecisionThemeKey, StringComparer.OrdinalIgnoreCase)
-            .OrderByDescending(group => group.Max(item => item.Gate))
+            .OrderBy(group => group.Min(item => ValidationAuthorityHierarchy.GetSortOrder(item.Authority)))
+            .ThenByDescending(group => group.Max(item => item.Gate))
             .ThenByDescending(group => group.Count())
             .ThenByDescending(group => group.Max(item => item.Severity))
             .Take(MaxDecisionTraceItems)
@@ -496,6 +568,35 @@ internal sealed class ValidationHtmlReportDocumentFactory
             new() { Label = "Affected Components", Value = FormatComponentSet(affectedComponents) },
             new() { Label = "Decision Count", Value = group.Count().ToString() }
         };
+
+        var evidenceIds = group
+            .SelectMany(item => item.RelatedEvidenceIds)
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(6)
+            .ToList();
+        if (evidenceIds.Count > 0)
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Evidence IDs", Value = string.Join(", ", evidenceIds) });
+        }
+
+        var payloadPreview = group
+            .SelectMany(item => item.EvidenceReferences)
+            .Select(reference => reference.RedactedPayloadPreview)
+            .FirstOrDefault(preview => !string.IsNullOrWhiteSpace(preview));
+        if (!string.IsNullOrWhiteSpace(payloadPreview))
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Payload Preview", Value = payloadPreview });
+        }
+
+        var remediation = group
+            .SelectMany(item => item.EvidenceReferences)
+            .Select(reference => reference.Remediation)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(remediation))
+        {
+            facts.Add(new ValidationHtmlMetaItem { Label = "Remediation", Value = remediation });
+        }
 
         foreach (var pair in representative.Metadata.Take(3))
         {
@@ -904,8 +1005,15 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
 
         return !string.IsNullOrWhiteSpace(representative.SpecReference)
-            ? $"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin} · spec-linked"
-            : $"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin}";
+            ? AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin} · spec-linked", representative)
+            : AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin}", representative);
+    }
+
+    private static string AppendEvidenceCount(string label, DecisionRecord representative)
+    {
+        return representative.RelatedEvidenceIds.Count == 0
+            ? label
+            : $"{label} · {representative.RelatedEvidenceIds.Count} evidence link(s)";
     }
 
     private static string FormatComponentSet(IReadOnlyList<string> components)

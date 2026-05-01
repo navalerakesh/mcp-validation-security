@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Authentication;
 using Mcp.Benchmark.Infrastructure.Services;
@@ -27,7 +28,6 @@ public class ToolValidatorComprehensiveTests
     public ToolValidatorComprehensiveTests()
     {
         _httpClient = new Mock<IMcpHttpClient>();
-        var schemaValidator = new Mock<ISchemaValidator>();
         var schemaRegistry = new Mock<ISchemaRegistry>();
         var authService = new Mock<IAuthenticationService>();
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
@@ -36,17 +36,48 @@ public class ToolValidatorComprehensiveTests
         _validator = new ToolValidator(
             new Mock<ILogger<ToolValidator>>().Object,
             _httpClient.Object,
-            schemaValidator.Object,
+            new JsonSchemaValidator(),
             schemaRegistry.Object,
             authService.Object,
             contentSafety.Object,
             new ToolAiReadinessAnalyzer());
     }
 
+    [Fact]
+    public async Task ValidateToolDiscovery_WhenToolsCapabilityIsNotAdvertised_ShouldSkipToolProbes()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var capabilitySnapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                CapabilityDeclarationsAvailable = true,
+                AdvertisedCapabilities = Array.Empty<string>()
+            }
+        };
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            config,
+            new ToolTestingConfig { CapabilitySnapshot = capabilitySnapshot },
+            CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.Score.Should().Be(100.0);
+        result.Issues.Should().Contain("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped.");
+
+        _httpClient.Verify(x => x.CallAsync(
+            It.IsAny<string>(),
+            "tools/list",
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
     // ─── Auth Detection ──────────────────────────────────────────
 
     [Fact]
-    public async Task ValidateToolDiscovery_With401AndWwwAuth_ShouldPassWithAuthDetails()
+    public async Task ValidateToolDiscovery_With401AndWwwAuth_ShouldReturnAuthRequiredWithAuthDetails()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -58,14 +89,14 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Passed);
+        result.Status.Should().Be(TestStatus.AuthRequired);
         result.AuthenticationSecurity.Should().NotBeNull();
         result.AuthenticationSecurity!.AuthenticationRequired.Should().BeTrue();
         result.AuthenticationSecurity.HasProperAuthHeaders.Should().BeTrue();
     }
 
     [Fact]
-    public async Task ValidateToolDiscovery_With401NoWwwAuth_ShouldPassButFlagMissing()
+    public async Task ValidateToolDiscovery_With401NoWwwAuth_ShouldReturnAuthRequiredAndFlagMissingHeader()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -73,12 +104,12 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Passed);
+        result.Status.Should().Be(TestStatus.AuthRequired);
         result.AuthenticationSecurity!.HasProperAuthHeaders.Should().BeFalse();
     }
 
     [Fact]
-    public async Task ValidateToolDiscovery_With403_ShouldPassAsAuthEnforced()
+    public async Task ValidateToolDiscovery_With403_ShouldReturnAuthRequired()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -86,7 +117,7 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Passed);
+        result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
     // ─── Tool Discovery (200 OK) ─────────────────────────────────
@@ -102,6 +133,35 @@ public class ToolValidatorComprehensiveTests
 
         result.ToolsDiscovered.Should().BeGreaterThan(0);
         result.DiscoveredToolNames.Should().Contain("calc");
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithPublicProfile_ShouldContextualizeContentSafetyFindings()
+    {
+        var config = new McpServerConfig
+        {
+            Endpoint = "https://test.com/mcp",
+            Transport = "http",
+            Profile = McpServerProfile.Public
+        };
+        SetupToolsList(_httpClient, "[{\"name\":\"update_customer_record\",\"description\":\"Updates a customer record\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
+        SetupToolCall(_httpClient, 400, null);
+
+        var validator = new ToolValidator(
+            new Mock<ILogger<ToolValidator>>().Object,
+            _httpClient.Object,
+            new JsonSchemaValidator(),
+            new Mock<ISchemaRegistry>().Object,
+            new Mock<IAuthenticationService>().Object,
+            new ContentSafetyAnalyzer(new Mock<ILogger<ContentSafetyAnalyzer>>().Object),
+            new ToolAiReadinessAnalyzer());
+
+        var result = await validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var finding = result.ContentSafetyFindings.Should().ContainSingle(f => f.ItemName == "update_customer_record").Subject;
+        finding.RiskLevel.Should().Be(ContentRiskLevel.High);
+        finding.Context.Should().ContainKey("contextProfile").WhoseValue.Should().Be("PublicUnauthenticated");
+        finding.Context.Should().ContainKey("baseRiskLevel").WhoseValue.Should().Be("Medium");
     }
 
     [Fact]
@@ -130,7 +190,7 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
-    public async Task ValidateToolDiscovery_WithRateLimitedToolsList_ShouldSkipAsTransientProbe()
+    public async Task ValidateToolDiscovery_WithRateLimitedToolsList_ShouldReturnInconclusiveAsTransientProbe()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -138,7 +198,7 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.Inconclusive);
         result.ToolsTestFailed.Should().Be(0);
         result.Message.Should().Contain("tools/list probe inconclusive");
     }
@@ -232,7 +292,7 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
-    public async Task ValidateToolDiscovery_WithRateLimitedToolCall_ShouldSkipToolWithoutFailingDiscovery()
+    public async Task ValidateToolDiscovery_WithRateLimitedToolCall_ShouldReturnInconclusiveToolWithoutFailingDiscovery()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         SetupToolsList(_httpClient, "[{\"name\":\"rate_limited_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
@@ -241,11 +301,11 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Passed);
+        result.Status.Should().Be(TestStatus.Inconclusive);
         result.ToolsTestFailed.Should().Be(0);
         var toolResult = result.ToolResults.FirstOrDefault(t => t.ToolName == "rate_limited_tool");
         toolResult.Should().NotBeNull();
-        toolResult!.Status.Should().Be(TestStatus.Skipped);
+        toolResult!.Status.Should().Be(TestStatus.Inconclusive);
         toolResult.Issues.Should().Contain(i => i.Contains("transient transport pressure"));
     }
 
@@ -331,6 +391,114 @@ public class ToolValidatorComprehensiveTests
         toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing);
         toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing);
         toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithMissingInputSchema_ShouldEmitSpecFindingAndFailTool()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"missing_schema\"}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "missing_schema");
+        toolResult.Status.Should().Be(TestStatus.Failed);
+        toolResult.MetadataValid.Should().BeFalse();
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolInputSchemaMissing);
+        result.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithNonObjectInputSchemaRoot_ShouldEmitSpecFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"bad_schema\",\"inputSchema\":{\"type\":\"string\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "bad_schema");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid);
+        toolResult.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithOutputSchemaAndMatchingStructuredContent_ShouldPassSchemaCheck()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":\"42\"}},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "structured_tool");
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentMissing);
+        toolResult.Status.Should().Be(TestStatus.Passed);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithOutputSchemaMismatch_ShouldEmitStructuredContentFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":7}},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "structured_tool");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+        toolResult.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithInvalidIconsAndTaskSupport_ShouldEmitMetadataFindings()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"metadata_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"icons\":[{\"theme\":\"blue\",\"sizes\":[\"large\"]}],\"execution\":{\"taskSupport\":\"sometimes\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "metadata_tool");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolIconInvalid);
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.ToolExecutionTaskSupportInvalid);
+        toolResult.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithTaskSupportButNoToolsCallTaskCapability_ShouldEmitAiSafetyFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var capabilitySnapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                CapabilityDeclarationsAvailable = true,
+                AdvertisedCapabilities = new[]
+                {
+                    McpSpecConstants.Capabilities.Tools,
+                    McpSpecConstants.Capabilities.Tasks
+                }
+            }
+        };
+
+        SetupToolsList(_httpClient, "[{\"name\":\"long_running_tool\",\"title\":\"Long Running Tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"execution\":{\"taskSupport\":\"required\"},\"annotations\":{\"readOnlyHint\":false,\"destructiveHint\":false,\"openWorldHint\":false,\"idempotentHint\":true}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            config,
+            new ToolTestingConfig { CapabilitySnapshot = capabilitySnapshot },
+            CancellationToken.None);
+
+        var finding = result.Findings.Should().ContainSingle(f => f.RuleId == ValidationFindingRuleIds.AiTaskSupportWithoutCapability).Subject;
+        finding.Severity.Should().Be(ValidationFindingSeverity.High);
+        finding.Metadata["capability"].Should().Be(McpSpecConstants.Capabilities.TasksRequestsToolsCall);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "long_running_tool");
+        toolResult.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiTaskSupportWithoutCapability);
     }
 
     [Fact]
@@ -466,7 +634,7 @@ public class ToolValidatorComprehensiveTests
     // ─── Tool Execution Standalone ───────────────────────────────
 
     [Fact]
-    public async Task ValidateToolExecution_WithAuth_ShouldSkip()
+    public async Task ValidateToolExecution_WithAuth_ShouldReturnAuthRequired()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
@@ -474,7 +642,7 @@ public class ToolValidatorComprehensiveTests
 
         var result = await _validator.ValidateToolExecutionAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
     [Fact]

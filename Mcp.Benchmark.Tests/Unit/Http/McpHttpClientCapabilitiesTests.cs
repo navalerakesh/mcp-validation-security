@@ -9,6 +9,8 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
+using McpServerCapabilities = ModelContextProtocol.Protocol.ServerCapabilities;
+using ModelContextProtocol.Protocol;
 
 namespace Mcp.Benchmark.Tests.Unit.Http;
 
@@ -27,6 +29,22 @@ public class McpHttpClientCapabilitiesTests
 
         var loggerMock = new Mock<ILogger<McpHttpClient>>();
         var mcpClientMock = new Mock<IMcpClient>();
+
+        mcpClientMock
+            .Setup(x => x.InitializeAsync(
+                It.Is<McpServerConfig>(cfg => cfg.Endpoint == endpoint),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InitializeResult
+            {
+                ProtocolVersion = "2025-11-25",
+                ServerInfo = new Implementation { Name = "test-server", Version = "1.0.0" },
+                Capabilities = new McpServerCapabilities
+                {
+                    Tools = new ToolsCapability()
+                }
+            });
 
         mcpClientMock
             .Setup(x => x.ListToolsAsync(
@@ -110,6 +128,24 @@ public class McpHttpClientCapabilitiesTests
         var mcpClientMock = new Mock<IMcpClient>();
 
         mcpClientMock
+            .Setup(x => x.InitializeAsync(
+                It.Is<McpServerConfig>(cfg => cfg.Endpoint == endpoint),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InitializeResult
+            {
+                ProtocolVersion = "2025-11-25",
+                ServerInfo = new Implementation { Name = "test-server", Version = "1.0.0" },
+                Capabilities = new McpServerCapabilities
+                {
+                    Tools = new ToolsCapability(),
+                    Resources = new ResourcesCapability(),
+                    Prompts = new PromptsCapability()
+                }
+            });
+
+        mcpClientMock
             .Setup(x => x.ListToolsAsync(
                 It.Is<McpServerConfig>(cfg => cfg.Endpoint == endpoint),
                 It.IsAny<AuthenticationConfig?>(),
@@ -126,6 +162,52 @@ public class McpHttpClientCapabilitiesTests
         result.Payload!.DiscoveredToolsCount.Should().Be(2);
         result.Payload.FirstToolName.Should().Be("demo-tool");
         result.Payload.ToolListingSucceeded.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateCapabilitiesAsync_WhenToolsAreNotAdvertised_DoesNotProbeToolSurface()
+    {
+        const string endpoint = "http://localhost:8080/mcp";
+
+        using var httpClient = new HttpClient(new RoutingHandler(_ =>
+            throw new InvalidOperationException("No JSON-RPC probes should run when no capabilities are advertised.")))
+        {
+            Timeout = TimeSpan.FromSeconds(5)
+        };
+
+        var loggerMock = new Mock<ILogger<McpHttpClient>>();
+        var mcpClientMock = new Mock<IMcpClient>();
+
+        mcpClientMock
+            .Setup(x => x.InitializeAsync(
+                It.Is<McpServerConfig>(cfg => cfg.Endpoint == endpoint),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new InitializeResult
+            {
+                ProtocolVersion = "2025-11-25",
+                ServerInfo = new Implementation { Name = "test-server", Version = "1.0.0" },
+                Capabilities = new McpServerCapabilities()
+            });
+
+        var client = new McpHttpClient(httpClient, loggerMock.Object, mcpClientMock.Object);
+
+        var result = await client.ValidateCapabilitiesAsync(endpoint, CancellationToken.None);
+
+        result.IsSuccessful.Should().BeTrue();
+        result.Payload.Should().NotBeNull();
+        result.Payload!.CapabilityDeclarationsAvailable.Should().BeTrue();
+        result.Payload.AdvertisedCapabilities.Should().BeEmpty();
+        result.Payload.ToolListResponse.Should().BeNull();
+        result.Payload.ToolListingSucceeded.Should().BeFalse();
+
+        mcpClientMock.Verify(x => x.ListToolsAsync(
+            It.IsAny<McpServerConfig>(),
+            It.IsAny<AuthenticationConfig?>(),
+            It.IsAny<string?>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Fact]

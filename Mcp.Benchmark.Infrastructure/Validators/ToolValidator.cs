@@ -26,25 +26,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     private readonly IAuthenticationService _authenticationService;
     private readonly IContentSafetyAnalyzer _contentSafetyAnalyzer;
     private readonly IToolAiReadinessAnalyzer _aiReadinessAnalyzer;
-    private static readonly string[] DestructiveConfirmationGuidanceCues =
-    [
-        "confirm",
-        "confirmation",
-        "approve",
-        "approval",
-        "review",
-        "warning",
-        "warn"
-    ];
-    private static readonly string[] DestructiveConfirmationNegations =
-    [
-        "without confirmation",
-        "no confirmation",
-        "without approval",
-        "no approval",
-        "without warning",
-        "no warning"
-    ];
 
     public ToolValidator(
         ILogger<ToolValidator> logger,
@@ -111,6 +92,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 });
             }
 
+            if (CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools))
+            {
+                result.Status = TestStatus.Skipped;
+                result.Score = 100.0;
+                result.Message = "Server does not advertise the tools capability.";
+                result.Issues.Add("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped.");
+                return result;
+            }
+
             Logger.LogDebug("Performing comprehensive tool discovery via MCP tools/list");
 
             var toolsListStartTime = DateTime.UtcNow;
@@ -125,9 +115,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             var toolsListAuthChallenge = AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration);
             if (toolsListAuthChallenge.RequiresAuthentication)
             {
-                result.Status = TestStatus.Passed;
-                result.Score = 100.0;
-                result.ToolsTestPassed = 1;
+                result.Status = TestStatus.AuthRequired;
+                result.Score = 0.0;
+                result.ToolsTestPassed = 0;
 
                 var authIssues = new List<string>();
                 var authHeaderValue = toolsListAuthChallenge.WwwAuthenticateHeader;
@@ -246,15 +236,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     // If interactive auth was requested but failed, mark as SKIPPED instead of PASSED
                     if (serverConfig.Authentication?.AllowInteractive == true)
                     {
-                        result.Status = TestStatus.Skipped;
+                        result.Status = TestStatus.AuthRequired;
                         result.Score = 0.0;
                         result.ToolsTestPassed = 0;
-                        result.Issues.Add("⚠️ Tool validation SKIPPED: Interactive authentication failed or was not completed.");
+                        result.Issues.Add("Tool validation requires authentication: interactive authentication failed or was not completed.");
                         
                         result.ToolResults.Add(new IndividualToolResult
                         {
                             ToolName = "tools/list (Auth Check)",
-                            Status = TestStatus.Skipped,
+                            Status = TestStatus.AuthRequired,
                             DiscoveredCorrectly = true,
                             MetadataValid = hasWwwAuth,
                             ExecutionSuccessful = true,
@@ -273,14 +263,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         return result;
                     }
 
-                    result.Status = TestStatus.Passed;
-                    result.Score = 100.0;
-                    result.ToolsTestPassed = 1;
+                    result.Status = TestStatus.AuthRequired;
+                    result.Score = 0.0;
+                    result.ToolsTestPassed = 0;
                     
                     result.ToolResults.Add(new IndividualToolResult
                     {
                         ToolName = "tools/list (Auth Check)",
-                        Status = TestStatus.Passed,
+                        Status = TestStatus.AuthRequired,
                         DiscoveredCorrectly = true,
                         MetadataValid = hasWwwAuth,
                         ExecutionSuccessful = true,
@@ -307,7 +297,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             {
                 if (ValidationReliability.ShouldRetryRpcResponse(toolsListResponse))
                 {
-                    result.Status = TestStatus.Skipped;
+                    result.Status = TestStatus.Inconclusive;
                     result.Message = $"tools/list probe inconclusive: {ValidationReliability.DescribeRetryableResponse(toolsListResponse)}";
                     result.Issues.Add($"⚠️ Tool discovery probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(toolsListResponse)}). Not treated as a contract failure.");
                     return result;
@@ -400,7 +390,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             {
                 result.Status = TestStatus.Passed;
                 result.ToolsTestPassed++;
-                result.Issues.Add("Server returned no tools - this is allowed but unusual");
+                result.Issues.Add(CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools)
+                    ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
+                    : "No tools were returned by tools/list; no tool executions were required.");
                 result.ToolResults.Add(new IndividualToolResult
                 {
                     ToolName = "tools/list",
@@ -418,10 +410,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             foreach (var tool in toolsList)
             {
                 var toolResult = await ValidateIndividualToolAsync(serverConfig, tool, config, ct);
-                ApplyGuidelineFindings(result, tool, toolResult);
+                ApplyGuidelineFindings(result, tool, toolResult, config.CapabilitySnapshot);
+                result.AiSafetyControlEvidence.AddRange(toolResult.AiSafetyControlEvidence);
 
                 // Static, metadata-only content safety analysis
-                var safetyFindings = _contentSafetyAnalyzer.AnalyzeTool(tool.Name);
+                var safetyContext = ContentSafetyAnalysisContext.FromServerConfig(serverConfig, toolResult.AiSafetyControlEvidence);
+                var safetyFindings = _contentSafetyAnalyzer.AnalyzeTool(tool.Name, safetyContext);
                 if (safetyFindings.Count > 0)
                 {
                     toolResult.ContentSafetyFindings.AddRange(safetyFindings);
@@ -449,7 +443,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
-            result.Status = result.ToolsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
+            result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
 
             // AI Readiness Analysis
             ApplyAiReadinessAnalysis(result, toolsList, toolsListResponse.RawJson, toolsListPayloadChars);
@@ -510,6 +504,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             AnthropicMaxResultSizeChars = tool.AnthropicMaxResultSizeChars,
             InputParameterNames = GetInputParameterNames(tool)
         };
+        ApplyAiSafetyControlEvidence(result, tool);
+        ValidateToolMetadata(tool, result);
 
         try
         {
@@ -520,15 +516,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             if (AuthenticationChallengeInterpreter.Inspect(toolCallResponse).RequiresAuthentication)
             {
-                // Auth enforced on individual tool call — compliant
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add("Tool call requires authentication (Secure)");
+                result.Status = TestStatus.AuthRequired;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool call requires authentication; secure challenge observed, execution not validated.");
             }
             else if (toolCallResponse.StatusCode > 0 && ValidationReliability.ShouldRetryRpcResponse(toolCallResponse))
             {
-                result.Status = TestStatus.Skipped;
-                result.ExecutionSuccessful = true;
+                result.Status = TestStatus.Inconclusive;
+                result.ExecutionSuccessful = false;
                 result.Issues.Add($"⚠️ Tool call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(toolCallResponse)}). Not treated as a contract failure.");
             }
             else if (toolCallResponse.IsSuccess)
@@ -561,7 +556,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     else
                     {
                         // Successful tool execution — validate response structure
-                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result);
+                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result, tool);
                     }
                 }
             }
@@ -618,6 +613,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.Issues.Add($"Tool call exception: {ex.Message}");
         }
 
+        ApplyBlockingToolFindingStatus(result);
         return result;
     }
 
@@ -645,13 +641,366 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         return false;
     }
 
+    private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result)
+    {
+        if (string.IsNullOrWhiteSpace(tool.Name) || tool.Name != tool.Name.Trim() || ContainsControlCharacter(tool.Name))
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolNameInvalid,
+                ValidationFindingSeverity.High,
+                "Tool name must be a non-empty programmatic identifier without leading/trailing whitespace or control characters.",
+                "Return a stable, non-empty name value for every tool in tools/list.");
+        }
+
+        ValidateJsonSchemaProperty(
+            result,
+            tool.HasInputSchema,
+            tool.InputSchema,
+            "inputSchema",
+            ValidationFindingRuleIds.ToolInputSchemaMissing,
+            ValidationFindingRuleIds.ToolInputSchemaInvalid,
+            ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid,
+            isRequired: true);
+
+        ValidateJsonSchemaProperty(
+            result,
+            tool.HasOutputSchema,
+            tool.OutputSchema,
+            "outputSchema",
+            null,
+            ValidationFindingRuleIds.ToolOutputSchemaInvalid,
+            ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid,
+            isRequired: false);
+
+        ValidateToolIcons(tool, result);
+        ValidateToolExecutionMetadata(tool, result);
+    }
+
+    private void ValidateJsonSchemaProperty(
+        IndividualToolResult result,
+        bool isPresent,
+        JsonElement schema,
+        string propertyName,
+        string? missingRuleId,
+        string invalidRuleId,
+        string invalidRootTypeRuleId,
+        bool isRequired)
+    {
+        if (!isPresent)
+        {
+            if (isRequired && missingRuleId is not null)
+            {
+                AddToolSpecFinding(
+                    result,
+                    missingRuleId,
+                    ValidationFindingSeverity.Critical,
+                    $"Tool '{result.ToolName}' is missing required {propertyName} metadata.",
+                    $"Declare {propertyName} as a JSON Schema object with root type 'object'.");
+            }
+
+            return;
+        }
+
+        if (schema.ValueKind != JsonValueKind.Object)
+        {
+            AddToolSpecFinding(
+                result,
+                invalidRuleId,
+                ValidationFindingSeverity.Critical,
+                $"Tool '{result.ToolName}' declares {propertyName}, but it is not a JSON object.",
+                $"Declare {propertyName} as a JSON Schema object.");
+            return;
+        }
+
+        if (!TryConvertToJsonNode(schema, out var schemaNode, out var conversionError) || schemaNode is null)
+        {
+            AddToolSpecFinding(
+                result,
+                invalidRuleId,
+                ValidationFindingSeverity.High,
+                $"Tool '{result.ToolName}' declares {propertyName}, but it could not be parsed for JSON Schema validation: {conversionError}",
+                $"Return a valid JSON Schema object in {propertyName}.");
+            return;
+        }
+
+        if (!_schemaValidator.IsValidSchemaDefinition(schemaNode, out var schemaErrors))
+        {
+            AddToolSpecFinding(
+                result,
+                invalidRuleId,
+                ValidationFindingSeverity.High,
+                $"Tool '{result.ToolName}' declares an invalid {propertyName} JSON Schema.",
+                $"Fix {propertyName} so it parses as JSON Schema 2020-12.",
+                schemaErrors);
+        }
+
+        if (!schema.TryGetProperty("type", out var typeProperty) || typeProperty.ValueKind != JsonValueKind.String)
+        {
+            AddToolSpecFinding(
+                result,
+                invalidRootTypeRuleId,
+                ValidationFindingSeverity.High,
+                $"Tool '{result.ToolName}' declares {propertyName} without required root type 'object'.",
+                $"Set {propertyName}.type to 'object'.");
+            return;
+        }
+
+        var rootType = typeProperty.GetString();
+        if (!string.Equals(rootType, "object", StringComparison.Ordinal))
+        {
+            AddToolSpecFinding(
+                result,
+                invalidRootTypeRuleId,
+                ValidationFindingSeverity.Critical,
+                $"Tool '{result.ToolName}' declares {propertyName}.type='{rootType}', but MCP requires root type 'object'.",
+                $"Set {propertyName}.type to 'object'.");
+        }
+    }
+
+    private static void ValidateToolIcons(ToolInfo tool, IndividualToolResult result)
+    {
+        if (!tool.HasIcons)
+        {
+            return;
+        }
+
+        if (tool.Icons.ValueKind != JsonValueKind.Array)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolIconInvalid,
+                ValidationFindingSeverity.High,
+                $"Tool '{tool.Name}' declares icons, but icons is not an array.",
+                "Declare icons as an array of icon objects with src values.");
+            return;
+        }
+
+        var index = 0;
+        foreach (var icon in tool.Icons.EnumerateArray())
+        {
+            if (icon.ValueKind != JsonValueKind.Object)
+            {
+                AddToolSpecFinding(
+                    result,
+                    ValidationFindingRuleIds.ToolIconInvalid,
+                    ValidationFindingSeverity.High,
+                    $"Tool '{tool.Name}' declares icons[{index}], but it is not an object.",
+                    "Declare each icon as an object with a src URI.",
+                    metadata: new Dictionary<string, string> { ["index"] = index.ToString() });
+                index++;
+                continue;
+            }
+
+            if (!icon.TryGetProperty("src", out var src) || src.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(src.GetString()))
+            {
+                AddToolSpecFinding(
+                    result,
+                    ValidationFindingRuleIds.ToolIconInvalid,
+                    ValidationFindingSeverity.High,
+                    $"Tool '{tool.Name}' declares icons[{index}] without required src URI.",
+                    "Set icons[].src to an absolute http(s) URI or data URI.",
+                    metadata: new Dictionary<string, string> { ["index"] = index.ToString() });
+            }
+            else if (!IsValidIconUri(src.GetString()))
+            {
+                AddToolSpecFinding(
+                    result,
+                    ValidationFindingRuleIds.ToolIconInvalid,
+                    ValidationFindingSeverity.Medium,
+                    $"Tool '{tool.Name}' declares icons[{index}].src that is not an absolute http(s) or data URI.",
+                    "Use an absolute http(s) URI or a data URI for icons[].src.",
+                    metadata: new Dictionary<string, string> { ["index"] = index.ToString(), ["src"] = src.GetString() ?? string.Empty });
+            }
+
+            if (icon.TryGetProperty("theme", out var theme) &&
+                (theme.ValueKind != JsonValueKind.String || theme.GetString() is not ("dark" or "light")))
+            {
+                AddToolSpecFinding(
+                    result,
+                    ValidationFindingRuleIds.ToolIconInvalid,
+                    ValidationFindingSeverity.Medium,
+                    $"Tool '{tool.Name}' declares icons[{index}].theme outside the supported values dark/light.",
+                    "Set icons[].theme to 'dark' or 'light', or omit it.",
+                    metadata: new Dictionary<string, string> { ["index"] = index.ToString() });
+            }
+
+            if (icon.TryGetProperty("sizes", out var sizes) && !IsValidIconSizes(sizes))
+            {
+                AddToolSpecFinding(
+                    result,
+                    ValidationFindingRuleIds.ToolIconInvalid,
+                    ValidationFindingSeverity.Medium,
+                    $"Tool '{tool.Name}' declares icons[{index}].sizes with invalid entries.",
+                    "Use 'any' or WxH strings such as '48x48' in icons[].sizes.",
+                    metadata: new Dictionary<string, string> { ["index"] = index.ToString() });
+            }
+
+            index++;
+        }
+    }
+
+    private static void ValidateToolExecutionMetadata(ToolInfo tool, IndividualToolResult result)
+    {
+        if (!tool.HasExecution)
+        {
+            return;
+        }
+
+        if (tool.Execution.ValueKind != JsonValueKind.Object)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolExecutionTaskSupportInvalid,
+                ValidationFindingSeverity.High,
+                $"Tool '{tool.Name}' declares execution metadata, but execution is not an object.",
+                "Declare execution as an object and execution.taskSupport as forbidden, optional, or required.");
+            return;
+        }
+
+        if (tool.Execution.TryGetProperty("taskSupport", out var taskSupport) &&
+            (taskSupport.ValueKind != JsonValueKind.String || taskSupport.GetString() is not ("forbidden" or "optional" or "required")))
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolExecutionTaskSupportInvalid,
+                ValidationFindingSeverity.High,
+                $"Tool '{tool.Name}' declares execution.taskSupport outside the supported values forbidden/optional/required.",
+                "Set execution.taskSupport to 'forbidden', 'optional', or 'required'.");
+        }
+    }
+
+    private static void ApplyBlockingToolFindingStatus(IndividualToolResult result)
+    {
+        if (result.Status == TestStatus.Inconclusive)
+        {
+            return;
+        }
+
+        if (result.Findings.Any(finding =>
+                finding.EffectiveSource == ValidationRuleSource.Spec &&
+                finding.Severity >= ValidationFindingSeverity.High))
+        {
+            result.Status = TestStatus.Failed;
+            result.MetadataValid = false;
+        }
+    }
+
+    private static void AddToolSpecFinding(
+        IndividualToolResult result,
+        string ruleId,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation,
+        IEnumerable<string>? details = null,
+        Dictionary<string, string>? metadata = null)
+    {
+        var finding = new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "ProtocolCompliance",
+            Component = result.ToolName,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation,
+            Source = ValidationRuleSource.Spec,
+            SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/server/tools"
+        };
+
+        if (metadata != null)
+        {
+            foreach (var item in metadata)
+            {
+                finding.Metadata[item.Key] = item.Value;
+            }
+        }
+
+        var issue = summary;
+        if (details != null)
+        {
+            var detailList = details.Where(detail => !string.IsNullOrWhiteSpace(detail)).Take(3).ToList();
+            if (detailList.Count > 0)
+            {
+                issue = $"{summary} Details: {string.Join("; ", detailList)}";
+                for (var i = 0; i < detailList.Count; i++)
+                {
+                    finding.Metadata[$"error{i + 1}"] = detailList[i];
+                }
+            }
+        }
+
+        result.AddFinding(finding, issue);
+        result.MetadataValid = false;
+    }
+
+    private static bool TryConvertToJsonNode(JsonElement element, out JsonNode? node, out string? error)
+    {
+        try
+        {
+            node = JsonNode.Parse(element.GetRawText());
+            error = null;
+            return node is not null;
+        }
+        catch (Exception ex)
+        {
+            node = null;
+            error = ex.Message;
+            return false;
+        }
+    }
+
+    private static bool ContainsControlCharacter(string value)
+    {
+        return value.Any(char.IsControl);
+    }
+
+    private static bool IsValidIconUri(string? value)
+    {
+        return Uri.TryCreate(value, UriKind.Absolute, out var uri) &&
+            (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps || uri.Scheme == "data");
+    }
+
+    private static bool IsValidIconSizes(JsonElement sizes)
+    {
+        if (sizes.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        foreach (var size in sizes.EnumerateArray())
+        {
+            if (size.ValueKind != JsonValueKind.String || !IsValidIconSize(size.GetString()))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsValidIconSize(string? value)
+    {
+        if (string.Equals(value, "any", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var parts = value.Split('x', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return parts.Length == 2 && parts.All(part => part.All(char.IsDigit) && int.TryParse(part, out var size) && size > 0);
+    }
+
     /// <summary>
     /// Validates the tools/call response body against MCP spec:
     /// - result.content MUST be an array of Content objects
     /// - Each Content MUST have a "type" field ("text", "image", "audio", "resource")
     /// - result.isError MAY be omitted; omitted is equivalent to false per the MCP schema
     /// </summary>
-    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result)
+    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result, ToolInfo tool)
     {
         try
         {
@@ -794,6 +1143,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
+            ValidateStructuredContentAgainstOutputSchema(resultObj, result, tool);
+
         }
         catch (Exception ex)
         {
@@ -809,6 +1160,71 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
     }
 
+    private void ValidateStructuredContentAgainstOutputSchema(JsonElement resultObj, IndividualToolResult result, ToolInfo tool)
+    {
+        if (!tool.HasOutputSchema)
+        {
+            return;
+        }
+
+        if (resultObj.TryGetProperty("isError", out var isError) &&
+            isError.ValueKind == JsonValueKind.True)
+        {
+            return;
+        }
+
+        if (!resultObj.TryGetProperty("structuredContent", out var structuredContent))
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentMissing,
+                ValidationFindingSeverity.High,
+                $"Tool '{tool.Name}' declares outputSchema but tools/call result omitted structuredContent.",
+                "When outputSchema is declared and the tool succeeds, return result.structuredContent matching that schema.");
+            return;
+        }
+
+        if (structuredContent.ValueKind != JsonValueKind.Object)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
+                ValidationFindingSeverity.Critical,
+                $"Tool '{tool.Name}' returned structuredContent that is not a JSON object.",
+                "Return structuredContent as a JSON object that matches the declared outputSchema.");
+            return;
+        }
+
+        var contentConverted = TryConvertToJsonNode(structuredContent, out var structuredContentNode, out var contentError);
+        var schemaConverted = TryConvertToJsonNode(tool.OutputSchema, out var outputSchemaNode, out var schemaError);
+        if (!contentConverted || structuredContentNode is null || !schemaConverted || outputSchemaNode is null)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
+                ValidationFindingSeverity.High,
+                $"Tool '{tool.Name}' returned structuredContent or outputSchema that could not be parsed for validation.",
+                "Return parseable JSON objects for outputSchema and structuredContent.",
+                new[] { contentError, schemaError }.OfType<string>());
+            return;
+        }
+
+        var validationResult = _schemaValidator.Validate(structuredContentNode, outputSchemaNode);
+        if (!validationResult.IsValid)
+        {
+            var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(validationResult);
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch,
+                hasProcessingError ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High,
+                hasProcessingError
+                    ? $"Tool '{tool.Name}' declared outputSchema, but structuredContent validation could not be fully processed."
+                    : $"Tool '{tool.Name}' returned structuredContent that does not match outputSchema.",
+                "Return structuredContent that satisfies the declared outputSchema, or adjust outputSchema to match the stable structured result shape.",
+                validationResult.Errors);
+        }
+    }
+
     public async Task<ToolTestResult> ValidateToolExecutionAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
         return await ExecuteValidationAsync(serverConfig, "Tool Execution", async (ct) =>
@@ -820,8 +1236,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             if (AuthenticationChallengeInterpreter.Inspect(listResponse).RequiresAuthentication)
             {
-                result.Status = TestStatus.Skipped;
-                result.Message = "Tool execution skipped: authentication required.";
+                result.Status = TestStatus.AuthRequired;
+                result.Message = "Tool execution requires authentication; rerun with credentials to validate tool calls.";
                 return result;
             }
 
@@ -864,14 +1280,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
                     if (AuthenticationChallengeInterpreter.Inspect(callResponse).RequiresAuthentication)
                     {
-                        toolResult.Status = TestStatus.Passed;
-                        toolResult.ExecutionSuccessful = true;
-                        toolResult.Issues.Add("Auth enforced on tools/call (Secure)");
+                        toolResult.Status = TestStatus.AuthRequired;
+                        toolResult.ExecutionSuccessful = false;
+                        toolResult.Issues.Add("Auth enforced on tools/call; secure challenge observed, call not validated.");
                     }
                     else if (callResponse.StatusCode > 0 && ValidationReliability.ShouldRetryRpcResponse(callResponse))
                     {
-                        toolResult.Status = TestStatus.Skipped;
-                        toolResult.ExecutionSuccessful = true;
+                        toolResult.Status = TestStatus.Inconclusive;
+                        toolResult.ExecutionSuccessful = false;
                         toolResult.Issues.Add($"tools/call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(callResponse)})");
                     }
                     else if (callResponse.IsSuccess || callResponse.StatusCode == 400)
@@ -900,9 +1316,30 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             result.ToolsDiscovered = tools.Count;
             result.Score = _scoringStrategy.CalculateScore(result);
-            result.Status = result.ToolsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
+            result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
             return result;
         }, cancellationToken);
+    }
+
+    private static TestStatus DetermineAggregateToolStatus(IEnumerable<IndividualToolResult> toolResults, int failedCount)
+    {
+        var materialized = toolResults.ToList();
+        if (failedCount > 0)
+        {
+            return TestStatus.Failed;
+        }
+
+        if (materialized.Any(result => result.Status == TestStatus.AuthRequired))
+        {
+            return TestStatus.AuthRequired;
+        }
+
+        if (materialized.Any(result => result.Status == TestStatus.Inconclusive))
+        {
+            return TestStatus.Inconclusive;
+        }
+
+        return TestStatus.Passed;
     }
 
     public async Task<ToolTestResult> ValidateParameterValidationAsync(McpServerConfig serverConfig, string toolName, IEnumerable<ToolTestScenario> testScenarios, CancellationToken cancellationToken = default)
@@ -933,17 +1370,40 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 {
                     if (tool.TryGetProperty("name", out var name))
                     {
-                        var info = new ToolInfo { Name = name.GetString() ?? "unknown" };
+                        var info = new ToolInfo
+                        {
+                            Name = name.ValueKind == JsonValueKind.String ? name.GetString() ?? string.Empty : string.Empty,
+                            RawDefinition = tool.Clone()
+                        };
                         
                         // Parse Input Schema for Payload Generation
                         if (tool.TryGetProperty("inputSchema", out var schema))
                         {
+                            info.HasInputSchema = true;
                             info.InputSchema = schema.Clone();
                         }
                         else
                         {
                             using var empty = JsonDocument.Parse("{}");
                             info.InputSchema = empty.RootElement.Clone();
+                        }
+
+                        if (tool.TryGetProperty("outputSchema", out var outputSchema))
+                        {
+                            info.HasOutputSchema = true;
+                            info.OutputSchema = outputSchema.Clone();
+                        }
+
+                        if (tool.TryGetProperty("icons", out var icons))
+                        {
+                            info.HasIcons = true;
+                            info.Icons = icons.Clone();
+                        }
+
+                        if (tool.TryGetProperty("execution", out var execution))
+                        {
+                            info.HasExecution = true;
+                            info.Execution = execution.Clone();
                         }
 
                         // Parse Description (for AI readiness)
@@ -1147,7 +1607,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public string? Title { get; set; }
         public string? AnnotationTitle { get; set; }
         public string? Description { get; set; }
+        public JsonElement RawDefinition { get; set; }
+        public bool HasInputSchema { get; set; }
         public JsonElement InputSchema { get; set; }
+        public bool HasOutputSchema { get; set; }
+        public JsonElement OutputSchema { get; set; }
+        public bool HasIcons { get; set; }
+        public JsonElement Icons { get; set; }
+        public bool HasExecution { get; set; }
+        public JsonElement Execution { get; set; }
         public string? DisplayTitle => !string.IsNullOrWhiteSpace(Title) ? Title : AnnotationTitle;
         // MCP Tool Annotations (spec: readOnlyHint, destructiveHint, openWorldHint, idempotentHint)
         public bool? ReadOnlyHint { get; set; }
@@ -1157,7 +1625,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public long? AnthropicMaxResultSizeChars { get; set; }
     }
 
-    private static void ApplyGuidelineFindings(ToolTestResult aggregateResult, ToolInfo tool, IndividualToolResult toolResult)
+    private static void ApplyGuidelineFindings(
+        ToolTestResult aggregateResult,
+        ToolInfo tool,
+        IndividualToolResult toolResult,
+        TransportResult<CapabilitySummary>? capabilitySnapshot)
     {
         AddGuidelineFindingIfMissing(
             aggregateResult,
@@ -1234,6 +1706,66 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             toolResult.AddFinding(finding, finding.Summary);
             aggregateResult.Findings.Add(finding);
         }
+
+        ApplyTaskSupportCapabilityFinding(aggregateResult, tool, toolResult, capabilitySnapshot);
+    }
+
+    private static void ApplyTaskSupportCapabilityFinding(
+        ToolTestResult aggregateResult,
+        ToolInfo tool,
+        IndividualToolResult toolResult,
+        TransportResult<CapabilitySummary>? capabilitySnapshot)
+    {
+        var taskSupport = GetTaskSupport(tool);
+        if (taskSupport is not ("optional" or "required"))
+        {
+            return;
+        }
+
+        if (!CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.TasksRequestsToolsCall))
+        {
+            return;
+        }
+
+        var finding = new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.AiTaskSupportWithoutCapability,
+            Category = "AiSafety",
+            Component = tool.Name,
+            Severity = string.Equals(taskSupport, "required", StringComparison.OrdinalIgnoreCase)
+                ? ValidationFindingSeverity.High
+                : ValidationFindingSeverity.Medium,
+            Summary = $"Tool '{tool.Name}' declares execution.taskSupport={taskSupport}, but the server did not advertise tasks.requests.tools.call.",
+            Recommendation = "Only declare tool task support when initialize advertises tasks.requests.tools.call, or set execution.taskSupport to forbidden so clients do not schedule unsupported task-augmented tool calls.",
+            SpecReference = "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#capabilities",
+            Metadata = new Dictionary<string, string>
+            {
+                ["tool"] = tool.Name,
+                ["taskSupport"] = taskSupport,
+                ["capability"] = McpSpecConstants.Capabilities.TasksRequestsToolsCall,
+                ["declared"] = "false",
+                ["serverTasksDeclared"] = CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tasks).ToString().ToLowerInvariant(),
+                ["safetyLane"] = "task-augmented-tools"
+            }
+        };
+
+        toolResult.AddFinding(finding, finding.Summary);
+        aggregateResult.Findings.Add(finding);
+    }
+
+    private static string? GetTaskSupport(ToolInfo tool)
+    {
+        if (!tool.HasExecution || tool.Execution.ValueKind != JsonValueKind.Object)
+        {
+            return null;
+        }
+
+        if (!tool.Execution.TryGetProperty("taskSupport", out var taskSupport) || taskSupport.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return taskSupport.GetString();
     }
 
     private static bool MissingDestructiveConfirmationGuidance(string? description)
@@ -1243,17 +1775,22 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return true;
         }
 
-        return !HasDestructiveConfirmationGuidance(description);
+        return !AiSafetyControlAnalyzer.HasHumanConfirmationLanguage(description);
     }
 
-    private static bool HasDestructiveConfirmationGuidance(string description)
+    private static void ApplyAiSafetyControlEvidence(IndividualToolResult toolResult, ToolInfo tool)
     {
-        if (DestructiveConfirmationNegations.Any(phrase => description.Contains(phrase, StringComparison.OrdinalIgnoreCase)))
+        var analysis = AiSafetyControlAnalyzer.AnalyzeTool(new AiSafetyControlTarget
         {
-            return false;
-        }
+            Name = tool.Name,
+            Description = tool.Description,
+            ReadOnlyHint = tool.ReadOnlyHint,
+            DestructiveHint = tool.DestructiveHint,
+            OpenWorldHint = tool.OpenWorldHint,
+            ParameterNames = GetInputParameterNames(tool)
+        });
 
-        return DestructiveConfirmationGuidanceCues.Any(phrase => description.Contains(phrase, StringComparison.OrdinalIgnoreCase));
+        toolResult.AiSafetyControlEvidence.AddRange(analysis.Evidence);
     }
 
     private static void ApplyPaginationFindings(

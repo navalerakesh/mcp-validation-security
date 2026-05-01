@@ -139,6 +139,37 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_BalancedMode_WithLowConfidenceCoveredEvidence_ShouldFailAsCoverageDebt()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.Passed,
+            ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Passed },
+            TrustAssessment = new McpTrustAssessment
+            {
+                TrustLevel = McpTrustLevel.L5_CertifiedSecure,
+                TierChecks = new List<ComplianceTierCheck>()
+            }
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "tool-surface",
+            Scope = "tools/list",
+            Status = ValidationCoverageStatus.Covered,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Only a parser-boundary response was available."
+        });
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Balanced);
+
+        result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
+        ValidationVerdictEngine.IsPassing(result.VerdictAssessment).Should().BeFalse();
+        outcome.Passed.Should().BeFalse();
+        outcome.Reasons.Should().Contain(reason => reason.Contains("Coverage confidence is Low for tool-surface/tools/list", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void Evaluate_StrictMode_WithTrustedCleanResult_ShouldPass()
     {
         var result = new ValidationResult

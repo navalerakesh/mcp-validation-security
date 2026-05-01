@@ -22,7 +22,7 @@ public class SchemaConfusion : BaseAttackVector
         
         if (!toolsResponse.IsSuccess || string.IsNullOrEmpty(toolsResponse.RawJson))
         {
-            return CreateResult(true, "Skipped: Could not list tools to test.", "No tools available.");
+            return CreateSkippedResult("Skipped: Could not list tools to test.", "No tools available.", probeContexts: CollectProbeContexts(toolsResponse.ProbeContext));
         }
 
         string toolName = "test-tool";
@@ -46,7 +46,7 @@ public class SchemaConfusion : BaseAttackVector
         // Analysis
         if (response.StatusCode == 500)
         {
-            return CreateResult(false, "Server crashed (500) on schema mismatch.", "Sent array as arguments, got 500.", "High");
+            return CreateResult(false, "Server crashed (500) on schema mismatch.", "Sent array as arguments, got 500.", "High", probeContexts: CollectProbeContexts(toolsResponse.ProbeContext, response.ProbeContext));
         }
 
         // Should be an error
@@ -55,9 +55,9 @@ public class SchemaConfusion : BaseAttackVector
              // If it returned success, it might have ignored the arguments (which is okay-ish) or misbehaved
              // But strictly, arguments MUST be an object.
              // We'll check if it's a JSON-RPC error
-             return CreateResult(false, "Server accepted invalid schema (array instead of object).", "Response was success.", "Medium");
+               return CreateResult(false, "Server accepted invalid schema (array instead of object).", "Response was success.", "Medium", probeContexts: CollectProbeContexts(toolsResponse.ProbeContext, response.ProbeContext));
         }
 
-        return CreateResult(true, "Server correctly rejected invalid schema.", "Response contained error or 400.");
+           return CreateResult(true, "Server correctly rejected invalid schema.", "Response contained error or 400.", probeContexts: CollectProbeContexts(toolsResponse.ProbeContext, response.ProbeContext));
     }
 }

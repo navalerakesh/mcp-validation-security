@@ -1,8 +1,7 @@
-using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Compliance.Spec;
@@ -22,22 +21,24 @@ namespace Mcp.Benchmark.Infrastructure.Validators;
 /// 3. Respond per OAuth 2.1 Section 5.3 error handling if validation fails
 /// 4. Send appropriate HTTP status codes per OAuth 2.1 RFC 6750
 /// 
-/// OAuth 2.1 RFC 6750 Section 3.1 Error Response Requirements:
+/// OAuth 2.1 / MCP Error Response Requirements:
 /// - invalid_request: Missing/malformed parameters - SHOULD respond with HTTP 400
-/// - invalid_token: Expired/revoked/malformed tokens - SHOULD respond with HTTP 401
+/// - invalid_token: Invalid, expired, revoked, or wrong-audience tokens - MUST respond with HTTP 401
 /// - insufficient_scope: Higher privileges required - SHOULD respond with HTTP 403
-/// - All authentication errors: MUST include WWW-Authenticate header
+/// - 401 authentication errors: MUST include WWW-Authenticate header with protected resource metadata discovery
+/// - HTTP clients MUST send bearer tokens in Authorization headers, not URI query strings
 /// 
-/// VALIDATED COMPLIANCE MATRIX (Based on Real Server Testing):
-/// - No Auth: 400/401 + WWW-Authenticate (BOTH VALID per OAuth 2.1 RFC 6750)
-/// - Malformed Token: 400/401 + WWW-Authenticate (BOTH VALID per OAuth 2.1 RFC 6750)
-/// - Invalid Token: 400/401 + WWW-Authenticate (BOTH VALID per OAuth 2.1 RFC 6750) 
-/// - Token Expired: 400/401 + WWW-Authenticate (BOTH VALID per OAuth 2.1 RFC 6750)
+/// VALIDATED COMPLIANCE MATRIX:
+/// - No Auth: 401 + WWW-Authenticate + resource_metadata preferred; secure rejection accepted as compatible
+/// - Malformed Token: 400/401 + WWW-Authenticate preferred; secure rejection accepted as compatible
+/// - Invalid Token: 401 + WWW-Authenticate required for standards alignment
+/// - Token Expired: 401 + WWW-Authenticate required for standards alignment
 /// - Invalid Scope: 403 + WWW-Authenticate (insufficient_scope)
 /// - Insufficient Perms: 403 + WWW-Authenticate (insufficient_scope)
+/// - Wrong Audience: 401 rejection; acceptance indicates audience validation and token passthrough risk
+/// - Query Token: URI query-string token must not grant access
 /// - Valid Token: 200 + JSON-RPC success
 /// 
-/// PROVEN COMPLIANCE: GitHub (400+WWW-Auth) and Microsoft Graph (401+WWW-Auth) both achieve 100%
 /// UNPROTECTED SERVERS: Skip authentication validation entirely (100% compliant)
 /// STDIO TRANSPORT: No HTTP auth headers (100% compliant per MCP spec)
 /// </summary>
@@ -45,6 +46,14 @@ public class McpCompliantAuthValidator
 {
     private readonly ILogger<McpCompliantAuthValidator> _logger;
     private readonly IMcpHttpClient _httpClient;
+
+    private const string McpAuthorizationSpecReference = "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization";
+    private const string McpSecurityBestPracticesReference = "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices#token-passthrough";
+
+    private static readonly JsonSerializerOptions AuthMetadataJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
 
     // Standard MCP methods that may exist based on server capabilities
     private readonly string[] _standardMcpMethods = new[]
@@ -206,6 +215,19 @@ public class McpCompliantAuthValidator
                     endpoint, "Wrong Audience (RFC 8707)", profile, cancellationToken);
                 result.TestScenarios.Add(wrongAudienceTest);
 
+                if (ValidationCalibration.IsSensitiveMethod(endpoint))
+                {
+                    var queryTokenTest = await TestMethodAuthentication(
+                        new McpServerConfig
+                        {
+                            Endpoint = AppendQueryAccessToken(serverConfig.Endpoint ?? "", "mcp_query_token_probe"),
+                            Transport = serverConfig.Transport ?? "http",
+                            Authentication = new AuthenticationConfig()
+                        },
+                        endpoint, "Query Token", profile, cancellationToken);
+                    result.TestScenarios.Add(queryTokenTest);
+                }
+
                 // Test with valid token (if available)
                 if (!string.IsNullOrEmpty(serverConfig.Authentication?.Token))
                 {
@@ -213,6 +235,8 @@ public class McpCompliantAuthValidator
                     result.TestScenarios.Add(validTokenTest);
                 }
             }
+
+            await FinalizeAuthenticationEvidenceAsync(result, serverConfig, profile, cancellationToken);
 
             // Step 5: Calculate final compliance score
             // Scenario scoring is calibrated instead of binary:
@@ -424,12 +448,15 @@ public class McpCompliantAuthValidator
         // PRACTICAL UPDATE: Any 4xx rejection is considered secure in practical scenarios
         return testType switch
         {
-            "No Auth" => "4xx (Secure Rejection)", 
-            "Malformed Token" => "4xx (Secure Rejection)", 
-            "Invalid Token" => "4xx (Secure Rejection)", 
-            "Token Expired" => "4xx (Secure Rejection)", 
-            "Invalid Scope" => "4xx (Secure Rejection)", 
-            "Insufficient Permissions" => "4xx (Secure Rejection)", 
+            "No Auth" => "4xx (Secure Rejection)",
+            "Malformed Token" => "4xx (Secure Rejection)",
+            "Invalid Token" => "401 + WWW-Authenticate challenge",
+            "Token Expired" => "401 + WWW-Authenticate challenge",
+            "Invalid Scope" => "4xx (Secure Rejection)",
+            "Insufficient Permissions" => "4xx (Secure Rejection)",
+            "Revoked Token" => "401 + WWW-Authenticate challenge",
+            "Wrong Audience (RFC 8707)" => "401 + audience-bound token rejection",
+            "Query Token" => "4xx or JSON-RPC rejection; query-string tokens must not grant access",
             "Valid Token" => "200 + JSON-RPC Response",
             _ => "4xx (Secure Rejection)"
         };
@@ -437,6 +464,7 @@ public class McpCompliantAuthValidator
 
     private void AnalyzeAuthenticationResponse(AuthenticationScenario scenario, JsonRpcResponse response, string testType, string method)
     {
+        scenario.ProbeContext = response.ProbeContext;
         var hasWWWAuth = response.Headers?.Keys.Any(k => k.Equals("WWW-Authenticate", StringComparison.OrdinalIgnoreCase)) == true;
 
         if (hasWWWAuth && response.Headers != null)
@@ -469,11 +497,22 @@ public class McpCompliantAuthValidator
             case 400:
                 if (hasWWWAuth)
                 {
-                    MarkScenarioStandardsAligned(
-                        scenario,
-                        actualBehavior: "Challenge returned",
-                        analysis: "✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.",
-                        complianceReason: "PASS: Access denied with challenge metadata.");
+                    if (RequiresUnauthorizedForInvalidToken(testType))
+                    {
+                        MarkScenarioSecureCompatible(
+                            scenario,
+                            actualBehavior: "Challenge returned with non-401 status",
+                            analysis: "⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.",
+                            complianceReason: "SECURE: Token was rejected, but the response did not use the required invalid-token status.");
+                    }
+                    else
+                    {
+                        MarkScenarioStandardsAligned(
+                            scenario,
+                            actualBehavior: "Challenge returned",
+                            analysis: "✅ ALIGNED: Secure OAuth-style challenge returned with HTTP 400.",
+                            complianceReason: "PASS: Access denied with challenge metadata.");
+                    }
                 }
                 else
                 {
@@ -522,7 +561,15 @@ public class McpCompliantAuthValidator
                 // OAuth 2.1: 403 for insufficient_scope
                 // STRICT SPEC COMPLIANCE: Must have WWW-Authenticate header
                 
-                if (hasWWWAuth)
+                if (RequiresUnauthorizedForInvalidToken(testType))
+                {
+                    MarkScenarioSecureCompatible(
+                        scenario,
+                        actualBehavior: hasWWWAuth ? "Challenge returned with non-401 status" : "Rejected without invalid-token challenge",
+                        analysis: "⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.",
+                        complianceReason: "SECURE: Token was rejected, but the response did not use the required invalid-token status.");
+                }
+                else if (hasWWWAuth)
                 {
                     MarkScenarioStandardsAligned(
                         scenario,
@@ -637,6 +684,502 @@ public class McpCompliantAuthValidator
                 }
                 break;
         }
+    }
+
+    private async Task FinalizeAuthenticationEvidenceAsync(
+        AuthenticationTestResult result,
+        McpServerConfig serverConfig,
+        McpServerProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var strictProfile = ValidationCalibration.RequiresStrictAuthentication(profile);
+        var authenticationObserved = result.TestScenarios.Any(IsAuthenticationObserved);
+        if (!strictProfile && !authenticationObserved)
+        {
+            return;
+        }
+
+        AddChallengeFindings(result);
+        await ValidateProtectedResourceMetadataAsync(result, cancellationToken);
+        AddAuthorizationHeaderFindings(result);
+        AddTokenPlacementAndAudienceFindings(result);
+        AddResourceIndicatorFinding(result, serverConfig);
+    }
+
+    private void AddChallengeFindings(AuthenticationTestResult result)
+    {
+        foreach (var scenario in result.TestScenarios.Where(s => string.Equals(s.StatusCode, "401", StringComparison.OrdinalIgnoreCase)))
+        {
+            if (string.IsNullOrWhiteSpace(scenario.WwwAuthenticateHeader))
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthWwwAuthenticateMissing,
+                    scenario.Method,
+                    ValidationFindingSeverity.High,
+                    $"{scenario.ScenarioName}: HTTP 401 did not include WWW-Authenticate.",
+                    "Return a WWW-Authenticate challenge on 401 responses and include protected resource metadata discovery information.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["statusCode"] = scenario.StatusCode });
+            }
+        }
+    }
+
+    private async Task ValidateProtectedResourceMetadataAsync(AuthenticationTestResult result, CancellationToken cancellationToken)
+    {
+        var challenge = result.TestScenarios
+            .Select(CreateChallengeObservation)
+            .FirstOrDefault(observation => !string.IsNullOrWhiteSpace(observation.ResourceMetadataUrl));
+
+        if (challenge == null)
+        {
+            if (result.TestScenarios.Any(s => !string.IsNullOrWhiteSpace(s.WwwAuthenticateHeader)))
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthProtectedResourceMetadataMissing,
+                    "authorization",
+                    ValidationFindingSeverity.High,
+                    "WWW-Authenticate challenge did not advertise resource_metadata.",
+                    "Include resource_metadata in the WWW-Authenticate challenge so MCP clients can use OAuth 2.0 Protected Resource Metadata for authorization server discovery.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+            }
+
+            return;
+        }
+
+        var metadataUrl = challenge.ResourceMetadataUrl!;
+        result.ProtectedResourceMetadataUrl = metadataUrl;
+
+        if (!TryCreateAbsoluteUri(metadataUrl, out var metadataUri, out var issue) || !string.IsNullOrEmpty(metadataUri.Fragment))
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthProtectedResourceMetadataInvalid,
+                "authorization",
+                ValidationFindingSeverity.High,
+                "resource_metadata did not contain a valid absolute URI without a fragment.",
+                "Advertise an absolute protected resource metadata URL that clients can safely dereference.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string>
+                {
+                    ["resourceMetadataUrl"] = metadataUrl,
+                    ["issue"] = issue ?? "URI contains a fragment."
+                });
+            return;
+        }
+
+        if (!ShouldFetchOAuthMetadata(metadataUri))
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthProtectedResourceMetadataInvalid,
+                "authorization",
+                ValidationFindingSeverity.Medium,
+                "resource_metadata URL used an insecure non-loopback HTTP endpoint.",
+                "Use HTTPS for OAuth-related metadata URLs in production, or restrict HTTP metadata URLs to explicit local development loopback addresses.",
+                ValidationRuleSource.Guideline,
+                "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices#server-side-request-forgery-ssrf",
+                new Dictionary<string, string> { ["resourceMetadataUrl"] = metadataUrl });
+            return;
+        }
+
+        AuthMetadata? metadata;
+        try
+        {
+            var json = await _httpClient.GetStringAsync(metadataUrl, cancellationToken);
+            metadata = JsonSerializer.Deserialize<AuthMetadata>(json, AuthMetadataJsonOptions);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthProtectedResourceMetadataFetchFailed,
+                "authorization",
+                ValidationFindingSeverity.Medium,
+                "Protected resource metadata could not be fetched or parsed.",
+                "Ensure the resource_metadata URL returns a valid OAuth 2.0 Protected Resource Metadata document.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string>
+                {
+                    ["resourceMetadataUrl"] = metadataUrl,
+                    ["error"] = ex.Message
+                });
+            return;
+        }
+
+        if (metadata == null)
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthProtectedResourceMetadataInvalid,
+                "authorization",
+                ValidationFindingSeverity.High,
+                "Protected resource metadata response was empty or invalid.",
+                "Return a JSON protected resource metadata document with resource and authorization_servers fields.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string> { ["resourceMetadataUrl"] = metadataUrl });
+            return;
+        }
+
+        result.ProtectedResourceMetadata = metadata;
+        ValidateAuthMetadataDocument(result, metadata);
+    }
+
+    private static void ValidateAuthMetadataDocument(AuthenticationTestResult result, AuthMetadata metadata)
+    {
+        if (string.IsNullOrWhiteSpace(metadata.Resource))
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthResourceIndicatorMissing,
+                "authorization",
+                ValidationFindingSeverity.Medium,
+                "Protected resource metadata did not identify the MCP resource URI.",
+                "Include the protected resource URI so clients can send the required OAuth resource parameter in authorization and token requests.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference);
+        }
+        else if (!TryCreateAbsoluteUri(metadata.Resource, out var resourceUri, out var issue) || !string.IsNullOrEmpty(resourceUri.Fragment))
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthResourceIndicatorMissing,
+                "authorization",
+                ValidationFindingSeverity.Medium,
+                "Protected resource metadata contained an invalid resource URI.",
+                "Use a canonical absolute MCP server URI without a fragment for the OAuth resource indicator.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string>
+                {
+                    ["resource"] = metadata.Resource,
+                    ["issue"] = issue ?? "URI contains a fragment."
+                });
+        }
+
+        if (metadata.AuthorizationServers?.Any(server => !string.IsNullOrWhiteSpace(server)) != true)
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthAuthorizationServersMissing,
+                "authorization",
+                ValidationFindingSeverity.High,
+                "Protected resource metadata did not include authorization_servers.",
+                "Include at least one authorization server URL in the protected resource metadata document.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference);
+        }
+        else
+        {
+            foreach (var authorizationServer in metadata.AuthorizationServers.Where(server => !string.IsNullOrWhiteSpace(server)))
+            {
+                if (!TryCreateAbsoluteUri(authorizationServer, out var authorizationServerUri, out var serverIssue) ||
+                    !string.Equals(authorizationServerUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+                {
+                    AddAuthFinding(
+                        result,
+                        ValidationFindingRuleIds.AuthAuthorizationServerInsecure,
+                        "authorization",
+                        ValidationFindingSeverity.High,
+                        "Authorization server metadata URL was not an absolute HTTPS URI.",
+                        "Serve OAuth authorization server endpoints over HTTPS.",
+                        ValidationRuleSource.Spec,
+                        McpAuthorizationSpecReference,
+                        new Dictionary<string, string>
+                        {
+                            ["authorizationServer"] = authorizationServer,
+                            ["issue"] = serverIssue ?? "Authorization server URL must use HTTPS."
+                        });
+                }
+            }
+        }
+
+        if (metadata.BearerMethodsSupported?.Any() == true &&
+            !metadata.BearerMethodsSupported.Any(method => string.Equals(method, "header", StringComparison.OrdinalIgnoreCase)))
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthBearerHeaderUnsupported,
+                "authorization",
+                ValidationFindingSeverity.High,
+                "Protected resource metadata did not advertise bearer token header support.",
+                "MCP clients must send access tokens using the Authorization: Bearer header; advertise and support bearer_methods_supported=header.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string> { ["bearerMethodsSupported"] = string.Join(",", metadata.BearerMethodsSupported) });
+        }
+    }
+
+    private static void AddAuthorizationHeaderFindings(AuthenticationTestResult result)
+    {
+        foreach (var scenario in result.TestScenarios.Where(s => ShouldApplyBearerHeader(s.TestType) && s.ProbeContext != null))
+        {
+            if (!scenario.ProbeContext!.AuthApplied)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthAuthorizationHeaderMissing,
+                    scenario.Method,
+                    ValidationFindingSeverity.High,
+                    $"{scenario.ScenarioName}: bearer token was not applied through the Authorization header.",
+                    "Send access tokens in the Authorization: Bearer header on every HTTP request.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+            }
+            else if (!string.Equals(scenario.ProbeContext.AuthScheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthAuthorizationHeaderMissing,
+                    scenario.Method,
+                    ValidationFindingSeverity.Medium,
+                    $"{scenario.ScenarioName}: authorization header did not use the Bearer scheme.",
+                    "Use the Bearer authentication scheme for OAuth access tokens sent to HTTP MCP servers.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["authScheme"] = scenario.ProbeContext.AuthScheme ?? "unknown" });
+            }
+        }
+    }
+
+    private static void AddTokenPlacementAndAudienceFindings(AuthenticationTestResult result)
+    {
+        foreach (var scenario in result.TestScenarios)
+        {
+            if (string.Equals(scenario.TestType, "Query Token", StringComparison.OrdinalIgnoreCase) &&
+                scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.Insecure)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthQueryTokenAccepted,
+                    scenario.Method,
+                    ValidationFindingSeverity.Critical,
+                    $"{scenario.ScenarioName}: URI query-string token granted access to a sensitive operation.",
+                    "Reject access tokens supplied in URI query strings and require Authorization: Bearer headers.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["statusCode"] = scenario.StatusCode });
+            }
+
+            if (IsTokenScenarioRequiring401(scenario.TestType) && IsRejectedWithNonUnauthorizedStatus(scenario))
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthInvalidTokenStatus,
+                    scenario.Method,
+                    ValidationFindingSeverity.Medium,
+                    $"{scenario.ScenarioName}: token was rejected with HTTP {scenario.StatusCode} instead of HTTP 401.",
+                    "Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["statusCode"] = scenario.StatusCode });
+            }
+
+            if (IsInvalidTokenScenario(scenario.TestType) && scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.Insecure)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthInvalidTokenAccepted,
+                    scenario.Method,
+                    ValidationFindingSeverity.Critical,
+                    $"{scenario.ScenarioName}: invalid token was accepted.",
+                    "Validate access tokens before processing MCP requests and reject invalid or expired credentials.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+            }
+
+            if (string.Equals(scenario.TestType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase) &&
+                scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.Insecure)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthWrongAudienceAccepted,
+                    scenario.Method,
+                    ValidationFindingSeverity.Critical,
+                    $"{scenario.ScenarioName}: token for a different audience was accepted.",
+                    "Validate that access tokens were issued specifically for this MCP server as the intended resource.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthTokenPassthroughRisk,
+                    scenario.Method,
+                    ValidationFindingSeverity.High,
+                    $"{scenario.ScenarioName}: wrong-audience token acceptance indicates token passthrough/confused-deputy risk.",
+                    "Do not accept or transit tokens issued for other resources; acquire separate downstream tokens when proxying to upstream APIs.",
+                    ValidationRuleSource.Spec,
+                    McpSecurityBestPracticesReference);
+            }
+        }
+    }
+
+    private static void AddResourceIndicatorFinding(AuthenticationTestResult result, McpServerConfig serverConfig)
+    {
+        if (result.ProtectedResourceMetadata != null || string.IsNullOrWhiteSpace(result.ProtectedResourceMetadataUrl))
+        {
+            return;
+        }
+
+        AddAuthFinding(
+            result,
+            ValidationFindingRuleIds.AuthResourceIndicatorMissing,
+            "authorization",
+            ValidationFindingSeverity.Medium,
+            "Resource indicator evidence could not be validated from protected resource metadata.",
+            "Expose protected resource metadata with a canonical resource URI matching the MCP server endpoint used by clients.",
+            ValidationRuleSource.Spec,
+            McpAuthorizationSpecReference,
+            new Dictionary<string, string>
+            {
+                ["endpoint"] = serverConfig.Endpoint ?? string.Empty,
+                ["resourceMetadataUrl"] = result.ProtectedResourceMetadataUrl
+            });
+    }
+
+    private static bool IsAuthenticationObserved(AuthenticationScenario scenario)
+    {
+        if (!string.IsNullOrWhiteSpace(scenario.WwwAuthenticateHeader))
+        {
+            return true;
+        }
+
+        return int.TryParse(scenario.StatusCode, out var statusCode) && ValidationReliability.IsAuthenticationStatusCode(statusCode);
+    }
+
+    private static AuthenticationChallengeObservation CreateChallengeObservation(AuthenticationScenario scenario)
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!string.IsNullOrWhiteSpace(scenario.WwwAuthenticateHeader))
+        {
+            headers["WWW-Authenticate"] = scenario.WwwAuthenticateHeader;
+        }
+
+        return AuthenticationChallengeInterpreter.Inspect(new JsonRpcResponse
+        {
+            StatusCode = int.TryParse(scenario.StatusCode, out var statusCode) ? statusCode : 0,
+            Headers = headers
+        });
+    }
+
+    private static bool RequiresUnauthorizedForInvalidToken(string testType)
+    {
+        return IsTokenScenarioRequiring401(testType);
+    }
+
+    private static bool IsTokenScenarioRequiring401(string testType)
+    {
+        return string.Equals(testType, "Invalid Token", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Token Expired", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Revoked Token", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsInvalidTokenScenario(string testType)
+    {
+        return string.Equals(testType, "Malformed Token", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Invalid Token", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Token Expired", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Revoked Token", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsRejectedWithNonUnauthorizedStatus(AuthenticationScenario scenario)
+    {
+        return int.TryParse(scenario.StatusCode, out var statusCode) &&
+               statusCode >= 400 &&
+               statusCode < 500 &&
+               statusCode != 401;
+    }
+
+    private static bool ShouldApplyBearerHeader(string testType)
+    {
+        return IsInvalidTokenScenario(testType) ||
+               string.Equals(testType, "Invalid Scope", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Insufficient Permissions", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Valid Token", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryCreateAbsoluteUri(string value, out Uri uri, out string? issue)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out uri!))
+        {
+            issue = "URI is not absolute.";
+            return false;
+        }
+
+        issue = null;
+        return true;
+    }
+
+    private static bool ShouldFetchOAuthMetadata(Uri metadataUri)
+    {
+        return string.Equals(metadataUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+               (string.Equals(metadataUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) && metadataUri.IsLoopback);
+    }
+
+    private static string AppendQueryAccessToken(string endpoint, string token)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return endpoint;
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri))
+        {
+            var separator = endpoint.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+            return $"{endpoint}{separator}access_token={Uri.EscapeDataString(token)}";
+        }
+
+        var builder = new UriBuilder(endpointUri);
+        var query = builder.Query;
+        var prefix = string.IsNullOrWhiteSpace(query) ? string.Empty : query.TrimStart('?') + "&";
+        builder.Query = prefix + "access_token=" + Uri.EscapeDataString(token);
+        return builder.Uri.ToString();
+    }
+
+    private static void AddAuthFinding(
+        AuthenticationTestResult result,
+        string ruleId,
+        string component,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation,
+        ValidationRuleSource source,
+        string specReference,
+        Dictionary<string, string>? metadata = null)
+    {
+        if (result.Findings.Any(f => string.Equals(f.RuleId, ruleId, StringComparison.OrdinalIgnoreCase) &&
+                                     string.Equals(f.Component, component, StringComparison.OrdinalIgnoreCase) &&
+                                     string.Equals(f.Summary, summary, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var findingMetadata = metadata == null
+            ? new Dictionary<string, string>()
+            : new Dictionary<string, string>(metadata, StringComparer.OrdinalIgnoreCase);
+
+        findingMetadata["specReference"] = specReference;
+
+        result.Findings.Add(new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = ValidationConstants.Categories.AuthenticationSecurity,
+            Component = component,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation,
+            Source = source,
+            SpecReference = specReference,
+            Metadata = findingMetadata
+        });
     }
 
     private static void ApplyProfileSemantics(AuthenticationScenario scenario, McpServerProfile profile)

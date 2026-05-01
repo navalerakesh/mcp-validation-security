@@ -20,14 +20,15 @@ public class MetadataEnumeration : BaseAttackVector
 
     public override async Task<AttackResult> ExecuteAsync(McpServerConfig serverConfig, IMcpHttpClient client, CancellationToken cancellationToken)
     {
-        var advertisedResourceUri = await TryGetAdvertisedResourceUriAsync(serverConfig, client, cancellationToken);
+        var advertisedResource = await TryGetAdvertisedResourceUriAsync(serverConfig, client, cancellationToken);
+        var advertisedResourceUri = advertisedResource.Uri;
         if (string.IsNullOrWhiteSpace(advertisedResourceUri))
         {
-            return CreateResult(
-                isBlocked: true,
+            return CreateSkippedResult(
                 analysis: "Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.",
                 evidence: "resources/list did not advertise any concrete resource URIs, so cross-scheme fallback probes were suppressed to avoid false positives.",
-                severity: "Low");
+            severity: "Low",
+            probeContexts: CollectProbeContexts(advertisedResource.ProbeContext));
         }
 
         var randomProbeUri = BuildSiblingProbeUri(advertisedResourceUri, $"__mcpval_probe_{Guid.NewGuid():N}");
@@ -57,17 +58,19 @@ public class MetadataEnumeration : BaseAttackVector
                 isBlocked: false,
                 analysis: "Potential enumeration within an advertised resource family: the common-name probe resolved differently from the random probe.",
                 evidence: evidence,
-                severity: "Medium");
+                severity: "Medium",
+                probeContexts: CollectProbeContexts(advertisedResource.ProbeContext, responseRandom.ProbeContext, responseCommon.ProbeContext));
         }
 
         return CreateResult(
             isBlocked: true,
             analysis: "Consistent same-family error handling observed for unadvertised resource probes.",
             evidence: evidence,
-            severity: "Low");
+            severity: "Low",
+            probeContexts: CollectProbeContexts(advertisedResource.ProbeContext, responseRandom.ProbeContext, responseCommon.ProbeContext));
     }
 
-    private static async Task<string?> TryGetAdvertisedResourceUriAsync(
+    private static async Task<AdvertisedResourceProbe> TryGetAdvertisedResourceUriAsync(
         McpServerConfig serverConfig,
         IMcpHttpClient client,
         CancellationToken cancellationToken)
@@ -81,7 +84,7 @@ public class MetadataEnumeration : BaseAttackVector
 
         if (!resourcesResponse.IsSuccess || string.IsNullOrWhiteSpace(resourcesResponse.RawJson))
         {
-            return null;
+            return new AdvertisedResourceProbe(null, resourcesResponse.ProbeContext);
         }
 
         try
@@ -91,7 +94,7 @@ public class MetadataEnumeration : BaseAttackVector
                 !result.TryGetProperty("resources", out var resources) ||
                 resources.ValueKind != JsonValueKind.Array)
             {
-                return null;
+                return new AdvertisedResourceProbe(null, resourcesResponse.ProbeContext);
             }
 
             foreach (var resource in resources.EnumerateArray())
@@ -102,18 +105,20 @@ public class MetadataEnumeration : BaseAttackVector
                     var uri = uriElement.GetString();
                     if (!string.IsNullOrWhiteSpace(uri))
                     {
-                        return uri;
+                        return new AdvertisedResourceProbe(uri, resourcesResponse.ProbeContext);
                     }
                 }
             }
         }
         catch (JsonException)
         {
-            return null;
+            return new AdvertisedResourceProbe(null, resourcesResponse.ProbeContext);
         }
 
-        return null;
+        return new AdvertisedResourceProbe(null, resourcesResponse.ProbeContext);
     }
+
+    private sealed record AdvertisedResourceProbe(string? Uri, ProbeContext? ProbeContext);
 
     private static string BuildSiblingProbeUri(string advertisedResourceUri, string probeName)
     {

@@ -54,6 +54,14 @@ public class SchemaRegistryTests
     }
 
     [Fact]
+    public void SchemaRegistryProtocolVersions_IsAvailableVersion_ShouldDistinguishEmbeddedAndUnknownVersions()
+    {
+        SchemaRegistryProtocolVersions.IsAvailableVersion("2025-11-25", _registry).Should().BeTrue();
+        SchemaRegistryProtocolVersions.IsAvailableVersion("latest", _registry).Should().BeTrue();
+        SchemaRegistryProtocolVersions.IsAvailableVersion("2099-01-01", _registry).Should().BeFalse();
+    }
+
+    [Fact]
     public void SchemaRegistryProtocolVersions_GetAvailableVersions_WithNullRegistryResponse_ShouldReturnEmpty()
     {
         var registry = new Mock<ISchemaRegistry>();

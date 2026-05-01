@@ -32,6 +32,7 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
         }
 
         var advisoryNotes = BuildAdvisoryNotes(validationResult);
+        var relatedFindings = BuildRelatedDeterministicFindings(validationResult);
         var blockingCount = validationResult.VerdictAssessment?.BlockingDecisions.Count ?? 0;
 
         return Task.FromResult(new ModelEvaluationArtifact
@@ -44,7 +45,8 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
             Status = ModelEvaluationArtifactStatus.Completed,
             Summary = BuildSummary(validationResult, blockingCount),
             BaselineVerdict = validationResult.VerdictAssessment?.BaselineVerdict,
-            AdvisoryNotes = advisoryNotes
+            AdvisoryNotes = advisoryNotes,
+            RelatedDeterministicFindings = relatedFindings
         });
     }
 
@@ -86,11 +88,46 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
             }
         }
 
+        var aiFindings = validationResult.ToolValidation?.AiReadinessFindings ?? new List<ValidationFinding>();
+        foreach (var finding in aiFindings.Take(3))
+        {
+            var evidenceKind = finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var value)
+                ? value
+                : null;
+            notes.Add($"Related deterministic AI-readiness finding {finding.RuleId}: {AiReadinessEvidenceKinds.ToDisplayLabel(evidenceKind, finding.RuleId)} for {finding.Component}.");
+        }
+
         if (notes.Count == 1)
         {
             notes.Add("No blocking decisions were present in the deterministic baseline result.");
         }
 
         return notes;
+    }
+
+    private static IReadOnlyList<ModelEvaluationFindingLink> BuildRelatedDeterministicFindings(ValidationResult validationResult)
+    {
+        return (validationResult.ToolValidation?.AiReadinessFindings ?? new List<ValidationFinding>())
+            .Where(finding => !string.IsNullOrWhiteSpace(finding.RuleId))
+            .OrderByDescending(finding => finding.Severity)
+            .ThenBy(finding => finding.RuleId, StringComparer.OrdinalIgnoreCase)
+            .Take(20)
+            .Select(finding =>
+            {
+                var evidenceKind = finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var value)
+                    ? value
+                    : AiReadinessEvidenceKinds.Infer(null, finding.RuleId);
+
+                return new ModelEvaluationFindingLink
+                {
+                    RuleId = finding.RuleId,
+                    Category = finding.Category,
+                    Component = finding.Component,
+                    EvidenceKind = evidenceKind,
+                    Summary = finding.Summary,
+                    Recommendation = finding.Recommendation
+                };
+            })
+            .ToList();
     }
 }

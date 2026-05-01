@@ -1,0 +1,58 @@
+{
+  "generatedUtc": "2026-05-01T16:31:51.7540510Z",
+  "validationId": "73172173-6e1c-44f3-ba96-fb7bcfc4603f",
+  "serverEndpoint": "https://learn.microsoft.com/api/mcp",
+  "complianceScore": 67.69,
+  "trustLevel": "L2: Caution \u2014 Significant gaps in safety or compliance",
+  "profileCount": 5,
+  "compatibleCount": 5,
+  "warningCount": 0,
+  "incompatibleCount": 0,
+  "profiles": [
+    {
+      "profileId": "claude-code",
+      "displayName": "Claude Code",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "vscode-copilot-agent",
+      "displayName": "VS Code Copilot Agent",
+      "status": "Compatible",
+      "passedRequirements": 2,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cli",
+      "displayName": "GitHub Copilot CLI",
+      "status": "Compatible",
+      "passedRequirements": 2,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cloud-agent",
+      "displayName": "GitHub Copilot Cloud Agent",
+      "status": "Compatible",
+      "passedRequirements": 4,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "visual-studio-copilot",
+      "displayName": "Visual Studio Copilot",
+      "status": "Compatible",
+      "passedRequirements": 3,
+      "warningRequirements": 0,
+      "failedRequirements": 0,
+      "topBlockers": []
+    }
+  ]
+}

@@ -7,6 +7,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ## Unreleased
 
 ### Added
+
 - First-class MCP guideline rule pack metadata for tool, prompt, resource, and protocol guidance findings.
 - Structured optional capability findings for `roots/list`, `logging/setLevel`, `sampling/createMessage`, and `completion/complete`, including declaration mismatches.
 - JUnit report output for CI systems that ingest test-style artifacts.
@@ -21,9 +22,13 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Resource guidance findings for missing MIME metadata, unclear URI schemes, and parameterized resource templates without ergonomic metadata.
 
 ### Changed
+
 - Capability negotiation now records optional capability support discovered during protocol validation.
 - Contributor workflow now includes tracked repository validation scripts and fixture-profile guidance.
 - Release distribution guidance now documents the GHCR image alongside NuGet, npm, and standalone binaries.
+- HTML reports now surface Run Status, Deterministic Verdict, and Trust Level as separate top-page decision cards.
+- Public documentation now describes the current explicit-output artifact set, including audit manifests and the HTML decision surface.
 
 ### Security
+
 - Release outputs now include stronger supply-chain trust signals across standalone binaries, packages, and container images.

@@ -175,6 +175,16 @@ body {
     flex-direction: column;
     gap: 12px;
 }
+.hero-side .status-panel {
+    padding: 16px;
+}
+.hero-side .focus-value {
+    font-size: 1.5rem;
+    letter-spacing: -0.03em;
+}
+.hero-side .focus-label {
+    font-size: 0.84rem;
+}
 .panel {
     background: var(--surface);
     border: 1px solid var(--line);
@@ -205,6 +215,9 @@ body {
     letter-spacing: 0.06em;
     text-transform: uppercase;
     border: 1px solid transparent;
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
 }
 .status-chip::before,
 .tone-chip::before {
@@ -268,7 +281,8 @@ body {
 .decision-brief--tone-danger,
 .report-note--danger { border-left-color: var(--tone-danger); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.88)); }
 .decision-brief--tone-info,
-.report-note--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
+.report-note--info,
+.status-callout--info { border-left-color: var(--tone-info); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.88)); }
 .decision-brief--tone-neutral,
 .report-note--neutral { border-left-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); }
 .decision-title {
@@ -311,13 +325,14 @@ body {
 }
 .ledger-entry {
     display: grid;
-    grid-template-columns: minmax(210px, 250px) minmax(0, 1fr);
+    grid-template-columns: minmax(min(210px, 100%), 250px) minmax(0, 1fr);
     gap: 18px;
     border: 1px solid var(--line);
     border-left-width: 4px;
     border-radius: var(--radius-card);
     background: rgba(255,255,255,0.98);
     padding: 16px 18px;
+    min-width: 0;
 }
 .ledger-entry--success { border-left-color: var(--tone-success); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.72)); }
 .ledger-entry--warning { border-left-color: var(--tone-warning); }
@@ -372,6 +387,11 @@ body {
     color: var(--text-muted);
     line-height: 1.5;
     overflow-wrap: anywhere;
+}
+.ledger-links a,
+.ledger-links code {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 .ledger-code,
 .ledger-code-block {
@@ -826,6 +846,7 @@ body {
 .section-card__content {
     border-top: 1px solid rgba(174, 187, 201, 0.45);
     padding: 0 18px 18px;
+    min-width: 0;
 }
 .section-card__content > :first-child {
     margin-top: 14px;
@@ -990,8 +1011,31 @@ body {
 }
 .dual-grid {
     display: grid;
-    grid-template-columns: 1.25fr 1fr;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
     gap: 14px;
+}
+.dual-grid > * {
+    min-width: 0;
+}
+.decision-trace-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+    gap: 18px;
+    align-items: start;
+}
+.decision-trace-main,
+.decision-hotspots {
+    min-width: 0;
+}
+.decision-hotspots .ledger-list {
+    gap: 10px;
+}
+.decision-hotspots .report-note {
+    min-width: 0;
+}
+.decision-fact-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    gap: 10px;
 }
 .list-panel {
     display: grid;
@@ -1026,7 +1070,7 @@ body {
 }
 .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
     gap: 12px;
     margin-top: 14px;
 }
@@ -1035,6 +1079,7 @@ body {
     border: 1px solid var(--line);
     background: rgba(255,255,255,0.78);
     padding: 13px 14px;
+    min-width: 0;
 }
 .summary-card__label {
     font-size: 0.72rem;
@@ -1048,6 +1093,22 @@ body {
     font-size: 1.02rem;
     line-height: 1.45;
     font-weight: 600;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: pre-wrap;
+}
+.summary-card--decision-fact {
+    border-radius: 12px;
+    background: rgba(255,255,255,0.88);
+    padding: 11px 12px;
+}
+.summary-card--decision-fact .summary-card__label {
+    overflow-wrap: anywhere;
+}
+.summary-card--decision-fact .summary-card__value {
+    color: var(--text);
+    font-size: 0.92rem;
+    line-height: 1.5;
 }
 .card-grid {
     display: grid;
@@ -1189,6 +1250,8 @@ body {
     border-radius: 18px;
     overflow: auto;
     background: rgba(255,255,255,0.98);
+    max-width: 100%;
+    scrollbar-gutter: stable;
 }
 .table-shell--compact {
     margin-top: 14px;
@@ -1197,6 +1260,7 @@ body {
     width: 100%;
     border-collapse: collapse;
     font-size: 0.92rem;
+    line-height: 1.48;
 }
 .data-table thead {
     background: var(--surface-emphasis);
@@ -1208,6 +1272,7 @@ body {
     text-align: left;
     vertical-align: top;
     overflow-wrap: anywhere;
+    min-width: 0;
 }
 .data-table th {
     color: var(--text-soft);
@@ -1221,6 +1286,83 @@ body {
 }
 .data-table tbody tr:last-child td {
     border-bottom: 0;
+}
+.domain-evidence-table,
+.layered-report-table {
+    table-layout: fixed;
+}
+.domain-evidence-table {
+    min-width: 100%;
+}
+.layered-report-table {
+    min-width: 100%;
+}
+.coverage-summary-table,
+.coverage-detail-table,
+.observation-table {
+    min-width: 100%;
+}
+.domain-evidence-table .table-col--domain { width: 10%; }
+.domain-evidence-table .table-col--status { width: 13%; }
+.domain-evidence-table .table-col--signals { width: 13%; }
+.domain-evidence-table .table-col--evidence { width: 18%; }
+.domain-evidence-table .table-col--interpretation { width: 22%; }
+.domain-evidence-table .table-col--action { width: 24%; }
+.layered-report-table--layers .table-col--layer,
+.layered-report-table--scenarios .table-col--scenario { width: 20%; }
+.layered-report-table--layers .table-col--status,
+.layered-report-table--scenarios .table-col--status { width: 12%; }
+.layered-report-table--layers .table-col--count,
+.layered-report-table--scenarios .table-col--count { width: 10%; }
+.layered-report-table--layers .table-col--summary,
+.layered-report-table--scenarios .table-col--summary { width: 58%; }
+.coverage-summary-table .table-col--layer { width: 17%; }
+.coverage-summary-table .table-col--coverage { width: 10%; }
+.coverage-summary-table .table-col--confidence { width: 16%; }
+.coverage-summary-table .table-col--count { width: 9%; }
+.coverage-summary-table .table-col--count-wide { width: 14%; }
+.coverage-detail-table .table-col--layer { width: 15%; }
+.coverage-detail-table .table-col--scope { width: 22%; }
+.coverage-detail-table .table-col--status { width: 12%; }
+.coverage-detail-table .table-col--blocker { width: 11%; }
+.coverage-detail-table .table-col--confidence { width: 10%; }
+.coverage-detail-table .table-col--probe { width: 15%; }
+.coverage-detail-table .table-col--reason { width: 15%; }
+.observation-table .table-col--observation { width: 20%; }
+.observation-table .table-col--layer { width: 15%; }
+.observation-table .table-col--component { width: 18%; }
+.observation-table .table-col--kind { width: 15%; }
+.observation-table .table-col--preview { width: 32%; }
+.table-cell--numeric {
+    color: var(--text-strong);
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+}
+.table-cell--status .tone-chip {
+    max-width: 100%;
+    padding-inline: 10px;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.table-cell--code code,
+.data-table code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.7;
+}
+.cell-copy {
+    max-width: 68ch;
+    color: var(--text);
+    line-height: 1.58;
+    overflow-wrap: anywhere;
+}
+.cell-copy--compact {
+    max-width: 34ch;
+}
+.cell-copy--interpretation,
+.cell-copy--action {
+    max-width: 48ch;
 }
 code {
     font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
@@ -1347,6 +1489,7 @@ a:hover {
     .hero { padding: 22px; }
     .hero-grid,
     .dual-grid,
+    .decision-trace-layout,
     .brief-grid,
     .appendix-grid {
         grid-template-columns: 1fr;
@@ -1384,6 +1527,78 @@ a:hover {
     }
     .authority-card__metrics {
         grid-template-columns: 1fr;
+    }
+}
+@media (max-width: 760px) {
+    .table-shell--domain-evidence,
+    .table-shell--layer-summary,
+    .table-shell--coverage-summary,
+    .table-shell--coverage-detail,
+    .table-shell--scenario-summary,
+    .table-shell--observation-summary {
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table {
+        min-width: 0;
+        table-layout: auto;
+        border-collapse: separate;
+        border-spacing: 0 10px;
+    }
+    .domain-evidence-table thead,
+    .layered-report-table thead,
+    .domain-evidence-table colgroup,
+    .layered-report-table colgroup {
+        display: none;
+    }
+    .domain-evidence-table tbody tr,
+    .layered-report-table tbody tr {
+        display: block;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.98);
+        overflow: hidden;
+    }
+    .domain-evidence-table tbody tr:nth-child(even),
+    .layered-report-table tbody tr:nth-child(even) {
+        background: rgba(255,255,255,0.98);
+    }
+    .domain-evidence-table td,
+    .layered-report-table td {
+        display: grid;
+        grid-template-columns: minmax(104px, 34%) minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+        padding: 10px 12px;
+    }
+    .domain-evidence-table td::before,
+    .layered-report-table td::before {
+        content: attr(data-label);
+        color: var(--text-soft);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .domain-evidence-table tbody tr:last-child td,
+    .layered-report-table tbody tr:last-child td {
+        border-bottom: 1px solid var(--line);
+    }
+    .domain-evidence-table tbody tr td:last-child,
+    .layered-report-table tbody tr td:last-child {
+        border-bottom: 0;
+    }
+    .table-cell--numeric {
+        text-align: left;
+    }
+    .cell-copy,
+    .cell-copy--compact,
+    .cell-copy--interpretation,
+    .cell-copy--action {
+        max-width: none;
     }
 }
 @media print {
@@ -1448,6 +1663,7 @@ a:hover {
     .stack-item,
     .finding-row,
     .summary-grid,
+    .decision-trace-layout,
     .card-grid,
     .panel-grid,
     .hero-meta,
@@ -1471,6 +1687,22 @@ a:hover {
     }
     details.section-card > .section-card__content {
         display: block !important;
+    }
+    .table-shell {
+        overflow: visible;
+    }
+    .domain-evidence-table,
+    .layered-report-table,
+    .coverage-summary-table,
+    .coverage-detail-table,
+    .observation-table {
+        min-width: 0;
+        table-layout: auto;
+    }
+    .data-table th,
+    .data-table td {
+        padding: 7px 8px;
+        font-size: 0.78rem;
     }
 }
     </style>
@@ -1520,8 +1752,13 @@ a:hover {
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
     <span class="status-chip status-chip--danger">Deterministic Verdict</span>
-    <div class="focus-value">Baseline Reject &#183; Coverage Review Required</div>
+    <div class="focus-value">Baseline Reject &#183; Protocol Reject &#183; Coverage Review Required</div>
     <div class="focus-label">Authoritative gate</div>
+</div>
+<div class="panel status-panel panel--soft panel--tone-info">
+    <span class="status-chip status-chip--info">Trust Level</span>
+    <div class="focus-value">L3</div>
+    <div class="focus-label">Acceptable — Compliant with known limitations</div>
 </div>
           </div>
         </div>
@@ -1562,8 +1799,8 @@ a:hover {
               </div>
               <ul class="compact-list">
                 <li>9 blocking signal(s) remain under Strict policy.</li>
-                <li>Execution</li>
-                <li>MCP.SECURITY.PROMPT_INJECTION</li>
+                <li>MCP.INIT.VERSION_NEGOTIATION</li>
+                <li>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</li>
                 <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
               </ul>
             </div>
@@ -1572,10 +1809,11 @@ a:hover {
               <section class="report-note report-note--warning">
                 <div class="report-note__eyebrow">Read first</div>
                 <h3 class="report-note__title">Priority Findings</h3>
+                <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
                 <ul class="compact-list">
                   <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
+                  <li>[Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
-                  <li>[Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.</li>
                 </ul>
               </section>
 
@@ -1584,7 +1822,7 @@ a:hover {
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
                   <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
-                  <li>[Heuristic] Security: Sanitize and label untrusted content before returning it.</li>
+                  <li>[Guideline] McpGuideline: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
                 </ul>
               </section>
@@ -1601,6 +1839,95 @@ a:hover {
           </div>
         </details>
       </section>
+      <section class="section">
+        <details class="section-card section-card--tone-warning">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Remediation Roadmap</div>
+              <h2 class="section-title section-title--card">Recommended Remediation Order</h2>
+              <p class="section-intro section-intro--card">Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">P1</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P3</div><div class="section-abstract__value">2</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">P4</div><div class="section-abstract__value">2</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="ledger-list">
+            <article class="ledger-entry ledger-entry--danger">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 1</div>
+                <div class="ledger-title">Bootstrap &amp; Protocol Version</div>
+                <span class="tone-chip tone-danger">1 item</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Server ignored the requested MCP protocol version.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Echo the negotiated protocol version in initialize.result.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>Initialization</code> · <strong>Evidence:</strong> [Spec] <code>MCP.INIT.VERSION_NEGOTIATION</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--info">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 3</div>
+                <div class="ledger-title">Advertised Capabilities</div>
+                <span class="tone-chip tone-info">2 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Prompt output includes reflected untrusted content.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>PromptInjection</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt-surface</code> · <strong>Evidence:</strong> [Heuristic] <code>Coverage</code> · <strong>Severity:</strong> Medium</div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--neutral">
+              <div class="ledger-rail">
+                <div class="ledger-kicker">Priority 4</div>
+                <div class="ledger-title">AI Safety, Security, And Performance</div>
+                <span class="tone-chip tone-neutral">2 items</span>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy"><strong>Impact after fix:</strong> After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.</p>
+                <ul class="compact-list">
+                  <li>
+                    <strong>Server reflected untrusted prompt content without sanitization.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Sanitize and label untrusted content before returning it.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.SECURITY.PROMPT_INJECTION</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>validation-run</code> · <strong>Evidence:</strong> [Operational] <code>Execution</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                </ul>
+              </div>
+            </article>
+          </div>
+          </div>
+        </details>
+      </section>
+
       <section class="section">
         <details class="section-card section-card--tone-danger">
           <summary class="section-card__summary">
@@ -1622,27 +1949,79 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="dual-grid">
-            <div>
+          <div class="decision-trace-layout">
+            <div class="decision-trace-main">
               <h3 class="minor-title">Decision Themes</h3>
+              <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
-                    <div class="ledger-title">Execution</div>
-                    <div class="ledger-subtle">Execution</div>
+                    <div class="ledger-title">MCP.INIT.VERSION_NEGOTIATION</div>
+                    <div class="ledger-subtle">Initialization</div>
                     <div class="ledger-chip-row">
                       <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Operational resilience</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> validation-run</div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">validation-run</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                    <p class="ledger-copy">Server ignored the requested MCP protocol version.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 1 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> Initialization</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.INIT.VERSION_NEGOTIATION</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Initialization</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Echo the negotiated protocol version in initialize.result.</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--warning">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP.TOOL.CALL.RESULT_OBJECT_MISSING</div>
+                    <div class="ledger-subtle">ProtocolCompliance</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-warning">Review Required</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">One tool response omitted the outer result object.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; 1 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> tools/call</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">tools/call</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--danger">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
+                    <div class="ledger-subtle">McpGuideline</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-danger">Review Required</span>
+                      <span class="tone-chip tone-info">guideline</span>
+                      <span class="tag">Unsafe autonomy</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> guideline &#183; heuristic inference &#183; 2 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint, obs-tool-delete-repo</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1659,12 +2038,15 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Server reflected untrusted prompt content without sanitization.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation &#183; 2 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.SECURITY.PROMPT_INJECTION</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization, probe:probe-prompt-get-reflection-200</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Prompt response reflected untrusted content.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize and label untrusted content before returning it.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1681,54 +2063,13 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Prompt output includes reflected untrusted content.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 1 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.INIT.VERSION_NEGOTIATION</div>
-                    <div class="ledger-subtle">Initialization</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">spec</span>
-                      <span class="tag">Protocol interoperability</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Server ignored the requested MCP protocol version.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation</div>
-                    <div class="ledger-links"><strong>Components:</strong> Initialization</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.INIT.VERSION_NEGOTIATION</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Initialization</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
-                    <div class="ledger-subtle">McpGuideline</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Review Required</span>
-                      <span class="tone-chip tone-info">guideline</span>
-                      <span class="tag">Unsafe autonomy</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> guideline &#183; heuristic inference</div>
-                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize or clearly label untrusted data.</div></div>
                     </div>
                   </div>
                 </article>
@@ -1745,19 +2086,21 @@ a:hover {
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 2 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</code></div>
-                    <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
-                <div class="summary-card"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions, obs-tool-delete-repo</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
                     </div>
                   </div>
                 </article>
               </div>
             </div>
 
-            <div>
+            <aside class="decision-hotspots">
               <h3 class="minor-title">Affected Hotspots</h3>
               <div class="ledger-list">
                 <article class="report-note report-note--danger">
@@ -1773,15 +2116,15 @@ a:hover {
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 2</div>
                 </article>
                 <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">Operations</div>
-                  <h3 class="report-note__title">validation-run</h3>
-                  <p class="report-note__empty">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
-                </article>
-                <article class="report-note report-note--danger">
                   <div class="report-note__eyebrow">Protocol</div>
                   <h3 class="report-note__title">Initialization</h3>
                   <p class="report-note__empty">Server ignored the requested MCP protocol version.</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
+                </article>
+                <article class="report-note report-note--danger">
+                  <div class="report-note__eyebrow">Operations</div>
+                  <h3 class="report-note__title">validation-run</h3>
+                  <p class="report-note__empty">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
                 <article class="report-note report-note--warning">
@@ -1797,7 +2140,7 @@ a:hover {
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
               </div>
-            </div>
+            </aside>
 
           </div>
           </div>
@@ -1869,6 +2212,11 @@ a:hover {
               <div class="score-pill__value">81.4%</div>
               <div class="score-pill__meta">Descriptive benchmarking signal</div>
             </div>
+            <div class="score-pill score-pill--success">
+              <div class="score-pill__eyebrow">Evidence Confidence</div>
+              <div class="score-pill__value">91.9%</div>
+              <div class="score-pill__meta">High; coverage 87.5%</div>
+            </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Trust Profile</div>
               <div class="score-pill__value">L3</div>
@@ -1904,57 +2252,58 @@ a:hover {
             </table>
           </div>
 
-          <div class="table-shell">
-            <table class="data-table calibration-table">
+          <div class="table-shell table-shell--domain-evidence">
+            <table class="data-table domain-evidence-table">
+              <colgroup><col class="table-col--domain"><col class="table-col--status"><col class="table-col--signals"><col class="table-col--evidence"><col class="table-col--interpretation"><col class="table-col--action"></colgroup>
               <thead><tr><th>Domain</th><th>Status</th><th>Signals</th><th>Evidence</th><th>Interpretation</th><th>Next Action</th></tr></thead>
               <tbody>
                 <tr>
-                  <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-danger">Reject</span></td>
-                  <td>2 blocking / 2 total</td>
-                  <td>1 protocol violation(s) &#183; 3/3 error scenarios handled correctly</td>
-                  <td>Server ignored the requested MCP protocol version.</td>
-                  <td>Echo the negotiated protocol version in initialize.result.</td>
+                  <td data-label="Domain"><div class="cell-title">Protocol</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Reject</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">2 blocking / 2 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">1 protocol violation(s) &#183; 3/3 error scenarios handled correctly</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server ignored the requested MCP protocol version.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Echo the negotiated protocol version in initialize.result.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Security</div></td>
-                  <td><span class="tone-chip tone-danger">69%</span></td>
-                  <td>1 blocking / 1 total</td>
-                  <td>1 vulnerability finding(s) &#183; 0 attack simulation(s)</td>
-                  <td>Prompt output includes reflected untrusted content.</td>
-                  <td>Sanitize and label untrusted content before returning it.</td>
+                  <td data-label="Domain"><div class="cell-title">Security</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">69%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 blocking / 1 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">1 vulnerability finding(s) &#183; 1 attack simulation(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Prompt output includes reflected untrusted content.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize and label untrusted content before returning it.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">AI Safety</div></td>
-                  <td><span class="tone-chip tone-danger">75%</span></td>
-                  <td>3 blocking / 3 total</td>
-                  <td>1 schema finding(s) &#183; 1 boundary finding(s) &#183; 0 content-safety finding(s)</td>
-                  <td>Server reflected untrusted prompt content without sanitization.</td>
-                  <td>Sanitize or clearly label untrusted data.</td>
+                  <td data-label="Domain"><div class="cell-title">AI Safety</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">75%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 blocking / 3 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">1 schema finding(s) &#183; 1 boundary finding(s) &#183; 0 content-safety finding(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize or clearly label untrusted data.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Operations</div></td>
-                  <td><span class="tone-chip tone-danger">88%</span></td>
-                  <td>1 blocking / 1 total</td>
-                  <td>Avg 120.5 ms &#183; P95 210.4 ms &#183; 0.00% errors</td>
-                  <td>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</td>
-                  <td>Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</td>
+                  <td data-label="Domain"><div class="cell-title">Operations</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">88%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 blocking / 1 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">Avg 120.5 ms &#183; P95 210.4 ms &#183; 0.00% errors</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Compatibility</div></td>
-                  <td><span class="tone-chip tone-neutral">Not evaluated</span></td>
-                  <td>No client-profile interpretation</td>
-                  <td>No profile pack evaluation requested or recorded</td>
-                  <td>Client compatibility was not part of this run.</td>
-                  <td>Run with documented client profiles when deployment depends on a specific host.</td>
+                  <td data-label="Domain"><div class="cell-title">Compatibility</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-neutral">Not evaluated</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">No client-profile interpretation</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">No profile pack evaluation requested or recorded</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Client compatibility was not part of this run.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Run with documented client profiles when deployment depends on a specific host.</div></td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Coverage</div></td>
-                  <td><span class="tone-chip tone-warning">Review Required</span></td>
-                  <td>7 covered scope(s)</td>
-                  <td>7 covered &#183; 1 skipped &#183; 0 blocked declaration(s)</td>
-                  <td>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</td>
-                  <td>Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</td>
+                  <td data-label="Domain"><div class="cell-title">Coverage</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Review Required</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">7 covered scope(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">7 covered &#183; 1 skipped &#183; 0 blocked declaration(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</div></td>
                 </tr>
               </tbody>
             </table>
@@ -2033,7 +2382,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Layers</div><div class="section-abstract__value">4</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Scenarios</div><div class="section-abstract__value">3</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Scenarios</div><div class="section-abstract__value">4</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Coverage Declarations</div><div class="section-abstract__value">8</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Applied Packs</div><div class="section-abstract__value">4</div></div>
             </div>
@@ -2045,26 +2394,40 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--layer-summary">
+            <table class="data-table layered-report-table layered-report-table--layers">
+              <colgroup><col class="table-col--layer"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Layer</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><span class="tone-chip tone-danger">Failed</span></td><td>1</td><td>Protocol negotiation had one blocking violation.</td></tr>
-                <tr><td><code>tool-surface</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Tool catalog loaded and executed.</td></tr>
-                <tr><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Evaluated 2 profile(s); 1 warning profile(s); 0 incompatible profile(s).</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">1</td><td data-label="Summary"><div class="cell-copy">Protocol negotiation had one blocking violation.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Tool catalog loaded and executed.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Validated 3 error scenario(s); 3 handled correctly.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 2 profile(s); 1 warning profile(s); 0 incompatible profile(s).</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
-              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Reason</th></tr></thead><tbody>
-                <tr><td><code>protocol-core</code></td><td><code>json-rpc</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tools/list</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>prompt-surface</code></td><td><code>prompts/list</code></td><td><span class="tone-chip tone-info">Skipped</span></td><td>Server does not advertise prompts capability.</td></tr>
-                <tr><td><code>client-profiles</code></td><td><code>github-copilot-cli,github-copilot-cloud-agent</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>tool-surface</code></td><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>security-boundaries</code></td><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
-                <tr><td><code>error-handling</code></td><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Covered</span></td><td>-</td></tr>
+          <div class="table-shell table-shell--coverage-summary">
+            <table class="data-table layered-report-table coverage-summary-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--coverage"><col class="table-col--confidence"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count"><col class="table-col--count-wide"></colgroup>
+              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Coverage" class="table-cell--numeric">0.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">Low (35.0%)</div></td><td data-label="Covered" class="table-cell--numeric">0</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">1</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">1</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Coverage" class="table-cell--numeric">100.0%</td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">High (100.0%)</div></td><td data-label="Covered" class="table-cell--numeric">2</td><td data-label="Auth Required" class="table-cell--numeric">0</td><td data-label="Inconclusive" class="table-cell--numeric">0</td><td data-label="Skipped" class="table-cell--numeric">0</td><td data-label="Blocked/Unavailable" class="table-cell--numeric">0</td></tr>
+              </tbody></table>
+          </div>
+          <div class="table-shell table-shell--coverage-detail">
+            <table class="data-table layered-report-table coverage-detail-table">
+              <colgroup><col class="table-col--layer"><col class="table-col--scope"><col class="table-col--status"><col class="table-col--blocker"><col class="table-col--confidence"><col class="table-col--probe"><col class="table-col--reason"></colgroup>
+              <thead><tr><th>Layer</th><th>Scope</th><th>Status</th><th>Blocker</th><th>Confidence</th><th>Probe</th><th>Reason</th></tr></thead><tbody>
+                <tr><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Scope" class="table-cell--code"><code>json-rpc</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tools/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Scope" class="table-cell--code"><code>prompts/list</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-info">Skipped</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">Server does not advertise prompts capability.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Scope" class="table-cell--code"><code>github-copilot-cli,github-copilot-cloud-agent</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Scope" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Scope" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Scope" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Covered</span></td><td data-label="Blocker" class="table-cell--code"><code>None</code></td><td data-label="Confidence"><div class="cell-copy cell-copy--compact">None</div></td><td data-label="Probe"><div class="cell-copy">-</div></td><td data-label="Reason"><div class="cell-copy">-</div></td></tr>
               </tbody></table>
           </div>
           <div class="ledger-group">
@@ -2114,23 +2477,27 @@ a:hover {
               </article>
             </div>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--scenario-summary">
+            <table class="data-table layered-report-table layered-report-table--scenarios">
+              <colgroup><col class="table-col--scenario"><col class="table-col--status"><col class="table-col--count"><col class="table-col--summary"></colgroup>
               <thead><tr><th>Scenario</th><th>Status</th><th>Findings</th><th>Summary</th></tr></thead><tbody>
-                <tr><td><code>tool-catalog-smoke</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Discovery and first invocation completed with expected metadata.</td></tr>
-                <tr><td><code>security-authentication-challenge</code></td><td><span class="tone-chip tone-warning">Skipped</span></td><td>0</td><td>Authentication challenge completed under deferred bootstrap review.</td></tr>
-                <tr><td><code>error-handling-matrix</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>0</td><td>Validated 3 error scenario(s); 3 handled correctly.</td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>tool-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Discovery and first invocation completed with expected metadata.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Skipped</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Authentication challenge completed under deferred bootstrap review.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 1 attack simulation(s).</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Validated 3 error scenario(s); 3 handled correctly.</div></td></tr>
               </tbody></table>
           </div>
-          <div class="table-shell">
-            <table class="data-table">
+          <div class="table-shell table-shell--observation-summary">
+            <table class="data-table layered-report-table observation-table">
+              <colgroup><col class="table-col--observation"><col class="table-col--layer"><col class="table-col--component"><col class="table-col--kind"><col class="table-col--preview"></colgroup>
               <thead><tr><th>Observation</th><th>Layer</th><th>Component</th><th>Kind</th><th>Preview</th></tr></thead><tbody>
-                <tr><td><code>error-invalid-method-call</code></td><td><code>error-handling</code></td><td><code>invalid-method</code></td><td><code>error-scenario</code></td><td>HTTP 200; JSON-RPC error -32601: Method not found</td></tr>
-                <tr><td><code>error-malformed-json-payload</code></td><td><code>error-handling</code></td><td><code>malformed-json</code></td><td><code>error-scenario</code></td><td>HTTP 400; JSON-RPC error -32700: Parse error</td></tr>
-                <tr><td><code>error-graceful-degradation-on-invalid-request</code></td><td><code>error-handling</code></td><td><code>invalid-request</code></td><td><code>error-scenario</code></td><td>HTTP 400; JSON-RPC error -32600: Invalid Request</td></tr>
-                <tr><td><code>obs-init-401</code></td><td><code>protocol-core</code></td><td><code>initialize</code></td><td><code>handshake-response</code></td><td>401 Unauthorized — bootstrap encountered an authentication challenge.</td></tr>
-                <tr><td><code>obs-tool-delete-repo</code></td><td><code>tool-surface</code></td><td><code>delete_repo</code></td><td><code>tool-metadata</code></td><td>Tool metadata missing annotations.destructiveHint.</td></tr>
-                <tr><td><code>auth-unauthorized-tools-list-challenge</code></td><td><code>security-boundaries</code></td><td><code>tools/list</code></td><td><code>authentication-scenario</code></td><td>Returned 401 with WWW-Authenticate.</td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-invalid-method-call</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-method</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 200; JSON-RPC error -32601: Method not found</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-malformed-json-payload</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>malformed-json</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; JSON-RPC error -32700: Parse error</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>error-graceful-degradation-on-invalid-request</code></td><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Component" class="table-cell--code"><code>invalid-request</code></td><td data-label="Kind" class="table-cell--code"><code>error-scenario</code></td><td data-label="Preview"><div class="cell-copy">HTTP 400; JSON-RPC error -32600: Invalid Request</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>obs-init-401</code></td><td data-label="Layer" class="table-cell--code"><code>protocol-core</code></td><td data-label="Component" class="table-cell--code"><code>initialize</code></td><td data-label="Kind" class="table-cell--code"><code>handshake-response</code></td><td data-label="Preview"><div class="cell-copy">401 Unauthorized — bootstrap encountered an authentication challenge.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>obs-tool-delete-repo</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>delete_repo</code></td><td data-label="Kind" class="table-cell--code"><code>tool-metadata</code></td><td data-label="Preview"><div class="cell-copy">Tool metadata missing annotations.destructiveHint.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>auth-unauthorized-tools-list-challenge</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/list</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">Returned 401 with WWW-Authenticate.</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Rejected injected argument with JSON-RPC error -32602.</div></td></tr>
               </tbody></table>
           </div>
           </div>
@@ -2235,8 +2602,8 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Security Score</div><div class="section-abstract__value">69.0%</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Auth Scenarios</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">1</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2246,6 +2613,90 @@ a:hover {
           </summary>
           <div class="section-card__content">
 
+          <div class="ledger-group">
+            <h3 class="minor-title">Authentication Scenarios</h3>
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Authentication Outcome Distribution</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--success">
+                <div class="distribution-card__label">Aligned</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Aligned 1 (100%)</span>
+            </div>
+          </div>
+
+            <div class="auth-surface-list">
+              <section class="auth-surface">
+                <div class="auth-surface__header">
+                  <div>
+                    <div class="ledger-kicker">Test surface</div>
+                    <div class="auth-surface__title">tools/list</div>
+                    <div class="auth-surface__meta">1 scenarios &#183; 1 aligned</div>
+                  </div>
+                  <div class="ledger-chip-row">
+                    <span class="tone-chip tone-success">1 aligned</span>
+                  </div>
+                </div>
+                <div class="auth-scenario-list">
+                  <article class="auth-scenario auth-scenario--success auth-scenario--compact">
+                    <div class="auth-scenario__header">
+                      <div class="auth-scenario__title">No Auth</div>
+                      <span class="tone-chip tone-success">Aligned</span>
+                    </div>
+                    <div class="auth-scenario__metrics auth-scenario__metrics--dense">
+                      <span class="probe-metric"><strong>Expected</strong> 4xx (Secure Rejection)</span>
+                      <span class="probe-metric"><strong>Observed</strong> 401 Unauthorized with challenge</span>
+                      <span class="probe-metric"><strong>HTTP</strong> 401</span>
+                    </div>
+                    <div class="auth-scenario__detail-grid">
+                    <div class="auth-scenario__block"><div class="auth-scenario__block-label">Challenge</div><div class="auth-scenario__block-value">Bearer resource_metadata=&quot;https://snapshot.example.test/.well-known/oauth-protected-resource&quot;</div></div>
+                    <div class="auth-scenario__block auth-scenario__block--emphasis"><div class="auth-scenario__block-label">Interpretation</div><div class="auth-scenario__block-value">Returned 401 with WWW-Authenticate.</div></div>
+                    </div>
+                  </article>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div class="ledger-group">
+            <h3 class="minor-title">Attack Simulation Outcomes</h3>
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Attack Outcome Distribution</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--success">
+                <div class="distribution-card__label">Blocked</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">100% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Blocked 1 (100%)</span>
+            </div>
+          </div>
+
+            <div class="ledger-list">
+              <article class="ledger-entry ledger-entry--success">
+                <div class="ledger-rail">
+                  <div class="ledger-title">MCP-SEC-001</div>
+                  <span class="tone-chip tone-success">Blocked</span>
+                </div>
+                <div class="ledger-body">
+                  <p class="ledger-copy">JSON-RPC Error Smuggling</p>
+                  <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>Rejected injected argument with JSON-RPC error -32602.</code></div>
+                </div>
+              </article>
+            </div>
+          </div>
           </div>
         </details>
       </section>
@@ -2311,8 +2762,22 @@ a:hover {
           <div class="evidence-card">
             <div class="evidence-card__header">
               <div>
+                <div class="evidence-card__title">AI Readiness Evidence Basis</div>
+                <div class="evidence-card__subtle">Deterministic schema and payload heuristics are reported separately from measured model-evaluation impact.</div>
+              </div>
+              <span class="tone-chip tone-warning">No score</span>
+            </div>
+            <ul class="compact-list">
+              <li>Measured model-evaluation results, when enabled, are emitted as a separate companion artifact and do not change this deterministic score.</li>
+              <li>Deterministic schema heuristic: 1 finding(s).</li>
+            </ul>
+          </div>
+
+          <div class="evidence-card">
+            <div class="evidence-card__header">
+              <div>
                 <div class="evidence-card__title">Tool Catalog Advisory Breakdown</div>
-                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and AI-oriented heuristics.</div>
+                <div class="evidence-card__subtle">Remaining tool-catalog debt grouped by specification, MCP guidance, and deterministic AI-oriented heuristics.</div>
               </div>
               <span class="tone-chip tone-info">2 tools</span>
             </div>
@@ -2368,6 +2833,43 @@ a:hover {
                   <li>Tool &#39;delete_repo&#39; has parameters without descriptions.</li>
                 </ul>
               </article>
+              <article class="authority-card authority-card--neutral">
+                <div class="authority-card__header">
+                  <div>
+                    <div class="authority-card__eyebrow">Authority</div>
+                    <div class="authority-card__title">Operational</div>
+                  </div>
+                  <span class="tone-chip tone-neutral">0 active rules</span>
+                </div>
+                <div class="authority-card__metrics">
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">0/2 (0%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">None</div></div>
+                </div>
+                <div class="authority-card__label">Representative gaps</div>
+                <ul class="compact-list compact-list--tight">
+                  <li>No current catalog-wide tool advisories.</li>
+                </ul>
+              </article>
+            </div>
+          </div>
+
+          <div class="ledger-group">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">AI Safety Controls</p>
+                <h3>Consent & Human-Control Evidence</h3>
+              </div>
+              <p class="evidence-note">Server-declared tool metadata is separated from host controls that are not directly observable.</p>
+            </div>
+            <div class="table-shell">
+              <table class="data-table">
+                <thead><tr><th>Control</th><th>Declared</th><th>Missing</th><th>Not Observable</th><th>Not Applicable</th><th>Representative Note</th></tr></thead><tbody>
+                <tr><td>User confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.</td></tr>
+                <tr><td>Audit trail</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Audit trail behavior is not observable from tool metadata for this potentially destructive tool.</td></tr>
+                <tr><td>Data-sharing disclosure</td><td>0</td><td>2</td><td>0</td><td>0</td><td>Tool metadata does not declare open-world/data-sharing behavior.</td></tr>
+                <tr><td>Destructive-action confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Destructive action confirmation guidance is missing from tool metadata.</td></tr>
+                <tr><td>Host/server responsibility split</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.</td></tr>
+                </tbody></table>
             </div>
           </div>
 
@@ -2409,6 +2911,36 @@ a:hover {
                 <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
               </tbody></table>
           </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="section">
+        <details class="section-card section-card--tone-success">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Prompt Surface</div>
+              <h2 class="section-title section-title--card">Prompt Capabilities</h2>
+              <p class="section-intro section-intro--card">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Passed</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+          <div class="status-callout status-callout--info">
+            <div class="status-callout__title">Prompt catalog applicability</div>
+            <div class="status-callout__body">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</div>
+          </div>
+
           </div>
         </details>
       </section>
@@ -2473,7 +3005,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">1</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">2</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2487,6 +3019,7 @@ a:hover {
             <div>
               <h3 class="minor-title">Deferred Recommendations</h3>
               <ul class="compact-list">
+                <li>Add destructive hints to write-capable tools.</li>
                 <li>Return the negotiated protocol version explicitly during initialize.</li>
               </ul>
             </div>

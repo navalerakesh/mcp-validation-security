@@ -145,8 +145,10 @@ public static class ValidationCalibration
         if (ShouldTreatUnavailablePublicPerformanceAsAdvisory(serverConfig, result))
         {
             ApplyAdvisoryPerformanceOutcome(
+                serverConfig,
                 result,
                 ValidationFindingRuleIds.PerformancePublicRemoteTimeoutAdvisory,
+                ValidationFindingSeverity.Critical,
                 "Public remote synthetic load probe did not capture any measurements before timing out or being cancelled, so the performance result is treated as advisory rather than a readiness failure.",
                 "Use endpoint-specific benchmarks or production telemetry for final capacity judgments.",
                 "Public remote synthetic load probe did not capture measurements before timeout/cancellation; results are reported as advisory and excluded from pass/fail decisions.");
@@ -159,8 +161,10 @@ public static class ValidationCalibration
         }
 
         ApplyAdvisoryPerformanceOutcome(
+            serverConfig,
             result,
             ValidationFindingRuleIds.PerformancePublicRemoteAdvisory,
+            ValidationFindingSeverity.Medium,
             "Remote public endpoint showed partial failures under synthetic pressure, so the performance result is treated as advisory rather than a readiness failure.",
             "Use endpoint-specific benchmarks or production telemetry for final capacity judgments.",
             "Synthetic load probe hit remote capacity limits or edge protections; results are reported as advisory and excluded from pass/fail decisions.");
@@ -240,15 +244,35 @@ public static class ValidationCalibration
     }
 
     private static void ApplyAdvisoryPerformanceOutcome(
+        McpServerConfig serverConfig,
         PerformanceTestResult result,
         string ruleId,
+        ValidationFindingSeverity beforeSeverity,
         string findingSummary,
         string recommendation,
         string message)
     {
+        var beforeStatus = result.Status;
+        var beforeScore = result.Score;
+        var unavailableReason = PerformanceMeasurementEvaluator.GetUnavailableReason(result, string.Empty);
+
         result.Status = TestStatus.Skipped;
         result.Score = Math.Max(result.Score, AdvisoryPerformanceScore);
         result.Message = message;
+
+        AddPerformanceCalibrationOverride(
+            serverConfig,
+            result,
+            ruleId,
+            message,
+            recommendation,
+            beforeStatus,
+            result.Status,
+            beforeScore,
+            result.Score,
+            beforeSeverity,
+            ValidationFindingSeverity.Info,
+            unavailableReason);
 
         if (!result.PerformanceBottlenecks.Contains(message, StringComparer.Ordinal))
         {
@@ -268,7 +292,67 @@ public static class ValidationCalibration
             Severity = ValidationFindingSeverity.Info,
             Summary = findingSummary,
             Recommendation = recommendation,
-            Source = ValidationRuleSource.Guideline
+            Source = ValidationRuleSource.Guideline,
+            Metadata =
+            {
+                ["calibrationOverride"] = "true",
+                ["beforeSeverity"] = beforeSeverity.ToString(),
+                ["afterSeverity"] = ValidationFindingSeverity.Info.ToString(),
+                ["changedDeterministicVerdict"] = "false"
+            }
+        });
+    }
+
+    private static void AddPerformanceCalibrationOverride(
+        McpServerConfig serverConfig,
+        PerformanceTestResult result,
+        string ruleId,
+        string reason,
+        string recommendation,
+        TestStatus beforeStatus,
+        TestStatus afterStatus,
+        double beforeScore,
+        double afterScore,
+        ValidationFindingSeverity beforeSeverity,
+        ValidationFindingSeverity afterSeverity,
+        string unavailableReason)
+    {
+        if (result.CalibrationOverrides.Any(overrideRecord => string.Equals(overrideRecord.RuleId, ruleId, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        var totalRequests = result.LoadTesting.TotalRequests;
+        var successRatio = totalRequests > 0
+            ? (double)result.LoadTesting.SuccessfulRequests / totalRequests
+            : 0.0;
+        result.CalibrationOverrides.Add(new PerformanceCalibrationOverride
+        {
+            RuleId = ruleId,
+            Reason = reason,
+            Recommendation = recommendation,
+            AffectedTests = ["performance/load-testing"],
+            Inputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["serverProfile"] = serverConfig.Profile.ToString(),
+                ["metricsCaptured"] = PerformanceMeasurementEvaluator.HasObservedMetrics(result).ToString(),
+                ["totalRequests"] = totalRequests.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["successfulRequests"] = result.LoadTesting.SuccessfulRequests.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["failedRequests"] = result.LoadTesting.FailedRequests.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["successRatio"] = successRatio.ToString("F3", System.Globalization.CultureInfo.InvariantCulture),
+                ["averageResponseTimeMs"] = result.LoadTesting.AverageResponseTimeMs.ToString("F1", System.Globalization.CultureInfo.InvariantCulture),
+                ["connectionErrors"] = result.LoadTesting.ConnectionErrors.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["unavailableReason"] = string.IsNullOrWhiteSpace(unavailableReason) ? "-" : unavailableReason,
+                ["advisoryScoreFloor"] = AdvisoryPerformanceScore.ToString("F1", System.Globalization.CultureInfo.InvariantCulture)
+            },
+            BeforeStatus = beforeStatus,
+            AfterStatus = afterStatus,
+            BeforeScore = beforeScore,
+            AfterScore = afterScore,
+            BeforeSeverity = beforeSeverity,
+            AfterSeverity = afterSeverity,
+            ChangedComponentStatus = beforeStatus != afterStatus,
+            ChangedDeterministicVerdict = false
         });
     }
 }

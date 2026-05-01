@@ -88,6 +88,9 @@ public static class ValidationFindingAggregator
                     Severity = ordered.Max(finding => finding.Severity),
                     Summary = representative.Summary,
                     Recommendation = representative.Recommendation,
+                    EvidenceKind = representative.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var evidenceKind)
+                        ? evidenceKind
+                        : string.Empty,
                     AffectedComponents = affectedComponents,
                     TotalComponents = denominator,
                     CoverageRatio = CalculateCoverageRatio(affectedComponents, denominator),
@@ -114,6 +117,8 @@ public sealed class ValidationFindingCoverage
     public string Summary { get; init; } = string.Empty;
 
     public string? Recommendation { get; init; }
+
+    public string EvidenceKind { get; init; } = string.Empty;
 
     public int AffectedComponents { get; init; }
 

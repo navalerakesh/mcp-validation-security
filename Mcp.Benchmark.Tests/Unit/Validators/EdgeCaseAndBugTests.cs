@@ -1,6 +1,7 @@
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Authentication;
 using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
@@ -27,7 +28,7 @@ public class EdgeCaseAndBugTests
         _toolValidator = new ToolValidator(
             new Mock<ILogger<ToolValidator>>().Object,
             _httpClient.Object,
-            new Mock<ISchemaValidator>().Object,
+            new JsonSchemaValidator(),
             new Mock<ISchemaRegistry>().Object,
             new Mock<IAuthenticationService>().Object,
             CreateSafeContentAnalyzer().Object,
@@ -188,6 +189,111 @@ public class EdgeCaseAndBugTests
         // 503 should NOT be classified as "attack blocked" — it's just the service being down
         // Currently it IS classified as blocked (the bug), so this test documents expected behavior
         result.AttackSimulations.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public async Task SecurityAttack_ShouldPreserveProbeContextOnAttackSimulation()
+    {
+        var securityValidator = CreateSecurityValidator();
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var discoveryProbe = new ProbeContext
+        {
+            ProbeId = "probe-tools-list",
+            Method = ValidationConstants.Methods.ToolsList,
+            Transport = "http",
+            AuthApplied = true,
+            AuthStatus = ProbeAuthStatus.Applied,
+            ResponseClassification = ProbeResponseClassification.Success,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 200
+        };
+        var attackProbe = new ProbeContext
+        {
+            ProbeId = "probe-tools-call",
+            Method = ValidationConstants.Methods.ToolsCall,
+            Transport = "http",
+            AuthApplied = true,
+            AuthStatus = ProbeAuthStatus.Applied,
+            ResponseClassification = ProbeResponseClassification.ProtocolError,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 400
+        };
+
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsList, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"echo\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"msg\":{\"type\":\"string\"}}}}]}}",
+                ProbeContext = discoveryProbe
+            });
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsCall, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 400,
+                IsSuccess = false,
+                Error = "Invalid input",
+                ProbeContext = attackProbe
+            });
+
+        var result = await securityValidator.SimulateAttackVectorsAsync(config, new[] { ValidationConstants.AttackVectors.InputValidation1 }, CancellationToken.None);
+
+        var attack = result.AttackSimulations.Should().ContainSingle().Subject;
+        attack.ProbeContexts.Should().NotBeNull();
+        attack.ProbeContexts!.Should().HaveCount(2);
+        attack.ProbeContexts.Should().Contain(context => context.ProbeId == discoveryProbe.ProbeId && context.ResponseClassification == ProbeResponseClassification.Success);
+        attack.ProbeContexts.Should().Contain(context => context.ProbeId == attackProbe.ProbeId && context.ResponseClassification == ProbeResponseClassification.ProtocolError);
+        attack.Evidence.Should().ContainKey("probeIds");
+        attack.Evidence["probeIds"].Should().Be("probe-tools-list,probe-tools-call");
+    }
+
+    [Fact]
+    public async Task SecurityAttack_WithNoStringToolTarget_ShouldSkipInsteadOfFallingBackToToolsList()
+    {
+        var securityValidator = CreateSecurityValidator();
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsList, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"counter\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}}]}}"
+            });
+
+        var result = await securityValidator.SimulateAttackVectorsAsync(config, new[] { ValidationConstants.AttackVectors.InputValidation1 }, CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        var attack = result.AttackSimulations.Should().ContainSingle().Subject;
+        AttackSimulationOutcomeResolver.Resolve(attack).Should().Be(AttackSimulationOutcome.Skipped);
+        attack.AttackSuccessful.Should().BeFalse();
+        attack.DefenseSuccessful.Should().BeFalse();
+        _httpClient.Verify(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsCall, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task InputSanitization_WithNoStringToolTarget_ShouldSkipInsteadOfPassingToolsListProbe()
+    {
+        var securityValidator = CreateSecurityValidator();
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+
+        _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsList, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"counter\",\"inputSchema\":{\"type\":\"object\",\"properties\":{\"count\":{\"type\":\"integer\"}}}}]}}"
+            });
+
+        var result = await securityValidator.ValidateInputSanitizationAsync(config, new[]
+        {
+            new SecurityTestPayload { Name = "SQL", Payload = "'; DROP TABLE users; --" }
+        }, CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.Message.Should().Contain("no executable string-argument tool target");
+        result.InputValidationResults.Should().ContainSingle(item => item.ActualResponse.StartsWith("Skipped:", StringComparison.Ordinal));
+        _httpClient.Verify(x => x.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsCall, It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     // ─── Multiple tools with mixed validity ──────────────────────

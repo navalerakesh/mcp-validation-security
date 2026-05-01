@@ -22,9 +22,10 @@ For every successful `validate --output <folder>` run, the CLI writes the follow
 | Artifact | Purpose |
 | --- | --- |
 | `mcp-validation-<timestamp>-report.md` | Human-readable Markdown report |
-| `mcp-validation-<timestamp>-report.html` | Shareable HTML report |
+| `mcp-validation-<timestamp>-report.html` | Shareable HTML report with Run Status, Deterministic Verdict, and Trust Level at the top |
 | `mcp-validation-<timestamp>-result.json` | Canonical machine-readable validation result |
 | `mcp-validation-<timestamp>-results.sarif.json` | SARIF findings feed for CI and code-scanning systems |
+| `mcp-validation-<timestamp>-audit.json` | Execution audit manifest for the run |
 
 `validate` now evaluates all documented host profiles by default, so the same run also emits `mcp-validation-<timestamp>-profile-summary.json` with a per-profile compatibility rollup. Use `--client-profile` only when you want to narrow the evaluated host set.
 
@@ -40,6 +41,7 @@ The exact filenames change on every run because they are timestamped. The folder
 
 - It demonstrates an authenticated remote validation flow against a widely recognized MCP endpoint.
 - It shows the full artifact set produced by `validate` without requiring a separate rendering step.
+- It shows the HTML report's top decision surface, which separates release status, deterministic verdict, and L1-L5 trust level.
 - It demonstrates the all-profiles compatibility rollup that produces `*-profile-summary.json` alongside the core artifacts.
 - It provides a realistic example of the type of evidence teams can archive in CI or attach to change reviews.
 
@@ -49,7 +51,7 @@ Other repositories can adopt the validator through the composite action shipped 
 
 ```yaml
 - name: Validate MCP server
-  uses: navalerakesh/mcp-validation-security@main
+  uses: navalerakesh/mcp-validation-security@v1
   with:
     server: https://example.test/mcp
     access: authenticated

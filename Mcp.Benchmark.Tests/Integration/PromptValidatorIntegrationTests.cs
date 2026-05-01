@@ -39,7 +39,7 @@ public class PromptValidatorIntegrationTests
     }
 
     [Fact]
-    public async Task ValidatePromptDiscovery_WithAuthRequired_ShouldSkip()
+    public async Task ValidatePromptDiscovery_WithAuthRequired_ShouldReturnAuthRequired()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -47,7 +47,7 @@ public class PromptValidatorIntegrationTests
 
         var result = await _validator.ValidatePromptDiscoveryAsync(config, new PromptTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
     [Fact]

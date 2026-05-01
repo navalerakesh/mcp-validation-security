@@ -144,4 +144,21 @@ public sealed class ModelEvaluationArtifact
     public ValidationVerdict? BaselineVerdict { get; init; }
 
     public IReadOnlyList<string> AdvisoryNotes { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<ModelEvaluationFindingLink> RelatedDeterministicFindings { get; init; } = Array.Empty<ModelEvaluationFindingLink>();
+}
+
+public sealed class ModelEvaluationFindingLink
+{
+    public string RuleId { get; init; } = string.Empty;
+
+    public string Category { get; init; } = string.Empty;
+
+    public string Component { get; init; } = string.Empty;
+
+    public string EvidenceKind { get; init; } = string.Empty;
+
+    public string Summary { get; init; } = string.Empty;
+
+    public string? Recommendation { get; init; }
 }

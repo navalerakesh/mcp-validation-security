@@ -34,6 +34,8 @@ internal sealed class ValidationHtmlReportDocument
 
     public required IReadOnlyList<string> ActionHints { get; init; }
 
+    public required IReadOnlyList<RemediationOrderGroup> RemediationOrder { get; init; }
+
     public required IReadOnlyList<string> AdditionalRecommendations { get; init; }
 
     public ValidationHtmlBootstrapSummary? Bootstrap { get; init; }
@@ -51,9 +53,15 @@ internal sealed class ValidationHtmlHero
 
     public required HtmlReportTone StatusTone { get; init; }
 
-    public required string TrustLabel { get; init; }
+    public required string VerdictLabel { get; init; }
 
-    public required HtmlReportTone TrustTone { get; init; }
+    public required HtmlReportTone VerdictTone { get; init; }
+
+    public required string TrustLevelLabel { get; init; }
+
+    public required string TrustLevelDetail { get; init; }
+
+    public required HtmlReportTone TrustLevelTone { get; init; }
 
     public required IReadOnlyList<ValidationHtmlMetaItem> MetaItems { get; init; }
 }

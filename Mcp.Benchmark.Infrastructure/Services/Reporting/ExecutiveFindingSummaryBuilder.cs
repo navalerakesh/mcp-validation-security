@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
@@ -11,6 +12,7 @@ internal static class ExecutiveFindingSummaryBuilder
         var findings = new List<string>();
 
         AddIfPresent(findings, BuildSpecSummary(result));
+        AddIfPresent(findings, BuildGuidelineSummary(result));
         AddIfPresent(findings, BuildGuidelineSkipSummary(result));
         AddIfPresent(findings, BuildHeuristicSummary(result));
         AddIfPresent(findings, BuildCompatibilitySummary(result));
@@ -25,13 +27,7 @@ internal static class ExecutiveFindingSummaryBuilder
 
     public static string FormatAuthorityTag(ValidationRuleSource source)
     {
-        return source switch
-        {
-            ValidationRuleSource.Spec => "[Spec]",
-            ValidationRuleSource.Guideline => "[Guideline]",
-            ValidationRuleSource.Heuristic => "[Heuristic]",
-            _ => "[Operational]"
-        };
+        return ValidationAuthorityHierarchy.FormatTag(source);
     }
 
     public static string? BuildGuidelineSkipHint(ValidationResult result)
@@ -61,14 +57,26 @@ internal static class ExecutiveFindingSummaryBuilder
             return $"[Spec] {specViolations.Count} protocol violation(s), led by {representative.CheckId}: {representative.Description}";
         }
 
-        var specDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Spec, blockingOnly: true);
+        var specDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Spec, blockingOnly: false);
         if (specDecisions.Count == 0)
         {
             return null;
         }
 
         var decision = specDecisions[0];
-        return $"[Spec] {specDecisions.Count} blocking signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
+        return $"[Spec] {specDecisions.Count} spec signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
+    }
+
+    private static string? BuildGuidelineSummary(ValidationResult result)
+    {
+        var guidelineDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Guideline, blockingOnly: false);
+        if (guidelineDecisions.Count == 0)
+        {
+            return null;
+        }
+
+        var decision = guidelineDecisions[0];
+        return $"[Guideline] {guidelineDecisions.Count} guidance signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
     }
 
     private static string? BuildGuidelineSkipSummary(ValidationResult result)
@@ -106,7 +114,7 @@ internal static class ExecutiveFindingSummaryBuilder
         if (aiReadinessFindings is { Count: > 0 })
         {
             var representative = aiReadinessFindings[0];
-            return $"[Heuristic] {aiReadinessFindings.Count} AI-readiness advisory signal(s), led by {representative.RuleId}: {representative.Summary}";
+            return $"[Heuristic] {aiReadinessFindings.Count} deterministic AI-readiness advisory signal(s), led by {representative.RuleId}: {representative.Summary}";
         }
 
         var heuristicDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Heuristic, blockingOnly: false);

@@ -44,24 +44,22 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             // Check connectivity and auth status - use provided auth if available
             var authCheckResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
             
-            // If we get 401/403, it means either:
-            // 1. No auth provided and server requires it -> Skip (Compliant)
-            // 2. Auth provided but invalid -> Skip (with warning)
+            // If we get 401/403, it means performance evidence cannot be collected until authentication succeeds.
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(authCheckResponse);
             if (authChallenge.RequiresAuthentication)
             {
-                result.Status = TestStatus.Skipped;
-                result.Score = ValidationCalibration.AdvisoryPerformanceScore;
+                result.Status = TestStatus.AuthRequired;
+                result.Score = 0;
                 
                 // Determine if this is a failure (bad token) or just enforcement (no token)
                 bool isAuthFailure = serverConfig.Authentication != null && 
                                      !string.IsNullOrEmpty(serverConfig.Authentication.Token);
 
                 string message = isAuthFailure
-                    ? "SKIPPED: Authentication failed (invalid token) during performance test initialization"
+                    ? "Authentication failed during performance test initialization."
                     : (authChallenge.HasWwwAuthenticateHeader 
-                        ? "Server properly secured — performance testing deferred (requires authentication)"
-                        : "Server requires authentication — performance testing skipped");
+                        ? "Performance testing requires authentication; rerun with credentials for load evidence."
+                        : "Performance testing requires authentication but the challenge omitted WWW-Authenticate metadata.");
 
                 result.Message = message;
                 result.PerformanceBottlenecks.Add(message);
@@ -71,11 +69,11 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                     Category = "Performance",
                     Component = "load-testing",
                     Severity = ValidationFindingSeverity.Info,
-                    Summary = "Performance score is advisory because the endpoint requires authentication before a synthetic load probe can be run safely.",
+                    Summary = "Performance evidence could not be collected because the endpoint requires authentication before a synthetic load probe can run safely.",
                     Recommendation = "Run a workload-specific performance benchmark with appropriate credentials if operational capacity must be measured.",
                     Source = ValidationRuleSource.Guideline
                 });
-                Logger.LogInformation("Performance testing skipped: {Message}", message);
+                Logger.LogInformation("Performance testing requires authentication: {Message}", message);
                 return result;
             }
             

@@ -40,6 +40,10 @@ public class ToolAiReadinessAnalyzerTests
         analysis.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
         analysis.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
         analysis.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.AiReadinessTokenBudgetWarning);
+        analysis.Findings.Where(f => f.RuleId.StartsWith("AI.TOOL.SCHEMA.", StringComparison.Ordinal) && !f.RuleId.Contains("TOKEN_BUDGET", StringComparison.Ordinal))
+          .Should().OnlyContain(f => f.Metadata[AiReadinessEvidenceKinds.MetadataKey] == AiReadinessEvidenceKinds.DeterministicSchemaHeuristic);
+        analysis.Findings.Single(f => f.RuleId == ValidationFindingRuleIds.AiReadinessTokenBudgetWarning)
+          .Metadata.Should().Contain(AiReadinessEvidenceKinds.MetadataKey, AiReadinessEvidenceKinds.DeterministicPayloadHeuristic);
     }
 
     [Fact]
@@ -64,6 +68,8 @@ public class ToolAiReadinessAnalyzerTests
         assessment.Finding.RuleId.Should().Be(ValidationFindingRuleIds.ToolLlmFriendliness);
         assessment.Finding.Severity.Should().Be(ValidationFindingSeverity.Info);
         assessment.Finding.Summary.Should().Contain("Pro-LLM");
+        assessment.Finding.Metadata.Should().Contain(AiReadinessEvidenceKinds.MetadataKey, AiReadinessEvidenceKinds.DeterministicErrorHeuristic);
+        assessment.Finding.Metadata.Should().Contain(AiReadinessEvidenceKinds.ModelEvaluationImpactKey, AiReadinessEvidenceKinds.NotMeasuredModelImpact);
         assessment.SupportingIssues.Should().BeEmpty();
     }
 

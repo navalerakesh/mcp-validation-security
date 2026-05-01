@@ -8,6 +8,58 @@ public static class ReportSnapshotTestData
 {
     public static ValidationResult CreateComprehensiveResult()
     {
+        var authProbe = new ProbeContext
+        {
+            ProbeId = "probe-auth-tools-list-401",
+            Method = "tools/list",
+            Transport = "http",
+            ProtocolVersion = "2025-11-25",
+            AuthApplied = false,
+            AuthStatus = ProbeAuthStatus.AuthRequired,
+            ResponseClassification = ProbeResponseClassification.AuthenticationChallenge,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 401,
+            Reason = "Unauthenticated tools/list returned WWW-Authenticate."
+        };
+        var attackDiscoveryProbe = new ProbeContext
+        {
+            ProbeId = "probe-attack-tools-list-200",
+            Method = "tools/list",
+            Transport = "http",
+            ProtocolVersion = "2025-11-25",
+            AuthApplied = true,
+            AuthStatus = ProbeAuthStatus.Applied,
+            ResponseClassification = ProbeResponseClassification.Success,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 200
+        };
+        var attackExecutionProbe = new ProbeContext
+        {
+            ProbeId = "probe-attack-tools-call-400",
+            Method = "tools/call",
+            Transport = "http",
+            ProtocolVersion = "2025-11-25",
+            AuthApplied = true,
+            AuthStatus = ProbeAuthStatus.Applied,
+            ResponseClassification = ProbeResponseClassification.ProtocolError,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 400,
+            Reason = "Injected argument rejected with JSON-RPC error."
+        };
+        var promptInjectionProbe = new ProbeContext
+        {
+            ProbeId = "probe-prompt-get-reflection-200",
+            Method = "prompts/get",
+            Transport = "http",
+            ProtocolVersion = "2025-11-25",
+            AuthApplied = true,
+            AuthStatus = ProbeAuthStatus.Applied,
+            ResponseClassification = ProbeResponseClassification.Success,
+            Confidence = EvidenceConfidenceLevel.High,
+            StatusCode = 200,
+            Reason = "Prompt response reflected untrusted content."
+        };
+
         var result = new ValidationResult
         {
             ValidationId = "validation-snapshot-001",
@@ -216,7 +268,53 @@ public static class ReportSnapshotTestData
                             Description = "Server reflected untrusted prompt content without sanitization.",
                             Remediation = "Sanitize and label untrusted content before returning it.",
                             IsExploitable = true,
-                            CvssScore = 9.1
+                            CvssScore = 9.1,
+                            ProbeContexts = new List<ProbeContext> { promptInjectionProbe }
+                        }
+                    },
+                    AuthenticationTestResult = new AuthenticationTestResult
+                    {
+                        Status = TestStatus.Passed,
+                        ComplianceScore = 100,
+                        TestScenarios = new List<AuthenticationScenario>
+                        {
+                            new()
+                            {
+                                ScenarioName = "No Auth - tools/list",
+                                TestType = "No Auth",
+                                Method = "tools/list",
+                                ExpectedBehavior = "4xx (Secure Rejection)",
+                                ActualBehavior = "401 Unauthorized with challenge",
+                                StatusCode = "401",
+                                Analysis = "Returned 401 with WWW-Authenticate.",
+                                IsCompliant = true,
+                                IsSecure = true,
+                                IsStandardsAligned = true,
+                                AssessmentDisposition = AuthenticationAssessmentDisposition.StandardsAligned,
+                                ComplianceReason = "Authentication challenge was standards-aligned.",
+                                WwwAuthenticateHeader = "Bearer resource_metadata=\"https://snapshot.example.test/.well-known/oauth-protected-resource\"",
+                                ProbeContext = authProbe
+                            }
+                        }
+                    },
+                    AttackSimulations = new List<AttackSimulationResult>
+                    {
+                        new()
+                        {
+                            AttackVector = "MCP-SEC-001",
+                            Description = "JSON-RPC Error Smuggling",
+                            AttackSuccessful = false,
+                            DefenseSuccessful = true,
+                            ServerResponse = "Rejected injected argument with JSON-RPC error -32602.",
+                            ExecutionTimeMs = 18,
+                            ProbeContexts = new List<ProbeContext> { attackDiscoveryProbe, attackExecutionProbe },
+                            Evidence = new Dictionary<string, object>
+                            {
+                                ["outcome"] = "blocked",
+                                ["probeIds"] = "probe-attack-tools-list-200,probe-attack-tools-call-400",
+                                ["probeResponseClassifications"] = "Success,ProtocolError",
+                                ["probeAuthStatuses"] = "Applied,Applied"
+                            }
                         }
                     },
                     SecurityRecommendations = new List<string>
@@ -341,6 +439,14 @@ public static class ReportSnapshotTestData
                         DisplayName = "Authentication Challenge Matrix",
                         Status = TestStatus.Skipped,
                         Summary = "Authentication challenge completed under deferred bootstrap review.",
+                        Findings = new List<ValidationFinding>()
+                    },
+                    new()
+                    {
+                        ScenarioId = "security-attack-simulations",
+                        DisplayName = "Attack Simulation Matrix",
+                        Status = TestStatus.Passed,
+                        Summary = "Evaluated 1 attack simulation(s).",
                         Findings = new List<ValidationFinding>()
                     },
                     new()
@@ -532,7 +638,23 @@ public static class ReportSnapshotTestData
                         {
                             ["statusCode"] = "401",
                             ["disposition"] = "StandardsAligned"
-                        }
+                        },
+                        ProbeContexts = new List<ProbeContext> { authProbe }
+                    },
+                    new()
+                    {
+                        Id = "attack-mcp-sec-001",
+                        LayerId = "security-boundaries",
+                        Component = "MCP-SEC-001",
+                        ObservationKind = "attack-simulation",
+                        ScenarioId = "security-attack-simulations",
+                        RedactedPayloadPreview = "Rejected injected argument with JSON-RPC error -32602.",
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["attackSuccessful"] = "False",
+                            ["defenseSuccessful"] = "True"
+                        },
+                        ProbeContexts = new List<ProbeContext> { attackDiscoveryProbe, attackExecutionProbe }
                     }
                 }
             },
@@ -568,6 +690,21 @@ public static class ReportSnapshotTestData
                 }
             }
         };
+
+        foreach (var tool in result.ToolValidation!.ToolResults)
+        {
+            var controlAnalysis = AiSafetyControlAnalyzer.AnalyzeTool(new AiSafetyControlTarget
+            {
+                Name = tool.ToolName,
+                Description = tool.Description,
+                ReadOnlyHint = tool.ReadOnlyHint,
+                DestructiveHint = tool.DestructiveHint,
+                OpenWorldHint = tool.OpenWorldHint,
+                ParameterNames = tool.InputParameterNames
+            });
+            tool.AiSafetyControlEvidence.AddRange(controlAnalysis.Evidence);
+            result.ToolValidation.AiSafetyControlEvidence.AddRange(controlAnalysis.Evidence);
+        }
 
         result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
         result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)

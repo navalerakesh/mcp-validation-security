@@ -27,6 +27,7 @@ jobs:
       - name: Sign recent release assets
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           RELEASE_COUNT: ${{ inputs.release-count }}
         run: |
           set -euo pipefail
@@ -60,13 +61,20 @@ jobs:
               ! -name '*.intoto.jsonl' \
               -print | sort)
 
-            if [[ "${#artifacts[@]}" -eq 0 ]]; then
+            unsigned_artifacts=()
+            for artifact in "${artifacts[@]}"; do
+              if [[ ! -f "$artifact.sig" || ! -f "$artifact.pem" || ! -f "$artifact.sigstore.json" ]]; then
+                unsigned_artifacts+=("$artifact")
+              fi
+            done
+
+            if [[ "${#unsigned_artifacts[@]}" -eq 0 ]]; then
               echo "No unsigned assets found for $tag."
               continue
             fi
 
             upload_files=()
-            for artifact in "${artifacts[@]}"; do
+            for artifact in "${unsigned_artifacts[@]}"; do
               cosign sign-blob --yes "$artifact" \
                 --bundle "$artifact.sigstore.json" \
                 --output-signature "$artifact.sig" \

@@ -237,6 +237,13 @@ public class McpServerConfig
     public McpServerProfile Profile { get; set; } = McpServerProfile.Unspecified;
 
     /// <summary>
+    /// Gets or sets the operating context used to calibrate static content safety risk.
+    /// </summary>
+    [JsonPropertyName("contentSafetyContext")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public ContentSafetyContextProfile ContentSafetyContext { get; set; } = ContentSafetyContextProfile.Unspecified;
+
+    /// <summary>
     /// Creates a copy of this configuration with secrets (tokens, passwords and sensitive headers) redacted
     /// for safe persistence to disk or logs.
     /// </summary>
@@ -248,6 +255,7 @@ public class McpServerConfig
             Transport = Transport,
             ProtocolVersion = ProtocolVersion,
             Profile = Profile,
+            ContentSafetyContext = ContentSafetyContext,
             Authentication = Authentication?.CloneWithoutSecrets(),
             TimeoutMs = TimeoutMs,
             Headers = new Dictionary<string, string>(),

@@ -98,6 +98,25 @@ public static class SchemaRegistryProtocolVersions
     }
 
     /// <summary>
+    /// Returns whether the provided protocol version has an embedded schema bundle.
+    /// </summary>
+    public static bool IsAvailableVersion(string? protocolVersion, ISchemaRegistry? schemaRegistry = null)
+    {
+        if (string.IsNullOrWhiteSpace(protocolVersion))
+        {
+            return false;
+        }
+
+        var normalized = protocolVersion.Trim();
+        if (string.Equals(normalized, LatestAlias, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        return GetAvailableVersions(schemaRegistry).Any(version => string.Equals(version.Value, normalized, StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// Returns the preferred fallback schema version when the negotiated version is unavailable.
     /// </summary>
     public static ProtocolVersion GetFallbackSchemaVersion(ISchemaRegistry? schemaRegistry = null)

@@ -203,7 +203,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.Inconclusive);
         result.Message.Should().Contain("tools/list probe inconclusive");
         // Timeout/retry pressure is treated as inconclusive rather than a contract failure
     }
@@ -234,7 +234,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
 
         // Assert - Same behavior expected as regular timeout test
         result.Should().NotBeNull();
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.Inconclusive);
         result.Message.Should().Contain("tools/list probe inconclusive");
         // Extended timeout still maps to an inconclusive probe rather than a contract failure
     }

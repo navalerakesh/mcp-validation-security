@@ -60,7 +60,7 @@ public class SecurityFocusedScoringStrategyTests
     }
 
     [Fact]
-    public void CalculateScore_Should_Apply_CoverageMultiplier_When_CategoriesSkipped()
+    public void CalculateScore_Should_Report_CoverageSeparately_When_CategoriesSkipped()
     {
         // Arrange
         var results = BuildBaselineResult(McpServerProfile.Authenticated);
@@ -72,7 +72,7 @@ public class SecurityFocusedScoringStrategyTests
         // Assert
         // Protocol (0.30) + Security (0.45) = 0.75 included when the other weighted categories are absent.
         score.CoverageRatio.Should().BeApproximately(0.75, 0.01);
-        score.OverallScore.Should().BeApproximately(75.0, 0.01);
+        score.OverallScore.Should().BeApproximately(100.0, 0.01);
         score.Status.Should().Be(ValidationStatus.Passed);
     }
 

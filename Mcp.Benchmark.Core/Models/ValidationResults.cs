@@ -624,6 +624,16 @@ public class ValidationSummary
     public int SkippedTests { get; set; } = 0;
 
     /// <summary>
+    /// Gets or sets the number of tests blocked by authentication requirements.
+    /// </summary>
+    public int AuthRequiredTests { get; set; } = 0;
+
+    /// <summary>
+    /// Gets or sets the number of tests that ended without enough evidence for pass/fail.
+    /// </summary>
+    public int InconclusiveTests { get; set; } = 0;
+
+    /// <summary>
     /// Gets or sets the number of critical issues found.
     /// </summary>
     public int CriticalIssues { get; set; } = 0;
@@ -643,4 +653,9 @@ public class ValidationSummary
     /// Used by scoring strategies to surface coverage-aware scores.
     /// </summary>
     public double CoverageRatio { get; set; } = 1.0;
+
+    /// <summary>
+    /// Gets or sets the evidence confidence ratio separate from the score.
+    /// </summary>
+    public double EvidenceConfidenceRatio { get; set; } = 1.0;
 }

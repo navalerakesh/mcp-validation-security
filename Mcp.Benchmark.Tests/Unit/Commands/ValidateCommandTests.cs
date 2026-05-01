@@ -675,7 +675,25 @@ public sealed class ValidateCommandTests : IDisposable
                 ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted },
-                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted }
+                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted },
+                ToolValidation = new ToolTestResult
+                {
+                    AiReadinessFindings =
+                    [
+                        new()
+                        {
+                            RuleId = ValidationFindingRuleIds.AiReadinessVagueStringSchema,
+                            Category = "AiReadiness",
+                            Component = "search_docs",
+                            Severity = ValidationFindingSeverity.Medium,
+                            Summary = "Tool 'search_docs' exposes a vague freeform parameter.",
+                            Metadata =
+                            {
+                                [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicSchemaHeuristic
+                            }
+                        }
+                    ]
+                }
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -734,6 +752,9 @@ public sealed class ValidateCommandTests : IDisposable
         var modelEvaluationPath = Directory.GetFiles(outputRoot, "*-model-evaluation.json").Single();
         var modelEvaluationJson = await File.ReadAllTextAsync(modelEvaluationPath);
         modelEvaluationJson.Should().Contain("\"status\": \"Completed\"");
+        modelEvaluationJson.Should().Contain("\"relatedDeterministicFindings\"");
+        modelEvaluationJson.Should().Contain(ValidationFindingRuleIds.AiReadinessVagueStringSchema);
+        modelEvaluationJson.Should().Contain(AiReadinessEvidenceKinds.DeterministicSchemaHeuristic);
         var resultJsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         var resultJson = await File.ReadAllTextAsync(resultJsonPath);
         resultJson.Should().NotContain("modelEvaluation");

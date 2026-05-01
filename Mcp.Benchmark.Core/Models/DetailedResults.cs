@@ -1,9 +1,9 @@
+using System.Text.Json.Serialization;
+
 namespace Mcp.Benchmark.Core.Models;
 
 /// <summary>
 /// Represents JSON-RPC 2.0 compliance test results.
-using System.Text.Json.Serialization;
-
 /// </summary>
 public class JsonRpcComplianceResult
 {
@@ -57,6 +57,36 @@ public class InitializationTestResult
     /// Gets or sets whether client information was accepted correctly.
     /// </summary>
     public bool ClientInfoAccepted { get; set; } = false;
+
+    /// <summary>
+    /// Gets or sets the protocol version advertised by the validator in initialize.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RequestedProtocolVersion { get; set; }
+
+    /// <summary>
+    /// Gets or sets the protocol version returned by the server in initialize.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ServerProtocolVersion { get; set; }
+
+    /// <summary>
+    /// Gets or sets the embedded schema version used to interpret the initialize result.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SchemaVersion { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether schema resolution fell back because the server-declared version is unavailable.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? SchemaVersionFallbackApplied { get; set; }
+
+    /// <summary>
+    /// Gets or sets whether the server-declared protocol version is present in the embedded schema registry.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ServerProtocolVersionSupported { get; set; }
 
     /// <summary>
     /// Gets or sets the time taken for initialization in milliseconds.
@@ -317,6 +347,11 @@ public class IndividualToolResult
     /// based on metadata-only analysis (no live content).
     /// </summary>
     public List<ContentSafetyFinding> ContentSafetyFindings { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets consent, human-control, audit, and data-boundary evidence for this tool.
+    /// </summary>
+    public List<AiSafetyControlEvidence> AiSafetyControlEvidence { get; set; } = new();
 }
 
 /// <summary>

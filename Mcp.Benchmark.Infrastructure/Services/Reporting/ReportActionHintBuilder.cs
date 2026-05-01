@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
@@ -22,6 +23,18 @@ internal static partial class ReportActionHintBuilder
             }
         }
 
+        var guidelineDecision = SelectActionableDecision(result, ValidationRuleSource.Guideline);
+        if (guidelineDecision != null)
+        {
+            hints.Add(Compact($"{ValidationAuthorityHierarchy.FormatTag(guidelineDecision.Authority)} {guidelineDecision.Category}: {guidelineDecision.Summary}"));
+        }
+
+        var guidelineSkipHint = ExecutiveFindingSummaryBuilder.BuildGuidelineSkipHint(result);
+        if (!string.IsNullOrWhiteSpace(guidelineSkipHint))
+        {
+            hints.Add(Compact(guidelineSkipHint));
+        }
+
         if (result.SecurityTesting?.Vulnerabilities?.Count > 0)
         {
             foreach (var vulnerability in result.SecurityTesting.Vulnerabilities
@@ -32,23 +45,17 @@ internal static partial class ReportActionHintBuilder
             }
         }
 
-        var guidelineSkipHint = ExecutiveFindingSummaryBuilder.BuildGuidelineSkipHint(result);
-        if (!string.IsNullOrWhiteSpace(guidelineSkipHint))
-        {
-            hints.Add(Compact(guidelineSkipHint));
-        }
-
         if (hints.Count == 0 && result.PolicyOutcome is { Passed: false })
         {
             foreach (var decision in result.VerdictAssessment?.BlockingDecisions
-                         .OrderBy(item => GetAuthorityOrder(item.Authority))
+                         .OrderBy(item => ValidationAuthorityHierarchy.GetSortOrder(item.Authority))
                          .ThenByDescending(item => item.Gate)
                          .ThenByDescending(item => item.Severity)
                          .Where(item => !string.IsNullOrWhiteSpace(item.Summary))
                          .Take(2)
                          ?? Enumerable.Empty<DecisionRecord>())
             {
-                hints.Add(Compact($"{ExecutiveFindingSummaryBuilder.FormatAuthorityTag(decision.Authority)} {decision.Category}: {decision.Summary}"));
+                hints.Add(Compact($"{ValidationAuthorityHierarchy.FormatTag(decision.Authority)} {decision.Category}: {decision.Summary}"));
             }
         }
 
@@ -79,15 +86,14 @@ internal static partial class ReportActionHintBuilder
             .ToList();
     }
 
-    private static int GetAuthorityOrder(ValidationRuleSource source)
+    private static DecisionRecord? SelectActionableDecision(ValidationResult result, ValidationRuleSource authority)
     {
-        return source switch
-        {
-            ValidationRuleSource.Spec => 0,
-            ValidationRuleSource.Guideline => 1,
-            ValidationRuleSource.Heuristic => 2,
-            _ => 3
-        };
+        return (result.VerdictAssessment?.BlockingDecisions ?? Enumerable.Empty<DecisionRecord>())
+            .Concat(result.VerdictAssessment?.TriggeredDecisions ?? Enumerable.Empty<DecisionRecord>())
+            .Where(item => item.Authority == authority && !string.IsNullOrWhiteSpace(item.Summary))
+            .OrderByDescending(item => item.Gate)
+            .ThenByDescending(item => item.Severity)
+            .FirstOrDefault();
     }
 
     private static string BuildHint(string prefix, string? recommendation, string? fallback)

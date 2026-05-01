@@ -36,7 +36,7 @@ public class ResourceValidatorIntegrationTests
     }
 
     [Fact]
-    public async Task ValidateResourceDiscovery_WithAuthRequired_ShouldSkip()
+    public async Task ValidateResourceDiscovery_WithAuthRequired_ShouldReturnAuthRequired()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClientMock.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<CancellationToken>()))
@@ -44,7 +44,7 @@ public class ResourceValidatorIntegrationTests
 
         var result = await _validator.ValidateResourceDiscoveryAsync(config, new ResourceTestingConfig(), CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Skipped);
+        result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
     [Fact]

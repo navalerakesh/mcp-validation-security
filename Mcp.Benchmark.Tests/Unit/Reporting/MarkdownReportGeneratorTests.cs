@@ -1,5 +1,6 @@
 using System.Globalization;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using FluentAssertions;
@@ -126,6 +127,42 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithZeroCatalogs_ShouldUseApplicabilityLanguage()
+    {
+        var result = BuildMinimalResult();
+        result.ToolValidation = new ToolTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the tools capability.",
+            Issues = new List<string> { "Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped." }
+        };
+        result.ResourceTesting = new ResourceTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the resources capability.",
+            Issues = new List<string> { "Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped." }
+        };
+        result.PromptTesting = new PromptTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 100,
+            Message = "Server does not advertise the prompts capability.",
+            Issues = new List<string> { "Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped." }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.");
+        report.Should().Contain("Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.");
+        report.Should().Contain("Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.");
+        report.Should().NotContain("0 tools discovered and validated");
+        report.Should().NotContain("0 resources discovered and validated");
+        report.Should().NotContain("0 prompts discovered and validated");
+    }
+
+    [Fact]
     public void GenerateReport_WithAttackSimulations_ShouldShowBlockedAndReflected()
     {
         var result = BuildMinimalResult();
@@ -190,6 +227,204 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithMixedAuthorityFindings_ShouldShowNormativeOrderAndLegend()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.SPEC.BLOCKER",
+                    Category = "Protocol",
+                    Description = "Spec violation.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Fix the spec violation."
+                }
+            }
+        };
+        result.ToolValidation = new ToolTestResult
+        {
+            Findings = new List<ValidationFinding>
+            {
+                new()
+                {
+                    RuleId = "MCP.GUIDELINE.HINT",
+                    Category = "Guidance",
+                    Component = "tool",
+                    Source = ValidationRuleSource.Guideline,
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = "Guideline finding."
+                }
+            }
+        };
+        result.SecurityTesting = new SecurityTestResult
+        {
+            Vulnerabilities = new List<SecurityVulnerability>
+            {
+                new()
+                {
+                    Id = "MCP.HEURISTIC.WARNING",
+                    Category = "Security",
+                    AffectedComponent = "tool",
+                    Severity = VulnerabilitySeverity.Critical,
+                    Description = "Heuristic warning."
+                }
+            }
+        };
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var report = _generator.GenerateReport(result);
+
+        var specIndex = report.IndexOf("- [Spec]", StringComparison.Ordinal);
+        var guidelineIndex = report.IndexOf("- [Guideline]", StringComparison.Ordinal);
+        var heuristicIndex = report.IndexOf("- [Heuristic]", StringComparison.Ordinal);
+
+        specIndex.Should().BeGreaterThanOrEqualTo(0);
+        guidelineIndex.Should().BeGreaterThan(specIndex);
+        heuristicIndex.Should().BeGreaterThan(guidelineIndex);
+        report.Should().Contain(ValidationAuthorityHierarchy.Legend);
+    }
+
+    [Fact]
+    public void GenerateReport_WithHighSeverityViolationContext_ShouldRenderContextDetails()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.INIT.VERSION_NEGOTIATION",
+                    Category = "Initialization",
+                    Description = "Server ignored the requested MCP protocol version.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Return the negotiated protocol version.",
+                    Context = new Dictionary<string, object>
+                    {
+                        ["requestedProtocolVersion"] = "2025-11-25",
+                        ["serverProtocolVersion"] = "2025-03-26",
+                        ["expected"] = "initialize.result.protocolVersion matches negotiated version",
+                        ["actual"] = "2025-03-26"
+                    }
+                },
+                new()
+                {
+                    CheckId = "MCP.LOW.CONTEXT",
+                    Category = "Initialization",
+                    Description = "Low severity detail.",
+                    Severity = ViolationSeverity.Low,
+                    Context = new Dictionary<string, object>
+                    {
+                        ["probeId"] = "low-severity-probe"
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("#### Violation Context");
+        report.Should().Contain("| `MCP.INIT.VERSION_NEGOTIATION` | **Requested protocol:** `2025-11-25`; **Server protocol:** `2025-03-26`; **Expected:** `initialize.result.protocolVersion matches negotiated version`; **Actual:** `2025-03-26` |");
+        report.Should().NotContain("low-severity-probe");
+    }
+
+    [Fact]
+    public void GenerateReport_WithMixedRemediationSignals_ShouldShowDependencyOrderedRemediationOrder()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Violations = new List<ComplianceViolation>
+            {
+                new()
+                {
+                    CheckId = "MCP.INIT.VERSION_NEGOTIATION",
+                    Category = "Initialization",
+                    Description = "Server ignored the requested MCP protocol version.",
+                    Severity = ViolationSeverity.High,
+                    Recommendation = "Return the negotiated protocol version."
+                }
+            }
+        };
+        result.SecurityTesting = new SecurityTestResult
+        {
+            Vulnerabilities = new List<SecurityVulnerability>
+            {
+                new()
+                {
+                    Id = "MCP.SECURITY.PROMPT_INJECTION",
+                    Category = "PromptInjection",
+                    AffectedComponent = "prompt:get",
+                    Description = "Prompt reflected untrusted instructions.",
+                    Severity = VulnerabilitySeverity.High,
+                    Remediation = "Sanitize and label untrusted prompt content."
+                }
+            }
+        };
+        result.VerdictAssessment = new VerdictAssessment
+        {
+            BlockingDecisions =
+            {
+                new()
+                {
+                    DecisionId = "auth-boundary",
+                    Lane = EvaluationLane.Baseline,
+                    Authority = ValidationRuleSource.Spec,
+                    Origin = EvidenceOrigin.DeterministicObservation,
+                    Gate = GateOutcome.ReviewRequired,
+                    Severity = ValidationFindingSeverity.High,
+                    Category = "Authentication",
+                    Component = "oauth",
+                    Summary = "Bearer token audience was not enforced.",
+                    ImpactAreas = [ImpactArea.AuthenticationBoundary],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["recommendation"] = "Reject bearer tokens with the wrong resource audience."
+                    }
+                },
+                new()
+                {
+                    DecisionId = "capability-contract",
+                    Lane = EvaluationLane.Baseline,
+                    Authority = ValidationRuleSource.Spec,
+                    Origin = EvidenceOrigin.DeterministicObservation,
+                    Gate = GateOutcome.ReviewRequired,
+                    Severity = ValidationFindingSeverity.High,
+                    Category = "CapabilityCoverage",
+                    Component = "tools/call",
+                    Summary = "tools/call was exercised even though tools were not advertised.",
+                    ImpactAreas = [ImpactArea.CapabilityContract],
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["recommendation"] = "Align initialize capabilities with implemented tool support."
+                    }
+                }
+            }
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Recommended Remediation Order");
+        var bootstrapIndex = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
+        var authIndex = report.IndexOf("Priority 2: Authentication Boundary", StringComparison.Ordinal);
+        var capabilityIndex = report.IndexOf("Priority 3: Advertised Capabilities", StringComparison.Ordinal);
+        var safetyIndex = report.IndexOf("Priority 4: AI Safety, Security, And Performance", StringComparison.Ordinal);
+
+        bootstrapIndex.Should().BeGreaterThanOrEqualTo(0);
+        authIndex.Should().BeGreaterThan(bootstrapIndex);
+        capabilityIndex.Should().BeGreaterThan(authIndex);
+        safetyIndex.Should().BeGreaterThan(capabilityIndex);
+        report.Should().Contain("Return the negotiated protocol version.");
+        report.Should().Contain("Reject bearer tokens with the wrong resource audience.");
+        report.Should().Contain("Align initialize capabilities with implemented tool support.");
+        report.Should().Contain("Sanitize and label untrusted prompt content.");
+        report.Should().Contain("Impact after fix");
+    }
+
+    [Fact]
     public void GenerateReport_WithRepeatedAiReadinessFindings_ShouldShowCoverageInsteadOfRawRows()
     {
         var originalCulture = CultureInfo.CurrentCulture;
@@ -234,6 +469,9 @@ public class MarkdownReportGeneratorTests
             var report = _generator.GenerateReport(result);
 
             report.Should().Contain("AI Readiness Assessment");
+            report.Should().Contain("**Evidence basis:** Deterministic schema and payload heuristics.");
+            report.Should().Contain("| Rule ID | Evidence Basis | Source | Coverage | Severity | Finding |");
+            report.Should().Contain("Deterministic schema heuristic");
             report.Should().Contain("2/5 (40%)");
             report.Should().NotContain("2/5 (40 %)");
             report.Should().Contain(ValidationFindingRuleIds.AiReadinessMissingParameterDescriptions);
@@ -355,6 +593,51 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithPerformanceCalibrationOverride_ShouldShowAuditEvidence()
+    {
+        var result = BuildMinimalResult();
+        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
+        result.PerformanceTesting = new PerformanceTestResult
+        {
+            Status = TestStatus.Skipped,
+            Score = 70,
+            LoadTesting = new LoadTestResult
+            {
+                TotalRequests = 20,
+                SuccessfulRequests = 18,
+                FailedRequests = 2,
+                AverageResponseTimeMs = 250
+            },
+            CalibrationOverrides =
+            [
+                new()
+                {
+                    RuleId = ValidationFindingRuleIds.PerformancePublicRemoteAdvisory,
+                    Reason = "Synthetic load probe hit remote capacity limits.",
+                    AffectedTests = ["performance/load-testing"],
+                    Inputs = new Dictionary<string, string>
+                    {
+                        ["serverProfile"] = "Public",
+                        ["successRatio"] = "0.900"
+                    },
+                    BeforeStatus = TestStatus.Failed,
+                    AfterStatus = TestStatus.Skipped,
+                    BeforeScore = 55,
+                    AfterScore = 70,
+                    BeforeSeverity = ValidationFindingSeverity.Medium,
+                    AfterSeverity = ValidationFindingSeverity.Info
+                }
+            ]
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("### Calibration Override Audit");
+        report.Should().Contain("`MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY` | performance/load-testing | `Failed` -> `Skipped` | 55.0 -> 70.0 | `Medium` -> `Info` | Preserved | Synthetic load probe hit remote capacity limits.");
+        report.Should().Contain("serverProfile=Public; successRatio=0.900");
+    }
+
+    [Fact]
     public void GenerateReport_MinimalMode_ShouldPreferExecutiveSections()
     {
         var result = BuildMinimalResult();
@@ -432,7 +715,36 @@ public class MarkdownReportGeneratorTests
 
         report.Should().Contain("[Spec] 1 protocol violation(s), led by MCP.TEST.FAILURE: Protocol contract failed.");
         report.Should().Contain("[Guideline/Skip] 1 scope(s) skipped by validator design, led by batch-processing: Batch envelopes are not advertised for this schema profile.");
-        report.Should().Contain("[Heuristic] 1 AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
+        report.Should().Contain("[Heuristic] 1 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.STRING_CONSTRAINT_MISSING: Tool 'search_docs' exposes a vague freeform parameter.");
+    }
+
+    [Fact]
+    public void GenerateReport_WithMixedEvidenceConfidence_ShouldShowLayerConfidenceSummary()
+    {
+        var result = BuildMinimalResult();
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "tool-surface",
+            Scope = "tools/list",
+            Status = ValidationCoverageStatus.Covered,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Only partial parser-boundary evidence was available."
+        });
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "security-boundaries",
+            Scope = "attack-simulation",
+            Status = ValidationCoverageStatus.AuthRequired,
+            Blocker = ValidationEvidenceBlocker.AuthRequired,
+            Confidence = EvidenceConfidenceLevel.Low,
+            Reason = "Protected surface required credentials."
+        });
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("### Evidence Confidence By Layer");
+        report.Should().Contain("| `tool-surface` | 100.0% | Low (35.0%) | 1 | 0 | 0 | 0 | 0 |");
+        report.Should().Contain("| `security-boundaries` | 0.0% | Low (35.0%) | 0 | 1 | 0 | 0 | 0 |");
     }
 
     [Fact]

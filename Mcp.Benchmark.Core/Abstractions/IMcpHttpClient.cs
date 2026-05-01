@@ -25,6 +25,16 @@ public interface IMcpHttpClient
     Task<HttpResponseMessage> SendAsync(string endpoint, HttpContent content, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Sends a structured HTTP transport probe and captures headers, status, body, and SSE events.
+    /// </summary>
+    Task<HttpTransportProbeResponse> SendHttpTransportProbeAsync(HttpTransportProbeRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends a structured STDIO transport probe and captures stdout, stderr, process lifecycle, and parser-boundary evidence.
+    /// </summary>
+    Task<StdioTransportProbeResponse> SendStdioTransportProbeAsync(StdioTransportProbeRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Tests basic connectivity to the server endpoint.
     /// </summary>
     Task<bool> TestConnectivityAsync(string endpoint, CancellationToken cancellationToken = default);

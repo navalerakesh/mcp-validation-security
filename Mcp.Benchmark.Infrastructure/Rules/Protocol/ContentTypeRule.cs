@@ -2,26 +2,36 @@ using System.Text;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Infrastructure.Registries;
 
 namespace Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
 public sealed class ContentTypeRule : IVersionedValidationRule<ProtocolValidationContext>
 {
-    public string Id => "PROTOCOL-007";
-    public string Description => "Content-Type Requirements";
-    public string SpecVersion => SchemaRegistryProtocolVersions.GetLatestVersion().Value;
+    private readonly ProtocolRuleMatrixEntry _matrixEntry;
+
+    public ContentTypeRule()
+        : this(BuiltInProtocolRuleMatrix.GetRequired(BuiltInProtocolRuleMatrix.RuleIds.HttpRequestContentType))
+    {
+    }
+
+    internal ContentTypeRule(ProtocolRuleMatrixEntry matrixEntry)
+    {
+        _matrixEntry = matrixEntry ?? throw new ArgumentNullException(nameof(matrixEntry));
+    }
+
+    public string Id => _matrixEntry.RuleId;
+    public string Description => _matrixEntry.Title;
+    public string SpecVersion => _matrixEntry.Applicability.ProtocolVersions.FirstOrDefault() ?? SchemaRegistryProtocolVersions.GetLatestVersion().Value;
 
     public ValidationRuleDescriptor Descriptor => new()
     {
         RuleId = Id,
-        Source = ValidationRuleSource.Spec,
-        SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+        Source = _matrixEntry.Source,
+        SpecReference = _matrixEntry.SpecReference
     };
 
-    public ValidationApplicability Applicability => new()
-    {
-        Transports = new[] { "http", "https" }
-    };
+    public ValidationApplicability Applicability => _matrixEntry.Applicability;
 
     public async Task<RuleResult> EvaluateAsync(ProtocolValidationContext context, CancellationToken cancellationToken)
     {
@@ -29,15 +39,24 @@ public sealed class ContentTypeRule : IVersionedValidationRule<ProtocolValidatio
         var content = new StringContent("{\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}", Encoding.UTF8, "text/plain");
         var response = await context.Client.SendAsync(context.Endpoint, content, cancellationToken);
         
-        // Strict servers should reject this with 406 or 415
+        // Strict servers should reject this with 415 (or 406 for older implementations).
         if (response.StatusCode == System.Net.HttpStatusCode.NotAcceptable || 
             response.StatusCode == System.Net.HttpStatusCode.UnsupportedMediaType)
         {
             return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
         }
 
-        // Many servers are lenient, so we also accept success
-        // But we might want to note it if we were being strict
-        return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
+        if ((int)response.StatusCode is 401 or 403)
+        {
+            return new RuleResult { IsCompliant = true, ScoreImpact = 0 };
+        }
+
+        return new RuleResult
+        {
+            IsCompliant = false,
+            FailureReason = $"Server accepted or mishandled a JSON-RPC request with Content-Type text/plain (HTTP {(int)response.StatusCode}).",
+            Severity = ViolationSeverity.High,
+            ScoreImpact = 10
+        };
     }
 }

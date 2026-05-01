@@ -1,0 +1,1010 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "MCP Benchmark",
+          "fullName": "MCP Benchmark Validation Suite",
+          "semanticVersion": "1.0.0",
+          "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
+          "rules": [
+            {
+              "id": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "name": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+              "shortDescription": {
+                "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+              },
+              "fullDescription": {
+                "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+              },
+              "help": {
+                "text": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "batch"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "name": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+              "shortDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "fullDescription": {
+                "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+              },
+              "help": {
+                "text": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "logging/setLevel"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+              "name": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+              },
+              "help": {
+                "text": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "McpGuideline",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "McpGuideline",
+                  "microsoft_docs_search"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "name": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+              },
+              "help": {
+                "text": "Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "microsoft_code_sample_search"
+                ]
+              }
+            },
+            {
+              "id": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+              "name": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+              "shortDescription": {
+                "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+              },
+              "fullDescription": {
+                "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+              },
+              "help": {
+                "text": "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "heuristic",
+                "category": "AiReadiness",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "heuristic",
+                  "AiReadiness",
+                  "microsoft_docs_fetch"
+                ]
+              }
+            },
+            {
+              "id": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "name": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+              "shortDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "fullDescription": {
+                "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+              },
+              "help": {
+                "text": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark."
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "guideline",
+                "category": "Performance",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "guideline",
+                  "Performance",
+                  "tools/list"
+                ]
+              }
+            },
+            {
+              "id": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "name": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+              "shortDescription": {
+                "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+              },
+              "fullDescription": {
+                "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+              },
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
+              "helpUri": null,
+              "properties": {
+                "source": "spec",
+                "category": "Protocol",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "Protocol",
+                  "malformed-json"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-ERR",
+              "name": "MCP-PROTO-ERR",
+              "shortDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "fullDescription": {
+                "text": "JSON-RPC Error Code Violation: Parse Error"
+              },
+              "help": {
+                "text": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            },
+            {
+              "id": "MCP-PROTO-JSONRPC",
+              "name": "MCP-PROTO-JSONRPC",
+              "shortDescription": {
+                "text": "Request format does not comply with JSON-RPC 2.0 specification"
+              },
+              "fullDescription": {
+                "text": "Request format does not comply with JSON-RPC 2.0 specification"
+              },
+              "help": {
+                "text": "Ensure every JSON-RPC request includes \u0022jsonrpc\u0022: \u00222.0\u0022, a string \u0022method\u0022 field, and a string or integer \u0022id\u0022. The \u0022params\u0022 field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc",
+              "properties": {
+                "source": "spec",
+                "category": "JSON-RPC Compliance",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "JSON-RPC Compliance"
+                ]
+              }
+            },
+            {
+              "id": "MCP-HTTP-001",
+              "name": "MCP-HTTP-001",
+              "shortDescription": {
+                "text": "Content-Type requirements not enforced (Server should reject non-JSON)"
+              },
+              "fullDescription": {
+                "text": "Content-Type requirements not enforced (Server should reject non-JSON)"
+              },
+              "help": {
+                "text": "Set the Content-Type header to \u0027application/json\u0027 for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http",
+              "properties": {
+                "source": "spec",
+                "category": "Transport",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "Transport"
+                ]
+              }
+            },
+            {
+              "id": "MCP-HTTP-004",
+              "name": "MCP-HTTP-004",
+              "shortDescription": {
+                "text": "Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85"
+              },
+              "fullDescription": {
+                "text": "Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85"
+              },
+              "help": {
+                "text": "Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http",
+              "properties": {
+                "source": "spec",
+                "category": "Transport",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "Transport"
+                ]
+              }
+            },
+            {
+              "id": "MCP-HTTP-005",
+              "name": "MCP-HTTP-005",
+              "shortDescription": {
+                "text": "Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84"
+              },
+              "fullDescription": {
+                "text": "Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84"
+              },
+              "help": {
+                "text": "Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation"
+              },
+              "helpUri": "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http",
+              "properties": {
+                "source": "spec",
+                "category": "Transport",
+                "ruleIdSource": "explicit",
+                "tags": [
+                  "spec",
+                  "Transport"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "automationDetails": {
+        "id": "73172173-6e1c-44f3-ba96-fb7bcfc4603f",
+        "description": {
+          "text": "MCP validation run"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "startTimeUtc": "2026-05-01T16:31:31.9297990Z",
+          "endTimeUtc": "2026-05-01T16:31:51.5020080Z",
+          "properties": {
+            "validationId": "73172173-6e1c-44f3-ba96-fb7bcfc4603f",
+            "endpoint": "https://learn.microsoft.com/api/mcp",
+            "transport": "http",
+            "overallStatus": "Failed",
+            "serverProfile": "Public",
+            "specProfile": "latest"
+          }
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PROTOCOL.BATCH_PROBE_SKIPPED|batch|Batch processing probe skipped because the active embedded schema context does not advertise batch JSON-RPC envelopes."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "batch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-protocol-batch-probe-skipped:batch:batch-processing-probe-skipped-because-the-active-embedded-schema-context-does-not-advertise-batch-json-rpc-envelopes",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "batch",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Do not treat raw JSON-RPC batch arrays as a hard failure when the negotiated transport does not advertise reliable batch support."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.CAPABILITY.LOGGING_SUPPORTED|logging/setLevel|Server responded to logging/setLevel, indicating optional logging controls are available."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "logging/setLevel"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-capability-logging-supported:logging-setlevel:server-responded-to-logging-setlevel--indicating-optional-logging-controls-are-available",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "logging/setLevel",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Keep capability advertisement and method support aligned so clients can rely on initialize without speculative probing.",
+            "metadata": {
+              "capability": "logging",
+              "method": "logging/setLevel",
+              "supported": "true"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_docs_search|Tool \u0027microsoft_docs_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-tool-openworld-hint-missing:microsoft-docs-search:tool--microsoft-docs-search--does-not-declare-annotations-openworldhint",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "microsoft_docs_search",
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
+            "ruleIdSource": "explicit",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_code_sample_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_code_sample_search|Tool \u0027microsoft_code_sample_search\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-tool-openworld-hint-missing:microsoft-code-sample-search:tool--microsoft-code-sample-search--does-not-declare-annotations-openworldhint",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "microsoft_code_sample_search",
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
+            "ruleIdSource": "explicit",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_fetch\u0027 does not declare annotations.openWorldHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING|microsoft_docs_fetch|Tool \u0027microsoft_docs_fetch\u0027 does not declare annotations.openWorldHint."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-tool-openworld-hint-missing:microsoft-docs-fetch:tool--microsoft-docs-fetch--does-not-declare-annotations-openworldhint",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "McpGuideline",
+            "component": "microsoft_docs_fetch",
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
+            "ruleIdSource": "explicit",
+            "recommendation": "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems."
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING|microsoft_code_sample_search|Tool \u0027microsoft_code_sample_search\u0027: 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_code_sample_search"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:ai-tool-schema-enum-coverage-missing:microsoft-code-sample-search:tool--microsoft-code-sample-search---1-2-string-parameters-look-like-fixed-choice-fields-but-do-not-declare-enum-const-choices",
+            "authority": "heuristic",
+            "authorityPriority": 2,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "AiReadiness",
+            "component": "microsoft_code_sample_search",
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
+            "ruleIdSource": "explicit",
+            "recommendation": "Use enum, const, oneOf, or anyOf so agents can choose from explicit valid values instead of guessing.",
+            "metadata": {
+              "evidenceKind": "deterministic-schema-heuristic",
+              "modelEvaluationImpact": "not-measured"
+            }
+          }
+        },
+        {
+          "ruleId": "AI.TOOL.SCHEMA.FORMAT_HINT_MISSING",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|AI.TOOL.SCHEMA.FORMAT_HINT_MISSING|microsoft_docs_fetch|Tool \u0027microsoft_docs_fetch\u0027: 1/1 string parameters look like structured values but do not declare format/pattern hints"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "microsoft_docs_fetch"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:ai-tool-schema-format-hint-missing:microsoft-docs-fetch:tool--microsoft-docs-fetch---1-1-string-parameters-look-like-structured-values-but-do-not-declare-format-pattern-hints",
+            "authority": "heuristic",
+            "authorityPriority": 2,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "AiReadiness",
+            "component": "microsoft_docs_fetch",
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
+            "ruleIdSource": "explicit",
+            "recommendation": "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings.",
+            "metadata": {
+              "evidenceKind": "deterministic-schema-heuristic",
+              "modelEvaluationImpact": "not-measured"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+          "level": "note",
+          "kind": "fail",
+          "message": {
+            "text": "Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE|tools/list|Synthetic load probe executed against tools/list using 20 requests at concurrency 4."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "tools/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-guideline-performance-synthetic-probe:tools-list:synthetic-load-probe-executed-against-tools-list-using-20-requests-at-concurrency-4",
+            "authority": "guideline",
+            "authorityPriority": 1,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Performance",
+            "component": "tools/list",
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
+            "ruleIdSource": "explicit",
+            "recommendation": "Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.",
+            "metadata": {
+              "requests": "20",
+              "concurrency": "4",
+              "operation": "tools/list"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|malformed-json|Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "malformed-json"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Protocol",
+            "component": "malformed-json",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "ruleIdSource": "explicit",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32700",
+              "actualResponse": "HTTP 500; \u0027i\u0027 is an invalid start of a property name. Expected a \u0027\u0022\u0027. Path: $ | LineNumber: 0 | BytePositionInLine: 2.",
+              "responseSurface": "http-front-door",
+              "httpStatus": "500",
+              "contentType": "application/json",
+              "observedErrorCode": ""
+            }
+          }
+        },
+        {
+          "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32600."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-request|Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32600."
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "invalid-request"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "structured-finding",
+            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Protocol",
+            "component": "invalid-request",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "ruleIdSource": "explicit",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "metadata": {
+              "expectedErrorCode": "-32600",
+              "actualResponse": "HTTP 500; Invalid or missing jsonrpc version",
+              "responseSurface": "http-front-door",
+              "httpStatus": "500",
+              "contentType": "application/json",
+              "observedErrorCode": ""
+            }
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Parse Error"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Parse Error"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--parse-error",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|JSON-RPC Error Code Violation: Invalid Params"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-params",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-JSONRPC",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Request format does not comply with JSON-RPC 2.0 specification"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-JSONRPC|JSON-RPC Compliance|Request format does not comply with JSON-RPC 2.0 specification"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "Ensure every JSON-RPC request includes \u0022jsonrpc\u0022: \u00222.0\u0022, a string \u0022method\u0022 field, and a string or integer \u0022id\u0022. The \u0022params\u0022 field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc"
+          }
+        },
+        {
+          "ruleId": "MCP-PROTO-ERR",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Error codes do not comply with JSON-RPC 2.0 standard error codes"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-PROTO-ERR|JSON-RPC Compliance|Error codes do not comply with JSON-RPC 2.0 standard error codes"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "JSON-RPC Compliance"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-proto-err:json-rpc-compliance:error-codes-do-not-comply-with-json-rpc-2-0-standard-error-codes",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "JSON-RPC Compliance",
+            "component": "JSON-RPC Compliance",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors"
+          }
+        },
+        {
+          "ruleId": "MCP-HTTP-001",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Content-Type requirements not enforced (Server should reject non-JSON)"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-HTTP-001|Transport|Content-Type requirements not enforced (Server should reject non-JSON)"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "Transport"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-http-001:transport:content-type-requirements-not-enforced--server-should-reject-non-json",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Transport",
+            "component": "Transport",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "Set the Content-Type header to \u0027application/json\u0027 for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+          }
+        },
+        {
+          "ruleId": "MCP-HTTP-004",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-HTTP-004|Transport|Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "Transport"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-http-004:transport:streamable-http-transport-violation--invalid-protocol-version-400---requests-with-an-unsupported-mcp-protocol-version-header-must-be-rejected-before-normal-json-rpc-handling--expected--http-400-bad-request--observed--http-200--content-type-text-event-stream--body-length-85",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Transport",
+            "component": "Transport",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header",
+            "context": {
+              "probeId": "invalid-protocol-version-400",
+              "expected": "HTTP 400 Bad Request.",
+              "actual": "HTTP 200; Content-Type=text/event-stream; body length 85",
+              "statusCode": "200",
+              "contentType": "text/event-stream"
+            }
+          }
+        },
+        {
+          "ruleId": "MCP-HTTP-005",
+          "level": "error",
+          "kind": "fail",
+          "message": {
+            "text": "Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84"
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "protocol|MCP-HTTP-005|Transport|Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "Transport"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "source": "protocol-violation",
+            "evidenceId": "protocol-violation:mcp-http-005:transport:streamable-http-transport-violation--invalid-origin-403---http-transports-must-validate-origin-and-reject-invalid-origins-with-http-403-forbidden--expected--http-403-forbidden--observed--http-200--content-type-text-event-stream--body-length-84",
+            "authority": "spec",
+            "authorityPriority": 0,
+            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
+            "category": "Transport",
+            "component": "Transport",
+            "severity": "High",
+            "normalizedSeverity": "high",
+            "normalizedSeverityRank": 3,
+            "rule": null,
+            "ruleIdSource": "explicit",
+            "recommendation": "Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation",
+            "context": {
+              "probeId": "invalid-origin-403",
+              "expected": "HTTP 403 Forbidden.",
+              "actual": "HTTP 200; Content-Type=text/event-stream; body length 84",
+              "statusCode": "200",
+              "contentType": "text/event-stream"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

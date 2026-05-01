@@ -33,6 +33,26 @@ public class AuthenticationChallengeInterpreterTests
     }
 
     [Fact]
+    public void Inspect_ShouldParseOauthChallengeErrorScopeAndRealmParameters()
+    {
+        var response = new JsonRpcResponse
+        {
+            StatusCode = 401,
+            Headers = new Dictionary<string, string>
+            {
+                ["WWW-Authenticate"] = "Bearer realm=\"mcp\", error=\"invalid_token\", error_description=\"expired\", scope=\"tools:read\""
+            }
+        };
+
+        var observation = AuthenticationChallengeInterpreter.Inspect(response);
+
+        observation.Realm.Should().Be("mcp");
+        observation.Error.Should().Be("invalid_token");
+        observation.ErrorDescription.Should().Be("expired");
+        observation.Scope.Should().Be("tools:read");
+    }
+
+    [Fact]
     public void CreateSecurityResult_ShouldPreserveDiscoveryMetadataAndDeduplicateIssues()
     {
         var metadata = new AuthMetadata

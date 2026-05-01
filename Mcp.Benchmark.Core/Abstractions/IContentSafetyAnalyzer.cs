@@ -34,3 +34,24 @@ public interface IContentSafetyAnalyzer
     /// <returns>Zero or more content safety findings for the prompt.</returns>
     IReadOnlyList<ContentSafetyFinding> AnalyzePrompt(string promptName, string? description, int argumentsCount);
 }
+
+/// <summary>
+/// Extends static content safety analysis with server operating context and observed safety controls.
+/// </summary>
+public interface IContextualContentSafetyAnalyzer : IContentSafetyAnalyzer
+{
+    /// <summary>
+    /// Performs a context-aware static risk assessment for a tool.
+    /// </summary>
+    IReadOnlyList<ContentSafetyFinding> AnalyzeTool(string toolName, ContentSafetyAnalysisContext context);
+
+    /// <summary>
+    /// Performs a context-aware static risk assessment for a resource.
+    /// </summary>
+    IReadOnlyList<ContentSafetyFinding> AnalyzeResource(string? resourceName, string resourceUri, ContentSafetyAnalysisContext context);
+
+    /// <summary>
+    /// Performs a context-aware static risk assessment for a prompt.
+    /// </summary>
+    IReadOnlyList<ContentSafetyFinding> AnalyzePrompt(string promptName, string? description, int argumentsCount, ContentSafetyAnalysisContext context);
+}
