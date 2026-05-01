@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
@@ -239,13 +240,13 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             if (limitedCategories.Count > 0)
             {
                 var missingList = string.Join(", ", limitedCategories);
-                notes.Add($"Score coverage is partial ({coverageRatio:P0}). Missing, blocked, or inconclusive categories: {missingList}.");
+                notes.Add($"Score coverage is partial ({FormatPercent(coverageRatio, "F0")}). Missing, blocked, or inconclusive categories: {missingList}.");
             }
         }
 
         if (evidenceSummary.ConfidenceLevel < EvidenceConfidenceLevel.High)
         {
-            notes.Add($"Evidence confidence is {evidenceSummary.ConfidenceLevel} ({evidenceSummary.EvidenceConfidenceRatio:P0}); score should be interpreted with the coverage summary.");
+            notes.Add($"Evidence confidence is {evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F0")}); score should be interpreted with the coverage summary.");
         }
 
         // 3. Apply Rule Engine
@@ -350,6 +351,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
     private static bool IsNotExecuted(TestStatus status)
     {
         return status is TestStatus.Skipped or TestStatus.AuthRequired or TestStatus.Inconclusive or TestStatus.NotRun;
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 
     private record ScoringRule(

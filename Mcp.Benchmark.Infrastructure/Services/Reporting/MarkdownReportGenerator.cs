@@ -44,8 +44,8 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Compliance Score** | **{result.ComplianceScore:F1}%** |");
         if (evidenceSummary.TotalDeclarations > 0)
         {
-            sb.AppendLine($"| **Evidence Coverage** | **{evidenceSummary.EvidenceCoverageRatio:P1}** |");
-            sb.AppendLine($"| **Evidence Confidence** | **{evidenceSummary.ConfidenceLevel} ({evidenceSummary.EvidenceConfidenceRatio:P1})** |");
+            sb.AppendLine($"| **Evidence Coverage** | **{FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")}** |");
+            sb.AppendLine($"| **Evidence Confidence** | **{evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F1")})** |");
         }
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
@@ -1257,8 +1257,8 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine();
             sb.AppendLine("| Metric | Value |");
             sb.AppendLine("| :--- | :---: |");
-            sb.AppendLine($"| Evidence Coverage | {evidenceSummary.EvidenceCoverageRatio:P1} |");
-            sb.AppendLine($"| Evidence Confidence | {evidenceSummary.EvidenceConfidenceRatio:P1} |");
+            sb.AppendLine($"| Evidence Coverage | {FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")} |");
+            sb.AppendLine($"| Evidence Confidence | {FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F1")} |");
             sb.AppendLine($"| Confidence Level | {evidenceSummary.ConfidenceLevel} |");
             sb.AppendLine($"| Auth Required | {evidenceSummary.AuthRequired} |");
             sb.AppendLine($"| Inconclusive | {evidenceSummary.Inconclusive} |");
@@ -1273,7 +1273,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine("| :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |");
                 foreach (var category in evidenceSummary.Categories)
                 {
-                    sb.AppendLine($"| `{category.LayerId}` | {category.EvidenceCoverageRatio:P1} | {category.ConfidenceLevel} ({category.EvidenceConfidenceRatio:P1}) | {category.Covered} | {category.AuthRequired} | {category.Inconclusive} | {category.Skipped} | {category.Blocked + category.Unavailable} |");
+                    sb.AppendLine($"| `{category.LayerId}` | {FormatPercent(category.EvidenceCoverageRatio, "F1")} | {category.ConfidenceLevel} ({FormatPercent(category.EvidenceConfidenceRatio, "F1")}) | {category.Covered} | {category.AuthRequired} | {category.Inconclusive} | {category.Skipped} | {category.Blocked + category.Unavailable} |");
                 }
                 sb.AppendLine();
             }
@@ -1409,6 +1409,11 @@ public class MarkdownReportGenerator : IReportGenerator
 
         var percentage = ValidationFindingAggregator.CalculateCoverageRatio(affectedComponents, totalComponents) * 100;
         return $"{affectedComponents}/{totalComponents} ({percentage.ToString("0", CultureInfo.InvariantCulture)}%)";
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 
     private static string FormatAuthorityCoverage(int affectedComponents, int totalComponents)

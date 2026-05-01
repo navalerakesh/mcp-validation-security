@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mcp.Benchmark.Core.Models;
 
 namespace Mcp.Benchmark.Core.Services;
@@ -447,7 +448,7 @@ public static class ValidationPolicyEvaluator
         foreach (var rollup in ValidationFindingAggregator.SummarizeFindingsByRule(findings, totalComponents))
         {
             var coverageText = rollup.TotalComponents > 0
-                ? $"affected {rollup.AffectedComponents}/{rollup.TotalComponents} component(s) ({rollup.CoverageRatio:P0})"
+                ? $"affected {rollup.AffectedComponents}/{rollup.TotalComponents} component(s) ({FormatPercent(rollup.CoverageRatio, "F0")})"
                 : $"affected {rollup.AffectedComponents} component(s)";
             var sampleComponents = rollup.ExampleComponents.Count > 0
                 ? $" Examples: {string.Join(", ", rollup.ExampleComponents)}."
@@ -661,6 +662,11 @@ public static class ValidationPolicyEvaluator
         Medium = 3,
         High = 4,
         Critical = 5
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 
     private enum PolicySignalKind

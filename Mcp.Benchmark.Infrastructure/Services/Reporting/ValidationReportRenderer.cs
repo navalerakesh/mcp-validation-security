@@ -1474,8 +1474,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             details.Add($"Protocol Verdict: {validationResult.VerdictAssessment.ProtocolVerdict}");
             details.Add($"Coverage Verdict: {validationResult.VerdictAssessment.CoverageVerdict}");
             details.Add($"Verdict Summary: {validationResult.VerdictAssessment.Summary}");
-            details.Add($"Evidence Coverage: {validationResult.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio:P1}");
-            details.Add($"Evidence Confidence: {validationResult.VerdictAssessment.EvidenceSummary.EvidenceConfidenceRatio:P1} ({validationResult.VerdictAssessment.EvidenceSummary.ConfidenceLevel})");
+            details.Add($"Evidence Coverage: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
+            details.Add($"Evidence Confidence: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.VerdictAssessment.EvidenceSummary.ConfidenceLevel})");
             details.AddRange(validationResult.VerdictAssessment.CoverageDecisions.Select(decision => $"Coverage Decision: {decision.DecisionId} -> {decision.Summary}"));
         }
 
@@ -1907,6 +1907,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
         lines.AddRange(result.CriticalErrors.Select(error => $"Critical Error: {error}"));
         lines.AddRange(result.Findings.Select(finding => $"Finding [{finding.EffectiveSourceLabel}/{finding.Severity}] {finding.RuleId}: {finding.Summary}"));
         return lines;
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 
     private enum JunitOutcome

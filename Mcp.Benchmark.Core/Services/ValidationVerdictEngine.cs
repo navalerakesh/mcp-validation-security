@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mcp.Benchmark.Core.Models;
 
 namespace Mcp.Benchmark.Core.Services;
@@ -462,7 +463,7 @@ public static class ValidationVerdictEngine
         var blockingCount = decisions.Count(decision => decision.Gate >= GateOutcome.ReviewRequired)
             + coverageDecisions.Count(decision => decision.Gate >= GateOutcome.CoverageDebt);
 
-        return $"Baseline={baselineVerdict}; Protocol={protocolVerdict}; Coverage={coverageVerdict}; EvidenceConfidence={evidenceSummary.ConfidenceLevel} ({evidenceSummary.EvidenceConfidenceRatio:P0}); BlockingDecisions={blockingCount}.";
+        return $"Baseline={baselineVerdict}; Protocol={protocolVerdict}; Coverage={coverageVerdict}; EvidenceConfidence={evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F0")}); BlockingDecisions={blockingCount}.";
     }
 
     private static IEnumerable<ValidationFinding> CollectDistinctFindings(params IEnumerable<ValidationFinding>?[] sources)
@@ -1085,5 +1086,10 @@ public static class ValidationVerdictEngine
     private static string FormatDetail(string? detail)
     {
         return string.IsNullOrWhiteSpace(detail) ? string.Empty : $" — {detail.Trim()}";
+    }
+
+    private static string FormatPercent(double ratio, string format)
+    {
+        return $"{(ratio * 100).ToString(format, CultureInfo.InvariantCulture)}%";
     }
 }
