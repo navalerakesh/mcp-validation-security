@@ -25,7 +25,7 @@ public class ParserAndReportFuzzTests
 
         action.Should().NotThrow();
         var records = SseEventStreamParser.Parse(content);
-        records.Count.Should().BeLessThanOrEqualTo(content.Count(character => character == '\n') + 1);
+        records.Count.Should().BeLessThanOrEqualTo(CountLogicalLines(content));
     }
 
     [Property(MaxTest = 100)]
@@ -154,5 +154,17 @@ public class ParserAndReportFuzzTests
             .ToArray();
 
         return chars.Length == 0 ? "VALUE" : new string(chars);
+    }
+
+    private static int CountLogicalLines(string content)
+    {
+        using var reader = new StringReader(content);
+        var lines = 0;
+        while (reader.ReadLine() is not null)
+        {
+            lines++;
+        }
+
+        return Math.Max(1, lines);
     }
 }

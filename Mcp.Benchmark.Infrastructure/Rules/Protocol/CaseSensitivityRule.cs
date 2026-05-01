@@ -2,26 +2,36 @@ using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Infrastructure.Registries;
 
 namespace Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
 public sealed class CaseSensitivityRule : IVersionedValidationRule<ProtocolValidationContext>
 {
-    public string Id => "PROTOCOL-008";
-    public string Description => "Case Sensitivity";
-    public string SpecVersion => SchemaRegistryProtocolVersions.GetLatestVersion().Value;
+    private readonly ProtocolRuleMatrixEntry _matrixEntry;
+
+    public CaseSensitivityRule()
+        : this(BuiltInProtocolRuleMatrix.GetRequired(BuiltInProtocolRuleMatrix.RuleIds.JsonRpcCaseSensitive))
+    {
+    }
+
+    internal CaseSensitivityRule(ProtocolRuleMatrixEntry matrixEntry)
+    {
+        _matrixEntry = matrixEntry ?? throw new ArgumentNullException(nameof(matrixEntry));
+    }
+
+    public string Id => _matrixEntry.RuleId;
+    public string Description => _matrixEntry.Title;
+    public string SpecVersion => _matrixEntry.Applicability.ProtocolVersions.FirstOrDefault() ?? SchemaRegistryProtocolVersions.GetLatestVersion().Value;
 
     public ValidationRuleDescriptor Descriptor => new()
     {
         RuleId = Id,
-        Source = ValidationRuleSource.Spec,
-        SpecReference = "https://www.jsonrpc.org/specification"
+        Source = _matrixEntry.Source,
+        SpecReference = _matrixEntry.SpecReference
     };
 
-    public ValidationApplicability Applicability => new()
-    {
-        Transports = new[] { "http", "https", "stdio", "websocket" }
-    };
+    public ValidationApplicability Applicability => _matrixEntry.Applicability;
 
     public async Task<RuleResult> EvaluateAsync(ProtocolValidationContext context, CancellationToken cancellationToken)
     {

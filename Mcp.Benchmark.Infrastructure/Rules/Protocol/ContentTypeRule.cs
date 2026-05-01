@@ -2,26 +2,36 @@ using System.Text;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Infrastructure.Registries;
 
 namespace Mcp.Benchmark.Infrastructure.Rules.Protocol;
 
 public sealed class ContentTypeRule : IVersionedValidationRule<ProtocolValidationContext>
 {
-    public string Id => "PROTOCOL-007";
-    public string Description => "Content-Type Requirements";
-    public string SpecVersion => SchemaRegistryProtocolVersions.GetLatestVersion().Value;
+    private readonly ProtocolRuleMatrixEntry _matrixEntry;
+
+    public ContentTypeRule()
+        : this(BuiltInProtocolRuleMatrix.GetRequired(BuiltInProtocolRuleMatrix.RuleIds.HttpRequestContentType))
+    {
+    }
+
+    internal ContentTypeRule(ProtocolRuleMatrixEntry matrixEntry)
+    {
+        _matrixEntry = matrixEntry ?? throw new ArgumentNullException(nameof(matrixEntry));
+    }
+
+    public string Id => _matrixEntry.RuleId;
+    public string Description => _matrixEntry.Title;
+    public string SpecVersion => _matrixEntry.Applicability.ProtocolVersions.FirstOrDefault() ?? SchemaRegistryProtocolVersions.GetLatestVersion().Value;
 
     public ValidationRuleDescriptor Descriptor => new()
     {
         RuleId = Id,
-        Source = ValidationRuleSource.Spec,
-        SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http"
+        Source = _matrixEntry.Source,
+        SpecReference = _matrixEntry.SpecReference
     };
 
-    public ValidationApplicability Applicability => new()
-    {
-        Transports = new[] { "http", "https" }
-    };
+    public ValidationApplicability Applicability => _matrixEntry.Applicability;
 
     public async Task<RuleResult> EvaluateAsync(ProtocolValidationContext context, CancellationToken cancellationToken)
     {

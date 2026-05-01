@@ -64,6 +64,32 @@ public sealed class ValidationApplicability
     public bool? RequiresAuthentication { get; init; }
 }
 
+public enum ProtocolRuleRequirement
+{
+    Must,
+    Should,
+    May
+}
+
+public sealed class ProtocolRuleMatrixEntry
+{
+    public required string RuleId { get; init; }
+
+    public required string Title { get; init; }
+
+    public required ValidationRuleSource Source { get; init; }
+
+    public required ProtocolRuleRequirement Requirement { get; init; }
+
+    public required string SpecReference { get; init; }
+
+    public required ValidationApplicability Applicability { get; init; }
+
+    public IReadOnlyList<string> ValidatorAreas { get; init; } = Array.Empty<string>();
+
+    public string? Notes { get; init; }
+}
+
 public sealed class ValidationApplicabilityContext
 {
     public required string NegotiatedProtocolVersion { get; init; }
