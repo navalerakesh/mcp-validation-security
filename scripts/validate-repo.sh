@@ -135,7 +135,7 @@ fi
 
 if $run_dotnet; then
   echo "==> Restoring .NET dependencies"
-  dotnet restore ./mcp-benchmark-validation.sln
+  dotnet restore ./mcp-benchmark-validation.sln --locked-mode
 
   echo "==> Building solution ($configuration)"
   dotnet build ./mcp-benchmark-validation.sln --configuration "$configuration" --no-restore
