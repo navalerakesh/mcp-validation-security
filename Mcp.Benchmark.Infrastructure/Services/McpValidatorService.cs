@@ -361,6 +361,27 @@ public class McpValidatorService : IMcpValidatorService
                 ? ValidationStatus.Passed
                 : ValidationStatus.Failed;
 
+            // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
+            // protocol version actually negotiated, when that version has an embedded
+            // schema bundle. Runs LAST so it covers verdict decisions and evidence
+            // observations populated by trust + verdict engines as well as the validator
+            // findings/violations themselves.
+            try
+            {
+                var embedded = Mcp.Compliance.Spec.SchemaRegistryProtocolVersions
+                    .GetAvailableVersions()
+                    .Select(v => v.Value)
+                    .ToArray();
+                Mcp.Benchmark.Core.Services.SpecReferenceVersionRewriter.Apply(
+                    result,
+                    result.ProtocolVersion,
+                    embedded);
+            }
+            catch (Exception rewriteEx)
+            {
+                _logger.LogDebug(rewriteEx, "Spec-reference URL rewrite skipped due to non-fatal error.");
+            }
+
             result.EndTime = DateTime.UtcNow;
             _logger.LogInformation("Validation completed with status: {Status}, Score: {Score:F1}%",
                 result.OverallStatus, result.ComplianceScore);

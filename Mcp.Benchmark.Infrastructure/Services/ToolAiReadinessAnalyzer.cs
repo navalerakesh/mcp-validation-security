@@ -210,7 +210,20 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         var insights = new List<string>();
         var textLower = (errorMessage ?? string.Empty).ToLowerInvariant();
 
-        if (errorCode is -32602 or -32600 or -32601 or -32603 or -32700)
+        // Heuristic exclusion: if the MCP server is faithfully passing through an upstream
+        // HTTP API rejection (e.g. GitHub REST 404 because the validator's synthetic call
+        // referenced a non-existent repo, or a Microsoft Learn 401 from invented credentials),
+        // the error response actually IS informative for an LLM ("repo X not found, status 404")
+        // and the deficiency lives in the validator's synthetic test fixture, NOT in the tool.
+        // Mark such findings excluded so they don't drag down the LLM-friendliness average.
+        var isUpstreamPassThrough = LooksLikeUpstreamHttpPassThrough(errorMessage);
+        if (isUpstreamPassThrough)
+        {
+            // Preserve a real, modest score that reflects the message's actual signal value
+            // for an LLM (status code + URL + reason phrase) but mark it excluded from scoring.
+            score = 60;
+        }
+        else if (errorCode is -32602 or -32600 or -32601 or -32603 or -32700)
         {
             score += 20;
         }
@@ -220,86 +233,137 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         }
 
         bool mentionsParam = false;
-        try
+        if (!isUpstreamPassThrough)
         {
-            using var document = JsonDocument.Parse(rawJson);
-            if (document.RootElement.TryGetProperty("error", out var error))
+            try
             {
-                var fullText = error.ToString().ToLowerInvariant();
-                if (fullText.Contains("param") || fullText.Contains("argument") || fullText.Contains("field") ||
-                    fullText.Contains("required") || fullText.Contains("missing"))
+                using var document = JsonDocument.Parse(rawJson);
+                if (document.RootElement.TryGetProperty("error", out var error))
                 {
-                    mentionsParam = true;
-                    score += 25;
-                }
+                    var fullText = error.ToString().ToLowerInvariant();
+                    if (fullText.Contains("param") || fullText.Contains("argument") || fullText.Contains("field") ||
+                        fullText.Contains("required") || fullText.Contains("missing"))
+                    {
+                        mentionsParam = true;
+                        score += 25;
+                    }
 
-                if (fullText.Contains("expected") || fullText.Contains("must be") || fullText.Contains("should be") ||
-                    fullText.Contains("type") || fullText.Contains("format") || fullText.Contains("valid"))
-                {
-                    score += 20;
-                }
-                else
-                {
-                    insights.Add("Error doesn't describe expected format — LLM can't self-correct");
-                }
+                    if (fullText.Contains("expected") || fullText.Contains("must be") || fullText.Contains("should be") ||
+                        fullText.Contains("type") || fullText.Contains("format") || fullText.Contains("valid"))
+                    {
+                        score += 20;
+                    }
+                    else
+                    {
+                        insights.Add("Error doesn't describe expected format — LLM can't self-correct");
+                    }
 
-                if (error.TryGetProperty("data", out _))
-                {
-                    score += 15;
-                }
+                    if (error.TryGetProperty("data", out _))
+                    {
+                        score += 15;
+                    }
 
-                if ((errorMessage?.Length ?? 0) > 20)
-                {
-                    score += 10;
-                }
-                else
-                {
-                    insights.Add("Error message too short — LLM gets no useful context");
+                    if ((errorMessage?.Length ?? 0) > 20)
+                    {
+                        score += 10;
+                    }
+                    else
+                    {
+                        insights.Add("Error message too short — LLM gets no useful context");
+                    }
                 }
             }
-        }
-        catch
-        {
-            insights.Add("Error payload was not parseable as JSON-RPC — LLM loses structured correction signals");
-        }
+            catch
+            {
+                insights.Add("Error payload was not parseable as JSON-RPC — LLM loses structured correction signals");
+            }
 
-        if (!mentionsParam)
-        {
-            insights.Add("Error doesn't mention which parameter is wrong — LLM will guess blindly");
-        }
+            if (!mentionsParam)
+            {
+                insights.Add("Error doesn't mention which parameter is wrong — LLM will guess blindly");
+            }
 
-        if (rawJson.Contains("\"isError\"", StringComparison.Ordinal))
-        {
-            score += 10;
+            if (rawJson.Contains("\"isError\"", StringComparison.Ordinal))
+            {
+                score += 10;
+            }
         }
 
         score = Math.Min(100, score);
 
         var grade = score >= 70 ? "Pro-LLM" : score >= 40 ? "Neutral" : "Anti-LLM";
         var gradeIcon = score >= 70 ? "🟢" : score >= 40 ? "🟡" : "🔴";
-        var summary = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
+        string summary;
+        ValidationFindingSeverity severity;
+        string recommendation;
+        if (isUpstreamPassThrough)
+        {
+            summary = $"ℹ️ LLM-Friendliness: not scored — tool faithfully passed through an upstream HTTP API rejection from the validator's synthetic input. Excluded from the LLM-friendliness average.";
+            severity = ValidationFindingSeverity.Info;
+            recommendation = "No tool change required. Upstream HTTP status + URL passed through is informative for AI agents. To exercise tool-level error quality, configure the run with inputs that trigger the tool's own validation logic.";
+        }
+        else
+        {
+            summary = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
+            severity = score >= 70 ? ValidationFindingSeverity.Info : score >= 40 ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High;
+            recommendation = "Return specific, structured errors that identify the invalid argument and expected shape.";
+        }
+
+        var finding = new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+            Category = "AiReadiness",
+            Component = toolName,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation,
+            Metadata =
+            {
+                ["score"] = score.ToString(),
+                ["grade"] = isUpstreamPassThrough ? "Excluded" : grade,
+                ["messagePreview"] = Truncate(textLower, 120),
+                [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicErrorHeuristic,
+                [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
+            }
+        };
+
+        if (isUpstreamPassThrough)
+        {
+            finding.Metadata["excludedFromLlmAverage"] = "true";
+            finding.Metadata["exclusionReason"] = "upstream-http-pass-through";
+        }
 
         return new ToolErrorAiReadinessAssessment
         {
-            Finding = new ValidationFinding
-            {
-                RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
-                Category = "AiReadiness",
-                Component = toolName,
-                Severity = score >= 70 ? ValidationFindingSeverity.Info : score >= 40 ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High,
-                Summary = summary,
-                Recommendation = "Return specific, structured errors that identify the invalid argument and expected shape.",
-                Metadata =
-                {
-                    ["score"] = score.ToString(),
-                    ["grade"] = grade,
-                    ["messagePreview"] = Truncate(textLower, 120),
-                    [AiReadinessEvidenceKinds.MetadataKey] = AiReadinessEvidenceKinds.DeterministicErrorHeuristic,
-                    [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
-                }
-            },
-            SupportingIssues = score < 70 ? insights.Take(2).ToList() : Array.Empty<string>()
+            Finding = finding,
+            SupportingIssues = (!isUpstreamPassThrough && score < 70) ? insights.Take(2).ToList() : Array.Empty<string>()
         };
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex UpstreamHttpStatusPattern = new(
+        @"\b(?:HTTP\s+)?[1-5]\d{2}\b\s*(?:Not\s+Found|Bad\s+Request|Unauthorized|Forbidden|Conflict|Unprocessable|Gone|Too\s+Many\s+Requests|Internal\s+Server\s+Error|Service\s+Unavailable|Gateway)\b",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    private static readonly System.Text.RegularExpressions.Regex UpstreamMethodUrlPattern = new(
+        @"\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+https?://[^\s""]+",
+        System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    /// <summary>
+    /// Heuristically detects when an MCP tool error is faithfully passing through an upstream
+    /// HTTP API rejection (e.g. GitHub REST 404, Microsoft Graph 401). Such messages are not
+    /// produced by the tool's own validation surface; flagging them as "Anti-LLM" overstates
+    /// tool quality issues and can be driven by the validator's synthetic-input choices rather
+    /// than real server behaviour.
+    /// </summary>
+    private static bool LooksLikeUpstreamHttpPassThrough(string? errorMessage)
+    {
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            return false;
+        }
+
+        // Strong signal: HTTP method + URL appears AND a 4xx/5xx status reason phrase appears.
+        return UpstreamMethodUrlPattern.IsMatch(errorMessage) && UpstreamHttpStatusPattern.IsMatch(errorMessage);
     }
 
     private static void AddFindingIfAny(List<ValidationFinding> findings, bool condition, string ruleId, ValidationFindingSeverity severity, string component, string summary, string recommendation)

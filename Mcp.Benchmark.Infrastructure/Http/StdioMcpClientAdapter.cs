@@ -1006,17 +1006,29 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         try
         {
             using var doc = JsonDocument.Parse(responseLine);
-            var hasError = doc.RootElement.TryGetProperty("error", out var errorElement);
+            // Treat `error` as present only when it's a JSON-RPC error object; some servers
+            // emit `{"error":"text"}` strings which would crash TryGetProperty("message").
+            var hasErrorObject = false;
+            string? errorMessage = null;
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("error", out var errorElement) &&
+                errorElement.ValueKind == JsonValueKind.Object)
+            {
+                hasErrorObject = true;
+                if (errorElement.TryGetProperty("message", out var messageElement) &&
+                    messageElement.ValueKind == JsonValueKind.String)
+                {
+                    errorMessage = messageElement.GetString();
+                }
+            }
             return new ValidatorJsonRpcResponse
             {
-                StatusCode = hasError ? 400 : 200,
-                IsSuccess = !hasError,
+                StatusCode = hasErrorObject ? 400 : 200,
+                IsSuccess = !hasErrorObject,
                 RawJson = responseLine,
-                Error = hasError && errorElement.TryGetProperty("message", out var messageElement)
-                    ? messageElement.GetString()
-                    : null,
+                Error = errorMessage,
                 ElapsedMs = elapsedMs,
-                ProbeContext = CreateProbeContext(null, null, hasError ? 400 : 200, !hasError, hasError && errorElement.TryGetProperty("message", out var contextMessageElement) ? contextMessageElement.GetString() : null)
+                ProbeContext = CreateProbeContext(null, null, hasErrorObject ? 400 : 200, !hasErrorObject, errorMessage)
             };
         }
         catch (JsonException)

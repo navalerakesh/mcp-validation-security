@@ -173,17 +173,45 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         if (!errorTest.IsValid)
         {
             var classification = JsonRpcResponseInspector.Classify(errorTest.ActualResponse);
-            scenarioResult.AdditionalIssues.Add("Server did not return the expected structured JSON-RPC error response.");
+
+            // MCP 2025-11-25 Streamable HTTP §2.1: when the server cannot accept input
+            // (e.g. malformed JSON / missing jsonrpc / invalid request) it MUST return an
+            // HTTP error status code (e.g. 400 Bad Request); the JSON-RPC error body is MAY,
+            // not MUST. So a 4xx HTTP front-door rejection for parse-error (-32700) and
+            // invalid-request (-32600) is spec-allowed — it is a Guideline preference, not a
+            // protocol violation. 5xx still indicates a server fault and remains a Spec issue.
+            // For -32601/-32602 (well-formed JSON-RPC routing failures) the spec implies a
+            // JSON-RPC envelope return, so those continue to surface as Spec/High.
+            var isSpecAllowedFrontDoor =
+                classification.Surface == JsonRpcResponseSurface.HttpFrontDoorRejection &&
+                classification.StatusCode is >= 400 and < 500 &&
+                (expectedErrorCode == -32700 || expectedErrorCode == -32600);
+
+            scenarioResult.AdditionalIssues.Add(isSpecAllowedFrontDoor
+                ? "Server returned an HTTP error status (spec-allowed for malformed/invalid input) instead of a JSON-RPC error envelope (preferred)."
+                : "Server did not return the expected structured JSON-RPC error response.");
             scenarioResult.AdditionalIssues.Add(DescribeSurfaceIssue(classification, expectedErrorCode));
+
+            // Spec-allowed front-door rejection should not block the layer; mark the scenario
+            // as handled correctly so the error-handling layer score and pass/fail reflect
+            // observed spec behaviour rather than the validator's stylistic preference.
+            if (isSpecAllowedFrontDoor)
+            {
+                scenarioResult.HandledCorrectly = true;
+                scenarioResult.GracefulRecovery = true;
+            }
+
             result.Findings.Add(new ValidationFinding
             {
                 RuleId = "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
-                Category = "Protocol",
+                Category = isSpecAllowedFrontDoor ? "ErrorHandling" : "Protocol",
                 Component = errorType,
-                Severity = ValidationFindingSeverity.High,
-                Summary = BuildScenarioSummary(scenarioName, expectedErrorCode, classification),
-                Recommendation = ComplianceRecommendations.GetRecommendation(ValidationConstants.CheckIds.ProtocolErrorHandling, "Error Code Violation"),
-                Source = ValidationRuleSource.Spec,
+                Severity = isSpecAllowedFrontDoor ? ValidationFindingSeverity.Low : ValidationFindingSeverity.High,
+                Summary = BuildScenarioSummary(scenarioName, expectedErrorCode, classification, isSpecAllowedFrontDoor),
+                Recommendation = isSpecAllowedFrontDoor
+                    ? "MCP Streamable HTTP §2.1 allows responding to malformed or invalid input with an HTTP error status (e.g. 400). Returning a JSON-RPC error envelope alongside the HTTP status is preferred so AI agents can self-correct, but it is not required."
+                    : ComplianceRecommendations.GetRecommendation(ValidationConstants.CheckIds.ProtocolErrorHandling, "Error Code Violation"),
+                Source = isSpecAllowedFrontDoor ? ValidationRuleSource.Guideline : ValidationRuleSource.Spec,
                 SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling],
                 Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -200,8 +228,13 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         result.ErrorScenarioResults.Add(scenarioResult);
     }
 
-    private static string BuildScenarioSummary(string scenarioName, int expectedErrorCode, JsonRpcResponseClassification classification)
+    private static string BuildScenarioSummary(string scenarioName, int expectedErrorCode, JsonRpcResponseClassification classification, bool isSpecAllowedFrontDoor = false)
     {
+        if (isSpecAllowedFrontDoor)
+        {
+            return $"Error-handling scenario '{scenarioName}' was rejected at the HTTP front door (HTTP {classification.StatusCode}); MCP Streamable HTTP §2.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code {expectedErrorCode} alongside the HTTP error is preferred for AI agent self-correction but is not required.";
+        }
+
         return classification.Surface switch
         {
             JsonRpcResponseSurface.HttpFrontDoorRejection =>
@@ -424,8 +457,11 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         try
         {
             using var document = JsonDocument.Parse(rawJson);
-            if (!document.RootElement.TryGetProperty("error", out var errorElement) ||
-                !errorElement.TryGetProperty("code", out var codeElement))
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("error", out var errorElement) ||
+                errorElement.ValueKind != JsonValueKind.Object ||
+                !errorElement.TryGetProperty("code", out var codeElement) ||
+                codeElement.ValueKind != JsonValueKind.Number)
             {
                 return false;
             }

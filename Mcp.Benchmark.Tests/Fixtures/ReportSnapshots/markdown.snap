@@ -79,8 +79,7 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| Prompt output includes reflected untrusted content. | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `prompt:get` | [Heuristic] · `PromptInjection` · Critical |
-| Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability. | Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope. | `prompt-surface` | [Heuristic] · `Coverage` · Medium |
+| One tool response omitted the outer result object. | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `tools/call` | [Spec] · `MCP.TOOL.CALL.RESULT_OBJECT_MISSING` · Medium |
 
 ### Priority 4: AI Safety, Security, And Performance
 
@@ -88,8 +87,9 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
+| Prompt output includes reflected untrusted content. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `prompt:get` | [Heuristic] · `PromptInjection` · Critical |
 | Server reflected untrusted prompt content without sanitization. | Sanitize and label untrusted content before returning it. | `prompt:get` | [Heuristic] · `MCP.SECURITY.PROMPT_INJECTION` · Critical |
-| Critical execution error recorded: Prompt validation hit an unsafe reflection path. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `validation-run` | [Operational] · `Execution` · Critical |
+| Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability. | Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope. | `prompt-surface` | [Heuristic] · `Coverage` · Medium |
 
 ## 6. Deterministic Verdicts
 

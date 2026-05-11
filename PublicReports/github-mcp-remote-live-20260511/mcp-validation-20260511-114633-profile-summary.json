@@ -1,0 +1,65 @@
+{
+  "generatedUtc": "2026-05-11T11:46:33.3884850Z",
+  "validationId": "cf05a8a3-de8a-4e12-ab22-7b1fee77e645",
+  "serverEndpoint": "https://api.githubcopilot.com/mcp/",
+  "complianceScore": 52.12,
+  "trustLevel": "L2: Caution \u2014 Significant gaps in safety or compliance",
+  "profileCount": 5,
+  "compatibleCount": 0,
+  "warningCount": 4,
+  "incompatibleCount": 1,
+  "profiles": [
+    {
+      "profileId": "claude-code",
+      "displayName": "Claude Code",
+      "status": "Compatible with warnings",
+      "passedRequirements": 7,
+      "warningRequirements": 4,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "vscode-copilot-agent",
+      "displayName": "VS Code Copilot Agent",
+      "status": "Compatible with warnings",
+      "passedRequirements": 6,
+      "warningRequirements": 3,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cli",
+      "displayName": "GitHub Copilot CLI",
+      "status": "Compatible with warnings",
+      "passedRequirements": 4,
+      "warningRequirements": 1,
+      "failedRequirements": 0,
+      "topBlockers": []
+    },
+    {
+      "profileId": "github-copilot-cloud-agent",
+      "displayName": "GitHub Copilot Cloud Agent",
+      "status": "Incompatible",
+      "passedRequirements": 6,
+      "warningRequirements": 1,
+      "failedRequirements": 1,
+      "topBlockers": [
+        {
+          "requirementId": "tool-destructive-hint",
+          "title": "Write-capable tools declare destructiveHint (autonomous-execution safety)",
+          "ruleIds": [],
+          "recommendation": "Set \u0060annotations.destructiveHint: true\u0060 on every tool that mutates external state, OR mark the tool \u0060readOnlyHint: true\u0060 if it is read-only. Cloud Agent administrators typically allowlist tools by destructiveness; missing hints prevent that policy."
+        }
+      ]
+    },
+    {
+      "profileId": "visual-studio-copilot",
+      "displayName": "Visual Studio Copilot",
+      "status": "Compatible with warnings",
+      "passedRequirements": 6,
+      "warningRequirements": 3,
+      "failedRequirements": 0,
+      "topBlockers": []
+    }
+  ]
+}

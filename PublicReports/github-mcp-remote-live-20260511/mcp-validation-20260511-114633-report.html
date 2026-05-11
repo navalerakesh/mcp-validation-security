@@ -1714,8 +1714,8 @@ a:hover {
         <div class="hero-grid">
           <div class="hero-main">
             <div class="eyebrow">MCP Validation Report</div>
-            <h1 class="hero-title">Validation Review Required</h1>
-            <p class="hero-subtitle">Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=97.</p>
+            <h1 class="hero-title">Release Hold</h1>
+            <p class="hero-subtitle">Balanced policy blocked release readiness with 94 blocking signal(s) across 94 unsuppressed signal(s).</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1723,11 +1723,11 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Validation ID</div>
-                <div class="fact-item__value">d5e5297d-d079-4e5c-9a85-5243932227a6</div>
+                <div class="fact-item__value">cf05a8a3-de8a-4e12-ab22-7b1fee77e645</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">31.1s</div>
+                <div class="fact-item__value">33.1s</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Spec Profile</div>
@@ -1745,10 +1745,10 @@ a:hover {
 
           </div>
           <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-warning">
-    <span class="status-chip status-chip--warning">Run Status</span>
-    <div class="focus-value">Review Before Release</div>
-    <div class="focus-label">Generated on 2026-05-01 16:55:40 UTC</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Run Status</span>
+    <div class="focus-value">Hold Release</div>
+    <div class="focus-label">Generated on 2026-05-11 11:46:33 UTC</div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
     <span class="status-chip status-chip--danger">Deterministic Verdict</span>
@@ -1765,7 +1765,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-warning">
+        <details class="section-card section-card--tone-danger">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Executive Summary</div>
@@ -1773,10 +1773,10 @@ a:hover {
               <p class="section-intro section-intro--card">This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Resolve failed validation areas before rollout</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Advisory</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Hold release until blocking signals are resolved</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">94</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Balanced</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1787,21 +1787,21 @@ a:hover {
           <div class="section-card__content">
 
           <div class="brief-grid">
-            <div class="decision-brief decision-brief--tone-warning">
+            <div class="decision-brief decision-brief--tone-danger">
               <div class="section-kicker">Release Decision</div>
-              <h3 class="decision-title">Resolve failed validation areas before rollout</h3>
-              <p class="decision-summary">Deterministic validation failed even though no additional host policy block was applied. Use the decision trace to verify which domains still need remediation.</p>
+              <h3 class="decision-title">Hold release until blocking signals are resolved</h3>
+              <p class="decision-summary">Balanced policy blocked the validation result with 94 unsuppressed signal(s).</p>
               <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Verdict</div><div class="summary-card__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Trusted</div></div>
-                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Advisory</div></div>
-                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">0</div></div>
+                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Balanced</div></div>
+                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">94</div></div>
               </div>
               <ul class="compact-list">
-                <li>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</li>
+                <li>94 blocking signal(s) remain under Balanced policy.</li>
                 <li>TierCheck</li>
-                <li>[Spec] 7 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
-                <li>[Guideline] 6 guidance signal(s), led by MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.</li>
+                <li>MCP-PROTO-JSONRPC</li>
+                <li>Compatibility theme: Write-capable tools explicitly declare destructiveHint affects 4 profile(s).</li>
               </ul>
             </div>
 
@@ -1812,7 +1812,7 @@ a:hover {
                 <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
                 <ul class="compact-list">
                   <li>[Spec] 7 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification</li>
-                  <li>[Guideline] 6 guidance signal(s), led by MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.</li>
+                  <li>[Guideline] 7 guidance signal(s), led by MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.</li>
                   <li>[Heuristic] 11 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.REQUIRED_ARRAY_SHAPE_MISSING: Tool &#39;push_files&#39;: 1/5 required array parameters lack item schemas or minItems guidance</li>
                 </ul>
               </section>
@@ -1823,17 +1823,17 @@ a:hover {
                 <ul class="compact-list">
                   <li>[Spec] Protocol: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field....</li>
                   <li>[Guideline] Authentication Security: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.</li>
-                  <li>Spec: Ensure every JSON-RPC request includes &quot;jsonrpc&quot;: &quot;2.0&quot;, a string &quot;method&quot; field, and a string or integer &quot;id&quot;. The &quot;params&quot; field, if presen....</li>
+                  <li>Client compatibility: GitHub Copilot Cloud Agent - 1 required compatibility check(s) failed; review the affected surfaces before relying on this cl....</li>
                 </ul>
               </section>
 
             </div>
           </div>
           <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">97</div></div>
-                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">97</div></div>
+                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">94</div></div>
+                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">94</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">0</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">94</div></div>
           </div>
 
           </div>
@@ -1850,7 +1850,7 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">P1</div><div class="section-abstract__value">5</div></div>
               <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">P2</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P3</div><div class="section-abstract__value">2</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P3</div><div class="section-abstract__value">1</div></div>
               <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">P4</div><div class="section-abstract__value">1</div></div>
             </div>
             <div class="section-card__toggle-row">
@@ -1916,7 +1916,7 @@ a:hover {
                     <strong>Invalid Token - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Fix authentication and token-boundary behavior before judging protected tool, resource, and prompt behavior.</div>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompts/get</code> · <strong>Evidence:</strong> [Spec] <code>MCP.AUTH.INVALID_TOKEN_STATUS</code> · <strong>Severity:</strong> Medium</div>
-                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</a></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization</a></div>
                   </li>
                 </ul>
               </div>
@@ -1925,16 +1925,11 @@ a:hover {
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 3</div>
                 <div class="ledger-title">Advertised Capabilities</div>
-                <span class="tone-chip tone-info">2 items</span>
+                <span class="tone-chip tone-info">1 item</span>
               </div>
               <div class="ledger-body">
                 <p class="ledger-copy"><strong>Impact after fix:</strong> Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.</p>
                 <ul class="compact-list">
-                  <li>
-                    <strong>Name/URI suggests potential system impact capability (matched keyword: &#39;delete&#39;).</strong>
-                    <div class="ledger-links"><strong>Fix:</strong> Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>delete_file</code> · <strong>Evidence:</strong> [Heuristic] <code>ContentSafety.SystemImpact</code> · <strong>Severity:</strong> High</div>
-                  </li>
                   <li>
                     <strong>Synthetic load probe executed against tools/list using 20 requests at concurrency 4.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Interpret this as a generic pressure probe, not a workload-specific SLA benchmark.</div>
@@ -1953,9 +1948,9 @@ a:hover {
                 <p class="ledger-copy"><strong>Impact after fix:</strong> After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.</p>
                 <ul class="compact-list">
                   <li>
-                    <strong>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</strong>
+                    <strong>Name/URI suggests potential system impact capability (matched keyword: &#39;delete&#39;).</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>delete_file</code> · <strong>Evidence:</strong> [Heuristic] <code>AI.TOOL.ERROR.LLM_FRIENDLINESS</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>delete_file</code> · <strong>Evidence:</strong> [Heuristic] <code>ContentSafety.SystemImpact</code> · <strong>Severity:</strong> High</div>
                   </li>
                 </ul>
               </div>
@@ -1991,37 +1986,6 @@ a:hover {
               <h3 class="minor-title">Decision Themes</h3>
               <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</div>
-                    <div class="ledger-subtle">Protocol</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">spec</span>
-                      <span class="tag">Protocol interoperability</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">3 related decision(s) across 3 component(s). Representative issue: Error-handling scenario &#39;Invalid Method Call&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 2 evidence link(s)</div>
-                    <div class="ledger-links"><strong>Components:</strong> invalid-method, invalid-request, malformed-json</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</code></div>
-                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
-                    <div class="summary-grid decision-fact-grid">
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">invalid-method, invalid-request, malformed-json</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">3</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-error-handling-non-standard-error-response:invalid-method:error-handling-scenario--invalid-method-call--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32601, error-invalid-method-call, structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600, error-graceful-degradation-on-invalid-request, structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700, error-malformed-json-payload</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
-</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">expectedErrorCode</div><div class="summary-card__value">-32601</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">actualResponse</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
-</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">responseSurface</div><div class="summary-card__value">http-front-door</div></div>
-                    </div>
-                  </div>
-                </article>
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
                     <div class="ledger-title">TierCheck</div>
@@ -2073,6 +2037,37 @@ a:hover {
                 </article>
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
+                    <div class="ledger-title">MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</div>
+                    <div class="ledger-subtle">Protocol</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-danger">Reject</span>
+                      <span class="tone-chip tone-info">spec</span>
+                      <span class="tag">Protocol interoperability</span>
+                      <span class="tag">Capability contract</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">Error-handling scenario &#39;Invalid Method Call&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 2 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> invalid-method</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE</code></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors">https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</a></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">invalid-method</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-error-handling-non-standard-error-response:invalid-method:error-handling-scenario--invalid-method-call--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32601, error-invalid-method-call</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
+</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">expectedErrorCode</div><div class="summary-card__value">-32601</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">actualResponse</div><div class="summary-card__value">HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: &quot;nonexistent_method_12345&quot; unsupported
+</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">responseSurface</div><div class="summary-card__value">http-front-door</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--danger">
+                  <div class="ledger-rail">
                     <div class="ledger-title">MCP-HTTP-005</div>
                     <div class="ledger-subtle">Transport</div>
                     <div class="ledger-chip-row">
@@ -2113,7 +2108,7 @@ a:hover {
                     <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 5 evidence link(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompts/get, prompts/list, resources/list +3 more</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.AUTH.INVALID_TOKEN_STATUS</code></div>
-                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</a></div>
+                    <div class="ledger-links"><strong>Spec:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization">https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization</a></div>
                     <div class="summary-grid decision-fact-grid">
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompts/get, prompts/list, resources/list +3 more</div></div>
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">24</div></div>
@@ -2121,7 +2116,7 @@ a:hover {
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></div>
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.</div></div>
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">statusCode</div><div class="summary-card__value">400</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">specReference</div><div class="summary-card__value">https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">specReference</div><div class="summary-card__value">https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization</div></div>
                     </div>
                   </div>
                 </article>
@@ -2212,7 +2207,7 @@ a:hover {
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Baseline Verdict</div><div class="section-abstract__value">Reject</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Protocol Verdict</div><div class="section-abstract__value">Reject</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Coverage Verdict</div><div class="section-abstract__value">Trusted</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">50.1%</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">52.1%</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2263,7 +2258,7 @@ a:hover {
             </div>
             <div class="score-pill score-pill--warning">
               <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">50.1%</div>
+              <div class="score-pill__value">52.1%</div>
               <div class="score-pill__meta">Descriptive benchmarking signal</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -2294,7 +2289,7 @@ a:hover {
                 </tr>
                 <tr>
                   <td><div class="cell-title">AI Safety</div></td>
-                  <td><span class="tone-chip tone-info">84%</span></td>
+                  <td><span class="tone-chip tone-success">99%</span></td>
                   <td>Schema quality and agent safety posture</td>
                 </tr>
                 <tr>
@@ -2315,7 +2310,7 @@ a:hover {
                   <td data-label="Domain"><div class="cell-title">Protocol</div></td>
                   <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Reject</span></td>
                   <td data-label="Signals"><div class="cell-copy cell-copy--compact">8 blocking / 11 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">7 protocol violation(s) &#183; 2/5 error scenarios handled correctly</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">7 protocol violation(s) &#183; 4/5 error scenarios handled correctly</div></td>
                   <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</div></td>
                 </tr>
@@ -2329,26 +2324,26 @@ a:hover {
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">AI Safety</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">84%</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">20 blocking / 167 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">11 schema finding(s) &#183; 11 boundary finding(s) &#183; 8 content-safety finding(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">99%</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">19 blocking / 166 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">11 schema finding(s) &#183; 10 boundary finding(s) &#183; 8 content-safety finding(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Tool &#39;delete_file&#39; declares destructiveHint=true. AI agents SHOULD require human confirmation before invocation.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition.</div></td>
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Operations</div></td>
                   <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">100%</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 blocking / 3 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">Avg 136.0 ms &#183; P95 159.0 ms &#183; 0.00% errors</div></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 blocking / 3 total</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">Avg 155.5 ms &#183; P95 198.1 ms &#183; 0.00% errors</div></td>
                   <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Error-handling scenario &#39;Invalid Method Call&#39; was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</div></td>
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Compatibility</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Compatible with warnings</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">0 incompatible &#183; 3 warning profile(s)</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Incompatible profiles present</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 incompatible &#183; 4 warning profile(s)</div></td>
                   <td data-label="Evidence"><div class="cell-copy">5 profile(s) evaluated</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Required compatibility checks passed; 2 advisory requirements still need follow-up.</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">1 required compatibility check(s) failed; review the affected surfaces before relying on this client profile.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Fix shared requirement themes first, then re-check the profile cards for host-specific exceptions.</div></td>
                 </tr>
                 <tr>
@@ -2379,7 +2374,7 @@ a:hover {
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Bootstrap State</div><div class="section-abstract__value">Healthy</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Deferred Validation</div><div class="section-abstract__value">No</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake HTTP</div><div class="section-abstract__value">HTTP 200</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">1361.6 ms</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">1464.8 ms</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2409,7 +2404,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Handshake Latency</div>
-                <div class="fact-item__value">1361.6 ms</div>
+                <div class="fact-item__value">1464.8 ms</div>
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Negotiated Protocol</div>
@@ -2417,7 +2412,7 @@ a:hover {
               </div>
               <div class="fact-item">
                 <div class="fact-item__label">Observed Server Version</div>
-                <div class="fact-item__value">github-mcp-server/remote-3242d9e12bd9ffa96a76388614e42ce90d05f764</div>
+                <div class="fact-item__value">github-mcp-server/remote-4b6059b6dda4c546cead3f37aa9673f1f7419e18</div>
               </div>
             </div>
 
@@ -2426,7 +2421,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-warning">
+        <details class="section-card section-card--tone-danger">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Host Compatibility</div>
@@ -2435,9 +2430,9 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profiles</div><div class="section-abstract__value">5</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">2</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">3</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Incompatible</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Compatible</div><div class="section-abstract__value">0</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Warnings</div><div class="section-abstract__value">4</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Incompatible</div><div class="section-abstract__value">1</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2450,45 +2445,51 @@ a:hover {
           <div class="distribution-summary">
             <div class="distribution-summary__title">Compatibility Distribution</div>
             <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--success">
-                <div class="distribution-card__label">Compatible</div>
-                <div class="distribution-card__value">2</div>
-                <div class="distribution-card__meta">40% of observed outcomes</div>
-              </div>
               <div class="distribution-card distribution-card--warning">
                 <div class="distribution-card__label">Warnings</div>
-                <div class="distribution-card__value">3</div>
-                <div class="distribution-card__meta">60% of observed outcomes</div>
+                <div class="distribution-card__value">4</div>
+                <div class="distribution-card__meta">80% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--danger">
+                <div class="distribution-card__label">Incompatible</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">20% of observed outcomes</div>
               </div>
             </div>
             <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:2;"></span>
-              <span class="distribution-segment distribution-segment--warning" style="flex:3;"></span>
+              <span class="distribution-segment distribution-segment--warning" style="flex:4;"></span>
+              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
             </div>
             <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Compatible 2 (40%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Warnings 3 (60%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Warnings 4 (80%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Incompatible 1 (20%)</span>
             </div>
           </div>
 
           <div class="summary-grid">
             <div class="summary-card">
+              <div class="summary-card__label">Write-capable tools explicitly declare destructiveHint</div>
+              <div class="summary-card__value">Affects 4/5 profile(s). 16/41 write-capable tool(s) do not declare an explicit destructiveHint. Claude Code surfaces this hint in its consent flow.</div>
+              <div class="table-subtle"><span class="tone-chip tone-danger">4 profile(s)</span></div>
+              <div class="table-subtle">Profiles: Claude Code, VS Code Copilot Agent, GitHub Copilot Cloud Agent, Visual Studio Copilot</div>
+            </div>
+            <div class="summary-card">
+              <div class="summary-card__label">Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)</div>
+              <div class="summary-card__value">Affects 4/5 profile(s). 16/41 tool(s) declare no behavioural annotations. Claude Code uses readOnlyHint/destructiveHint to drive consent prompts and safety messaging.</div>
+              <div class="table-subtle"><span class="tone-chip tone-warning">4 profile(s)</span></div>
+              <div class="table-subtle">Profiles: Claude Code, VS Code Copilot Agent, GitHub Copilot CLI, Visual Studio Copilot</div>
+            </div>
+            <div class="summary-card">
               <div class="summary-card__label">Dynamic tool, prompt, and resource updates are declared for Claude Code</div>
-              <div class="summary-card__value">Affects 2/5 profile(s). Claude Code documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools, prompts surfaces.</div>
-              <div class="table-subtle"><span class="tone-chip tone-warning">2 profile(s)</span></div>
-              <div class="table-subtle">Profiles: Claude Code, Visual Studio Copilot</div>
+              <div class="summary-card__value">Affects 3/5 profile(s). Claude Code documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools, prompts surfaces.</div>
+              <div class="table-subtle"><span class="tone-chip tone-warning">3 profile(s)</span></div>
+              <div class="table-subtle">Profiles: Claude Code, VS Code Copilot Agent, Visual Studio Copilot</div>
             </div>
             <div class="summary-card">
               <div class="summary-card__label">Initialize instructions help Claude Code find and use the server correctly</div>
               <div class="summary-card__value">Affects 1/5 profile(s). Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</div>
               <div class="table-subtle"><span class="tone-chip tone-warning">1 profile(s)</span></div>
               <div class="table-subtle">Profiles: Claude Code</div>
-            </div>
-            <div class="summary-card">
-              <div class="summary-card__label">Only the tool surface is currently consumed</div>
-              <div class="summary-card__value">Affects 1/5 profile(s). This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility.</div>
-              <div class="table-subtle"><span class="tone-chip tone-warning">1 profile(s)</span></div>
-              <div class="table-subtle">Profiles: GitHub Copilot Cloud Agent</div>
             </div>
           </div>
           <div class="ledger-list">
@@ -2497,52 +2498,63 @@ a:hover {
                 <div class="ledger-title">Claude Code</div>
                 <div class="ledger-subtle">claude-code · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 2</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 7</span><span>W 4</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed; 2 advisory requirements still need follow-up.</p>
+                <p class="ledger-copy">Required compatibility checks passed; 4 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)</strong>: 16/41 tool(s) declare no behavioural annotations. Claude Code uses readOnlyHint/destructiveHint to drive consent prompts and safety messaging.</li>
+                  <li><strong>Write-capable tools explicitly declare destructiveHint</strong>: 16/41 write-capable tool(s) do not declare an explicit destructiveHint. Claude Code surfaces this hint in its consent flow.</li>
                   <li><strong>Initialize instructions help Claude Code find and use the server correctly</strong>: Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing.</li>
                   <li><strong>Dynamic tool, prompt, and resource updates are declared for Claude Code</strong>: Claude Code documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools, prompts surfaces.</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://code.claude.com/docs/en/mcp">Profile documentation</a></div>
               </div>
             </article>
-            <article class="ledger-entry ledger-entry--success">
+            <article class="ledger-entry ledger-entry--warning">
               <div class="ledger-rail">
                 <div class="ledger-title">VS Code Copilot Agent</div>
                 <div class="ledger-subtle">vscode-copilot-agent · 2026-04</div>
-                <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 3</span><span>W 0</span><span>F 0</span></div>
+                <span class="tone-chip tone-warning">Compatible with warnings</span>
+                <div class="check-summary"><span>P 6</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (3 satisfied).</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
+                <ul class="compact-list compact-list--tight">
+                  <li><strong>Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)</strong>: 16/41 tool(s) declare no behavioural annotations. VS Code Copilot Agent reads tool annotations to populate its tool-approval prompt.</li>
+                  <li><strong>Write-capable tools explicitly declare destructiveHint</strong>: 16/41 write-capable tool(s) do not declare an explicit destructiveHint. VS Code Copilot Agent surfaces this hint in its consent flow.</li>
+                  <li><strong>Tool catalog updates are declared so VS Code can refresh without a server restart</strong>: VS Code Copilot Agent documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools surfaces.</li>
+                </ul>
                 <div class="ledger-links">Reference: <a href="https://code.visualstudio.com/docs/copilot/chat/mcp-servers">Profile documentation</a></div>
-              </div>
-            </article>
-            <article class="ledger-entry ledger-entry--success">
-              <div class="ledger-rail">
-                <div class="ledger-title">GitHub Copilot CLI</div>
-                <div class="ledger-subtle">github-copilot-cli · 2026-04</div>
-                <span class="tone-chip tone-success">Compatible</span>
-                <div class="check-summary"><span>P 2</span><span>W 0</span><span>F 0</span></div>
-              </div>
-              <div class="ledger-body">
-                <p class="ledger-copy">All applicable compatibility checks passed (2 satisfied).</p>
-                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers">Profile documentation</a></div>
               </div>
             </article>
             <article class="ledger-entry ledger-entry--warning">
               <div class="ledger-rail">
-                <div class="ledger-title">GitHub Copilot Cloud Agent</div>
-                <div class="ledger-subtle">github-copilot-cloud-agent · 2026-04</div>
+                <div class="ledger-title">GitHub Copilot CLI</div>
+                <div class="ledger-subtle">github-copilot-cli · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 1</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 4</span><span>W 1</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
                 <p class="ledger-copy">Required compatibility checks passed; 1 advisory requirement still needs follow-up.</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)</strong>: 16/41 tool(s) declare no behavioural annotations. Copilot CLI surfaces destructiveHint when displaying tools.</li>
+                </ul>
+                <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers">Profile documentation</a></div>
+              </div>
+            </article>
+            <article class="ledger-entry ledger-entry--danger">
+              <div class="ledger-rail">
+                <div class="ledger-title">GitHub Copilot Cloud Agent</div>
+                <div class="ledger-subtle">github-copilot-cloud-agent · 2026-04</div>
+                <span class="tone-chip tone-danger">Incompatible</span>
+                <div class="check-summary"><span>P 6</span><span>W 1</span><span>F 1</span></div>
+              </div>
+              <div class="ledger-body">
+                <p class="ledger-copy">1 required compatibility check(s) failed; review the affected surfaces before relying on this client profile.</p>
+                <ul class="compact-list compact-list--tight">
                   <li><strong>Only the tool surface is currently consumed</strong>: This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility.</li>
+                  <li><strong>Write-capable tools declare destructiveHint (autonomous-execution safety)</strong>: 16/41 write-capable tool(s) do not declare destructiveHint. GitHub Copilot Cloud Agent invokes tools autonomously without per-call approval, so omitted destructive hints can result in irreversible actions running unannotated.</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp">Profile documentation</a></div>
               </div>
@@ -2552,11 +2564,13 @@ a:hover {
                 <div class="ledger-title">Visual Studio Copilot</div>
                 <div class="ledger-subtle">visual-studio-copilot · 2026-04</div>
                 <span class="tone-chip tone-warning">Compatible with warnings</span>
-                <div class="check-summary"><span>P 3</span><span>W 1</span><span>F 0</span></div>
+                <div class="check-summary"><span>P 6</span><span>W 3</span><span>F 0</span></div>
               </div>
               <div class="ledger-body">
-                <p class="ledger-copy">Required compatibility checks passed; 1 advisory requirement still needs follow-up.</p>
+                <p class="ledger-copy">Required compatibility checks passed; 3 advisory requirements still need follow-up.</p>
                 <ul class="compact-list compact-list--tight">
+                  <li><strong>Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)</strong>: 16/41 tool(s) declare no behavioural annotations. Visual Studio&#39;s tool approval flow honours destructiveHint and readOnlyHint.</li>
+                  <li><strong>Write-capable tools explicitly declare destructiveHint</strong>: 16/41 write-capable tool(s) do not declare an explicit destructiveHint. Visual Studio Copilot surfaces this hint in its consent flow.</li>
                   <li><strong>Tool updates are declared through notifications/tools/list_changed</strong>: Visual Studio documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools surfaces.</li>
                 </ul>
                 <div class="ledger-links">Reference: <a href="https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022">Profile documentation</a></div>
@@ -2599,8 +2613,8 @@ a:hover {
                 <tr><td data-label="Layer" class="table-cell--code"><code>prompt-surface</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
                 <tr><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">58</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
                 <tr><td data-label="Layer" class="table-cell--code"><code>performance</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">1</td><td data-label="Summary"><div class="cell-copy">-</div></td></tr>
-                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 2 handled correctly.</div></td></tr>
-                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 5 profile(s); 3 warning profile(s); 0 incompatible profile(s).</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>error-handling</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 4 handled correctly.</div></td></tr>
+                <tr><td data-label="Layer" class="table-cell--code"><code>client-profiles</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 5 profile(s); 4 warning profile(s); 1 incompatible profile(s).</div></td></tr>
               </tbody></table>
           </div>
           <div class="table-shell table-shell--coverage-summary">
@@ -2698,7 +2712,7 @@ a:hover {
                 <tr><td data-label="Scenario" class="table-cell--code"><code>prompt-catalog-smoke</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Prompt validation completed.</div></td></tr>
                 <tr><td data-label="Scenario" class="table-cell--code"><code>security-authentication-challenge</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Passed</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 58 authentication challenge scenario(s).</div></td></tr>
                 <tr><td data-label="Scenario" class="table-cell--code"><code>security-attack-simulations</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Skipped</span></td><td data-label="Findings" class="table-cell--numeric">0</td><td data-label="Summary"><div class="cell-copy">Evaluated 7 attack simulation(s).</div></td></tr>
-                <tr><td data-label="Scenario" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 2 handled correctly.</div></td></tr>
+                <tr><td data-label="Scenario" class="table-cell--code"><code>error-handling-matrix</code></td><td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Failed</span></td><td data-label="Findings" class="table-cell--numeric">3</td><td data-label="Summary"><div class="cell-copy">Validated 5 error scenario(s); 4 handled correctly.</div></td></tr>
               </tbody></table>
           </div>
           <div class="table-shell table-shell--observation-summary">
@@ -2815,9 +2829,9 @@ a:hover {
                 <tr><td data-label="Observation" class="table-cell--code"><code>auth-wrong-audience-rfc-8707-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401.</div></td></tr>
                 <tr><td data-label="Observation" class="table-cell--code"><code>auth-query-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.</div></td></tr>
                 <tr><td data-label="Observation" class="table-cell--code"><code>auth-valid-token-tools-call</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>tools/call</code></td><td data-label="Kind" class="table-cell--code"><code>authentication-scenario</code></td><td data-label="Preview"><div class="cell-copy">✅ ALIGNED: Valid authentication was accepted and request processing proceeded.</div></td></tr>
-                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-001-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-001 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3a9620f1-487c-45f8-8ec2-9e141f36f5aa&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
-                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-002-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-002 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;85666bdc-8c58-42e1-921c-5694b7cb2d07&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
-                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-003-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-003 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c378c1df-5478-47f8-96d6-414de4650cd9&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-001-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-001 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;d57fd616-22ff-4877-8991-47b25152e181&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-002-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-002 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;b17983bf-5316-4b61-82c9-c1cec3bbb4f3&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
+                <tr><td data-label="Observation" class="table-cell--code"><code>attack-inj-003-input-validation</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>INJ-003 (Input Validation)</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;8f152f8d-3733-4f2e-ad92-614788f93573&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</div></td></tr>
                 <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server handled malformed requests gracefully with standard errors.</div></td></tr>
                 <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-002</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-002</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.</div></td></tr>
                 <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-003</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-003</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Server correctly rejected invalid schema.</div></td></tr>
@@ -2884,7 +2898,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 41</span>
-        <span class="probe-metric"><strong>Duration</strong> 351.9 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 367.3 ms</span>
     </div>
     <div class="probe-row__note">List probe completed. Primary tool add_comment_to_pending_review responded successfully.</div>
 </article>
@@ -2896,7 +2910,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 0</span>
-        <span class="probe-metric"><strong>Duration</strong> 109.7 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 127.6 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -2908,7 +2922,7 @@ a:hover {
     <div class="probe-row__metrics">
         <span class="probe-metric"><strong>HTTP</strong> HTTP 200</span>
         <span class="probe-metric"><strong>Discovered</strong> 2</span>
-        <span class="probe-metric"><strong>Duration</strong> 112.7 ms</span>
+        <span class="probe-metric"><strong>Duration</strong> 190.9 ms</span>
     </div>
     <div class="probe-row__note">List probe completed.</div>
 </article>
@@ -4108,7 +4122,7 @@ a:hover {
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review</p>
                   <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;3a9620f1-487c-45f8-8ec2-9e141f36f5aa&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;d57fd616-22ff-4877-8991-47b25152e181&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -4119,7 +4133,7 @@ a:hover {
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review</p>
                   <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;85666bdc-8c58-42e1-921c-5694b7cb2d07&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;b17983bf-5316-4b61-82c9-c1cec3bbb4f3&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -4130,7 +4144,7 @@ a:hover {
                 <div class="ledger-body">
                   <p class="ledger-copy">Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review</p>
                   <div class="ledger-code-block"><strong>Probe</strong><code>tools/list (http) Success HTTP 200 (+1)</code></div>
-                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;c378c1df-5478-47f8-96d6-414de4650cd9&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
+                  <div class="ledger-code-block"><strong>Server response</strong><code>{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:&quot;8f152f8d-3733-4f2e-ad92-614788f93573&quot;,&quot;result&quot;:{&quot;content&quot;:[{&quot;type&quot;:&quot;text&quot;,&quot;text&quot;:&quot;failed to get latest review for current user: Could not resolve to a Repository with the name &#39;/&#39;.&quot;}],&quot;isError&quot;:true}}</code></div>
                 </div>
               </article>
               <article class="ledger-entry ledger-entry--success">
@@ -4264,22 +4278,22 @@ a:hover {
                   <li>Tool &#39;add_comment_to_pending_review&#39; does not declare annotations.destructiveHint.</li>
                 </ul>
               </article>
-              <article class="authority-card authority-card--danger">
+              <article class="authority-card authority-card--warning">
                 <div class="authority-card__header">
                   <div>
                     <div class="authority-card__eyebrow">Authority</div>
                     <div class="authority-card__title">Heuristic</div>
                   </div>
-                  <span class="tone-chip tone-danger">6 active rules</span>
+                  <span class="tone-chip tone-warning">5 active rules</span>
                 </div>
                 <div class="authority-card__metrics">
-                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">13/41 (32%)</div></div>
-                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">High</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Coverage</div><div class="authority-card__metric-value">11/41 (27%)</div></div>
+                  <div class="authority-card__metric"><div class="authority-card__metric-label">Highest Severity</div><div class="authority-card__metric-value">Medium</div></div>
                 </div>
                 <div class="authority-card__label">Representative gaps</div>
                 <ul class="compact-list compact-list--tight">
-                  <li>&#128308; LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops</li>
                   <li>Tool &#39;delete_file&#39; is marked destructive but its description does not mention confirmation, approval, or warning guidance.</li>
+                  <li>Tool &#39;push_files&#39;: 1/5 required array parameters lack item schemas or minItems guidance</li>
                 </ul>
               </article>
               <article class="authority-card authority-card--neutral">
@@ -4325,48 +4339,48 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>
-                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>351.91 ms</td><td>No behavioral annotations declared</td></tr>
-                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>888.40 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>734.75 ms</td><td>title, description</td></tr>
-                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>530.93 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>553.31 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>582.00 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>431.33 ms</td><td>title, description</td></tr>
-                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>318.81 ms</td><td>title, description</td></tr>
-                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>529.82 ms</td><td>title, description, destructiveHint</td></tr>
-                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>500.37 ms</td><td>title, description</td></tr>
-                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>457.06 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>494.13 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>436.24 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>413.00 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>355.73 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>449.50 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>377.12 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>320.30 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>377.40 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>310.68 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>377.67 ms</td><td>title, description</td></tr>
-                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>466.30 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>360.30 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>282.27 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>284.81 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>430.90 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>360.36 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>409.81 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>351.90 ms</td><td>title, description</td></tr>
-                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>433.65 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>388.47 ms</td><td>title, description</td></tr>
-                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>540.43 ms</td><td>title, description</td></tr>
-                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>472.51 ms</td><td>title, description</td></tr>
-                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>217.57 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
-                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>525.46 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>482.79 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>494.34 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>571.26 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>555.99 ms</td><td>title, description, readOnlyHint</td></tr>
-                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>337.41 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>446.36 ms</td><td>title, description</td></tr>
-                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>434.17 ms</td><td>title, description</td></tr>
+                <tr><td><code>tools/list (Schema Compliance)</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>367.29 ms</td><td>No behavioral annotations declared</td></tr>
+                <tr><td><code>add_comment_to_pending_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>978.78 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_issue_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>696.69 ms</td><td>title, description</td></tr>
+                <tr><td><code>add_reply_to_pull_request_comment</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>572.10 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>552.33 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_or_update_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>675.85 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>361.97 ms</td><td>title, description</td></tr>
+                <tr><td><code>create_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>313.30 ms</td><td>title, description</td></tr>
+                <tr><td><code>delete_file</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>505.82 ms</td><td>title, description, destructiveHint</td></tr>
+                <tr><td><code>fork_repository</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>473.14 ms</td><td>title, description</td></tr>
+                <tr><td><code>get_commit</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>887.58 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_file_contents</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>548.89 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_label</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>464.02 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_latest_release</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>412.48 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_me</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>438.71 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_release_by_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>430.51 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_tag</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>414.26 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_team_members</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>323.03 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>get_teams</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>351.46 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>284.25 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>353.44 ms</td><td>title, description</td></tr>
+                <tr><td><code>list_branches</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>525.65 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_commits</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>349.43 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issue_types</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>301.72 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>290.90 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>475.29 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_releases</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>361.84 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>list_tags</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>398.95 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>merge_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>395.53 ms</td><td>title, description</td></tr>
+                <tr><td><code>pull_request_read</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>327.13 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>pull_request_review_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>367.07 ms</td><td>title, description</td></tr>
+                <tr><td><code>push_files</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>547.99 ms</td><td>title, description</td></tr>
+                <tr><td><code>request_copilot_review</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>377.37 ms</td><td>title, description</td></tr>
+                <tr><td><code>run_secret_scanning</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>225.14 ms</td><td>title, description, readOnlyHint, openWorldHint</td></tr>
+                <tr><td><code>search_code</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>469.90 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_issues</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>476.04 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_pull_requests</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>514.80 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_repositories</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>547.98 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>search_users</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>454.89 ms</td><td>title, description, readOnlyHint</td></tr>
+                <tr><td><code>sub_issue_write</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>403.78 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>558.53 ms</td><td>title, description</td></tr>
+                <tr><td><code>update_pull_request_branch</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>478.70 ms</td><td>title, description</td></tr>
               </tbody></table>
           </div>
           </div>
@@ -4430,8 +4444,8 @@ a:hover {
           <div class="table-shell">
             <table class="data-table">
               <thead><tr><th>Name</th><th>Status</th><th>Arguments</th><th>Execution Time</th><th>Issues</th></tr></thead><tbody>
-                <tr><td><code>AssignCodingAgent</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>408.96 ms</td><td>✅ prompts/get: messages[] array present (6 messages)</td></tr>
-                <tr><td><code>issue_to_fix_workflow</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>6</td><td>913.62 ms</td><td>✅ prompts/get: messages[] array present (5 messages)</td></tr>
+                <tr><td><code>AssignCodingAgent</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>1</td><td>258.05 ms</td><td>✅ prompts/get: messages[] array present (6 messages)</td></tr>
+                <tr><td><code>issue_to_fix_workflow</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>6</td><td>892.29 ms</td><td>✅ prompts/get: messages[] array present (5 messages)</td></tr>
               </tbody></table>
           </div>
           </div>
@@ -4447,8 +4461,8 @@ a:hover {
               <p class="section-intro section-intro--card">Observed values from the completed runtime probe.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">136.0 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">159.0 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">155.5 ms</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">P95</div><div class="section-abstract__value">198.1 ms</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Requests</div><div class="section-abstract__value">20</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Error Rate</div><div class="section-abstract__value">0.00%</div></div>
             </div>
@@ -4463,17 +4477,17 @@ a:hover {
           <div class="score-strip">
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">136.0 ms</div>
+              <div class="score-pill__value">155.5 ms</div>
               <div class="score-pill__meta">Target ≤ 300 ms</div>
             </div>
             <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">P95 Latency</div>
-              <div class="score-pill__value">159.0 ms</div>
+              <div class="score-pill__value">198.1 ms</div>
               <div class="score-pill__meta">Tail latency under pressure</div>
             </div>
             <div class="score-pill score-pill--info">
               <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">7.33</div>
+              <div class="score-pill__value">6.39</div>
               <div class="score-pill__meta">Sustained throughput during probe</div>
             </div>
             <div class="score-pill score-pill--success">
@@ -4524,8 +4538,8 @@ a:hover {
                 <li>Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation</li>
                 <li>Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
                 <li>Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors</li>
-                <li>Heuristic: Return specific, structured errors that identify the invalid argument and expected shape Gap affects 3/41 tools</li>
                 <li>Heuristic: Add explicit confirmation, approval, or warning language so agents know human review is expected before destructive execution Gap affects 1/41 tool</li>
+                <li>Heuristic: Required array parameters should declare items schemas and minItems when empty arrays are not meaningful Gap affects 1/41 tool</li>
               </ul>
             </div>
           </div>

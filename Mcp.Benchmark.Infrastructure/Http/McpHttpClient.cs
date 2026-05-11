@@ -1479,8 +1479,11 @@ public class McpHttpClient : IMcpHttpClient
             }
 
             var jsonDoc = JsonDocument.Parse(response.RawJson);
-            if (jsonDoc.RootElement.TryGetProperty("error", out var errorElement) &&
-                errorElement.TryGetProperty("code", out var codeElement))
+            if (jsonDoc.RootElement.ValueKind == JsonValueKind.Object &&
+                jsonDoc.RootElement.TryGetProperty("error", out var errorElement) &&
+                errorElement.ValueKind == JsonValueKind.Object &&
+                errorElement.TryGetProperty("code", out var codeElement) &&
+                codeElement.ValueKind == JsonValueKind.Number)
             {
                 return codeElement.GetInt32() == expectedCode;
             }

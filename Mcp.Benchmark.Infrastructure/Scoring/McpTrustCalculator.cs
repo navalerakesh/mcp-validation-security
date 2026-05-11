@@ -225,13 +225,9 @@ public static class McpTrustCalculator
             AddShouldCheck(assessment, McpComplianceTiers.Should.DescriptiveParameterTypes, "tools/list", !hasVagueTypes);
         }
 
-        // isError field
-        if (result.ToolValidation?.ToolResults != null)
-        {
-            var missingIsError = result.ToolValidation.ToolResults.Any(t =>
-                HasFinding(t.Findings, ValidationFindingRuleIds.ToolCallMissingIsError));
-            AddShouldCheck(assessment, McpComplianceTiers.Should.IsErrorFieldPresent, "tools/call", !missingIsError);
-        }
+        // NOTE: MCP spec marks tools/call result.isError as OPTIONAL (omitted == false).
+        // Do not score its absence as a SHOULD violation; explicit isError:true is observed via
+        // unsafe-call evidence elsewhere (attack simulations / error-handling findings).
 
         // WWW-Authenticate
         if (result.SecurityTesting?.AuthenticationTestResult?.TestScenarios != null)
@@ -489,6 +485,14 @@ public static class McpTrustCalculator
             {
                 foreach (var finding in tool.Findings.Where(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
                 {
+                    // Skip findings explicitly marked as excluded (e.g. upstream HTTP pass-through
+                    // errors driven by the validator's synthetic input choice rather than tool quality).
+                    if (finding.Metadata.TryGetValue("excludedFromLlmAverage", out var excluded) &&
+                        string.Equals(excluded, "true", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
                     if (finding.Metadata.TryGetValue("score", out var scoreText) && int.TryParse(scoreText, out var llmScore))
                     {
                         llmScores.Add(llmScore);

@@ -122,6 +122,48 @@ public class ErrorHandlingValidatorUnitTests
     }
 
     [Fact]
+    public async Task ValidateErrorHandlingAsync_WithHttp4xxFrontDoorOnParseError_ShouldDowngradeToGuidelineLowAndPass()
+    {
+        // MCP 2025-11-25 Streamable HTTP §2.1: when the server cannot accept input
+        // (malformed JSON / invalid request) it MUST return an HTTP error status code
+        // (e.g. 400). The JSON-RPC error envelope is MAY, not MUST. So an HTTP 400
+        // front-door rejection for -32700 / -32600 is spec-allowed and must NOT be
+        // surfaced as a Spec/High protocol violation.
+        var httpClient = new Mock<IMcpHttpClient>();
+        httpClient
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests = new List<JsonRpcErrorTest>
+                {
+                    CreateErrorTest("Parse Error", -32700, false, 400, "{\"error\":\"malformed payload\"}")
+                }
+            });
+
+        var validator = new ErrorHandlingValidator(new Mock<ILogger<ErrorHandlingValidator>>().Object, httpClient.Object);
+
+        var result = await validator.ValidateErrorHandlingAsync(
+            new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
+            new ErrorHandlingConfig
+            {
+                TestInvalidMethods = false,
+                TestMalformedJson = true,
+                TestConnectionInterruption = false,
+                TestTimeoutHandling = false,
+                TestGracefulDegradation = false
+            },
+            CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Passed);
+        result.ErrorScenariosHandledCorrectly.Should().Be(1);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE" &&
+            finding.Source == ValidationRuleSource.Guideline &&
+            finding.Severity == ValidationFindingSeverity.Low &&
+            finding.Summary.Contains("MCP Streamable HTTP §2.1 allows this", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ValidateErrorHandlingAsync_WithStdioRawProbeDrops_ShouldSkipMalformedEnvelopeScenarios()
     {
         var httpClient = new Mock<IMcpHttpClient>();

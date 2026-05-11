@@ -1,12 +1,12 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-05-01 16:23:32 UTC
+**Generated:** 2026-05-11 11:47:05 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `node mcpval-mcp/dist/index.js` |
-| **Validation ID** | `3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7` |
+| **Validation ID** | `e723cc3e-d008-4a92-ae3c-c69e39cedb2d` |
 | **Overall Status** | ✅ **Passed** |
 | **Baseline Verdict** | **Conditionally Acceptable** |
 | **Protocol Verdict** | **Conditionally Acceptable** |
@@ -15,7 +15,7 @@
 | **Evidence Coverage** | **100.0%** |
 | **Evidence Confidence** | **High (100.0%)** |
 | **Compliance Profile** | `Public (Inferred)` |
-| **Duration** | 11.44s |
+| **Duration** | 11.52s |
 | **Transport** | STDIO |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -31,7 +31,7 @@ This section explains how the validator established initial connectivity and whe
 | **Bootstrap State** | ✅ Healthy |
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
-| **Handshake Duration** | 35.0 ms |
+| **Handshake Duration** | 41.6 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `1.1.0` |
 | **Server Profile Resolution** | `Public (Inferred)` |
@@ -96,10 +96,12 @@ This section is descriptive only. Release gating and pass/fail status are driven
 
 ### MCP Spec Compliance (RFC 2119 Tiers)
 
-| Tier | Passed | Failed | Total | Impact |
+`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.
+
+| Tier | Passed | Failed | Evaluated | Impact |
 | :--- | :---: | :---: | :---: | :--- |
 | **MUST** | 14 | 0 | 14 | ✅ Fully compliant |
-| **SHOULD** | 5 | 0 | 5 | ✅ All expected behaviors present |
+| **SHOULD** | 4 | 0 | 4 | ✅ All expected behaviors present |
 | **MAY** | 3 | 3 | 6 | ℹ️ Informational (no score impact) |
 
 #### ℹ️ Optional Features (MAY)
@@ -117,17 +119,17 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ✅ Compatible | 6 passed / 0 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
-| **VS Code Copilot Agent** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 2 passed / 1 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ✅ Compatible | 5 passed / 0 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
+| **Claude Code** | ✅ Compatible | 12 passed / 0 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
+| **VS Code Copilot Agent** | ✅ Compatible | 10 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ✅ Compatible | 5 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 6 passed / 1 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ✅ Compatible | 10 passed / 0 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
 
 ### Claude Code
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (6 satisfied).
+All applicable compatibility checks passed (12 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -135,7 +137,7 @@ All applicable compatibility checks passed (6 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (10 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -143,7 +145,7 @@ All applicable compatibility checks passed (4 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (2 satisfied).
+All applicable compatibility checks passed (5 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -161,7 +163,7 @@ Required compatibility checks passed; 1 advisory requirement still needs follow-
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (5 satisfied).
+All applicable compatibility checks passed (10 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -259,9 +261,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | `prompt-validate-mcp-server` | `prompt-surface` | `validate-mcp-server` | `prompt-result` | ✅ prompts/get: messages[] array present (1 messages) |
 | `auth-stdio-transport-protocol-check` | `security-boundaries` | `transport-validation` | `authentication-scenario` | ✅ Correctly using STDIO transport (no HTTP auth) |
 | `auth-stdio-environment-credentials-check` | `security-boundaries` | `env-check` | `authentication-scenario` | ✅ Environment credential variables detected |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"d33cb9b3-bba3-4849-b000-5343a1e652ab"} |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"04fec1c3-bbee-4eff-81b5-b58d75c8f6df"} |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"c2c78952-cacd-427c-94d2-93ed588b936e"} |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"86f09174-6a17-415f-b7ca-bb7af7b34b5f"} |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"82989175-cfbb-4db3-949b-f0d65705989a"} |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"f1461883-f1a9-4856-8b84-5dc4bdd41aea"} |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Consistent same-family error handling observed for unadvertised resource probes. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
@@ -276,9 +278,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 3 | HTTP 200 | 105.4 ms | ✅ Listed<br/>Call ✅ |
+| Tools/list | 3 | HTTP 200 | 105.8 ms | ✅ Listed<br/>Call ✅ |
 | Resources/list | 1 | HTTP 200 | 0.4 ms | ✅ Listed |
-| Prompts/list | 1 | HTTP 200 | 0.6 ms | ✅ Listed |
+| Prompts/list | 1 | HTTP 200 | 0.3 ms | ✅ Listed |
 
 - **First Tool Probed:** `validate`
 
@@ -325,9 +327,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Probe | Analysis |
 | :--- | :--- | :---: | :--- | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"d33cb9b3-bba3-4849-b000-5343a1e652ab"}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"04fec1c3-bbee-4eff-81b5-b58d75c8f6df"}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"c2c78952-cacd-427c-94d2-93ed588b936e"}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"86f09174-6a17-415f-b7ca-bb7af7b34b5f"}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"82989175-cfbb-4db3-949b-f0d65705989a"}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on validate | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `{"result":{"content":[{"type":"text","text":"MCP error -32602: Input validation error: Invalid arguments for tool validate: [\n  {\n    \"code\": \"invalid_union\",\n    \"errors\": [\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ],\n      [\n        {\n          \"expected\": \"string\",\n          \"code\": \"invalid_type\",\n          \"path\": [],\n          \"message\": \"Invalid input: expected string, received undefined\"\n        }\n      ]\n    ],\n    \"path\": [\n      \"server\"\n    ],\n    \"message\": \"Invalid input\"\n  },\n  {\n    \"code\": \"invalid_value\",\n    \"values\": [\n      \"public\",\n      \"authenticated\",\n      \"enterprise\",\n      \"unspecified\"\n    ],\n    \"path\": [\n      \"access\"\n    ],\n    \"message\": \"Invalid option: expected one of \\\"public\\\"\|\\\"authenticated\\\"\|\\\"enterprise\\\"\|\\\"unspecified\\\"\"\n  }\n]"}],"isError":true},"jsonrpc":"2.0","id":"f1461883-f1a9-4856-8b84-5dc4bdd41aea"}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `rpc.system.invalid`/stdio: ProtocolError HTTP 400; auth NotApplied | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | 🛡️ BLOCKED | `resources/list`/stdio: Success HTTP 200; auth NotApplied (+2) | `Consistent same-family error handling observed for unadvertised resource probes.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `tools/list`/stdio: Success HTTP 200; auth NotApplied (+1) | `Server correctly rejected invalid schema.` |
@@ -370,13 +372,13 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 105.39ms
+**Execution Time:** 105.85ms
 ---
 
 ### Tool: `validate`
 
 **Status:** ✅ Passed
-**Execution Time:** 9959.51ms
+**Execution Time:** 9963.66ms
 
 #### Tool Metadata
 | Property | Value |
@@ -392,7 +394,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `health_check`
 
 **Status:** ✅ Passed
-**Execution Time:** 0.39ms
+**Execution Time:** 0.46ms
 
 #### Tool Metadata
 | Property | Value |
@@ -408,7 +410,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `discover`
 
 **Status:** ✅ Passed
-**Execution Time:** 0.24ms
+**Execution Time:** 0.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -438,7 +440,7 @@ Remaining tool-catalog debt is grouped by authority so MCP specification failure
 
 | Resource Name | URI | MIME Type | Size | Status |
 | :--- | :--- | :--- | :--- | :---: |
-| mcpval-server-metadata | `mcpval://server/metadata` | application/json | 320 | ✅ |
+| mcpval-server-metadata | `mcpval://server/metadata` | application/json | 321 | ✅ |
 
 ## 18. Prompt Capabilities
 
@@ -476,9 +478,9 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 0.37ms | 🚀 Excellent |
-| **P95 Latency** | 0.51ms | - |
-| **Throughput** | 2331.27 req/sec | - |
+| **Avg Latency** | 0.58ms | 🚀 Excellent |
+| **P95 Latency** | 1.02ms | - |
+| **Throughput** | 1450.75 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 20/20 successful | - |
 

@@ -700,7 +700,7 @@ public class McpCompliantAuthValidator
         }
 
         AddChallengeFindings(result);
-        await ValidateProtectedResourceMetadataAsync(result, cancellationToken);
+        await ValidateProtectedResourceMetadataAsync(result, serverConfig, cancellationToken);
         AddAuthorizationHeaderFindings(result);
         AddTokenPlacementAndAudienceFindings(result);
         AddResourceIndicatorFinding(result, serverConfig);
@@ -726,7 +726,7 @@ public class McpCompliantAuthValidator
         }
     }
 
-    private async Task ValidateProtectedResourceMetadataAsync(AuthenticationTestResult result, CancellationToken cancellationToken)
+    private async Task ValidateProtectedResourceMetadataAsync(AuthenticationTestResult result, McpServerConfig serverConfig, CancellationToken cancellationToken)
     {
         var challenge = result.TestScenarios
             .Select(CreateChallengeObservation)
@@ -828,10 +828,10 @@ public class McpCompliantAuthValidator
         }
 
         result.ProtectedResourceMetadata = metadata;
-        ValidateAuthMetadataDocument(result, metadata);
+        ValidateAuthMetadataDocument(result, metadata, serverConfig);
     }
 
-    private static void ValidateAuthMetadataDocument(AuthenticationTestResult result, AuthMetadata metadata)
+    private static void ValidateAuthMetadataDocument(AuthenticationTestResult result, AuthMetadata metadata, McpServerConfig? serverConfig = null)
     {
         if (string.IsNullOrWhiteSpace(metadata.Resource))
         {
@@ -860,6 +860,28 @@ public class McpCompliantAuthValidator
                 {
                     ["resource"] = metadata.Resource,
                     ["issue"] = issue ?? "URI contains a fragment."
+                });
+        }
+        else if (serverConfig != null && !string.IsNullOrWhiteSpace(serverConfig.Endpoint) &&
+                 TryCreateAbsoluteUri(serverConfig.Endpoint, out var endpointUri, out _) &&
+                 !ResourceUriMatchesEndpoint(resourceUri, endpointUri))
+        {
+            // MCP §2.5.1.1 + RFC 8707 §2: clients MUST send the canonical server URI in OAuth
+            // `resource` parameter. If the metadata's `resource` field doesn't identify the
+            // server clients are connecting to, audience-validated tokens cannot succeed.
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthResourceIndicatorMismatch,
+                "authorization",
+                ValidationFindingSeverity.High,
+                $"Protected resource metadata advertises resource '{metadata.Resource}' but the MCP endpoint clients connect to is '{serverConfig.Endpoint}'.",
+                "Set protected resource metadata `resource` to the canonical URI of the MCP server endpoint clients connect to (per RFC 8707 §2 + MCP Authorization §2.5.1.1). Mismatched values cause every audience-validated token to fail.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string>
+                {
+                    ["metadataResource"] = metadata.Resource,
+                    ["serverEndpoint"] = serverConfig.Endpoint
                 });
         }
 
@@ -1118,6 +1140,32 @@ public class McpCompliantAuthValidator
         return true;
     }
 
+    /// <summary>
+    /// RFC 8707 §2 + MCP Authorization §2.5.1.1: the resource URI must identify the MCP server
+    /// the client intends to use the token with. Comparison is case-insensitive on scheme/host
+    /// (per spec) and tolerates trailing-slash differences which are explicitly called out as
+    /// equivalent. Different paths or non-default ports are NOT equivalent — a token issued for
+    /// <c>https://api/mcp</c> is not valid for <c>https://api/other</c>.
+    /// </summary>
+    private static bool ResourceUriMatchesEndpoint(Uri metadataResource, Uri endpoint)
+    {
+        if (!string.Equals(metadataResource.Scheme, endpoint.Scheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (!string.Equals(metadataResource.Host, endpoint.Host, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (metadataResource.Port != endpoint.Port)
+        {
+            return false;
+        }
+        var leftPath = (metadataResource.AbsolutePath ?? string.Empty).TrimEnd('/');
+        var rightPath = (endpoint.AbsolutePath ?? string.Empty).TrimEnd('/');
+        return string.Equals(leftPath, rightPath, StringComparison.Ordinal);
+    }
+
     private static bool ShouldFetchOAuthMetadata(Uri metadataUri)
     {
         return string.Equals(metadataUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
@@ -1268,10 +1316,13 @@ public class McpCompliantAuthValidator
             var jsonDoc = JsonDocument.Parse(response.RawJson);
 
             // Check for JSON-RPC error
-            if (jsonDoc.RootElement.TryGetProperty("error", out var errorElement))
+            if (jsonDoc.RootElement.ValueKind == JsonValueKind.Object &&
+                jsonDoc.RootElement.TryGetProperty("error", out var errorElement) &&
+                errorElement.ValueKind == JsonValueKind.Object)
             {
                 var errorMessage = "Unknown error";
-                if (errorElement.TryGetProperty("message", out var messageElement))
+                if (errorElement.TryGetProperty("message", out var messageElement) &&
+                    messageElement.ValueKind == JsonValueKind.String)
                 {
                     errorMessage = messageElement.GetString() ?? "Unknown error";
                 }

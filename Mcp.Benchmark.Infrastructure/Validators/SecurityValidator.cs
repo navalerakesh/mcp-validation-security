@@ -451,14 +451,21 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                             using var doc = System.Text.Json.JsonDocument.Parse(response.RawJson);
                             
                             // 1. Check for Top-Level JSON-RPC Error
-                            if (doc.RootElement.TryGetProperty("error", out var error))
+                            if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                doc.RootElement.TryGetProperty("error", out var error) &&
+                                error.ValueKind == System.Text.Json.JsonValueKind.Object)
                             {
                                 isBlocked = true;
-                                defenseDetails = error.TryGetProperty("message", out var msg) ? msg.GetString() ?? "Error" : "JSON-RPC Error";
+                                defenseDetails = error.TryGetProperty("message", out var msg) && msg.ValueKind == System.Text.Json.JsonValueKind.String
+                                    ? msg.GetString() ?? "Error"
+                                    : "JSON-RPC Error";
                             }
                             // 2. Check for Tool Execution Error (content.isError)
-                            else if (doc.RootElement.TryGetProperty("result", out var resultVal) && 
-                                     resultVal.TryGetProperty("isError", out var isErrorVal) && 
+                            else if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                     doc.RootElement.TryGetProperty("result", out var resultVal) &&
+                                     resultVal.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                                     resultVal.TryGetProperty("isError", out var isErrorVal) &&
+                                     (isErrorVal.ValueKind == System.Text.Json.JsonValueKind.True || isErrorVal.ValueKind == System.Text.Json.JsonValueKind.False) &&
                                      isErrorVal.GetBoolean())
                             {
                                 isBlocked = true;
@@ -614,7 +621,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             try
             {
                 using var doc = System.Text.Json.JsonDocument.Parse(rawJson);
-                if (doc.RootElement.TryGetProperty("error", out var error))
+                if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
+                    doc.RootElement.TryGetProperty("error", out _))
                 {
                     return ValidationMessages.Security.Defense.AppLayer;
                 }

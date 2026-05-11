@@ -67,8 +67,15 @@ internal static class JsonRpcResponseInspector
                 return new JsonRpcResponseClassification(JsonRpcResponseSurface.NonJsonRpcJson, null, response.StatusCode, contentType);
             }
 
-            var hasJsonRpc = root.TryGetProperty("jsonrpc", out var jsonRpcVersion) && jsonRpcVersion.GetString() == "2.0";
+            var hasJsonRpc = root.TryGetProperty("jsonrpc", out var jsonRpcVersion) &&
+                jsonRpcVersion.ValueKind == JsonValueKind.String &&
+                jsonRpcVersion.GetString() == "2.0";
+
+            // Guard: TryGetProperty on a non-object element throws InvalidOperationException.
+            // Some servers respond with `{"error":"text"}` where `error` is a string; treat
+            // those as non-JSON-RPC bodies rather than crashing the validator.
             if (root.TryGetProperty("error", out var errorElement) &&
+                errorElement.ValueKind == JsonValueKind.Object &&
                 errorElement.TryGetProperty("code", out var codeElement) &&
                 codeElement.ValueKind == JsonValueKind.Number)
             {
@@ -78,6 +85,13 @@ internal static class JsonRpcResponseInspector
                     errorCode,
                     response.StatusCode,
                     contentType);
+            }
+
+            // For HTTP 4xx/5xx responses with non-JSON-RPC JSON, classify as a front-door
+            // rejection (the server gave us a generic JSON error body, not a JSON-RPC envelope).
+            if (response.StatusCode is >= 400)
+            {
+                return new JsonRpcResponseClassification(JsonRpcResponseSurface.HttpFrontDoorRejection, null, response.StatusCode, contentType);
             }
 
             return new JsonRpcResponseClassification(
@@ -104,7 +118,9 @@ internal static class JsonRpcResponseInspector
         try
         {
             using var document = JsonDocument.Parse(response.RawJson);
-            if (!document.RootElement.TryGetProperty("error", out var errorElement) ||
+            if (document.RootElement.ValueKind != JsonValueKind.Object ||
+                !document.RootElement.TryGetProperty("error", out var errorElement) ||
+                errorElement.ValueKind != JsonValueKind.Object ||
                 !errorElement.TryGetProperty("code", out var codeElement) ||
                 codeElement.ValueKind != JsonValueKind.Number)
             {

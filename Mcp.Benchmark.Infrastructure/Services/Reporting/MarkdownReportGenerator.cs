@@ -165,7 +165,9 @@ public class MarkdownReportGenerator : IReportGenerator
             {
                 sb.AppendLine("### MCP Spec Compliance (RFC 2119 Tiers)");
                 sb.AppendLine();
-                sb.AppendLine($"| Tier | Passed | Failed | Total | Impact |");
+                sb.AppendLine("`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.");
+                sb.AppendLine();
+                sb.AppendLine($"| Tier | Passed | Failed | Evaluated | Impact |");
                 sb.AppendLine($"| :--- | :---: | :---: | :---: | :--- |");
                 sb.AppendLine($"| **MUST** | {result.TrustAssessment.MustPassCount} | {result.TrustAssessment.MustFailCount} | {result.TrustAssessment.MustTotalCount} | {(result.TrustAssessment.MustFailCount > 0 ? "❌ Non-compliant (trust capped at L2)" : "✅ Fully compliant")} |");
                 sb.AppendLine($"| **SHOULD** | {result.TrustAssessment.ShouldPassCount} | {result.TrustAssessment.ShouldFailCount} | {result.TrustAssessment.ShouldTotalCount} | {(result.TrustAssessment.ShouldFailCount > 0 ? $"⚠️ {result.TrustAssessment.ShouldFailCount} penalties applied" : "✅ All expected behaviors present")} |");

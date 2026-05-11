@@ -628,11 +628,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         try
         {
             using var doc = JsonDocument.Parse(rawJson);
-            if (doc.RootElement.TryGetProperty("error", out var errorObj))
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("error", out var errorObj) &&
+                errorObj.ValueKind == JsonValueKind.Object)
             {
-                if (errorObj.TryGetProperty("code", out var code))
+                if (errorObj.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number)
                     errorCode = code.GetInt32();
-                if (errorObj.TryGetProperty("message", out var msg))
+                if (errorObj.TryGetProperty("message", out var msg) && msg.ValueKind == JsonValueKind.String)
                     errorMessage = msg.GetString() ?? "";
                 return true;
             }
@@ -643,14 +645,27 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result)
     {
-        if (string.IsNullOrWhiteSpace(tool.Name) || tool.Name != tool.Name.Trim() || ContainsControlCharacter(tool.Name))
+        // The MCP schema requires the `name` property be present (Tool.required = ["inputSchema","name"])
+        // and a string. Missing/empty name is therefore a true Spec violation.
+        if (string.IsNullOrEmpty(tool.Name))
         {
             AddToolSpecFinding(
                 result,
                 ValidationFindingRuleIds.ToolNameInvalid,
                 ValidationFindingSeverity.High,
-                "Tool name must be a non-empty programmatic identifier without leading/trailing whitespace or control characters.",
-                "Return a stable, non-empty name value for every tool in tools/list.");
+                "Tool name is missing or empty.",
+                "Return a non-empty 'name' string for every tool in tools/list per the MCP Tool schema (required field).");
+        }
+        else if (tool.Name != tool.Name.Trim() || ContainsControlCharacter(tool.Name))
+        {
+            // Per official spec §5.1.1 the format constraints (1-128 chars, A-Z/a-z/0-9/_-./, no
+            // spaces, etc.) are SHOULDs not MUSTs. Surface these as Guideline, not Spec.
+            AddToolGuidelineFinding(
+                result,
+                ValidationFindingRuleIds.ToolNameFormatGuideline,
+                ValidationFindingSeverity.Medium,
+                $"Tool name '{tool.Name}' contains leading/trailing whitespace or control characters.",
+                "Per MCP §5.1.1 (SHOULD), use only A-Z, a-z, 0-9, underscore, hyphen, or dot in tool names; avoid whitespace and control characters.");
         }
 
         ValidateJsonSchemaProperty(
@@ -933,6 +948,27 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         result.MetadataValid = false;
     }
 
+    private static void AddToolGuidelineFinding(
+        IndividualToolResult result,
+        string ruleId,
+        ValidationFindingSeverity severity,
+        string summary,
+        string recommendation)
+    {
+        var finding = new ValidationFinding
+        {
+            RuleId = ruleId,
+            Category = "ProtocolCompliance",
+            Component = result.ToolName,
+            Severity = severity,
+            Summary = summary,
+            Recommendation = recommendation,
+            Source = ValidationRuleSource.Guideline,
+            SpecReference = "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names"
+        };
+        result.AddFinding(finding, summary);
+    }
+
     private static bool TryConvertToJsonNode(JsonElement element, out JsonNode? node, out string? error)
     {
         try
@@ -1006,6 +1042,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         {
             using var doc = JsonDocument.Parse(rawJson);
 
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return; // Not a JSON-RPC envelope; nothing to validate here.
+            }
+
             if (!doc.RootElement.TryGetProperty("result", out var resultObj))
             {
                 if (doc.RootElement.TryGetProperty("error", out _))
@@ -1022,6 +1063,20 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     Summary = "tools/call response missing 'result' object",
                     Recommendation = "Return either a JSON-RPC result object or a JSON-RPC error object for every tools/call response."
                 }, "⚠️ MCP Compliance: tools/call response missing 'result' object");
+                return;
+            }
+
+            if (resultObj.ValueKind != JsonValueKind.Object)
+            {
+                result.AddFinding(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ToolCallMissingResultObject,
+                    Category = "ProtocolCompliance",
+                    Component = result.ToolName,
+                    Severity = ValidationFindingSeverity.High,
+                    Summary = "tools/call 'result' is not a JSON object",
+                    Recommendation = "MCP requires the JSON-RPC result to be an object containing a 'content' array."
+                }, "❌ MCP Compliance: tools/call 'result' must be a JSON object");
                 return;
             }
 

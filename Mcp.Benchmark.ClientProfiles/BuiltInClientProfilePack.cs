@@ -9,8 +9,16 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
     private const string ClaudeCodeToolSearchDocsUrl = "https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search";
     private const string ClaudeCodeListChangedDocsUrl = "https://code.claude.com/docs/en/mcp#dynamic-tool-updates";
     private const string ClaudeCodeOutputBudgetDocsUrl = "https://code.claude.com/docs/en/mcp#raise-the-limit-for-a-specific-tool";
+    private const string ClaudeCodeOAuthDocsUrl = "https://code.claude.com/docs/en/mcp#authenticate-with-remote-mcp-servers";
     private const string VisualStudioToolLifecycleDocsUrl = "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022#tool-lifecycle";
     private const string VisualStudioSamplingDocsUrl = "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022#mcp-sampling";
+    private const string VisualStudioToolApprovalDocsUrl = "https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022#management-of-tool-approvals";
+    private const string VsCodeToolsConceptDocsUrl = "https://code.visualstudio.com/docs/copilot/concepts/tools";
+    private const string VsCodeAgentToolsDocsUrl = "https://code.visualstudio.com/docs/copilot/agents/agent-tools";
+    private const string VsCodeOtherCapabilitiesDocsUrl = "https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_other-mcp-capabilities";
+    private const string CopilotCloudAgentIntroDocsUrl = "https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp#introduction";
+    private const string CopilotCliAddDocsUrl = "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers";
+    private const string McpToolNamingSpecUrl = "https://modelcontextprotocol.io/specification/2025-11-25/server/tools#tool-names";
 
     private static readonly string[] ToolContractRuleIds =
     {
@@ -167,36 +175,66 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 RequireToolContract("tools-contract", claudeCode.DocumentationUrl!),
                 RequirePromptContract("prompts-contract", claudeCode.DocumentationUrl!),
                 RequireResourceContract("resources-contract", claudeCode.DocumentationUrl!),
+                RecommendToolDescriptions("tool-descriptions", claudeCode.DocumentationUrl!, "Claude Code shows tool descriptions in /mcp and uses them to drive tool search."),
+                RecommendToolDisplayTitles("tool-titles", claudeCode.DocumentationUrl!, "Claude Code prefers `title` for human-friendly tool display."),
+                RecommendToolAnnotations("tool-annotations", claudeCode.DocumentationUrl!, "Claude Code uses readOnlyHint/destructiveHint to drive consent prompts and safety messaging."),
+                RecommendDestructiveHintForWriteTools("destructive-hint", claudeCode.DocumentationUrl!, "Claude Code"),
+                RecommendServerIdentity("server-identity", claudeCode.DocumentationUrl!, "Claude Code"),
                 RecommendClaudeServerInstructions("server-instructions", ClaudeCodeToolSearchDocsUrl),
+                RecommendClaudeDescriptionSizeBudget("description-size", ClaudeCodeToolSearchDocsUrl),
                 ObserveClaudeOutputBudgetAnnotation("output-budget", ClaudeCodeOutputBudgetDocsUrl),
                 ObserveListChangedSupport(
                     "list-changed",
                     "Dynamic tool, prompt, and resource updates are declared for Claude Code",
                     ClaudeCodeListChangedDocsUrl,
                     new[] { "tools", "prompts", "resources" },
-                    "Claude Code")),
+                    "Claude Code"),
+                RecommendClaudeRemoteOAuthDiscovery("oauth-discovery", ClaudeCodeOAuthDocsUrl)),
             CreateProfile(
                 vscodeCopilotAgent,
                 RequireInteractiveSurface("surfaces", vscodeCopilotAgent.DocumentationUrl!),
                 RequireToolContract("tools-contract", vscodeCopilotAgent.DocumentationUrl!),
                 RequirePromptContract("prompts-contract", vscodeCopilotAgent.DocumentationUrl!),
-                RequireResourceContract("resources-contract", vscodeCopilotAgent.DocumentationUrl!)),
+                RequireResourceContract("resources-contract", vscodeCopilotAgent.DocumentationUrl!),
+                RecommendToolDescriptions("tool-descriptions", VsCodeAgentToolsDocsUrl, "VS Code Copilot Agent uses tool descriptions in the tool picker and chat surface."),
+                RecommendToolDisplayTitles("tool-titles", VsCodeOtherCapabilitiesDocsUrl, "VS Code Copilot Agent uses `title` (or annotations.title) for chat-mode tool labels."),
+                RecommendToolAnnotations("tool-annotations", VsCodeAgentToolsDocsUrl, "VS Code Copilot Agent reads tool annotations to populate its tool-approval prompt."),
+                RecommendDestructiveHintForWriteTools("destructive-hint", VsCodeAgentToolsDocsUrl, "VS Code Copilot Agent"),
+                RecommendServerIdentity("server-identity", vscodeCopilotAgent.DocumentationUrl!, "VS Code Copilot Agent"),
+                ObserveListChangedSupport(
+                    "list-changed",
+                    "Tool catalog updates are declared so VS Code can refresh without a server restart",
+                    VsCodeAgentToolsDocsUrl,
+                    new[] { "tools" },
+                    "VS Code Copilot Agent")),
             CreateProfile(
                 githubCopilotCli,
                 RequireToolsAvailable("tools-present", githubCopilotCli.DocumentationUrl!),
-                RequireToolContract("tools-contract", githubCopilotCli.DocumentationUrl!)),
+                RequireToolContract("tools-contract", githubCopilotCli.DocumentationUrl!),
+                RecommendToolDescriptions("tool-descriptions", CopilotCliAddDocsUrl, "Copilot CLI uses tool descriptions when listing tools and resolving prompt intent."),
+                RecommendToolDisplayTitles("tool-titles", CopilotCliAddDocsUrl, "Copilot CLI surfaces tool titles in interactive flows."),
+                RecommendToolAnnotations("tool-annotations", CopilotCliAddDocsUrl, "Copilot CLI surfaces destructiveHint when displaying tools.")),
             CreateProfile(
                 githubCopilotCloudAgent,
                 RequireToolsAvailable("tools-present", githubCopilotCloudAgent.DocumentationUrl!),
                 RequireToolContract("tools-contract", githubCopilotCloudAgent.DocumentationUrl!),
                 WarnExtraPromptAndResourceSurfaces("tools-only-surface", githubCopilotCloudAgent.DocumentationUrl!),
-                RequireRemoteOAuthCompatibility("remote-auth", githubCopilotCloudAgent.DocumentationUrl!)),
+                RequireRemoteOAuthCompatibility("remote-auth", githubCopilotCloudAgent.DocumentationUrl!),
+                RequireDestructiveHintForWriteToolsAutonomous("destructive-hint", CopilotCloudAgentIntroDocsUrl),
+                RecommendToolDescriptions("tool-descriptions", CopilotCloudAgentIntroDocsUrl, "Copilot Cloud Agent invokes tools autonomously; clear descriptions reduce wrong-tool risk."),
+                RecommendToolDisplayTitles("tool-titles", CopilotCloudAgentIntroDocsUrl, "Cloud agent run logs use tool titles in human-readable summaries."),
+                RecommendServerIdentity("server-identity", githubCopilotCloudAgent.DocumentationUrl!, "GitHub Copilot Cloud Agent")),
             CreateProfile(
                 visualStudioCopilot,
                 RequireInteractiveSurface("surfaces", visualStudioCopilot.DocumentationUrl!),
                 RequireToolContract("tools-contract", visualStudioCopilot.DocumentationUrl!),
                 RequirePromptContract("prompts-contract", visualStudioCopilot.DocumentationUrl!),
                 RequireResourceContract("resources-contract", visualStudioCopilot.DocumentationUrl!),
+                RecommendToolDescriptions("tool-descriptions", VisualStudioToolLifecycleDocsUrl, "Visual Studio displays tool descriptions in the agent tool picker."),
+                RecommendToolDisplayTitles("tool-titles", VisualStudioToolLifecycleDocsUrl, "Visual Studio uses `title` for tool labels in the chat UI."),
+                RecommendToolAnnotations("tool-annotations", VisualStudioToolApprovalDocsUrl, "Visual Studio's tool approval flow honours destructiveHint and readOnlyHint."),
+                RecommendDestructiveHintForWriteTools("destructive-hint", VisualStudioToolApprovalDocsUrl, "Visual Studio Copilot"),
+                RecommendServerIdentity("server-identity", visualStudioCopilot.DocumentationUrl!, "Visual Studio Copilot"),
                 ObserveListChangedSupport(
                     "list-changed",
                     "Tool updates are declared through notifications/tools/list_changed",
@@ -332,6 +370,252 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                         recommendation: "Populate initialize.instructions with concise guidance about when Claude should search and use this server.")
                     : ClientProfileRuleObservation.Satisfied(
                         "Initialize instructions were present, which aligns with Claude Code's documented server-guidance flow.");
+            });
+    }
+
+    /// <summary>
+    /// Claude Code documentation: "Claude Code truncates tool descriptions and server
+    /// instructions at 2KB each. Keep them concise to avoid truncation, and put critical
+    /// details near the start." Anything past 2,048 bytes is silently dropped, so very
+    /// long descriptions stop helping the model.
+    /// </summary>
+    private const int ClaudeCodeDescriptionByteCeiling = 2048;
+
+    private static ClientProfileRuleDefinition RecommendClaudeDescriptionSizeBudget(string suffix, string documentationUrl)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Tool descriptions and server instructions stay within Claude Code's 2KB truncation cap",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0 && !context.HasInitializationPayload)
+                {
+                    return ClientProfileRuleObservation.NotApplicable(
+                        "No tools or initialize payload were captured, so Claude Code's 2KB truncation cap was not applicable.");
+                }
+
+                var oversizedTools = context.GetToolsExceedingDescriptionBytes(ClaudeCodeDescriptionByteCeiling);
+                var instructionsOversize = !string.IsNullOrEmpty(context.InitializeInstructions) &&
+                    System.Text.Encoding.UTF8.GetByteCount(context.InitializeInstructions) > ClaudeCodeDescriptionByteCeiling;
+
+                if (oversizedTools.Count == 0 && !instructionsOversize)
+                {
+                    return ClientProfileRuleObservation.Satisfied(
+                        $"All discovered tool descriptions and initialize.instructions stayed within Claude Code's documented 2KB truncation cap.");
+                }
+
+                var notes = new List<string>();
+                if (oversizedTools.Count > 0)
+                {
+                    notes.Add($"{oversizedTools.Count}/{context.ToolCount} tool description(s) exceed 2KB");
+                }
+                if (instructionsOversize)
+                {
+                    notes.Add("initialize.instructions exceeds 2KB");
+                }
+
+                return ClientProfileRuleObservation.Warning(
+                    $"Claude Code truncates tool descriptions and server instructions at 2KB; {string.Join(", ", notes)}.",
+                    exampleComponents: oversizedTools.Take(3).ToList(),
+                    recommendation: "Trim tool descriptions and initialize.instructions below 2,048 UTF-8 bytes; place critical disambiguation in the first sentence so it survives truncation.");
+            });
+    }
+
+    // ─── Cross-cutting recommended checks (each profile registers individually
+    //     so the documentation URL points at the client's own page) ─────────
+
+    private static ClientProfileRuleDefinition RecommendToolDescriptions(string suffix, string documentationUrl, string clientReason)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Every tool declares a human-readable description",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("No tools were discovered, so description coverage was not applicable.");
+                }
+                var missing = context.GetToolsMissingDescription();
+                if (missing.Count == 0)
+                {
+                    return ClientProfileRuleObservation.Satisfied($"All {context.ToolCount} discovered tool(s) declare a description.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    $"{missing.Count}/{context.ToolCount} tool(s) are missing a `description`. {clientReason}",
+                    exampleComponents: missing.Take(3).ToList(),
+                    recommendation: "Add a one-line `description` to every tool in tools/list. Per MCP §5.1 this is SHOULD; downstream clients use it to drive tool selection.");
+            });
+    }
+
+    private static ClientProfileRuleDefinition RecommendToolDisplayTitles(string suffix, string documentationUrl, string clientReason)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Tools declare a human-friendly `title` for display",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("No tools were discovered, so title coverage was not applicable.");
+                }
+                var missing = context.GetToolsMissingDisplayTitle();
+                if (missing.Count == 0)
+                {
+                    return ClientProfileRuleObservation.Satisfied($"All {context.ToolCount} discovered tool(s) declare a display title.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    $"{missing.Count}/{context.ToolCount} tool(s) are missing `title` (or annotations.title). {clientReason}",
+                    exampleComponents: missing.Take(3).ToList(),
+                    recommendation: "Add a UI-friendly `title` to each tool. Per MCP §5.1 display precedence is title → annotations.title → name; without title, clients fall back to the programmatic name.");
+            });
+    }
+
+    private static ClientProfileRuleDefinition RecommendToolAnnotations(string suffix, string documentationUrl, string clientReason)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint)",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("No tools were discovered, so annotation coverage was not applicable.");
+                }
+                var missing = context.GetToolsMissingAnyAnnotation();
+                if (missing.Count == 0)
+                {
+                    return ClientProfileRuleObservation.Satisfied($"All {context.ToolCount} discovered tool(s) declare at least one behavioural annotation.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    $"{missing.Count}/{context.ToolCount} tool(s) declare no behavioural annotations. {clientReason}",
+                    exampleComponents: missing.Take(3).ToList(),
+                    recommendation: "Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.");
+            });
+    }
+
+    private static ClientProfileRuleDefinition RecommendDestructiveHintForWriteTools(string suffix, string documentationUrl, string clientName)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Write-capable tools explicitly declare destructiveHint",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("No tools were discovered, so destructiveHint coverage was not applicable.");
+                }
+                var missing = context.GetWriteCapableToolsWithoutDestructiveHint();
+                if (missing.Count == 0)
+                {
+                    return ClientProfileRuleObservation.Satisfied("Every non-read-only tool declares an explicit destructiveHint.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    $"{missing.Count}/{context.ToolCount} write-capable tool(s) do not declare an explicit destructiveHint. {clientName} surfaces this hint in its consent flow.",
+                    exampleComponents: missing.Take(3).ToList(),
+                    recommendation: "For each tool that mutates external state, set `annotations.destructiveHint: true` (or `destructiveHint: false` if the operation is reversible/additive only). The MCP spec defaults destructiveHint to true when readOnlyHint is false, but explicit declaration produces accurate consent UI in every documented client.");
+            });
+    }
+
+    /// <summary>
+    /// GitHub Copilot Cloud Agent calls tools autonomously with no per-call human approval
+    /// ("Once you've configured an MCP server, Copilot will be able to use the tools provided
+    /// by the server autonomously, and will not ask for your approval before using them.").
+    /// Missing destructiveHint on a write tool is therefore a stronger signal here than for
+    /// IDE clients with interactive approval — promoted to a Required check.
+    /// </summary>
+    private static ClientProfileRuleDefinition RequireDestructiveHintForWriteToolsAutonomous(string suffix, string documentationUrl)
+    {
+        return new ClientProfileRuleDefinition(
+            $"tool-{suffix}",
+            "Write-capable tools declare destructiveHint (autonomous-execution safety)",
+            ClientProfileRequirementLevel.Required,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (context.ToolCount <= 0)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("No tools were discovered, so destructiveHint coverage was not applicable.");
+                }
+                var missing = context.GetWriteCapableToolsWithoutDestructiveHint();
+                if (missing.Count == 0)
+                {
+                    return ClientProfileRuleObservation.Satisfied("Every non-read-only tool declares an explicit destructiveHint, satisfying Cloud Agent's autonomous-execution safety contract.");
+                }
+                return ClientProfileRuleObservation.Failed(
+                    $"{missing.Count}/{context.ToolCount} write-capable tool(s) do not declare destructiveHint. GitHub Copilot Cloud Agent invokes tools autonomously without per-call approval, so omitted destructive hints can result in irreversible actions running unannotated.",
+                    exampleComponents: missing.Take(5).ToList(),
+                    recommendation: "Set `annotations.destructiveHint: true` on every tool that mutates external state, OR mark the tool `readOnlyHint: true` if it is read-only. Cloud Agent administrators typically allowlist tools by destructiveness; missing hints prevent that policy.");
+            });
+    }
+
+    private static ClientProfileRuleDefinition RecommendServerIdentity(string suffix, string documentationUrl, string clientName)
+    {
+        return new ClientProfileRuleDefinition(
+            $"server-{suffix}",
+            "Initialize response declares server name and version",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (!context.HasInitializationPayload)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("Initialize handshake details were not captured, so server identity could not be assessed.");
+                }
+                if (context.HasServerIdentity())
+                {
+                    return ClientProfileRuleObservation.Satisfied("Initialize.serverInfo carries both name and version.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    $"Initialize.serverInfo is missing name or version. {clientName} displays these to the user during install/trust prompts.",
+                    recommendation: "Populate `serverInfo.name` and `serverInfo.version` in the initialize result. Per MCP spec these are MUST-required fields; some clients (e.g. trust-prompt UIs) silently degrade when they are missing.");
+            });
+    }
+
+    private static ClientProfileRuleDefinition RecommendClaudeRemoteOAuthDiscovery(string suffix, string documentationUrl)
+    {
+        return new ClientProfileRuleDefinition(
+            $"transport-{suffix}",
+            "Remote MCP servers expose RFC 9728 protected resource metadata for Claude Code's OAuth discovery chain",
+            ClientProfileRequirementLevel.Recommended,
+            ClientProfileEvidenceBasis.Documented,
+            documentationUrl,
+            context =>
+            {
+                if (!context.IsRemoteTransport)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("Server is not on a remote HTTP/SSE transport, so OAuth discovery does not apply.");
+                }
+
+                var auth = context.Result.ToolValidation?.AuthenticationSecurity;
+                if (auth?.AuthenticationRequired != true)
+                {
+                    return ClientProfileRuleObservation.NotApplicable("Server did not require authentication during validation, so OAuth discovery was not exercised.");
+                }
+                if (auth.AuthMetadata != null)
+                {
+                    return ClientProfileRuleObservation.Satisfied(
+                        "Server advertised RFC 9728 protected resource metadata; Claude Code's default discovery chain (`/.well-known/oauth-protected-resource` → `/.well-known/oauth-authorization-server`) will resolve cleanly.");
+                }
+                return ClientProfileRuleObservation.Warning(
+                    "Authentication is required but the server did not advertise RFC 9728 protected resource metadata. Claude Code falls back to RFC 8414 authorization-server metadata, but discovery may break if neither well-known endpoint is reachable.",
+                    recommendation: "Expose `/.well-known/oauth-protected-resource` and reference it via the `resource_metadata=...` parameter on 401 WWW-Authenticate challenges so Claude Code (and other RFC 9728-aware clients) can complete the authorization flow without manual configuration.");
             });
     }
 
@@ -608,6 +892,78 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 ?? new List<string>();
         }
 
+        public IReadOnlyList<string> GetToolsExceedingDescriptionBytes(int byteCeiling)
+        {
+            return Result.ToolValidation?.ToolResults
+                .Where(tool => IsRealToolName(tool.ToolName)
+                    && !string.IsNullOrEmpty(tool.Description)
+                    && System.Text.Encoding.UTF8.GetByteCount(tool.Description) > byteCeiling)
+                .Select(tool => tool.ToolName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? new List<string>();
+        }
+
+        public IReadOnlyList<string> GetToolsMissingDescription()
+        {
+            return Result.ToolValidation?.ToolResults
+                .Where(tool => IsRealToolName(tool.ToolName) && string.IsNullOrWhiteSpace(tool.Description))
+                .Select(tool => tool.ToolName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? new List<string>();
+        }
+
+        public IReadOnlyList<string> GetToolsMissingDisplayTitle()
+        {
+            return Result.ToolValidation?.ToolResults
+                .Where(tool => IsRealToolName(tool.ToolName) && string.IsNullOrWhiteSpace(tool.DisplayTitle))
+                .Select(tool => tool.ToolName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? new List<string>();
+        }
+
+        public IReadOnlyList<string> GetToolsMissingAnyAnnotation()
+        {
+            return Result.ToolValidation?.ToolResults
+                .Where(tool => IsRealToolName(tool.ToolName)
+                    && tool.ReadOnlyHint is null
+                    && tool.DestructiveHint is null
+                    && tool.IdempotentHint is null
+                    && tool.OpenWorldHint is null)
+                .Select(tool => tool.ToolName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? new List<string>();
+        }
+
+        /// <summary>
+        /// Tools that look write-capable (not explicitly read-only) but do not declare
+        /// `destructiveHint`. The MCP spec defaults destructiveHint to true when readOnlyHint
+        /// is false, but clients that auto-execute (e.g. Cloud Agent) and clients that drive
+        /// approval UX (Claude Code, VS Code, Visual Studio) all benefit from explicit hints.
+        /// </summary>
+        public IReadOnlyList<string> GetWriteCapableToolsWithoutDestructiveHint()
+        {
+            return Result.ToolValidation?.ToolResults
+                .Where(tool => IsRealToolName(tool.ToolName)
+                    && tool.ReadOnlyHint != true
+                    && tool.DestructiveHint is null)
+                .Select(tool => tool.ToolName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+                ?? new List<string>();
+        }
+
+        public bool HasServerIdentity()
+        {
+            var info = Result.InitializationHandshake?.Payload?.ServerInfo;
+            return info != null
+                && !string.IsNullOrWhiteSpace(info.Name)
+                && !string.IsNullOrWhiteSpace(info.Version);
+        }
+
         public bool HasObservedSurface(string surface)
         {
             return surface switch
@@ -825,8 +1181,21 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
 
         private static bool HasObservedRemoteOAuth(ValidationResult result)
         {
+            // GitHub Copilot Cloud Agent docs say: "does not currently support remote MCP
+            // servers that leverage OAuth for authentication and authorization." This is a
+            // narrow constraint about *OAuth flows specifically* — Bearer tokens supplied as
+            // static headers (PAT-style, like the built-in GitHub MCP that Cloud Agent
+            // explicitly supports) are NOT OAuth and must not trip this check.
+            //
+            // Strong OAuth signals:
+            //   1. RFC 9728 Protected Resource Metadata document was successfully fetched.
+            //   2. Validator attempted/completed interactive OAuth login.
+            //   3. WWW-Authenticate challenge advertised OAuth-specific parameters
+            //      (resource_metadata or authorization_uri per RFC 9728 §5.1).
+            //
+            // We deliberately do NOT treat a bare `Bearer realm="..."` challenge as OAuth.
             var auth = result.ToolValidation?.AuthenticationSecurity;
-            if (auth?.AuthMetadata != null || !string.IsNullOrWhiteSpace(auth?.WwwAuthenticateHeader))
+            if (auth?.AuthMetadata != null)
             {
                 return true;
             }
@@ -836,9 +1205,31 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 return true;
             }
 
+            if (HasOAuthChallengeParameters(auth?.WwwAuthenticateHeader))
+            {
+                return true;
+            }
+
             return result.ToolValidation?.ToolResults?.Any(tool =>
                 tool.AuthMetadata != null ||
-                !string.IsNullOrWhiteSpace(tool.WwwAuthenticateHeader)) == true;
+                HasOAuthChallengeParameters(tool.WwwAuthenticateHeader)) == true;
+        }
+
+        private static bool HasOAuthChallengeParameters(string? wwwAuthenticateHeader)
+        {
+            if (string.IsNullOrWhiteSpace(wwwAuthenticateHeader))
+            {
+                return false;
+            }
+
+            // Per RFC 9728 §5.1, an OAuth-aware resource server adds resource_metadata=...
+            // to its WWW-Authenticate challenge. RFC 6750 / OAuth bearer challenges may also
+            // include error="invalid_token" with authorization_uri, scope, etc. A bare
+            // Bearer challenge with only realm= is NOT an OAuth flow signal.
+            return wwwAuthenticateHeader.IndexOf("resource_metadata", StringComparison.OrdinalIgnoreCase) >= 0
+                || wwwAuthenticateHeader.IndexOf("authorization_uri", StringComparison.OrdinalIgnoreCase) >= 0
+                || wwwAuthenticateHeader.IndexOf("error=\"invalid_token\"", StringComparison.OrdinalIgnoreCase) >= 0
+                || wwwAuthenticateHeader.IndexOf("error=\"insufficient_scope\"", StringComparison.OrdinalIgnoreCase) >= 0;
         }
     }
 

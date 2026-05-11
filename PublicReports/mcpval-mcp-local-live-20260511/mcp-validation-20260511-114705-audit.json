@@ -1,0 +1,48 @@
+{
+  "timestampUtc": "2026-05-11T11:47:06.00884+00:00",
+  "commandName": "validate",
+  "validationId": "e723cc3e-d008-4a92-ae3c-c69e39cedb2d",
+  "sessionId": "e723cc3e-d008-4a92-ae3c-c69e39cedb2d",
+  "target": "node mcpval-mcp/dist/index.js",
+  "transport": "stdio",
+  "executionMode": "Safe",
+  "dryRun": false,
+  "persistenceMode": "Ephemeral",
+  "redactionLevel": "Strict",
+  "traceMode": "Off",
+  "modelEvaluationEnabled": false,
+  "allowPrivateAddresses": false,
+  "maxRequests": 256,
+  "maxConcurrency": 4,
+  "timeoutSeconds": 120,
+  "allowedHosts": [],
+  "plannedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "executedChecks": [
+    "protocol-compliance",
+    "tool-validation",
+    "resource-validation",
+    "prompt-validation",
+    "security-testing",
+    "performance-testing",
+    "error-handling"
+  ],
+  "artifactPaths": [
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-mcp-local-live-20260511/mcp-validation-20260511-114705-report.md",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-mcp-local-live-20260511/mcp-validation-20260511-114705-report.html",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-mcp-local-live-20260511/mcp-validation-20260511-114705-result.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-mcp-local-live-20260511/mcp-validation-20260511-114705-results.sarif.json",
+    "/Users/navalerakesh/Work/engineering/mcp-validation-security/PublicReports/mcpval-mcp-local-live-20260511/mcp-validation-20260511-114705-profile-summary.json"
+  ],
+  "overallStatus": 1,
+  "baselineVerdict": 3,
+  "protocolVerdict": 3,
+  "coverageVerdict": 4
+}

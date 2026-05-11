@@ -1,21 +1,21 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-05-01 16:31:10 UTC
+**Generated:** 2026-05-11 11:46:33 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://api.githubcopilot.com/mcp/` |
-| **Validation ID** | `d5e5297d-d079-4e5c-9a85-5243932227a6` |
+| **Validation ID** | `cf05a8a3-de8a-4e12-ab22-7b1fee77e645` |
 | **Overall Status** | ❌ **Failed** |
 | **Baseline Verdict** | **Reject** |
 | **Protocol Verdict** | **Reject** |
 | **Coverage Verdict** | **Trusted** |
-| **Compliance Score** | **50.1%** |
+| **Compliance Score** | **52.1%** |
 | **Evidence Coverage** | **100.0%** |
 | **Evidence Confidence** | **High (100.0%)** |
 | **Compliance Profile** | `Authenticated (Inferred)` |
-| **Duration** | 31.12s |
+| **Duration** | 33.09s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -32,9 +32,9 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 1361.6 ms |
+| **Handshake Duration** | 1464.8 ms |
 | **Negotiated Protocol** | `2025-11-25` |
-| **Observed Server Version** | `github-mcp-server/remote-3242d9e12bd9ffa96a76388614e42ce90d05f764` |
+| **Observed Server Version** | `github-mcp-server/remote-4b6059b6dda4c546cead3f37aa9673f1f7419e18` |
 | **Server Profile Resolution** | `Authenticated (Inferred)` |
 
 Validation began from a clean bootstrap with no deferred connectivity risk carried into later categories.
@@ -45,8 +45,9 @@ These are the highest-signal outcomes from this validation run.
 > **Authority legend:** Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.
 
 - [Spec] 7 protocol violation(s), led by MCP-PROTO-JSONRPC: Request format does not comply with JSON-RPC 2.0 specification
-- [Guideline] 6 guidance signal(s), led by MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.
+- [Guideline] 7 guidance signal(s), led by MCP.GUIDELINE.AUTH.SECURE_COMPATIBLE_REJECTION: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.
 - [Heuristic] 11 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.REQUIRED_ARRAY_SHAPE_MISSING: Tool 'push_files': 1/5 required array parameters lack item schemas or minItems guidance
+- [Compatibility] 1 incompatible profile(s), led by GitHub Copilot Cloud Agent: 1 required compatibility check(s) failed; review the affected surfaces before relying on this client profile.
 
 ## 4. Action Hints
 
@@ -54,8 +55,8 @@ Compact next-step guidance derived from the highest-signal evidence in this run.
 
 - [Spec] Protocol: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field....
 - [Guideline] Authentication Security: No Auth - initialize: secure authentication behavior observed without the preferred MCP/OAuth challenge pattern.
+- Client compatibility: GitHub Copilot Cloud Agent - 1 required compatibility check(s) failed; review the affected surfaces before relying on this cl....
 - Spec: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if presen....
-- Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See....
 
 ## 5. Recommended Remediation Order
 
@@ -87,7 +88,6 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| Name/URI suggests potential system impact capability (matched keyword: 'delete'). | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `delete_file` | [Heuristic] · `ContentSafety.SystemImpact` · High |
 | Synthetic load probe executed against tools/list using 20 requests at concurrency 4. | Interpret this as a generic pressure probe, not a workload-specific SLA benchmark. | `tools/list` | [Guideline] · `MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE` · Info |
 
 ### Priority 4: AI Safety, Security, And Performance
@@ -96,7 +96,7 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `delete_file` | [Heuristic] · `AI.TOOL.ERROR.LLM_FRIENDLINESS` · High |
+| Name/URI suggests potential system impact capability (matched keyword: 'delete'). | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `delete_file` | [Heuristic] · `ContentSafety.SystemImpact` · High |
 
 ## 6. Deterministic Verdicts
 
@@ -109,7 +109,7 @@ These verdicts are the authoritative gate for pass/fail and policy decisions. We
 | **Protocol** | **Reject** | Protocol correctness and contract integrity. |
 | **Coverage** | **Trusted** | Whether enabled validation surfaces produced authoritative evidence. |
 
-Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=97.
+Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=94.
 
 ### Blocking Decisions
 
@@ -119,16 +119,16 @@ Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100
   - Evidence: IDs `protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-err-4`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc; remediation: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc
 - **Reject** [Protocol] `invalid-method`: Error-handling scenario 'Invalid Method Call' was rejected at the HTTP front door instead of returning JSON-RPC error code -32601.
   - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:invalid-method:error-handling-scenario--invalid-method-call--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32601`, `error-invalid-method-call`; preview: HTTP 400; HTTP 400 Bad Request. Body: JSON RPC not handled: "nonexistent_method_12345" unsupported; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- **Reject** [Protocol] `invalid-request`: Error-handling scenario 'Graceful Degradation On Invalid Request' was rejected at the HTTP front door instead of returning JSON-RPC error code -32600.
-  - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600`, `error-graceful-degradation-on-invalid-request`; preview: HTTP 400; malformed payload: invalid message version tag ""; expected "2.0"; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- **Reject** [Protocol] `malformed-json`: Error-handling scenario 'Malformed JSON Payload' was rejected at the HTTP front door instead of returning JSON-RPC error code -32700.
-  - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700`, `error-malformed-json-payload`; preview: HTTP 400; malformed payload: unmarshaling jsonrpc message: json: expected '"' at the beginning of a string value: invalid json; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
 - **Reject** [Transport] `Transport`: Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84
   - Evidence: IDs `protocol-violation:mcp-http-005:transport:streamable-http-transport-violation--invalid-origin-403---http-transports-must-validate-origin-and-reject-invalid-origins-with-http-403-forbidden--expected--http-403-forbidden--observed--http-200--content-type-text-event-stream--body-length-84`, `protocol-mcp-http-005`; preview: Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#streamable-http; remediation: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation
 - **Review Required** [Authentication Security] `prompts/get`: Invalid Token - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.
-  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:invalid-token---prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
+  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:invalid-token---prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
 - **Review Required** [Authentication Security] `prompts/get`: Token Expired - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.
-  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:token-expired---prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
+  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:token-expired---prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
+- **Review Required** [Authentication Security] `prompts/get`: Revoked Token - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.
+  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:revoked-token---prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
+- **Review Required** [Authentication Security] `prompts/get`: Wrong Audience (RFC 8707) - prompts/get: token was rejected with HTTP 400 instead of HTTP 401.
+  - Evidence: IDs `structured-finding:mcp-auth-invalid-token-status:prompts-get:wrong-audience--rfc-8707----prompts-get--token-was-rejected-with-http-400-instead-of-http-401`, `auth-no-auth-prompts-get`, `auth-malformed-token-prompts-get`, `auth-invalid-token-prompts-get`, `auth-token-expired-prompts-get`; preview: ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge.; spec: https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization; remediation: Return HTTP 401 for invalid, expired, revoked, or wrong-audience access tokens.
 
 ## 7. Benchmark Trust Profile
 
@@ -139,9 +139,8 @@ This section is descriptive only. Release gating and pass/fail status are driven
 | :--- | :---: | :--- |
 | **Protocol Compliance** | 60% | MCP spec adherence, JSON-RPC compliance, response structures |
 | **Security Posture** | 100% | Auth compliance, injection resistance, attack surface |
-| **AI Safety** | 84% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
+| **AI Safety** | 99% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
 | **Operational Readiness** | 100% | Latency, throughput, error rate, stability |
-| **LLM-Friendliness** | 10% | 🔴 Anti-LLM — Do error responses help AI agents self-correct? |
 
 ### AI Boundary Findings
 
@@ -159,7 +158,6 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 | Destructive | `sub_issue_write` | 🟡 Medium | Tool 'sub_issue_write' appears to perform write/destructive operations. AI agents SHOULD require human confirmation. |
 | Destructive | `update_pull_request` | 🟡 Medium | Tool 'update_pull_request' appears to perform write/destructive operations. AI agents SHOULD require human confirmation. |
 | Destructive | `update_pull_request_branch` | 🟡 Medium | Tool 'update_pull_request_branch' appears to perform write/destructive operations. AI agents SHOULD require human confirmation. |
-| LLM-Hostile | `Error Responses` | 🟠 High | Average LLM-friendliness score is 10/100 (Anti-LLM). Error messages don't help AI agents self-correct, causing hallucination and retry loops. |
 
 ### Summary
 
@@ -169,10 +167,12 @@ These findings go **beyond MCP protocol** to assess how AI agents interact with 
 
 ### MCP Spec Compliance (RFC 2119 Tiers)
 
-| Tier | Passed | Failed | Total | Impact |
+`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.
+
+| Tier | Passed | Failed | Evaluated | Impact |
 | :--- | :---: | :---: | :---: | :--- |
 | **MUST** | 10 | 1 | 11 | ❌ Non-compliant (trust capped at L2) |
-| **SHOULD** | 5 | 0 | 5 | ✅ All expected behaviors present |
+| **SHOULD** | 4 | 0 | 4 | ✅ All expected behaviors present |
 | **MAY** | 3 | 3 | 6 | ℹ️ Informational (no score impact) |
 
 #### ❌ MUST Failures (Compliance Blockers)
@@ -194,45 +194,51 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ⚠️ Compatible with warnings | 3 passed / 2 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
-| **VS Code Copilot Agent** | ✅ Compatible | 3 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ⚠️ Compatible with warnings | 3 passed / 1 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 3 passed / 1 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
+| **Claude Code** | ⚠️ Compatible with warnings | 7 passed / 4 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
+| **VS Code Copilot Agent** | ⚠️ Compatible with warnings | 6 passed / 3 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ⚠️ Compatible with warnings | 4 passed / 1 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ❌ Incompatible | 6 passed / 1 warnings / 1 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ⚠️ Compatible with warnings | 6 passed / 3 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
 
 ### Claude Code
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed; 2 advisory requirements still need follow-up.
+Required compatibility checks passed; 4 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint) | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 tool(s) declare no behavioural annotations. Claude Code uses readOnlyHint/destructiveHint to drive consent prompts and safety messaging. |
+| Write-capable tools explicitly declare destructiveHint | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 write-capable tool(s) do not declare an explicit destructiveHint. Claude Code surfaces this hint in its consent flow. |
 | Initialize instructions help Claude Code find and use the server correctly | Recommended | ⚠️ Warning | - | - | Claude Code documentation recommends clear initialize instructions for tool search and server guidance, but initialize.instructions was missing. |
 | Dynamic tool, prompt, and resource updates are declared for Claude Code | Recommended | ⚠️ Warning | - | `tools`, `prompts` | Claude Code documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools, prompts surfaces. |
 
 #### Remediation
 
+- ⚠️ **Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint):** Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.
+- ⚠️ **Write-capable tools explicitly declare destructiveHint:** For each tool that mutates external state, set `annotations.destructiveHint: true` (or `destructiveHint: false` if the operation is reversible/additive only). The MCP spec defaults destructiveHint to true when readOnlyHint is false, but explicit declaration produces accurate consent UI in every documented client.
 - ⚠️ **Initialize instructions help Claude Code find and use the server correctly:** Populate initialize.instructions with concise guidance about when Claude should search and use this server.
 - ⚠️ **Dynamic tool, prompt, and resource updates are declared for Claude Code:** Declare listChanged for tools, prompts when the server can notify clients about catalog changes without reconnecting.
 
 ### VS Code Copilot Agent
 
-**Status:** ✅ Compatible
+**Status:** ⚠️ Compatible with warnings
 
-All applicable compatibility checks passed (3 satisfied).
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
-- No client-specific compatibility gaps were detected.
+| Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint) | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 tool(s) declare no behavioural annotations. VS Code Copilot Agent reads tool annotations to populate its tool-approval prompt. |
+| Write-capable tools explicitly declare destructiveHint | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 write-capable tool(s) do not declare an explicit destructiveHint. VS Code Copilot Agent surfaces this hint in its consent flow. |
+| Tool catalog updates are declared so VS Code can refresh without a server restart | Recommended | ⚠️ Warning | - | `tools` | VS Code Copilot Agent documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools surfaces. |
+
+#### Remediation
+
+- ⚠️ **Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint):** Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.
+- ⚠️ **Write-capable tools explicitly declare destructiveHint:** For each tool that mutates external state, set `annotations.destructiveHint: true` (or `destructiveHint: false` if the operation is reversible/additive only). The MCP spec defaults destructiveHint to true when readOnlyHint is false, but explicit declaration produces accurate consent UI in every documented client.
+- ⚠️ **Tool catalog updates are declared so VS Code can refresh without a server restart:** Declare listChanged for tools when the server can notify clients about catalog changes without reconnecting.
 
 ### GitHub Copilot CLI
-
-**Status:** ✅ Compatible
-
-All applicable compatibility checks passed (2 satisfied).
-
-- No client-specific compatibility gaps were detected.
-
-### GitHub Copilot Cloud Agent
 
 **Status:** ⚠️ Compatible with warnings
 
@@ -240,20 +246,43 @@ Required compatibility checks passed; 1 advisory requirement still needs follow-
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint) | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 tool(s) declare no behavioural annotations. Copilot CLI surfaces destructiveHint when displaying tools. |
+
+#### Remediation
+
+- ⚠️ **Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint):** Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.
+
+### GitHub Copilot Cloud Agent
+
+**Status:** ❌ Incompatible
+
+1 required compatibility check(s) failed; review the affected surfaces before relying on this client profile.
+
+| Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
+| :--- | :--- | :--- | :--- | :--- | :--- |
 | Only the tool surface is currently consumed | Recommended | ⚠️ Warning | - | - | This profile currently consumes tools only; 2 prompt(s) will not contribute to compatibility. |
+| Write-capable tools declare destructiveHint (autonomous-execution safety) | Required | ❌ Failed | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment`, `create_branch`, `create_or_update_file` | 16/41 write-capable tool(s) do not declare destructiveHint. GitHub Copilot Cloud Agent invokes tools autonomously without per-call approval, so omitted destructive hints can result in irreversible actions running unannotated. |
+
+#### Remediation
+
+- ❌ **Write-capable tools declare destructiveHint (autonomous-execution safety):** Set `annotations.destructiveHint: true` on every tool that mutates external state, OR mark the tool `readOnlyHint: true` if it is read-only. Cloud Agent administrators typically allowlist tools by destructiveness; missing hints prevent that policy.
 
 ### Visual Studio Copilot
 
 **Status:** ⚠️ Compatible with warnings
 
-Required compatibility checks passed; 1 advisory requirement still needs follow-up.
+Required compatibility checks passed; 3 advisory requirements still need follow-up.
 
 | Requirement | Level | Outcome | Rule IDs | Affected Components | Details |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint) | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 tool(s) declare no behavioural annotations. Visual Studio's tool approval flow honours destructiveHint and readOnlyHint. |
+| Write-capable tools explicitly declare destructiveHint | Recommended | ⚠️ Warning | - | `add_comment_to_pending_review`, `add_issue_comment`, `add_reply_to_pull_request_comment` | 16/41 write-capable tool(s) do not declare an explicit destructiveHint. Visual Studio Copilot surfaces this hint in its consent flow. |
 | Tool updates are declared through notifications/tools/list_changed | Recommended | ⚠️ Warning | - | `tools` | Visual Studio documents dynamic list_changed updates, but this server did not advertise listChanged for the discovered tools surfaces. |
 
 #### Remediation
 
+- ⚠️ **Tools declare behavioural annotations (readOnlyHint / destructiveHint / idempotentHint / openWorldHint):** Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.
+- ⚠️ **Write-capable tools explicitly declare destructiveHint:** For each tool that mutates external state, set `annotations.destructiveHint: true` (or `destructiveHint: false` if the operation is reversible/additive only). The MCP spec defaults destructiveHint to true when readOnlyHint is false, but explicit declaration produces accurate consent UI in every documented client.
 - ⚠️ **Tool updates are declared through notifications/tools/list_changed:** Declare listChanged for tools when the server can notify clients about catalog changes without reconnecting.
 
 ## 9. Validation Envelope
@@ -270,8 +299,8 @@ This section exposes the structured validation envelope used for layered reporti
 | `prompt-surface` | ✅ Passed | 3 | - |
 | `security-boundaries` | ✅ Passed | 58 | - |
 | `performance` | ✅ Passed | 1 | - |
-| `error-handling` | ❌ Failed | 3 | Validated 5 error scenario(s); 2 handled correctly. |
-| `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 3 warning profile(s); 0 incompatible profile(s). |
+| `error-handling` | ❌ Failed | 3 | Validated 5 error scenario(s); 4 handled correctly. |
+| `client-profiles` | ❌ Failed | 0 | Evaluated 5 profile(s); 4 warning profile(s); 1 incompatible profile(s). |
 
 ### Scenario Outcomes
 
@@ -284,7 +313,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `prompt-catalog-smoke` | ✅ Passed | 3 | Prompt validation completed. |
 | `security-authentication-challenge` | ✅ Passed | 0 | Evaluated 58 authentication challenge scenario(s). |
 | `security-attack-simulations` | ➖ Skipped | 0 | Evaluated 7 attack simulation(s). |
-| `error-handling-matrix` | ❌ Failed | 3 | Validated 5 error scenario(s); 2 handled correctly. |
+| `error-handling-matrix` | ❌ Failed | 3 | Validated 5 error scenario(s); 4 handled correctly. |
 
 ### Evidence Confidence
 
@@ -454,9 +483,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | `auth-wrong-audience-rfc-8707-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ⚠️ COMPATIBLE: Token was rejected, but invalid, expired, revoked, or wrong-audience tokens should receive HTTP 401. |
 | `auth-query-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. |
 | `auth-valid-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ✅ ALIGNED: Valid authentication was accepted and request processing proceeded. |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"3a9620f1-487c-45f8-8ec2-9e141f36f5aa","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"85666bdc-8c58-42e1-921c-5694b7cb2d07","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"c378c1df-5478-47f8-96d6-414de4650cd9","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"d57fd616-22ff-4877-8991-47b25152e181","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"b17983bf-5316-4b61-82c9-c1cec3bbb4f3","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | {"jsonrpc":"2.0","id":"8f152f8d-3733-4f2e-ad92-614788f93573","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}} |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
@@ -471,9 +500,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 41 | HTTP 200 | 351.9 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 109.7 ms | ✅ Listed |
-| Prompts/list | 2 | HTTP 200 | 112.7 ms | ✅ Listed |
+| Tools/list | 41 | HTTP 200 | 367.3 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 127.6 ms | ✅ Listed |
+| Prompts/list | 2 | HTTP 200 | 190.9 ms | ✅ Listed |
 
 - **First Tool Probed:** `add_comment_to_pending_review`
 
@@ -578,9 +607,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Probe | Analysis |
 | :--- | :--- | :---: | :--- | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"3a9620f1-487c-45f8-8ec2-9e141f36f5aa","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"85666bdc-8c58-42e1-921c-5694b7cb2d07","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"c378c1df-5478-47f8-96d6-414de4650cd9","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"d57fd616-22ff-4877-8991-47b25152e181","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"b17983bf-5316-4b61-82c9-c1cec3bbb4f3","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on add_comment_to_pending_review | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `{"jsonrpc":"2.0","id":"8f152f8d-3733-4f2e-ad92-614788f93573","result":{"content":[{"type":"text","text":"failed to get latest review for current user: Could not resolve to a Repository with the name '/'."}],"isError":true}}` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `rpc.system.invalid`/http: ProtocolError HTTP 400; auth Applied | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `resources/list`/http: Success HTTP 200; auth Applied | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth Applied (+1) | `Server correctly rejected invalid schema.` |
@@ -676,13 +705,13 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 351.91ms
+**Execution Time:** 367.29ms
 ---
 
 ### Tool: `add_comment_to_pending_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 888.40ms
+**Execution Time:** 978.78ms
 
 #### Tool Metadata
 | Property | Value |
@@ -694,7 +723,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `add_issue_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 734.75ms
+**Execution Time:** 696.69ms
 
 #### Tool Metadata
 | Property | Value |
@@ -706,7 +735,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `add_reply_to_pull_request_comment`
 
 **Status:** ✅ Passed
-**Execution Time:** 530.93ms
+**Execution Time:** 572.10ms
 
 #### Tool Metadata
 | Property | Value |
@@ -718,7 +747,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `create_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 553.31ms
+**Execution Time:** 552.33ms
 
 #### Tool Metadata
 | Property | Value |
@@ -730,7 +759,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `create_or_update_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 582.00ms
+**Execution Time:** 675.85ms
 
 #### Tool Metadata
 | Property | Value |
@@ -742,7 +771,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `create_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 431.33ms
+**Execution Time:** 361.97ms
 
 #### Tool Metadata
 | Property | Value |
@@ -754,7 +783,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `create_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 318.81ms
+**Execution Time:** 313.30ms
 
 #### Tool Metadata
 | Property | Value |
@@ -766,7 +795,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `delete_file`
 
 **Status:** ✅ Passed
-**Execution Time:** 529.82ms
+**Execution Time:** 505.82ms
 
 #### Tool Metadata
 | Property | Value |
@@ -779,7 +808,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `fork_repository`
 
 **Status:** ✅ Passed
-**Execution Time:** 500.37ms
+**Execution Time:** 473.14ms
 
 #### Tool Metadata
 | Property | Value |
@@ -791,7 +820,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_commit`
 
 **Status:** ✅ Passed
-**Execution Time:** 457.06ms
+**Execution Time:** 887.58ms
 
 #### Tool Metadata
 | Property | Value |
@@ -804,7 +833,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_file_contents`
 
 **Status:** ✅ Passed
-**Execution Time:** 494.13ms
+**Execution Time:** 548.89ms
 
 #### Tool Metadata
 | Property | Value |
@@ -817,7 +846,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_label`
 
 **Status:** ✅ Passed
-**Execution Time:** 436.24ms
+**Execution Time:** 464.02ms
 
 #### Tool Metadata
 | Property | Value |
@@ -830,7 +859,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_latest_release`
 
 **Status:** ✅ Passed
-**Execution Time:** 413.00ms
+**Execution Time:** 412.48ms
 
 #### Tool Metadata
 | Property | Value |
@@ -843,7 +872,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_me`
 
 **Status:** ✅ Passed
-**Execution Time:** 355.73ms
+**Execution Time:** 438.71ms
 
 #### Tool Metadata
 | Property | Value |
@@ -856,7 +885,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_release_by_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 449.50ms
+**Execution Time:** 430.51ms
 
 #### Tool Metadata
 | Property | Value |
@@ -869,7 +898,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_tag`
 
 **Status:** ✅ Passed
-**Execution Time:** 377.12ms
+**Execution Time:** 414.26ms
 
 #### Tool Metadata
 | Property | Value |
@@ -882,7 +911,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_team_members`
 
 **Status:** ✅ Passed
-**Execution Time:** 320.30ms
+**Execution Time:** 323.03ms
 
 #### Tool Metadata
 | Property | Value |
@@ -895,7 +924,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `get_teams`
 
 **Status:** ✅ Passed
-**Execution Time:** 377.40ms
+**Execution Time:** 351.46ms
 
 #### Tool Metadata
 | Property | Value |
@@ -908,7 +937,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `issue_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 310.68ms
+**Execution Time:** 284.25ms
 
 #### Tool Metadata
 | Property | Value |
@@ -921,7 +950,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 377.67ms
+**Execution Time:** 353.44ms
 
 #### Tool Metadata
 | Property | Value |
@@ -933,7 +962,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_branches`
 
 **Status:** ✅ Passed
-**Execution Time:** 466.30ms
+**Execution Time:** 525.65ms
 
 #### Tool Metadata
 | Property | Value |
@@ -946,7 +975,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_commits`
 
 **Status:** ✅ Passed
-**Execution Time:** 360.30ms
+**Execution Time:** 349.43ms
 
 #### Tool Metadata
 | Property | Value |
@@ -959,7 +988,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_issue_types`
 
 **Status:** ✅ Passed
-**Execution Time:** 282.27ms
+**Execution Time:** 301.72ms
 
 #### Tool Metadata
 | Property | Value |
@@ -972,7 +1001,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 284.81ms
+**Execution Time:** 290.90ms
 
 #### Tool Metadata
 | Property | Value |
@@ -985,7 +1014,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 430.90ms
+**Execution Time:** 475.29ms
 
 #### Tool Metadata
 | Property | Value |
@@ -998,7 +1027,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_releases`
 
 **Status:** ✅ Passed
-**Execution Time:** 360.36ms
+**Execution Time:** 361.84ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1011,7 +1040,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `list_tags`
 
 **Status:** ✅ Passed
-**Execution Time:** 409.81ms
+**Execution Time:** 398.95ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1024,7 +1053,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `merge_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 351.90ms
+**Execution Time:** 395.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1036,7 +1065,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `pull_request_read`
 
 **Status:** ✅ Passed
-**Execution Time:** 433.65ms
+**Execution Time:** 327.13ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1049,7 +1078,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `pull_request_review_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 388.47ms
+**Execution Time:** 367.07ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1061,7 +1090,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `push_files`
 
 **Status:** ✅ Passed
-**Execution Time:** 540.43ms
+**Execution Time:** 547.99ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1073,7 +1102,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `request_copilot_review`
 
 **Status:** ✅ Passed
-**Execution Time:** 472.51ms
+**Execution Time:** 377.37ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1085,7 +1114,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `run_secret_scanning`
 
 **Status:** ✅ Passed
-**Execution Time:** 217.57ms
+**Execution Time:** 225.14ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1099,7 +1128,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `search_code`
 
 **Status:** ✅ Passed
-**Execution Time:** 525.46ms
+**Execution Time:** 469.90ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1112,7 +1141,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `search_issues`
 
 **Status:** ✅ Passed
-**Execution Time:** 482.79ms
+**Execution Time:** 476.04ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1125,7 +1154,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `search_pull_requests`
 
 **Status:** ✅ Passed
-**Execution Time:** 494.34ms
+**Execution Time:** 514.80ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1138,7 +1167,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `search_repositories`
 
 **Status:** ✅ Passed
-**Execution Time:** 571.26ms
+**Execution Time:** 547.98ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1151,7 +1180,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `search_users`
 
 **Status:** ✅ Passed
-**Execution Time:** 555.99ms
+**Execution Time:** 454.89ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1164,7 +1193,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `sub_issue_write`
 
 **Status:** ✅ Passed
-**Execution Time:** 337.41ms
+**Execution Time:** 403.78ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1176,7 +1205,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `update_pull_request`
 
 **Status:** ✅ Passed
-**Execution Time:** 446.36ms
+**Execution Time:** 558.53ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1188,7 +1217,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `update_pull_request_branch`
 
 **Status:** ✅ Passed
-**Execution Time:** 434.17ms
+**Execution Time:** 478.70ms
 
 #### Tool Metadata
 | Property | Value |
@@ -1205,7 +1234,7 @@ Remaining tool-catalog debt is grouped by authority so MCP specification failure
 | :--- | :---: | :--- | :---: | :--- |
 | Spec | 0 | 0/41 (0%) | - | No current catalog-wide tool advisories. |
 | Guideline | 5 | 42/41 (100%) | 🔵 Low | Tool 'add_comment_to_pending_review' does not declare annotations.idempotentHint.<br />Tool 'add_comment_to_pending_review' does not declare annotations.destructiveHint. |
-| Heuristic | 6 | 13/41 (32%) | 🟠 High | 🔴 LLM-Friendliness: 10/100 (Anti-LLM) — Error will cause AI hallucination/loops<br />Tool 'delete_file' is marked destructive but its description does not mention confirmation, approval, or warning guidance. |
+| Heuristic | 5 | 11/41 (27%) | 🟡 Medium | Tool 'delete_file' is marked destructive but its description does not mention confirmation, approval, or warning guidance.<br />Tool 'push_files': 1/5 required array parameters lack item schemas or minItems guidance |
 | Operational | 0 | 0/41 (0%) | - | No current catalog-wide tool advisories. |
 
 ### MCP Guideline Findings
@@ -1278,9 +1307,9 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 135.98ms | ✅ Good |
-| **P95 Latency** | 159.01ms | - |
-| **Throughput** | 7.33 req/sec | - |
+| **Avg Latency** | 155.49ms | ✅ Good |
+| **P95 Latency** | 198.10ms | - |
+| **Throughput** | 6.39 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 20/20 successful | - |
 
@@ -1290,8 +1319,8 @@ These probes check whether the server supports optional MCP features beyond the 
 - 💡 Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation
 - 💡 Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
 - 💡 Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- 💡 Heuristic: Return specific, structured errors that identify the invalid argument and expected shape Gap affects 3/41 tools
 - 💡 Heuristic: Add explicit confirmation, approval, or warning language so agents know human review is expected before destructive execution Gap affects 1/41 tool
+- 💡 Heuristic: Required array parameters should declare items schemas and minItems when empty arrays are not meaningful Gap affects 1/41 tool
 
 ---
 *Produced with [MCP Validator](https://github.com/navalerakesh/mcp-validation-security) · [McpVal on NuGet](https://www.nuget.org/packages/McpVal#versions-body-tab)*

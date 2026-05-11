@@ -70,7 +70,7 @@ public static class McpComplianceTiers
         // Tools
         public const string ToolHasDescription = "SHOULD: Each tool has 'description' for LLM consumption";
         public const string ToolHasInputSchema = "SHOULD: Each tool has 'inputSchema' (JSON Schema)";
-        public const string IsErrorFieldPresent = "SHOULD: tools/call result includes 'isError' field";
+        // NOTE: 'isError' is OPTIONAL per MCP spec (omitted == false). No SHOULD/MUST exists; do not gate on its presence.
         public const string HumanInLoopForTools = "SHOULD: Human confirmation for sensitive tool operations";
 
         // Resources

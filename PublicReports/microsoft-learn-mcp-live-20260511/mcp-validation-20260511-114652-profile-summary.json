@@ -1,19 +1,19 @@
 {
-  "generatedUtc": "2026-05-01T16:23:32.3955560Z",
-  "validationId": "3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7",
-  "serverEndpoint": "node mcpval-mcp/dist/index.js",
-  "complianceScore": 100,
-  "trustLevel": "L5: Certified Secure \u2014 Production AI-agent ready",
+  "generatedUtc": "2026-05-11T11:46:52.9100710Z",
+  "validationId": "cfe782b5-a299-45d9-ae5f-f27d4814f7ee",
+  "serverEndpoint": "https://learn.microsoft.com/api/mcp",
+  "complianceScore": 88.38,
+  "trustLevel": "L2: Caution \u2014 Significant gaps in safety or compliance",
   "profileCount": 5,
-  "compatibleCount": 4,
-  "warningCount": 1,
+  "compatibleCount": 5,
+  "warningCount": 0,
   "incompatibleCount": 0,
   "profiles": [
     {
       "profileId": "claude-code",
       "displayName": "Claude Code",
       "status": "Compatible",
-      "passedRequirements": 6,
+      "passedRequirements": 10,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -22,7 +22,7 @@
       "profileId": "vscode-copilot-agent",
       "displayName": "VS Code Copilot Agent",
       "status": "Compatible",
-      "passedRequirements": 4,
+      "passedRequirements": 8,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -31,7 +31,7 @@
       "profileId": "github-copilot-cli",
       "displayName": "GitHub Copilot CLI",
       "status": "Compatible",
-      "passedRequirements": 2,
+      "passedRequirements": 5,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
@@ -39,9 +39,9 @@
     {
       "profileId": "github-copilot-cloud-agent",
       "displayName": "GitHub Copilot Cloud Agent",
-      "status": "Compatible with warnings",
-      "passedRequirements": 2,
-      "warningRequirements": 1,
+      "status": "Compatible",
+      "passedRequirements": 8,
+      "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []
     },
@@ -49,7 +49,7 @@
       "profileId": "visual-studio-copilot",
       "displayName": "Visual Studio Copilot",
       "status": "Compatible",
-      "passedRequirements": 5,
+      "passedRequirements": 8,
       "warningRequirements": 0,
       "failedRequirements": 0,
       "topBlockers": []

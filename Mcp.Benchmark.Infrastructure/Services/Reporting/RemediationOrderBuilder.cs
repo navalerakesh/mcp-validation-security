@@ -200,6 +200,18 @@ internal static class RemediationOrderBuilder
 
     private static int ResolvePriority(RemediationCandidate candidate)
     {
+        // Heuristic content-safety / AI-readiness signals are advisory and belong in the
+        // safety/security/performance bucket regardless of whether the issue text happens
+        // to mention "capability". They are NOT capability-contract violations even though
+        // they may be rendered alongside tool catalogs.
+        var ruleId = candidate.RuleId ?? string.Empty;
+        if (candidate.Authority == ValidationRuleSource.Heuristic ||
+            ruleId.StartsWith("AI.", StringComparison.OrdinalIgnoreCase) ||
+            ruleId.StartsWith("ContentSafety.", StringComparison.OrdinalIgnoreCase))
+        {
+            return 4;
+        }
+
         var haystack = BuildSearchText(candidate);
 
         if (ContainsAny(haystack, "bootstrap", "initialize", "initialization", "handshake", "lifecycle", "protocol version", "version negotiation", "json-rpc", "transport", "streamable", "stdio", "session"))

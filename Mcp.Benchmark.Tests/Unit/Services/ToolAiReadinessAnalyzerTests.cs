@@ -73,6 +73,37 @@ public class ToolAiReadinessAnalyzerTests
         assessment.SupportingIssues.Should().BeEmpty();
     }
 
+    [Fact]
+    public void AnalyzeErrorResponse_WithUpstreamApiPassThrough_ShouldExcludeFromLlmAverage()
+    {
+        // Validator's synthetic input ("test-check/test-check") triggered the upstream
+        // GitHub REST API to return 404. The MCP tool faithfully passed through the
+        // upstream HTTP status and URL — that is informative for an LLM and is not
+        // evidence of an Anti-LLM tool. Such findings must be marked excluded.
+        var assessment = _analyzer.AnalyzeErrorResponse(
+            "delete_file",
+            """
+            {
+              "jsonrpc": "2.0",
+              "error": {
+                "code": 0,
+                "message": "failed to get branch reference: GET https://api.github.com/repos/test-check/test-check/git/ref/heads/test-check: 404 Not Found []"
+              },
+              "id": 1
+            }
+            """,
+            errorCode: 0,
+            errorMessage: "failed to get branch reference: GET https://api.github.com/repos/test-check/test-check/git/ref/heads/test-check: 404 Not Found []");
+
+        assessment.Finding.RuleId.Should().Be(ValidationFindingRuleIds.ToolLlmFriendliness);
+        assessment.Finding.Severity.Should().Be(ValidationFindingSeverity.Info);
+        assessment.Finding.Metadata.Should().ContainKey("excludedFromLlmAverage")
+            .WhoseValue.Should().Be("true");
+        assessment.Finding.Metadata.Should().ContainKey("exclusionReason")
+            .WhoseValue.Should().Be("upstream-http-pass-through");
+        assessment.Finding.Summary.Should().Contain("not scored");
+    }
+
     private static JsonElement ParseJsonElement(string json)
     {
         using var document = JsonDocument.Parse(json);
