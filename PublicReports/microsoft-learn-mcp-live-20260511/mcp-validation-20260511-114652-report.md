@@ -1,21 +1,21 @@
 # MCP Server Compliance & Validation Report
-**Generated:** 2026-05-01 16:31:51 UTC
+**Generated:** 2026-05-11 11:46:52 UTC
 
 ## 1. Executive Summary
 
 | Metric | Value |
 | :--- | :--- |
 | **Server Endpoint** | `https://learn.microsoft.com/api/mcp` |
-| **Validation ID** | `73172173-6e1c-44f3-ba96-fb7bcfc4603f` |
+| **Validation ID** | `cfe782b5-a299-45d9-ae5f-f27d4814f7ee` |
 | **Overall Status** | ❌ **Failed** |
 | **Baseline Verdict** | **Reject** |
 | **Protocol Verdict** | **Reject** |
 | **Coverage Verdict** | **Trusted** |
-| **Compliance Score** | **67.7%** |
+| **Compliance Score** | **88.4%** |
 | **Evidence Coverage** | **100.0%** |
 | **Evidence Confidence** | **High (100.0%)** |
 | **Compliance Profile** | `Public (Inferred)` |
-| **Duration** | 19.57s |
+| **Duration** | 18.91s |
 | **Transport** | HTTP |
 | **Session Bootstrap** | ✅ Healthy |
 | **Deferred Validation** | No — validation started from a clean bootstrap state. |
@@ -32,7 +32,7 @@ This section explains how the validator established initial connectivity and whe
 | **Validation Proceeded Under Deferment** | No — validation started from a clean bootstrap state. |
 | **Initialize Handshake** | ✅ Initialize handshake succeeded. |
 | **Handshake HTTP Status** | `HTTP 200` |
-| **Handshake Duration** | 673.8 ms |
+| **Handshake Duration** | 660.9 ms |
 | **Negotiated Protocol** | `2025-06-18` |
 | **Observed Server Version** | `1.0.0` |
 | **Server Profile Resolution** | `Public (Inferred)` |
@@ -44,7 +44,7 @@ Validation began from a clean bootstrap with no deferred connectivity risk carri
 These are the highest-signal outcomes from this validation run.
 > **Authority legend:** Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.
 
-- [Spec] 8 protocol violation(s), led by MCP-PROTO-ERR: JSON-RPC Error Code Violation: Parse Error
+- [Spec] 6 protocol violation(s), led by MCP-PROTO-ERR: JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc
 - [Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.OPENWORLD_HINT_MISSING: Tool 'microsoft_code_sample_search' does not declare annotations.openWorldHint.
 - [Heuristic] 2 deterministic AI-readiness advisory signal(s), led by AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING: Tool 'microsoft_code_sample_search': 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices
 
@@ -55,7 +55,7 @@ Compact next-step guidance derived from the highest-signal evidence in this run.
 - [Spec] Protocol: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (....
 - [Guideline] McpGuideline: Tool 'microsoft_code_sample_search' does not declare annotations.openWorldHint.
 - Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error....
-- Spec: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if presen....
+- Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-3200....
 
 ## 5. Recommended Remediation Order
 
@@ -68,10 +68,10 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
 | MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes | Fix the lifecycle or protocol contract first, then rerun validation before interpreting downstream surface results. | `errors` | [Spec] · `TierCheck` · Critical |
-| Content-Type requirements not enforced (Server should reject non-JSON) | Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http | `Transport` | [Spec] · `MCP-HTTP-001` · High |
-| Error codes do not comply with JSON-RPC 2.0 standard error codes | Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors | `JSON-RPC Compliance` | [Spec] · `MCP-PROTO-ERR` · High |
-| JSON-RPC Error Code Violation: Invalid Params | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors | `JSON-RPC Compliance` | [Spec] · `MCP-PROTO-ERR` · High |
-| Request format does not comply with JSON-RPC 2.0 specification | Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc | `JSON-RPC Compliance` | [Spec] · `MCP-PROTO-JSONRPC` · High |
+| Content-Type requirements not enforced (Server should reject non-JSON) | Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#http | `Transport` | [Spec] · `MCP-HTTP-001` · High |
+| Error codes do not comply with JSON-RPC 2.0 standard error codes | Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors | `JSON-RPC Compliance` | [Spec] · `MCP-PROTO-ERR` · High |
+| JSON-RPC Error Code Violation: Invalid Params | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors | `JSON-RPC Compliance` | [Spec] · `MCP-PROTO-ERR` · High |
+| Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84 | Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#origin-header-validation | `Transport` | [Spec] · `MCP-HTTP-005` · High |
 
 ### Priority 3: Advertised Capabilities
 
@@ -79,8 +79,15 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| Tool 'microsoft_code_sample_search': 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `microsoft_code_sample_search` | [Heuristic] · `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` · Low |
 | Synthetic load probe executed against tools/list using 20 requests at concurrency 4. | Interpret this as a generic pressure probe, not a workload-specific SLA benchmark. | `tools/list` | [Guideline] · `MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE` · Info |
+
+### Priority 4: AI Safety, Security, And Performance
+
+**Impact after fix:** After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.
+
+| Issue | Fix | Component | Evidence |
+| :--- | :--- | :--- | :--- |
+| Tool 'microsoft_code_sample_search': 1/2 string parameters look like fixed-choice fields but do not declare enum/const choices | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `microsoft_code_sample_search` | [Heuristic] · `AI.TOOL.SCHEMA.ENUM_COVERAGE_MISSING` · Low |
 
 ## 6. Deterministic Verdicts
 
@@ -93,26 +100,26 @@ These verdicts are the authoritative gate for pass/fail and policy decisions. We
 | **Protocol** | **Reject** | Protocol correctness and contract integrity. |
 | **Coverage** | **Trusted** | Whether enabled validation surfaces produced authoritative evidence. |
 
-Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=13.
+Baseline=Reject; Protocol=Reject; Coverage=Trusted; EvidenceConfidence=High (100%); BlockingDecisions=10.
 
 ### Blocking Decisions
 
 - **Reject** [TierCheck] `errors`: MUST requirement failed: MUST: Use standard JSON-RPC error codes — Non-standard error codes
   - Evidence: IDs `tier-check:must:errors:must--use-standard-json-rpc-error-codes`; preview: Non-standard error codes
-- **Reject** [JSON-RPC Compliance] `JSON-RPC Compliance`: JSON-RPC Error Code Violation: Parse Error
-  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--parse-error`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-jsonrpc`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
 - **Reject** [JSON-RPC Compliance] `JSON-RPC Compliance`: JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc
-  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-jsonrpc`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
+  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-request---missing-jsonrpc`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`; preview: JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc; spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
 - **Reject** [JSON-RPC Compliance] `JSON-RPC Compliance`: JSON-RPC Error Code Violation: Invalid Params
-  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-params`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-jsonrpc`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- **Reject** [JSON-RPC Compliance] `JSON-RPC Compliance`: Request format does not comply with JSON-RPC 2.0 specification
-  - Evidence: IDs `protocol-violation:mcp-proto-jsonrpc:json-rpc-compliance:request-format-does-not-comply-with-json-rpc-2-0-specification`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-jsonrpc`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc; remediation: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc
+  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:json-rpc-error-code-violation--invalid-params`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`; preview: JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc; spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
 - **Reject** [JSON-RPC Compliance] `JSON-RPC Compliance`: Error codes do not comply with JSON-RPC 2.0 standard error codes
-  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:error-codes-do-not-comply-with-json-rpc-2-0-standard-error-codes`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`, `protocol-mcp-proto-jsonrpc`; preview: JSON-RPC Error Code Violation: Parse Error; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- **Reject** [Protocol] `invalid-request`: Error-handling scenario 'Graceful Degradation On Invalid Request' was rejected at the HTTP front door instead of returning JSON-RPC error code -32600.
-  - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600`, `error-graceful-degradation-on-invalid-request`; preview: HTTP 500; Invalid or missing jsonrpc version; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- **Reject** [Protocol] `malformed-json`: Error-handling scenario 'Malformed JSON Payload' was rejected at the HTTP front door instead of returning JSON-RPC error code -32700.
-  - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700`, `error-malformed-json-payload`; preview: HTTP 500; 'i' is an invalid start of a property name. Expected a '"'. Path: $ | LineNumber: 0 | BytePositionInLine: 2.; spec: https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
+  - Evidence: IDs `protocol-violation:mcp-proto-err:json-rpc-compliance:error-codes-do-not-comply-with-json-rpc-2-0-standard-error-codes`, `protocol-mcp-proto-err`, `protocol-mcp-proto-err-2`, `protocol-mcp-proto-err-3`; preview: JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc; spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors; remediation: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
+- **Reject** [Protocol] `invalid-request`: Error-handling scenario 'Graceful Degradation On Invalid Request' returned JSON-RPC error code -32700 instead of the expected -32600.
+  - Evidence: IDs `structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--returned-json-rpc-error-code--32700-instead-of-the-expected--32600`, `error-graceful-degradation-on-invalid-request`; preview: HTTP 400; JSON-RPC error -32700: Parse error; spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors; remediation: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
+- **Reject** [Transport] `Transport`: Content-Type requirements not enforced (Server should reject non-JSON)
+  - Evidence: IDs `protocol-violation:mcp-http-001:transport:content-type-requirements-not-enforced--server-should-reject-non-json`, `protocol-mcp-http-001`, `protocol-mcp-http-004`, `protocol-mcp-http-005`; preview: Content-Type requirements not enforced (Server should reject non-JSON); spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#http; remediation: Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#http
+- **Reject** [Transport] `Transport`: Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85
+  - Evidence: IDs `protocol-violation:mcp-http-004:transport:streamable-http-transport-violation--invalid-protocol-version-400---requests-with-an-unsupported-mcp-protocol-version-header-must-be-rejected-before-normal-json-rpc-handling--expected--http-400-bad-request--observed--http-200--content-type-text-event-stream--body-length-85`, `protocol-mcp-http-001`, `protocol-mcp-http-004`, `protocol-mcp-http-005`; preview: Content-Type requirements not enforced (Server should reject non-JSON); spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http; remediation: Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header
+- **Reject** [Transport] `Transport`: Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84
+  - Evidence: IDs `protocol-violation:mcp-http-005:transport:streamable-http-transport-violation--invalid-origin-403---http-transports-must-validate-origin-and-reject-invalid-origins-with-http-403-forbidden--expected--http-403-forbidden--observed--http-200--content-type-text-event-stream--body-length-84`, `protocol-mcp-http-001`, `protocol-mcp-http-004`, `protocol-mcp-http-005`; preview: Content-Type requirements not enforced (Server should reject non-JSON); spec: https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#streamable-http; remediation: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#origin-header-validation
 
 ## 7. Benchmark Trust Profile
 
@@ -121,7 +128,7 @@ This section is descriptive only. Release gating and pass/fail status are driven
 
 | Dimension | Score | What It Measures |
 | :--- | :---: | :--- |
-| **Protocol Compliance** | 49% | MCP spec adherence, JSON-RPC compliance, response structures |
+| **Protocol Compliance** | 65% | MCP spec adherence, JSON-RPC compliance, response structures |
 | **Security Posture** | 100% | Auth compliance, injection resistance, attack surface |
 | **AI Safety** | 94% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |
 | **Operational Readiness** | 100% | Latency, throughput, error rate, stability |
@@ -134,10 +141,12 @@ This section is descriptive only. Release gating and pass/fail status are driven
 
 ### MCP Spec Compliance (RFC 2119 Tiers)
 
-| Tier | Passed | Failed | Total | Impact |
+`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.
+
+| Tier | Passed | Failed | Evaluated | Impact |
 | :--- | :---: | :---: | :---: | :--- |
 | **MUST** | 8 | 1 | 9 | ❌ Non-compliant (trust capped at L2) |
-| **SHOULD** | 5 | 0 | 5 | ✅ All expected behaviors present |
+| **SHOULD** | 4 | 0 | 4 | ✅ All expected behaviors present |
 | **MAY** | 3 | 3 | 6 | ℹ️ Informational (no score impact) |
 
 #### ❌ MUST Failures (Compliance Blockers)
@@ -159,17 +168,17 @@ Documented host-side compatibility assessments derived from the neutral validati
 
 | Client Profile | Status | Requirements | Documentation |
 | :--- | :--- | :--- | :--- |
-| **Claude Code** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
-| **VS Code Copilot Agent** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
-| **GitHub Copilot CLI** | ✅ Compatible | 2 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
-| **GitHub Copilot Cloud Agent** | ✅ Compatible | 4 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
-| **Visual Studio Copilot** | ✅ Compatible | 3 passed / 0 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
+| **Claude Code** | ✅ Compatible | 10 passed / 0 warnings / 0 failed | <https://code.claude.com/docs/en/mcp> |
+| **VS Code Copilot Agent** | ✅ Compatible | 8 passed / 0 warnings / 0 failed | <https://code.visualstudio.com/docs/copilot/chat/mcp-servers> |
+| **GitHub Copilot CLI** | ✅ Compatible | 5 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers> |
+| **GitHub Copilot Cloud Agent** | ✅ Compatible | 8 passed / 0 warnings / 0 failed | <https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/extend-cloud-agent-with-mcp> |
+| **Visual Studio Copilot** | ✅ Compatible | 8 passed / 0 warnings / 0 failed | <https://learn.microsoft.com/en-us/visualstudio/ide/mcp-servers?view=vs-2022> |
 
 ### Claude Code
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (10 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -177,7 +186,7 @@ All applicable compatibility checks passed (4 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (2 satisfied).
+All applicable compatibility checks passed (8 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -185,7 +194,7 @@ All applicable compatibility checks passed (2 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (2 satisfied).
+All applicable compatibility checks passed (5 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -193,7 +202,7 @@ All applicable compatibility checks passed (2 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (4 satisfied).
+All applicable compatibility checks passed (8 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -201,7 +210,7 @@ All applicable compatibility checks passed (4 satisfied).
 
 **Status:** ✅ Compatible
 
-All applicable compatibility checks passed (3 satisfied).
+All applicable compatibility checks passed (8 satisfied).
 
 - No client-specific compatibility gaps were detected.
 
@@ -219,7 +228,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `prompt-surface` | ✅ Passed | 0 | - |
 | `security-boundaries` | ✅ Passed | 0 | - |
 | `performance` | ✅ Passed | 1 | - |
-| `error-handling` | ❌ Failed | 2 | Validated 5 error scenario(s); 3 handled correctly. |
+| `error-handling` | ❌ Failed | 1 | Validated 5 error scenario(s); 4 handled correctly. |
 | `client-profiles` | ✅ Passed | 0 | Evaluated 5 profile(s); 0 warning profile(s); 0 incompatible profile(s). |
 
 ### Scenario Outcomes
@@ -233,7 +242,7 @@ This section exposes the structured validation envelope used for layered reporti
 | `prompt-catalog-smoke` | ✅ Passed | 0 | No prompts were discovered during validation. |
 | `security-authentication-challenge` | ➖ Skipped | 0 | Evaluated 61 authentication challenge scenario(s). |
 | `security-attack-simulations` | ➖ Skipped | 0 | Evaluated 7 attack simulation(s). |
-| `error-handling-matrix` | ❌ Failed | 2 | Validated 5 error scenario(s); 3 handled correctly. |
+| `error-handling-matrix` | ❌ Failed | 1 | Validated 5 error scenario(s); 4 handled correctly. |
 
 ### Evidence Confidence
 
@@ -294,11 +303,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | Observation | Layer | Component | Kind | Preview |
 | :--- | :--- | :--- | :--- | :--- |
 | `bootstrap-initialize` | `bootstrap` | `initialize` | `bootstrap-health` | Healthy |
-| `protocol-mcp-proto-err` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | JSON-RPC Error Code Violation: Parse Error |
-| `protocol-mcp-proto-err-2` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc |
-| `protocol-mcp-proto-err-3` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | JSON-RPC Error Code Violation: Invalid Params |
-| `protocol-mcp-proto-jsonrpc` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | Request format does not comply with JSON-RPC 2.0 specification |
-| `protocol-mcp-proto-err-4` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | Error codes do not comply with JSON-RPC 2.0 standard error codes |
+| `protocol-mcp-proto-err` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc |
+| `protocol-mcp-proto-err-2` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | JSON-RPC Error Code Violation: Invalid Params |
+| `protocol-mcp-proto-err-3` | `protocol-core` | `JSON-RPC Compliance` | `protocol-violation` | Error codes do not comply with JSON-RPC 2.0 standard error codes |
 | `protocol-mcp-http-001` | `protocol-core` | `Transport` | `protocol-violation` | Content-Type requirements not enforced (Server should reject non-JSON) |
 | `protocol-mcp-http-004` | `protocol-core` | `Transport` | `protocol-violation` | Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85 |
 | `protocol-mcp-http-005` | `protocol-core` | `Transport` | `protocol-violation` | Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84 |
@@ -367,16 +374,16 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 | `auth-revoked-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. |
 | `auth-wrong-audience-rfc-8707-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. |
 | `auth-query-token-tools-call` | `security-boundaries` | `tools/call` | `authentication-scenario` | ℹ️ INFO (Public profile): ⚠️ COMPATIBLE: Authentication appears to be enforced at the application layer instead of via an HTTP challenge. |
-| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c9116d2 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c9116d2</P> </BODY> </HTML>  |
-| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c90c1ea <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c90c1ea</P> </BODY> </HTML>  |
-| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c911899 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c911899</P> </BODY> </HTML>  |
+| `attack-inj-001-input-validation` | `security-boundaries` | `INJ-001 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97ecf1 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97ecf1</P> </BODY> </HTML>  |
+| `attack-inj-002-input-validation` | `security-boundaries` | `INJ-002 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97db6f <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97db6f</P> </BODY> </HTML>  |
+| `attack-inj-003-input-validation` | `security-boundaries` | `INJ-003 (Input Validation)` | `attack-simulation` | <HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97ed63 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97ed63</P> </BODY> </HTML>  |
 | `attack-mcp-sec-001` | `security-boundaries` | `MCP-SEC-001` | `attack-simulation` | Server handled malformed requests gracefully with standard errors. |
 | `attack-mcp-sec-002` | `security-boundaries` | `MCP-SEC-002` | `attack-simulation` | Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available. |
 | `attack-mcp-sec-003` | `security-boundaries` | `MCP-SEC-003` | `attack-simulation` | Server correctly rejected invalid schema. |
 | `attack-mcp-ai-001` | `security-boundaries` | `MCP-AI-001` | `attack-simulation` | Error clarity: 55/100 (Fair). Error messages partially helpful for AI. |
 | `error-invalid-method-call` | `error-handling` | `invalid-method` | `error-scenario` | HTTP 200; JSON-RPC error -32601: Method 'nonexistent_method_12345' is not available. |
-| `error-malformed-json-payload` | `error-handling` | `malformed-json` | `error-scenario` | HTTP 500; 'i' is an invalid start of a property name. Expected a '"'. Path: $ \| LineNumber: 0 \| BytePositionInLine: 2. |
-| `error-graceful-degradation-on-invalid-request` | `error-handling` | `invalid-request` | `error-scenario` | HTTP 500; Invalid or missing jsonrpc version |
+| `error-malformed-json-payload` | `error-handling` | `malformed-json` | `error-scenario` | HTTP 400; JSON-RPC error -32700: Parse error |
+| `error-graceful-degradation-on-invalid-request` | `error-handling` | `invalid-request` | `error-scenario` | HTTP 400; JSON-RPC error -32700: Parse error |
 | `error-timeout-handling-recovery` | `error-handling` | `timeout-handling` | `error-scenario` | Validator cancelled the HTTP request after the induced timeout window elapsed. |
 | `error-connection-interruption-recovery` | `error-handling` | `connection-interruption` | `error-scenario` | Validator aborted the HTTP request body mid-stream to simulate a connection interruption. |
 
@@ -384,9 +391,9 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 
 | Probe | Discovered | HTTP Status | Duration | Result |
 | :--- | :---: | :---: | :---: | :--- |
-| Tools/list | 3 | HTTP 200 | 85.1 ms | ✅ Listed<br/>Call ✅ |
-| Resources/list | 0 | HTTP 200 | 77.6 ms | ✅ Listed |
-| Prompts/list | 0 | HTTP 200 | 80.0 ms | ✅ Listed |
+| Tools/list | 3 | HTTP 200 | 68.1 ms | ✅ Listed<br/>Call ✅ |
+| Resources/list | 0 | HTTP 200 | 69.2 ms | ✅ Listed |
+| Prompts/list | 0 | HTTP 200 | 67.1 ms | ✅ Listed |
 
 - **First Tool Probed:** `microsoft_docs_search`
 
@@ -395,14 +402,13 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 These notes explain how the overall score and blocking decision were calibrated for this run.
 
 - INFO: Authentication challenge observations are informational for the declared public profile.
-- SPEC: JSON-RPC 2.0 format deviations detected. Score reduced by 15%.
-- Score is below the preferred target, but no blocking failure was observed in this run.
+- Score meets the preferred target with non-blocking improvement opportunities.
 
 ## 12. Compliance Matrix
 
 | Category | Status | Score | Issues |
 | :--- | :---: | :---: | :---: |
-| Protocol Compliance | ✅ Passed | 49.0% | **8** |
+| Protocol Compliance | ✅ Passed | 64.6% | **6** |
 | Security Assessment | ✅ Passed | 100.0% | - |
 | Tool Validation | ✅ Passed | 100.0% | - |
 | Resource Capabilities | ✅ Passed | 100.0% | - |
@@ -494,9 +500,9 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 | Attack Vector | Description | Result | Probe | Analysis |
 | :--- | :--- | :---: | :--- | :--- |
-| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c9116d2 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c9116d2</P> </BODY> </HTML> ` |
-| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c90c1ea <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c90c1ea</P> </BODY> </HTML> ` |
-| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1777653101&#46;1c911899 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1777653101&#46;1c911899</P> </BODY> </HTML> ` |
+| INJ-001 (Input Validation) | Simulated INJ-001 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97ecf1 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97ecf1</P> </BODY> </HTML> ` |
+| INJ-002 (Input Validation) | Simulated INJ-002 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97db6f <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97db6f</P> </BODY> </HTML> ` |
+| INJ-003 (Input Validation) | Simulated INJ-003 (Input Validation) attack on microsoft_docs_search | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `<HTML><HEAD> <TITLE>Access Denied</TITLE> </HEAD><BODY> <H1>Access Denied</H1>   You don't have permission to access "http&#58;&#47;&#47;learn&#46;microsoft&#46;com&#47;api&#47;mcp" on this server.<P> Reference&#32;&#35;18&#46;49d02e17&#46;1778500003&#46;fc97ed63 <P>https&#58;&#47;&#47;errors&#46;edgesuite&#46;net&#47;18&#46;49d02e17&#46;1778500003&#46;fc97ed63</P> </BODY> </HTML> ` |
 | MCP-SEC-001 | JSON-RPC Error Smuggling | 🛡️ BLOCKED | `rpc.system.invalid`/http: Success HTTP 200; auth NotRequired | `Server handled malformed requests gracefully with standard errors.` |
 | MCP-SEC-002 | Metadata Enumeration | ⏭️ SKIPPED | `resources/list`/http: Success HTTP 200; auth NotRequired | `Skipped: Metadata enumeration requires an advertised concrete resource URI; no like-for-like resource surface was available.` |
 | MCP-SEC-003 | Schema Confusion | 🛡️ BLOCKED | `tools/list`/http: Success HTTP 200; auth NotRequired (+1) | `Server correctly rejected invalid schema.` |
@@ -509,14 +515,12 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 ### Compliance Violations
 | ID | Source | Description | Severity | Recommendation |
 | :--- | :--- | :--- | :---: | :--- |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Parse Error | High | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc | High | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
-| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | High | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
-| MCP-PROTO-JSONRPC | `spec` | Request format does not comply with JSON-RPC 2.0 specification | High | Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc |
-| MCP-PROTO-ERR | `spec` | Error codes do not comply with JSON-RPC 2.0 standard error codes | High | Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors |
-| MCP-HTTP-001 | `spec` | Content-Type requirements not enforced (Server should reject non-JSON) | High | Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http |
-| MCP-HTTP-004 | `spec` | Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85 | High | Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header |
-| MCP-HTTP-005 | `spec` | Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84 | High | Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation |
+| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Request - Missing jsonrpc | High | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors |
+| MCP-PROTO-ERR | `spec` | JSON-RPC Error Code Violation: Invalid Params | High | This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors |
+| MCP-PROTO-ERR | `spec` | Error codes do not comply with JSON-RPC 2.0 standard error codes | High | Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors |
+| MCP-HTTP-001 | `spec` | Content-Type requirements not enforced (Server should reject non-JSON) | High | Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#http |
+| MCP-HTTP-004 | `spec` | Streamable HTTP transport violation (invalid-protocol-version-400): Requests with an unsupported MCP-Protocol-Version header must be rejected before normal JSON-RPC handling. Expected: HTTP 400 Bad Request. Observed: HTTP 200; Content-Type=text/event-stream; body length 85 | High | Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header |
+| MCP-HTTP-005 | `spec` | Streamable HTTP transport violation (invalid-origin-403): HTTP transports must validate Origin and reject invalid origins with HTTP 403 Forbidden. Expected: HTTP 403 Forbidden. Observed: HTTP 200; Content-Type=text/event-stream; body length 84 | High | Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#origin-header-validation |
 
 #### Violation Context
 
@@ -556,13 +560,13 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `tools/list (Schema Compliance)`
 
 **Status:** ✅ Passed
-**Execution Time:** 85.09ms
+**Execution Time:** 68.10ms
 ---
 
 ### Tool: `microsoft_docs_search`
 
 **Status:** ✅ Passed
-**Execution Time:** 837.38ms
+**Execution Time:** 887.70ms
 
 #### Tool Metadata
 | Property | Value |
@@ -577,7 +581,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `microsoft_code_sample_search`
 
 **Status:** ✅ Passed
-**Execution Time:** 880.38ms
+**Execution Time:** 1618.05ms
 
 #### Tool Metadata
 | Property | Value |
@@ -592,7 +596,7 @@ This table separates server-declared tool metadata from host-side controls that 
 ### Tool: `microsoft_docs_fetch`
 
 **Status:** ✅ Passed
-**Execution Time:** 232.09ms
+**Execution Time:** 245.35ms
 
 #### Tool Metadata
 | Property | Value |
@@ -679,20 +683,20 @@ These probes check whether the server supports optional MCP features beyond the 
 
 | Metric | Result | Verdict |
 | :--- | :--- | :--- |
-| **Avg Latency** | 88.31ms | 🚀 Excellent |
-| **P95 Latency** | 100.77ms | - |
-| **Throughput** | 11.31 req/sec | - |
+| **Avg Latency** | 70.50ms | 🚀 Excellent |
+| **P95 Latency** | 77.26ms | - |
+| **Throughput** | 14.13 req/sec | - |
 | **Error Rate** | 0.00% | ✅ Clean |
 | **Requests** | 20/20 successful | - |
 
 ## 22. Recommendations
 
-- 💡 Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- 💡 Spec: Ensure every JSON-RPC request includes "jsonrpc": "2.0", a string "method" field, and a string or integer "id". The "params" field, if present, must be an object or array. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc
-- 💡 Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors
-- 💡 Spec: Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#http
-- 💡 Spec: Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header
-- 💡 Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/transports#origin-header-validation
+- 💡 Spec: This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
+- 💡 Spec: Review all error responses to ensure they use standard JSON-RPC 2.0 error codes. Custom error codes must be outside the reserved range (-32000 to -32099 for server errors). See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/json-rpc#errors
+- 💡 Spec: Set the Content-Type header to 'application/json' for all JSON-RPC messages and reject requests with incorrect content types. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#http
+- 💡 Spec: Reject requests that advertise an unsupported MCP-Protocol-Version header with HTTP 400 Bad Request. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#protocol-version-header
+- 💡 Spec: Validate the Origin header for HTTP transports and reject invalid origins with HTTP 403 Forbidden before processing the JSON-RPC message. See https://spec.modelcontextprotocol.io/specification/2025-06-18/basic/transports#origin-header-validation
+- 💡 Guideline: Declare openWorldHint so agents can reason about whether execution can affect unknown external systems Gap affects 3/3 tools
 
 ---
 *Produced with [MCP Validator](https://github.com/navalerakesh/mcp-validation-security) · [McpVal on NuGet](https://www.nuget.org/packages/McpVal#versions-body-tab)*

@@ -67,6 +67,14 @@ public static class ValidationFindingRuleIds
     public const string AuthWrongAudienceAccepted = "MCP.AUTH.WRONG_AUDIENCE_ACCEPTED";
     public const string AuthTokenPassthroughRisk = "MCP.AUTH.TOKEN_PASSTHROUGH_RISK";
     public const string AuthResourceIndicatorMissing = "MCP.AUTH.RESOURCE_INDICATOR_MISSING";
+    /// <summary>
+    /// Protected resource metadata document advertises a `resource` URI that does not match the
+    /// MCP server endpoint clients are connecting to. Per MCP Authorization §2.5.1.1 + RFC 8707
+    /// §2, clients MUST send the canonical server URI in OAuth `resource` parameter — if the
+    /// server's declared canonical URI differs from its actual endpoint, audience validation will
+    /// reject every legitimate token.
+    /// </summary>
+    public const string AuthResourceIndicatorMismatch = "MCP.AUTH.RESOURCE_INDICATOR_MISMATCH";
 
     public const string AiClientCapabilityAdvertisedByServer = "MCP.AI.CLIENT_CAPABILITY_ADVERTISED_BY_SERVER";
     public const string AiSamplingHumanReviewAdvisory = "MCP.AI.SAMPLING.HUMAN_REVIEW_ADVISORY";
@@ -85,6 +93,10 @@ public static class ValidationFindingRuleIds
     public const string ToolListCursorLoopDetected = "AI.TOOL.PAGINATION.CURSOR_LOOP_DETECTED";
     public const string ToolDestructiveConfirmationGuidanceMissing = "AI.TOOL.SAFETY.CONFIRMATION_GUIDANCE_MISSING";
     public const string ToolNameInvalid = "MCP.TOOL.LIST.NAME_INVALID";
+    // Format constraints from MCP spec §5.1.1 are SHOULDs (1-128 chars, A-Z/a-z/0-9/_-./, etc.),
+    // not MUSTs. Use this rule for whitespace/control-character/format issues; reserve
+    // ToolNameInvalid for the schema-required missing/empty case.
+    public const string ToolNameFormatGuideline = "MCP.GUIDELINE.TOOL.NAME_FORMAT";
     public const string ToolInputSchemaMissing = "MCP.TOOL.LIST.INPUT_SCHEMA_MISSING";
     public const string ToolInputSchemaInvalid = "MCP.TOOL.LIST.INPUT_SCHEMA_INVALID";
     public const string ToolInputSchemaRootTypeInvalid = "MCP.TOOL.LIST.INPUT_SCHEMA_ROOT_TYPE_INVALID";
@@ -195,6 +207,7 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing);
 
         descriptors[ValidationFindingRuleIds.ToolNameInvalid] = SpecRule(ValidationFindingRuleIds.ToolNameInvalid);
+        descriptors[ValidationFindingRuleIds.ToolNameFormatGuideline] = GuidelineRule(ValidationFindingRuleIds.ToolNameFormatGuideline);
         descriptors[ValidationFindingRuleIds.ToolInputSchemaMissing] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaMissing);
         descriptors[ValidationFindingRuleIds.ToolInputSchemaInvalid] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaInvalid);
         descriptors[ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid);
@@ -212,7 +225,9 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.ToolCallContentMissingImageData] = SpecRule(ValidationFindingRuleIds.ToolCallContentMissingImageData);
         descriptors[ValidationFindingRuleIds.ToolCallContentMissingAudioData] = SpecRule(ValidationFindingRuleIds.ToolCallContentMissingAudioData);
         descriptors[ValidationFindingRuleIds.ToolCallContentMissingResource] = SpecRule(ValidationFindingRuleIds.ToolCallContentMissingResource);
-        descriptors[ValidationFindingRuleIds.ToolCallMissingIsError] = SpecRule(ValidationFindingRuleIds.ToolCallMissingIsError);
+        // ToolCallMissingIsError is intentionally NOT registered as a Spec rule:
+        // MCP spec marks 'isError' as optional with default false. The constant remains
+        // for legacy/test reference only and is never emitted by validators.
         descriptors[ValidationFindingRuleIds.ToolCallResponseValidationFailed] = SpecRule(ValidationFindingRuleIds.ToolCallResponseValidationFailed);
         descriptors[ValidationFindingRuleIds.ToolCallStructuredContentMissing] = SpecRule(ValidationFindingRuleIds.ToolCallStructuredContentMissing);
         descriptors[ValidationFindingRuleIds.ToolCallStructuredContentInvalid] = SpecRule(ValidationFindingRuleIds.ToolCallStructuredContentInvalid);

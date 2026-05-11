@@ -86,7 +86,7 @@
         }
       },
       "automationDetails": {
-        "id": "3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7",
+        "id": "e723cc3e-d008-4a92-ae3c-c69e39cedb2d",
         "description": {
           "text": "MCP validation run"
         }
@@ -94,10 +94,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-05-01T16:23:20.7217670Z",
-          "endTimeUtc": "2026-05-01T16:23:32.1622720Z",
+          "startTimeUtc": "2026-05-11T11:46:54.2850760Z",
+          "endTimeUtc": "2026-05-11T11:47:05.8045080Z",
           "properties": {
-            "validationId": "3b708ba5-58c8-4ea0-a2b4-c7e63d3518e7",
+            "validationId": "e723cc3e-d008-4a92-ae3c-c69e39cedb2d",
             "endpoint": "node mcpval-mcp/dist/index.js",
             "transport": "stdio",
             "overallStatus": "Passed",

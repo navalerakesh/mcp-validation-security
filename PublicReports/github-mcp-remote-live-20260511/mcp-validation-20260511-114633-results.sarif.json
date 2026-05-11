@@ -515,13 +515,13 @@
               "id": "AI.TOOL.ERROR.LLM_FRIENDLINESS",
               "name": "AI.TOOL.ERROR.LLM_FRIENDLINESS",
               "shortDescription": {
-                "text": "\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+                "text": "\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
               },
               "fullDescription": {
-                "text": "\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+                "text": "\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
               },
               "help": {
-                "text": "Return specific, structured errors that identify the invalid argument and expected shape."
+                "text": "No tool change required. Upstream HTTP status \u002B URL passed through is informative for AI agents. To exercise tool-level error quality, configure the run with inputs that trigger the tool\u0027s own validation logic."
               },
               "helpUri": null,
               "properties": {
@@ -539,7 +539,7 @@
         }
       },
       "automationDetails": {
-        "id": "d5e5297d-d079-4e5c-9a85-5243932227a6",
+        "id": "cf05a8a3-de8a-4e12-ab22-7b1fee77e645",
         "description": {
           "text": "MCP validation run"
         }
@@ -547,10 +547,10 @@
       "invocations": [
         {
           "executionSuccessful": true,
-          "startTimeUtc": "2026-05-01T16:30:39.3193710Z",
-          "endTimeUtc": "2026-05-01T16:31:10.4380850Z",
+          "startTimeUtc": "2026-05-11T11:46:00.0686590Z",
+          "endTimeUtc": "2026-05-11T11:46:33.1551340Z",
           "properties": {
-            "validationId": "d5e5297d-d079-4e5c-9a85-5243932227a6",
+            "validationId": "cf05a8a3-de8a-4e12-ab22-7b1fee77e645",
             "endpoint": "https://api.githubcopilot.com/mcp/",
             "transport": "http",
             "overallStatus": "Failed",
@@ -8417,13 +8417,13 @@
         },
         {
           "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
-          "level": "error",
+          "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+            "text": "Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door (HTTP 400); MCP Streamable HTTP \u00A72.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code -32700 alongside the HTTP error is preferred for AI agent self-correction but is not required."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|malformed-json|Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32700."
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|malformed-json|Error-handling scenario \u0027Malformed JSON Payload\u0027 was rejected at the HTTP front door (HTTP 400); MCP Streamable HTTP \u00A72.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code -32700 alongside the HTTP error is preferred for AI agent self-correction but is not required."
           },
           "locations": [
             {
@@ -8437,17 +8437,17 @@
           ],
           "properties": {
             "source": "structured-finding",
-            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32700",
-            "authority": "spec",
-            "authorityPriority": 0,
+            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:malformed-json:error-handling-scenario--malformed-json-payload--was-rejected-at-the-http-front-door--http-400---mcp-streamable-http--2-1-allows-this-for-malformed-or-invalid-input--returning-a-json-rpc-error-envelope-with-code--32700-alongside-the-http-error-is-preferred-for-ai-agent-self-correction-but-is-not-required",
+            "authority": "guideline",
+            "authorityPriority": 1,
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "Protocol",
+            "category": "ErrorHandling",
             "component": "malformed-json",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
             "ruleIdSource": "explicit",
-            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "recommendation": "MCP Streamable HTTP \u00A72.1 allows responding to malformed or invalid input with an HTTP error status (e.g. 400). Returning a JSON-RPC error envelope alongside the HTTP status is preferred so AI agents can self-correct, but it is not required.",
             "metadata": {
               "expectedErrorCode": "-32700",
               "actualResponse": "HTTP 400; malformed payload: unmarshaling jsonrpc message: json: expected \u0027\u0022\u0027 at the beginning of a string value: invalid json\n",
@@ -8460,13 +8460,13 @@
         },
         {
           "ruleId": "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
-          "level": "error",
+          "level": "note",
           "kind": "fail",
           "message": {
-            "text": "Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32600."
+            "text": "Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door (HTTP 400); MCP Streamable HTTP \u00A72.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code -32600 alongside the HTTP error is preferred for AI agent self-correction but is not required."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-request|Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door instead of returning JSON-RPC error code -32600."
+            "logicalIdentity": "finding|MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE|invalid-request|Error-handling scenario \u0027Graceful Degradation On Invalid Request\u0027 was rejected at the HTTP front door (HTTP 400); MCP Streamable HTTP \u00A72.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code -32600 alongside the HTTP error is preferred for AI agent self-correction but is not required."
           },
           "locations": [
             {
@@ -8480,17 +8480,17 @@
           ],
           "properties": {
             "source": "structured-finding",
-            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door-instead-of-returning-json-rpc-error-code--32600",
-            "authority": "spec",
-            "authorityPriority": 0,
+            "evidenceId": "structured-finding:mcp-error-handling-non-standard-error-response:invalid-request:error-handling-scenario--graceful-degradation-on-invalid-request--was-rejected-at-the-http-front-door--http-400---mcp-streamable-http--2-1-allows-this-for-malformed-or-invalid-input--returning-a-json-rpc-error-envelope-with-code--32600-alongside-the-http-error-is-preferred-for-ai-agent-self-correction-but-is-not-required",
+            "authority": "guideline",
+            "authorityPriority": 1,
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "Protocol",
+            "category": "ErrorHandling",
             "component": "invalid-request",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
+            "severity": "Low",
+            "normalizedSeverity": "low",
+            "normalizedSeverityRank": 1,
             "ruleIdSource": "explicit",
-            "recommendation": "This specific error code test failed. Ensure the server returns standard JSON-RPC error codes for known error conditions: -32700 (parse error), -32600 (invalid request), -32601 (method not found), -32602 (invalid params), -32603 (internal error). See https://spec.modelcontextprotocol.io/specification/2025-11-25/basic/json-rpc#errors",
+            "recommendation": "MCP Streamable HTTP \u00A72.1 allows responding to malformed or invalid input with an HTTP error status (e.g. 400). Returning a JSON-RPC error envelope alongside the HTTP status is preferred so AI agents can self-correct, but it is not required.",
             "metadata": {
               "expectedErrorCode": "-32600",
               "actualResponse": "HTTP 400; malformed payload: invalid message version tag \u0022\u0022; expected \u00222.0\u0022\n",
@@ -8762,13 +8762,13 @@
         },
         {
           "ruleId": "AI.TOOL.ERROR.LLM_FRIENDLINESS",
-          "level": "error",
+          "level": "note",
           "kind": "fail",
           "message": {
-            "text": "\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "text": "\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|delete_file|\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|delete_file|\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "locations": [
             {
@@ -8782,35 +8782,37 @@
           ],
           "properties": {
             "source": "structured-finding",
-            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:delete-file:llm-friendliness--10-100--anti-llm----error-will-cause-ai-hallucination-loops",
+            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:delete-file:\u2139--llm-friendliness--not-scored---tool-faithfully-passed-through-an-upstream-http-api-rejection-from-the-validator-s-synthetic-input--excluded-from-the-llm-friendliness-average",
             "authority": "heuristic",
             "authorityPriority": 2,
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "AiReadiness",
             "component": "delete_file",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
             "ruleIdSource": "explicit",
-            "recommendation": "Return specific, structured errors that identify the invalid argument and expected shape.",
+            "recommendation": "No tool change required. Upstream HTTP status \u002B URL passed through is informative for AI agents. To exercise tool-level error quality, configure the run with inputs that trigger the tool\u0027s own validation logic.",
             "metadata": {
-              "score": "10",
-              "grade": "Anti-LLM",
+              "score": "60",
+              "grade": "Excluded",
               "messagePreview": "failed to get branch reference: get https://api.github.com/repos/test-check/test-check/git/ref/heads/test-check: 404 not",
               "evidenceKind": "deterministic-error-heuristic",
-              "modelEvaluationImpact": "not-measured"
+              "modelEvaluationImpact": "not-measured",
+              "excludedFromLlmAverage": "true",
+              "exclusionReason": "upstream-http-pass-through"
             }
           }
         },
         {
           "ruleId": "AI.TOOL.ERROR.LLM_FRIENDLINESS",
-          "level": "error",
+          "level": "note",
           "kind": "fail",
           "message": {
-            "text": "\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "text": "\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|get_latest_release|\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|get_latest_release|\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "locations": [
             {
@@ -8824,35 +8826,37 @@
           ],
           "properties": {
             "source": "structured-finding",
-            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:get-latest-release:llm-friendliness--10-100--anti-llm----error-will-cause-ai-hallucination-loops",
+            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:get-latest-release:\u2139--llm-friendliness--not-scored---tool-faithfully-passed-through-an-upstream-http-api-rejection-from-the-validator-s-synthetic-input--excluded-from-the-llm-friendliness-average",
             "authority": "heuristic",
             "authorityPriority": 2,
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "AiReadiness",
             "component": "get_latest_release",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
             "ruleIdSource": "explicit",
-            "recommendation": "Return specific, structured errors that identify the invalid argument and expected shape.",
+            "recommendation": "No tool change required. Upstream HTTP status \u002B URL passed through is informative for AI agents. To exercise tool-level error quality, configure the run with inputs that trigger the tool\u0027s own validation logic.",
             "metadata": {
-              "score": "10",
-              "grade": "Anti-LLM",
+              "score": "60",
+              "grade": "Excluded",
               "messagePreview": "failed to get latest release: get https://api.github.com/repos/test-check/test-check/releases/latest: 404 not found []",
               "evidenceKind": "deterministic-error-heuristic",
-              "modelEvaluationImpact": "not-measured"
+              "modelEvaluationImpact": "not-measured",
+              "excludedFromLlmAverage": "true",
+              "exclusionReason": "upstream-http-pass-through"
             }
           }
         },
         {
           "ruleId": "AI.TOOL.ERROR.LLM_FRIENDLINESS",
-          "level": "error",
+          "level": "note",
           "kind": "fail",
           "message": {
-            "text": "\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "text": "\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|list_releases|\uD83D\uDD34 LLM-Friendliness: 10/100 (Anti-LLM) \u2014 Error will cause AI hallucination/loops"
+            "logicalIdentity": "finding|AI.TOOL.ERROR.LLM_FRIENDLINESS|list_releases|\u2139\uFE0F LLM-Friendliness: not scored \u2014 tool faithfully passed through an upstream HTTP API rejection from the validator\u0027s synthetic input. Excluded from the LLM-friendliness average."
           },
           "locations": [
             {
@@ -8866,23 +8870,25 @@
           ],
           "properties": {
             "source": "structured-finding",
-            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:list-releases:llm-friendliness--10-100--anti-llm----error-will-cause-ai-hallucination-loops",
+            "evidenceId": "structured-finding:ai-tool-error-llm-friendliness:list-releases:\u2139--llm-friendliness--not-scored---tool-faithfully-passed-through-an-upstream-http-api-rejection-from-the-validator-s-synthetic-input--excluded-from-the-llm-friendliness-average",
             "authority": "heuristic",
             "authorityPriority": 2,
             "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
             "category": "AiReadiness",
             "component": "list_releases",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
+            "severity": "Info",
+            "normalizedSeverity": "info",
+            "normalizedSeverityRank": 0,
             "ruleIdSource": "explicit",
-            "recommendation": "Return specific, structured errors that identify the invalid argument and expected shape.",
+            "recommendation": "No tool change required. Upstream HTTP status \u002B URL passed through is informative for AI agents. To exercise tool-level error quality, configure the run with inputs that trigger the tool\u0027s own validation logic.",
             "metadata": {
-              "score": "10",
-              "grade": "Anti-LLM",
+              "score": "60",
+              "grade": "Excluded",
               "messagePreview": "failed to list releases: get https://api.github.com/repos/test-check/test-check/releases?page=1\u0026per_page=1: 404 not foun",
               "evidenceKind": "deterministic-error-heuristic",
-              "modelEvaluationImpact": "not-measured"
+              "modelEvaluationImpact": "not-measured",
+              "excludedFromLlmAverage": "true",
+              "exclusionReason": "upstream-http-pass-through"
             }
           }
         }
