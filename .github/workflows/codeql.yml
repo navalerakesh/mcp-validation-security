@@ -57,12 +57,12 @@ jobs:
         if: steps.code-scanning.outputs.enabled != 'true'
         run: echo "GitHub code scanning is not enabled for this repository; CodeQL analysis was skipped." >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         if: steps.code-scanning.outputs.enabled == 'true'
 
       - name: Setup .NET
         if: steps.code-scanning.outputs.enabled == 'true' && matrix.language == 'csharp'
-        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5.4.0
         with:
           dotnet-version: '8.0.x'
 
@@ -76,7 +76,7 @@ jobs:
 
       - name: Initialize CodeQL
         if: steps.code-scanning.outputs.enabled == 'true'
-        uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/init@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
@@ -101,6 +101,6 @@ jobs:
 
       - name: Perform CodeQL Analysis
         if: steps.code-scanning.outputs.enabled == 'true'
-        uses: github/codeql-action/analyze@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/analyze@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           category: /language:${{ matrix.language }}
