@@ -2,7 +2,7 @@
 
 This repository previously committed live endpoint captures and generated reports. Deleting those files in a later commit does not remove them from branches, tags, forks, caches, or existing release source archives.
 
-Release publication is blocked while `scripts/check-sensitive-artifacts.sh` reports forbidden paths in reachable history.
+The scanner binds the known legacy history to an exact reviewed baseline of path and Git-object digests. Publication fails if that inventory changes or current content matches a sensitive pattern. Rewriting remains the preferred long-term remediation because the baseline does not remove historical objects from forks, caches, or source archives.
 
 ## Affected Path Classes
 

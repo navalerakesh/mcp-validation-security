@@ -54,7 +54,7 @@ This review maps the enterprise renewal to `DESIGN-PRINCIPLES.md`. Repository re
 - Release performance and architecture: 11/11.
 - Mutation: 26/26 production verdict mutants killed, 100%.
 - Static pipeline checks: Actionlint, ShellCheck, composite metadata parsing, distribution contracts, deterministic archive comparison, and full diff hygiene pass.
-- Open-source publication remains blocked by forbidden live-capture paths reachable in Git history and the need for fresh protected pull-request CodeQL results recorded in `docs/ReleaseHostConfiguration.md`.
+- The known live-capture history is locked to reviewed path and Git-object digests; protected pull-request CodeQL results remain mandatory before merge.
 
 ## Enterprise Hosted Blockers
 

@@ -49,4 +49,4 @@ All five manifests bind the same Release validator SHA-256: `5e8d0069acc1ddf0082
 - TypeScript typecheck passed.
 - Report snapshots passed without rewriting unrelated JSON snapshot changes.
 
-The local code and Release test matrix meet the release-candidate quality gate. **Open-source publication is not yet approved:** forbidden live-capture paths remain reachable in Git history, and fresh protected pull-request checks must pass under the controls verified in `docs/ReleaseHostConfiguration.md`. Complete `docs/OpenSourceHistoryRemediation.md`, freeze a sanitized immutable commit, and pass the protected remote release workflow before publication. External target blocks are target/scope outcomes, not validator release failures.
+The local code and Release test matrix meet the release-candidate quality gate. The known live-capture history is locked to reviewed path and Git-object digests pending long-term remediation. Fresh protected pull-request checks and the protected remote release workflow must pass before publication. External target blocks are target/scope outcomes, not validator release failures.

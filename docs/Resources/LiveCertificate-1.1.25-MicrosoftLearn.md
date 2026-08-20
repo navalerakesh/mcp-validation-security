@@ -109,4 +109,4 @@ After correcting discovery fallback and report semantics/UI:
 
 ## Disposition
 
-The code is a release candidate for the documented local/CI validator product. It is not a hosted Fleet readiness certificate or formal accreditation claim. Open-source publication remains blocked until forbidden historical captures are purged (or a clean repository is used), hosting protections are verified, and the remote release workflow passes for the sanitized immutable commit.
+The code is a release candidate for the documented local/CI validator product. It is not a hosted Fleet readiness certificate or formal accreditation claim. The known historical captures are locked to reviewed path and Git-object digests pending long-term removal; hosting protections and the remote release workflow must pass for the immutable release commit.

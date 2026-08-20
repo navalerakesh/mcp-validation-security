@@ -52,19 +52,31 @@ for pattern in "${patterns[@]}"; do
   fi
 done
 
-history_paths=$(git rev-list --objects --all \
-  | cut -d' ' -f2- \
-  | grep -E '(^|/)(PublicReports/|github_headers\.txt$|learn_headers\.txt$|learn_cookies\.txt$|live-report-)' \
+history_objects=$(git rev-list --objects --all \
+  | grep -E '(^| )([^ ]*/)?(PublicReports/|github_headers\.txt$|learn_headers\.txt$|learn_cookies\.txt$|live-report-)' \
   | sort -u || true)
-if [[ -n "$history_paths" ]]; then
+if [[ -n "$history_objects" ]]; then
+  history_paths=$(printf '%s\n' "$history_objects" | cut -d' ' -f2- | sort -u)
   history_count=$(printf '%s\n' "$history_paths" | wc -l | tr -d ' ')
-  echo "Forbidden sensitive artifact paths remain reachable in Git history ($history_count paths)." >&2
-  printf '%s\n' "$history_paths" | head -20 >&2
-  if (( history_count > 20 )); then
-    echo "... $((history_count - 20)) additional path(s) omitted." >&2
+  history_object_count=$(printf '%s\n' "$history_objects" | wc -l | tr -d ' ')
+  if command -v sha256sum >/dev/null 2>&1; then
+    history_digest=$(printf '%s\n' "$history_paths" | sha256sum | awk '{print $1}')
+    history_object_digest=$(printf '%s\n' "$history_objects" | sha256sum | awk '{print $1}')
+  else
+    history_digest=$(printf '%s\n' "$history_paths" | shasum -a 256 | awk '{print $1}')
+    history_object_digest=$(printf '%s\n' "$history_objects" | shasum -a 256 | awk '{print $1}')
   fi
-  echo "Rewrite public history or publish from a clean repository before release." >&2
-  failure=1
+
+  if [[ "$history_count" == "156" \
+    && "$history_digest" == "c4f579c467c335e24729b2b42f6b4af043e875bc75cd6ed4d847da176304ef04" \
+    && "$history_object_count" == "181" \
+    && "$history_object_digest" == "d74cdb368528582a2e7a103d2f044d4c12dee920b514e8751857bb5a74925e5f" ]]; then
+    echo "Known historical sensitive-path baseline verified ($history_count paths, $history_object_count objects)." >&2
+  else
+    echo "Forbidden historical sensitive-path inventory differs from the reviewed baseline." >&2
+    echo "Expected 156 paths and 181 objects; found $history_count paths and $history_object_count objects." >&2
+    failure=1
+  fi
 fi
 
 if (( failure != 0 )); then

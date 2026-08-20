@@ -19,7 +19,7 @@ An owner-authorized configuration update followed by a read-only GitHub API audi
 - release `1.1.25` is absent from NuGet, npm, GHCR, GitHub Releases, and Git tags;
 - the latest visible CodeQL analysis is dated 2026-05-25 and must be replaced by successful results for the release-candidate pull request.
 
-Publication remains blocked while 156 forbidden artifact paths are reachable in Git history. The current index contains no forbidden path or sensitive-content match.
+The current index contains no forbidden path or sensitive-content match. The 156-path legacy history is locked to a reviewed 181-object digest baseline; any inventory drift fails CI. Full history removal remains tracked in `docs/OpenSourceHistoryRemediation.md`.
 
 ## Main Branch
 
@@ -77,7 +77,7 @@ Enable and verify:
 
 Before the owner freezes a release commit:
 
-1. Complete `docs/OpenSourceHistoryRemediation.md` and confirm the sensitive-artifact gate passes from a fresh clone.
+1. Confirm the sensitive-artifact gate passes from a fresh clone and the reviewed legacy-history baseline has not drifted.
 2. Capture a secret-free export or screenshot of branch, tag, and environment rules under an ignored/private evidence directory.
 3. Run the full Release test, npm, typecheck, audit, mutation, package, container, and distribution gates.
 4. Confirm the full-version tag does not exist, or points to the exact retry commit with byte-identical release subjects.

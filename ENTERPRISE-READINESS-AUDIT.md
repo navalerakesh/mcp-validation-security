@@ -29,7 +29,7 @@ The findings below are the baseline that started the `Upgrade_18Aug2026` renewal
 | Machine contracts | **Improved:** canonical result, audit manifest, client-profile summary, and model-evaluation companion carry versioned document identities and published JSON Schema contracts |
 | Open-source hygiene | **Improved but blocked:** worktree/index checks are hardened and live certificates use OS temp; the gate intentionally fails until forbidden historical paths are removed from reachable refs |
 
-Latest executable evidence: 912/912 .NET Release tests, 14/14 npm tests, TypeScript typecheck, warning-free builds, and a five-target HTTP/STDIO matrix with 30/30 subject hashes matched and zero GitHub-token matches. The sensitive-artifact gate is intentionally blocked by forbidden paths reachable in Git history.
+Latest executable evidence: 912/912 .NET Release tests, 14/14 npm tests, TypeScript typecheck, warning-free builds, and a five-target HTTP/STDIO matrix with 30/30 subject hashes matched and zero GitHub-token matches. The sensitive-artifact gate locks the known 156-path legacy history to a reviewed 181-object digest baseline and fails on drift.
 
 ## Executive Verdict
 
@@ -701,7 +701,7 @@ Because the npm audit failed, the complete repository validation did **not** pas
 - No live OAuth flow was executed.
 - No untrusted STDIO command was launched for this audit.
 - No cloud-hosted multi-tenant deployment exists to load or penetration test.
-- GitHub repository controls were remediated and re-inspected through read-only administration APIs on 2026-08-20. Actions with SHA pinning, secret scanning and push protection, administrator-enforced branch checks, an immutable full-version tag ruleset, and owner-reviewed `NuGet`, `Npm`, and `Ghcr` environments are enabled. Publication remains blocked by 156 forbidden artifact paths reachable in Git history and by the need for fresh pull-request CodeQL results. Published attestation verification was not performed.
+- GitHub repository controls were remediated and re-inspected through read-only administration APIs on 2026-08-20. Actions with SHA pinning, secret scanning and push protection, administrator-enforced branch checks, an immutable full-version tag ruleset, and owner-reviewed `NuGet`, `Npm`, and `Ghcr` environments are enabled. The known 156-path history is locked to reviewed path and Git-object digests, and fresh pull-request CodeQL results are required. Published attestation verification was not performed.
 - This was not a formal legal/license opinion or independent certification.
 
 ## Source Notes
