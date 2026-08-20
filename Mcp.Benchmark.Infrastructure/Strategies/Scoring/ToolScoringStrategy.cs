@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 
@@ -14,14 +15,14 @@ public class ToolScoringStrategy : IScoringStrategy<ToolTestResult>
         if (result.ToolsTestFailed == 0 && result.ToolsTestPassed == 0)
         {
             // If no tests ran but status is Passed (e.g. empty list allowed), score is 100
-            return result.Status == TestStatus.Passed ? 100.0 : 0.0;
+            return result.Status == TestStatus.Passed ? ScoringConstants.ScoreMaximum : ScoringConstants.ScoreMinimum;
         }
 
-        if (result.ToolsTestFailed == 0) return 100.0;
+        if (result.ToolsTestFailed == 0) return ScoringConstants.ScoreMaximum;
 
         var totalTests = result.ToolsTestPassed + result.ToolsTestFailed;
         return totalTests > 0 
-            ? (double)result.ToolsTestPassed / totalTests * 100.0 
-            : 0.0;
+            ? (double)result.ToolsTestPassed / totalTests * ScoringConstants.ScoreMaximum
+            : ScoringConstants.ScoreMinimum;
     }
 }

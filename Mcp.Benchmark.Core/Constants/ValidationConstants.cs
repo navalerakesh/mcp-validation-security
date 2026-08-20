@@ -5,6 +5,16 @@ namespace Mcp.Benchmark.Core.Constants;
 /// </summary>
 public static class ValidationConstants
 {
+    public static class Product
+    {
+        public const string ClientName = "mcpval";
+    }
+
+    public static class EnvironmentVariables
+    {
+        public const string BearerToken = "MCPVAL_TOKEN";
+    }
+
     public static class Transports
     {
         public const string Stdio = "stdio";
@@ -24,6 +34,15 @@ public static class ValidationConstants
         public const string HttpSessionId = "MCP-HTTP-006";
         public const string HttpSseEventStream = "MCP-HTTP-007";
         public const string HttpSessionPropagation = "MCP-HTTP-008";
+        public const string HttpModernRequestMetadata = "MCP-HTTP-009";
+        public const string HttpModernMetadataHeaderMismatch = "MCP-HTTP-010";
+        public const string HttpUnsupportedProtocolVersionError = "MCP-HTTP-011";
+        public const string HttpModernResultType = "MCP-HTTP-012";
+        public const string HttpModernInputRequired = "MCP-HTTP-013";
+        public const string HttpModernListCacheMetadata = "MCP-HTTP-014";
+        public const string HttpModernListDeterminism = "MCP-HTTP-015";
+        public const string ModernSubscriptionAcknowledged = "MCP-SUBSCRIPTION-001";
+        public const string ModernSubscriptionClosed = "MCP-SUBSCRIPTION-002";
         public const string StdioNewlineFraming = "MCP-STDIO-001";
         public const string StdioStdoutJsonRpcOnly = "MCP-STDIO-002";
         public const string StdioStderrLogging = "MCP-STDIO-003";
@@ -62,6 +81,7 @@ public static class ValidationConstants
     public static class Methods
     {
         public const string Initialize = "initialize";
+        public const string ServerDiscover = "server/discover";
         public const string Initialized = "initialized";
         public const string ToolsList = "tools/list";
         public const string ToolsCall = "tools/call";

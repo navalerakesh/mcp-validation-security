@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1.7
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0@sha256:4b1cdaa57eed2cecabcf29bdb9bce11e8ca1c287d39dfd2c8b534663ea94d493 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0.419@sha256:dd09bcce84d9130e7f3e85c83a8ce9709e1d95e45c48c722a0d7923b38d8024c AS build
+ARG VERSION=0.0.0
+ARG TARGETARCH
 WORKDIR /src
 
 # Copy project metadata first for better restore caching.
@@ -21,17 +23,22 @@ RUN dotnet restore "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj" --locked-mode
 
 COPY . .
 
-RUN dotnet publish "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj" \
+RUN case "$TARGETARCH" in amd64) rid=linux-x64 ;; arm64) rid=linux-arm64 ;; *) echo "Unsupported TARGETARCH: $TARGETARCH" >&2; exit 1 ;; esac && \
+	dotnet publish "Mcp.Benchmark.CLI/Mcp.Benchmark.CLI.csproj" \
 	-c Release \
-	-r linux-x64 \
+	-r "$rid" \
 	--self-contained true \
+	--no-restore \
 	-p:PublishSingleFile=true \
 	-p:EnableCompressionInSingleFile=true \
 	-p:UseAppHost=true \
 	-p:PackAsTool=false \
+	-p:Version="$VERSION" \
 	-o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-jammy-chiseled@sha256:c0a1e27d3ece495f1acad0aa7fa265a709f762c5e9c391a6f50575ff9429b670 AS final
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0.25-jammy-chiseled@sha256:3040f11e41ccb3eb15272ce9d873209f24d5915a8aa6b59bd61d42d468b60246 AS final
+ARG VERSION=0.0.0
+LABEL org.opencontainers.image.version="$VERSION"
 WORKDIR /app
 
 COPY --from=build /app/publish/mcpval /app/mcpval

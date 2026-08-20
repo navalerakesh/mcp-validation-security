@@ -29,10 +29,10 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
     /// <param name="httpClient">HTTP client for MCP server communication.</param>
     /// <param name="authValidator">Validator for authentication compliance.</param>
     public SecurityValidator(
-        ILogger<SecurityValidator> logger, 
+        ILogger<SecurityValidator> logger,
         ILoggerFactory loggerFactory,
-        IMcpHttpClient httpClient, 
-        McpCompliantAuthValidator authValidator) 
+        IMcpHttpClient httpClient,
+        McpCompliantAuthValidator authValidator)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -62,13 +62,13 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             var authTestResult = await _authValidator.ValidateAuthenticationComplianceAsync(serverConfig, ct);
             result.AuthenticationTestResult = authTestResult;
             result.Findings.AddRange(authTestResult.Findings);
-            
+
             if (authTestResult.Status == TestStatus.Error)
             {
                 result.Status = TestStatus.Error;
                 return result;
             }
-            
+
             // Map calibrated auth outcomes into either exploitable vulnerabilities
             // or non-blocking structured findings.
             var strictProfile = ValidationCalibration.RequiresStrictAuthentication(serverConfig.Profile);
@@ -80,7 +80,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                     blockingAuthScenarios.Add(scenario);
                     result.Vulnerabilities.Add(new SecurityVulnerability
                     {
-                        Id = $"SEC-AUTH-{scenario.Method.Replace("/", "-").ToUpper()}-{Guid.NewGuid()}",
+                        Id = $"SEC-AUTH-{NormalizeEvidenceId(scenario.Method)}-{NormalizeEvidenceId(scenario.TestType)}",
                         Name = string.Format(ValidationMessages.Security.AuthenticationIssue, scenario.ScenarioName),
                         Description = $"{scenario.ComplianceReason}: {scenario.ActualBehavior}",
                         Severity = ValidationCalibration.GetAuthenticationVulnerabilitySeverity(scenario, serverConfig.Profile),
@@ -132,10 +132,10 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             // - Does the server echo raw input back (output sanitization)?
             if (config.TestInjectionAttacks)
             {
-                var attackResults = await SimulateAttackVectorsAsync(serverConfig, new[] { 
-                    ValidationConstants.AttackVectors.InputValidation1, 
-                    ValidationConstants.AttackVectors.InputValidation2, 
-                    ValidationConstants.AttackVectors.InputValidation3 
+                var attackResults = await SimulateAttackVectorsAsync(serverConfig, new[] {
+                    ValidationConstants.AttackVectors.InputValidation1,
+                    ValidationConstants.AttackVectors.InputValidation2,
+                    ValidationConstants.AttackVectors.InputValidation3
                 }, ct);
                 result.AttackSimulations = attackResults.AttackSimulations;
             }
@@ -149,7 +149,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                     var attackResult = await vector.ExecuteAsync(serverConfig, _httpClient, ct);
                     var probeContexts = attackResult.ProbeContexts.Count > 0 ? attackResult.ProbeContexts : null;
                     var outcome = attackResult.Outcome;
-                    
+
                     // Add to attack simulations for reporting
                     result.AttackSimulations.Add(new AttackSimulationResult
                     {
@@ -157,6 +157,11 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         Description = vector.Name,
                         AttackSuccessful = outcome == AttackSimulationOutcome.Detected,
                         DefenseSuccessful = outcome == AttackSimulationOutcome.Blocked,
+                        Outcome = MapAttackOutcome(outcome),
+                        Severity = SeverityForAttackOutcome(outcome),
+                        Gate = GateForAttackOutcome(outcome),
+                        Authority = ValidationRuleSource.Heuristic,
+                        ImpactAreas = ImpactAreasForAttackVector(vector.Id),
                         ServerResponse = attackResult.Analysis,
                         Evidence = new Dictionary<string, object>
                         {
@@ -192,26 +197,76 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             }
 
             // 5. Scoring & Recommendations
-            result.SecurityScore = CalculateSecurityScore(result.Vulnerabilities);
+            result.SecurityScore = Math.Min(
+                CalculateSecurityScore(result.Vulnerabilities),
+                authTestResult.ComplianceScore);
             result.SecurityRecommendations = GenerateSecurityRecommendations(result);
 
             // Security status is reserved for blocking, exploitable outcomes.
             // Non-canonical but secure behavior reduces score and emits findings, but does not fail the section.
-            result.Status = (result.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) ||
+            result.Status = (authTestResult.Status == TestStatus.Failed ||
+                             result.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) ||
                              ValidationCalibration.HasBlockingSecurityFailure(new ValidationResult
                              {
                                  ServerProfile = serverConfig.Profile,
                                  SecurityTesting = result
                              }))
-                ? TestStatus.Failed 
+                ? TestStatus.Failed
                 : TestStatus.Passed;
 
             Logger.LogInformation(ValidationMessages.Security.AssessmentCompleted,
                 result.SecurityScore, result.Vulnerabilities.Count);
-            
+
             return result;
         }, cancellationToken);
     }
+
+    private static string NormalizeEvidenceId(string value)
+    {
+        var normalized = new string(value
+            .Select(character => char.IsAsciiLetterOrDigit(character) ? char.ToUpperInvariant(character) : '-')
+            .ToArray());
+        return string.Join('-', normalized.Split('-', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    private static ValidationOutcome MapAttackOutcome(AttackSimulationOutcome outcome) => outcome switch
+    {
+        AttackSimulationOutcome.Detected => ValidationOutcome.Failed,
+        AttackSimulationOutcome.Blocked => ValidationOutcome.Succeeded,
+        AttackSimulationOutcome.Inconclusive => ValidationOutcome.Inconclusive,
+        AttackSimulationOutcome.Skipped => ValidationOutcome.Skipped,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unknown attack outcome.")
+    };
+
+    private static ValidationFindingSeverity SeverityForAttackOutcome(AttackSimulationOutcome outcome) => outcome switch
+    {
+        AttackSimulationOutcome.Detected => ValidationFindingSeverity.Critical,
+        AttackSimulationOutcome.Blocked => ValidationFindingSeverity.Info,
+        AttackSimulationOutcome.Inconclusive => ValidationFindingSeverity.Info,
+        AttackSimulationOutcome.Skipped => ValidationFindingSeverity.Info,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unknown attack outcome.")
+    };
+
+    private static GateOutcome GateForAttackOutcome(AttackSimulationOutcome outcome) => outcome switch
+    {
+        AttackSimulationOutcome.Detected => GateOutcome.Reject,
+        AttackSimulationOutcome.Blocked => GateOutcome.Note,
+        AttackSimulationOutcome.Inconclusive => GateOutcome.CoverageDebt,
+        AttackSimulationOutcome.Skipped => GateOutcome.Note,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, "Unknown attack outcome.")
+    };
+
+    private static List<ImpactArea> ImpactAreasForAttackVector(string attackVector) => attackVector switch
+    {
+        "MCP-AI-001" => [ImpactArea.UnsafeAutonomy, ImpactArea.OutputIntegrity],
+        "MCP-SEC-001" => [ImpactArea.ProtocolInteroperability, ImpactArea.OutputIntegrity],
+        "MCP-SEC-002" => [ImpactArea.DataExposure],
+        "MCP-SEC-003" => [ImpactArea.ProtocolInteroperability, ImpactArea.CapabilityContract],
+        ValidationConstants.AttackVectors.InputValidation1 or
+        ValidationConstants.AttackVectors.InputValidation2 or
+        ValidationConstants.AttackVectors.InputValidation3 => [ImpactArea.CapabilityContract, ImpactArea.OutputIntegrity],
+        _ => [ImpactArea.OperationalResilience]
+    };
 
     /// <summary>
     /// Tests input validation and sanitization mechanisms.
@@ -348,33 +403,33 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
             string? targetArgument = null;
             ProbeContext? discoveryProbeContext = null;
 
-            try 
+            try
             {
                 var discoveryResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
                 discoveryProbeContext = discoveryResponse.ProbeContext;
-                
+
                 if (discoveryResponse.IsSuccess && !string.IsNullOrEmpty(discoveryResponse.RawJson))
                 {
                      using var doc = JsonDocument.Parse(discoveryResponse.RawJson);
-                     if (doc.RootElement.TryGetProperty("result", out var res) && 
-                         res.TryGetProperty("tools", out var toolsArray) && 
+                     if (doc.RootElement.TryGetProperty("result", out var res) &&
+                         res.TryGetProperty("tools", out var toolsArray) &&
                          toolsArray.ValueKind == JsonValueKind.Array)
                      {
                          foreach(var tool in toolsArray.EnumerateArray())
                          {
                              // Find a tool that accepts a string argument
-                             if (tool.TryGetProperty("name", out var nameProp) && 
+                             if (tool.TryGetProperty("name", out var nameProp) &&
                                  tool.TryGetProperty("inputSchema", out var schemaProp) &&
                                  schemaProp.TryGetProperty("properties", out var props))
                              {
                                  foreach(var prop in props.EnumerateObject())
                                  {
-                                     if(prop.Value.TryGetProperty("type", out var typeProp) && 
+                                     if(prop.Value.TryGetProperty("type", out var typeProp) &&
                                         typeProp.GetString() == "string")
                                      {
                                          targetTool = nameProp.GetString();
                                          targetArgument = prop.Name;
-                                         break; 
+                                         break;
                                      }
                                  }
                              }
@@ -416,6 +471,11 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         Description = $"Skipped {attackVector} attack; no tool with a string argument was discovered.",
                         AttackSuccessful = false,
                         DefenseSuccessful = false,
+                        Outcome = ValidationOutcome.Skipped,
+                        Severity = ValidationFindingSeverity.Info,
+                        Gate = GateOutcome.Note,
+                        Authority = ValidationRuleSource.Heuristic,
+                        ImpactAreas = [ImpactArea.CoverageIntegrity],
                         ServerResponse = "Skipped: no tool with a string argument was available for an executable injection probe.",
                         Evidence = evidence,
                         ProbeContexts = probeContexts
@@ -436,12 +496,13 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                     var attackString = GetAttackString(attackVector);
                     var args = new Dictionary<string, object> { { targetArgument, attackString } };
                     object payload = new { name = targetTool, arguments = args };
-                    
+
                     var response = await _httpClient.CallAsync(serverConfig.Endpoint!, method, payload, serverConfig.Authentication, ct);
                     stopwatch.Stop();
 
                     // Check if the attack was blocked either by HTTP status or JSON-RPC error
-                    bool isBlocked = !response.IsSuccess;
+                    var isInconclusive = IsInconclusiveAttackResponse(response.StatusCode);
+                    bool isBlocked = !response.IsSuccess && !isInconclusive;
                     string defenseDetails = "";
 
                     if (response.IsSuccess && !string.IsNullOrEmpty(response.RawJson))
@@ -449,7 +510,7 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                         try
                         {
                             using var doc = System.Text.Json.JsonDocument.Parse(response.RawJson);
-                            
+
                             // 1. Check for Top-Level JSON-RPC Error
                             if (doc.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object &&
                                 doc.RootElement.TryGetProperty("error", out var error) &&
@@ -475,11 +536,11 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                             else if (targetTool != null)
                             {
                                 var responseText = response.RawJson ?? "";
-                                
+
                                 if (responseText.Contains(attackString, StringComparison.OrdinalIgnoreCase))
                                 {
                                     // Payload found in response. Determine if it's a raw echo or structured output.
-                                    // 
+                                    //
                                     // Raw echo: The tool received input and returned it as-is in content[0].text
                                     //   e.g., echo tool: {"content":[{"type":"text","text":"Echo: '; DROP TABLE..."}]}
                                     //
@@ -491,9 +552,9 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                                     // 1. Extract the text content from the first content block
                                     // 2. Check if the payload is the PRIMARY content (raw echo) or
                                     //    embedded within structured data (report)
-                                    
+
                                     bool isRawEcho = false;
-                                    
+
                                     if (doc.RootElement.TryGetProperty("result", out var res2) &&
                                         res2.TryGetProperty("content", out var content) &&
                                         content.ValueKind == JsonValueKind.Array &&
@@ -503,20 +564,20 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                                         if (firstItem.TryGetProperty("text", out var textVal))
                                         {
                                             var text = textVal.GetString() ?? "";
-                                            
+
                                             // Raw echo indicators:
                                             // - The text starts with a simple prefix + the payload (e.g., "Echo: <payload>")
                                             // - The payload makes up more than 50% of the text content
                                             // - The text has no structured formatting (no newlines, no sections)
-                                            var payloadRatio = text.Length > 0 
-                                                ? (double)attackString.Length / text.Length 
+                                            var payloadRatio = text.Length > 0
+                                                ? (double)attackString.Length / text.Length
                                                 : 0;
                                             var hasStructure = text.Contains('\n') && text.Split('\n').Length > 3;
-                                            
+
                                             isRawEcho = payloadRatio > 0.3 && !hasStructure;
                                         }
                                     }
-                                    
+
                                     if (isRawEcho)
                                     {
                                         isBlocked = false;
@@ -544,11 +605,22 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
 
                     var defenseMechanism = DetermineDefenseMechanism(response.StatusCode, response.IsSuccess, response.RawJson);
                     var probeContexts = BuildProbeContexts(discoveryProbeContext, response.ProbeContext);
+                    var outcome = isInconclusive
+                        ? AttackSimulationOutcome.Inconclusive
+                        : isBlocked
+                            ? AttackSimulationOutcome.Blocked
+                            : AttackSimulationOutcome.Detected;
+                    var resultSummary = outcome switch
+                    {
+                        AttackSimulationOutcome.Inconclusive => $"Attack outcome is inconclusive because the target was unavailable or constrained (HTTP {response.StatusCode}).",
+                        AttackSimulationOutcome.Blocked => $"Server blocked attack: {defenseDetails} (SECURE)",
+                        _ => "Server accepted attack payload (Review output for reflection)"
+                    };
                     var evidence = new Dictionary<string, object>
                     {
-                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isBlocked ? AttackSimulationOutcome.Blocked : AttackSimulationOutcome.Detected),
+                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(outcome),
                         ["target"] = $"tools/call ({targetTool})",
-                        ["result"] = !isBlocked ? "Server accepted attack payload (Review output for reflection)" : $"Server blocked attack: {defenseDetails} (SECURE)",
+                        ["result"] = resultSummary,
                         ["isSuccess"] = response.IsSuccess,
                         ["statusCode"] = response.StatusCode,
                         ["defenseMechanism"] = defenseMechanism,
@@ -561,37 +633,50 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                     {
                         AttackVector = attackVector,
                         Description = $"Simulated {attackVector} attack on {(targetTool ?? "endpoint")}",
-                        AttackSuccessful = !isBlocked, 
-                        DefenseSuccessful = isBlocked,
+                        AttackSuccessful = outcome == AttackSimulationOutcome.Detected,
+                        DefenseSuccessful = outcome == AttackSimulationOutcome.Blocked,
+                        Outcome = MapAttackOutcome(outcome),
+                        Severity = SeverityForAttackOutcome(outcome),
+                        Gate = GateForAttackOutcome(outcome),
+                        Authority = ValidationRuleSource.Heuristic,
+                        ImpactAreas = ImpactAreasForAttackVector(attackVector),
                         ServerResponse = response.RawJson ?? response.Error ?? "No response",
                         ExecutionTimeMs = stopwatch.ElapsedMilliseconds,
                         Evidence = evidence,
                         ProbeContexts = probeContexts
                     });
                 }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
-                    var isServerError = ex.Message.Contains("500") || ex.Message.Contains("Internal Server Error");
                     var defenseMechanism = DetermineDefenseMechanismFromException(ex);
                     var probeContexts = BuildProbeContexts(discoveryProbeContext);
                     var evidence = new Dictionary<string, object>
                     {
-                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(isServerError ? AttackSimulationOutcome.Detected : AttackSimulationOutcome.Blocked),
+                        ["outcome"] = AttackSimulationOutcomeResolver.ToEvidenceValue(AttackSimulationOutcome.Inconclusive),
                         ["exception"] = ex.Message,
-                        ["attackSuccessful"] = isServerError,
-                        ["defenseSuccessful"] = !isServerError,
+                        ["attackSuccessful"] = false,
+                        ["defenseSuccessful"] = false,
                         ["defenseMechanism"] = defenseMechanism,
-                        ["statusCode"] = isServerError ? 500 : 401,
-                        ["analysis"] = isServerError ? "Server error - potential vulnerability" : "Attack blocked at network/auth layer"
+                        ["statusCode"] = -1,
+                        ["analysis"] = "The validator could not obtain discriminating attack evidence."
                     };
                     AddProbeContextEvidence(evidence, probeContexts);
-                    
+
                     result.AttackSimulations.Add(new AttackSimulationResult
                     {
                         AttackVector = attackVector,
                         Description = $"Simulated {attackVector} attack",
-                        AttackSuccessful = isServerError,
-                        DefenseSuccessful = !isServerError,
+                        AttackSuccessful = false,
+                        DefenseSuccessful = false,
+                        Outcome = ValidationOutcome.Inconclusive,
+                        Severity = ValidationFindingSeverity.Info,
+                        Gate = GateOutcome.CoverageDebt,
+                        Authority = ValidationRuleSource.Heuristic,
+                        ImpactAreas = [ImpactArea.CoverageIntegrity],
                         ServerResponse = $"Exception: {ex.Message}",
                         ExecutionTimeMs = 0,
                         Evidence = evidence,
@@ -600,9 +685,23 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 }
             }
 
-            result.Status = result.AttackSimulations.Any(r => r.AttackSuccessful) ? TestStatus.Failed : TestStatus.Passed;
+            result.Status = result.AttackSimulations.Any(r =>
+                                AttackSimulationOutcomeResolver.Resolve(r) == AttackSimulationOutcome.Detected)
+                ? TestStatus.Failed
+                : result.AttackSimulations.Any(r => AttackSimulationOutcomeResolver.Resolve(r) == AttackSimulationOutcome.Inconclusive)
+                    ? TestStatus.Inconclusive
+                    : TestStatus.Passed;
             return result;
         }, cancellationToken);
+    }
+
+    private static bool IsInconclusiveAttackResponse(int statusCode)
+    {
+        return statusCode < 0 ||
+               statusCode == 408 ||
+               statusCode == 425 ||
+               statusCode == 429 ||
+               statusCode >= 500;
     }
 
     private string DetermineDefenseMechanism(int statusCode, bool isSuccess, string? rawJson = null)
@@ -685,11 +784,11 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
                 VulnerabilitySeverity.Medium => ScoringConstants.VulnPenaltyMedium,
                 VulnerabilitySeverity.Low => ScoringConstants.VulnPenaltyLow,
                 VulnerabilitySeverity.Informational => ScoringConstants.VulnPenaltyInfo,
-                _ => 5.0
+                _ => ScoringConstants.SecurityDefaultPenalty
             };
             baseScore -= penalty;
         }
-        return Math.Max(0.0, baseScore);
+        return Math.Max(ScoringConstants.ScoreMinimum, baseScore);
     }
 
     private List<string> GenerateSecurityRecommendations(SecurityTestResult result)
@@ -697,8 +796,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
         var recommendations = new List<string>();
         if (result.Vulnerabilities.Any(v => v.Category == ValidationMessages.Security.InputValidation)) recommendations.Add(ValidationMessages.Security.Recommendation.InputValidation);
         if (result.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.High)) recommendations.Add(ValidationMessages.Security.Recommendation.HighSeverity);
-        if (result.SecurityScore < 80.0) recommendations.Add(ValidationMessages.Security.Recommendation.Controls);
-        if (result.AttackSimulations.Any(a => a.AttackSuccessful)) recommendations.Add(ValidationMessages.Security.Recommendation.Defense);
+        if (result.SecurityScore < ScoringConstants.SecurityControlsRecommendationThreshold) recommendations.Add(ValidationMessages.Security.Recommendation.Controls);
+        if (result.AttackSimulations.Any(attack => AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Detected)) recommendations.Add(ValidationMessages.Security.Recommendation.Defense);
         if (result.InputValidationResults.Any(i => i.SecurityConcerns.Count > 0)) recommendations.Add(ValidationMessages.Security.Recommendation.Injection);
         return recommendations;
     }

@@ -10,6 +10,16 @@ namespace Mcp.Benchmark.Core.Abstractions;
 public interface IMcpHttpClient
 {
     /// <summary>
+    /// Gets whether execution governance has already been configured for this run-scoped transport.
+    /// </summary>
+    bool IsExecutionPolicyConfigured => false;
+
+    /// <summary>
+    /// Starts any transport resources required for the admitted run. HTTP transports are already ready and use the default no-op implementation.
+    /// </summary>
+    Task StartSessionAsync(string endpoint, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+    /// <summary>
     /// Makes a JSON-RPC 2.0 call to the MCP server.
     /// </summary>
     Task<ValidatorJsonRpcResponse> CallAsync(string endpoint, string method, object? parameters = null, CancellationToken cancellationToken = default);
@@ -92,6 +102,11 @@ public interface IMcpHttpClient
     /// </summary>
     /// <param name="protocolVersion">The protocol version string to advertise, or null to clear.</param>
     void SetProtocolVersion(string? protocolVersion);
+
+    /// <summary>
+    /// Supplies validated modern server/discover evidence for stateless capability collection.
+    /// </summary>
+    void SetModernDiscovery(ModernDiscoveryEvidence? discovery) { }
 
     /// <summary>
     /// Applies execution governance constraints for the current run.

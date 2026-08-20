@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Infrastructure.Http;
 using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
@@ -55,7 +56,7 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
             Transport = transport,
             AccessMode = string.IsNullOrWhiteSpace(accessMode) ? serverConfig.Profile.ToString() : accessMode,
             ServerProfile = string.IsNullOrWhiteSpace(serverProfile) ? serverConfig.Profile.ToString() : serverProfile,
-            IsAuthenticated = isAuthenticated || !string.IsNullOrWhiteSpace(serverConfig.Authentication?.Token),
+            IsAuthenticated = isAuthenticated || McpAuthenticationHelper.HasCredential(serverConfig.Authentication),
             AdvertisedCapabilities = ExtractCapabilities(capabilitySnapshot),
             AdvertisedSurfaces = ExtractSurfaces(capabilitySnapshot),
             SelectedClientProfiles = normalizedProfiles,

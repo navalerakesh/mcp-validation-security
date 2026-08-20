@@ -1,5 +1,7 @@
 using System;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Abstractions;
@@ -8,11 +10,13 @@ using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.CLI.Utilities;
+using Mcp.Benchmark.CLI.Utilities.Logging;
 
 namespace Mcp.Benchmark.CLI;
 
@@ -36,6 +40,7 @@ public class ValidateCommand
     private readonly ISessionArtifactStore _artifactStore;
     private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
+    private readonly IAggregateScoringStrategy? _scoringStrategy;
 
     public ValidateCommand(
         IMcpValidatorService validatorService,
@@ -50,7 +55,8 @@ public class ValidateCommand
         IModelEvaluationExecutor modelEvaluationExecutor,
         ISessionArtifactStore artifactStore,
         IMcpHttpClient httpClient,
-        CliSessionContext sessionContext)
+        CliSessionContext sessionContext,
+        IAggregateScoringStrategy? scoringStrategy = null)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
@@ -65,6 +71,7 @@ public class ValidateCommand
         _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
+        _scoringStrategy = scoringStrategy;
     }
 
     /// <summary>
@@ -95,9 +102,18 @@ public class ValidateCommand
         string? traceMode = null,
         bool? confirmElevatedRisk = null,
         bool? enableModelEval = null,
-        string? contentSafetyContext = null)
+        string? contentSafetyContext = null,
+        string[]? allowedOrigins = null,
+        string? protocolEra = null,
+        FileInfo? baselineFile = null,
+        bool? regressionOnly = null,
+        string? outputFormat = null,
+        bool? signAttestation = null,
+        CancellationToken cancellationToken = default)
     {
+        var structuredOutput = string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase);
         _consoleOutput.SetVerbose(verbose);
+        _consoleOutput.SetStructuredOutput(structuredOutput);
         _nextStepAdvisor.Reset();
         McpValidatorConfiguration? configuration = null;
         var targetEndpoint = server;
@@ -118,6 +134,7 @@ public class ValidateCommand
             var profileOverride = ParseServerProfile(serverProfile);
             var contentSafetyContextOverride = ParseContentSafetyContextProfile(contentSafetyContext);
             configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride, contentSafetyContextOverride);
+            configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
             ApplyPolicyOverride(configuration, policyMode);
             ApplyClientProfileOverride(configuration, clientProfiles);
             ApplyReportingOverrides(configuration, reportDetail);
@@ -134,7 +151,8 @@ public class ValidateCommand
                 redactLevel,
                 traceMode,
                 confirmElevatedRisk,
-                enableModelEval);
+                enableModelEval,
+                allowedOrigins);
             configuration.Execution ??= new ExecutionPolicy();
             ApplyTestExecutionOverrides(configuration, configuration.Execution.MaxConcurrency);
             targetEndpoint = configuration.Server.Endpoint ?? targetEndpoint;
@@ -153,11 +171,7 @@ public class ValidateCommand
                 : configuration.Reporting.SpecProfile;
             _consoleOutput.WriteInfo($"Access profile: {effectiveProfile}; risk context: {effectiveContentSafetyContext}; MCP spec profile: {activeSpecProfile}");
 
-            if (!EnsureAuthenticationPrerequisites(effectiveProfile, configuration, token, interactive, targetEndpoint))
-            {
-                Environment.ExitCode = 2;
-                return;
-            }
+            EnsureAuthenticationPrerequisites(effectiveProfile, configuration, token, interactive, targetEndpoint);
 
             // Apply authentication overrides from CLI if provided
             ApplyAuthenticationOverrides(configuration, token, interactive);
@@ -167,8 +181,27 @@ public class ValidateCommand
             {
                 configuration.Reporting.OutputDirectory = outputDirectory.FullName;
             }
+            if (signAttestation.HasValue)
+            {
+                configuration.Reporting.SignAttestation = signAttestation.Value;
+            }
+            if (regressionOnly.HasValue)
+            {
+                configuration.Policy.RegressionOnly = regressionOnly.Value;
+            }
 
             var explicitOutputDirectory = ResolveExplicitOutputDirectory(outputDirectory, configuration);
+            if (configuration.Reporting.SignAttestation)
+            {
+                if (string.IsNullOrWhiteSpace(explicitOutputDirectory))
+                {
+                    throw new CliUsageException("Signed attestations require an explicit output directory.");
+                }
+                if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM")))
+                {
+                    throw new CliUsageException("Signed attestations require MCPVAL_ATTESTATION_PRIVATE_KEY_PEM.");
+                }
+            }
 
             _sessionContext.ApplyExecutionPolicy(configuration.Execution);
             var executionPlan = _executionGovernanceService.BuildValidationPlan(_sessionContext, configuration, explicitOutputDirectory);
@@ -177,7 +210,10 @@ public class ValidateCommand
                 throw new CliUsageException(BuildExecutionErrorMessage(executionPlan.ValidationErrors));
             }
 
-            DisplayExecutionPlan(executionPlan);
+            if (!structuredOutput)
+            {
+                DisplayExecutionPlan(executionPlan);
+            }
             _consoleOutput.DisplayConfigurationStatus(configFile?.FullName, configFile?.Exists ?? false);
 
             if (executionPlan.DryRun)
@@ -196,20 +232,48 @@ public class ValidateCommand
 
                 _consoleOutput.WriteSuccess("Dry run complete. No requests were sent.");
                 Environment.ExitCode = 0;
+                if (structuredOutput)
+                {
+                    Console.Out.WriteLine(JsonSerializer.Serialize(
+                        new CliResultEnvelope { CommandName = "validate", ExitCode = 0, Result = executionPlan },
+                        ArtifactJsonOptions.Create(writeIndented: false)));
+                }
                 return;
+            }
+
+            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan);
+            if (targetResolutionErrors.Count > 0)
+            {
+                throw new CliUsageException(BuildExecutionErrorMessage(targetResolutionErrors));
             }
 
             var transportExecutionPolicy = configuration.Execution.Clone();
             transportExecutionPolicy.AllowedHosts = executionPlan.AllowedHosts.ToList();
+            transportExecutionPolicy.AllowedOrigins = executionPlan.AllowedOrigins.ToList();
             _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
+            configuration.Server.ProtocolVersion = executionPlan.ResolvedSchemaVersion;
+
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromMinutes(10));
+            await _httpClient.StartSessionAsync(configuration.Server.Endpoint!, configuration.Server.Environment, cts.Token);
 
             _consoleOutput.ShowProgress(ValidationMessages.Progress.Initializing);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
-
-            var result = await _validatorService.ValidateServerAsync(configuration, cts.Token);
-            result.ValidationId = _sessionContext.SessionId;
-            result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
+            var result = _validatorService is ICorrelatedMcpValidatorService correlatedValidatorService
+                ? await correlatedValidatorService.ValidateServerAsync(
+                    ValidationRunRequest.Capture(configuration, _sessionContext.SessionId),
+                    cts.Token)
+                : await _validatorService.ValidateServerAsync(configuration, cts.Token);
+            if (result.ValidationId != _sessionContext.SessionId)
+            {
+                result.ValidationId = _sessionContext.SessionId;
+                if (result.Run.OperationalMetrics != null)
+                {
+                    result.Run.OperationalMetrics.RunCorrelationId = result.ValidationId;
+                }
+            }
+            var coverageCountBeforeProfiles = result.Evidence.Coverage.Count;
+            var packCountBeforeProfiles = result.Evidence.AppliedPacks.Count;
             try
             {
                 result.ClientCompatibility = _clientProfileEvaluator.Evaluate(result, configuration.ClientProfiles);
@@ -218,6 +282,32 @@ public class ValidateCommand
             {
                 throw new CliUsageException(ex.Message);
             }
+            if (result.Evidence.Coverage.Count != coverageCountBeforeProfiles ||
+                result.Evidence.AppliedPacks.Count != packCountBeforeProfiles)
+            {
+                if (_scoringStrategy != null)
+                {
+                    var scoring = _scoringStrategy.CalculateScore(result);
+                    result.ComplianceScore = scoring.OverallScore;
+                    result.ScoringNotes = scoring.ScoringNotes;
+                    result.ScoringDetails = scoring;
+                    result.Summary.CoverageRatio = scoring.CoverageRatio;
+                    result.Summary.EvidenceConfidenceRatio = scoring.EvidenceSummary.EvidenceConfidenceRatio;
+                    if (result.Run.OperationalMetrics != null)
+                    {
+                        result.Run.OperationalMetrics.EvidenceCoverageRatio = scoring.EvidenceSummary.EvidenceCoverageRatio;
+                    }
+                }
+                result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+                result.OverallStatus = ValidationVerdictEngine.DetermineValidationStatus(result.VerdictAssessment);
+            }
+            if (baselineFile != null)
+            {
+                result.BaselineComparison = ValidationBaselineEvaluator.Compare(
+                    await LoadBaselineAsync(baselineFile, cancellationToken),
+                    result);
+            }
+            result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
 
             result.ValidationConfig = configuration.CloneWithoutSecrets();
 
@@ -229,7 +319,7 @@ public class ValidateCommand
                 if (modelEvaluationPolicy?.Enabled == true)
             {
                 modelEvaluationArtifact = await _modelEvaluationExecutor.ExecuteAsync(
-                    safeResult,
+                    BuildModelEvaluationInput(safeResult),
                     executionPlan,
                     modelEvaluationPolicy,
                     cts.Token);
@@ -281,29 +371,55 @@ public class ValidateCommand
             _gitHubActionsReporter.PublishValidationResult(safeResult, artifactPaths);
 
             Environment.ExitCode = result.PolicyOutcome?.RecommendedExitCode ?? (result.OverallStatus == ValidationStatus.Passed ? 0 : 1);
+            if (structuredOutput)
+            {
+                Console.Out.WriteLine(JsonSerializer.Serialize(
+                    new CliResultEnvelope { CommandName = "validate", ExitCode = Environment.ExitCode, Result = safeResult },
+                    ArtifactJsonOptions.Create(writeIndented: false)));
+            }
         }
         catch (CliExceptionBase cliEx)
         {
+            var loggedTarget = SessionLogRedactor.Redact(targetEndpoint, RedactionLevel.Strict);
+            if (structuredOutput)
+            {
+                WriteStructuredError(
+                    cliEx.ErrorCode,
+                    cliEx is CliUsageException ? "usage" : "operation",
+                    cliEx.Message,
+                    cliEx.ExitCode,
+                    cliEx.IsTransient);
+            }
             _consoleOutput.WriteError(cliEx.Message);
             _consoleOutput.WriteSessionLogHint("Validation log");
             _nextStepAdvisor.SuggestSessionLogReview("Validation log");
-            _logger.LogWarning(cliEx, "Validation aborted for server {Server}: {Message}", server, cliEx.Message);
+            _logger.LogWarning(cliEx, "Validation aborted for target {Target}: {Message}", loggedTarget, cliEx.Message);
             Environment.ExitCode = cliEx.ExitCode;
         }
         catch (OperationCanceledException)
         {
+            var loggedTarget = SessionLogRedactor.Redact(targetEndpoint, RedactionLevel.Strict);
+            if (structuredOutput)
+            {
+                WriteStructuredError("VALIDATION_TIMEOUT", "timeout", ValidationMessages.Errors.TimeoutOccurred, 124, retryable: true);
+            }
             _consoleOutput.WriteError(ValidationMessages.Errors.TimeoutOccurred);
             _consoleOutput.WriteSessionLogHint("Validation log");
             _nextStepAdvisor.SuggestSessionLogReview("Validation log");
-            _logger.LogWarning("Validation timed out for server {Server}", server);
+            _logger.LogWarning("Validation timed out for target {Target}", loggedTarget);
             Environment.ExitCode = 124;
         }
         catch (Exception ex)
         {
+            var loggedTarget = SessionLogRedactor.Redact(targetEndpoint, RedactionLevel.Strict);
+            if (structuredOutput)
+            {
+                WriteStructuredError("VALIDATION_FAILED", "runtime", ex.Message, 1, retryable: false);
+            }
             _consoleOutput.WriteError($"{ValidationMessages.Errors.UnexpectedError}: {ex.Message}");
             _consoleOutput.WriteSessionLogHint("Validation log");
             _nextStepAdvisor.SuggestSessionLogReview("Validation log");
-            _logger.LogError(ex, "Validation failed for server {Server}", server);
+            _logger.LogError(ex, "Validation failed for target {Target}", loggedTarget);
             if (IsAuthenticationFailure(ex))
             {
                 _nextStepAdvisor.SuggestAuthenticationFlow("validate", targetEndpoint);
@@ -312,8 +428,35 @@ public class ValidateCommand
         }
         finally
         {
-            _nextStepAdvisor.Render();
+            if (!structuredOutput)
+            {
+                _nextStepAdvisor.Render();
+            }
         }
+    }
+
+    private static void WriteStructuredError(string code, string category, string message, int exitCode, bool retryable)
+    {
+        Console.Error.WriteLine(JsonSerializer.Serialize(
+            new CliErrorEnvelope
+            {
+                Code = code,
+                Category = category,
+                Message = message,
+                ExitCode = exitCode,
+                Retryable = retryable
+            },
+            ArtifactJsonOptions.Create(writeIndented: false)));
+    }
+
+    private static async Task<ValidationResult> LoadBaselineAsync(FileInfo baselineFile, CancellationToken cancellationToken)
+    {
+        if (!baselineFile.Exists)
+        {
+            throw new CliUsageException($"Baseline result file was not found: {baselineFile.FullName}");
+        }
+
+        return await BoundedArtifactReader.ReadValidationResultAsync(baselineFile, cancellationToken).ConfigureAwait(false);
     }
 
     private static void ApplyTestExecutionOverrides(McpValidatorConfiguration configuration, int? maxConcurrency)
@@ -328,7 +471,10 @@ public class ValidateCommand
 
         if (maxConcurrency.HasValue)
         {
-            var normalized = Math.Clamp(maxConcurrency.Value, 1, 128);
+            var normalized = Math.Clamp(
+                maxConcurrency.Value,
+                ExecutionPolicyDefaults.MinimumPositiveValue,
+                ExecutionPolicyDefaults.MaximumConcurrency);
             configuration.TestExecution.MaxParallelThreads = normalized;
             configuration.TestExecution.DefaultTestTimeoutMs = Math.Max(1000, configuration.Server.TimeoutMs);
             configuration.Validation.Categories.PerformanceTesting.MaxConcurrentConnections = normalized;
@@ -462,7 +608,7 @@ public class ValidateCommand
 
         if (configFile?.Exists == true)
         {
-            var json = await File.ReadAllTextAsync(configFile.FullName);
+            var json = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
             configuration = JsonSerializer.Deserialize<McpValidatorConfiguration>(json) ?? new McpValidatorConfiguration();
         }
         else
@@ -478,7 +624,7 @@ public class ValidateCommand
         return configuration;
     }
 
-    private bool EnsureAuthenticationPrerequisites(
+    private void EnsureAuthenticationPrerequisites(
         McpServerProfile profile,
         McpValidatorConfiguration configuration,
         string? token,
@@ -487,22 +633,21 @@ public class ValidateCommand
     {
         if (!RequiresStrictAuthentication(profile))
         {
-            return true;
+            return;
         }
 
         var hasToken = !string.IsNullOrWhiteSpace(token) ||
-                       !string.IsNullOrWhiteSpace(configuration.Server.Authentication?.Token);
+                       !string.IsNullOrWhiteSpace(configuration.Server.Authentication?.Token) ||
+                       configuration.Server.Authentication?.TokenRef is { Name.Length: > 0 };
 
         if (hasToken || interactive)
         {
-            return true;
+            return;
         }
 
-        _consoleOutput.WriteError(
-            "Authenticated or enterprise servers require credentials. Provide -t/--token or enable -i/--interactive.");
         _nextStepAdvisor.SuggestAuthenticationFlow("validate", endpointHint);
-
-        return false;
+        throw new CliAuthenticationRequiredException(
+            "Authenticated or enterprise servers require credentials. Provide -t/--token or enable -i/--interactive.");
     }
 
     private static void ApplyServerProfileOverride(
@@ -670,8 +815,7 @@ public class ValidateCommand
             Directory.CreateDirectory(outputDirectory);
         }
 
-        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-        var baseName = $"mcp-validation-{timestamp}";
+        var baseName = CreateArtifactBaseName(result.ValidationId);
 
         // Always work from a redacted clone when persisting artifacts so that
         // no tokens, passwords or sensitive headers are written to disk.
@@ -680,38 +824,49 @@ public class ValidateCommand
         // Human‑readable Markdown report used by most users.
         var markdownPath = Path.Combine(outputDirectory, $"{baseName}-report.md");
         var reportContent = _reportGenerator.GenerateReport(safeResult);
-        await File.WriteAllTextAsync(markdownPath, reportContent);
+        await AtomicFileWriter.WriteAllTextAsync(markdownPath, reportContent, outputDirectory);
 
         var htmlPath = Path.Combine(outputDirectory, $"{baseName}-report.html");
         var includeDetailedSections = safeResult.ValidationConfig.Reporting.IncludesDetailedSections();
         var html = _reportRenderer.GenerateHtmlReport(safeResult, safeResult.ValidationConfig.Reporting, includeDetailedSections);
-        await File.WriteAllTextAsync(htmlPath, html);
+        await AtomicFileWriter.WriteAllTextAsync(htmlPath, html, outputDirectory);
 
         // Machine‑readable JSON snapshot for offline reporting (mcpval report).
         var jsonPath = Path.Combine(outputDirectory, $"{baseName}-result.json");
-        var jsonOptions = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
+        var jsonOptions = ArtifactJsonOptions.Create();
 
         var jsonRoot = JsonSerializer.SerializeToNode(safeResult, jsonOptions) as JsonObject
             ?? throw new InvalidOperationException("Failed to serialize validation result to JSON.");
         AnnotatePerformanceMeasurementState(jsonRoot, safeResult.PerformanceTesting);
         var json = jsonRoot.ToJsonString(jsonOptions);
-        await File.WriteAllTextAsync(jsonPath, json);
+        await AtomicFileWriter.WriteAllTextAsync(jsonPath, json, outputDirectory);
 
         var sarifPath = Path.Combine(outputDirectory, $"{baseName}-results.sarif.json");
         var sarif = _reportRenderer.GenerateSarifReport(safeResult);
-        await File.WriteAllTextAsync(sarifPath, sarif);
+        await AtomicFileWriter.WriteAllTextAsync(sarifPath, sarif, outputDirectory);
+
+        var junitPath = Path.Combine(outputDirectory, $"{baseName}-results.junit.xml");
+        var junit = _reportRenderer.GenerateJunitReport(safeResult);
+        await AtomicFileWriter.WriteAllTextAsync(junitPath, junit, outputDirectory);
 
         _logger.LogInformation("Markdown report saved: {MarkdownPath}", markdownPath);
         _logger.LogInformation("HTML report saved: {HtmlPath}", htmlPath);
         _logger.LogInformation("Validation result JSON saved: {JsonPath}", jsonPath);
         _logger.LogInformation("SARIF report saved: {SarifPath}", sarifPath);
+        _logger.LogInformation("JUnit report saved: {JunitPath}", junitPath);
         _consoleOutput.WriteSuccess($"Reports generated: {markdownPath} and {htmlPath}");
 
-        var savedPaths = new List<string> { markdownPath, htmlPath, jsonPath, sarifPath };
+        var savedPaths = new List<string> { markdownPath, htmlPath, jsonPath, sarifPath, junitPath };
+
+        if (safeResult.ValidationConfig.Reporting.SignAttestation)
+        {
+            var privateKeyPem = Environment.GetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM")!;
+            var attestation = ValidationAttestationSigner.Sign(safeResult.ValidationId, jsonPath, privateKeyPem);
+            var attestationPath = Path.Combine(outputDirectory, $"{baseName}-attestation.json");
+            var attestationJson = JsonSerializer.Serialize(attestation, jsonOptions);
+            await AtomicFileWriter.WriteAllTextAsync(attestationPath, attestationJson, outputDirectory);
+            savedPaths.Add(attestationPath);
+        }
 
         // Emit an aggregate profile summary artifact when client profiles are evaluated.
         if (safeResult.ClientCompatibility?.Assessments.Count > 0)
@@ -719,7 +874,7 @@ public class ValidateCommand
             var profileSummaryPath = Path.Combine(outputDirectory, $"{baseName}-profile-summary.json");
             var profileSummary = BuildClientProfileSummary(safeResult);
             var profileSummaryJson = JsonSerializer.Serialize(profileSummary, jsonOptions);
-            await File.WriteAllTextAsync(profileSummaryPath, profileSummaryJson);
+            await AtomicFileWriter.WriteAllTextAsync(profileSummaryPath, profileSummaryJson, outputDirectory);
             _logger.LogInformation("Client profile summary saved: {Path}", profileSummaryPath);
             savedPaths.Add(profileSummaryPath);
         }
@@ -728,7 +883,7 @@ public class ValidateCommand
         {
             var modelEvaluationPath = Path.Combine(outputDirectory, $"{baseName}-model-evaluation.json");
             var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
-            await File.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson);
+            await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, outputDirectory);
             _logger.LogInformation("Model evaluation artifact saved: {Path}", modelEvaluationPath);
             savedPaths.Add(modelEvaluationPath);
         }
@@ -740,7 +895,7 @@ public class ValidateCommand
             modelEvaluationArtifact);
         var auditManifestPath = Path.Combine(outputDirectory, $"{baseName}-audit.json");
         var auditManifestJson = JsonSerializer.Serialize(auditManifest, jsonOptions);
-        await File.WriteAllTextAsync(auditManifestPath, auditManifestJson);
+        await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, outputDirectory);
         _logger.LogInformation("Audit manifest saved: {Path}", auditManifestPath);
         savedPaths.Add(auditManifestPath);
 
@@ -762,20 +917,15 @@ public class ValidateCommand
                 Directory.CreateDirectory(explicitOutputDirectory);
             }
 
-            var jsonOptions = new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-            };
+            var jsonOptions = ArtifactJsonOptions.Create();
 
-            var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-            var baseName = $"mcp-validation-{timestamp}";
+            var baseName = CreateArtifactBaseName(executionPlan.SessionId);
 
             if (modelEvaluationArtifact != null)
             {
                 var modelEvaluationPath = Path.Combine(explicitOutputDirectory, $"{baseName}-model-evaluation.json");
                 var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
-                await File.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson);
+                await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, explicitOutputDirectory);
                 artifactPaths.Add(modelEvaluationPath);
             }
 
@@ -786,7 +936,7 @@ public class ValidateCommand
                 modelEvaluationArtifact);
             var auditManifestPath = Path.Combine(explicitOutputDirectory, $"{baseName}-audit.json");
             var auditManifestJson = JsonSerializer.Serialize(updatedAuditManifest, jsonOptions);
-            await File.WriteAllTextAsync(auditManifestPath, auditManifestJson);
+            await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, explicitOutputDirectory);
             artifactPaths.Add(auditManifestPath);
             return artifactPaths;
         }
@@ -809,6 +959,14 @@ public class ValidateCommand
         return artifactPaths;
     }
 
+    private static string CreateArtifactBaseName(string identity)
+    {
+        var timestamp = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss-fff");
+        var digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(identity ?? string.Empty)))
+            .ToLowerInvariant()[..12];
+        return $"mcp-validation-{timestamp}-{digest}";
+    }
+
     private void DisplayExecutionPlan(ExecutionPlan executionPlan)
     {
         _consoleOutput.DisplaySessionBanner();
@@ -816,15 +974,18 @@ public class ValidateCommand
         _consoleOutput.WriteHeader("EXECUTION PLAN");
         Console.WriteLine($"Target: {executionPlan.Target}");
         Console.WriteLine($"Transport: {executionPlan.Transport}");
+        Console.WriteLine($"Protocol: {executionPlan.RequestedProtocolProfile} -> {executionPlan.ResolvedSchemaVersion} ({executionPlan.ProtocolEra.ToString().ToLowerInvariant()}; selection={executionPlan.ProtocolEraSelection.ToString().ToLowerInvariant()})");
         Console.WriteLine($"Mode: {executionPlan.ExecutionMode}");
         Console.WriteLine($"Dry Run: {(executionPlan.DryRun ? "enabled" : "disabled")}");
         Console.WriteLine($"Persistence: {executionPlan.PersistenceMode}");
         Console.WriteLine($"Redaction: {executionPlan.RedactionLevel}");
         Console.WriteLine($"Trace: {executionPlan.TraceMode}");
         Console.WriteLine($"Timeout: {executionPlan.TimeoutSeconds}s per request");
+        Console.WriteLine($"Response Limit: {executionPlan.MaxResponseBytes} bytes");
         Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
         Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
         Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
+        Console.WriteLine($"Allowed Origins: {(executionPlan.AllowedOrigins.Count == 0 ? "none" : string.Join(", ", executionPlan.AllowedOrigins))}");
         Console.WriteLine($"Private Addresses: {(executionPlan.AllowPrivateAddresses ? "allowed" : "blocked")}");
         Console.WriteLine($"Model Evaluation: {(executionPlan.ModelEvaluationEnabled ? "enabled" : "disabled")}");
 
@@ -866,11 +1027,23 @@ public class ValidateCommand
 
         return new
         {
-            generatedUtc = DateTime.UtcNow.ToString("o"),
+            documentType = ArtifactContracts.ClientProfileSummaryDocumentType,
+            documentSchemaVersion = ArtifactContracts.ClientProfileSummarySchemaVersion,
+            generatedUtc = (result.EndTime ?? result.StartTime).ToUniversalTime().ToString("O"),
             validationId = result.ValidationId,
+            validatorVersion = result.Producer.Version,
             serverEndpoint = result.ServerConfig.Endpoint,
             complianceScore = result.ComplianceScore,
             trustLevel = result.TrustAssessment?.TrustLabel,
+            trustLimitedByIncompleteEvidence = result.TrustAssessment?.LimitedByIncompleteEvidence ?? true,
+            unevaluatedDimensions = result.TrustAssessment?.UnevaluatedDimensions ?? [],
+            overallStatus = result.OverallStatus,
+            baselineVerdict = result.VerdictAssessment?.BaselineVerdict,
+            protocolVerdict = result.VerdictAssessment?.ProtocolVerdict,
+            coverageVerdict = result.VerdictAssessment?.CoverageVerdict,
+            policyPassed = result.PolicyOutcome?.Passed,
+            policySummary = result.PolicyOutcome?.Summary,
+            evidenceSummary = result.VerdictAssessment?.EvidenceSummary,
             profileCount = assessments.Count,
             compatibleCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.Compatible),
             warningCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.CompatibleWithWarnings),
@@ -894,6 +1067,39 @@ public class ValidateCommand
                     })
                     .ToList()
             }).ToList()
+        };
+    }
+
+    private static ModelEvaluationInput BuildModelEvaluationInput(ValidationResult result)
+    {
+        var aiFindings = result.ToolValidation?.AiReadinessFindings ?? new List<ValidationFinding>();
+        return new ModelEvaluationInput
+        {
+            ValidationId = result.ValidationId,
+            BaselineVerdict = result.VerdictAssessment?.BaselineVerdict ?? ValidationVerdict.Unknown,
+            BlockingDecisions = result.VerdictAssessment?.BlockingDecisions
+                .Select(decision => new ModelEvaluationDecisionInput(
+                    decision.DecisionId,
+                    decision.RuleId,
+                    decision.Gate,
+                    decision.Severity,
+                    decision.Category,
+                    decision.Component))
+                .ToArray() ?? Array.Empty<ModelEvaluationDecisionInput>(),
+            ClientProfiles = result.ClientCompatibility?.Assessments
+                .Select(assessment => new ModelEvaluationClientInput(assessment.ProfileId, assessment.Status))
+                .ToArray() ?? Array.Empty<ModelEvaluationClientInput>(),
+            AiFindings = aiFindings
+                .Where(finding => !string.IsNullOrWhiteSpace(finding.RuleId))
+                .Select(finding => new ModelEvaluationFindingInput(
+                    finding.RuleId,
+                    finding.Category,
+                    finding.Component,
+                    finding.Severity,
+                    finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var evidenceKind)
+                        ? evidenceKind
+                        : AiReadinessEvidenceKinds.Infer(null, finding.RuleId)))
+                .ToArray()
         };
     }
 

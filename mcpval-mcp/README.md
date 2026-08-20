@@ -156,17 +156,23 @@ On Windows, use the full path to `mcpval.exe`.
 
 ### Input Highlights
 
-- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `policy`, `clientProfile`, `reportDetail`, and `verbose`.
-- `health_check`: supports `server`, `access`, `token`, and `interactive`.
-- `discover`: supports `server`, `access`, `token`, `interactive`, and `format` (`json`, `yaml`, or `table`).
+- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `clientProfile`, `reportDetail`, and `verbose`.
+- `health_check`: supports `server`, `access`, `token`, `interactive`, and `protocolEra`.
+- `discover`: supports `server`, `access`, `token`, `interactive`, `protocolEra`, and `format` (`json`, `yaml`, or `table`).
+
+`protocolEra` accepts `auto`, `legacy`, or `modern`; prefer `auto` unless the target requires an explicit protocol generation.
 
 ## Security Behavior
 
-- Authentication tokens are passed to the CLI through a temporary config file instead of command-line arguments.
+- Authentication tokens are passed to the CLI through `MCPVAL_TOKEN`; temporary config contains only an environment `tokenRef`, never the token value or a command-line argument.
 - Temporary config and artifact directories are removed after each tool execution.
 - `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
+- Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
+- The wrapper uses the CLI's default safe mode. Safe mode performs discovery and static metadata/schema analysis and does not call target tools.
 
-`discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints. Use `validate` when you need richer evidence for a local STDIO target.
+`discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints.
+
+To validate a reviewed local command, start the wrapper in a disposable, restricted environment with `MCPVAL_ENABLE_LOCAL_EXECUTION=true`. This opt-in changes the published MCP tool schema and server instructions for that process. Do not enable it on a workstation or shared runner for untrusted commands.
 
 ## Examples
 

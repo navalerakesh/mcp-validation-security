@@ -1,6 +1,7 @@
 using FluentAssertions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -174,6 +175,7 @@ public class McpHttpClientInitializeTests
     [Fact]
     public async Task CallAsync_ShouldRetryTransient503AndSucceed()
     {
+        using var telemetry = ValidationObservability.BeginRun("retry-503", 10);
         var attempts = 0;
         using var httpClient = new HttpClient(new CapturingHandler(_ =>
         {
@@ -200,6 +202,12 @@ public class McpHttpClientInitializeTests
 
         response.IsSuccess.Should().BeTrue();
         attempts.Should().Be(2);
+        var metrics = telemetry.Complete(1000);
+        metrics.RequestsStarted.Should().Be(2);
+        metrics.RequestsCompleted.Should().Be(2);
+        metrics.RequestsFailed.Should().Be(1);
+        metrics.RetryCount.Should().Be(1);
+        metrics.RetryDelayMs.Should().BeGreaterThan(0);
     }
 
     [Fact]

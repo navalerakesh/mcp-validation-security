@@ -12,6 +12,7 @@ internal static class SchemaValidationHelpers
     public const string ListToolsResultDefinition = "ListToolsResult";
     public const string ListResourcesResultDefinition = "ListResourcesResult";
     public const string ListPromptsResultDefinition = "ListPromptsResult";
+    public const string DiscoverResultResponseDefinition = "DiscoverResultResponse";
 
     /// <summary>
     /// Resolves a protocol version string (as negotiated during initialization
@@ -82,7 +83,7 @@ internal static class SchemaValidationHelpers
                 return false;
             }
 
-            validationResult = schemaValidator.Validate(resultNode, listResultSchema);
+            validationResult = schemaValidator.Validate(resultNode, CreateDefinitionWrapper(schemaRoot, listResultDefinitionName));
             return true;
         }
         catch (Exception ex)
@@ -93,6 +94,87 @@ internal static class SchemaValidationHelpers
                 listResultDefinitionName);
             return false;
         }
+    }
+
+    public static bool TryValidateResponseDefinition(
+        ISchemaRegistry schemaRegistry,
+        ISchemaValidator schemaValidator,
+        ProtocolVersion protocolVersion,
+        string responseDefinitionName,
+        string? rawJson,
+        ILogger logger,
+        out SchemaValidationResult? validationResult)
+    {
+        validationResult = null;
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            var instance = JsonNode.Parse(rawJson);
+            if (instance is null)
+            {
+                return false;
+            }
+
+            using var schemaStream = schemaRegistry.GetSchema(protocolVersion, area: "protocol", name: "schema");
+            using var schemaDocument = JsonDocument.Parse(schemaStream);
+            var schemaRoot = JsonNode.Parse(schemaDocument.RootElement.GetRawText());
+            var definition = (schemaRoot?["$defs"] ?? schemaRoot?["definitions"])?[responseDefinitionName];
+            if (definition is null)
+            {
+                return false;
+            }
+
+            validationResult = schemaValidator.Validate(instance, CreateDefinitionWrapper(schemaRoot!, responseDefinitionName));
+            return true;
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Unable to validate MCP response using protocol version {ProtocolVersion} and definition {Definition}",
+                protocolVersion.Value,
+                responseDefinitionName);
+            return false;
+        }
+    }
+
+    public static SchemaValidationResult ValidateDefinition(
+        ISchemaRegistry schemaRegistry,
+        ISchemaValidator schemaValidator,
+        ProtocolVersion protocolVersion,
+        string definitionName,
+        JsonNode instance)
+    {
+        ArgumentNullException.ThrowIfNull(schemaRegistry);
+        ArgumentNullException.ThrowIfNull(schemaValidator);
+        ArgumentException.ThrowIfNullOrWhiteSpace(definitionName);
+        ArgumentNullException.ThrowIfNull(instance);
+
+        using var schemaStream = schemaRegistry.GetSchema(protocolVersion, area: "protocol", name: "schema");
+        using var schemaDocument = JsonDocument.Parse(schemaStream);
+        var schemaRoot = JsonNode.Parse(schemaDocument.RootElement.GetRawText())
+            ?? throw new InvalidOperationException("Embedded protocol schema could not be parsed.");
+        if ((schemaRoot["$defs"] ?? schemaRoot["definitions"])?[definitionName] is null)
+        {
+            throw new InvalidOperationException($"Embedded protocol schema definition '{definitionName}' was not found.");
+        }
+
+        return schemaValidator.Validate(instance, CreateDefinitionWrapper(schemaRoot, definitionName));
+    }
+
+    private static JsonObject CreateDefinitionWrapper(JsonNode schemaRoot, string definitionName)
+    {
+        var wrapper = new JsonObject
+        {
+            ["$schema"] = schemaRoot["$schema"]?.DeepClone(),
+            ["$defs"] = (schemaRoot["$defs"] ?? schemaRoot["definitions"])?.DeepClone(),
+            ["$ref"] = $"#/$defs/{definitionName}"
+        };
+        return wrapper;
     }
 
     public static bool HasSchemaProcessingError(SchemaValidationResult? validationResult)

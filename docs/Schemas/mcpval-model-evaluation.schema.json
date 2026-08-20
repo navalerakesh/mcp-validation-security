@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-model-evaluation.schema.json",
+  "title": "MCP Validator Model Evaluation",
+  "type": "object",
+  "required": [
+    "documentType",
+    "documentSchemaVersion",
+    "timestampUtc",
+    "validationId",
+    "sessionId",
+    "provider",
+    "status",
+    "cost",
+    "summary",
+    "advisoryNotes",
+    "relatedDeterministicFindings"
+  ],
+  "properties": {
+    "documentType": { "const": "mcpval.model-evaluation" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "timestampUtc": { "type": "string", "format": "date-time" },
+    "validationId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "provider": { "type": "string", "minLength": 1 },
+    "model": { "type": ["string", "null"] },
+    "promptSet": { "type": ["string", "null"] },
+    "status": { "enum": ["skipped", "completed", "failed"] },
+    "cost": {
+      "type": "object",
+      "required": ["contractVersion", "inputTokens", "outputTokens", "amount", "currency", "estimated"],
+      "properties": {
+        "contractVersion": { "const": "1.0.0" },
+        "inputTokens": { "type": "integer", "minimum": 0 },
+        "outputTokens": { "type": "integer", "minimum": 0 },
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "minLength": 3, "maxLength": 3 },
+        "estimated": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "summary": { "type": "string" },
+    "baselineVerdict": { "enum": ["unknown", "reject", "reviewRequired", "conditionallyAcceptable", "trusted", null] },
+    "advisoryNotes": { "type": "array", "items": { "type": "string" } },
+    "relatedDeterministicFindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ruleId", "category", "component", "evidenceKind", "summary"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "category": { "type": "string" },
+          "component": { "type": "string" },
+          "evidenceKind": { "type": "string" },
+          "summary": { "type": "string" },
+          "recommendation": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

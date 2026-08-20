@@ -88,11 +88,25 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 - `mcp-validation-<timestamp>-report.html` - HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable result object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF feed for CI and code scanning
+- `mcp-validation-<timestamp>-results.junit.xml` - JUnit feed for CI test reporting
 - `mcp-validation-<timestamp>-audit.json` - execution audit manifest for the run
 
 The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
 Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Run Status, Deterministic Verdict, and Trust Level cards so the gating decision and L1-L5 posture are visible immediately. Use `--report-detail minimal` when you want the executive-only view.
+
+For regression-only CI gating:
+
+```bash
+mcpval validate \
+  --server https://example.com/mcp \
+  --baseline ./approved-result.json \
+  --regression-only \
+  --output-format json \
+  --output ./mcp-reports
+```
+
+Structured mode writes one versioned result envelope to stdout and typed failures to stderr. To emit a signed attestation, set `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM` in the process environment and add `--sign-attestation`; the private key is never persisted.
 
 ## 6. Render Additional Offline Formats
 

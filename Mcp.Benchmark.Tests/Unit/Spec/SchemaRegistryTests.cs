@@ -2,6 +2,7 @@ using Mcp.Compliance.Spec;
 using FluentAssertions;
 using Xunit;
 using Moq;
+using System.Text.Json;
 
 namespace Mcp.Benchmark.Tests.Unit.Spec;
 
@@ -27,6 +28,7 @@ public class SchemaRegistryTests
         ProtocolVersions.V2025_03_26.Value.Should().Be("2025-03-26");
         ProtocolVersions.V2025_06_18.Value.Should().Be("2025-06-18");
         ProtocolVersions.V2025_11_25.Value.Should().Be("2025-11-25");
+        ProtocolVersions.V2026_07_28.Value.Should().Be("2026-07-28");
     }
 
     [Fact]
@@ -34,7 +36,7 @@ public class SchemaRegistryTests
     {
         var latest = SchemaRegistryProtocolVersions.GetLatestVersion(_registry);
 
-        latest.Value.Should().Be("2025-11-25");
+        latest.Value.Should().Be("2026-07-28");
     }
 
     [Fact]
@@ -42,7 +44,7 @@ public class SchemaRegistryTests
     {
         var resolved = SchemaRegistryProtocolVersions.NormalizeRequestedVersion("latest", _registry);
 
-        resolved.Should().Be("2025-11-25");
+        resolved.Should().Be("2026-07-28");
     }
 
     [Fact]
@@ -57,6 +59,7 @@ public class SchemaRegistryTests
     public void SchemaRegistryProtocolVersions_IsAvailableVersion_ShouldDistinguishEmbeddedAndUnknownVersions()
     {
         SchemaRegistryProtocolVersions.IsAvailableVersion("2025-11-25", _registry).Should().BeTrue();
+        SchemaRegistryProtocolVersions.IsAvailableVersion("2026-07-28", _registry).Should().BeTrue();
         SchemaRegistryProtocolVersions.IsAvailableVersion("latest", _registry).Should().BeTrue();
         SchemaRegistryProtocolVersions.IsAvailableVersion("2099-01-01", _registry).Should().BeFalse();
     }
@@ -98,14 +101,27 @@ public class SchemaRegistryTests
     }
 
     [Fact]
+    public void CurrentSchema_ShouldContainModernProtocolDefinitions()
+    {
+        using var schema = _registry.GetSchema(ProtocolVersions.V2026_07_28, "protocol", "schema");
+        using var document = JsonDocument.Parse(schema);
+        var definitions = document.RootElement.GetProperty("$defs");
+
+        definitions.TryGetProperty("DiscoverRequest", out _).Should().BeTrue();
+        definitions.TryGetProperty("RequestMetaObject", out _).Should().BeTrue();
+        definitions.TryGetProperty("SubscriptionsListenRequest", out _).Should().BeTrue();
+        definitions.TryGetProperty("UnsupportedProtocolVersionError", out _).Should().BeTrue();
+    }
+
+    [Fact]
     public void SchemaDescriptor_ShouldHaveProperties()
     {
-        var desc = new SchemaDescriptor 
-        { 
-            Version = ProtocolVersions.V2025_03_26, 
-            Area = "protocol", 
+        var desc = new SchemaDescriptor
+        {
+            Version = ProtocolVersions.V2025_03_26,
+            Area = "protocol",
             Name = "schema",
-            Description = "test description" 
+            Description = "test description"
         };
         desc.Name.Should().Be("schema");
         desc.Area.Should().Be("protocol");

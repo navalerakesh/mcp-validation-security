@@ -17,7 +17,7 @@ namespace Mcp.Benchmark.Infrastructure.Authentication.Strategies
         public bool CanHandle(AuthMetadata metadata)
         {
             if (metadata?.AuthorizationServers == null) return false;
-            
+
             foreach (var server in metadata.AuthorizationServers)
             {
                 if (server.Contains("github.com", StringComparison.OrdinalIgnoreCase))
@@ -31,19 +31,19 @@ namespace Mcp.Benchmark.Infrastructure.Authentication.Strategies
         public async Task<string?> AcquireTokenAsync(string scope, AuthMetadata metadata, bool isInteractive, CancellationToken ct, string? tenantId = null, string? clientId = null)
         {
             // Try to get token silently first
-            var token = await RunCliCommandAsync("gh", "auth token", ct);
-            
+            var token = await RunCliCommandAsync("gh", ["auth", "token"], ct);
+
             if (string.IsNullOrWhiteSpace(token) && isInteractive)
             {
                 _logger.LogInformation("No active GitHub session found. Launching interactive login...");
-                
+
                 // Run interactive login
-                var loginResult = await RunCliCommandAsync("gh", "auth login --web", ct, isInteractive: true);
-                
+                var loginResult = await RunCliCommandAsync("gh", ["auth", "login", "--web"], ct, isInteractive: true);
+
                 if (loginResult != null)
                 {
                     // Try getting token again after login
-                    token = await RunCliCommandAsync("gh", "auth token", ct);
+                    token = await RunCliCommandAsync("gh", ["auth", "token"], ct);
                 }
             }
 

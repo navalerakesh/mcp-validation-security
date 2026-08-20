@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Scenarios;
 
@@ -97,7 +98,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "bootstrap",
                     Scope = "bootstrap-initialize-handshake",
-                    Status = ValidationCoverageStatus.Covered,
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
                     Reason = null
                 }
             ],
@@ -155,6 +157,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = "protocol-core",
                     Scope = "protocol-compliance-review",
                     Status = MapCoverageStatus(protocolResult.Status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(protocolResult.Status),
                     Reason = protocolResult.Status is TestStatus.Passed or TestStatus.Failed ? null : protocolResult.Message
                 }
             ],
@@ -215,6 +218,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = "tool-surface",
                     Scope = "tool-catalog-smoke",
                     Status = MapCoverageStatus(toolResult.Status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(toolResult.Status),
                     Reason = toolResult.Status is TestStatus.Passed or TestStatus.Failed ? null : toolResult.Message
                 }
             ],
@@ -274,6 +278,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = "resource-surface",
                     Scope = "resource-catalog-smoke",
                     Status = MapCoverageStatus(resourceResult.Status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(resourceResult.Status),
                     Reason = resourceResult.Status is TestStatus.Passed or TestStatus.Failed ? null : resourceResult.Message
                 }
             ],
@@ -333,6 +338,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = "prompt-surface",
                     Scope = "prompt-catalog-smoke",
                     Status = MapCoverageStatus(promptResult.Status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(promptResult.Status),
                     Reason = promptResult.Status is TestStatus.Passed or TestStatus.Failed ? null : promptResult.Message
                 }
             ],
@@ -364,6 +370,15 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             return CreateSkippedScenario("security-authentication-challenge", "Authentication Challenge Matrix", "security-boundaries", "Security validation disabled by configuration.");
         }
 
+        if (string.Equals(context.ServerConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateNotApplicableScenario(
+                "security-authentication-challenge",
+                "Authentication Challenge Matrix",
+                "security-boundaries",
+                "HTTP authentication challenge semantics do not apply to STDIO transport.");
+        }
+
         var authenticationResult = context.ValidationResult.SecurityTesting?.AuthenticationTestResult;
         if (authenticationResult?.TestScenarios.Count > 0 != true)
         {
@@ -390,7 +405,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "security-boundaries",
                     Scope = "security-authentication-challenge",
-                    Status = ValidationCoverageStatus.Covered,
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
                     Reason = null
                 }
             ],
@@ -428,10 +444,23 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             return CreateNotApplicableScenario("security-attack-simulations", "Attack Simulation Matrix", "security-boundaries", "No attack simulation results were recorded for this run.");
         }
 
-        var status = attacks
-            .Select(attack => attack.DefenseSuccessful ? TestStatus.Passed : attack.AttackSuccessful ? TestStatus.Failed : TestStatus.Skipped)
-            .DefaultIfEmpty(TestStatus.NotRun)
-            .Aggregate(TestStatus.Passed, AggregateScenarioStatus);
+        var attackStatuses = attacks
+            .Select(attack => AttackSimulationOutcomeResolver.Resolve(attack) switch
+            {
+                AttackSimulationOutcome.Detected => TestStatus.Failed,
+                AttackSimulationOutcome.Blocked => TestStatus.Passed,
+                AttackSimulationOutcome.Inconclusive => TestStatus.Inconclusive,
+                AttackSimulationOutcome.Skipped => TestStatus.Skipped,
+                _ => throw new ArgumentOutOfRangeException()
+            })
+            .ToList();
+        var status = attackStatuses.Contains(TestStatus.Failed)
+            ? TestStatus.Failed
+            : attackStatuses.Contains(TestStatus.Inconclusive)
+                ? TestStatus.Inconclusive
+                : attackStatuses.Contains(TestStatus.Passed)
+                    ? TestStatus.Passed
+                    : TestStatus.Skipped;
 
         return new ValidationScenarioExecutionResult
         {
@@ -448,7 +477,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "security-boundaries",
                     Scope = "security-attack-simulations",
-                    Status = ValidationCoverageStatus.Covered,
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
                     Reason = null
                 }
             ],
@@ -460,7 +490,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     Component = attack.AttackVector,
                     ObservationKind = "attack-simulation",
                     ScenarioId = "security-attack-simulations",
-                    RedactedPayloadPreview = FirstNonEmpty(attack.ServerResponse, attack.Description),
+                    RedactedPayloadPreview = $"Outcome={attack.Outcome}; Gate={attack.Gate}; Severity={attack.Severity}",
                     Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                     {
                         ["attackSuccessful"] = attack.AttackSuccessful.ToString(),
@@ -517,6 +547,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = "error-handling",
                     Scope = "error-handling-matrix",
                     Status = MapCoverageStatus(errorHandling.Status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(errorHandling.Status),
                     Reason = errorHandling.Status is TestStatus.Passed or TestStatus.Failed ? null : errorHandling.Message
                 }
             ],
@@ -578,6 +609,13 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                     LayerId = layerId,
                     Scope = scenarioId,
                     Status = coverageStatus,
+                    ObservedOutcome = coverageStatus == ValidationCoverageStatus.Covered
+                        ? ValidationOutcomeTaxonomy.From(status)
+                        : coverageStatus == ValidationCoverageStatus.NotApplicable
+                            ? ValidationOutcome.NotApplicable
+                        : coverageStatus == ValidationCoverageStatus.Blocked && status == TestStatus.Cancelled
+                            ? ValidationOutcome.Cancelled
+                            : null,
                     Blocker = MapCoverageBlocker(coverageStatus),
                     Confidence = MapCoverageConfidence(coverageStatus),
                     Reason = reason
@@ -611,7 +649,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             AuthenticationAssessmentDisposition.Insecure => TestStatus.Failed,
             AuthenticationAssessmentDisposition.Inconclusive => TestStatus.Inconclusive,
             AuthenticationAssessmentDisposition.Informational => TestStatus.Skipped,
-            _ => scenario.IsSecure || scenario.IsCompliant ? TestStatus.Passed : TestStatus.Failed
+            _ => TestStatus.Inconclusive
         };
     }
 
@@ -619,11 +657,11 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
     {
         return status switch
         {
-            TestStatus.Passed or TestStatus.Failed => ValidationCoverageStatus.Covered,
+            TestStatus.Passed or TestStatus.Failed or TestStatus.Error => ValidationCoverageStatus.Covered,
             TestStatus.Skipped => ValidationCoverageStatus.Skipped,
             TestStatus.AuthRequired => ValidationCoverageStatus.AuthRequired,
             TestStatus.Inconclusive => ValidationCoverageStatus.Inconclusive,
-            TestStatus.Error or TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
+            TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
             _ => ValidationCoverageStatus.Unavailable
         };
     }

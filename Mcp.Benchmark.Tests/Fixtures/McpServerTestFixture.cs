@@ -27,7 +27,7 @@ public class McpServerTestFixture : IDisposable
     {
         // Initialize WireMock server for HTTP simulation
         MockServer = WireMockServer.Start();
-        
+
         // Setup HTTP client with realistic configuration
         HttpClient = new HttpClient
         {
@@ -37,7 +37,7 @@ public class McpServerTestFixture : IDisposable
         // Configure logging mocks
         McpClientLoggerMock = new Mock<ILogger<McpHttpClient>>();
         McpClientAbstraction = new NoOpMcpClient();
-        
+
         // Initialize MCP client
         McpClient = new McpHttpClient(HttpClient, McpClientLoggerMock.Object, McpClientAbstraction);
     }
@@ -89,7 +89,7 @@ public class McpServerTestFixture : IDisposable
     public int GetRequestCount(string pathPattern = "/mcp")
     {
         return MockServer.LogEntries
-            .Count(entry => entry.RequestMessage.Path.Contains(pathPattern));
+            .Count(entry => entry.RequestMessage?.Path?.Contains(pathPattern) == true);
     }
 
     /// <summary>

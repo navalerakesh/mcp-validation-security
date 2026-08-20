@@ -21,3 +21,11 @@ public sealed class CliOperationException : CliExceptionBase
     {
     }
 }
+
+public sealed class CliAuthenticationRequiredException : CliExceptionBase
+{
+    public CliAuthenticationRequiredException(string message)
+        : base(message, exitCode: 2, errorCode: "MCP_AUTHENTICATION_REQUIRED")
+    {
+    }
+}

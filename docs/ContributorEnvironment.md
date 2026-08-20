@@ -3,12 +3,12 @@
 This repository has two active toolchains:
 
 - `.NET 8` for the validator, report generation, and tests
-- `Node.js 20` for the local MCP wrapper package in `mcpval-mcp`
+- `Node.js 24.19.0` for the local MCP wrapper package in `mcpval-mcp`
 
 ## Prerequisites
 
 - [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-- [Node.js 20](https://nodejs.org/)
+- [Node.js 24.19.0](https://nodejs.org/)
 - npm (bundled with Node.js)
 - Git
 - PowerShell 7 or Bash if you want to use the repo validation scripts directly

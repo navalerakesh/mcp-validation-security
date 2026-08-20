@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import test from "node:test";
+import test, { after } from "node:test";
 import fc from "fast-check";
 import { config } from "../src/config.js";
 import { runCli } from "../src/cli-runner.js";
+
+const temporaryRoots: string[] = [];
+after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive: true, force: true }))));
 
 const runnerScript = `#!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -37,6 +40,7 @@ process.exit(exitCode);
 
 async function createMockCli(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "mcpval-localmcp-test-"));
+  temporaryRoots.push(dir);
   const scriptPath = join(dir, "mock-cli.mjs");
   await writeFile(scriptPath, runnerScript, "utf-8");
   await chmod(scriptPath, 0o755);

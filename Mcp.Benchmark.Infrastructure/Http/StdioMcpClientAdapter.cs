@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Utilities;
 using Mcp.Compliance.Spec;
 using ModelContextProtocol.Protocol;
@@ -20,20 +21,30 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 /// </summary>
 public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposable
 {
+    private static readonly string[] InheritedEnvironmentAllowlist =
+    [
+        "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL"
+    ];
+
     private readonly ILogger<StdioMcpClientAdapter> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly object _stderrLock = new();
-    private readonly List<string> _stderrLines = new();
+    private readonly BoundedByteBuffer _stderrBuffer = new(
+        ExecutionPolicyDefaults.DefaultMaxSubprocessOutputBytes,
+        BoundedStreamRetention.Last);
     private Process? _serverProcess;
+    private Task? _stderrCaptureTask;
     private string? _startupCommand;
     private Dictionary<string, string>? _startupEnvironment;
-    private ExecutionPolicy? _executionPolicy;
+    private OperationPolicySnapshot? _executionPolicy;
     private int _requestCount;
+    private string? _protocolVersion;
+    private ModernDiscoveryEvidence? _modernDiscovery;
     private bool _initializeSucceeded;
     private bool _initializedNotificationSent;
     private bool _disposed;
-    private const int MaxCapturedStderrLines = 50;
+
+    public bool IsExecutionPolicyConfigured => _executionPolicy != null;
 
     public StdioMcpClientAdapter(ILogger<StdioMcpClientAdapter> logger)
     {
@@ -53,6 +64,14 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             : new Dictionary<string, string>(environment, StringComparer.OrdinalIgnoreCase);
 
         await StartProcessCoreAsync(command, environment, ct);
+    }
+
+    public Task StartSessionAsync(string endpoint, IReadOnlyDictionary<string, string>? environment = null, CancellationToken cancellationToken = default)
+    {
+        var explicitEnvironment = environment == null
+            ? null
+            : new Dictionary<string, string>(environment, StringComparer.Ordinal);
+        return StartProcessAsync(endpoint, explicitEnvironment, cancellationToken);
     }
 
     private async Task StartProcessCoreAsync(string command, Dictionary<string, string>? environment, CancellationToken ct)
@@ -75,6 +94,16 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             StandardErrorEncoding = Encoding.UTF8
         };
 
+        var inheritedEnvironment = InheritedEnvironmentAllowlist
+            .Select(name => (Name: name, Value: Environment.GetEnvironmentVariable(name)))
+            .Where(variable => !string.IsNullOrEmpty(variable.Value))
+            .ToArray();
+        psi.Environment.Clear();
+        foreach (var variable in inheritedEnvironment)
+        {
+            psi.Environment[variable.Name] = variable.Value!;
+        }
+
         for (var index = 1; index < parts.Length; index++)
         {
             psi.ArgumentList.Add(parts[index]);
@@ -88,27 +117,40 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             }
         }
 
-        _logger.LogInformation("Starting STDIO MCP server: {Command}", command);
+        _logger.LogInformation("Starting configured STDIO MCP server process");
         ClearCapturedStderr();
         _serverProcess = Process.Start(psi);
 
         if (_serverProcess == null || _serverProcess.HasExited)
         {
-            throw new InvalidOperationException($"Failed to start STDIO server process: {command}");
+            throw new InvalidOperationException("Failed to start configured STDIO server process.");
         }
 
-        StartStderrCapture(_serverProcess);
-
-        await Task.Delay(500, ct);
-
-        if (_serverProcess.HasExited)
+        try
         {
-            var stderr = await _serverProcess.StandardError.ReadToEndAsync(ct);
-            throw new InvalidOperationException($"STDIO server exited immediately. stderr: {stderr}");
-        }
+            StartStderrCapture(_serverProcess);
 
-        _logger.LogInformation("STDIO server process started (PID: {Pid})", _serverProcess.Id);
-        ResetSessionState();
+            await Task.Delay(500, ct);
+
+            if (_serverProcess.HasExited)
+            {
+                await _serverProcess.WaitForExitAsync(ct);
+                if (_stderrCaptureTask != null)
+                {
+                    await _stderrCaptureTask.ConfigureAwait(false);
+                }
+                var stderr = SnapshotStderr();
+                throw new InvalidOperationException($"STDIO server exited immediately. stderr: {stderr}");
+            }
+
+            _logger.LogInformation("STDIO server process started (PID: {Pid})", _serverProcess.Id);
+            ResetSessionState();
+        }
+        catch
+        {
+            StopServerProcess();
+            throw;
+        }
     }
 
     public Task<ValidatorJsonRpcResponse> CallAsync(string endpoint, string method, object? parameters = null, CancellationToken cancellationToken = default)
@@ -122,7 +164,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         var isInitializeRequest = string.Equals(method, McpSpecConstants.InitializeMethod, StringComparison.Ordinal);
         var requestId = Guid.NewGuid().ToString();
 
-        if (_serverProcess == null || _serverProcess.HasExited)
+        var serverProcess = _serverProcess;
+        if (serverProcess == null || serverProcess.HasExited)
         {
             return new ValidatorJsonRpcResponse
             {
@@ -137,13 +180,15 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         {
             JsonRpc = "2.0",
             Method = method,
-            Params = parameters,
+            Params = ModernRequestMetadata.Enrich(parameters, _protocolVersion, _jsonOptions),
             Id = requestId
         };
 
         var json = JsonSerializer.Serialize(request, _jsonOptions);
 
-        await _lock.WaitAsync(cancellationToken);
+        await WaitForObservedLockAsync(cancellationToken);
+        Stopwatch? requestStopwatch = null;
+        var requestRecorded = false;
         try
         {
             if (!isInitializeRequest && _initializeSucceeded && !_initializedNotificationSent)
@@ -151,12 +196,13 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 await SendInitializedNotificationCoreAsync(cancellationToken);
             }
 
-            var sw = Stopwatch.StartNew();
-            await _serverProcess.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
-            await _serverProcess.StandardInput.FlushAsync();
+            ValidationObservability.RecordRequestStarted(method);
+            requestStopwatch = Stopwatch.StartNew();
+            await serverProcess.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
+            await serverProcess.StandardInput.FlushAsync();
 
-            var responseLine = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromSeconds(30), cancellationToken);
-            sw.Stop();
+            var responseLine = await ReadLineWithTimeoutAsync(serverProcess.StandardOutput, TimeSpan.FromSeconds(30), cancellationToken);
+            requestStopwatch.Stop();
 
             if (string.IsNullOrEmpty(responseLine))
             {
@@ -170,7 +216,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                     StatusCode = 500,
                     IsSuccess = false,
                     Error = "Empty response from STDIO server",
-                    ElapsedMs = sw.Elapsed.TotalMilliseconds,
+                    ElapsedMs = requestStopwatch.Elapsed.TotalMilliseconds,
                     ProbeContext = CreateProbeContext(method, requestId, 500, false, "Empty response from STDIO server")
                 };
             }
@@ -184,13 +230,13 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 _initializedNotificationSent = false;
             }
 
-            return new ValidatorJsonRpcResponse
+            var rpcResponse = new ValidatorJsonRpcResponse
             {
                 StatusCode = hasError ? 400 : 200,
                 IsSuccess = !hasError,
                 RawJson = responseLine,
                 Error = hasError ? doc.RootElement.GetProperty("error").GetProperty("message").GetString() : null,
-                ElapsedMs = sw.Elapsed.TotalMilliseconds,
+                ElapsedMs = requestStopwatch.Elapsed.TotalMilliseconds,
                 ProbeContext = CreateProbeContext(
                     method,
                     requestId,
@@ -198,6 +244,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                     !hasError,
                     hasError ? doc.RootElement.GetProperty("error").GetProperty("message").GetString() : null)
             };
+                ValidationObservability.RecordRequestCompleted(method, requestStopwatch.Elapsed.TotalMilliseconds, success: true);
+                requestRecorded = true;
+                ModernResultSemantics.Apply(rpcResponse, _protocolVersion, method);
+                return rpcResponse;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -217,6 +267,11 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         finally
         {
+            if (requestStopwatch != null && !requestRecorded)
+            {
+                requestStopwatch.Stop();
+                ValidationObservability.RecordRequestCompleted(method, requestStopwatch.Elapsed.TotalMilliseconds, success: false);
+            }
             _lock.Release();
         }
     }
@@ -277,7 +332,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             IsValid = CheckErrorCode(methodNotFoundResponse, -32601)
         });
 
-        var invalidParamsResponse = await CallAsync(endpoint, ValidationConstants.Methods.ToolsCall, "invalid_params_string", cancellationToken);
+        var invalidParamsResponse = await SendRawJsonAsync(
+            endpoint,
+            "{\"jsonrpc\":\"2.0\",\"id\":\"invalid-params\",\"method\":\"tools/call\",\"params\":\"invalid_params_string\"}",
+            cancellationToken);
         results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Params",
@@ -316,7 +374,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             Id = Guid.NewGuid().ToString()
         }, _jsonOptions);
 
-        await _lock.WaitAsync(cancellationToken);
+        await WaitForObservedLockAsync(cancellationToken);
+        var requestStopwatch = Stopwatch.StartNew();
+        var requestSucceeded = false;
+        ValidationObservability.RecordRequestStarted("timeout-probe");
         try
         {
             result.Executed = true;
@@ -337,12 +398,15 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             }
             else
             {
+                requestSucceeded = true;
                 result.FailureResponse = CreateResponseFromLine(timedOutRead, result.FailureElapsedMs);
                 result.ActualOutcome = "Server responded before the induced STDIO timeout window elapsed.";
             }
         }
         finally
         {
+            requestStopwatch.Stop();
+            ValidationObservability.RecordRequestCompleted("timeout-probe", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
             _lock.Release();
         }
 
@@ -365,7 +429,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             return result;
         }
 
-        await _lock.WaitAsync(cancellationToken);
+        await WaitForObservedLockAsync(cancellationToken);
         try
         {
             result.Executed = true;
@@ -434,9 +498,12 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     public async Task<TransportResult<CapabilitySummary>> ValidateCapabilitiesAsync(string endpoint, CancellationToken cancellationToken = default)
     {
-        var initResult = await ValidateInitializeAsync(endpoint, cancellationToken);
+        var isModern = ProtocolEraVersions.IsModern(_protocolVersion) && _modernDiscovery?.IsValid == true;
+        var initResult = isModern
+            ? new TransportResult<InitializeResult> { IsSuccessful = false, Transport = TransportMetadata.Empty }
+            : await ValidateInitializeAsync(endpoint, cancellationToken);
 
-        if (!initResult.IsSuccessful)
+        if (!isModern && !initResult.IsSuccessful)
         {
             return new TransportResult<CapabilitySummary>
             {
@@ -446,8 +513,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             };
         }
 
-        var capabilityDeclarationsAvailable = CapabilitySnapshotUtils.HasCapabilityDeclarations(initResult.Payload);
-        var advertisedCapabilities = CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(initResult.Payload);
+        var capabilityDeclarationsAvailable = isModern || CapabilitySnapshotUtils.HasCapabilityDeclarations(initResult.Payload);
+        var advertisedCapabilities = isModern
+            ? _modernDiscovery!.CapabilityNames
+            : CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(initResult.Payload);
         var shouldProbeTools = CapabilitySnapshotUtils.ShouldProbeCapability(
             capabilityDeclarationsAvailable,
             advertisedCapabilities,
@@ -473,27 +542,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
         var toolListingSucceeded = toolListResponse?.IsSuccess == true;
         var firstToolName = toolListingSucceeded ? TryGetFirstToolName(toolListResponse?.RawJson) : null;
-        var toolInvocationSucceeded = false;
         var resourceListingSucceeded = resourceListResponse?.IsSuccess == true;
         var promptListingSucceeded = promptListResponse?.IsSuccess == true;
-
-        if (toolListingSucceeded && !string.IsNullOrWhiteSpace(firstToolName))
-        {
-            try
-            {
-                var toolCallResponse = await CallAsync(endpoint, ValidationConstants.Methods.ToolsCall, new
-                {
-                    name = firstToolName,
-                    arguments = new { }
-                }, cancellationToken);
-
-                toolInvocationSucceeded = toolCallResponse.IsSuccess || toolCallResponse.StatusCode == 400;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "STDIO capability snapshot tool invocation failed for {Tool}", firstToolName);
-            }
-        }
 
         return new TransportResult<CapabilitySummary>
         {
@@ -513,14 +563,14 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 CapabilityDeclarationsAvailable = capabilityDeclarationsAvailable,
                 AdvertisedCapabilities = advertisedCapabilities,
                 ToolListingSucceeded = toolListingSucceeded,
-                ToolInvocationSucceeded = toolInvocationSucceeded,
+                ToolInvocationAttempted = false,
+                ToolInvocationSucceeded = false,
                 FirstToolName = firstToolName,
                 DiscoveredToolsCount = CountCollectionItems(toolListResponse, "tools"),
                 Score = CalculateCapabilityScore(
                     capabilityDeclarationsAvailable,
                     advertisedCapabilities,
                     toolListingSucceeded,
-                    toolInvocationSucceeded,
                     resourceListingSucceeded,
                     promptListingSucceeded),
                 ToolListResponse = toolListResponse,
@@ -553,13 +603,17 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             };
         }
 
-        await _lock.WaitAsync(cancellationToken);
+        await WaitForObservedLockAsync(cancellationToken);
+        var requestStopwatch = Stopwatch.StartNew();
+        var requestSucceeded = false;
+        ValidationObservability.RecordRequestStarted("raw-json");
         try
         {
             await _serverProcess.StandardInput.WriteLineAsync(rawJson.AsMemory(), cancellationToken);
             await _serverProcess.StandardInput.FlushAsync();
 
             var responseLine = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromSeconds(10), cancellationToken);
+            requestSucceeded = !string.IsNullOrEmpty(responseLine);
             var (method, requestId) = TryReadProbeIdentity(rawJson);
             return new ValidatorJsonRpcResponse
             {
@@ -572,16 +626,26 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         finally
         {
+            requestStopwatch.Stop();
+            ValidationObservability.RecordRequestCompleted("raw-json", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
             _lock.Release();
         }
     }
 
     public void SetAuthentication(AuthenticationConfig? authentication) { }
     public void SetConcurrencyLimit(int maxConcurrency) { }
-    public void SetProtocolVersion(string? protocolVersion) { }
+    public void SetProtocolVersion(string? protocolVersion)
+    {
+        _protocolVersion = string.IsNullOrWhiteSpace(protocolVersion) ? null : protocolVersion.Trim();
+    }
+
+    public void SetModernDiscovery(ModernDiscoveryEvidence? discovery)
+    {
+        _modernDiscovery = discovery;
+    }
     public void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy)
     {
-        _executionPolicy = executionPolicy?.Clone();
+        _executionPolicy = executionPolicy == null ? null : OperationPolicySnapshot.From(executionPolicy);
         Interlocked.Exchange(ref _requestCount, 0);
     }
 
@@ -628,7 +692,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         var (method, requestId) = TryReadProbeIdentity(request.RawMessage);
         var timeout = TimeSpan.FromMilliseconds(Math.Max(1, request.ResponseTimeoutMs));
 
-        await _lock.WaitAsync(cancellationToken);
+        await WaitForObservedLockAsync(cancellationToken);
+        var requestStopwatch = Stopwatch.StartNew();
+        var requestSucceeded = false;
+        ValidationObservability.RecordRequestStarted("message-exchange");
         try
         {
             var sw = Stopwatch.StartNew();
@@ -644,6 +711,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
             sw.Stop();
             var hasResponse = !string.IsNullOrEmpty(responseLine);
+            requestSucceeded = hasResponse;
             var error = hasResponse ? null : "No response from STDIO stdout.";
             var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (!string.IsNullOrWhiteSpace(extraStdoutLine))
@@ -668,7 +736,23 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         finally
         {
+            requestStopwatch.Stop();
+            ValidationObservability.RecordRequestCompleted("message-exchange", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
             _lock.Release();
+        }
+    }
+
+    private async Task WaitForObservedLockAsync(CancellationToken cancellationToken)
+    {
+        var queueStopwatch = Stopwatch.StartNew();
+        try
+        {
+            await _lock.WaitAsync(cancellationToken);
+        }
+        finally
+        {
+            queueStopwatch.Stop();
+            ValidationObservability.RecordQueue(queueStopwatch.Elapsed.TotalMilliseconds);
         }
     }
 
@@ -872,7 +956,6 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         bool capabilityDeclarationsAvailable,
         IReadOnlyCollection<string> advertisedCapabilities,
         bool toolListingSucceeded,
-        bool toolInvocationSucceeded,
         bool resourceListingSucceeded,
         bool promptListingSucceeded)
     {
@@ -887,11 +970,6 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 passed++;
             }
 
-            totalChecks++;
-            if (toolInvocationSucceeded)
-            {
-                passed++;
-            }
         }
 
         if (CapabilitySnapshotUtils.ShouldProbeCapability(capabilityDeclarationsAvailable, advertisedCapabilities, McpSpecConstants.Capabilities.Resources))
@@ -946,7 +1024,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         var unexpectedResponse = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromMilliseconds(100), cancellationToken);
         if (!string.IsNullOrWhiteSpace(unexpectedResponse))
         {
-            _logger.LogWarning("STDIO server responded to {Notification}: {Response}", McpSpecConstants.InitializedNotification, unexpectedResponse);
+            _logger.LogWarning(
+                "STDIO server unexpectedly responded to {Notification}; response length: {ResponseLength}",
+                McpSpecConstants.InitializedNotification,
+                unexpectedResponse.Length);
         }
 
         _initializedNotificationSent = true;
@@ -1119,46 +1200,45 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     private void StartStderrCapture(Process process)
     {
-        process.ErrorDataReceived += (_, eventArgs) =>
-        {
-            if (string.IsNullOrEmpty(eventArgs.Data))
-            {
-                return;
-            }
-
-            lock (_stderrLock)
-            {
-                _stderrLines.Add(eventArgs.Data);
-                if (_stderrLines.Count > MaxCapturedStderrLines)
-                {
-                    _stderrLines.RemoveRange(0, _stderrLines.Count - MaxCapturedStderrLines);
-                }
-            }
-        };
-
-        try
-        {
-            process.BeginErrorReadLine();
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogDebug(ex, "STDIO stderr capture could not be started for process {ProcessId}", process.Id);
-        }
+        _stderrCaptureTask = CaptureStderrAsync(process.StandardError.BaseStream);
     }
 
     private string? SnapshotStderr()
     {
-        lock (_stderrLock)
+        var snapshot = _stderrBuffer.Snapshot();
+        if (snapshot.TotalBytes == 0)
         {
-            return _stderrLines.Count == 0 ? null : string.Join(Environment.NewLine, _stderrLines);
+            return null;
         }
+
+        return $"stderr captured (bytes: {snapshot.TotalBytes}; truncated: {snapshot.IsTruncated.ToString().ToLowerInvariant()})";
     }
 
     private void ClearCapturedStderr()
     {
-        lock (_stderrLock)
+        _stderrBuffer.Clear();
+        _stderrCaptureTask = null;
+    }
+
+    private async Task CaptureStderrAsync(Stream stderr)
+    {
+        var buffer = new byte[8192];
+        try
         {
-            _stderrLines.Clear();
+            while (true)
+            {
+                var read = await stderr.ReadAsync(buffer).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    return;
+                }
+
+                _stderrBuffer.Append(buffer.AsSpan(0, read));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or ObjectDisposedException)
+        {
+            _logger.LogDebug(ex, "STDIO stderr capture ended while the process stream was closing");
         }
     }
 
@@ -1262,14 +1342,55 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         return null;
     }
 
-    private static async Task<string?> ReadLineWithTimeoutAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
+    private async Task<string?> ReadLineWithTimeoutAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
     {
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 
         try
         {
-            return await reader.ReadLineAsync(cts.Token);
+            var maxResponseBytes = _executionPolicy?.MaxResponseBytes ?? ExecutionPolicyDefaults.DefaultMaxResponseBytes;
+            var builder = new StringBuilder(Math.Min(maxResponseBytes, 4096));
+            var encoder = Encoding.UTF8.GetEncoder();
+            var character = new char[1];
+            var encodedBytes = new byte[4];
+            var totalBytes = 0;
+
+            while (true)
+            {
+                var read = await reader.ReadAsync(character.AsMemory(0, 1), cts.Token).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    return builder.Length == 0 ? null : builder.ToString();
+                }
+
+                if (character[0] == '\n')
+                {
+                    if (builder.Length > 0 && builder[^1] == '\r')
+                    {
+                        builder.Length--;
+                    }
+
+                    return builder.ToString();
+                }
+
+                encoder.Convert(
+                    character.AsSpan(),
+                    encodedBytes.AsSpan(),
+                    flush: false,
+                    out _,
+                    out var bytesUsed,
+                    out _);
+                totalBytes += bytesUsed;
+                if (totalBytes > maxResponseBytes)
+                {
+                    ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful: false);
+                    StopServerProcess();
+                    throw new InvalidDataException($"STDIO response exceeds configured limit of {maxResponseBytes} bytes.");
+                }
+
+                builder.Append(character[0]);
+            }
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -1292,8 +1413,9 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             {
                 _serverProcess.StandardInput.Close();
             }
-            catch
+            catch (Exception ex) when (ex is IOException or InvalidOperationException or ObjectDisposedException)
             {
+                _logger.LogDebug(ex, "STDIO standard input was already unavailable during disposal");
             }
         }
 
@@ -1301,9 +1423,12 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         _lock.Dispose();
     }
 
-    public ValueTask DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         Dispose();
-        return ValueTask.CompletedTask;
+        if (_stderrCaptureTask != null)
+        {
+            await _stderrCaptureTask.ConfigureAwait(false);
+        }
     }
 }

@@ -24,12 +24,13 @@ public class ToolValidatorComprehensiveTests
 {
     private readonly ToolValidator _validator;
     private readonly Mock<IMcpHttpClient> _httpClient;
+    private readonly Mock<IAuthenticationService> _authService;
 
     public ToolValidatorComprehensiveTests()
     {
         _httpClient = new Mock<IMcpHttpClient>();
         var schemaRegistry = new Mock<ISchemaRegistry>();
-        var authService = new Mock<IAuthenticationService>();
+        _authService = new Mock<IAuthenticationService>();
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
         contentSafety.Setup(x => x.AnalyzeTool(It.IsAny<string>())).Returns(new List<ContentSafetyFinding>());
 
@@ -38,7 +39,7 @@ public class ToolValidatorComprehensiveTests
             _httpClient.Object,
             new JsonSchemaValidator(),
             schemaRegistry.Object,
-            authService.Object,
+            _authService.Object,
             contentSafety.Object,
             new ToolAiReadinessAnalyzer());
     }
@@ -120,7 +121,92 @@ public class ToolValidatorComprehensiveTests
         result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
+    [Fact]
+    public async Task ValidateToolDiscovery_WhenCredentialAcquisitionReturnsNoToken_ShouldRemainAuthCoverage()
+    {
+        const string metadataUrl = "https://test.com/.well-known/oauth-protected-resource";
+        var config = new McpServerConfig
+        {
+            Endpoint = "https://test.com/mcp",
+            Transport = "http",
+            Authentication = new AuthenticationConfig { AllowInteractive = true }
+        };
+        _httpClient.Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 401,
+                IsSuccess = false,
+                Headers = new Dictionary<string, string>
+                {
+                    ["WWW-Authenticate"] = $"Bearer resource_metadata=\"{metadataUrl}\""
+                }
+            });
+        _httpClient.Setup(client => client.GetStringAsync(metadataUrl, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""
+                {
+                  "resource": "https://test.com/mcp",
+                  "authorization_servers": ["https://login.example.com"],
+                  "scopes_supported": ["tools:read"]
+                }
+                """);
+        _authService.Setup(service => service.GetTokenAsync(
+                It.IsAny<AuthMetadata>(),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>(),
+                It.IsAny<string?>(),
+                It.IsAny<string?>()))
+            .ReturnsAsync((string?)null);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.AuthRequired);
+        result.ToolResults.Should().OnlyContain(tool => tool.Status != TestStatus.Failed);
+        result.Issues.Should().Contain(issue => issue.Contains("requires authentication", StringComparison.OrdinalIgnoreCase));
+        _authService.Verify(service => service.GetTokenAsync(
+            It.IsAny<AuthMetadata>(),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<bool>(),
+            It.IsAny<string?>(),
+            It.IsAny<string?>()), Times.Once);
+    }
+
     // ─── Tool Discovery (200 OK) ─────────────────────────────────
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithExecutionDisabled_ShouldNotCallAnyTool()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient
+            .Setup(x => x.CallAsync(config.Endpoint, ValidationConstants.Methods.ToolsList, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"mutating-tool\",\"inputSchema\":{\"type\":\"object\"}}]},\"id\":1}"
+            });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            config,
+            new ToolTestingConfig
+            {
+                TestToolExecution = false,
+                TestParameterValidation = false
+            },
+            CancellationToken.None);
+
+        result.ToolResults.Should().ContainSingle(tool => tool.ToolName == "mutating-tool");
+        result.ToolResults.Single(tool => tool.ToolName == "mutating-tool").ExecutionSuccessful.Should().BeFalse();
+        _httpClient.Verify(x => x.CallAsync(
+            It.IsAny<string>(),
+            ValidationConstants.Methods.ToolsCall,
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
 
     [Fact]
     public async Task ValidateToolDiscovery_WithToolsFound_ShouldDiscoverAndValidate()

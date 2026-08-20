@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-validation-attestation.schema.json",
+  "title": "MCP Validator Signed Validation Attestation",
+  "type": "object",
+  "required": [
+    "documentType",
+    "documentSchemaVersion",
+    "validationId",
+    "issuedUtc",
+    "subjectFile",
+    "subjectSha256",
+    "algorithm",
+    "keyId",
+    "publicKeyPem",
+    "signatureBase64"
+  ],
+  "properties": {
+    "documentType": { "const": "mcpval.validation-attestation" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "validationId": { "type": "string", "minLength": 1 },
+    "issuedUtc": { "type": "string", "format": "date-time" },
+    "subjectFile": { "type": "string", "minLength": 1 },
+    "subjectSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "algorithm": { "const": "ECDSA_P256_SHA256" },
+    "keyId": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "publicKeyPem": { "type": "string", "minLength": 1 },
+    "signatureBase64": { "type": "string", "minLength": 1 }
+  },
+  "additionalProperties": false
+}

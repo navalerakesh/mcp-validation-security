@@ -24,6 +24,9 @@ artifacts/
 
 # Test results
 TestResults/
+BenchmarkDotNet.Artifacts/
+__pycache__/
+*.py[cod]
 test-results/
 test-output/
 nupkg/
@@ -55,6 +58,16 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.pfx
+*.key
+*.har
+*.trace
+*.log
 csharp/MCP-Server-Validator/validation-results/*
 publish-to-ado.ps1
 PUBLISH.md
@@ -80,3 +93,12 @@ test_output.txt
 todo.md
 .github/prompts/
 _ranavale/*
+/PublicReports/
+
+# Live endpoint captures must remain outside the repository.
+/github_headers.txt
+/learn_headers.txt
+/learn_cookies.txt
+/*_headers.txt
+/*_cookies.txt
+/live-report-*

@@ -51,7 +51,7 @@ dotnet run --project Mcp.Benchmark.CLI -- report --input ./reports/mcp-validatio
 - Default persistence is ephemeral. Session logs and session-state artifacts are only created when `--persistence-mode session` is selected.
 - `--dry-run` renders the execution plan and exits without sending requests.
 - `--mode elevated` requires `--confirm-elevated-risk` before the run starts.
-- `--allow-host`, `--allow-private-addresses`, `--max-requests`, and `--timeout` define the outbound execution budget instead of leaving it implicit.
+- `--allow-host`, `--allow-origin`, `--allow-private-addresses`, `--max-requests`, and `--timeout` define the outbound execution budget instead of leaving it implicit.
 - Experimental model evaluation stays outside the canonical validation result and is emitted as a companion artifact only when a supported provider is configured.
 
 Current model-evaluation support:

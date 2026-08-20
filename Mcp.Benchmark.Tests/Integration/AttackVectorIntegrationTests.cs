@@ -24,24 +24,30 @@ public class AttackVectorIntegrationTests
     public async Task ErrorSmuggling_WithGracefulHandling_ShouldPass()
     {
         var attack = new JsonRpcErrorSmuggling(new Mock<ILogger<JsonRpcErrorSmuggling>>().Object);
+        _httpClient.Setup(x => x.SendRawJsonAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), true))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Invalid Request\"},\"id\":1}" });
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":null}" });
 
         var result = await attack.ExecuteAsync(_config, _httpClient.Object, CancellationToken.None);
 
         result.IsBlocked.Should().BeTrue();
+        _httpClient.Verify(x => x.SendRawJsonAsync(_config.Endpoint!, It.IsAny<string>(), It.IsAny<CancellationToken>(), true), Times.Once);
     }
 
     [Fact]
     public async Task ErrorSmuggling_WithServerCrash_ShouldFail()
     {
         var attack = new JsonRpcErrorSmuggling(new Mock<ILogger<JsonRpcErrorSmuggling>>().Object);
+        _httpClient.Setup(x => x.SendRawJsonAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>(), true))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32600,\"message\":\"Invalid Request\"},\"id\":1}" });
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse { StatusCode = 500, IsSuccess = false, Error = "Internal Server Error" });
 
         var result = await attack.ExecuteAsync(_config, _httpClient.Object, CancellationToken.None);
 
         result.IsBlocked.Should().BeFalse();
+        _httpClient.Verify(x => x.SendRawJsonAsync(_config.Endpoint!, It.IsAny<string>(), It.IsAny<CancellationToken>(), true), Times.Once);
     }
 
     // ─── MetadataEnumeration ─────────────────────────

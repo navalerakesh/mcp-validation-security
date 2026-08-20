@@ -26,7 +26,10 @@ public class AuthenticationChallengeInterpreterFuzzTests
     {
         var normalizedName = ToToken(parameterName.Get);
         var normalizedValue = ToHeaderValue(parameterValue.Get);
-        var header = $"Bearer {normalizedName}=\"{normalizedValue}\", realm=\"mcp\"";
+        var encodedValue = normalizedValue
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+        var header = $"Bearer {normalizedName}=\"{encodedValue}\", realm=\"mcp\"";
 
         var result = AuthenticationChallengeInterpreter.ExtractQuotedParameter(header, normalizedName);
 

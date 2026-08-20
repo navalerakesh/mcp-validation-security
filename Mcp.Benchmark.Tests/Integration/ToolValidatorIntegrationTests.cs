@@ -49,7 +49,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
             _authServiceMock.Object,
             _contentSafetyAnalyzerMock.Object,
             new ToolAiReadinessAnalyzer());
-        
+
         // Reset mock server state before each test
         _testFixture.ResetMockServer();
     }
@@ -99,7 +99,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
         result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
         result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
         result.ToolResults.Should().NotBeNull();
-        
+
         // Verify HTTP communication occurred
         _testFixture.GetRequestCount().Should().BeGreaterThan(0);
     }
@@ -183,7 +183,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
         // This tests the same timeout handling logic but runs much faster
         var testDelayMs = 1500; // 1.5s delay - fast but realistic timeout test
         var clientTimeoutMs = 800; // 800ms timeout - ensures timeout occurs
-        
+
         // Arrange - Server with delayed response
         _testFixture.MockServer
             .Given(Request.Create().WithPath("/mcp"))
@@ -204,7 +204,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
         // Assert
         result.Should().NotBeNull();
         result.Status.Should().Be(TestStatus.Inconclusive);
-        result.Message.Should().Contain("tools/list probe inconclusive");
+        result.Message.Should().Contain("probe inconclusive");
         // Timeout/retry pressure is treated as inconclusive rather than a contract failure
     }
 
@@ -214,7 +214,7 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
     {
         // Extended timeout test for comprehensive real-world scenario validation
         // This test can be excluded from regular runs: dotnet test --filter "Category!=LongRunning"
-        
+
         // Arrange - Server with realistic network delay
         _testFixture.MockServer
             .Given(Request.Create().WithPath("/mcp"))
@@ -235,8 +235,24 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
         // Assert - Same behavior expected as regular timeout test
         result.Should().NotBeNull();
         result.Status.Should().Be(TestStatus.Inconclusive);
-        result.Message.Should().Contain("tools/list probe inconclusive");
+        result.Message.Should().Contain("probe inconclusive");
         // Extended timeout still maps to an inconclusive probe rather than a contract failure
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscoveryAsync_WithCallerCancellation_ShouldReturnCancelled()
+    {
+        var serverConfig = _testFixture.CreateTestServerConfig();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            serverConfig,
+            new ToolTestingConfig { TestToolDiscovery = true },
+            cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.Message.Should().Contain("cancelled by the caller");
     }
 
     [Fact]

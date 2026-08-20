@@ -88,6 +88,9 @@ public class ProtocolComplianceConfig
     /// Gets or sets the MCP spec profile to target (e.g., 2025-06-18, 2025-11-25, latest).
     /// </summary>
     public string ProtocolVersion { get; set; } = "latest";
+
+    [JsonIgnore]
+    public ModernDiscoveryEvidence? ModernDiscovery { get; set; }
 }
 
 /// <summary>
@@ -163,6 +166,12 @@ public class ToolTestScenario
 /// </summary>
 public class ResourceTestingConfig
 {
+    /// <summary>
+    /// Gets or sets the maximum resource entries processed from one catalog response.
+    /// The observed count remains in evidence when processing is truncated.
+    /// </summary>
+    public int MaxResources { get; set; } = 1000;
+
     /// <summary>
     /// Gets or sets whether to test resource discovery.
     /// </summary>

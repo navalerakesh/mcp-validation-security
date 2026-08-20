@@ -24,14 +24,15 @@ internal static class McpAuthenticationHelper
             return null;
         }
 
-        if (string.IsNullOrWhiteSpace(authentication.Token))
+        var resolvedToken = ResolveToken(authentication);
+        if (string.IsNullOrWhiteSpace(resolvedToken))
         {
             // Explicit auth config with empty token means: "no auth".
             // Callers can use this to avoid falling back to any global/default auth.
             return string.Empty;
         }
 
-        var token = NormalizeBearerToken(authentication.Token);
+        var token = NormalizeBearerToken(resolvedToken);
 
         if (authentication.Type?.Equals("bearer", StringComparison.OrdinalIgnoreCase) == true)
         {
@@ -41,6 +42,27 @@ internal static class McpAuthenticationHelper
         // For unknown types, respect the raw token string once normalized.
         return token;
     }
+
+    public static string? ResolveToken(AuthenticationConfig? authentication)
+    {
+        if (!string.IsNullOrWhiteSpace(authentication?.Token))
+        {
+            return authentication.Token;
+        }
+
+        var reference = authentication?.TokenRef;
+        if (reference == null ||
+            string.IsNullOrWhiteSpace(reference.Name) ||
+            !string.Equals(reference.Provider, SecretRefProviders.Environment, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return Environment.GetEnvironmentVariable(reference.Name.Trim());
+    }
+
+    public static bool HasCredential(AuthenticationConfig? authentication) =>
+        !string.IsNullOrWhiteSpace(ResolveToken(authentication));
 
     /// <summary>
     /// Normalizes a bearer token by trimming and removing any leading "Bearer " prefix.

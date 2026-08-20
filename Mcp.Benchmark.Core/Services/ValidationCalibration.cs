@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Services;
 
@@ -8,9 +9,9 @@ namespace Mcp.Benchmark.Core.Services;
 /// </summary>
 public static class ValidationCalibration
 {
-    public const double StandardsAlignedScenarioScore = 100.0;
-    public const double SecureCompatibleScenarioScore = 75.0;
-    public const double AdvisoryPerformanceScore = 70.0;
+    public const double StandardsAlignedScenarioScore = ScoringConstants.StandardsAlignedScenarioScore;
+    public const double SecureCompatibleScenarioScore = ScoringConstants.SecureCompatibleScenarioScore;
+    public const double AdvisoryPerformanceScore = ScoringConstants.AdvisoryPerformanceScore;
 
     public static bool RequiresStrictAuthentication(McpServerProfile profile)
     {
@@ -213,6 +214,17 @@ public static class ValidationCalibration
             }
         }
 
+        if (result.SecurityTesting?.AttackSimulations.Any(simulation =>
+                simulation.AttackSuccessful && !simulation.DefenseSuccessful) == true)
+        {
+            return true;
+        }
+
+        if (result.SecurityTesting?.Findings.Any(finding => finding.GateOverride == GateOutcome.Reject) == true)
+        {
+            return true;
+        }
+
         return result.SecurityTesting?.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) == true;
     }
 
@@ -228,19 +240,7 @@ public static class ValidationCalibration
             return false;
         }
 
-        return IsTimeoutOrCancellationReason(PerformanceMeasurementEvaluator.GetUnavailableReason(result, string.Empty));
-    }
-
-    private static bool IsTimeoutOrCancellationReason(string? reason)
-    {
-        if (string.IsNullOrWhiteSpace(reason))
-        {
-            return false;
-        }
-
-        return reason.Contains("timed out", StringComparison.OrdinalIgnoreCase)
-            || reason.Contains("cancelled", StringComparison.OrdinalIgnoreCase)
-            || reason.Contains("canceled", StringComparison.OrdinalIgnoreCase);
+        return result.MeasurementDisposition is PerformanceMeasurementDisposition.TimedOut or PerformanceMeasurementDisposition.Cancelled;
     }
 
     private static void ApplyAdvisoryPerformanceOutcome(

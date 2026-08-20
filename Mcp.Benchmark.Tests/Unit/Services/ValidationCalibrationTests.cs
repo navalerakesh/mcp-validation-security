@@ -143,6 +143,7 @@ public class ValidationCalibrationTests
         {
             Status = TestStatus.Failed,
             Score = 0,
+            MeasurementDisposition = PerformanceMeasurementDisposition.TimedOut,
             CriticalErrors = ["The performance probe timed out before samples were captured."],
             LoadTesting = new LoadTestResult
             {
@@ -159,6 +160,23 @@ public class ValidationCalibrationTests
         overrideRecord.AfterSeverity.Should().Be(ValidationFindingSeverity.Info);
         overrideRecord.Inputs.Should().Contain("metricsCaptured", "False");
         overrideRecord.Inputs.Should().Contain("unavailableReason", "The performance probe timed out before samples were captured.");
+    }
+
+    [Fact]
+    public void ApplyPerformanceOutcomeCalibration_TimeoutWordsWithoutTypedDisposition_ShouldNotReclassify()
+    {
+        var serverConfig = new McpServerConfig { Profile = McpServerProfile.Public };
+        var performanceResult = new PerformanceTestResult
+        {
+            Status = TestStatus.Error,
+            MeasurementDisposition = PerformanceMeasurementDisposition.Unavailable,
+            Message = "timed out cancelled canceled"
+        };
+
+        ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, performanceResult);
+
+        performanceResult.Status.Should().Be(TestStatus.Error);
+        performanceResult.CalibrationOverrides.Should().BeEmpty();
     }
 
     [Fact]

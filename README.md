@@ -2,7 +2,7 @@
 
 ## MCP Validator (`mcpval`)
 
-[![CI](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml)
+[![CI](https://github.com/navalerakesh/mcp-validation-security/actions/workflows/ci.yml/badge.svg)](https://github.com/navalerakesh/mcp-validation-security/blob/main/.github/workflows/ci.yml)
 [![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/navalerakesh/mcp-validation-security/badge)](https://securityscorecards.dev/viewer/?uri=github.com/navalerakesh/mcp-validation-security)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -84,13 +84,19 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | --- | --- |
 | `-s, --server <url-or-command>` | MCP endpoint or STDIO command. Required unless supplied through config. |
 | `-o, --output <folder>` | Writes Markdown, HTML, JSON, and SARIF artifacts for the run. |
-| `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest` or `2025-11-25`. |
+| `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest`, `2026-07-28`, or a supported historical revision. `latest` resolves visibly in the execution plan. |
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
+| `--baseline <result.json>` | Compares this run with a compatible prior canonical result. |
+| `--regression-only` | Blocks only new blockers, verdict degradation, or score regression relative to `--baseline`; execution failures still block. |
+| <code>--output-format &lt;human&#124;json&gt;</code> | Emits human output or one versioned JSON stdout envelope with typed JSON stderr errors. |
+| `--sign-attestation` | Signs the final canonical JSON bytes using the ECDSA P-256 key in `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; requires `--output`. |
 | `--client-profile <id>` | Narrows host-specific compatibility interpretation to profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. When omitted, `validate` evaluates every documented host profile by default. |
 | <code>--mode &lt;safe&#124;standard&#124;elevated&gt;</code> | Applies the execution contract for the run. `safe` is the default. |
 | `--dry-run` | Prints the execution plan and exits without contacting the target. |
 | `--allow-host <host>` | Restricts outbound requests to specific hosts. Repeat to permit more than one host. |
+| `--allow-origin <origin>` | Restricts requests to exact HTTP origins, including scheme and effective port. Repeat for auxiliary origins. |
+| <code>--protocol-era &lt;auto&#124;legacy&#124;modern&gt;</code> | Selects negotiation policy. Explicit eras reject incompatible negotiated versions. |
 | `--allow-private-addresses` | Opts into loopback or private-address targets. |
 | `--max-requests <n>` | Caps the total outbound request budget for the run. |
 | `--timeout <seconds>` | Sets the per-request timeout budget used by the CLI transport layer. |
@@ -101,12 +107,22 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `--enable-model-eval` | Emits a separate advisory model-evaluation companion artifact when an explicit supported provider is configured. |
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
+
+Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with compatibility rules in [`docs/SchemaCompatibility.md`](docs/SchemaCompatibility.md). Audit manifests include SHA-256 digests for the validator, redacted config, target identity, rule/profile catalogs, and final bytes of every listed subject artifact; the manifest intentionally excludes itself from that non-recursive list.
 | `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. Remote functional probes may still self-calibrate below this cap so transient throttling does not become a false protocol or tool failure. |
 | `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
 | <code>--report-detail &lt;full&#124;minimal&gt;</code> | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
 | `-v, --verbose` | Increases console and diagnostic logging detail. |
 
+For automation, prefer the `MCPVAL_TOKEN` environment variable over `--token` so the credential does not appear in process arguments. An explicit `--token` value takes precedence. The GitHub Action uses the masked environment-variable path.
+
+`safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports explicitly identify unevaluated security/operations dimensions and cap trust at L3. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
+
 Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings. `validate` includes that interpretation by default; use `--client-profile` only when you want a smaller subset of host profiles.
+
+Execution plans show the requested profile, resolved embedded schema, and protocol era before contact. MCP `2026-07-28` is the modern, stateless era; `2025-11-25` and earlier are legacy, initialization-based revisions.
+
+Remote targets are resolved before active execution and again for every new raw or SDK socket connection. The governed handler connects directly to an approved address, blocks private, local, mapped-private, reserved, mixed, and rebound answers unless explicitly authorized, disables ambient proxies and automatic redirects, and enforces exact origins. Use `--allow-origin` when an authorized auxiliary endpoint uses a different scheme or port.
 
 The standard artifact set is:
 
@@ -114,17 +130,20 @@ The standard artifact set is:
 - `mcp-validation-<timestamp>-report.html` - full HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable validation object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF findings feed for CI and code scanning
+- `mcp-validation-<timestamp>-results.junit.xml` - JUnit XML policy, category, and evidence projection
 - `mcp-validation-<timestamp>-audit.json` - execution audit manifest for the run
 
 When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
 The HTML report opens on the decision surface: **Run Status**, **Deterministic Verdict**, and **Trust Level**. The deterministic verdict drives release gating, while the trust level remains the weighted L1-L5 posture for human review and trend tracking.
 
+Trust calculations normalize over evaluated dimensions. Missing evidence is never scored as zero or as a pass: it lowers evidence completeness, names unevaluated dimensions, and prevents an incomplete assessment from reaching L4/L5.
+
 When experimental model evaluation is enabled, `validate` writes `mcp-validation-<timestamp>-model-evaluation.json` as a separate companion artifact. The canonical `*-result.json` file remains deterministic and does not embed experimental model output. `--enable-model-eval` now fails fast when no provider is configured; this build currently includes the deterministic companion provider `builtin-rubric`.
 
 ### Other Commands
 
-- `mcpval health-check` - fast connectivity and initialization probe with auth hints; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
+- `mcpval health-check` - fast connectivity probe with auth hints; uses `server/discover` for modern endpoints and initialize for legacy/STDIO endpoints
 - `mcpval discover` - capability snapshot for remote endpoints in JSON, YAML, or table form; supports the same `--dry-run`, host allowlist, and persistence controls as `validate`
 - `mcpval report` - offline rendering from a saved JSON result or Markdown report path into `html`, `xml`, `sarif`, or `junit`
 - `mcpval --list-spec-profiles` - list embedded protocol profiles supported by the current build
@@ -192,7 +211,7 @@ Trust level is intentionally separate from the deterministic verdict. Use the de
 
 | Level | Label | Meaning |
 | --- | --- | --- |
-| `L5` | Certified Secure | Weighted trust score is at least 90 with no blocking caps |
+| `L5` | High Assurance | Weighted trust score is at least 90 with no blocking caps; this is descriptive, not certification |
 | `L4` | Trusted | Weighted trust score is at least 75 with no blocking caps |
 | `L3` | Acceptable | Weighted trust score is at least 50 after applying caps |
 | `L2` | Caution | Weighted trust score is at least 25 or the result is capped by protocol or security blockers |
@@ -224,11 +243,14 @@ dotnet run --project Mcp.Benchmark.CLI -- --help
 - [docs/README.md](docs/README.md) - documentation index
 - [QUICKSTART.md](QUICKSTART.md) - fast path to the first successful run
 - [docs/FeatureMatrix.md](docs/FeatureMatrix.md) - current command surface and support boundaries
+- [docs/ProtocolCoverageMatrix.md](docs/ProtocolCoverageMatrix.md) - exact protocol revision, transport, and feature certificates
 - [docs/Troubleshooting.md](docs/Troubleshooting.md) - operational troubleshooting guide
 - [docs/Design/Architecture.md](docs/Design/Architecture.md) - high-level architecture and runtime flow
 - [docs/Design/ComponentDesign.md](docs/Design/ComponentDesign.md) - component responsibilities and interactions
 - [docs/Design/ForwardArchitecturePlan.md](docs/Design/ForwardArchitecturePlan.md) - target-state boundary roadmap
 - [docs/Design/Schemas.md](docs/Design/Schemas.md) - schema registry and version-management model
+- [docs/Schemas/](docs/Schemas/) - versioned JSON Schema contracts for machine-readable artifacts
+- [docs/Design/EnterpriseRenewalExecutionPlan.md](docs/Design/EnterpriseRenewalExecutionPlan.md) - active renewal milestones and executable evidence gates
 - [docs/Resources/GitHub-MCP-Remote-Run.md](docs/Resources/GitHub-MCP-Remote-Run.md) - representative remote validation run
 - [CHANGELOG.md](CHANGELOG.md) - release-facing history
 

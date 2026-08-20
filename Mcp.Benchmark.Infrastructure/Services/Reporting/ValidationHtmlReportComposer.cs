@@ -28,7 +28,12 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("  <div class=\"report-shell\">");
         sb.AppendLine("    <div class=\"report-content\">");
         sb.AppendLine(RenderHero(document));
+        sb.AppendLine(RenderReaderKey());
         sb.AppendLine(RenderOverview(document));
+        if (result.Run.OperationalMetrics != null)
+        {
+            sb.AppendLine(RenderOperationalMetrics(result.Run.OperationalMetrics));
+        }
 
         if (document.Bootstrap != null)
         {
@@ -68,6 +73,31 @@ internal sealed class ValidationHtmlReportComposer
         return sb.ToString();
     }
 
+    private static string RenderOperationalMetrics(ValidationOperationalMetrics metrics)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("      <section class=\"section\">");
+        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">Operations</div><h2>Validator And Target Timing</h2></div></div>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>");
+        AddRow("Total run wall time", $"{metrics.TotalRunDurationMs:F1} ms");
+        AddRow("Deterministic validator overhead", $"{metrics.ValidatorOverheadMs:F1} ms");
+        AddRow("Requests started / completed / failed", $"{metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed}");
+        AddRow("Retained latency / queue samples", $"{metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount}");
+        AddRow("Evidence coverage", $"{metrics.EvidenceCoverageRatio:P1}");
+        sb.AppendLine("        </tbody></table></div>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th>Stage / Rule</th><th>Duration</th></tr></thead><tbody>");
+        foreach (var stage in metrics.StageDurationMs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            AddRow(stage.Key, $"{stage.Value:F3} ms");
+        }
+        sb.AppendLine("        </tbody></table></div>");
+        sb.AppendLine("      </section>");
+        return sb.ToString();
+
+        void AddRow(string label, string value) =>
+            sb.AppendLine($"          <tr><td>{Encode(label)}</td><td>{Encode(value)}</td></tr>");
+    }
+
     private static string RenderHero(ValidationHtmlReportDocument document)
     {
         var hero = document.Hero;
@@ -86,6 +116,26 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderStatusPanel("Trust Level", hero.TrustLevelLabel, hero.TrustLevelTone, hero.TrustLevelDetail));
         sb.AppendLine("          </div>");
         sb.AppendLine("        </div>");
+        sb.AppendLine("      </section>");
+        return sb.ToString();
+    }
+
+    private static string RenderReaderKey()
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("      <section class=\"section section-shell reader-key\">");
+        sb.AppendLine("        <div class=\"section-kicker\">Reader Reference</div>");
+        sb.AppendLine("        <h2 class=\"section-title\">Terms And Abbreviations</h2>");
+        sb.AppendLine("        <p class=\"section-intro\">Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>");
+        sb.AppendLine("        <dl class=\"reader-key-grid\">");
+        foreach (var entry in ReportTerminology.Entries)
+        {
+            sb.AppendLine("          <div class=\"reader-key-item\">");
+            sb.AppendLine($"            <dt>{Encode(entry.Term)}</dt>");
+            sb.AppendLine($"            <dd>{Encode(entry.Meaning)}</dd>");
+            sb.AppendLine("          </div>");
+        }
+        sb.AppendLine("        </dl>");
         sb.AppendLine("      </section>");
         return sb.ToString();
     }
@@ -189,7 +239,7 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         var abstractItems = remediationOrder
-            .Select(group => ($"P{group.Priority}", group.Items.Count.ToString(CultureInfo.InvariantCulture), MapRemediationTone(group.Priority)))
+            .Select(group => ($"Priority {group.Priority}", group.Items.Count.ToString(CultureInfo.InvariantCulture), MapRemediationTone(group.Priority)))
             .ToArray();
         var sb = new StringBuilder();
         sb.AppendLine(RenderSectionCardOpen(
@@ -220,7 +270,7 @@ internal sealed class ValidationHtmlReportComposer
                 sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Component:</strong> <code>{Encode(item.Component)}</code> · <strong>Evidence:</strong> {Encode(item.Authority)} <code>{Encode(item.Evidence)}</code> · <strong>Severity:</strong> {Encode(item.Severity)}</div>");
                 if (!string.IsNullOrWhiteSpace(item.SpecReference))
                 {
-                    sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Spec:</strong> {BuildSpecCell(item.SpecReference)}</div>");
+                    sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Specification:</strong> {BuildSpecCell(item.SpecReference)}</div>");
                 }
                 sb.AppendLine("                  </li>");
             }
@@ -384,7 +434,7 @@ internal sealed class ValidationHtmlReportComposer
             }
             if (!string.IsNullOrWhiteSpace(item.SpecReference))
             {
-                sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Spec:</strong> <a href=\"{Encode(item.SpecReference)}\">{Encode(item.SpecReference)}</a></div>");
+                sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Specification:</strong> {RenderSafeLink(item.SpecReference, item.SpecReference)}</div>");
             }
             if (item.Facts.Count > 0)
             {
@@ -735,7 +785,7 @@ internal sealed class ValidationHtmlReportComposer
                 ("Needs review", 3 - healthyCount, HtmlReportTone.Warning)
             }));
         sb.AppendLine("          <div class=\"probe-list\">");
-        sb.AppendLine(RenderCapabilityRow("Tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListResponse?.StatusCode, snapshot.ToolListDurationMs, snapshot.ToolListingSucceeded, snapshot.FirstToolName, snapshot.ToolInvocationSucceeded));
+        sb.AppendLine(RenderCapabilityRow("Tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListResponse?.StatusCode, snapshot.ToolListDurationMs, snapshot.ToolListingSucceeded, snapshot.FirstToolName, snapshot.ToolInvocationAttempted ? snapshot.ToolInvocationSucceeded : null));
         sb.AppendLine(RenderCapabilityRow("Resources/list", snapshot.DiscoveredResourcesCount, snapshot.ResourceListResponse?.StatusCode, snapshot.ResourceListDurationMs, snapshot.ResourceListingSucceeded, null, null));
         sb.AppendLine(RenderCapabilityRow("Prompts/list", snapshot.DiscoveredPromptsCount, snapshot.PromptListResponse?.StatusCode, snapshot.PromptListDurationMs, snapshot.PromptListingSucceeded, null, null));
         sb.AppendLine("          </div>");
@@ -758,8 +808,8 @@ internal sealed class ValidationHtmlReportComposer
                     : $"Primary tool {toolName} could not be invoked.");
             }
 
-            var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "n/a";
-            var duration = durationMs > 0 ? $"{durationMs:F1} ms" : "n/a";
+            var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "Not available";
+            var duration = durationMs > 0 ? $"{durationMs:F1} ms" : "Not available";
             var noteText = string.Join(" ", noteParts);
             return $"""
                         <article class="probe-row probe-row--{ValidationHtmlReportTheme.ToCssTone(tone)}">
@@ -818,10 +868,10 @@ internal sealed class ValidationHtmlReportComposer
                 sb.AppendLine("          <div class=\"table-shell table-shell--coverage-summary\">");
                 sb.AppendLine("            <table class=\"data-table layered-report-table coverage-summary-table\">");
                 sb.AppendLine("              <colgroup><col class=\"table-col--layer\"><col class=\"table-col--coverage\"><col class=\"table-col--confidence\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count\"><col class=\"table-col--count-wide\"></colgroup>");
-                sb.AppendLine("              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Auth Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>");
+                sb.AppendLine("              <thead><tr><th>Layer</th><th>Coverage</th><th>Confidence</th><th>Covered</th><th>Authentication Required</th><th>Inconclusive</th><th>Skipped</th><th>Blocked/Unavailable</th></tr></thead><tbody>");
                 foreach (var category in evidenceSummary.Categories)
                 {
-                    sb.AppendLine($"                <tr><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(category.LayerId)}</code></td><td data-label=\"Coverage\" class=\"table-cell--numeric\">{(category.EvidenceCoverageRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%</td><td data-label=\"Confidence\"><div class=\"cell-copy cell-copy--compact\">{Encode(category.ConfidenceLevel.ToString())} ({(category.EvidenceConfidenceRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%)</div></td><td data-label=\"Covered\" class=\"table-cell--numeric\">{category.Covered.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Auth Required\" class=\"table-cell--numeric\">{category.AuthRequired.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Inconclusive\" class=\"table-cell--numeric\">{category.Inconclusive.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Skipped\" class=\"table-cell--numeric\">{category.Skipped.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Blocked/Unavailable\" class=\"table-cell--numeric\">{(category.Blocked + category.Unavailable).ToString(CultureInfo.InvariantCulture)}</td></tr>");
+                    sb.AppendLine($"                <tr><td data-label=\"Layer\" class=\"table-cell--code\"><code>{Encode(category.LayerId)}</code></td><td data-label=\"Coverage\" class=\"table-cell--numeric\">{(category.EvidenceCoverageRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%</td><td data-label=\"Confidence\"><div class=\"cell-copy cell-copy--compact\">{Encode(category.ConfidenceLevel.ToString())} ({(category.EvidenceConfidenceRatio * 100).ToString("F1", CultureInfo.InvariantCulture)}%)</div></td><td data-label=\"Covered\" class=\"table-cell--numeric\">{category.Covered.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Authentication Required\" class=\"table-cell--numeric\">{category.AuthRequired.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Inconclusive\" class=\"table-cell--numeric\">{category.Inconclusive.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Skipped\" class=\"table-cell--numeric\">{category.Skipped.ToString(CultureInfo.InvariantCulture)}</td><td data-label=\"Blocked/Unavailable\" class=\"table-cell--numeric\">{(category.Blocked + category.Unavailable).ToString(CultureInfo.InvariantCulture)}</td></tr>");
                 }
                 sb.AppendLine("              </tbody></table>");
                 sb.AppendLine("          </div>");
@@ -960,8 +1010,8 @@ internal sealed class ValidationHtmlReportComposer
                 : $"Primary tool <code>{Encode(toolName)}</code> could not be invoked.";
         }
 
-        var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "n/a";
-        var duration = durationMs > 0 ? $"{durationMs:F1} ms" : "n/a";
+        var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "Not available";
+        var duration = durationMs > 0 ? $"{durationMs:F1} ms" : "Not available";
         var sb = new StringBuilder();
         sb.AppendLine("            <div class=\"evidence-card\">");
         sb.AppendLine("              <div class=\"evidence-card__header\">");
@@ -1129,7 +1179,7 @@ internal sealed class ValidationHtmlReportComposer
         {
             ("Security Score", $"{security.SecurityScore:F1}%", MapScoreTone(security.SecurityScore)),
             ("Vulnerabilities", security.Vulnerabilities.Count.ToString(CultureInfo.InvariantCulture), security.Vulnerabilities.Count > 0 ? HtmlReportTone.Danger : HtmlReportTone.Success),
-            ("Auth Scenarios", authScenarioCount.ToString(CultureInfo.InvariantCulture), authScenarioCount > 0 ? HtmlReportTone.Info : HtmlReportTone.Neutral),
+            ("Authentication Scenarios", authScenarioCount.ToString(CultureInfo.InvariantCulture), authScenarioCount > 0 ? HtmlReportTone.Info : HtmlReportTone.Neutral),
             ("Attack Sims", (security.AttackSimulations?.Count ?? 0).ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info)
         };
         var sb = new StringBuilder();
@@ -1486,9 +1536,9 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              </div>");
         sb.AppendLine("              <div class=\"evidence-stats\">");
         sb.AppendLine(RenderEvidenceStat("Required", auth.AuthenticationRequired ? "Yes" : "No"));
-        sb.AppendLine(RenderEvidenceStat("Challenge", auth.ChallengeStatusCode.HasValue ? $"HTTP {auth.ChallengeStatusCode.Value}" : "n/a"));
-        sb.AppendLine(RenderEvidenceStat("Latency", auth.ChallengeDurationMs > 0 ? $"{auth.ChallengeDurationMs:F1} ms" : "n/a"));
-        sb.AppendLine(RenderEvidenceStat("Score", auth.SecurityScore > 0 ? $"{auth.SecurityScore:F1}%" : "n/a"));
+        sb.AppendLine(RenderEvidenceStat("Challenge", auth.ChallengeStatusCode.HasValue ? $"HTTP {auth.ChallengeStatusCode.Value}" : "Not available"));
+        sb.AppendLine(RenderEvidenceStat("Latency", auth.ChallengeDurationMs > 0 ? $"{auth.ChallengeDurationMs:F1} ms" : "Not available"));
+        sb.AppendLine(RenderEvidenceStat("Score", auth.SecurityScore > 0 ? $"{auth.SecurityScore:F1}%" : "Not available"));
         sb.AppendLine("              </div>");
         if (!string.IsNullOrWhiteSpace(auth.AuthMetadata?.Resource))
         {
@@ -1763,7 +1813,7 @@ internal sealed class ValidationHtmlReportComposer
             ? new (string Label, string Value, HtmlReportTone Tone)[]
             {
                 ("Average", $"{perf.LoadTesting.AverageResponseTimeMs:F1} ms", HtmlReportTone.Info),
-                ("P95", $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", HtmlReportTone.Info),
+                ("95th Percentile", $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", HtmlReportTone.Info),
                 ("Requests", perf.LoadTesting.TotalRequests.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
                 ("Error Rate", $"{perf.LoadTesting.ErrorRate:F2}%", MapErrorRateTone(perf.LoadTesting.ErrorRate))
             }
@@ -1814,7 +1864,7 @@ internal sealed class ValidationHtmlReportComposer
             var cards = new List<ValidationHtmlMetricCard>
             {
                 new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.AverageResponseTimeMs:F1} ms", Label = "Average Latency", SupportingText = "Target ≤ 300 ms", Tone = MapScoreTone(InvertLatencyToScore(perf.LoadTesting.AverageResponseTimeMs, 300, 800)) },
-                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", Label = "P95 Latency", SupportingText = "Tail latency under pressure", Tone = MapScoreTone(InvertLatencyToScore(perf.LoadTesting.P95ResponseTimeMs, 800, 1500)) },
+                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", Label = "95th-Percentile Latency", SupportingText = "Tail latency under pressure", Tone = MapScoreTone(InvertLatencyToScore(perf.LoadTesting.P95ResponseTimeMs, 800, 1500)) },
                 new() { Eyebrow = "Throughput", Value = $"{perf.LoadTesting.RequestsPerSecond:F2}", Label = "Requests / Second", SupportingText = "Sustained throughput during probe", Tone = HtmlReportTone.Info },
                 new() { Eyebrow = "Failures", Value = $"{perf.LoadTesting.ErrorRate:F2}%", Label = "Error Rate", SupportingText = "Target ≤ 1%", Tone = MapErrorRateTone(perf.LoadTesting.ErrorRate) }
             };
@@ -2221,7 +2271,7 @@ internal sealed class ValidationHtmlReportComposer
         {
             return "—";
         }
-        return $"<a href=\"{Encode(specReference)}\">{Encode(specReference)}</a>";
+        return RenderSafeLink(specReference, specReference);
     }
 
     private static string RenderToneChip(string text, HtmlReportTone tone)
@@ -2239,11 +2289,22 @@ internal sealed class ValidationHtmlReportComposer
         var producer = ResolveProducer(result);
         return $"""
               <div class="producer-signature">
-                <span>Produced with <a href="{Encode(producer.RepositoryUrl)}">{Encode(producer.Name)}</a></span>
+                <span>Produced with {RenderSafeLink(producer.RepositoryUrl, producer.Name)}</span>
                 <span class="producer-signature__divider">·</span>
-                <a href="{Encode(producer.PackageUrl)}">{Encode(producer.PackageId)} on NuGet</a>
+                {RenderSafeLink(producer.PackageUrl, $"{producer.PackageId} on NuGet")}
               </div>
               """;
+    }
+
+    private static string RenderSafeLink(string? href, string? label)
+    {
+        if (!Uri.TryCreate(href, UriKind.Absolute, out var uri) ||
+            uri.Scheme is not ("http" or "https" or "mailto"))
+        {
+            return Encode(label);
+        }
+
+        return $"<a href=\"{Encode(uri.AbsoluteUri)}\">{Encode(label)}</a>";
     }
 
     private static ValidationProducerInfo ResolveProducer(ValidationResult result)

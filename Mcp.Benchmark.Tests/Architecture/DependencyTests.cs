@@ -2,6 +2,7 @@ using NetArchTest.Rules;
 using Xunit;
 using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Fleet.Jobs;
 
 namespace Mcp.Benchmark.Tests.Architecture;
 
@@ -11,6 +12,7 @@ public class DependencyTests
     private const string InfrastructureNamespace = "Mcp.Benchmark.Infrastructure";
     private const string CliNamespace = "Mcp.Benchmark.CLI";
     private const string ClientProfilesNamespace = "Mcp.Benchmark.ClientProfiles";
+    private const string FleetNamespace = "Mcp.Benchmark.Fleet";
 
     [Fact]
     public void Core_Should_Not_Depend_On_Infrastructure()
@@ -112,5 +114,34 @@ public class DependencyTests
 
         Assert.True(infrastructureResult.IsSuccessful, "Client profiles should not depend on Infrastructure.");
         Assert.True(cliResult.IsSuccessful, "Client profiles should not depend on CLI.");
+    }
+
+    [Fact]
+    public void Existing_Product_Layers_Should_Not_Depend_On_Fleet()
+    {
+        var assemblies = new[]
+        {
+            typeof(McpValidatorConfiguration).Assembly,
+            System.Reflection.Assembly.Load("Mcp.Benchmark.Infrastructure"),
+            typeof(Mcp.Benchmark.CLI.ValidateCommand).Assembly,
+            typeof(ClientProfileEvaluator).Assembly
+        };
+
+        foreach (var assembly in assemblies)
+        {
+            var result = Types.InAssembly(assembly).ShouldNot().HaveDependencyOn(FleetNamespace).GetResult();
+            Assert.True(result.IsSuccessful, $"{assembly.GetName().Name} must not depend on hosted Fleet mode.");
+        }
+    }
+
+    [Fact]
+    public void Fleet_Should_Remain_Host_Neutral()
+    {
+        var fleetAssembly = typeof(FleetJob).Assembly;
+        foreach (var forbidden in new[] { CoreNamespace, InfrastructureNamespace, CliNamespace, ClientProfilesNamespace })
+        {
+            var result = Types.InAssembly(fleetAssembly).ShouldNot().HaveDependencyOn(forbidden).GetResult();
+            Assert.True(result.IsSuccessful, $"Fleet contracts must not depend on {forbidden}.");
+        }
     }
 }

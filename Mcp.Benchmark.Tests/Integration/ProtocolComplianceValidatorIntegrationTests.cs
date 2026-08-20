@@ -41,7 +41,7 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
             _ruleRegistry,
             _applicabilityResolver,
             _protocolFeatureResolver);
-        
+
         // Reset mock server state before each test
         _testFixture.ResetMockServer();
     }
@@ -83,7 +83,7 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
         result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
         result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
         result.JsonRpcCompliance.Should().NotBeNull();
-        
+
         // Verify that HTTP communication occurred
         _testFixture.GetRequestCount().Should().BeGreaterThan(0);
     }
@@ -145,7 +145,7 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
         // This tests the same timeout handling logic but runs much faster
         var testDelayMs = 1500; // 1.5s delay - fast but realistic timeout test
         var clientTimeoutMs = 800; // 800ms timeout - ensures timeout occurs
-        
+
         // Arrange - Server with delayed response
         _testFixture.MockServer
             .Given(Request.Create().WithPath("/mcp"))
@@ -166,8 +166,8 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Failed, TestStatus.Error);
-        // Should handle timeout gracefully without throwing exceptions
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.Message.Should().Contain("probe inconclusive");
     }
 
     [Fact]
@@ -176,7 +176,7 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
     {
         // Extended timeout test for comprehensive real-world scenario validation
         // This test can be excluded from regular runs: dotnet test --filter "Category!=LongRunning"
-        
+
         // Arrange - Server with realistic network delay
         _testFixture.MockServer
             .Given(Request.Create().WithPath("/mcp"))
@@ -197,8 +197,8 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
 
         // Assert - Same behavior expected as regular timeout test
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Failed, TestStatus.Error);
-        // Should handle extended timeout gracefully
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.Message.Should().Contain("probe inconclusive");
     }
 
     [Theory]

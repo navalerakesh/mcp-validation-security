@@ -6,7 +6,7 @@ namespace Mcp.Benchmark.Infrastructure.Scoring;
 
 /// <summary>
 /// Computes the MCP Trust Assessment from a completed ValidationResult.
-/// 
+///
 /// Scoring hierarchy (RFC 2119 aligned):
 /// - MUST checks: Hard compliance gates. Any failure caps trust at L2 max.
 /// - SHOULD checks: Weighted penalties. Reduce dimension scores.
@@ -19,12 +19,21 @@ namespace Mcp.Benchmark.Infrastructure.Scoring;
 /// </summary>
 public static class McpTrustCalculator
 {
-    private static readonly HashSet<string> SentenceLeadingPromptInjectionPatterns = new(StringComparer.OrdinalIgnoreCase)
+
+    public static void ApplyAuthoritativeVerdictCap(McpTrustAssessment assessment, VerdictAssessment? verdictAssessment)
     {
-        "you are",
-        "act as",
-        "pretend"
-    };
+        ArgumentNullException.ThrowIfNull(assessment);
+        if (verdictAssessment is not { BaselineVerdict: ValidationVerdict.Reject } &&
+            verdictAssessment is not { ProtocolVerdict: ValidationVerdict.Reject })
+        {
+            return;
+        }
+
+        if (assessment.TrustLevel > McpTrustLevel.L2_Caution)
+        {
+            assessment.TrustLevel = McpTrustLevel.L2_Caution;
+        }
+    }
 
     public static McpTrustAssessment Calculate(ValidationResult result)
     {
@@ -34,6 +43,14 @@ public static class McpTrustCalculator
         RunMustChecks(result, assessment);
         RunShouldChecks(result, assessment);
         RunMayChecks(result, assessment);
+
+        var protocolEvaluated = IsEvaluated(result.ProtocolCompliance?.Status) &&
+            result.ProtocolCompliance?.JsonRpcCompliance.ErrorHandlingEvaluated == true;
+        var securityEvaluated = IsEvaluated(result.SecurityTesting?.Status);
+        var aiSafetyEvaluated = IsEvaluated(result.ToolValidation?.Status) ||
+            IsEvaluated(result.ResourceTesting?.Status) ||
+            IsEvaluated(result.PromptTesting?.Status);
+        var operationsEvaluated = IsEvaluated(result.PerformanceTesting?.Status);
 
         // ─── Dimension 1: Protocol Compliance ────────────────────────
         assessment.ProtocolCompliance = result.ProtocolCompliance?.ComplianceScore ?? 0;
@@ -47,6 +64,11 @@ public static class McpTrustCalculator
         // ─── Dimension 4: Operational Readiness ──────────────────────
         assessment.OperationalReadiness = ValidationCalibration.GetOperationalReadinessScore(result.ServerConfig, result.PerformanceTesting);
 
+        AddUnevaluatedDimension(assessment, protocolEvaluated, "protocol");
+        AddUnevaluatedDimension(assessment, securityEvaluated, "security");
+        AddUnevaluatedDimension(assessment, aiSafetyEvaluated, "aiSafety");
+        AddUnevaluatedDimension(assessment, operationsEvaluated, "operations");
+
         // ─── Determine Trust Level ───────────────────────────────────
         if (ValidationCalibration.HasBlockingSecurityFailure(result) || result.CriticalErrors.Count > 0)
         {
@@ -54,11 +76,22 @@ public static class McpTrustCalculator
             return assessment;
         }
 
-        var weightedTrustScore =
-            assessment.ProtocolCompliance * ScoringConstants.TrustWeightProtocol +
-            assessment.SecurityPosture * ScoringConstants.TrustWeightSecurity +
-            assessment.AiSafety * ScoringConstants.TrustWeightAiSafety +
-            assessment.OperationalReadiness * ScoringConstants.TrustWeightOperations;
+        var evaluatedWeight = 0.0;
+        var weightedScore = 0.0;
+        AddEvaluatedDimension(protocolEvaluated, assessment.ProtocolCompliance, ScoringConstants.TrustWeightProtocol, ref evaluatedWeight, ref weightedScore);
+        AddEvaluatedDimension(securityEvaluated, assessment.SecurityPosture, ScoringConstants.TrustWeightSecurity, ref evaluatedWeight, ref weightedScore);
+        AddEvaluatedDimension(aiSafetyEvaluated, assessment.AiSafety, ScoringConstants.TrustWeightAiSafety, ref evaluatedWeight, ref weightedScore);
+        AddEvaluatedDimension(operationsEvaluated, assessment.OperationalReadiness, ScoringConstants.TrustWeightOperations, ref evaluatedWeight, ref weightedScore);
+
+        assessment.EvidenceCompletenessRatio = evaluatedWeight;
+        if (evaluatedWeight <= 0)
+        {
+            assessment.TrustLevel = McpTrustLevel.Unknown;
+            assessment.LimitedByIncompleteEvidence = true;
+            return assessment;
+        }
+
+        var weightedTrustScore = weightedScore / evaluatedWeight;
 
         var calculatedLevel = weightedTrustScore switch
         {
@@ -69,10 +102,20 @@ public static class McpTrustCalculator
             _ => McpTrustLevel.L1_Untrusted
         };
 
-        var protocolSecurityCap = GetProtocolSecurityCap(assessment);
+        var protocolSecurityCap = GetProtocolSecurityCap(assessment, protocolEvaluated, securityEvaluated);
         if (protocolSecurityCap.HasValue && calculatedLevel > protocolSecurityCap.Value)
         {
             calculatedLevel = protocolSecurityCap.Value;
+        }
+
+        var activeProtocolEvidenceMissing = result.ProtocolCompliance?.JsonRpcCompliance?.ErrorHandlingEvaluated == false;
+        if (assessment.UnevaluatedDimensions.Count > 0 || activeProtocolEvidenceMissing)
+        {
+            assessment.LimitedByIncompleteEvidence = true;
+            if (calculatedLevel > McpTrustLevel.L3_Acceptable)
+            {
+                calculatedLevel = McpTrustLevel.L3_Acceptable;
+            }
         }
 
         if (assessment.MustFailCount > 0)
@@ -88,17 +131,46 @@ public static class McpTrustCalculator
         return assessment;
     }
 
+    private static bool IsEvaluated(TestStatus? status) => status is TestStatus.Passed or TestStatus.Failed;
+
+    private static void AddUnevaluatedDimension(McpTrustAssessment assessment, bool evaluated, string dimension)
+    {
+        if (!evaluated)
+        {
+            assessment.UnevaluatedDimensions.Add(dimension);
+        }
+    }
+
+    private static void AddEvaluatedDimension(
+        bool evaluated,
+        double score,
+        double weight,
+        ref double evaluatedWeight,
+        ref double weightedScore)
+    {
+        if (!evaluated)
+        {
+            return;
+        }
+
+        evaluatedWeight += weight;
+        weightedScore += score * weight;
+    }
+
     // ─── MUST Checks: Hard Compliance Gates ──────────────────────────
 
     private static void RunMustChecks(ValidationResult result, McpTrustAssessment assessment)
     {
         // Protocol MUST checks
-        AddMustCheck(assessment, McpComplianceTiers.Must.InitializeResponse, "initialize",
-            !HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse),
-            HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse) ? "Initialize failed" : null);
+        if (IsEvaluated(result.ProtocolCompliance?.Status))
+        {
+            AddMustCheck(assessment, McpComplianceTiers.Must.InitializeResponse, "initialize",
+                !HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse),
+                HasViolation(result.ProtocolCompliance?.Violations, ValidationConstants.CheckIds.ProtocolInitializeResponse) ? "Initialize failed" : null);
+        }
 
         // Only check response structure if we got a successful response
-        if (result.ProtocolCompliance != null && result.ProtocolCompliance.Status != TestStatus.Skipped)
+        if (result.ProtocolCompliance != null && IsEvaluated(result.ProtocolCompliance.Status))
         {
             AddMustCheck(assessment, McpComplianceTiers.Must.CapabilitiesInResponse, "initialize",
                 !HasViolation(result.ProtocolCompliance.Violations, ValidationConstants.CheckIds.ProtocolInitializeMissingCapabilities),
@@ -122,7 +194,7 @@ public static class McpTrustCalculator
         }
 
         // Tool MUST checks
-        if (result.ToolValidation != null && result.ToolValidation.Status != TestStatus.Skipped)
+        if (result.ToolValidation != null && IsEvaluated(result.ToolValidation.Status))
         {
             AddMustCheck(assessment, McpComplianceTiers.Must.ToolsListReturnsArray, "tools/list",
                 result.ToolValidation.Status is not (TestStatus.Error or TestStatus.Failed),
@@ -140,7 +212,7 @@ public static class McpTrustCalculator
         }
 
         // Resource MUST checks
-        if (result.ResourceTesting != null && result.ResourceTesting.Status != TestStatus.Skipped)
+        if (result.ResourceTesting != null && IsEvaluated(result.ResourceTesting.Status))
         {
             var missingUri = result.ResourceTesting.ResourceResults?.Any(r =>
                 HasFinding(r.Findings, ValidationFindingRuleIds.ResourceMissingUri)) == true;
@@ -171,7 +243,7 @@ public static class McpTrustCalculator
         }
 
         // Prompt MUST checks
-        if (result.PromptTesting != null && result.PromptTesting.Status != TestStatus.Skipped)
+        if (result.PromptTesting != null && IsEvaluated(result.PromptTesting.Status))
         {
             var missingMessages = result.PromptTesting.PromptResults?.Any(p =>
                 HasFinding(p.Findings, ValidationFindingRuleIds.PromptGetMissingMessagesArray)) == true;
@@ -194,20 +266,26 @@ public static class McpTrustCalculator
         // Security MUST checks
         if (result.SecurityTesting != null)
         {
-            var protocolErrorHandlingFailed = result.ProtocolCompliance?.JsonRpcCompliance?.ErrorHandlingCompliant == false;
+            var protocolErrorHandling = result.ProtocolCompliance?.JsonRpcCompliance;
+            var protocolErrorHandlingFailed = protocolErrorHandling?.ErrorHandlingEvaluated == true &&
+                                              protocolErrorHandling.ErrorHandlingCompliant == false;
             var errorHandlingFindings = result.ErrorHandling?.Findings?
                 .Where(f => string.Equals(f.RuleId, "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE", StringComparison.Ordinal))
                 .ToList() ?? new List<ValidationFinding>();
-            var standardErrorCodesPassed = !protocolErrorHandlingFailed && errorHandlingFindings.Count == 0;
+            var standardErrorCodesEvaluated = protocolErrorHandling?.ErrorHandlingEvaluated == true || errorHandlingFindings.Count > 0;
+            var standardErrorCodesPassed = standardErrorCodesEvaluated && !protocolErrorHandlingFailed && errorHandlingFindings.Count == 0;
             var standardErrorCodeDetail = protocolErrorHandlingFailed
                 ? "Non-standard error codes"
                 : errorHandlingFindings.Count > 0
                     ? $"Non-standard error codes in: {string.Join(", ", errorHandlingFindings.Select(f => f.Component).Where(static value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase))}"
                     : null;
 
-            AddMustCheck(assessment, McpComplianceTiers.Must.StandardErrorCodes, "errors",
-                standardErrorCodesPassed,
-                standardErrorCodeDetail);
+            if (standardErrorCodesEvaluated)
+            {
+                AddMustCheck(assessment, McpComplianceTiers.Must.StandardErrorCodes, "errors",
+                    standardErrorCodesPassed,
+                    standardErrorCodeDetail);
+            }
         }
     }
 
@@ -243,7 +321,8 @@ public static class McpTrustCalculator
         // Sanitize outputs (injection reflection = failure)
         if (result.SecurityTesting?.AttackSimulations != null)
         {
-            var reflected = result.SecurityTesting.AttackSimulations.Any(a => a.AttackSuccessful);
+            var reflected = result.SecurityTesting.AttackSimulations.Any(attack =>
+                AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Detected);
             AddShouldCheck(assessment, McpComplianceTiers.Should.SanitizeToolOutputs, "security", !reflected);
         }
 
@@ -271,11 +350,13 @@ public static class McpTrustCalculator
         AddMayCheck(assessment, McpComplianceTiers.May.Completion, "capabilities",
             HasFinding(result.ProtocolCompliance?.Findings, ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported));
 
-        // Resource templates (checked in resource issues)
         if (result.ResourceTesting != null)
         {
-            var hasTemplates = result.ResourceTesting.Issues?.Any(i => i.Contains("Resource templates:") && i.Contains("discovered")) == true;
-            AddMayCheck(assessment, McpComplianceTiers.May.ResourceTemplates, "resources", hasTemplates);
+            AddMayCheck(
+                assessment,
+                McpComplianceTiers.May.ResourceTemplates,
+                "resources",
+                result.ResourceTesting.ResourceTemplatesDiscovered > 0);
         }
 
         var hasToolAnnotations = result.ToolValidation?.ToolResults?.Any(t =>
@@ -328,7 +409,7 @@ public static class McpTrustCalculator
 
     private static double CalculateAiSafety(ValidationResult result, McpTrustAssessment assessment)
     {
-        double score = 100.0;
+        double score = ScoringConstants.ScoreMaximum;
         var toolCatalogSize = ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation);
 
         // Start from AI Readiness score if available
@@ -345,11 +426,8 @@ public static class McpTrustCalculator
                 var name = tool.ToolName?.ToLowerInvariant() ?? "";
                 var isLikelyDestructive = tool.DestructiveHint == true ||
                                           (tool.ReadOnlyHint != true &&
-                                           (name.Contains("delete") || name.Contains("remove") ||
-                                            name.Contains("drop") || name.Contains("destroy") ||
-                                            name.Contains("write") || name.Contains("update") ||
-                                            name.Contains("create") || name.Contains("execute") ||
-                                            name.Contains("run") || name.Contains("send")));
+                                           ScoringConstants.DestructiveToolNamePatterns.Any(pattern =>
+                                               name.Contains(pattern, StringComparison.Ordinal)));
 
                 if (isLikelyDestructive)
                 {
@@ -362,8 +440,12 @@ public static class McpTrustCalculator
                     assessment.BoundaryFindings.Add(new AiBoundaryFinding
                     {
                         Category = "Destructive",
+                        Kind = AiBoundaryKind.DestructiveOperation,
                         Component = tool.ToolName ?? "unknown",
                         Severity = severity,
+                        SeverityLevel = tool.DestructiveHint == true ? ValidationFindingSeverity.High : ValidationFindingSeverity.Medium,
+                        Gate = GateOutcome.ReviewRequired,
+                        ImpactAreas = [ImpactArea.UnsafeAutonomy],
                         Description = description,
                         Mitigation = "Add annotations.readOnlyHint=false and annotations.destructiveHint=true to tool definition."
                     });
@@ -404,8 +486,12 @@ public static class McpTrustCalculator
                 assessment.BoundaryFindings.Add(new AiBoundaryFinding
                 {
                     Category = "Exfiltration",
+                    Kind = AiBoundaryKind.DataExfiltration,
                     Component = tool.ToolName ?? "unknown",
                     Severity = "High",
+                    SeverityLevel = ValidationFindingSeverity.High,
+                    Gate = GateOutcome.Reject,
+                    ImpactAreas = [ImpactArea.DataExposure, ImpactArea.UnsafeAutonomy],
                     Description = $"Tool '{tool.ToolName}' accepts caller-controlled outbound targets and shows egress behavior that could enable data exfiltration (evidence: '{evidence}').",
                     Mitigation = "Validate outbound destinations server-side. Restrict network targets to explicit allowlists and require least-privilege access."
                 });
@@ -432,8 +518,12 @@ public static class McpTrustCalculator
                             assessment.BoundaryFindings.Add(new AiBoundaryFinding
                             {
                                 Category = "PromptInjection",
+                                Kind = AiBoundaryKind.PromptInjection,
                                 Component = tool.ToolName,
                                 Severity = "Critical",
+                                SeverityLevel = ValidationFindingSeverity.Critical,
+                                Gate = GateOutcome.Reject,
+                                ImpactAreas = [ImpactArea.UnsafeAutonomy, ImpactArea.OutputIntegrity],
                                 Description = $"Tool '{tool.ToolName}' metadata contains prompt-injection-like language: '{pattern}'.",
                                 Mitigation = "Remove instruction-like language from tool descriptions. Descriptions should be factual, not imperative."
                             });
@@ -447,15 +537,20 @@ public static class McpTrustCalculator
         // ─── Boundary Check: Injection Reflection ───────────────────
         if (result.SecurityTesting?.AttackSimulations != null)
         {
-            var reflectedCount = result.SecurityTesting.AttackSimulations.Count(a => a.AttackSuccessful);
+            var reflectedCount = result.SecurityTesting.AttackSimulations.Count(attack =>
+                AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Detected);
             if (reflectedCount > 0)
             {
-                score -= reflectedCount * 10;
+                score -= reflectedCount * ScoringConstants.InjectionReflectionPenaltyPerFinding;
                 assessment.BoundaryFindings.Add(new AiBoundaryFinding
                 {
                     Category = "Injection",
+                    Kind = AiBoundaryKind.InjectionReflection,
                     Component = "SecurityValidator",
                     Severity = "High",
+                    SeverityLevel = ValidationFindingSeverity.High,
+                    Gate = GateOutcome.Reject,
+                    ImpactAreas = [ImpactArea.OutputIntegrity, ImpactArea.UnsafeAutonomy],
                     Description = $"{reflectedCount} injection attack(s) reflected back in server response. AI agents consuming this output may execute malicious content.",
                     Mitigation = "Sanitize all tool outputs. Never reflect user input directly in response content."
                 });
@@ -466,56 +561,57 @@ public static class McpTrustCalculator
         score -= ValidationCalibration.CalculateRelativeExposurePenalty(
             assessment.DataExfiltrationRiskCount,
             toolCatalogSize,
-            maxPenalty: 15,
-            minimumPenaltyIfAny: 3);
+            maxPenalty: ScoringConstants.ExfiltrationPenaltyMax,
+            minimumPenaltyIfAny: ScoringConstants.ExfiltrationPenaltyMinimum);
 
         score -= ValidationCalibration.CalculateRelativeExposurePenalty(
             assessment.PromptInjectionSurfaceCount,
             toolCatalogSize,
-            maxPenalty: 18,
-            minimumPenaltyIfAny: 4);
+            maxPenalty: ScoringConstants.PromptInjectionPenaltyMax,
+            minimumPenaltyIfAny: ScoringConstants.PromptInjectionPenaltyMinimum);
 
         // ─── LLM-Friendliness: Extract from tool issues ─────────────
         // Parse LLM-Friendliness scores from tool result issues and average them.
         // This measures whether error responses help AI agents self-correct.
         if (result.ToolValidation?.ToolResults != null)
         {
-            var llmScores = new List<int>();
+            var llmScores = new List<double>();
+            var hasInvalidLlmScoreEvidence = false;
             foreach (var tool in result.ToolValidation.ToolResults)
             {
                 foreach (var finding in tool.Findings.Where(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
                 {
-                    // Skip findings explicitly marked as excluded (e.g. upstream HTTP pass-through
-                    // errors driven by the validator's synthetic input choice rather than tool quality).
-                    if (finding.Metadata.TryGetValue("excludedFromLlmAverage", out var excluded) &&
-                        string.Equals(excluded, "true", StringComparison.OrdinalIgnoreCase))
+                    if (finding.ExcludedFromAggregate)
                     {
                         continue;
                     }
 
-                    if (finding.Metadata.TryGetValue("score", out var scoreText) && int.TryParse(scoreText, out var llmScore))
+                    if (finding.Score is >= ScoringConstants.ScoreMinimum and <= ScoringConstants.ScoreMaximum)
                     {
-                        llmScores.Add(llmScore);
+                        llmScores.Add(finding.Score.Value);
+                    }
+                    else
+                    {
+                        hasInvalidLlmScoreEvidence = true;
                     }
                 }
+            }
 
-                if (tool.Findings.Any(f => f.RuleId == ValidationFindingRuleIds.ToolLlmFriendliness))
+            if (hasInvalidLlmScoreEvidence)
+            {
+                score -= ScoringConstants.LlmGuidancePenalty;
+                assessment.BoundaryFindings.Add(new AiBoundaryFinding
                 {
-                    continue;
-                }
-
-                foreach (var issue in tool.Issues)
-                {
-                    if (issue.Contains("LLM-Friendliness:"))
-                    {
-                        var start = issue.IndexOf("LLM-Friendliness:") + "LLM-Friendliness:".Length;
-                        var end = issue.IndexOf("/100", start);
-                        if (end > start && int.TryParse(issue.Substring(start, end - start).Trim(), out var llmScore))
-                        {
-                            llmScores.Add(llmScore);
-                        }
-                    }
-                }
+                    Category = "LLM-Evidence-Inconclusive",
+                    Kind = AiBoundaryKind.LlmHostileErrors,
+                    Component = "Error Responses",
+                    Severity = "Medium",
+                    SeverityLevel = ValidationFindingSeverity.Medium,
+                    Gate = GateOutcome.ReviewRequired,
+                    ImpactAreas = [ImpactArea.RecoveryIntegrity],
+                    Description = "LLM-friendliness evidence was present without a valid typed score.",
+                    Mitigation = "Emit a typed LLM-friendliness score between 0 and 100 or explicitly exclude the finding from aggregation."
+                });
             }
 
             if (llmScores.Count > 0)
@@ -523,26 +619,30 @@ public static class McpTrustCalculator
                 assessment.LlmFriendlinessScore = Math.Round(llmScores.Average(), 1);
 
                 // Anti-LLM servers get penalized in AI Safety
-                if (assessment.LlmFriendlinessScore < 40)
+                if (assessment.LlmFriendlinessScore < ScoringConstants.LlmHostileThreshold)
                 {
-                    score -= 15;
+                    score -= ScoringConstants.LlmHostilePenalty;
                     assessment.BoundaryFindings.Add(new AiBoundaryFinding
                     {
                         Category = "LLM-Hostile",
+                        Kind = AiBoundaryKind.LlmHostileErrors,
                         Component = "Error Responses",
                         Severity = "High",
+                        SeverityLevel = ValidationFindingSeverity.High,
+                        Gate = GateOutcome.ReviewRequired,
+                        ImpactAreas = [ImpactArea.RecoveryIntegrity, ImpactArea.UnsafeAutonomy],
                         Description = $"Average LLM-friendliness score is {assessment.LlmFriendlinessScore}/100 (Anti-LLM). Error messages don't help AI agents self-correct, causing hallucination and retry loops.",
                         Mitigation = "Return structured errors with: specific parameter names, expected types/formats, and use standard JSON-RPC error codes (-32602 for invalid params)."
                     });
                 }
-                else if (assessment.LlmFriendlinessScore < 70)
+                else if (assessment.LlmFriendlinessScore < ScoringConstants.LlmGuidanceThreshold)
                 {
-                    score -= 5;
+                    score -= ScoringConstants.LlmGuidancePenalty;
                 }
             }
         }
 
-        return Math.Max(0, Math.Min(100, Math.Round(score, 1)));
+        return Math.Max(ScoringConstants.ScoreMinimum, Math.Min(ScoringConstants.ScoreMaximum, Math.Round(score, 1)));
     }
 
     private static bool ContainsPromptInjectionPattern(string surfaceText, string pattern)
@@ -552,7 +652,7 @@ public static class McpTrustCalculator
             return false;
         }
 
-        if (!SentenceLeadingPromptInjectionPatterns.Contains(pattern))
+        if (!ScoringConstants.SentenceLeadingPromptInjectionPatterns.Contains(pattern, StringComparer.OrdinalIgnoreCase))
         {
             return surfaceText.Contains(pattern, StringComparison.OrdinalIgnoreCase);
         }
@@ -586,9 +686,28 @@ public static class McpTrustCalculator
         return violations?.Any(v => string.Equals(v.CheckId, checkId, StringComparison.Ordinal)) == true;
     }
 
-    private static McpTrustLevel? GetProtocolSecurityCap(McpTrustAssessment assessment)
+    private static McpTrustLevel? GetProtocolSecurityCap(
+        McpTrustAssessment assessment,
+        bool protocolEvaluated,
+        bool securityEvaluated)
     {
-        var anchor = Math.Min(assessment.ProtocolCompliance, assessment.SecurityPosture);
+        var evaluatedAnchors = new List<double>(2);
+        if (protocolEvaluated)
+        {
+            evaluatedAnchors.Add(assessment.ProtocolCompliance);
+        }
+
+        if (securityEvaluated)
+        {
+            evaluatedAnchors.Add(assessment.SecurityPosture);
+        }
+
+        if (evaluatedAnchors.Count == 0)
+        {
+            return null;
+        }
+
+        var anchor = evaluatedAnchors.Min();
 
         if (anchor < ScoringConstants.TrustL2Threshold)
         {

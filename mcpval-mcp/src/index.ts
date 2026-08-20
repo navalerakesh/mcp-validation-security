@@ -44,6 +44,14 @@ const inspectionAnnotations: ToolAnnotations = {
   openWorldHint: true,
 };
 
+const toolOutputSchema = {
+  command: z.string(),
+  exitCode: z.number().int(),
+  result: z.record(z.string(), z.unknown()).optional(),
+  output: z.string().optional(),
+  error: z.object({ code: z.string(), message: z.string() }).optional(),
+};
+
 async function main(): Promise<void> {
   const cliVersion = await getCliVersion();
 
@@ -71,6 +79,7 @@ async function main(): Promise<void> {
       title: "Validate MCP Server",
       description: "Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.",
       inputSchema: ValidateInputSchema.shape,
+      outputSchema: toolOutputSchema,
       annotations: validateAnnotations,
     },
     async ({ server: endpoint, access, token, interactive, mcpspec, policy, clientProfile, reportDetail, verbose }) => {
@@ -86,9 +95,10 @@ async function main(): Promise<void> {
           reportDetail,
           verbose,
         });
-        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
+        return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: `Validation failed: ${(err as Error).message}` }], isError: true };
+        const message = `Validation failed: ${(err as Error).message}`;
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "validate", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );
@@ -99,14 +109,16 @@ async function main(): Promise<void> {
       title: "Health Check MCP Server",
       description: "Quick connectivity check — verifies MCP initialize handshake and protocol version.",
       inputSchema: HealthCheckInputSchema.shape,
+      outputSchema: toolOutputSchema,
       annotations: { ...inspectionAnnotations, title: "Health Check MCP Server" },
     },
     async ({ server: endpoint, access, token, interactive }) => {
       try {
         const result = await handleHealthCheck({ server: endpoint, access, token, interactive });
-        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
+        return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: `Health check failed: ${(err as Error).message}` }], isError: true };
+        const message = `Health check failed: ${(err as Error).message}`;
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "health-check", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );
@@ -117,14 +129,16 @@ async function main(): Promise<void> {
       title: "Discover MCP Server Capabilities",
       description: "Discover MCP server capabilities — lists tools, resources, and prompts.",
       inputSchema: DiscoverInputSchema.shape,
+      outputSchema: toolOutputSchema,
       annotations: { ...inspectionAnnotations, title: "Discover MCP Server Capabilities" },
     },
     async ({ server: endpoint, access, token, interactive, format }) => {
       try {
         const result = await handleDiscover({ server: endpoint, access, token, interactive, format });
-        return { content: [{ type: "text" as const, text: result.text }], isError: result.isError };
+        return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        return { content: [{ type: "text" as const, text: `Discovery failed: ${(err as Error).message}` }], isError: true };
+        const message = `Discovery failed: ${(err as Error).message}`;
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "discover", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );

@@ -4,16 +4,17 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Infrastructure.Authentication;
 using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Validators;
 
 /// <summary>
-/// MCP-Compliant Authentication Validator - Per MCP Specification 2025-06-18
+/// MCP-Compliant Authentication Validator - Per MCP Specification 2026-07-28
 /// 
 /// MCP AUTHENTICATION COMPLIANCE RULES (Per Official Specification):
 /// 
-/// Reference: https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization#token-handling
+/// Reference: https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization#token-handling
 /// 
 /// MCP servers, acting as OAuth 2.1 resource servers, MUST:
 /// 1. Validate access tokens as per OAuth 2.1 Section 5.2
@@ -46,31 +47,35 @@ public class McpCompliantAuthValidator
 {
     private readonly ILogger<McpCompliantAuthValidator> _logger;
     private readonly IMcpHttpClient _httpClient;
+    private readonly IReadOnlyList<INoninteractiveCredentialProvider> _credentialProviders;
 
-    private const string McpAuthorizationSpecReference = "https://modelcontextprotocol.io/specification/2025-06-18/basic/authorization";
-    private const string McpSecurityBestPracticesReference = "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices#token-passthrough";
+    private const string McpAuthorizationSpecReference = "https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization";
+    private const string McpSecurityBestPracticesReference = "https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/security_best_practices#token-passthrough";
+    private const string EnterpriseManagedAuthorizationReference = "https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization";
+    private const string EnterpriseManagedAuthorizationProfile = "urn:ietf:params:oauth:grant-profile:id-jag";
+    private const string JwtBearerGrantType = "urn:ietf:params:oauth:grant-type:jwt-bearer";
 
     private static readonly JsonSerializerOptions AuthMetadataJsonOptions = new()
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = false
     };
 
-    // Standard MCP methods that may exist based on server capabilities
+    // Authentication probes are intentionally limited to read-only discovery methods.
     private readonly string[] _standardMcpMethods = new[]
     {
         "tools/list",
-        "tools/call",
         "resources/list",
-        "resources/read",
-        "prompts/list",
-        "prompts/get",
-        "logging/setLevel"
+        "prompts/list"
     };
 
-    public McpCompliantAuthValidator(ILogger<McpCompliantAuthValidator> logger, IMcpHttpClient httpClient)
+    public McpCompliantAuthValidator(
+        ILogger<McpCompliantAuthValidator> logger,
+        IMcpHttpClient httpClient,
+        IEnumerable<INoninteractiveCredentialProvider>? credentialProviders = null)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _credentialProviders = credentialProviders?.ToArray() ?? Array.Empty<INoninteractiveCredentialProvider>();
     }
 
     /// <summary>
@@ -118,6 +123,11 @@ public class McpCompliantAuthValidator
             // Step 3: Discover available endpoints
             _logger.LogInformation("Discovering server capabilities to identify available endpoints");
             var discoveredEndpoints = await DiscoverServerEndpoints(serverConfig, cancellationToken);
+            discoveredEndpoints = discoveredEndpoints
+                .Where(ValidationCalibration.IsDiscoveryMethod)
+                .Where(method => !string.Equals(method, "initialize", StringComparison.Ordinal))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
 
             if (discoveredEndpoints.Count == 0)
             {
@@ -136,6 +146,11 @@ public class McpCompliantAuthValidator
                     new McpServerConfig { Endpoint = serverConfig.Endpoint ?? "", Transport = serverConfig.Transport ?? "http", Authentication = new AuthenticationConfig() },
                     endpoint, "No Auth", profile, cancellationToken);
                 result.TestScenarios.Add(noAuthTest);
+
+                if (!RequiresAuthentication(noAuthTest))
+                {
+                    continue;
+                }
 
                 // Test with malformed token (invalid format)
                 var malformedTokenTest = await TestMethodAuthentication(
@@ -215,7 +230,9 @@ public class McpCompliantAuthValidator
                     endpoint, "Wrong Audience (RFC 8707)", profile, cancellationToken);
                 result.TestScenarios.Add(wrongAudienceTest);
 
-                if (ValidationCalibration.IsSensitiveMethod(endpoint))
+                await AddControlledConformanceScenariosAsync(result, serverConfig, endpoint, profile, cancellationToken);
+
+                if (RequiresAuthentication(noAuthTest))
                 {
                     var queryTokenTest = await TestMethodAuthentication(
                         new McpServerConfig
@@ -234,6 +251,19 @@ public class McpCompliantAuthValidator
                     var validTokenTest = await TestMethodAuthentication(serverConfig, endpoint, "Valid Token", profile, cancellationToken);
                     result.TestScenarios.Add(validTokenTest);
                 }
+
+                foreach (var candidate in result.TestScenarios.Where(candidate =>
+                             string.Equals(candidate.Method, endpoint, StringComparison.Ordinal) &&
+                             !string.Equals(candidate.TestType, "No Auth", StringComparison.Ordinal) &&
+                             !IsValidCredentialScenario(candidate.TestType) &&
+                             string.Equals(candidate.ActualBehavior, "Discovery metadata returned", StringComparison.Ordinal)))
+                {
+                    MarkScenarioInsecure(
+                        candidate,
+                        actualBehavior: "Protected discovery operation succeeded",
+                        analysis: "❌ INSECURE: A credential variant bypassed authentication on a discovery operation that rejected the paired unauthenticated request.",
+                        complianceReason: "FAIL: The paired protected endpoint accepted an invalid or prohibited credential placement.");
+                }
             }
 
             await FinalizeAuthenticationEvidenceAsync(result, serverConfig, profile, cancellationToken);
@@ -251,11 +281,16 @@ public class McpCompliantAuthValidator
             var totalScenarios = scoredScenarios.Count;
             var secureScenarios = scoredScenarios.Count(s => s.IsSecure);
 
-            result.ComplianceScore = totalScenarios > 0
+            var scenarioScore = totalScenarios > 0
                 ? scoredScenarios.Average(s => s.AssessmentScore)
                 : 100.0;
+            result.ComplianceScore = Math.Min(scenarioScore, GetFindingScoreCap(result.Findings));
 
-            result.Status = scoredScenarios.Any(s => ValidationCalibration.IsBlockingAuthenticationFailure(s, profile))
+            var hasBlockingFinding = ValidationCalibration.RequiresStrictAuthentication(profile) &&
+                                     result.Findings.Any(finding =>
+                                         finding.EffectiveSource == ValidationRuleSource.Spec &&
+                                         finding.Severity >= ValidationFindingSeverity.High);
+            result.Status = scoredScenarios.Any(s => ValidationCalibration.IsBlockingAuthenticationFailure(s, profile)) || hasBlockingFinding
                 ? TestStatus.Failed
                 : TestStatus.Passed;
             result.Duration = DateTime.UtcNow - startTime;
@@ -264,6 +299,10 @@ public class McpCompliantAuthValidator
                 result.ComplianceScore, secureScenarios, totalScenarios);
 
             return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -391,6 +430,10 @@ public class McpCompliantAuthValidator
             AnalyzeAuthenticationResponse(scenario, response, testType, method);
             ApplyProfileSemantics(scenario, profile);
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             // Treat transport-level failures (timeouts, cancellations, DNS issues, etc.) as
@@ -398,7 +441,7 @@ public class McpCompliantAuthValidator
             scenario.StatusCode = "-1";
             MarkScenarioInconclusive(
                 scenario,
-                actualBehavior: $"⏱️ Request failed: {ex.Message}",
+                actualBehavior: $"Request failed: {DescribeFailure(ex)}",
                 analysis: "ℹ️ INFO: Authentication test inconclusive due to validator/network error.",
                 complianceReason: "INFO: Environment or network issue during authentication testing; excluded from compliance scoring.");
             scenario.IsCompliant = true;
@@ -418,25 +461,8 @@ public class McpCompliantAuthValidator
                 clientInfo = new { name = "Visual Studio Code", version = "1.96.0" }
             },
             "tools/list" => new { }, // Empty object for tools/list
-            "tools/call" => new
-            {
-                name = "test-tool", // Test tool name
-                arguments = new { } // Empty arguments
-            },
             "resources/list" => new { }, // Empty object for resources/list
-            "resources/read" => new
-            {
-                uri = "test://resource" // Test resource URI
-            },
             "prompts/list" => new { }, // Empty object for prompts/list
-            "prompts/get" => new
-            {
-                name = "test-prompt" // Test prompt name
-            },
-            "logging/setLevel" => new
-            {
-                level = "info" // Test log level
-            },
             _ => new { } // Default empty object for unknown methods
         };
     }
@@ -456,6 +482,9 @@ public class McpCompliantAuthValidator
             "Insufficient Permissions" => "4xx (Secure Rejection)",
             "Revoked Token" => "401 + WWW-Authenticate challenge",
             "Wrong Audience (RFC 8707)" => "401 + audience-bound token rejection",
+            "Controlled Wrong Audience" => "401 + audience-bound token rejection",
+            "Controlled Insufficient Scope" => "403 + Bearer insufficient_scope challenge",
+            "Controlled Step-Up Token" => "200 + JSON-RPC Response",
             "Query Token" => "4xx or JSON-RPC rejection; query-string tokens must not grant access",
             "Valid Token" => "200 + JSON-RPC Response",
             _ => "4xx (Secure Rejection)"
@@ -472,7 +501,9 @@ public class McpCompliantAuthValidator
             var headerKey = response.Headers.Keys.First(k => k.Equals("WWW-Authenticate", StringComparison.OrdinalIgnoreCase));
             if (response.Headers.TryGetValue(headerKey, out var headerVal))
             {
-                scenario.WwwAuthenticateHeader = headerVal;
+                scenario.RawWwwAuthenticateHeader = headerVal;
+                scenario.WwwAuthenticateHeader = AuthenticationChallengeInterpreter.SanitizeForEvidence(
+                    AuthenticationChallengeInterpreter.Inspect(response));
             }
         }
 
@@ -528,7 +559,7 @@ public class McpCompliantAuthValidator
                 // OAuth 2.1 RFC 6750: 401 is valid for authentication errors (invalid_token pattern)
                 // STRICT SPEC COMPLIANCE: Must have WWW-Authenticate header
                 
-                if (testType == "Valid Token")
+                if (IsValidCredentialScenario(testType))
                 {
                     MarkScenarioInsecure(
                         scenario,
@@ -625,7 +656,15 @@ public class McpCompliantAuthValidator
             case 200:
                 var jsonRpcResult = ParseJsonRpcResponse(response);
 
-                if (testType == "Valid Token")
+                if (string.Equals(testType, "Controlled Step-Up Token", StringComparison.Ordinal) && !jsonRpcResult.IsSuccess)
+                {
+                    MarkScenarioInsecure(
+                        scenario,
+                        actualBehavior: "Step-up token did not produce a JSON-RPC success result",
+                        analysis: "FAIL: The single controlled step-up retry did not complete the protected operation.",
+                        complianceReason: "FAIL: HTTP success without a successful JSON-RPC result is not a completed step-up flow.");
+                }
+                else if (IsValidCredentialScenario(testType))
                 {
                     MarkScenarioStandardsAligned(
                         scenario,
@@ -692,6 +731,8 @@ public class McpCompliantAuthValidator
         McpServerProfile profile,
         CancellationToken cancellationToken)
     {
+        await ValidateClientRegistrationAsync(result, serverConfig.Authentication?.ClientRegistration, cancellationToken);
+
         var strictProfile = ValidationCalibration.RequiresStrictAuthentication(profile);
         var authenticationObserved = result.TestScenarios.Any(IsAuthenticationObserved);
         if (!strictProfile && !authenticationObserved)
@@ -701,9 +742,567 @@ public class McpCompliantAuthValidator
 
         AddChallengeFindings(result);
         await ValidateProtectedResourceMetadataAsync(result, serverConfig, cancellationToken);
+        ValidateClientRegistrationAuthorizationServerCompatibility(result);
         AddAuthorizationHeaderFindings(result);
         AddTokenPlacementAndAudienceFindings(result);
         AddResourceIndicatorFinding(result, serverConfig);
+    }
+
+    private async Task AddControlledConformanceScenariosAsync(
+        AuthenticationTestResult result,
+        McpServerConfig serverConfig,
+        string endpointMethod,
+        McpServerProfile profile,
+        CancellationToken cancellationToken)
+    {
+        var credentials = serverConfig.Authentication?.ConformanceCredentials;
+        if (credentials == null)
+        {
+            return;
+        }
+
+        var priorScopes = NormalizeScopes(credentials.PreviouslyGrantedScopes);
+        var endpointResource = Uri.TryCreate(serverConfig.Endpoint, UriKind.Absolute, out var endpointUri) ? endpointUri : null;
+        if (endpointResource == null || priorScopes.Length == 0)
+        {
+            result.ControlledAudience = new ControlledAudienceEvidence
+            {
+                Declared = !string.IsNullOrWhiteSpace(credentials.WrongAudienceResource),
+                Outcome = "invalid-configuration"
+            };
+            result.ScopeStepUp ??= new ScopeStepUpEvidence { Outcome = "invalid-configuration" };
+            return;
+        }
+
+        var wrongAudienceScopes = NormalizeScopes(credentials.WrongAudienceScopes);
+        var effectiveWrongAudienceScopes = wrongAudienceScopes.Length == 0 ? priorScopes : wrongAudienceScopes;
+        if (string.IsNullOrWhiteSpace(credentials.WrongAudienceResource))
+        {
+            result.ControlledAudience = new ControlledAudienceEvidence { Outcome = "not-configured" };
+        }
+        else if (!TryCreateAbsoluteUri(credentials.WrongAudienceResource, out var wrongAudienceResource, out _) ||
+                 !string.Equals(wrongAudienceResource.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                 ResourceUriMatchesEndpoint(wrongAudienceResource, endpointResource))
+        {
+            result.ControlledAudience = new ControlledAudienceEvidence
+            {
+                Declared = true,
+                RequestedResource = RedactUriForEvidence(credentials.WrongAudienceResource),
+                RequestedScopes = effectiveWrongAudienceScopes,
+                Outcome = "invalid-target-resource"
+            };
+        }
+        else
+        {
+            var wrongAudienceReference = await AcquireControlledCredentialAsync(
+                wrongAudienceResource,
+                effectiveWrongAudienceScopes,
+                cancellationToken);
+            if (wrongAudienceReference == null)
+            {
+                result.ControlledAudience = new ControlledAudienceEvidence
+                {
+                    Declared = true,
+                    RequestedResource = RedactUriForEvidence(wrongAudienceResource.AbsoluteUri),
+                    RequestedScopes = effectiveWrongAudienceScopes,
+                    Outcome = "credential-unavailable"
+                };
+            }
+            else
+            {
+                var scenario = await TestMethodAuthentication(
+                    CreateReferenceAuthenticationConfig(serverConfig, wrongAudienceReference),
+                    endpointMethod,
+                    "Controlled Wrong Audience",
+                    profile,
+                    cancellationToken);
+                result.TestScenarios.Add(scenario);
+                result.ControlledAudience = new ControlledAudienceEvidence
+                {
+                    Declared = true,
+                    Evaluated = true,
+                    RequestedResource = RedactUriForEvidence(wrongAudienceResource.AbsoluteUri),
+                    RequestedScopes = effectiveWrongAudienceScopes,
+                    Outcome = string.Equals(scenario.ActualBehavior, "Discovery metadata returned", StringComparison.Ordinal)
+                        ? "accepted"
+                        : "rejected"
+                };
+            }
+        }
+
+        if (result.ScopeStepUp != null)
+        {
+            return;
+        }
+
+        var insufficientScopeReference = await AcquireControlledCredentialAsync(endpointResource, priorScopes, cancellationToken);
+        if (insufficientScopeReference == null)
+        {
+            result.ScopeStepUp = new ScopeStepUpEvidence
+            {
+                PreviouslyGrantedScopes = priorScopes,
+                RequestedScopes = priorScopes,
+                Outcome = "initial-credential-unavailable"
+            };
+            return;
+        }
+
+        var insufficientScope = await TestMethodAuthentication(
+            CreateReferenceAuthenticationConfig(serverConfig, insufficientScopeReference),
+            endpointMethod,
+            "Controlled Insufficient Scope",
+            profile,
+            cancellationToken);
+        result.TestScenarios.Add(insufficientScope);
+        var challenge = CreateChallengeObservation(insufficientScope);
+        var previouslyGranted = priorScopes;
+        var challenged = NormalizeScopes(challenge.Scope?.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        var requested = previouslyGranted.Union(challenged, StringComparer.Ordinal).OrderBy(scope => scope, StringComparer.Ordinal).ToArray();
+
+        if (!challenge.ChallengeSyntaxValid ||
+            !challenge.UsesBearerChallenge ||
+            !string.Equals(challenge.Error, "insufficient_scope", StringComparison.Ordinal) ||
+            challenged.Length == 0)
+        {
+            result.ScopeStepUp = new ScopeStepUpEvidence
+            {
+                Evaluated = true,
+                PreviouslyGrantedScopes = previouslyGranted,
+                ChallengedScopes = challenged,
+                RequestedScopes = requested,
+                Outcome = "invalid-challenge"
+            };
+            return;
+        }
+
+        var stepUpReference = await AcquireControlledCredentialAsync(endpointResource, requested, cancellationToken);
+        if (stepUpReference == null)
+        {
+            result.ScopeStepUp = new ScopeStepUpEvidence
+            {
+                Evaluated = true,
+                PreviouslyGrantedScopes = previouslyGranted,
+                ChallengedScopes = challenged,
+                RequestedScopes = requested,
+                LeastPrivilegeSatisfied = false,
+                Outcome = "step-up-credential-unavailable"
+            };
+            return;
+        }
+
+        var retry = await TestMethodAuthentication(
+            CreateReferenceAuthenticationConfig(serverConfig, stepUpReference),
+            endpointMethod,
+            "Controlled Step-Up Token",
+            profile,
+            cancellationToken);
+        result.TestScenarios.Add(retry);
+        result.ScopeStepUp = new ScopeStepUpEvidence
+        {
+            Evaluated = true,
+            RetryAttempts = 1,
+            PreviouslyGrantedScopes = previouslyGranted,
+            ChallengedScopes = challenged,
+            RequestedScopes = requested,
+            LeastPrivilegeSatisfied = true,
+            Outcome = retry.AssessmentDisposition == AuthenticationAssessmentDisposition.StandardsAligned
+                ? "succeeded"
+                : "rejected-after-single-retry"
+        };
+    }
+
+    private static McpServerConfig CreateReferenceAuthenticationConfig(McpServerConfig source, SecretRef tokenReference) => new()
+    {
+        Endpoint = source.Endpoint,
+        Transport = source.Transport,
+        Authentication = new AuthenticationConfig
+        {
+            Type = "Bearer",
+            TokenRef = tokenReference.Clone()
+        }
+    };
+
+    private async Task<SecretRef?> AcquireControlledCredentialAsync(
+        Uri resource,
+        IReadOnlyList<string> scopes,
+        CancellationToken cancellationToken)
+    {
+        if (scopes.Count == 0)
+        {
+            return null;
+        }
+
+        var request = new NoninteractiveCredentialRequest
+        {
+            Metadata = new AuthMetadata
+            {
+                Resource = resource.AbsoluteUri,
+                ScopesSupported = scopes.ToList()
+            },
+            Resource = resource,
+            Scopes = scopes
+        };
+        INoninteractiveCredentialProvider? provider;
+        try
+        {
+            provider = _credentialProviders.FirstOrDefault(candidate => candidate.CanHandle(request));
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+
+        if (provider == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var reference = await provider.GetTokenReferenceAsync(request, cancellationToken);
+            return reference != null &&
+                   string.Equals(reference.Provider, SecretRefProviders.Environment, StringComparison.OrdinalIgnoreCase) &&
+                   !string.IsNullOrWhiteSpace(reference.Name) &&
+                   !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(reference.Name.Trim()))
+                ? reference.Clone()
+                : null;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    private static string[] NormalizeScopes(IEnumerable<string>? scopes) =>
+        scopes?
+            .Where(scope => !string.IsNullOrWhiteSpace(scope))
+            .Select(scope => scope.Trim())
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(scope => scope, StringComparer.Ordinal)
+            .ToArray() ?? Array.Empty<string>();
+
+    private static double GetFindingScoreCap(IEnumerable<ValidationFinding> findings)
+    {
+        var highestSeverity = findings
+            .Where(finding => finding.EffectiveSource is ValidationRuleSource.Spec or ValidationRuleSource.Guideline)
+            .Select(finding => finding.Severity)
+            .DefaultIfEmpty(ValidationFindingSeverity.Info)
+            .Max();
+        return highestSeverity switch
+        {
+            ValidationFindingSeverity.Critical => 0.0,
+            ValidationFindingSeverity.High => 50.0,
+            ValidationFindingSeverity.Medium => 75.0,
+            ValidationFindingSeverity.Low => 90.0,
+            _ => 100.0
+        };
+    }
+
+    private async Task ValidateClientRegistrationAsync(
+        AuthenticationTestResult result,
+        OAuthClientRegistrationConfig? registration,
+        CancellationToken cancellationToken)
+    {
+        if (registration == null || registration.Mode == OAuthClientRegistrationMode.None)
+        {
+            return;
+        }
+
+        var errors = ValidateRegistrationFields(registration);
+        var evaluated = registration.Mode != OAuthClientRegistrationMode.LegacyDynamic;
+        string? resolvedClientId = registration.ClientId;
+
+        if (registration.Mode == OAuthClientRegistrationMode.MetadataDocument && errors.Count == 0)
+        {
+            resolvedClientId = registration.MetadataUri;
+            try
+            {
+                var json = await _httpClient.GetStringAsync(registration.MetadataUri!, cancellationToken);
+                var document = JsonSerializer.Deserialize<OAuthClientMetadataDocument>(json, AuthMetadataJsonOptions);
+                ValidateClientMetadataDocument(registration, document, errors);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                errors.Add($"Client metadata document could not be fetched or parsed: {DescribeFailure(ex)}");
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthClientRegistrationMetadataUnavailable,
+                    "client-registration",
+                    ValidationFindingSeverity.Medium,
+                    "OAuth client metadata document could not be evaluated.",
+                    "Publish a valid client metadata document at the declared HTTPS client identifier.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["metadataUri"] = RedactUriForEvidence(registration.MetadataUri!) });
+            }
+        }
+
+        if (registration.Mode == OAuthClientRegistrationMode.LegacyDynamic)
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthLegacyDynamicRegistrationDeclared,
+                "client-registration",
+                ValidationFindingSeverity.Info,
+                "Legacy OAuth dynamic client registration was declared but not executed.",
+                "Use static registration or client ID metadata documents where supported; evaluate legacy registration only through an explicitly enabled provider.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string> { ["coverageStatus"] = "declared-not-evaluated" });
+        }
+        else if (errors.Count > 0)
+        {
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthClientRegistrationInvalid,
+                "client-registration",
+                ValidationFindingSeverity.High,
+                "OAuth client registration configuration or metadata was invalid.",
+                "Provide an exact client identifier and registered HTTPS or loopback callback URIs for the declared registration mode.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string> { ["errors"] = string.Join("; ", errors) });
+        }
+
+        result.ClientRegistration = new OAuthClientRegistrationEvidence
+        {
+            Mode = registration.Mode,
+            Declared = true,
+            Evaluated = evaluated,
+            IsValid = evaluated && errors.Count == 0,
+            ClientId = resolvedClientId,
+            MetadataUri = string.IsNullOrWhiteSpace(registration.MetadataUri) ? null : RedactUriForEvidence(registration.MetadataUri),
+            AuthorizationServerIssuer = registration.AuthorizationServerIssuer,
+            RedirectUris = registration.RedirectUris.ToArray(),
+            Errors = errors
+        };
+    }
+
+    private static List<string> ValidateRegistrationFields(OAuthClientRegistrationConfig registration)
+    {
+        var errors = new List<string>();
+        if (registration.RedirectUris.Count == 0)
+        {
+            errors.Add("At least one redirect URI is required.");
+        }
+        else
+        {
+            foreach (var redirectValue in registration.RedirectUris)
+            {
+                if (!TryCreateAbsoluteUri(redirectValue, out var redirectUri, out var issue) ||
+                    !IsSecureRedirectUri(redirectUri) || !string.IsNullOrEmpty(redirectUri.Fragment))
+                {
+                    errors.Add($"Redirect URI '{redirectValue}' is invalid: {issue ?? "HTTPS or loopback HTTP without a fragment is required."}");
+                }
+            }
+        }
+
+        if (registration.Mode == OAuthClientRegistrationMode.Static && string.IsNullOrWhiteSpace(registration.ClientId))
+        {
+            errors.Add("Static registration requires clientId.");
+        }
+
+        if (registration.Mode == OAuthClientRegistrationMode.Static &&
+            (string.IsNullOrWhiteSpace(registration.AuthorizationServerIssuer) ||
+             !TryCreateAbsoluteUri(registration.AuthorizationServerIssuer, out var staticIssuer, out _) ||
+             !string.Equals(staticIssuer.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+             !string.IsNullOrEmpty(staticIssuer.Query) ||
+             !string.IsNullOrEmpty(staticIssuer.Fragment) ||
+             !string.IsNullOrEmpty(staticIssuer.UserInfo)))
+        {
+            errors.Add("Static registration requires an exact absolute HTTPS authorizationServerIssuer without query, fragment, or user-info.");
+        }
+
+        if (registration.Mode == OAuthClientRegistrationMode.MetadataDocument &&
+            (string.IsNullOrWhiteSpace(registration.MetadataUri) ||
+             !TryCreateAbsoluteUri(registration.MetadataUri, out var metadataUri, out _) ||
+             !string.Equals(metadataUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+             metadataUri.AbsolutePath == "/" ||
+             ContainsDotPathSegment(registration.MetadataUri) ||
+             !string.IsNullOrEmpty(metadataUri.Fragment) ||
+             !string.IsNullOrEmpty(metadataUri.UserInfo)))
+        {
+            errors.Add("Metadata-document registration requires an absolute HTTPS metadataUri with a path and without a fragment or user-info.");
+        }
+
+        return errors;
+    }
+
+    private static void ValidateClientMetadataDocument(
+        OAuthClientRegistrationConfig registration,
+        OAuthClientMetadataDocument? document,
+        ICollection<string> errors)
+    {
+        if (document == null)
+        {
+            errors.Add("Client metadata document was empty.");
+            return;
+        }
+
+        if (!string.Equals(document.ClientId, registration.MetadataUri, StringComparison.Ordinal))
+        {
+            errors.Add("Client metadata document client_id does not exactly match metadataUri.");
+        }
+
+        if (string.IsNullOrWhiteSpace(document.ClientName))
+        {
+            errors.Add("Client metadata document is missing client_name.");
+        }
+
+        if (document.ClientSecret.HasValue || document.ClientSecretExpiresAt.HasValue)
+        {
+            errors.Add("Client metadata document must not contain client_secret or client_secret_expires_at.");
+        }
+
+        if (document.TokenEndpointAuthMethod?.StartsWith("client_secret_", StringComparison.Ordinal) == true)
+        {
+            errors.Add("Client metadata document must not use a symmetric client_secret token endpoint authentication method.");
+        }
+
+        var documentRedirects = document.RedirectUris ?? Array.Empty<string>();
+        if (documentRedirects.Length == 0)
+        {
+            errors.Add("Client metadata document is missing redirect_uris.");
+        }
+        foreach (var redirectValue in documentRedirects)
+        {
+            if (!TryCreateAbsoluteUri(redirectValue, out var redirectUri, out _) ||
+                !IsSecureRedirectUri(redirectUri) ||
+                !string.IsNullOrEmpty(redirectUri.Fragment) ||
+                !string.IsNullOrEmpty(redirectUri.UserInfo))
+            {
+                errors.Add($"Client metadata document contains invalid redirect URI '{redirectValue}'.");
+            }
+        }
+        foreach (var redirectUri in registration.RedirectUris)
+        {
+            if (!documentRedirects.Contains(redirectUri, StringComparer.Ordinal))
+            {
+                errors.Add($"Client metadata document does not register redirect URI '{redirectUri}'.");
+            }
+        }
+    }
+
+    private static bool IsSecureRedirectUri(Uri uri) =>
+        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) && uri.IsLoopback;
+
+    private static bool ContainsDotPathSegment(string value)
+    {
+        var authorityStart = value.IndexOf("://", StringComparison.Ordinal);
+        if (authorityStart < 0)
+        {
+            return false;
+        }
+
+        var pathStart = value.IndexOf('/', authorityStart + 3);
+        if (pathStart < 0)
+        {
+            return false;
+        }
+
+        var pathEnd = value.IndexOfAny(['?', '#'], pathStart);
+        var rawPath = pathEnd < 0 ? value[pathStart..] : value[pathStart..pathEnd];
+        return rawPath.Split('/').Any(segment =>
+        {
+            var decoded = Uri.UnescapeDataString(segment);
+            return decoded is "." or "..";
+        });
+    }
+
+    private sealed class OAuthClientMetadataDocument
+    {
+        [System.Text.Json.Serialization.JsonPropertyName("client_id")]
+        public string? ClientId { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("client_name")]
+        public string? ClientName { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("redirect_uris")]
+        public string[]? RedirectUris { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("client_secret")]
+        public JsonElement? ClientSecret { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("client_secret_expires_at")]
+        public JsonElement? ClientSecretExpiresAt { get; init; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("token_endpoint_auth_method")]
+        public string? TokenEndpointAuthMethod { get; init; }
+    }
+
+    private static void ValidateClientRegistrationAuthorizationServerCompatibility(AuthenticationTestResult result)
+    {
+        var registration = result.ClientRegistration;
+        if (registration == null || !registration.Evaluated || !registration.IsValid)
+        {
+            return;
+        }
+
+        var compatibleIssuers = new List<string>();
+        var compatibilityEvaluated = false;
+        if (registration.Mode == OAuthClientRegistrationMode.Static &&
+            result.ProtectedResourceMetadata?.AuthorizationServers is { Count: > 0 } advertisedIssuers)
+        {
+            compatibilityEvaluated = true;
+            compatibleIssuers.AddRange(advertisedIssuers.Where(issuer =>
+                string.Equals(issuer, registration.AuthorizationServerIssuer, StringComparison.Ordinal)));
+            if (compatibleIssuers.Count == 0)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthClientRegistrationInvalid,
+                    "client-registration",
+                    ValidationFindingSeverity.High,
+                    "The pre-registered client is bound to a different authorization-server issuer.",
+                    "Use client credentials registered for the exact issuer advertised by protected resource metadata.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+            }
+        }
+        else if (registration.Mode == OAuthClientRegistrationMode.MetadataDocument)
+        {
+            var fetchedMetadata = result.AuthorizationServerMetadata.Where(evidence => evidence.Fetched && evidence.IsValid).ToArray();
+            compatibilityEvaluated = fetchedMetadata.Length > 0;
+            compatibleIssuers.AddRange(fetchedMetadata
+                .Where(evidence => evidence.Metadata?.ClientIdMetadataDocumentSupported == true)
+                .Select(evidence => evidence.Issuer));
+            if (compatibilityEvaluated && compatibleIssuers.Count == 0)
+            {
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthClientMetadataDocumentUnsupported,
+                    "client-registration",
+                    ValidationFindingSeverity.Medium,
+                    "No discovered authorization server advertised Client ID Metadata Document support.",
+                    "Use pre-registration, or a declared legacy dynamic-registration fallback when its registration endpoint is available.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference);
+            }
+        }
+
+        result.ClientRegistration = new OAuthClientRegistrationEvidence
+        {
+            Mode = registration.Mode,
+            Declared = registration.Declared,
+            Evaluated = registration.Evaluated,
+            IsValid = registration.IsValid && (!compatibilityEvaluated || compatibleIssuers.Count > 0),
+            ClientId = registration.ClientId,
+            MetadataUri = registration.MetadataUri,
+            AuthorizationServerIssuer = registration.AuthorizationServerIssuer,
+            AuthorizationServerCompatibilityEvaluated = compatibilityEvaluated,
+            CompatibleAuthorizationServers = compatibleIssuers,
+            RedirectUris = registration.RedirectUris,
+            Errors = registration.Errors
+        };
     }
 
     private void AddChallengeFindings(AuthenticationTestResult result)
@@ -724,6 +1323,34 @@ public class McpCompliantAuthValidator
                     new Dictionary<string, string> { ["statusCode"] = scenario.StatusCode });
             }
         }
+
+        foreach (var scenario in result.TestScenarios.Where(scenario =>
+                     string.Equals(scenario.StatusCode, "403", StringComparison.OrdinalIgnoreCase) &&
+                     scenario.TestType is "Invalid Scope" or "Insufficient Permissions" or "Controlled Insufficient Scope"))
+        {
+            var challenge = CreateChallengeObservation(scenario);
+            if (challenge.UsesBearerChallenge &&
+                string.Equals(challenge.Error, "insufficient_scope", StringComparison.Ordinal) &&
+                !string.IsNullOrWhiteSpace(challenge.Scope))
+            {
+                continue;
+            }
+
+            AddAuthFinding(
+                result,
+                ValidationFindingRuleIds.AuthInsufficientScopeChallengeInvalid,
+                scenario.Method,
+                ValidationFindingSeverity.Medium,
+                $"{scenario.ScenarioName}: HTTP 403 did not provide a complete Bearer insufficient_scope challenge.",
+                "Return WWW-Authenticate: Bearer with error=\"insufficient_scope\" and the complete authoritative scope set for the operation.",
+                ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference,
+                new Dictionary<string, string>
+                {
+                    ["error"] = challenge.Error ?? "missing",
+                    ["scope"] = challenge.Scope ?? "missing"
+                });
+        }
     }
 
     private async Task ValidateProtectedResourceMetadataAsync(AuthenticationTestResult result, McpServerConfig serverConfig, CancellationToken cancellationToken)
@@ -732,26 +1359,65 @@ public class McpCompliantAuthValidator
             .Select(CreateChallengeObservation)
             .FirstOrDefault(observation => !string.IsNullOrWhiteSpace(observation.ResourceMetadataUrl));
 
-        if (challenge == null)
+        string metadataUrl;
+        string? prefetchedJson = null;
+        if (challenge != null)
         {
-            if (result.TestScenarios.Any(s => !string.IsNullOrWhiteSpace(s.WwwAuthenticateHeader)))
+            metadataUrl = challenge.ResourceMetadataUrl!;
+        }
+        else
+        {
+            var discoveryErrors = new List<string>();
+            var candidates = BuildProtectedResourceMetadataUrls(serverConfig.Endpoint);
+            metadataUrl = string.Empty;
+            foreach (var candidate in candidates)
             {
-                AddAuthFinding(
-                    result,
-                    ValidationFindingRuleIds.AuthProtectedResourceMetadataMissing,
-                    "authorization",
-                    ValidationFindingSeverity.High,
-                    "WWW-Authenticate challenge did not advertise resource_metadata.",
-                    "Include resource_metadata in the WWW-Authenticate challenge so MCP clients can use OAuth 2.0 Protected Resource Metadata for authorization server discovery.",
-                    ValidationRuleSource.Spec,
-                    McpAuthorizationSpecReference);
+                try
+                {
+                    var json = await _httpClient.GetStringAsync(candidate.AbsoluteUri, cancellationToken);
+                    if (JsonSerializer.Deserialize<AuthMetadata>(json, AuthMetadataJsonOptions) != null)
+                    {
+                        metadataUrl = candidate.AbsoluteUri;
+                        prefetchedJson = json;
+                        break;
+                    }
+
+                    discoveryErrors.Add($"{candidate.AbsoluteUri}: empty or invalid metadata document.");
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    discoveryErrors.Add($"{candidate.AbsoluteUri}: {DescribeFailure(ex)}");
+                }
             }
 
-            return;
+            if (string.IsNullOrEmpty(metadataUrl))
+            {
+                if (discoveryErrors.Count > 0 && discoveryErrors.All(error => error.Contains("Execution policy blocked", StringComparison.OrdinalIgnoreCase)))
+                {
+                    AddMetadataPolicyBlockFinding(result, string.Join(", ", candidates.Select(candidate => candidate.AbsoluteUri)), string.Join("; ", discoveryErrors));
+                    return;
+                }
+
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthProtectedResourceMetadataFetchFailed,
+                    "authorization",
+                    ValidationFindingSeverity.Medium,
+                    "Protected resource metadata was not advertised and could not be discovered at RFC 9728 well-known locations.",
+                    "Serve protected resource metadata at the endpoint-path or origin-root well-known URI, or advertise resource_metadata in WWW-Authenticate.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["errors"] = string.Join("; ", discoveryErrors) });
+                return;
+            }
         }
 
-        var metadataUrl = challenge.ResourceMetadataUrl!;
-        result.ProtectedResourceMetadataUrl = metadataUrl;
+        var evidenceMetadataUrl = RedactUriForEvidence(metadataUrl);
+        result.ProtectedResourceMetadataUrl = evidenceMetadataUrl;
 
         if (!TryCreateAbsoluteUri(metadataUrl, out var metadataUri, out var issue) || !string.IsNullOrEmpty(metadataUri.Fragment))
         {
@@ -766,7 +1432,7 @@ public class McpCompliantAuthValidator
                 McpAuthorizationSpecReference,
                 new Dictionary<string, string>
                 {
-                    ["resourceMetadataUrl"] = metadataUrl,
+                    ["resourceMetadataUrl"] = evidenceMetadataUrl,
                     ["issue"] = issue ?? "URI contains a fragment."
                 });
             return;
@@ -783,18 +1449,23 @@ public class McpCompliantAuthValidator
                 "Use HTTPS for OAuth-related metadata URLs in production, or restrict HTTP metadata URLs to explicit local development loopback addresses.",
                 ValidationRuleSource.Guideline,
                 "https://modelcontextprotocol.io/specification/2025-06-18/basic/security_best_practices#server-side-request-forgery-ssrf",
-                new Dictionary<string, string> { ["resourceMetadataUrl"] = metadataUrl });
+                new Dictionary<string, string> { ["resourceMetadataUrl"] = evidenceMetadataUrl });
             return;
         }
 
         AuthMetadata? metadata;
         try
         {
-            var json = await _httpClient.GetStringAsync(metadataUrl, cancellationToken);
+            var json = prefetchedJson ?? await _httpClient.GetStringAsync(metadataUrl, cancellationToken);
             metadata = JsonSerializer.Deserialize<AuthMetadata>(json, AuthMetadataJsonOptions);
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            if (IsExecutionPolicyBlock(ex))
+            {
+                AddMetadataPolicyBlockFinding(result, evidenceMetadataUrl, DescribeFailure(ex));
+                return;
+            }
             AddAuthFinding(
                 result,
                 ValidationFindingRuleIds.AuthProtectedResourceMetadataFetchFailed,
@@ -806,8 +1477,8 @@ public class McpCompliantAuthValidator
                 McpAuthorizationSpecReference,
                 new Dictionary<string, string>
                 {
-                    ["resourceMetadataUrl"] = metadataUrl,
-                    ["error"] = ex.Message
+                    ["resourceMetadataUrl"] = evidenceMetadataUrl,
+                    ["error"] = DescribeFailure(ex)
                 });
             return;
         }
@@ -823,12 +1494,274 @@ public class McpCompliantAuthValidator
                 "Return a JSON protected resource metadata document with resource and authorization_servers fields.",
                 ValidationRuleSource.Spec,
                 McpAuthorizationSpecReference,
-                new Dictionary<string, string> { ["resourceMetadataUrl"] = metadataUrl });
+                new Dictionary<string, string> { ["resourceMetadataUrl"] = evidenceMetadataUrl });
             return;
         }
 
         result.ProtectedResourceMetadata = metadata;
         ValidateAuthMetadataDocument(result, metadata, serverConfig);
+        await ValidateAuthorizationServerMetadataAsync(result, metadata, cancellationToken);
+    }
+
+    private static IReadOnlyList<Uri> BuildProtectedResourceMetadataUrls(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint) ||
+            !TryCreateAbsoluteUri(endpoint, out var endpointUri, out _) ||
+            !ShouldFetchOAuthMetadata(endpointUri))
+        {
+            return Array.Empty<Uri>();
+        }
+
+        var authority = endpointUri.GetLeftPart(UriPartial.Authority);
+        var endpointPath = endpointUri.AbsolutePath == "/" ? string.Empty : endpointUri.AbsolutePath;
+        var pathSpecific = new Uri($"{authority}/.well-known/oauth-protected-resource{endpointPath}");
+        var root = new Uri($"{authority}/.well-known/oauth-protected-resource");
+        return pathSpecific == root ? [root] : [pathSpecific, root];
+    }
+
+    private async Task ValidateAuthorizationServerMetadataAsync(
+        AuthenticationTestResult result,
+        AuthMetadata protectedResourceMetadata,
+        CancellationToken cancellationToken)
+    {
+        foreach (var issuerValue in protectedResourceMetadata.AuthorizationServers?
+                     .Where(value => !string.IsNullOrWhiteSpace(value))
+                     .Distinct(StringComparer.Ordinal) ?? Enumerable.Empty<string>())
+        {
+            if (!TryCreateAbsoluteUri(issuerValue, out var issuer, out _) ||
+                !string.Equals(issuer.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var attempts = BuildAuthorizationServerMetadataUrls(issuer);
+            AuthorizationServerMetadata? metadata = null;
+            Uri? selectedUrl = null;
+            string? selectedVariant = null;
+            var errors = new List<string>();
+            foreach (var attempt in attempts)
+            {
+                try
+                {
+                    var json = await _httpClient.GetStringAsync(attempt.Url.AbsoluteUri, cancellationToken);
+                    metadata = JsonSerializer.Deserialize<AuthorizationServerMetadata>(json, AuthMetadataJsonOptions);
+                    if (metadata != null)
+                    {
+                        selectedUrl = attempt.Url;
+                        selectedVariant = attempt.Variant;
+                        break;
+                    }
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"{attempt.Variant}: {DescribeFailure(ex)}");
+                }
+            }
+
+            if (metadata == null)
+            {
+                var policyBlocked = errors.Count > 0 && errors.All(error => error.Contains("Execution policy blocked", StringComparison.OrdinalIgnoreCase));
+                result.AuthorizationServerMetadata.Add(new AuthorizationServerMetadataEvidence
+                {
+                    Issuer = issuerValue,
+                    Fetched = false,
+                    IsValid = false,
+                    Errors = errors
+                });
+                if (policyBlocked)
+                {
+                    AddMetadataPolicyBlockFinding(result, issuer.AbsoluteUri, string.Join("; ", errors));
+                    continue;
+                }
+                AddAuthFinding(
+                    result,
+                    ValidationFindingRuleIds.AuthAuthorizationServerMetadataUnavailable,
+                    issuer.Host,
+                    ValidationFindingSeverity.Medium,
+                    "Authorization-server metadata could not be discovered through RFC 8414 or OpenID Connect well-known locations.",
+                    "Publish authorization-server metadata at a standard well-known location and allow authorized clients to retrieve it.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["issuer"] = issuer.AbsoluteUri });
+                continue;
+            }
+
+            var validationErrors = ValidateAuthorizationServerMetadataDocument(result, issuerValue, issuer, metadata);
+            var enterpriseManagedAuthorizationSupported =
+                metadata.AuthorizationGrantProfilesSupported?.Contains(EnterpriseManagedAuthorizationProfile, StringComparer.Ordinal) == true;
+            var enterpriseManagedAuthorizationValid = ValidateEnterpriseManagedAuthorizationMetadata(
+                result,
+                issuer,
+                metadata,
+                enterpriseManagedAuthorizationSupported,
+                validationErrors);
+            result.AuthorizationServerMetadata.Add(new AuthorizationServerMetadataEvidence
+            {
+                Issuer = issuerValue,
+                MetadataUrl = selectedUrl == null ? null : RedactUriForEvidence(selectedUrl.AbsoluteUri),
+                DiscoveryVariant = selectedVariant,
+                Fetched = true,
+                IsValid = validationErrors.Count == 0,
+                EnterpriseManagedAuthorizationSupported = enterpriseManagedAuthorizationSupported,
+                EnterpriseManagedAuthorizationValid = enterpriseManagedAuthorizationValid,
+                Metadata = metadata,
+                Errors = validationErrors
+            });
+        }
+    }
+
+    private static bool ValidateEnterpriseManagedAuthorizationMetadata(
+        AuthenticationTestResult result,
+        Uri issuer,
+        AuthorizationServerMetadata metadata,
+        bool supported,
+        ICollection<string> errors)
+    {
+        if (!supported)
+        {
+            return false;
+        }
+
+        if (metadata.GrantTypesSupported?.Contains(JwtBearerGrantType, StringComparer.Ordinal) == true)
+        {
+            return true;
+        }
+
+        const string issue = "authorization_grant_profiles_supported advertises ID-JAG but grant_types_supported omits the JWT bearer grant.";
+        errors.Add(issue);
+        AddAuthFinding(
+            result,
+            ValidationFindingRuleIds.AuthEnterpriseManagedAuthorizationInvalid,
+            issuer.Host,
+            ValidationFindingSeverity.High,
+            "Authorization-server metadata advertised enterprise-managed authorization without its required JWT bearer access-token grant.",
+            "Advertise urn:ietf:params:oauth:grant-type:jwt-bearer in grant_types_supported or remove the ID-JAG grant profile declaration.",
+            ValidationRuleSource.Spec,
+            EnterpriseManagedAuthorizationReference,
+            new Dictionary<string, string>
+            {
+                ["issuer"] = issuer.AbsoluteUri,
+                ["grantProfile"] = EnterpriseManagedAuthorizationProfile,
+                ["requiredGrantType"] = JwtBearerGrantType
+            });
+        return false;
+    }
+
+    private static IReadOnlyList<(string Variant, Uri Url)> BuildAuthorizationServerMetadataUrls(Uri issuer)
+    {
+        var issuerPath = issuer.AbsolutePath == "/" ? string.Empty : issuer.AbsolutePath.TrimEnd('/');
+        var authority = issuer.GetLeftPart(UriPartial.Authority);
+        if (string.IsNullOrEmpty(issuerPath))
+        {
+            return
+            [
+                ("rfc8414", new Uri($"{authority}/.well-known/oauth-authorization-server")),
+                ("openid-connect", new Uri($"{authority}/.well-known/openid-configuration"))
+            ];
+        }
+
+        return
+        [
+            ("rfc8414-path-insertion", new Uri($"{authority}/.well-known/oauth-authorization-server{issuerPath}")),
+            ("openid-connect-path-insertion", new Uri($"{authority}/.well-known/openid-configuration{issuerPath}")),
+            ("openid-connect-path-appending", new Uri($"{authority}{issuerPath}/.well-known/openid-configuration"))
+        ];
+    }
+
+    private static List<string> ValidateAuthorizationServerMetadataDocument(
+        AuthenticationTestResult result,
+        string expectedIssuerIdentifier,
+        Uri expectedIssuer,
+        AuthorizationServerMetadata metadata)
+    {
+        var errors = new List<string>();
+        if (!string.Equals(metadata.Issuer, expectedIssuerIdentifier, StringComparison.Ordinal))
+        {
+            errors.Add("issuer does not exactly match the authorization_servers identifier.");
+            AddAuthFinding(result, ValidationFindingRuleIds.AuthAuthorizationServerIssuerMismatch, expectedIssuer.Host,
+                ValidationFindingSeverity.High, "Authorization-server metadata issuer did not match the advertised issuer identifier.",
+                "Publish an exact issuer value matching protected-resource metadata.", ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference, new Dictionary<string, string> { ["expectedIssuer"] = expectedIssuerIdentifier, ["actualIssuer"] = metadata.Issuer ?? "missing" });
+        }
+
+        ValidateHttpsEndpoint(result, metadata.AuthorizationEndpoint, "authorization_endpoint", ValidationFindingRuleIds.AuthAuthorizationEndpointInsecure, errors);
+        ValidateHttpsEndpoint(result, metadata.TokenEndpoint, "token_endpoint", ValidationFindingRuleIds.AuthTokenEndpointInsecure, errors);
+
+        if (metadata.CodeChallengeMethodsSupported?.Contains("S256", StringComparer.Ordinal) != true)
+        {
+            errors.Add("code_challenge_methods_supported does not include S256.");
+            AddAuthFinding(result, ValidationFindingRuleIds.AuthPkceS256Missing, expectedIssuer.Host,
+                ValidationFindingSeverity.High, "Authorization server did not advertise PKCE S256 support.",
+                "Advertise and require code_challenge_method=S256 for authorization-code flows.", ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference, new Dictionary<string, string> { ["issuer"] = expectedIssuer.AbsoluteUri });
+        }
+
+        return errors;
+    }
+
+    private static void ValidateHttpsEndpoint(
+        AuthenticationTestResult result,
+        string? endpoint,
+        string endpointName,
+        string ruleId,
+        ICollection<string> errors)
+    {
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+            !string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+        {
+            errors.Add($"{endpointName} is missing or not HTTPS.");
+            AddAuthFinding(result, ruleId, endpointName, ValidationFindingSeverity.High,
+                $"Authorization-server metadata {endpointName} was missing or not HTTPS.",
+                $"Publish an absolute HTTPS {endpointName}.", ValidationRuleSource.Spec,
+                McpAuthorizationSpecReference, new Dictionary<string, string> { [endpointName] = endpoint ?? "missing" });
+        }
+    }
+
+    private static bool IsExecutionPolicyBlock(Exception exception) =>
+        exception is InvalidOperationException &&
+        exception.Message.Contains("Execution policy blocked", StringComparison.OrdinalIgnoreCase);
+
+    private static string DescribeFailure(Exception exception) => exception switch
+    {
+        _ when IsExecutionPolicyBlock(exception) => "Execution policy blocked outbound metadata request.",
+        JsonException => "The response was not valid JSON.",
+        HttpRequestException => "The HTTP request failed.",
+        TimeoutException => "The operation timed out.",
+        TaskCanceledException => "The operation timed out or was cancelled by its deadline.",
+        _ => "The operation failed."
+    };
+
+    private static string RedactUriForEvidence(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
+        {
+            return value;
+        }
+
+        return new UriBuilder(uri) { Query = "__REDACTED__" }.Uri.AbsoluteUri;
+    }
+
+    private static void AddMetadataPolicyBlockFinding(AuthenticationTestResult result, string metadataTarget, string reason)
+    {
+        AddAuthFinding(
+            result,
+            ValidationFindingRuleIds.AuthMetadataBlockedByPolicy,
+            "authorization-metadata",
+            ValidationFindingSeverity.Info,
+            "Authorization metadata was not evaluated because the outbound execution policy blocked its origin.",
+            "Add the reviewed metadata origin with --allow-origin to collect authoritative authorization evidence.",
+            ValidationRuleSource.Heuristic,
+            McpAuthorizationSpecReference,
+            new Dictionary<string, string>
+            {
+                ["metadataTarget"] = metadataTarget,
+                ["coverageStatus"] = "blocked",
+                ["reason"] = reason
+            });
     }
 
     private static void ValidateAuthMetadataDocument(AuthenticationTestResult result, AuthMetadata metadata, McpServerConfig? serverConfig = null)
@@ -1021,23 +1954,40 @@ public class McpCompliantAuthValidator
             {
                 AddAuthFinding(
                     result,
+                    ValidationFindingRuleIds.AuthInvalidTokenAccepted,
+                    scenario.Method,
+                    ValidationFindingSeverity.Critical,
+                    $"{scenario.ScenarioName}: a synthetic, invalidly signed token carrying a different audience was accepted.",
+                    "Validate token signatures and claims before processing MCP requests; use a controlled valid token for authoritative audience-binding evaluation.",
+                    ValidationRuleSource.Spec,
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["audienceEvidence"] = "synthetic-invalid-token" });
+            }
+
+            if (string.Equals(scenario.TestType, "Controlled Wrong Audience", StringComparison.Ordinal) &&
+                scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.Insecure)
+            {
+                AddAuthFinding(
+                    result,
                     ValidationFindingRuleIds.AuthWrongAudienceAccepted,
                     scenario.Method,
                     ValidationFindingSeverity.Critical,
-                    $"{scenario.ScenarioName}: token for a different audience was accepted.",
+                    $"{scenario.ScenarioName}: a controlled valid token issued for a different audience was accepted.",
                     "Validate that access tokens were issued specifically for this MCP server as the intended resource.",
                     ValidationRuleSource.Spec,
-                    McpAuthorizationSpecReference);
+                    McpAuthorizationSpecReference,
+                    new Dictionary<string, string> { ["audienceEvidence"] = "controlled-valid-token" });
 
                 AddAuthFinding(
                     result,
                     ValidationFindingRuleIds.AuthTokenPassthroughRisk,
                     scenario.Method,
                     ValidationFindingSeverity.High,
-                    $"{scenario.ScenarioName}: wrong-audience token acceptance indicates token passthrough/confused-deputy risk.",
-                    "Do not accept or transit tokens issued for other resources; acquire separate downstream tokens when proxying to upstream APIs.",
+                    $"{scenario.ScenarioName}: controlled wrong-audience token acceptance is a confused-deputy or token-passthrough indicator.",
+                    "Do not accept or transit tokens issued for other resources; acquire a separate audience-bound downstream token.",
                     ValidationRuleSource.Spec,
-                    McpSecurityBestPracticesReference);
+                    McpSecurityBestPracticesReference,
+                    new Dictionary<string, string> { ["evidenceKind"] = "acceptance-indicator-not-forwarding-proof" });
             }
         }
     }
@@ -1075,12 +2025,17 @@ public class McpCompliantAuthValidator
         return int.TryParse(scenario.StatusCode, out var statusCode) && ValidationReliability.IsAuthenticationStatusCode(statusCode);
     }
 
+    private static bool RequiresAuthentication(AuthenticationScenario scenario) =>
+        int.TryParse(scenario.StatusCode, out var statusCode) &&
+        ValidationReliability.IsAuthenticationStatusCode(statusCode);
+
     private static AuthenticationChallengeObservation CreateChallengeObservation(AuthenticationScenario scenario)
     {
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        if (!string.IsNullOrWhiteSpace(scenario.WwwAuthenticateHeader))
+        var challengeHeader = scenario.RawWwwAuthenticateHeader ?? scenario.WwwAuthenticateHeader;
+        if (!string.IsNullOrWhiteSpace(challengeHeader))
         {
-            headers["WWW-Authenticate"] = scenario.WwwAuthenticateHeader;
+            headers["WWW-Authenticate"] = challengeHeader;
         }
 
         return AuthenticationChallengeInterpreter.Inspect(new JsonRpcResponse
@@ -1100,7 +2055,8 @@ public class McpCompliantAuthValidator
         return string.Equals(testType, "Invalid Token", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(testType, "Token Expired", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(testType, "Revoked Token", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(testType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase);
+               string.Equals(testType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Controlled Wrong Audience", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsInvalidTokenScenario(string testType)
@@ -1125,8 +2081,15 @@ public class McpCompliantAuthValidator
                string.Equals(testType, "Invalid Scope", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(testType, "Insufficient Permissions", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(testType, "Wrong Audience (RFC 8707)", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Controlled Wrong Audience", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Controlled Insufficient Scope", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(testType, "Controlled Step-Up Token", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(testType, "Valid Token", StringComparison.OrdinalIgnoreCase);
     }
+
+    private static bool IsValidCredentialScenario(string testType) =>
+        string.Equals(testType, "Valid Token", StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(testType, "Controlled Step-Up Token", StringComparison.OrdinalIgnoreCase);
 
     private static bool TryCreateAbsoluteUri(string value, out Uri uri, out string? issue)
     {

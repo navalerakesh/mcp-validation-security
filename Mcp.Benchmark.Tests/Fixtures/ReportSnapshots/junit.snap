@@ -1,4 +1,4 @@
-<testsuites name="MCP Validator" tests="17" failures="4" errors="0" skipped="2" time="33.700">
+<testsuites name="MCP Validator" tests="17" failures="4" errors="0" skipped="2" time="21.700">
   <testsuite name="overall-validation" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
@@ -39,7 +39,7 @@ Recommendation: Add destructive hints to write-capable tools.
 Recommendation: Return the negotiated protocol version explicitly during initialize.</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="host-policy" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="host-policy" tests="1" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
@@ -48,8 +48,8 @@ Recommendation: Return the negotiated protocol version explicitly during initial
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.policy" name="Policy Gate (strict)" time="12.000">
-      <failure message="Strict policy blocked the validation result with 9 unsuppressed signal(s).">Strict policy blocked the validation result with 9 unsuppressed signal(s).
+    <testcase classname="validation.policy" name="Policy Gate (strict)" time="0.000">
+      <failure message="Strict policy blocked the validation result with 9 blocking signal(s).">Strict policy blocked the validation result with 9 blocking signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
 Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
@@ -65,8 +65,9 @@ Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflec
 Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
 Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
 Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
-Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</failure>
-      <system-out>Strict policy blocked the validation result with 9 unsuppressed signal(s).
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Additional Blocking Decisions: 3 retained in canonical JSON.</failure>
+      <system-out>Strict policy blocked the validation result with 9 blocking signal(s).
 Recommended Exit Code: 1
 Suppressed Signals: 0
 Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
@@ -82,7 +83,8 @@ Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflec
 Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
 Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
 Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
-Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.</system-out>
+Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Additional Blocking Decisions: 3 retained in canonical JSON.</system-out>
     </testcase>
   </testsuite>
   <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">

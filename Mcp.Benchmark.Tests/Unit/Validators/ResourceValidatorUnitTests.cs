@@ -193,4 +193,50 @@ public class ResourceValidatorUnitTests
 
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ResourceTemplateBoundaryGuidanceMissing);
     }
+
+    [Fact]
+    public async Task ValidateResourceDiscoveryAsync_CatalogExceedsConfiguredLimit_ShouldReturnInconclusiveTruncationEvidence()
+    {
+        var httpClient = new Mock<IMcpHttpClient>();
+        httpClient
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.ResourcesList,
+                It.IsAny<object?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resources\":[{\"uri\":\"file:///one\",\"name\":\"one\"},{\"uri\":\"file:///two\",\"name\":\"two\"},{\"uri\":\"file:///three\",\"name\":\"three\"}]}}"
+            });
+        var contentSafety = new Mock<IContentSafetyAnalyzer>();
+        contentSafety
+            .Setup(analyzer => analyzer.AnalyzeResource(It.IsAny<string?>(), It.IsAny<string>()))
+            .Returns(new List<ContentSafetyFinding>());
+        var validator = new ResourceValidator(
+            Mock.Of<ILogger<ResourceValidator>>(),
+            httpClient.Object,
+            Mock.Of<ISchemaValidator>(),
+            Mock.Of<ISchemaRegistry>(),
+            contentSafety.Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            new ResourceTestingConfig
+            {
+                MaxResources = 2,
+                TestResourceReading = false,
+                TestSubscriptions = false
+            },
+            CancellationToken.None);
+
+        result.ResourcesDiscovered.Should().Be(3);
+        result.ResourceResults.Should().HaveCount(2);
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.Findings.Should().ContainSingle(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ResourceCatalogTruncated &&
+            finding.Metadata["observedCount"] == "3" &&
+            finding.Metadata["processedLimit"] == "2");
+    }
 }

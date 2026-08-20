@@ -40,7 +40,7 @@ public sealed class HealthCheckCommandTests : IDisposable
 
         // Act
         await command.ExecuteAsync(
-            "https://mcp.example.org",
+            "https://1.1.1.1/mcp",
             2000,
             null,
             verbose: false,
@@ -80,7 +80,7 @@ public sealed class HealthCheckCommandTests : IDisposable
             sessionContext);
 
         // Act
-        await command.ExecuteAsync("https://mcp.example.org", 2000, null, verbose: false, token: null, interactive: false, serverProfile: null);
+        await command.ExecuteAsync("https://1.1.1.1/mcp", 2000, null, verbose: false, token: null, interactive: false, serverProfile: null);
 
         // Assert
         consoleOutput.Verify(c => c.WriteSessionLogHint(It.Is<string?>(s => s != null && s.Contains("Health-check", StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
@@ -104,7 +104,7 @@ public sealed class HealthCheckCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            "https://mcp.example.org",
+            "https://1.1.1.1/mcp",
             timeoutMs: 2000,
             configFile: null,
             verbose: false,
@@ -115,6 +115,45 @@ public sealed class HealthCheckCommandTests : IDisposable
 
         Environment.ExitCode.Should().Be(0);
         validatorService.Verify(service => service.PerformHealthCheckAsync(It.IsAny<McpServerConfig>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithStdioTarget_ShouldExecuteOriginalCommandAndPersistRedactedTarget()
+    {
+        const string stdioCommand = "node /reviewed/server.cjs";
+        var sessionContext = CreateSessionContext();
+        var validatorService = new Mock<IMcpValidatorService>();
+        validatorService
+            .Setup(service => service.PerformHealthCheckAsync(It.IsAny<McpServerConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new HealthCheckResult { IsHealthy = true });
+        var httpClient = new Mock<IMcpHttpClient>(MockBehavior.Loose);
+        var artifactStore = new FileSessionArtifactStore(sessionContext.StateDirectory, NullLogger<FileSessionArtifactStore>.Instance);
+        var command = new HealthCheckCommand(
+            validatorService.Object,
+            new Mock<IConsoleOutputService>(MockBehavior.Loose).Object,
+            NullLogger<HealthCheckCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            artifactStore,
+            httpClient.Object,
+            sessionContext);
+
+        await command.ExecuteAsync(
+            stdioCommand,
+            2000,
+            null,
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            persistenceMode: "session");
+
+        httpClient.Verify(client => client.StartSessionAsync(
+            stdioCommand,
+            It.IsAny<IReadOnlyDictionary<string, string>?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        var artifact = Directory.GetFiles(sessionContext.StateDirectory, "health-check-results-*.json").Should().ContainSingle().Subject;
+        (await File.ReadAllTextAsync(artifact)).Should().Contain("__STDIO_COMMAND_REDACTED__").And.NotContain(stdioCommand);
     }
 
     private CliSessionContext CreateSessionContext()

@@ -1,14 +1,17 @@
 import assert from "node:assert/strict";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { chmod, mkdtemp, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { Readable } from "node:stream";
-import test from "node:test";
+import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { config } from "../src/config.js";
+
+const temporaryRoots: string[] = [];
+after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive: true, force: true }))));
 
 const packageRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 const tsxCliPath = join(packageRoot, "node_modules", "tsx", "dist", "cli.mjs");
@@ -27,6 +30,7 @@ process.exit(0);
 
 async function createMockCli(): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), "mcpval-localmcp-server-test-"));
+  temporaryRoots.push(dir);
   const scriptPath = join(dir, "mock-cli.mjs");
   await writeFile(scriptPath, runnerScript, "utf-8");
   await chmod(scriptPath, 0o755);
@@ -65,12 +69,15 @@ test("server exposes rich initialize metadata and guidance", async () => {
     assert.equal(instructions, config.server.instructions);
     assert.match(instructions ?? "", /Use health_check first/);
     assert.match(instructions ?? "", /Use validate for full compliance/);
+    assert.match(instructions ?? "", /Local command execution is disabled/);
 
     const { tools } = await client.listTools();
     const validateTool = tools.find((tool) => tool.name === "validate");
     assert.ok(validateTool);
     assert.equal(validateTool?.title, "Validate MCP Server");
     assert.equal(validateTool?.annotations?.openWorldHint, true);
+    assert.doesNotMatch(JSON.stringify(validateTool?.inputSchema), /STDIO command/);
+    assert.match(JSON.stringify(validateTool?.inputSchema), /"protocolEra".*"auto".*"legacy".*"modern"/);
 
     const discoverTool = tools.find((tool) => tool.name === "discover");
     assert.ok(discoverTool);

@@ -8,12 +8,12 @@ namespace Mcp.Benchmark.CLI.Services;
 public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
 {
     public Task<ModelEvaluationArtifact> ExecuteAsync(
-        ValidationResult validationResult,
+        ModelEvaluationInput input,
         ExecutionPlan executionPlan,
         ModelEvaluationPolicy evaluationPolicy,
         CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(validationResult);
+        ArgumentNullException.ThrowIfNull(input);
         ArgumentNullException.ThrowIfNull(executionPlan);
         ArgumentNullException.ThrowIfNull(evaluationPolicy);
 
@@ -31,20 +31,28 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
             throw new CliUsageException($"Model evaluation provider '{provider}' is not registered in this build. Supported providers: builtin-rubric.");
         }
 
-        var advisoryNotes = BuildAdvisoryNotes(validationResult);
-        var relatedFindings = BuildRelatedDeterministicFindings(validationResult);
-        var blockingCount = validationResult.VerdictAssessment?.BlockingDecisions.Count ?? 0;
+        var advisoryNotes = BuildAdvisoryNotes(input);
+        var relatedFindings = BuildRelatedDeterministicFindings(input);
+        var blockingCount = input.BlockingDecisions.Count;
 
         return Task.FromResult(new ModelEvaluationArtifact
         {
-            ValidationId = validationResult.ValidationId,
+            ValidationId = input.ValidationId,
             SessionId = executionPlan.SessionId,
             Provider = "builtin-rubric",
             Model = string.IsNullOrWhiteSpace(evaluationPolicy.Model) ? "builtin-rubric-v1" : evaluationPolicy.Model,
             PromptSet = string.IsNullOrWhiteSpace(evaluationPolicy.PromptSet) ? "builtin-default" : evaluationPolicy.PromptSet,
             Status = ModelEvaluationArtifactStatus.Completed,
-            Summary = BuildSummary(validationResult, blockingCount),
-            BaselineVerdict = validationResult.VerdictAssessment?.BaselineVerdict,
+            Cost = new ModelEvaluationCost
+            {
+                InputTokens = 0,
+                OutputTokens = 0,
+                Amount = 0,
+                Currency = "USD",
+                Estimated = false
+            },
+            Summary = BuildSummary(input, blockingCount),
+            BaselineVerdict = input.BaselineVerdict,
             AdvisoryNotes = advisoryNotes,
             RelatedDeterministicFindings = relatedFindings
         });
@@ -57,44 +65,31 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
             || string.Equals(provider, "rubric", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildSummary(ValidationResult validationResult, int blockingCount)
+    private static string BuildSummary(ModelEvaluationInput input, int blockingCount)
     {
-        var verdictLabel = validationResult.VerdictAssessment?.BaselineVerdict.ToString() ?? "Unknown";
-        return $"Built-in rubric evaluation completed. Baseline verdict={verdictLabel}; blocking decisions={blockingCount}. Experimental companion output only.";
+        return $"Built-in rubric evaluation completed. Baseline verdict={input.BaselineVerdict}; blocking decisions={blockingCount}. Experimental companion output only.";
     }
 
-    private static IReadOnlyList<string> BuildAdvisoryNotes(ValidationResult validationResult)
+    private static IReadOnlyList<string> BuildAdvisoryNotes(ModelEvaluationInput input)
     {
         var notes = new List<string>
         {
             "Experimental model evaluation is stored as a companion artifact and never alters the deterministic baseline verdict."
         };
 
-        if (!string.IsNullOrWhiteSpace(validationResult.VerdictAssessment?.Summary))
+        foreach (var decision in input.BlockingDecisions.Take(3))
         {
-            notes.Add(validationResult.VerdictAssessment.Summary);
+            notes.Add($"Decision {decision.DecisionId}: {decision.Category}/{decision.Component}; gate={decision.Gate}; severity={decision.Severity}.");
         }
 
-        foreach (var decision in validationResult.VerdictAssessment?.BlockingDecisions.Take(3) ?? Array.Empty<DecisionRecord>())
+        foreach (var assessment in input.ClientProfiles.Take(2))
         {
-            notes.Add($"{decision.Category}/{decision.Component}: {decision.Summary}");
+            notes.Add($"Client profile {assessment.ProfileId}: {assessment.Status}.");
         }
 
-        if (validationResult.ClientCompatibility?.Assessments is { Count: > 0 } assessments)
+        foreach (var finding in input.AiFindings.Take(3))
         {
-            foreach (var assessment in assessments.Take(2))
-            {
-                notes.Add($"Client profile {assessment.ProfileId}: {assessment.Status}.");
-            }
-        }
-
-        var aiFindings = validationResult.ToolValidation?.AiReadinessFindings ?? new List<ValidationFinding>();
-        foreach (var finding in aiFindings.Take(3))
-        {
-            var evidenceKind = finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var value)
-                ? value
-                : null;
-            notes.Add($"Related deterministic AI-readiness finding {finding.RuleId}: {AiReadinessEvidenceKinds.ToDisplayLabel(evidenceKind, finding.RuleId)} for {finding.Component}.");
+            notes.Add($"Related deterministic AI-readiness finding {finding.RuleId}: {finding.EvidenceKind} for {finding.Component}.");
         }
 
         if (notes.Count == 1)
@@ -105,28 +100,21 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
         return notes;
     }
 
-    private static IReadOnlyList<ModelEvaluationFindingLink> BuildRelatedDeterministicFindings(ValidationResult validationResult)
+    private static IReadOnlyList<ModelEvaluationFindingLink> BuildRelatedDeterministicFindings(ModelEvaluationInput input)
     {
-        return (validationResult.ToolValidation?.AiReadinessFindings ?? new List<ValidationFinding>())
+        return input.AiFindings
             .Where(finding => !string.IsNullOrWhiteSpace(finding.RuleId))
             .OrderByDescending(finding => finding.Severity)
             .ThenBy(finding => finding.RuleId, StringComparer.OrdinalIgnoreCase)
             .Take(20)
-            .Select(finding =>
+            .Select(finding => new ModelEvaluationFindingLink
             {
-                var evidenceKind = finding.Metadata.TryGetValue(AiReadinessEvidenceKinds.MetadataKey, out var value)
-                    ? value
-                    : AiReadinessEvidenceKinds.Infer(null, finding.RuleId);
-
-                return new ModelEvaluationFindingLink
-                {
-                    RuleId = finding.RuleId,
-                    Category = finding.Category,
-                    Component = finding.Component,
-                    EvidenceKind = evidenceKind,
-                    Summary = finding.Summary,
-                    Recommendation = finding.Recommendation
-                };
+                RuleId = finding.RuleId,
+                Category = finding.Category,
+                Component = finding.Component,
+                EvidenceKind = finding.EvidenceKind,
+                Summary = $"Deterministic finding {finding.RuleId} ({finding.Severity}).",
+                Recommendation = null
             })
             .ToList();
     }

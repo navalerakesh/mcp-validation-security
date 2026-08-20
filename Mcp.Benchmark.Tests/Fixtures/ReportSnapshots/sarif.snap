@@ -7,7 +7,7 @@
         "driver": {
           "name": "MCP Benchmark",
           "fullName": "MCP Benchmark Validation Suite",
-          "semanticVersion": "1.0.0",
+          "semanticVersion": "1.1.25",
           "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
           "rules": [
             {
@@ -157,7 +157,7 @@
       },
       "invocations": [
         {
-          "executionSuccessful": true,
+          "executionSuccessful": false,
           "startTimeUtc": "2026-04-20T10:00:00.0000000Z",
           "endTimeUtc": "2026-04-20T10:00:12.0000000Z",
           "properties": {
@@ -165,6 +165,13 @@
             "endpoint": "https://snapshot.example.test/mcp",
             "transport": "http",
             "overallStatus": "Failed",
+            "baselineVerdict": "Reject",
+            "protocolVerdict": "Reject",
+            "coverageVerdict": "ReviewRequired",
+            "policyPassed": false,
+            "policySummary": "Strict policy blocked the validation result with 9 blocking signal(s).",
+            "evidenceCoverageRatio": 0.875,
+            "evidenceConfidenceRatio": 0.9188,
             "serverProfile": "Authenticated",
             "specProfile": "2025-11-25"
           }
@@ -365,7 +372,7 @@
         {
           "ruleId": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
           "level": "warning",
-          "kind": "fail",
+          "kind": "review",
           "message": {
             "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
           },

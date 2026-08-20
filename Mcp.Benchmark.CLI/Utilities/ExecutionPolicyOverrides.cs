@@ -1,4 +1,6 @@
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.CLI.Utilities;
 
@@ -17,7 +19,8 @@ internal static class ExecutionPolicyOverrides
         string? redactLevel = null,
         string? traceMode = null,
         bool? confirmElevatedRisk = null,
-        bool? enableModelEval = null)
+        bool? enableModelEval = null,
+        string[]? allowedOrigins = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
@@ -43,6 +46,14 @@ internal static class ExecutionPolicyOverrides
                 .ToList();
         }
 
+            if (allowedOrigins is { Length: > 0 })
+            {
+                configuration.Execution.AllowedOrigins = allowedOrigins
+                .SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+            }
+
         if (allowPrivateAddresses.HasValue)
         {
             configuration.Execution.AllowPrivateAddresses = allowPrivateAddresses.Value;
@@ -50,17 +61,17 @@ internal static class ExecutionPolicyOverrides
 
         if (maxRequests.HasValue)
         {
-            configuration.Execution.MaxRequests = Math.Max(1, maxRequests.Value);
+            configuration.Execution.MaxRequests = maxRequests.Value;
         }
 
         if (maxConcurrency.HasValue)
         {
-            configuration.Execution.MaxConcurrency = Math.Clamp(maxConcurrency.Value, 1, 128);
+            configuration.Execution.MaxConcurrency = maxConcurrency.Value;
         }
 
         if (timeoutSeconds.HasValue)
         {
-            configuration.Execution.TimeoutSeconds = Math.Max(1, timeoutSeconds.Value);
+            configuration.Execution.TimeoutSeconds = timeoutSeconds.Value;
         }
 
         if (TryParseEnum(persistenceMode?.Replace("-", string.Empty, StringComparison.OrdinalIgnoreCase), out PersistenceMode parsedPersistenceMode))
@@ -88,10 +99,46 @@ internal static class ExecutionPolicyOverrides
             configuration.Evaluation.ModelEvaluation.Enabled = enableModelEval.Value;
         }
 
-        configuration.Execution.MaxConcurrency = Math.Clamp(configuration.Execution.MaxConcurrency, 1, 128);
-        configuration.Execution.MaxRequests = Math.Max(1, configuration.Execution.MaxRequests);
-        configuration.Execution.TimeoutSeconds = Math.Max(1, configuration.Execution.TimeoutSeconds);
-        configuration.Server.TimeoutMs = configuration.Execution.TimeoutSeconds * 1000;
+        if (configuration.Execution.TimeoutSeconds is >= ExecutionPolicyDefaults.MinimumPositiveValue and <= ExecutionPolicyDefaults.MaximumTimeoutSeconds)
+        {
+            configuration.Server.TimeoutMs = configuration.Execution.TimeoutSeconds * 1000;
+        }
+
+        if (configuration.Execution.Mode == ExecutionMode.Safe)
+        {
+            ApplySafeMode(configuration.Validation.Categories);
+        }
+    }
+
+    private static void ApplySafeMode(ValidationScenarios scenarios)
+    {
+        scenarios.ToolTesting.TestToolExecution = false;
+        scenarios.ToolTesting.TestParameterValidation = false;
+        scenarios.ResourceTesting.TestResourceReading = false;
+        scenarios.ResourceTesting.TestSubscriptions = false;
+        scenarios.PromptTesting.TestPromptExecution = false;
+        scenarios.PromptTesting.TestArgumentValidation = false;
+
+        scenarios.SecurityTesting.TestInputValidation = false;
+        scenarios.SecurityTesting.TestInjectionAttacks = false;
+        scenarios.SecurityTesting.TestAuthenticationBypass = false;
+        scenarios.SecurityTesting.TestBufferOverflow = false;
+        scenarios.SecurityTesting.TestMalformedMessages = false;
+        scenarios.SecurityTesting.TestResourceExhaustion = false;
+
+        scenarios.PerformanceTesting.TestConcurrentRequests = false;
+        scenarios.PerformanceTesting.TestResponseTimes = false;
+        scenarios.PerformanceTesting.TestMemoryUsage = false;
+        scenarios.PerformanceTesting.TestThroughput = false;
+
+        scenarios.ErrorHandling.TestInvalidMethods = false;
+        scenarios.ErrorHandling.TestMalformedJson = false;
+        scenarios.ErrorHandling.TestConnectionInterruption = false;
+        scenarios.ErrorHandling.TestTimeoutHandling = false;
+        scenarios.ErrorHandling.TestGracefulDegradation = false;
+
+        scenarios.ProtocolCompliance.TestNotifications = false;
+        scenarios.ProtocolCompliance.TestMessageFormat = false;
     }
 
     private static bool TryParseEnum<TEnum>(string? value, out TEnum parsed)

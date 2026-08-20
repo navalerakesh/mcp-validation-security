@@ -14,7 +14,7 @@ This document explains how MCP Validator stores, versions, and resolves the vend
 | Area | Current state |
 | --- | --- |
 | Library | `Mcp.Compliance.Spec` provides `ProtocolVersions`, `SchemaRegistryProtocolVersions`, `SchemaDescriptors`, `ISchemaRegistry`, and `EmbeddedSchemaRegistry`. |
-| Supported protocol folders | `2024-11-05`, `2025-03-26`, `2025-06-18`, and `2025-11-25` are present under `schema/`. |
+| Supported protocol folders | `2024-11-05`, `2025-03-26`, `2025-06-18`, `2025-11-25`, and `2026-07-28` are present under `schema/`. |
 | Dependency model | Infrastructure consumes the registry for validation, while the CLI and reporting layers use protocol metadata for artifact labeling and spec-profile selection. |
 | Runtime behavior | Schema resolution is offline and deterministic; no production validation flow depends on fetching remote assets at runtime. |
 
@@ -87,6 +87,24 @@ Registry expectations:
 - Production validation remains fully offline with respect to schema acquisition.
 - Upstream schema comparison, if introduced, should remain a development or maintenance workflow outside the shipping binaries.
 - Registry-backed resolution is part of the product boundary; ad hoc schema path usage should be treated as architectural drift.
+
+## Public Artifact Schemas
+
+Machine-readable outputs declare both `documentType` and `documentSchemaVersion`. Published JSON Schema 2020-12 contracts live under `docs/Schemas/`:
+
+- `mcpval-validation-result.schema.json`
+- `mcpval-audit-manifest.schema.json`
+- `mcpval-client-profile-summary.schema.json`
+- `mcpval-model-evaluation.schema.json`
+
+Compatibility rules:
+
+- Consumers select a contract by `documentType` and parse `documentSchemaVersion` as semantic versioning.
+- Additive optional properties and expanded enum handling may ship in a compatible minor schema revision.
+- Removing a property, changing its meaning/type, or making an optional property required needs a major schema revision and migration guidance.
+- Public enums serialize as lower camel-case strings. Offline report loading continues to accept historical integer enum values during the 1.x compatibility window.
+- Schemas intentionally allow additional properties so compatible producers can add evidence without breaking tolerant consumers.
+- Contract tests serialize real result/audit objects and validate them against the published schemas.
 
 ## Future Work
 

@@ -303,6 +303,7 @@ public static class ReportSnapshotTestData
                         {
                             AttackVector = "MCP-SEC-001",
                             Description = "JSON-RPC Error Smuggling",
+                            Outcome = ValidationOutcome.Succeeded,
                             AttackSuccessful = false,
                             DefenseSuccessful = true,
                             ServerResponse = "Rejected injected argument with JSON-RPC error -32602.",
@@ -468,6 +469,7 @@ public static class ReportSnapshotTestData
                         LayerId = "protocol-core",
                         Scope = "json-rpc",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -475,6 +477,7 @@ public static class ReportSnapshotTestData
                         LayerId = "tool-surface",
                         Scope = "tools/list",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -489,6 +492,7 @@ public static class ReportSnapshotTestData
                         LayerId = "client-profiles",
                         Scope = "github-copilot-cli,github-copilot-cloud-agent",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -496,6 +500,7 @@ public static class ReportSnapshotTestData
                         LayerId = "tool-surface",
                         Scope = "tool-catalog-smoke",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -503,6 +508,7 @@ public static class ReportSnapshotTestData
                         LayerId = "security-boundaries",
                         Scope = "security-authentication-challenge",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -510,6 +516,7 @@ public static class ReportSnapshotTestData
                         LayerId = "error-handling",
                         Scope = "error-handling",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     },
                     new()
@@ -517,6 +524,7 @@ public static class ReportSnapshotTestData
                         LayerId = "error-handling",
                         Scope = "error-handling-matrix",
                         Status = ValidationCoverageStatus.Covered,
+                        ObservedOutcome = ValidationOutcome.Succeeded,
                         Reason = null
                     }
                 },
@@ -670,8 +678,12 @@ public static class ReportSnapshotTestData
                     new()
                     {
                         Category = "PromptInjection",
+                        Kind = AiBoundaryKind.PromptInjection,
                         Component = "prompt:get",
                         Severity = "Critical",
+                        SeverityLevel = ValidationFindingSeverity.Critical,
+                        Gate = GateOutcome.Reject,
+                        ImpactAreas = [ImpactArea.UnsafeAutonomy, ImpactArea.OutputIntegrity],
                         Description = "Prompt output includes reflected untrusted content.",
                         Mitigation = "Sanitize or clearly label untrusted data."
                     }
@@ -682,7 +694,7 @@ public static class ReportSnapshotTestData
                 Mode = ValidationPolicyModes.Strict,
                 Passed = false,
                 RecommendedExitCode = 1,
-                Summary = "Strict policy blocked the validation result with 2 unsuppressed signal(s).",
+                Summary = "Strict policy blocked the validation result with 2 blocking signal(s).",
                 Reasons = new List<string>
                 {
                     "Trust level L3_Acceptable is below the strict minimum of L4_Trusted.",

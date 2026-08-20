@@ -81,6 +81,13 @@ Write-Host "Repository root: $repoRoot"
 Push-Location $repoRoot
 
 try {
+    Assert-CommandAvailable bash
+    Write-Host '==> Checking sensitive artifacts'
+    & bash .\scripts\check-sensitive-artifacts.sh
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Sensitive artifact check failed.'
+    }
+
     if (-not $SkipDotNet) {
         Assert-CommandAvailable dotnet
     }
@@ -129,6 +136,9 @@ try {
         try {
             Write-Host '==> Installing npm dependencies'
             npm ci
+
+            Write-Host '==> Testing npm package'
+            npm test
 
             Write-Host '==> Building npm package'
             npm run build

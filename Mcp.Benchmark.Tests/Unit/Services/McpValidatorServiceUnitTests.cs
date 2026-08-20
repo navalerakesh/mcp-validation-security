@@ -295,7 +295,7 @@ public class McpValidatorServiceUnitTests
 
         // Assert
         result.Should().NotBeNull();
-        result.OverallStatus.Should().Be(ValidationStatus.Failed);
+        result.OverallStatus.Should().Be(ValidationStatus.Failed, string.Join("; ", result.CriticalErrors));
         result.ComplianceScore.Should().BeGreaterThan(0);
         result.ScoringDetails.Should().NotBeNull();
         result.ScoringDetails!.OverallScore.Should().Be(result.ComplianceScore);
@@ -303,9 +303,22 @@ public class McpValidatorServiceUnitTests
         result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
         result.VerdictAssessment.ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
         result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
-        config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
-        config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
-        config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
+        result.Run.OperationalMetrics.Should().NotBeNull();
+        result.Run.OperationalMetrics!.RunCorrelationId.Should().Be(result.ValidationId);
+        result.Run.OperationalMetrics.TotalRunDurationMs.Should().BeGreaterThan(0);
+        result.Run.OperationalMetrics.StageDurationMs.Should().ContainKeys(
+            "session.bootstrap",
+            "validation.categories",
+            "validation.scoring",
+            "validation.verdict");
+        result.Run.OperationalMetrics.StageDurationMs.Keys.Should().Contain(key => key.StartsWith("rule.", StringComparison.Ordinal));
+        result.Run.OperationalMetrics.EvidenceCoverageRatio.Should().Be(result.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio);
+        config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeNull();
+        config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeNull();
+        config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeNull();
+        result.ValidationConfig.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeNull();
+        result.ValidationConfig.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeNull();
+        result.ValidationConfig.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeNull();
         result.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
         result.Run.SchemaVersion.Should().Be(result.ProtocolVersion);
         result.Run.ApplicabilityContext.Should().NotBeNull();
@@ -323,7 +336,12 @@ public class McpValidatorServiceUnitTests
             scenario.Status == TestStatus.Passed);
         result.Assessments.Scenarios.Should().Contain(scenario =>
             scenario.ScenarioId == "security-authentication-challenge" &&
-            scenario.Status == TestStatus.Passed);
+            scenario.Status == TestStatus.Skipped &&
+            scenario.Summary!.Contains("do not apply to STDIO", StringComparison.Ordinal));
+        result.Evidence.Coverage.Should().Contain(coverage =>
+            coverage.Scope == "security-authentication-challenge" &&
+            coverage.Status == ValidationCoverageStatus.NotApplicable &&
+            coverage.ObservedOutcome == ValidationOutcome.NotApplicable);
         result.Assessments.Scenarios.Should().Contain(scenario =>
             scenario.ScenarioId == "error-handling-matrix" &&
             scenario.Status == TestStatus.Passed);
@@ -410,11 +428,11 @@ public class McpValidatorServiceUnitTests
 
         // Assert
         result.Should().NotBeNull();
-        result.OverallStatus.Should().Be(ValidationStatus.Failed);
+        result.OverallStatus.Should().Be(ValidationStatus.Failed, string.Join("; ", result.CriticalErrors));
         result.ComplianceScore.Should().BeLessThan(100);
-        config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
-        config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
-        config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
+        config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeNull();
+        config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeNull();
+        config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeNull();
         result.CapabilitySnapshot.Should().BeSameAs(_defaultCapabilitySnapshot);
     }
 
@@ -537,6 +555,7 @@ public class McpValidatorServiceUnitTests
             {
                 Status = TestStatus.Failed,
                 Score = 0,
+                MeasurementDisposition = PerformanceMeasurementDisposition.TimedOut,
                 Message = ValidationConstants.Messages.OperationTimedOutOrWasCancelled,
                 CriticalErrors = new List<string> { ValidationConstants.Messages.OperationTimedOutOrWasCancelled }
             });
@@ -663,6 +682,7 @@ public class McpValidatorServiceUnitTests
             {
                 Status = TestStatus.Failed,
                 Score = 0,
+                MeasurementDisposition = PerformanceMeasurementDisposition.TimedOut,
                 Message = ValidationConstants.Messages.OperationTimedOutOrWasCancelled,
                 CriticalErrors = new List<string> { ValidationConstants.Messages.OperationTimedOutOrWasCancelled }
             });
@@ -683,5 +703,361 @@ public class McpValidatorServiceUnitTests
         result.Recommendations.Should().NotContain(recommendation => recommendation.Contains("improving overall compliance score", StringComparison.OrdinalIgnoreCase));
         result.Recommendations.Should().NotContain(recommendation => recommendation.Contains("failed test cases", StringComparison.OrdinalIgnoreCase));
         result.Recommendations.Should().NotContain(recommendation => recommendation.Contains("Ensure full compliance with MCP protocol specification", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_CategoryFailures_ShouldReduceErrorsInStableCategoryOrder()
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        _protocolValidatorMock
+            .Setup(validator => validator.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, ProtocolComplianceConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(50, ct);
+                throw new InvalidOperationException("protocol-failure");
+            });
+        _toolValidatorMock
+            .Setup(validator => validator.ValidateToolDiscoveryAsync(It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, ToolTestingConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(40, ct);
+                throw new InvalidOperationException("tool-failure");
+            });
+        _resourceValidatorMock
+            .Setup(validator => validator.ValidateResourceDiscoveryAsync(It.IsAny<McpServerConfig>(), It.IsAny<ResourceTestingConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, ResourceTestingConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(30, ct);
+                throw new InvalidOperationException("resource-failure");
+            });
+        _promptValidatorMock
+            .Setup(validator => validator.ValidatePromptDiscoveryAsync(It.IsAny<McpServerConfig>(), It.IsAny<PromptTestingConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, PromptTestingConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(20, ct);
+                throw new InvalidOperationException("prompt-failure");
+            });
+        _securityValidatorMock
+            .Setup(validator => validator.PerformSecurityAssessmentAsync(It.IsAny<McpServerConfig>(), It.IsAny<SecurityTestingConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, SecurityTestingConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(10, ct);
+                throw new InvalidOperationException("security-failure");
+            });
+
+        var result = await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        result.CriticalErrors.Take(5).Should().Equal(
+            "Protocol compliance validation error: protocol-failure",
+            "Tool validation error: tool-failure",
+            "Resource validation error: resource-failure",
+            "Prompt validation error: prompt-failure",
+            "Security testing error: security-failure");
+        result.ProtocolCompliance!.Status.Should().Be(TestStatus.Error);
+        result.ToolValidation!.Status.Should().Be(TestStatus.Error);
+        result.ResourceTesting!.Status.Should().Be(TestStatus.Error);
+        result.PromptTesting!.Status.Should().Be(TestStatus.Error);
+        result.SecurityTesting!.Status.Should().Be(TestStatus.Error);
+        result.CriticalErrors.Should().NotContain(
+            error => error.StartsWith("Validation framework error:", StringComparison.Ordinal),
+            string.Join(Environment.NewLine, result.CriticalErrors));
+        result.VerdictAssessment.Should().NotBeNull();
+        result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+        result.VerdictAssessment.Policy.Parameters.Should().NotBeEmpty();
+        result.OverallStatus.Should().Be(ValidationStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_CallerCancellation_ShouldReturnCancelledWithoutCategoryFailure()
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        config.Validation.Categories.ToolTesting.TestToolDiscovery = false;
+        config.Validation.Categories.ResourceTesting.TestResourceDiscovery = false;
+        config.Validation.Categories.PromptTesting.TestPromptDiscovery = false;
+        config.Validation.Categories.SecurityTesting.TestInputValidation = false;
+        _protocolValidatorMock
+            .Setup(validator => validator.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (McpServerConfig _, ProtocolComplianceConfig _, CancellationToken ct) =>
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                return new ComplianceTestResult();
+            });
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
+
+        var result = await _validatorService.ValidateServerAsync(config, cancellation.Token);
+
+        result.OverallStatus.Should().Be(ValidationStatus.Cancelled);
+        result.CriticalErrors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_InternalBootstrapCancellation_ShouldReturnFrameworkError()
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        _sessionBuilderMock
+            .Setup(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException("internal timeout"));
+
+        var result = await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.CriticalErrors.Should().ContainSingle(error => error.Contains("internal operation timed out", StringComparison.Ordinal));
+        result.Run.OperationalMetrics.Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData("category")]
+    [InlineData("error-handling")]
+    [InlineData("performance")]
+    public async Task ValidateServerAsync_InternalStageCancellation_ShouldReturnFrameworkError(string stage)
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        if (stage == "category")
+        {
+            _protocolValidatorMock
+                .Setup(validator => validator.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException("internal category timeout"));
+        }
+        else if (stage == "error-handling")
+        {
+            config.Validation.Categories.ErrorHandling.TestTimeoutHandling = true;
+            _errorHandlingValidatorMock
+                .Setup(validator => validator.ValidateErrorHandlingAsync(It.IsAny<McpServerConfig>(), It.IsAny<ErrorHandlingConfig>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException("internal error-handling timeout"));
+        }
+        else
+        {
+            config.Validation.Categories.PerformanceTesting.TestConcurrentRequests = true;
+            _performanceValidatorMock
+                .Setup(validator => validator.PerformLoadTestingAsync(It.IsAny<McpServerConfig>(), It.IsAny<PerformanceTestingConfig>(), It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new OperationCanceledException("internal performance timeout"));
+        }
+
+        var result = await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.CriticalErrors.Should().ContainSingle(error => error.Contains("internal operation timed out", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("http", true, 2)]
+    [InlineData("http", false, 1)]
+    [InlineData("stdio", true, 1)]
+    public async Task ValidateServerAsync_CategoryScheduling_ShouldHonorPolicyAndTransport(
+        string transport,
+        bool parallelEnabled,
+        int expectedMaximumConcurrency)
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        config.Server.Transport = transport;
+        config.TestExecution.EnableParallelExecution = parallelEnabled;
+        config.Validation.Categories.ResourceTesting.TestResourceDiscovery = false;
+        config.Validation.Categories.PromptTesting.TestPromptDiscovery = false;
+        config.Validation.Categories.SecurityTesting.TestInputValidation = false;
+        var active = 0;
+        var maximum = 0;
+
+        async Task<T> TrackAsync<T>(T value, CancellationToken cancellationToken)
+        {
+            var current = Interlocked.Increment(ref active);
+            var observed = Volatile.Read(ref maximum);
+            while (current > observed)
+            {
+                var prior = Interlocked.CompareExchange(ref maximum, current, observed);
+                if (prior == observed)
+                {
+                    break;
+                }
+
+                observed = prior;
+            }
+
+            try
+            {
+                await Task.Delay(50, cancellationToken);
+                return value;
+            }
+            finally
+            {
+                Interlocked.Decrement(ref active);
+            }
+        }
+
+        _protocolValidatorMock
+            .Setup(validator => validator.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .Returns((McpServerConfig _, ProtocolComplianceConfig _, CancellationToken ct) =>
+                TrackAsync(new ComplianceTestResult { Status = TestStatus.Passed, Score = 100 }, ct));
+        _toolValidatorMock
+            .Setup(validator => validator.ValidateToolDiscoveryAsync(It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>()))
+            .Returns((McpServerConfig _, ToolTestingConfig _, CancellationToken ct) =>
+                TrackAsync(new ToolTestResult { Status = TestStatus.Passed, Score = 100 }, ct));
+
+        await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        maximum.Should().Be(expectedMaximumConcurrency);
+    }
+
+    [Fact]
+    public async Task PerformHealthCheckAsync_HostPolicyAlreadyConfigured_ShouldNotResetTransportPolicy()
+    {
+        _httpClientMock.SetupGet(client => client.IsExecutionPolicyConfigured).Returns(true);
+        var server = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" };
+
+        await _validatorService.PerformHealthCheckAsync(server, CancellationToken.None);
+
+        _httpClientMock.Verify(client => client.ConfigureExecutionPolicy(It.IsAny<ExecutionPolicy?>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DiscoverServerCapabilitiesAsync_ModernProtocol_ShouldUseServerDiscoverSessionWithoutInitialize()
+    {
+        var server = new McpServerConfig
+        {
+            Endpoint = "https://example.test/mcp",
+            Transport = "http",
+            ProtocolVersion = "2026-07-28",
+            ProtocolEra = McpProtocolEraSelection.Modern
+        };
+        _sessionBuilderMock
+            .Setup(builder => builder.BuildAsync(
+                It.Is<McpValidatorConfiguration>(configuration => configuration.Server.ProtocolEra == McpProtocolEraSelection.Modern),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((McpValidatorConfiguration configuration, CancellationToken _) => new ValidationSessionContext(
+                configuration,
+                configuration.Server.CloneForExecution())
+            {
+                ProtocolVersion = "2026-07-28",
+                ModernDiscovery = new TransportResult<ModernDiscoveryEvidence>
+                {
+                    IsSuccessful = true,
+                    Payload = new ModernDiscoveryEvidence
+                    {
+                        IsValid = true,
+                        SupportedVersions = ["2026-07-28"],
+                        CapabilityNames = ["tools"],
+                        ResultType = "complete",
+                        CacheScope = "public",
+                        TtlMs = 60000
+                    },
+                    Transport = TransportMetadata.Empty
+                },
+                CapabilitySnapshot = new TransportResult<CapabilitySummary>
+                {
+                    IsSuccessful = true,
+                    Payload = new CapabilitySummary { Score = 100, ToolListingSucceeded = true },
+                    Transport = TransportMetadata.Empty
+                }
+            });
+
+        var result = await _validatorService.DiscoverServerCapabilitiesAsync(server, CancellationToken.None);
+
+        result.ProtocolVersion.Should().Be("2026-07-28");
+        result.SupportedTools.Should().ContainSingle();
+        _httpClientMock.Verify(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task DiscoverServerCapabilitiesAsync_AutoModernFailure_ShouldReturnNegotiatedLegacyCapabilities()
+    {
+        var server = new McpServerConfig
+        {
+            Endpoint = "https://example.test/mcp",
+            Transport = "http",
+            ProtocolVersion = "2026-07-28",
+            ProtocolEra = McpProtocolEraSelection.Auto
+        };
+        _sessionBuilderMock
+            .Setup(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((McpValidatorConfiguration configuration, CancellationToken _) => new ValidationSessionContext(
+                configuration,
+                configuration.Server.CloneForExecution())
+            {
+                ProtocolVersion = "2025-06-18",
+                InitializationHandshake = new TransportResult<ModelContextProtocol.Protocol.InitializeResult>
+                {
+                    IsSuccessful = true,
+                    Payload = new ModelContextProtocol.Protocol.InitializeResult
+                    {
+                        ProtocolVersion = "2025-06-18",
+                        ServerInfo = new ModelContextProtocol.Protocol.Implementation { Name = "legacy-server", Version = "1.0.0" },
+                        Capabilities = new ModelContextProtocol.Protocol.ServerCapabilities()
+                    }
+                },
+                ModernDiscovery = new TransportResult<ModernDiscoveryEvidence>
+                {
+                    IsSuccessful = false,
+                    Error = "server/discover unavailable"
+                },
+                CapabilitySnapshot = new TransportResult<CapabilitySummary>
+                {
+                    IsSuccessful = true,
+                    Payload = new CapabilitySummary
+                    {
+                        ToolListingSucceeded = true,
+                        ResourceListingSucceeded = true,
+                        PromptListingSucceeded = true,
+                        Score = 100
+                    }
+                }
+            });
+
+        var result = await _validatorService.DiscoverServerCapabilitiesAsync(server, CancellationToken.None);
+
+        result.ProtocolVersion.Should().Be("2025-06-18");
+        result.Implementation.Name.Should().Be("legacy-server");
+        result.SupportedTools.Should().ContainSingle();
+        result.SupportedResources.Should().ContainSingle();
+        result.SupportedPrompts.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_ReusedService_ShouldResetPolicyForEveryRun()
+    {
+        var first = CreateFunctionalCategoryConfiguration();
+        first.Execution = new ExecutionPolicy { MaxRequests = 3, AllowedHosts = ["first.test"] };
+        first.Server.Endpoint = "https://first.test/mcp";
+        var second = CreateFunctionalCategoryConfiguration();
+        second.Execution = new ExecutionPolicy { MaxRequests = 7, AllowedHosts = ["second.test"] };
+        second.Server.Endpoint = "https://second.test/mcp";
+
+        await _validatorService.ValidateServerAsync(first, CancellationToken.None);
+        await _validatorService.ValidateServerAsync(second, CancellationToken.None);
+
+        _httpClientMock.Verify(client => client.ConfigureExecutionPolicy(It.Is<ExecutionPolicy>(policy =>
+            policy.MaxRequests == 3 && policy.AllowedHosts.Contains("first.test"))), Times.Once);
+        _httpClientMock.Verify(client => client.ConfigureExecutionPolicy(It.Is<ExecutionPolicy>(policy =>
+            policy.MaxRequests == 7 && policy.AllowedHosts.Contains("second.test"))), Times.Once);
+    }
+
+    private static McpValidatorConfiguration CreateFunctionalCategoryConfiguration()
+    {
+        return new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig
+            {
+                Endpoint = "https://example.test/mcp",
+                Transport = "http"
+            },
+            Validation = new ValidationConfig
+            {
+                Categories = new ValidationScenarios
+                {
+                    ProtocolCompliance = new ProtocolComplianceConfig { TestJsonRpcCompliance = true },
+                    ToolTesting = new ToolTestingConfig { TestToolDiscovery = true },
+                    ResourceTesting = new ResourceTestingConfig { TestResourceDiscovery = true },
+                    PromptTesting = new PromptTestingConfig { TestPromptDiscovery = true },
+                    SecurityTesting = new SecurityTestingConfig { TestInputValidation = true },
+                    PerformanceTesting = new PerformanceTestingConfig { TestConcurrentRequests = false },
+                    ErrorHandling = new ErrorHandlingConfig
+                    {
+                        TestInvalidMethods = false,
+                        TestMalformedJson = false,
+                        TestConnectionInterruption = false,
+                        TestTimeoutHandling = false,
+                        TestGracefulDegradation = false
+                    }
+                }
+            }
+        };
     }
 }

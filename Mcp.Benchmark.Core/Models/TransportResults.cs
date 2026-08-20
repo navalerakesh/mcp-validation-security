@@ -49,6 +49,7 @@ public sealed class CapabilitySummary
     public IReadOnlyList<string> AdvertisedCapabilities { get; init; } = Array.Empty<string>();
     public IReadOnlyList<McpClientTool> Tools { get; init; } = Array.Empty<McpClientTool>();
     public bool ToolListingSucceeded { get; init; }
+    public bool ToolInvocationAttempted { get; init; }
     public bool ToolInvocationSucceeded { get; init; }
     public string? FirstToolName { get; init; }
     public int DiscoveredToolsCount { get; init; }

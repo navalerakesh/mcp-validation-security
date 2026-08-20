@@ -24,7 +24,7 @@ public abstract class BaseValidator<T> where T : class
         McpServerConfig serverConfig,
         string operationName,
         Func<CancellationToken, Task<TResult>> validationLogic,
-        CancellationToken cancellationToken) 
+        CancellationToken cancellationToken)
         where TResult : TestResultBase, new()
     {
         Logger.LogInformation("Starting {Operation} for server: {Server}", operationName, serverConfig.Endpoint ?? serverConfig.Transport);
@@ -44,20 +44,20 @@ public abstract class BaseValidator<T> where T : class
             }
 
             // 2. Setup Timeout
-            using var timeoutTokenSource = serverConfig.TimeoutMs > 0 
+            using var timeoutTokenSource = serverConfig.TimeoutMs > 0
                 ? CancellationTokenSource.CreateLinkedTokenSource(cancellationToken)
                 : null;
-            
+
             if (timeoutTokenSource != null)
             {
                 timeoutTokenSource.CancelAfter(TimeSpan.FromMilliseconds(serverConfig.TimeoutMs));
             }
-            
+
             var effectiveToken = timeoutTokenSource?.Token ?? cancellationToken;
 
             // 3. Execute Logic
             result = await validationLogic(effectiveToken);
-            
+
             // Ensure duration is set if not already
             if (result.Duration == TimeSpan.Zero)
             {
@@ -67,12 +67,19 @@ public abstract class BaseValidator<T> where T : class
             Logger.LogInformation("{Operation} completed with status: {Status}", operationName, result.Status);
             return result;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            Logger.LogInformation("{Operation} was cancelled by the caller", operationName);
+            result.Status = TestStatus.Cancelled;
+            result.Message = "Operation cancelled by the caller.";
+            result.Duration = DateTime.UtcNow - startTime;
+            return result;
+        }
         catch (OperationCanceledException)
         {
-            Logger.LogWarning("{Operation} timed out or was cancelled", operationName);
-            result.Status = TestStatus.Failed; // Or Error?
-            result.Message = ValidationConstants.Messages.OperationTimedOutOrWasCancelled;
-            result.CriticalErrors.Add(ValidationConstants.Messages.OperationTimedOutOrWasCancelled);
+            Logger.LogWarning("{Operation} reached its configured timeout", operationName);
+            result.Status = TestStatus.Inconclusive;
+            result.Message = $"{operationName} probe inconclusive because the configured timeout elapsed.";
             result.Duration = DateTime.UtcNow - startTime;
             return result;
         }

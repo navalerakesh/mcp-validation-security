@@ -34,7 +34,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         {
             Result = result,
             ReportConfig = reportConfig,
-            GeneratedAtLabel = $"Generated on {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss UTC}",
+            GeneratedAtLabel = $"Generated on {ResolveArtifactTime(result):yyyy-MM-dd HH:mm:ss UTC}",
             DetailLabel = detailLabel,
             Verbose = verbose,
             Hero = BuildHero(result, reportConfig),
@@ -53,6 +53,9 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
+    private static DateTime ResolveArtifactTime(ValidationResult result) =>
+        (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
+
     private static ValidationHtmlHero BuildHero(ValidationResult result, ReportingConfig reportConfig)
     {
         var releaseTone = ResolveReleaseTone(result);
@@ -67,14 +70,14 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var protocolVersion = result.ProtocolVersion
             ?? result.InitializationHandshake?.Payload?.ProtocolVersion
             ?? result.ServerConfig.ProtocolVersion
-            ?? "n/a";
+            ?? "Not available";
         var duration = result.Duration?.TotalSeconds > 0
             ? $"{result.Duration.Value.TotalSeconds:F1}s"
-            : "n/a";
+            : "Not available";
 
         return new ValidationHtmlHero
         {
-            Eyebrow = "MCP Validation Report",
+            Eyebrow = "Model Context Protocol (MCP) Validation Report",
             Title = title,
             Subtitle = BuildHeroSubtitle(result),
             StatusLabel = ResolveReleaseStatusLabel(result),
@@ -85,13 +88,13 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 : HtmlReportTone.Neutral,
             TrustLevelLabel = BuildTrustLevelValue(result.TrustAssessment),
             TrustLevelDetail = BuildTrustLevelDetail(result.TrustAssessment),
-            TrustLevelTone = MapTrustTone(result.TrustAssessment?.TrustLevel),
+            TrustLevelTone = ResolveTrustTone(result.TrustAssessment),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
-                new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "n/a" },
-                new() { Label = "Validation ID", Value = result.ValidationId },
+                new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
+                new() { Label = "Validation Identifier", Value = result.ValidationId },
                 new() { Label = "Duration", Value = duration },
-                new() { Label = "Spec Profile", Value = string.IsNullOrWhiteSpace(reportConfig.SpecProfile) ? "latest" : reportConfig.SpecProfile },
+                new() { Label = "MCP Specification Profile", Value = string.IsNullOrWhiteSpace(reportConfig.SpecProfile) ? "latest" : reportConfig.SpecProfile },
                 new() { Label = "Server Profile", Value = $"{result.ServerProfile} ({result.ServerProfileSource})" },
                 new() { Label = "Protocol Version", Value = protocolVersion }
             }
@@ -109,13 +112,14 @@ internal sealed class ValidationHtmlReportDocumentFactory
     {
         if (assessment == null)
         {
-            return "n/a";
+            return "Not available";
         }
 
         var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
-        return separatorIndex > 0
+        var shortLabel = separatorIndex > 0
             ? assessment.TrustLabel[..separatorIndex]
             : assessment.TrustLevel.ToString().Split('_', 2)[0];
+        return $"Level {(int)assessment.TrustLevel} ({shortLabel})";
     }
 
     private static string BuildTrustLevelDetail(McpTrustAssessment? assessment)
@@ -126,9 +130,18 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
-        return separatorIndex >= 0
+        var detail = separatorIndex >= 0
             ? assessment.TrustLabel[(separatorIndex + 1)..].Trim()
             : assessment.TrustLabel;
+        if (!assessment.LimitedByIncompleteEvidence)
+        {
+            return detail;
+        }
+
+        var missing = assessment.UnevaluatedDimensions.Count > 0
+            ? $" Missing: {string.Join(", ", assessment.UnevaluatedDimensions)}."
+            : string.Empty;
+        return $"Limited by incomplete evidence.{missing} {detail}".Trim();
     }
 
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(
@@ -139,11 +152,19 @@ internal sealed class ValidationHtmlReportDocumentFactory
     {
         var policyOutcome = result.PolicyOutcome;
         var verdictLabel = BuildVerdictCompositeLabel(result);
-        var highlights = BuildReleaseHighlights(result, priorityFindings, decisionTrace, compatibilityThemes);
+        var highlights = BuildReleaseHighlights(result, priorityFindings, decisionTrace, compatibilityThemes).ToList();
         var blockingSignalCount = ResolveBlockingSignalCount(result);
         var unsuppressedSignalCount = ResolveUnsuppressedSignalCount(result);
         var totalSignalCount = ResolveTotalSignalCount(result);
         var suppressedSignalCount = policyOutcome?.SuppressedSignalCount ?? 0;
+        if (result.BaselineComparison is { } baseline)
+        {
+            highlights.Insert(0, $"Baseline regression: {(baseline.IsRegression ? "yes" : "no")}; score delta {baseline.ScoreDelta:+0.##;-0.##;0} points.");
+        }
+        if (policyOutcome?.AppliedWaivers.Count > 0)
+        {
+            highlights.Add($"{policyOutcome.AppliedWaivers.Count} governed waiver(s) applied.");
+        }
 
         if (policyOutcome is { Passed: false })
         {
@@ -241,9 +262,11 @@ internal sealed class ValidationHtmlReportDocumentFactory
                     Value = result.TrustAssessment.TrustLabel.Split(':', 2)[0],
                     Label = "Trust Profile",
                     SupportingText = result.TrustAssessment.TrustLabel,
-                    Tone = MapTrustTone(result.TrustAssessment.TrustLevel)
+                    Tone = ResolveTrustTone(result.TrustAssessment)
                 });
             }
+
+            AppendOperationalMetricCards(verdictCards, result.Run.OperationalMetrics);
 
             return verdictCards;
         }
@@ -269,10 +292,10 @@ internal sealed class ValidationHtmlReportDocumentFactory
             new()
             {
                 Eyebrow = "Trust",
-                Value = result.TrustAssessment?.TrustLabel.Split(':', 2)[0] ?? "n/a",
+                Value = result.TrustAssessment != null ? BuildTrustLevelValue(result.TrustAssessment) : "Not available",
                 Label = "Trust Level",
-                SupportingText = result.TrustAssessment?.TrustLabel ?? "Trust assessment unavailable",
-                Tone = MapTrustTone(result.TrustAssessment?.TrustLevel)
+                SupportingText = BuildTrustLevelDetail(result.TrustAssessment),
+                Tone = ResolveTrustTone(result.TrustAssessment)
             }
         };
 
@@ -300,7 +323,44 @@ internal sealed class ValidationHtmlReportDocumentFactory
             });
         }
 
+        AppendOperationalMetricCards(cards, result.Run.OperationalMetrics);
+
         return cards;
+    }
+
+    private static void AppendOperationalMetricCards(
+        ICollection<ValidationHtmlMetricCard> cards,
+        ValidationOperationalMetrics? metrics)
+    {
+        if (metrics == null)
+        {
+            return;
+        }
+
+        cards.Add(new ValidationHtmlMetricCard
+        {
+            Eyebrow = "Validator",
+            Value = $"{metrics.ValidatorOverheadMs:F1} ms",
+            Label = "Run Overhead",
+            SupportingText = $"Queue 95th percentile {metrics.QueueTimeP95Ms:F1} ms · {metrics.RetryCount} retries · {metrics.RetryDelayMs:F1} ms backoff",
+            Tone = HtmlReportTone.Info
+        });
+        cards.Add(new ValidationHtmlMetricCard
+        {
+            Eyebrow = "Target",
+            Value = $"{metrics.TargetLatencyP95Ms:F1} ms",
+            Label = "Target 95th-Percentile Latency",
+            SupportingText = $"50th percentile {metrics.TargetLatencyP50Ms:F1} ms · 99th percentile {metrics.TargetLatencyP99Ms:F1} ms · {metrics.ThroughputRequestsPerSecond:F1} requests/second · {metrics.RequestsFailed} failed transport attempt(s) ({metrics.ErrorRate:P1})",
+            Tone = HtmlReportTone.Info
+        });
+        cards.Add(new ValidationHtmlMetricCard
+        {
+            Eyebrow = "Operations",
+            Value = $"{metrics.RequestsCompleted}/{metrics.RequestsStarted}",
+            Label = "Requests Completed",
+            SupportingText = $"Budget {metrics.RequestBudgetLimit} · {metrics.TruncatedResponseCount} rejected responses · evidence {metrics.EvidenceCoverageRatio:P1}",
+            Tone = HtmlReportTone.Info
+        });
     }
 
     private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
@@ -316,8 +376,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         {
             return new List<ValidationHtmlMetricCard>
             {
-                CreateRiskCard("Protocol", result.TrustAssessment.ProtocolCompliance, "Spec adherence and response structure"),
-                CreateRiskCard("Security", result.TrustAssessment.SecurityPosture, "Auth boundaries and exploit resistance"),
+                CreateRiskCard("Protocol", result.TrustAssessment.ProtocolCompliance, "Specification adherence and response structure"),
+                CreateRiskCard("Security", result.TrustAssessment.SecurityPosture, "Authentication boundaries and exploit resistance"),
                 CreateRiskCard("AI Safety", result.TrustAssessment.AiSafety, "Schema quality and agent safety posture"),
                 CreateRiskCard("Operations", result.TrustAssessment.OperationalReadiness, "Latency, throughput, and stability")
             };
@@ -325,8 +385,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
         return new List<ValidationHtmlMetricCard>
         {
-            CreateRiskCard("Protocol", result.ProtocolCompliance?.ComplianceScore ?? 0, "Spec adherence and response structure"),
-            CreateRiskCard("Security", result.SecurityTesting?.SecurityScore ?? 0, "Auth boundaries and exploit resistance"),
+            CreateRiskCard("Protocol", result.ProtocolCompliance?.ComplianceScore ?? 0, "Specification adherence and response structure"),
+            CreateRiskCard("Security", result.SecurityTesting?.SecurityScore ?? 0, "Authentication boundaries and exploit resistance"),
             CreateRiskCard("Tools", result.ToolValidation?.Score ?? 0, "Contract quality and execution evidence"),
             CreateRiskCard("Performance", result.PerformanceTesting?.Score ?? 0, "Latency, throughput, and stability")
         };
@@ -353,12 +413,17 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var errorScenarioCount = result.ErrorHandling?.ErrorScenariosTestCount ?? 0;
         var handledCorrectly = result.ErrorHandling?.ErrorScenariosHandledCorrectly ?? 0;
         var verdict = result.VerdictAssessment?.ProtocolVerdict ?? ValidationVerdict.Unknown;
+        var protocolStatus = result.ProtocolCompliance?.Status;
         var tone = verdict != ValidationVerdict.Unknown
             ? MapVerdictTone(verdict)
             : blockingSignals.Count > 0
                 ? HtmlReportTone.Danger
                 : MapScoreTone(result.ProtocolCompliance?.ComplianceScore ?? 0);
-        var summary = blockingSignals.FirstOrDefault()?.Summary
+        var summary = protocolStatus == TestStatus.Inconclusive
+            ? "Protocol evidence is inconclusive because active conformance probes were not run or did not produce authoritative evidence."
+            : protocolStatus is TestStatus.Skipped or TestStatus.NotRun
+                ? "Protocol validation was not executed for this run."
+                : blockingSignals.FirstOrDefault()?.Summary
             ?? (violations > 0
                 ? $"{violations} protocol violation(s) were recorded even though none escalated to the release gate."
                 : "Protocol checks completed without blocking findings.");
@@ -384,22 +449,27 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var vulnerabilities = result.SecurityTesting?.Vulnerabilities.Count ?? 0;
         var attackSimulations = result.SecurityTesting?.AttackSimulations.Count ?? 0;
         var score = result.SecurityTesting?.SecurityScore ?? result.TrustAssessment?.SecurityPosture ?? 0;
-        var summary = blockingSignals.FirstOrDefault()?.Summary
+        var securityStatus = result.SecurityTesting?.Status;
+        var summary = securityStatus is null or TestStatus.Skipped or TestStatus.NotRun
+            ? "Security validation was not executed; absence of findings is not evidence of a secure target."
+            : securityStatus == TestStatus.Inconclusive
+                ? "Security validation was inconclusive and requires additional evidence."
+                : blockingSignals.FirstOrDefault()?.Summary
             ?? (vulnerabilities > 0
                 ? $"{vulnerabilities} security vulnerability finding(s) require remediation."
                 : "Security boundary and attack simulations completed without blocking findings.");
         var action = result.SecurityTesting?.Vulnerabilities.FirstOrDefault(vulnerability => !string.IsNullOrWhiteSpace(vulnerability.Remediation))?.Remediation
-            ?? "Review auth boundary behavior, exploit resistance, and reflected server responses.";
+            ?? "Review authentication boundary behavior, exploit resistance, and reflected server responses.";
 
         return new ValidationHtmlDomainSummary
         {
             Domain = "Security",
-            StatusLabel = $"{score:F0}%",
+            StatusLabel = securityStatus is null or TestStatus.Skipped or TestStatus.NotRun ? "Not evaluated" : securityStatus == TestStatus.Inconclusive ? "Inconclusive" : $"{score:F0}%",
             SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
             EvidenceLabel = $"{vulnerabilities} vulnerability finding(s) · {attackSimulations} attack simulation(s)",
             Summary = summary,
             ActionLabel = action,
-            Tone = blockingSignals.Count > 0 ? HtmlReportTone.Danger : MapScoreTone(score)
+            Tone = blockingSignals.Count > 0 ? HtmlReportTone.Danger : securityStatus is null or TestStatus.Skipped or TestStatus.NotRun or TestStatus.Inconclusive ? HtmlReportTone.Warning : MapScoreTone(score)
         };
     }
 
@@ -423,7 +493,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return new ValidationHtmlDomainSummary
         {
             Domain = "AI Safety",
-            StatusLabel = score >= 0 ? $"{score:F0}%" : "n/a",
+            StatusLabel = score >= 0 ? $"{score:F0}%" : "Not available",
             SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
             EvidenceLabel = $"{aiReadinessFindings} schema finding(s) · {boundaryFindings} boundary finding(s) · {contentSafetyFindings} content-safety finding(s)",
             Summary = summary,
@@ -442,9 +512,11 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var evidenceLabel = performance == null
             ? "No performance probe recorded"
             : measurementsCaptured
-                ? $"Avg {performance.LoadTesting.AverageResponseTimeMs:F1} ms · P95 {performance.LoadTesting.P95ResponseTimeMs:F1} ms · {performance.LoadTesting.ErrorRate:F2}% errors"
+                ? $"Average {performance.LoadTesting.AverageResponseTimeMs:F1} ms · 95th percentile {performance.LoadTesting.P95ResponseTimeMs:F1} ms · {performance.LoadTesting.ErrorRate:F2}% errors"
                 : $"Measurements unavailable · {PerformanceMeasurementEvaluator.GetUnavailableReason(performance, "Performance measurements were not captured before the run ended.")}";
-        var summary = blockingSignals.FirstOrDefault()?.Summary
+        var summary = performance?.Status is null or TestStatus.Skipped or TestStatus.NotRun
+            ? "Performance validation was not executed; no runtime readiness claim can be made."
+            : blockingSignals.FirstOrDefault()?.Summary
             ?? (measurementsCaptured
                 ? "Runtime probe completed with measured latency, throughput, and failure-rate data."
                 : "Operational posture is constrained by incomplete runtime measurements or failed recovery probes.");
@@ -720,18 +792,18 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
         var handshakeStatus = bootstrapHealth.InitializationDetails?.Transport.StatusCode is int statusCode
             ? $"HTTP {statusCode}"
-            : "n/a";
+            : "Not available";
         var handshakeLatency = bootstrapHealth.ResponseTimeMs > 0
             ? $"{bootstrapHealth.ResponseTimeMs:F1} ms"
-            : "n/a";
+            : "Not available";
         var protocolVersion = result.ProtocolVersion
             ?? bootstrapHealth.ProtocolVersion
             ?? result.ServerConfig.ProtocolVersion
-            ?? "n/a";
+            ?? "Not available";
         var serverVersion = !string.IsNullOrWhiteSpace(bootstrapHealth.ServerVersion) &&
                             !string.Equals(bootstrapHealth.ServerVersion, "Unknown", StringComparison.OrdinalIgnoreCase)
             ? bootstrapHealth.ServerVersion
-            : "n/a";
+            : "Not available";
         var deferredLabel = bootstrapHealth.AllowsDeferredValidation && !bootstrapHealth.IsHealthy
             ? "Yes"
             : "No";
@@ -1208,6 +1280,11 @@ internal sealed class ValidationHtmlReportDocumentFactory
             _ => HtmlReportTone.Neutral
         };
     }
+
+    private static HtmlReportTone ResolveTrustTone(McpTrustAssessment? assessment) =>
+        assessment?.LimitedByIncompleteEvidence == true
+            ? HtmlReportTone.Warning
+            : MapTrustTone(assessment?.TrustLevel);
 
     private static HtmlReportTone MapVerdictTone(ValidationVerdict verdict)
     {

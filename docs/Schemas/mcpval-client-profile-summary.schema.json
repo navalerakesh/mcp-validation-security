@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-client-profile-summary.schema.json",
+  "title": "MCP Validator Client Profile Summary",
+  "type": "object",
+  "required": [
+    "documentType",
+    "documentSchemaVersion",
+    "generatedUtc",
+    "validationId",
+    "validatorVersion",
+    "overallStatus",
+    "baselineVerdict",
+    "protocolVerdict",
+    "coverageVerdict",
+    "policyPassed",
+    "evidenceSummary",
+    "profileCount",
+    "compatibleCount",
+    "warningCount",
+    "incompatibleCount",
+    "profiles"
+  ],
+  "properties": {
+    "documentType": { "const": "mcpval.client-profile-summary" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "generatedUtc": { "type": "string", "format": "date-time" },
+    "validationId": { "type": "string", "minLength": 1 },
+    "validatorVersion": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "serverEndpoint": { "type": ["string", "null"] },
+    "complianceScore": { "type": "number", "minimum": 0, "maximum": 100 },
+    "trustLevel": { "type": ["string", "null"] },
+    "trustLimitedByIncompleteEvidence": { "type": "boolean" },
+    "unevaluatedDimensions": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "overallStatus": { "type": "string", "minLength": 1 },
+    "baselineVerdict": { "type": "string", "minLength": 1 },
+    "protocolVerdict": { "type": "string", "minLength": 1 },
+    "coverageVerdict": { "type": "string", "minLength": 1 },
+    "policyPassed": { "type": "boolean" },
+    "policySummary": { "type": ["string", "null"] },
+    "evidenceSummary": { "type": "object" },
+    "profileCount": { "type": "integer", "minimum": 0 },
+    "compatibleCount": { "type": "integer", "minimum": 0 },
+    "warningCount": { "type": "integer", "minimum": 0 },
+    "incompatibleCount": { "type": "integer", "minimum": 0 },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["profileId", "displayName", "status", "passedRequirements", "warningRequirements", "failedRequirements", "topBlockers"],
+        "properties": {
+          "profileId": { "type": "string", "minLength": 1 },
+          "displayName": { "type": "string", "minLength": 1 },
+          "status": { "type": "string", "minLength": 1 },
+          "passedRequirements": { "type": "integer", "minimum": 0 },
+          "warningRequirements": { "type": "integer", "minimum": 0 },
+          "failedRequirements": { "type": "integer", "minimum": 0 },
+          "topBlockers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["requirementId", "title", "ruleIds"],
+              "properties": {
+                "requirementId": { "type": "string", "minLength": 1 },
+                "title": { "type": "string", "minLength": 1 },
+                "ruleIds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+                "recommendation": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": true
+}

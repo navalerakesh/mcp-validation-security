@@ -125,7 +125,7 @@ public class PromptValidatorUnitTests
         result.PromptsTestPassed.Should().Be(0);
         result.PromptsTestFailed.Should().Be(0);
         result.Score.Should().Be(100);
-        result.Issues.Should().Contain("✅ COMPLIANT: No prompts were advertised; no prompt executions were required");
+        result.Issues.Should().Contain("✅ COMPLIANT: Prompts capability was not advertised and prompts/list returned an empty catalog; no prompt executions were required");
     }
 
     [Fact]

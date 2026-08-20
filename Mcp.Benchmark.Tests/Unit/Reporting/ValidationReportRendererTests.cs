@@ -14,6 +14,122 @@ public class ValidationReportRendererTests
     private readonly ValidationReportRenderer _renderer = new();
 
     [Fact]
+    public void GenerateHtmlReport_WithBaselineWaiverAndHostileEndpoint_ShouldEncodeAndAlignGovernance()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-1",
+            OverallStatus = ValidationStatus.Passed,
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/<script>alert(1)</script>", Transport = "http" },
+            ValidationConfig = new McpValidatorConfiguration(),
+            BaselineComparison = new ValidationBaselineComparison { BaselineValidationId = "baseline", IsRegression = true, ScoreDelta = -5 },
+            PolicyOutcome = new ValidationPolicyOutcome
+            {
+                Passed = true,
+                AppliedSuppressions = [new AppliedPolicySuppression { Id = "waiver-1" }]
+            }
+        };
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics
+        {
+            RunCorrelationId = result.ValidationId,
+            ValidatorOverheadMs = 12,
+            TotalRunDurationMs = 123.4,
+            RequestsStarted = 4,
+            RequestsCompleted = 4,
+            RequestsFailed = 1,
+            TargetLatencyP50Ms = 2,
+            TargetLatencyP95Ms = 4,
+            TargetLatencyP99Ms = 8,
+            RetryCount = 1,
+            QueueTimeP95Ms = 3,
+            TargetLatencySampleCount = 4,
+            QueueTimeSampleCount = 2,
+            EvidenceCoverageRatio = 0.75,
+            StageDurationMs = new SortedDictionary<string, double>(StringComparer.Ordinal)
+            {
+                ["rule.MCP.TEST@1"] = 1.25
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Baseline regression: yes");
+        html.Should().Contain("1 governed waiver(s) applied");
+        html.Should().Contain("Run Overhead");
+        html.Should().Contain("Target 95th-Percentile Latency");
+        html.Should().Contain("Total run wall time");
+        html.Should().Contain("4 / 4 / 1");
+        html.Should().Contain("4 / 2");
+        html.Should().Contain("75.0%");
+        html.Should().Contain("rule.MCP.TEST@1");
+        html.Should().NotContain("<script>alert(1)</script>");
+        html.Should().Contain("&lt;script&gt;alert(1)&lt;/script&gt;");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithActiveProducerAndSpecUris_ShouldRenderInertText()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-1",
+            OverallStatus = ValidationStatus.Failed,
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            ValidationConfig = new McpValidatorConfiguration(),
+            Producer = new ValidationProducerInfo
+            {
+                Name = "Unsafe producer",
+                PackageId = "Unsafe package",
+                RepositoryUrl = "javascript:alert(1)",
+                PackageUrl = "data:text/html,unsafe"
+            },
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                Violations =
+                [
+                    new ComplianceViolation
+                    {
+                        CheckId = "TEST.URI",
+                        Description = "Unsafe spec reference.",
+                        Severity = ViolationSeverity.High,
+                        SpecReference = "javascript:alert(2)"
+                    }
+                ]
+            },
+            VerdictAssessment = new VerdictAssessment
+            {
+                BaselineVerdict = ValidationVerdict.Reject,
+                ProtocolVerdict = ValidationVerdict.Reject,
+                CoverageVerdict = ValidationVerdict.Trusted,
+                TriggeredDecisions =
+                [
+                    new DecisionRecord
+                    {
+                        DecisionId = "decision:unsafe-link",
+                        RuleId = "TEST.URI",
+                        Lane = EvaluationLane.Baseline,
+                        Authority = ValidationRuleSource.Spec,
+                        Origin = EvidenceOrigin.DeterministicObservation,
+                        Gate = GateOutcome.Reject,
+                        Severity = ValidationFindingSeverity.High,
+                        Category = "Protocol",
+                        Component = "response",
+                        Summary = "Unsafe decision spec reference.",
+                        SpecReference = "javascript:alert(3)"
+                    }
+                ]
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().NotContain("href=\"javascript:");
+        html.Should().NotContain("href=\"data:");
+        html.Should().Contain("Unsafe producer");
+        html.Should().Contain("javascript:alert(2)");
+        html.Should().Contain("javascript:alert(3)");
+    }
+
+    [Fact]
     public void GenerateSarifReport_ShouldIncludeStructuredFindingsViolationsAndVulnerabilities()
     {
         var result = new ValidationResult
@@ -412,8 +528,25 @@ public class ValidationReportRendererTests
         html.Should().Contain("<span class=\"status-chip status-chip--danger\">Run Status</span>");
         html.Should().Contain("<span class=\"status-chip status-chip--danger\">Deterministic Verdict</span>");
         html.Should().Contain("<span class=\"status-chip status-chip--info\">Trust Level</span>");
-        html.Should().Contain("<div class=\"focus-value\">L3</div>");
+        html.Should().Contain("<div class=\"focus-value\">Level 3 (L3)</div>");
         html.Should().Contain("<div class=\"focus-label\">Acceptable");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_ShouldDefineReportSpecificTermsAndExpandPriorityLabels()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Terms And Abbreviations");
+        html.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
+        html.Should().Contain("Priority is not severity.");
+        html.Should().Contain("Trust levels L1-L5");
+        html.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
+        html.Should().Contain("P50 / P95 / P99");
+        html.Should().Contain("section-abstract__label\">Priority 1</div>");
+        html.Should().NotContain("section-abstract__label\">P1</div>");
     }
 
     [Fact]
@@ -435,6 +568,7 @@ public class ValidationReportRendererTests
             LayerId = "tool-surface",
             Scope = "tools/list",
             Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Only partial parser-boundary evidence was available."
         });

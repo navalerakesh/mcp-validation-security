@@ -31,7 +31,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         IMcpHttpClient httpClient,
         IProtocolRuleRegistry ruleRegistry,
         IValidationApplicabilityResolver applicabilityResolver,
-        IProtocolFeatureResolver protocolFeatureResolver) 
+        IProtocolFeatureResolver protocolFeatureResolver)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -47,12 +47,35 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var result = new ComplianceTestResult();
             var ruleContext = new ProtocolValidationContext(_httpClient, serverConfig.Endpoint!);
 
+            if (!config.TestMessageFormat && !config.TestNotifications)
+            {
+                result.Status = TestStatus.Inconclusive;
+                result.Score = 100.0;
+                result.ComplianceScore = 100.0;
+                result.Message = "Passive protocol assessment completed. Active malformed-message, error-code, notification, and transport mutation probes were not attempted under the safe execution policy.";
+                result.JsonRpcCompliance = new JsonRpcComplianceResult
+                {
+                    ErrorHandlingEvaluated = false,
+                    ComplianceScore = 100.0
+                };
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN",
+                    Category = "Coverage",
+                    Component = "protocol-active-probes",
+                    Severity = ValidationFindingSeverity.Info,
+                    Summary = "Active protocol conformance probes were not run under the safe execution policy.",
+                    Recommendation = "Use standard mode against an authorized non-production target when active malformed-message and error-handling evidence is required."
+                });
+                return result;
+            }
+
             // REAL JSON-RPC 2.0 COMPLIANCE TESTING
             Logger.LogDebug("Performing comprehensive JSON-RPC 2.0 compliance validation");
 
             // Test 1: JSON-RPC Error Code Compliance
             JsonRpcErrorValidationResult errorValidation;
-            try 
+            try
             {
                 errorValidation = await _httpClient.ValidateErrorCodesAsync(serverConfig.Endpoint!, ct);
             }
@@ -65,6 +88,25 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 return result;
             }
 
+            var errorProbeResponses = errorValidation.Tests
+                .Select(test => test.ActualResponse)
+                .ToArray();
+            if (errorProbeResponses.Any(response => AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication))
+            {
+                result.Status = TestStatus.AuthRequired;
+                result.Message = "Protocol compliance testing requires authentication; rerun with credentials for authoritative protocol evidence.";
+                result.ComplianceScore = 0;
+                return result;
+            }
+
+            if (errorProbeResponses.Length > 0 && errorProbeResponses.All(ValidationReliability.ShouldRetryRpcResponse))
+            {
+                result.Status = TestStatus.Inconclusive;
+                result.Message = $"Protocol compliance testing was inconclusive because every active probe encountered transient transport pressure ({ValidationReliability.DescribeRetryableResponse(errorProbeResponses[0])}).";
+                result.ComplianceScore = 0;
+                return result;
+            }
+
             var observableErrorTests = GetObservableErrorTests(serverConfig, errorValidation).ToList();
             var skippedRawStdioErrorTests = GetSkippedRawStdioErrorTests(serverConfig, errorValidation).ToList();
             var errorCompliance = observableErrorTests.Count == 0
@@ -74,7 +116,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             // Test 2: Request Format Compliance
             var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, ct);
 
-            // Test 3: Response Format Compliance  
+            // Test 3: Response Format Compliance
             var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, ct);
 
             var applicabilityContext = _applicabilityResolver.Build(
@@ -118,12 +160,16 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             }
 
             var streamableHttpTransport = ShouldValidateStreamableHttpTransport(serverConfig, protocolFeatures.NegotiatedProtocolVersion)
-                ? await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
+                ? protocolFeatures.Era == McpProtocolEra.Modern
+                    ? await ValidateModernHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, config.ModernDiscovery, ct)
+                    : await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
                 : null;
             result.StreamableHttpTransport = streamableHttpTransport;
 
             var stdioTransport = ShouldValidateStdioTransport(serverConfig)
-                ? await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, ct)
+                ? protocolFeatures.Era == McpProtocolEra.Modern
+                    ? await ValidateModernStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
+                    : await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, ct)
                 : null;
             result.StdioTransport = stdioTransport;
 
@@ -283,6 +329,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
                 serverConfig.Endpoint!,
                 protocolFeatures.NegotiatedProtocolVersion,
+                config.ModernDiscovery,
                 ct);
 
             // Calculate comprehensive compliance score (now 8 scored tests total)
@@ -290,7 +337,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             var rootsSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Roots) &&
                 await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.RootsList, ct);
             var loggingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) &&
-                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct);
+                (protocolFeatures.Era == McpProtocolEra.Modern ||
+                 await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct));
             var samplingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Sampling) &&
                 await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.SamplingCreateMessage, ct);
             var completionSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) &&
@@ -302,9 +350,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 rootsSupported,
                 loggingSupported,
                 samplingSupported,
-                completionSupported);
+                completionSupported,
+                protocolFeatures.Era == McpProtocolEra.Modern);
 
             ApplyAiCapabilitySafetyFindings(result, declaredCapabilities);
+            ApplyModernExtensionFindings(result, config.ModernDiscovery);
+            ApplyFeatureLifecycleFindings(result, protocolFeatures);
 
             if (notificationProbe.IsCompliant == null)
             {
@@ -404,6 +455,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             result.JsonRpcCompliance = new JsonRpcComplianceResult
             {
+                ErrorHandlingEvaluated = true,
                 RequestFormatCompliant = requestFormatCompliant,
                 ResponseFormatCompliant = responseFormatCompliant,
                 ErrorHandlingCompliant = errorCodeCompliant,
@@ -418,7 +470,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 rootsSupported,
                 loggingSupported,
                 samplingSupported,
-                completionSupported);
+                completionSupported,
+                protocolFeatures.Era == McpProtocolEra.Modern);
 
             return result;
         }, cancellationToken);
@@ -516,6 +569,67 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             lifecycleResponse,
             DescribeStdioLifecycleResponse(lifecycleResponse),
             ViolationSeverity.Medium));
+
+        return result;
+    }
+
+    private async Task<StdioTransportTestResult> ValidateModernStdioTransportAsync(
+        McpServerConfig serverConfig,
+        string protocolVersion,
+        CancellationToken cancellationToken)
+    {
+        const string subscriptionId = "mcpval-subscription-stdio";
+        var endpoint = serverConfig.Endpoint!;
+        var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
+        var result = new StdioTransportTestResult { ProtocolVersion = normalizedVersion };
+        var request = CreateModernSubscriptionEnvelope(normalizedVersion, subscriptionId);
+        var acknowledgment = await _httpClient.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
+        {
+            Endpoint = endpoint,
+            ProbeId = "modern-stdio-subscription-listen",
+            Kind = StdioTransportProbeKind.MessageExchange,
+            RawMessage = request,
+            ResponseTimeoutMs = 2000
+        }, cancellationToken);
+        var acknowledged = IsSubscriptionAcknowledgment(acknowledgment.RawStdout, subscriptionId);
+        result.Probes.Add(CreateStdioTransportProbe(
+            "modern-subscription-acknowledged",
+            ValidationConstants.CheckIds.ModernSubscriptionAcknowledged,
+            true,
+            EvaluateStdioResponse(acknowledgment, _ => acknowledged),
+            "subscriptions/listen must acknowledge the subscription before delivering subscription notifications.",
+            "notifications/subscriptions/acknowledged with matching subscriptionId as the first subscription message.",
+            acknowledgment,
+            acknowledged ? "Matching subscription acknowledgment observed." : "Missing or invalid first subscription acknowledgment.",
+            ViolationSeverity.High));
+
+        var cancellationMessage = JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method = "notifications/cancelled",
+            @params = new { requestId = subscriptionId, reason = "mcpval bounded subscription probe complete" }
+        });
+        var closeResponse = await _httpClient.SendRawJsonAsync(endpoint, cancellationMessage, cancellationToken);
+        var closed = IsSubscriptionCloseResponse(closeResponse.RawJson, subscriptionId);
+        result.Probes.Add(CreateStdioTransportProbe(
+            "modern-subscription-closed",
+            ValidationConstants.CheckIds.ModernSubscriptionClosed,
+            true,
+            closed,
+            "Cancelling a subscriptions/listen request must terminate the long-lived request with a correlated final result.",
+            "A complete result whose subscriptionId and response id match the listen request id.",
+            new StdioTransportProbeResponse
+            {
+                ProbeId = "modern-stdio-subscription-close",
+                Kind = StdioTransportProbeKind.MessageExchange,
+                StatusCode = closeResponse.StatusCode,
+                IsSuccess = closeResponse.IsSuccess,
+                Executed = true,
+                Error = closeResponse.Error,
+                ProbeContext = closeResponse.ProbeContext
+            },
+            closed ? "Subscription closed with matching correlation evidence." : closeResponse.Error ?? "Missing correlated close result.",
+            ViolationSeverity.High));
 
         return result;
     }
@@ -684,6 +798,338 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return result;
     }
 
+    private async Task<StreamableHttpTransportTestResult> ValidateModernHttpTransportAsync(
+        McpServerConfig serverConfig,
+        string protocolVersion,
+        ModernDiscoveryEvidence? modernDiscovery,
+        CancellationToken cancellationToken)
+    {
+        var endpoint = serverConfig.Endpoint!;
+        var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
+        var result = new StreamableHttpTransportTestResult { ProtocolVersion = normalizedVersion };
+
+        var matchingResponse = await _httpClient.SendHttpTransportProbeAsync(
+            CreateTransportProbeRequest(
+                endpoint,
+                "POST",
+                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, normalizedVersion, "modern-matching"),
+                normalizedVersion),
+            cancellationToken);
+        result.Probes.Add(CreateTransportProbe(
+            "modern-request-metadata-header-match",
+            ValidationConstants.CheckIds.HttpModernRequestMetadata,
+            true,
+            EvaluateTransportResponse(matchingResponse, response => response.StatusCode is >= 200 and < 300),
+            "Modern HTTP requests must carry matching protocol versions in params._meta and MCP-Protocol-Version.",
+            "A successful HTTP response for matching modern request metadata and header values.",
+            matchingResponse,
+            DescribeResponse(matchingResponse),
+            ViolationSeverity.High));
+
+        var resultAssessment = ModernResultSemantics.Assess(matchingResponse.Body, normalizedVersion);
+        result.Probes.Add(CreateTransportProbe(
+            "modern-result-type",
+            ValidationConstants.CheckIds.HttpModernResultType,
+            true,
+            EvaluateTransportResponse(matchingResponse, _ => resultAssessment.IsValid),
+            "Every successful modern result must include a supported resultType.",
+            "resultType is complete or a valid input_required result.",
+            matchingResponse,
+            resultAssessment.Error ?? $"Observed resultType={resultAssessment.ResultType}.",
+            ViolationSeverity.High));
+        result.Probes.Add(CreateTransportProbe(
+            "modern-input-required-shape",
+            ValidationConstants.CheckIds.HttpModernInputRequired,
+            false,
+            resultAssessment.ResultType == McpResultType.InputRequired ? resultAssessment.IsValid : null,
+            "An input_required result must include requestState or at least one inputRequests entry.",
+            "A non-empty requestState or inputRequests map.",
+            matchingResponse,
+            resultAssessment.ResultType == McpResultType.InputRequired
+                ? resultAssessment.Error ?? "Valid input_required continuation evidence observed."
+                : "Not exercised because the response resultType was not input_required.",
+            ViolationSeverity.High));
+
+        var mismatchedResponse = await _httpClient.SendHttpTransportProbeAsync(
+            CreateTransportProbeRequest(
+                endpoint,
+                "POST",
+                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, ProtocolVersions.V2025_11_25.Value, "modern-mismatch"),
+                normalizedVersion),
+            cancellationToken);
+        result.Probes.Add(CreateTransportProbe(
+            "modern-request-metadata-header-mismatch",
+            ValidationConstants.CheckIds.HttpModernMetadataHeaderMismatch,
+            true,
+            EvaluateTransportResponse(mismatchedResponse, response => response.StatusCode == 400),
+            "A modern HTTP request whose params._meta protocol version differs from MCP-Protocol-Version must be rejected.",
+            "HTTP 400 Bad Request.",
+            mismatchedResponse,
+            DescribeResponse(mismatchedResponse),
+            ViolationSeverity.High));
+
+        const string unsupportedVersion = "2099-01-01";
+        var unsupportedResponse = await _httpClient.SendHttpTransportProbeAsync(
+            CreateTransportProbeRequest(
+                endpoint,
+                "POST",
+                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, unsupportedVersion, "modern-unsupported"),
+                unsupportedVersion),
+            cancellationToken);
+        result.Probes.Add(CreateTransportProbe(
+            "modern-unsupported-protocol-version",
+            ValidationConstants.CheckIds.HttpUnsupportedProtocolVersionError,
+            true,
+            EvaluateTransportResponse(unsupportedResponse, response =>
+                response.StatusCode == 400 && IsUnsupportedProtocolVersionError(response.Body, unsupportedVersion)),
+            "An unsupported modern protocol version must return HTTP 400 and JSON-RPC error -32022 with requested and supported version data.",
+            "HTTP 400 with error.code=-32022, data.requested, and non-empty data.supported.",
+            unsupportedResponse,
+            DescribeResponse(unsupportedResponse),
+            ViolationSeverity.High));
+
+        await AddModernListProbeResultsAsync(result, endpoint, modernDiscovery, cancellationToken);
+
+        await AddModernHttpSubscriptionProbeAsync(result, endpoint, normalizedVersion, cancellationToken);
+
+        return result;
+    }
+
+    private async Task AddModernHttpSubscriptionProbeAsync(
+        StreamableHttpTransportTestResult result,
+        string endpoint,
+        string protocolVersion,
+        CancellationToken cancellationToken)
+    {
+        const string subscriptionId = "mcpval-subscription-http";
+        var response = await _httpClient.SendHttpTransportProbeAsync(
+            CreateTransportProbeRequest(
+                endpoint,
+                "POST",
+                CreateModernSubscriptionEnvelope(protocolVersion, subscriptionId),
+                protocolVersion,
+                acceptHeader: "text/event-stream"),
+            cancellationToken);
+        var firstEvent = response.SseEvents.FirstOrDefault();
+        var acknowledged = IsEventStreamResponse(response) &&
+            firstEvent is not null &&
+            IsSubscriptionAcknowledgment(firstEvent.Data, subscriptionId);
+        result.Probes.Add(CreateTransportProbe(
+            "modern-subscription-acknowledged",
+            ValidationConstants.CheckIds.ModernSubscriptionAcknowledged,
+            true,
+            response.TimedOut ? null : EvaluateTransportResponse(response, _ => acknowledged),
+            "subscriptions/listen must acknowledge the subscription before delivering subscription notifications.",
+            "The first SSE event is notifications/subscriptions/acknowledged with the matching subscriptionId.",
+            response,
+            response.TimedOut
+                ? "Subscription acknowledgment was not observed within the bounded preview window; evidence is inconclusive."
+                : acknowledged ? "Matching first-event subscription acknowledgment observed." : "Missing or invalid first subscription acknowledgment.",
+            ViolationSeverity.High));
+    }
+
+    private async Task AddModernListProbeResultsAsync(
+        StreamableHttpTransportTestResult result,
+        string endpoint,
+        ModernDiscoveryEvidence? modernDiscovery,
+        CancellationToken cancellationToken)
+    {
+        var surfaces = new[]
+        {
+            (Capability: McpSpecConstants.Capabilities.Tools, Method: ValidationConstants.Methods.ToolsList, Collection: "tools"),
+            (Capability: McpSpecConstants.Capabilities.Resources, Method: ValidationConstants.Methods.ResourcesList, Collection: "resources"),
+            (Capability: McpSpecConstants.Capabilities.Prompts, Method: ValidationConstants.Methods.PromptsList, Collection: "prompts")
+        };
+
+        foreach (var surface in surfaces.Where(surface =>
+                     modernDiscovery?.CapabilityNames.Contains(surface.Capability, StringComparer.OrdinalIgnoreCase) == true))
+        {
+            var first = await _httpClient.CallAsync(endpoint, surface.Method, null, cancellationToken);
+            var second = await _httpClient.CallAsync(endpoint, surface.Method, null, cancellationToken);
+            var firstAssessment = ModernListSemantics.Assess(first.RawJson, surface.Collection);
+            var secondAssessment = ModernListSemantics.Assess(second.RawJson, surface.Collection);
+            var cacheValid = first.IsSuccess && second.IsSuccess && firstAssessment.IsValid && secondAssessment.IsValid;
+            var probePrefix = surface.Method.Replace('/', '-');
+
+            result.Probes.Add(CreateRpcProbe(
+                $"modern-{probePrefix}-cache-metadata",
+                ValidationConstants.CheckIds.HttpModernListCacheMetadata,
+                mandatory: true,
+                passed: cacheValid,
+                requirement: $"Modern {surface.Method} results must include resultType, cacheScope, ttlMs, and a {surface.Collection} array.",
+                expected: "Two successful schema-shaped list responses with non-negative cache metadata.",
+                actual: cacheValid
+                    ? $"cacheScope={firstAssessment.CacheScope}; ttlMs={firstAssessment.TtlMs}."
+                    : firstAssessment.Error ?? secondAssessment.Error ?? first.Error ?? second.Error ?? "List response was unsuccessful.",
+                first,
+                ViolationSeverity.High));
+
+            var determinismEvaluated = cacheValid &&
+                !string.IsNullOrWhiteSpace(firstAssessment.Fingerprint) &&
+                !string.IsNullOrWhiteSpace(secondAssessment.Fingerprint);
+            result.Probes.Add(CreateRpcProbe(
+                $"modern-{probePrefix}-determinism",
+                ValidationConstants.CheckIds.HttpModernListDeterminism,
+                mandatory: false,
+                passed: determinismEvaluated
+                    ? string.Equals(firstAssessment.Fingerprint, secondAssessment.Fingerprint, StringComparison.Ordinal)
+                    : null,
+                requirement: $"Repeated {surface.Method} calls under the same run context should return a stable ordered page and cursor.",
+                expected: "Matching canonical page fingerprints without retaining target payloads.",
+                actual: determinismEvaluated
+                    ? string.Equals(firstAssessment.Fingerprint, secondAssessment.Fingerprint, StringComparison.Ordinal)
+                        ? "Repeated list page fingerprints matched."
+                        : "Repeated list page fingerprints differed."
+                    : "Not evaluated because one or both list responses were invalid or unavailable.",
+                first,
+                ViolationSeverity.Medium));
+        }
+    }
+
+    private static StreamableHttpTransportProbeResult CreateRpcProbe(
+        string probeId,
+        string checkId,
+        bool mandatory,
+        bool? passed,
+        string requirement,
+        string expected,
+        string actual,
+        JsonRpcResponse response,
+        ViolationSeverity severity)
+    {
+        return new StreamableHttpTransportProbeResult
+        {
+            ProbeId = probeId,
+            CheckId = checkId,
+            Mandatory = mandatory,
+            Passed = passed,
+            Requirement = requirement,
+            Expected = expected,
+            Actual = actual,
+            StatusCode = response.StatusCode,
+            ResponseHeaders = new Dictionary<string, string>(response.Headers, StringComparer.OrdinalIgnoreCase),
+            ProbeContext = response.ProbeContext,
+            Severity = severity
+        };
+    }
+
+    private static string CreateModernRequestEnvelope(string method, string protocolVersion, string id)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method,
+            @params = new Dictionary<string, object>
+            {
+                ["_meta"] = new Dictionary<string, object>
+                {
+                    ["io.modelcontextprotocol/protocolVersion"] = protocolVersion,
+                    ["io.modelcontextprotocol/clientCapabilities"] = new Dictionary<string, object>(),
+                    ["io.modelcontextprotocol/clientInfo"] = new { name = ValidationConstants.Product.ClientName, version = "transport-probe" }
+                }
+            },
+            id
+        });
+    }
+
+    private static string CreateModernSubscriptionEnvelope(string protocolVersion, string id)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0",
+            method = "subscriptions/listen",
+            @params = new Dictionary<string, object>
+            {
+                ["_meta"] = new Dictionary<string, object>
+                {
+                    ["io.modelcontextprotocol/protocolVersion"] = protocolVersion,
+                    ["io.modelcontextprotocol/clientCapabilities"] = new Dictionary<string, object>(),
+                    ["io.modelcontextprotocol/clientInfo"] = new { name = ValidationConstants.Product.ClientName, version = "subscription-probe" }
+                },
+                ["notifications"] = new Dictionary<string, object>()
+            },
+            id
+        });
+    }
+
+    private static bool IsSubscriptionAcknowledgment(string? rawJson, string subscriptionId)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            var root = document.RootElement;
+            return root.ValueKind == JsonValueKind.Object &&
+                   root.TryGetProperty("jsonrpc", out var jsonRpc) && jsonRpc.GetString() == "2.0" &&
+                   root.TryGetProperty("method", out var method) && method.GetString() == "notifications/subscriptions/acknowledged" &&
+                   root.TryGetProperty("params", out var parameters) && parameters.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty("notifications", out var notifications) && notifications.ValueKind == JsonValueKind.Object &&
+                   parameters.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object &&
+                   metadata.TryGetProperty("io.modelcontextprotocol/subscriptionId", out var id) &&
+                   string.Equals(id.ToString(), subscriptionId, StringComparison.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsSubscriptionCloseResponse(string? rawJson, string subscriptionId)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            var root = document.RootElement;
+            return root.ValueKind == JsonValueKind.Object &&
+                   root.TryGetProperty("id", out var responseId) && string.Equals(responseId.ToString(), subscriptionId, StringComparison.Ordinal) &&
+                   root.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object &&
+                   result.TryGetProperty("resultType", out var resultType) && resultType.GetString() == "complete" &&
+                   result.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object &&
+                   metadata.TryGetProperty("io.modelcontextprotocol/subscriptionId", out var subscription) &&
+                   string.Equals(subscription.ToString(), subscriptionId, StringComparison.Ordinal);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsUnsupportedProtocolVersionError(string? responseBody, string requestedVersion)
+    {
+        if (string.IsNullOrWhiteSpace(responseBody))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(responseBody);
+            var root = document.RootElement;
+            return root.TryGetProperty("error", out var error) &&
+                   error.TryGetProperty("code", out var code) &&
+                   code.TryGetInt32(out var parsedCode) && parsedCode == -32022 &&
+                   error.TryGetProperty("data", out var data) &&
+                   data.TryGetProperty("requested", out var requested) &&
+                   string.Equals(requested.GetString(), requestedVersion, StringComparison.Ordinal) &&
+                   data.TryGetProperty("supported", out var supported) &&
+                   supported.ValueKind == JsonValueKind.Array &&
+                   supported.GetArrayLength() > 0;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
     private async Task AddSseProbeResultsAsync(StreamableHttpTransportTestResult result, string endpoint, string protocolVersion, HttpTransportProbeResponse getResponse, CancellationToken ct)
     {
         if (!IsEventStreamResponse(getResponse))
@@ -758,7 +1204,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }
 
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        return string.Equals(normalizedVersion, ProtocolVersions.V2025_11_25.Value, StringComparison.Ordinal);
+        return normalizedVersion is "2025-03-26" or "2025-06-18" or "2025-11-25" or "2026-07-28";
     }
 
     private static bool ShouldValidateStdioTransport(McpServerConfig serverConfig)
@@ -1111,8 +1557,19 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return value.Length > 0 && value.All(static ch => ch is >= '!' and <= '~');
     }
 
-    private async Task<HashSet<string>> GetDeclaredCapabilitiesAsync(string endpoint, string? requestedVersion, CancellationToken ct)
+    private async Task<HashSet<string>> GetDeclaredCapabilitiesAsync(
+        string endpoint,
+        string? requestedVersion,
+        ModernDiscoveryEvidence? modernDiscovery,
+        CancellationToken ct)
     {
+        if (ProtocolEraVersions.IsModern(requestedVersion))
+        {
+            return new HashSet<string>(
+                modernDiscovery?.CapabilityNames ?? Array.Empty<string>(),
+                StringComparer.OrdinalIgnoreCase);
+        }
+
         try
         {
             var response = await _httpClient.CallAsync(
@@ -1135,8 +1592,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             return ParseDeclaredCapabilities(capabilities);
         }
-        catch
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogDebug(ex, "Unable to read declared capabilities from legacy initialize response");
             return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
@@ -1179,7 +1641,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         bool rootsSupported,
         bool loggingSupported,
         bool samplingSupported,
-        bool completionSupported)
+        bool completionSupported,
+        bool isModern)
     {
         var segments = new List<string>();
         if (!string.IsNullOrWhiteSpace(existingMessage))
@@ -1193,7 +1656,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }
 
         segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Roots, ValidationConstants.Methods.RootsList, rootsSupported));
-        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Logging, ValidationConstants.Methods.LoggingSetLevel, loggingSupported));
+        segments.Add(FormatCapabilityProbeStatus(
+            declaredCapabilities,
+            McpSpecConstants.Capabilities.Logging,
+            isModern ? "io.modelcontextprotocol/logLevel" : ValidationConstants.Methods.LoggingSetLevel,
+            loggingSupported));
         segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Sampling, ValidationConstants.Methods.SamplingCreateMessage, samplingSupported));
         segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Completions, ValidationConstants.Methods.CompletionComplete, completionSupported));
 
@@ -1220,7 +1687,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         bool rootsSupported,
         bool loggingSupported,
         bool samplingSupported,
-        bool completionSupported)
+        bool completionSupported,
+        bool isModern)
     {
         AddOptionalCapabilitySupportedFinding(
             result,
@@ -1234,9 +1702,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             result,
             loggingSupported,
             ValidationFindingRuleIds.OptionalCapabilityLoggingSupported,
-            ValidationConstants.Methods.LoggingSetLevel,
+            isModern ? "io.modelcontextprotocol/logLevel" : ValidationConstants.Methods.LoggingSetLevel,
             McpSpecConstants.Capabilities.Logging,
-            "Server responded to logging/setLevel, indicating optional logging controls are available.");
+            isModern
+                ? "Server advertises modern per-request logging support through request metadata."
+                : "Server responded to logging/setLevel, indicating optional logging controls are available.");
 
         AddOptionalCapabilitySupportedFinding(
             result,
@@ -1254,7 +1724,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             McpSpecConstants.Capabilities.Completions,
             "Server responded to completion/complete, indicating optional completions are available.");
 
-        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && !loggingSupported)
+        if (!isModern && declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && !loggingSupported)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -1274,7 +1744,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             });
         }
 
-        if (!declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported)
+        if (!isModern && !declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -1442,6 +1912,71 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }
     }
 
+    private static void ApplyModernExtensionFindings(
+        ComplianceTestResult result,
+        ModernDiscoveryEvidence? discovery)
+    {
+        if (discovery?.IsValid != true)
+        {
+            return;
+        }
+
+        foreach (var extensionId in discovery.ExtensionIds.OrderBy(value => value, StringComparer.Ordinal))
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = string.Equals(extensionId, "io.modelcontextprotocol/tasks", StringComparison.Ordinal)
+                    ? ValidationFindingRuleIds.ModernTasksExtensionNegotiated
+                    : ValidationFindingRuleIds.ModernExtensionNegotiated,
+                Category = "ProtocolExtensions",
+                Component = extensionId,
+                Severity = ValidationFindingSeverity.Info,
+                Source = ValidationRuleSource.Spec,
+                SpecReference = "https://modelcontextprotocol.io/specification/2026-07-28/basic/protocol#extensions",
+                Summary = string.Equals(extensionId, "io.modelcontextprotocol/tasks", StringComparison.Ordinal)
+                    ? "Server negotiated the modern MCP tasks extension."
+                    : $"Server negotiated MCP extension '{extensionId}'.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["extensionId"] = extensionId,
+                    ["negotiated"] = "true"
+                }
+            });
+        }
+    }
+
+    private static void ApplyFeatureLifecycleFindings(
+        ComplianceTestResult result,
+        ProtocolFeatureSet protocolFeatures)
+    {
+        foreach (var feature in protocolFeatures.FeatureLifecycle
+                     .Where(entry => entry.Value != ProtocolFeatureLifecycle.Active)
+                     .OrderBy(entry => entry.Key, StringComparer.Ordinal))
+        {
+            result.Findings.Add(new ValidationFinding
+            {
+                RuleId = feature.Value == ProtocolFeatureLifecycle.Deprecated
+                    ? ValidationFindingRuleIds.ProtocolFeatureDeprecated
+                    : ValidationFindingRuleIds.ProtocolFeatureRemoved,
+                Category = "ProtocolLifecycle",
+                Component = feature.Key,
+                Severity = ValidationFindingSeverity.Info,
+                Source = ValidationRuleSource.Spec,
+                GateOverride = GateOutcome.Note,
+                Summary = feature.Value == ProtocolFeatureLifecycle.Deprecated
+                    ? $"Protocol feature '{feature.Key}' is deprecated for schema {protocolFeatures.SchemaVersion}."
+                    : $"Protocol feature '{feature.Key}' is removed/replaced for schema {protocolFeatures.SchemaVersion}.",
+                Metadata = new Dictionary<string, string>
+                {
+                    ["feature"] = feature.Key,
+                    ["lifecycle"] = feature.Value.ToString().ToLowerInvariant(),
+                    ["schemaVersion"] = protocolFeatures.SchemaVersion,
+                    ["isFailure"] = "false"
+                }
+            });
+        }
+    }
+
     private static void AddClientCapabilityAdvertisedFinding(
         ComplianceTestResult result,
         string capability,
@@ -1540,7 +2075,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return await ExecuteValidationAsync(serverConfig, "Initialization Compliance", async (ct) =>
         {
             var result = new ComplianceTestResult();
-            
+
             // Per MCP spec: client sends initialize with its preferred protocolVersion.
             // Server responds with the version it supports (may differ).
             // We test version negotiation by requesting the latest spec version,
@@ -1557,7 +2092,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 ValidationConstants.Methods.Initialize,
                 CreateInitializeRequest(requestedVersion),
                 ct);
-            
+
             if (response.IsSuccess)
             {
                 result.Status = TestStatus.Passed;
@@ -1685,7 +2220,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ValidationConstants.Categories.ProtocolLifecycle,
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Lifecycle]));
             }
-            
+
             return result;
         }, cancellationToken);
     }
@@ -1706,7 +2241,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             }
 
             var isCompliant = probe.IsCompliant.Value;
-            
+
             if (!isCompliant)
             {
                 result.Violations.Add(CreateViolation(
@@ -1716,10 +2251,10 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ValidationConstants.Categories.JsonRpcCompliance,
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.Notification]));
             }
-            
+
             result.Score = isCompliant ? 100.0 : 0.0;
             result.Status = isCompliant ? TestStatus.Passed : TestStatus.Failed;
-            
+
             return result;
         }, cancellationToken);
     }
@@ -1728,7 +2263,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     {
         // Test 1: Valid request
         var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, "ping", null, cancellationToken);
-        
+
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
         if (AuthenticationChallengeInterpreter.Inspect(validResponse).RequiresAuthentication) return true;
 
@@ -1754,7 +2289,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     private async Task<bool> ValidateResponseFormatAsync(string endpoint, CancellationToken cancellationToken)
     {
         var response = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
-        
+
         // If auth failed, we can't validate response format, but we shouldn't fail the test
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;
 
@@ -1791,7 +2326,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
         var batchRequest = $"[{{\"jsonrpc\": \"2.0\", \"method\": \"{batchMethod}\", \"id\": 1}}, {{\"jsonrpc\": \"2.0\", \"method\": \"{batchMethod}\", \"id\": 2}}]";
         var response = await _httpClient.SendRawJsonAsync(endpoint, batchRequest, cancellationToken);
-        
+
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
         {
             return ProtocolProbeOutcome.AuthRequired("Batch processing probe requires authentication; rerun with credentials for authoritative protocol evidence.");
@@ -1814,7 +2349,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     private async Task<string?> ResolveBatchProbeMethodAsync(string endpoint, string? requestedVersion, CancellationToken cancellationToken)
     {
-        var declaredCapabilities = await GetDeclaredCapabilitiesAsync(endpoint, requestedVersion, cancellationToken);
+        var declaredCapabilities = await GetDeclaredCapabilitiesAsync(endpoint, requestedVersion, modernDiscovery: null, cancellationToken);
         var preferredMethods = new List<string>();
 
         if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Tools))
@@ -1851,7 +2386,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         // This avoids classifying "missing id" method validation as a notification response bug.
         var notification = $"{{\"jsonrpc\": \"2.0\", \"method\": \"{McpSpecConstants.InitializedNotification}\"}}";
         var response = await _httpClient.SendRawJsonAsync(endpoint, notification, cancellationToken);
-        
+
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
         {
             return ProtocolProbeOutcome.AuthRequired("Notification handling probe requires authentication; rerun with credentials for authoritative protocol evidence.");

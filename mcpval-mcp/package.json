@@ -1,6 +1,6 @@
 {
   "name": "mcpval-localmcp",
-  "version": "1.1.0",
+  "version": "1.1.25",
   "description": "Local MCP server that wraps the mcpval CLI — validate MCP servers from any AI agent",
   "author": "Rakesh Navale",
   "license": "MIT",
@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test tests/cli-runner.test.ts tests/handlers.test.ts tests/server-surface.test.ts",
+    "test": "tsx --test tests/cli-runner.test.ts tests/handlers.test.ts tests/server-surface.test.ts tests/strict-stdio-server-transport.test.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
@@ -41,16 +41,20 @@
     "url": "https://github.com/navalerakesh/mcp-validation-security/issues"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.19.0 <25"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.27.0",
-    "zod": "^4.3.6"
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "zod": "4.3.6"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
     "fast-check": "^4.7.0",
-    "tsx": "^4.0.0",
+    "tsx": "4.23.12",
     "typescript": "^6.0.2"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }

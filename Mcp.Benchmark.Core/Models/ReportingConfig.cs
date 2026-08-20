@@ -11,7 +11,7 @@ public class ReportingConfig
     /// <summary>
     /// Gets or sets the output directory for test reports.
     /// </summary>
-    public string OutputDirectory { get; set; } = "./mcp-validation-reports";
+    public string? OutputDirectory { get; set; } = "./mcp-validation-reports";
 
     /// <summary>
     /// Gets or sets the report formats to generate.
@@ -46,6 +46,9 @@ public class ReportingConfig
     /// Gets or sets whether to generate compliance summary reports.
     /// </summary>
     public bool GenerateComplianceSummary { get; set; } = true;
+
+    [JsonPropertyName("signAttestation")]
+    public bool SignAttestation { get; set; }
 
     /// <summary>
     /// Gets or sets custom report templates to use.

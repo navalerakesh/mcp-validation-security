@@ -2,6 +2,9 @@ using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
 using FluentAssertions;
 using Xunit;
+using System.Text.Json;
+using ModelContextProtocol.Protocol;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Tests.Unit.Core;
 
@@ -77,6 +80,145 @@ public class CoreModelTests
     }
 
     [Fact]
+    public void ValidationResult_CloneWithoutSecrets_ShouldRemoveRawBootstrapAndDiscoveryData()
+    {
+        const string canary = "canonical-secret-canary";
+        var result = new ValidationResult
+        {
+            InitializationHandshake = new TransportResult<InitializeResult>
+            {
+                IsSuccessful = true,
+                Payload = new InitializeResult
+                {
+                    ProtocolVersion = "2026-07-28",
+                    Capabilities = new ModelContextProtocol.Protocol.ServerCapabilities(),
+                    ServerInfo = new Implementation { Name = "fixture", Version = "1.0.0" },
+                    Instructions = canary
+                },
+                Transport = new TransportMetadata
+                {
+                    Headers = new Dictionary<string, string> { ["Set-Cookie"] = canary },
+                    RawContent = canary
+                }
+            },
+            ModernDiscovery = new TransportResult<ModernDiscoveryEvidence>
+            {
+                IsSuccessful = false,
+                Error = canary,
+                Payload = new ModernDiscoveryEvidence { IsValid = false, Instructions = canary, Errors = [canary] },
+                Transport = new TransportMetadata { RawContent = canary }
+            },
+            CapabilitySnapshot = new TransportResult<CapabilitySummary>
+            {
+                Payload = new CapabilitySummary
+                {
+                    ToolListResponse = new Mcp.Benchmark.Core.Models.JsonRpcResponse
+                    {
+                        RawJson = canary,
+                        Error = canary,
+                        Headers = new Dictionary<string, string> { ["Authorization"] = canary },
+                        ProbeContext = new ProbeContext { Reason = canary, Metadata = new Dictionary<string, string> { ["raw"] = canary } }
+                    }
+                }
+            },
+            BootstrapHealth = new HealthCheckResult
+            {
+                ErrorMessage = canary,
+                ServerMetadata = new Dictionary<string, object> { ["secret"] = canary },
+                InitializationDetails = new TransportResult<InitializeResult>
+                {
+                    Error = canary,
+                    Transport = new TransportMetadata { RawContent = canary }
+                }
+            },
+            ExecutionLogs = [new ValidationLogEntry { Message = canary, Exception = canary, Context = new Dictionary<string, object> { ["secret"] = canary } }],
+            CriticalErrors = [canary],
+            SecurityTesting = new SecurityTestResult
+            {
+                Vulnerabilities = [new SecurityVulnerability { ProofOfConcept = canary }],
+                InputValidationResults = [new InputValidationResult { TestPayload = canary, ActualResponse = canary }],
+                AttackSimulations = [new AttackSimulationResult { ServerResponse = canary, Evidence = new Dictionary<string, object> { ["secret"] = canary } }]
+            },
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                StreamableHttpTransport = new StreamableHttpTransportTestResult
+                {
+                    Probes =
+                    [
+                        new StreamableHttpTransportProbeResult
+                        {
+                            ProbeId = "http-preview",
+                            CheckId = "HTTP.PREVIEW",
+                            Requirement = "No raw payload persistence",
+                            Expected = "Redacted",
+                            Actual = "Observed",
+                            BodyPreview = canary
+                        }
+                    ]
+                },
+                StdioTransport = new StdioTransportTestResult
+                {
+                    Probes =
+                    [
+                        new StdioTransportProbeResult
+                        {
+                            ProbeId = "stdio-preview",
+                            CheckId = "STDIO.PREVIEW",
+                            Requirement = "No raw payload persistence",
+                            Expected = "Redacted",
+                            Actual = "Observed",
+                            StdoutPreview = canary,
+                            StderrPreview = canary
+                        }
+                    ]
+                }
+            },
+            Evidence = new ValidationEvidenceDocument
+            {
+                Observations = [new ValidationObservation
+                {
+                    Id = "hostile-observation",
+                    LayerId = "security",
+                    Component = "target",
+                    ObservationKind = "response",
+                    RedactedPayloadPreview = canary
+                }]
+            }
+        };
+
+        var serialized = JsonSerializer.Serialize(result.CloneWithoutSecrets());
+
+        serialized.Should().NotContain(canary);
+        serialized.Should().NotContain("Set-Cookie");
+        serialized.Should().NotContain("Authorization");
+    }
+
+    [Fact]
+    public void SecretFreeClones_ShouldNotShareMutableConfigurationOrEvidence()
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Reporting.SpecProfile = "original";
+        var configurationClone = configuration.CloneWithoutSecrets();
+        configurationClone.Reporting.SpecProfile = "changed";
+
+        var result = new ValidationResult();
+        result.Evidence.Coverage.Add(ValidationCoverageFactory.FromOutcome("layer", "scope", ValidationOutcome.Succeeded));
+        var resultClone = result.CloneWithoutSecrets();
+        resultClone.Evidence.Coverage.Clear();
+
+        configuration.Reporting.SpecProfile.Should().Be("original");
+        result.Evidence.Coverage.Should().ContainSingle();
+    }
+
+    [Fact]
+    public void ServerClone_ShouldRedactEntireStdioCommand()
+    {
+        var server = new McpServerConfig { Transport = "stdio", Endpoint = "node server.js --token secret-canary" };
+
+        server.CloneWithoutSecrets().Endpoint.Should().Be("__STDIO_COMMAND_REDACTED__");
+    }
+
+    [Fact]
     public void McpValidatorConfiguration_CloneWithoutSecrets_ShouldPreserveClientProfiles()
     {
         var configuration = new McpValidatorConfiguration
@@ -127,18 +269,57 @@ public class CoreModelTests
         };
 
         var clone = configuration.CloneWithoutSecrets();
+        clone.Execution.Should().NotBeNull();
+        clone.Evaluation.Should().NotBeNull();
+        var execution = clone.Execution!;
+        var modelEvaluation = clone.Evaluation!.ModelEvaluation;
 
-        clone.Execution.Mode.Should().Be(ExecutionMode.Elevated);
-        clone.Execution.DryRun.Should().BeTrue();
-        clone.Execution.AllowedHosts.Should().ContainSingle().Which.Should().Be("example.test");
-        clone.Execution.PersistenceMode.Should().Be(PersistenceMode.Session);
-        clone.Execution.RedactLevel.Should().Be(RedactionLevel.Standard);
-        clone.Execution.TraceMode.Should().Be(TraceMode.Redacted);
-        clone.Execution.ConfirmElevatedRisk.Should().BeTrue();
-        clone.Evaluation.ModelEvaluation.Enabled.Should().BeTrue();
-        clone.Evaluation.ModelEvaluation.Provider.Should().Be("github-models");
-        clone.Evaluation.ModelEvaluation.Model.Should().Be("gpt-4.1");
-        clone.Evaluation.ModelEvaluation.PromptSet.Should().Be("baseline-v1");
+        execution.Mode.Should().Be(ExecutionMode.Elevated);
+        execution.DryRun.Should().BeTrue();
+        execution.AllowedHosts.Should().ContainSingle().Which.Should().Be("example.test");
+        execution.PersistenceMode.Should().Be(PersistenceMode.Session);
+        execution.RedactLevel.Should().Be(RedactionLevel.Standard);
+        execution.TraceMode.Should().Be(TraceMode.Redacted);
+        execution.ConfirmElevatedRisk.Should().BeTrue();
+        modelEvaluation.Enabled.Should().BeTrue();
+        modelEvaluation.Provider.Should().Be("github-models");
+        modelEvaluation.Model.Should().Be("gpt-4.1");
+        modelEvaluation.PromptSet.Should().Be("baseline-v1");
+    }
+
+    [Fact]
+    public void ValidationRunRequest_Capture_ShouldIsolateNestedConfigurationAndPolicyState()
+    {
+        var configuration = new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig
+            {
+                Endpoint = "https://example.test/mcp",
+                Authentication = new AuthenticationConfig { Token = "test-token" }
+            },
+            Execution = new ExecutionPolicy
+            {
+                AllowedHosts = ["example.test"],
+                MaxRequests = 7,
+                MaxResponseBytes = 4096
+            }
+        };
+
+        var request = ValidationRunRequest.Capture(configuration);
+        configuration.Server.Endpoint = "https://changed.test/mcp";
+        configuration.Server.Authentication!.Token = "changed-token";
+        configuration.Execution!.AllowedHosts.Clear();
+        configuration.Execution.MaxRequests = 99;
+
+        var captured = request.CreateConfiguration();
+
+        request.Target.Should().Be("https://example.test/mcp");
+        request.OperationPolicy.AllowedHosts.Should().ContainSingle("example.test");
+        request.OperationPolicy.MaxRequests.Should().Be(7);
+        request.OperationPolicy.MaxResponseBytes.Should().Be(4096);
+        captured.Server.Endpoint.Should().Be("https://example.test/mcp");
+        captured.Server.Authentication!.Token.Should().Be("test-token");
+        captured.Execution!.AllowedHosts.Should().ContainSingle("example.test");
     }
 
     // ─── McpServerConfig ──────────────────────────────────────────
@@ -161,10 +342,113 @@ public class CoreModelTests
         clone.Headers["X-Custom"].Should().Be("visible");
     }
 
+    [Fact]
+    public void McpServerConfig_CloneWithoutSecrets_ShouldRemoveUrlCredentialsAndQuerySecrets()
+    {
+        var config = new McpServerConfig
+        {
+            Endpoint = "https://user:password@example.test/mcp?access_token=secret#fragment",
+            Transport = "http"
+        };
+
+        var clone = config.CloneWithoutSecrets();
+
+        clone.Endpoint.Should().Be("https://example.test/mcp");
+        clone.Endpoint.Should().NotContainAny("user", "password", "access_token", "secret", "fragment");
+    }
+
+    [Fact]
+    public void McpServerConfig_CloneWithoutSecrets_ShouldRedactSensitiveEnvironmentValues()
+    {
+        var config = new McpServerConfig
+        {
+            Environment = new Dictionary<string, string>
+            {
+                ["MCP_TOKEN"] = "secret-token",
+                ["DATABASE_PASSWORD"] = "secret-password",
+                ["LOG_LEVEL"] = "debug"
+            }
+        };
+
+        var clone = config.CloneWithoutSecrets();
+
+        clone.Environment["MCP_TOKEN"].Should().Be("__ENVIRONMENT-REDACTED__");
+        clone.Environment["DATABASE_PASSWORD"].Should().Be("__ENVIRONMENT-REDACTED__");
+        clone.Environment["LOG_LEVEL"].Should().Be("debug");
+    }
+
+    [Fact]
+    public void McpServerConfig_CloneForExecution_ShouldPreserveEraAndIsolateNestedCollections()
+    {
+        var config = new McpServerConfig
+        {
+            ProtocolEra = McpProtocolEraSelection.Modern,
+            Authentication = new AuthenticationConfig
+            {
+                Token = "runtime-token",
+                Scopes = ["scope-a"],
+                CustomHeaders = new Dictionary<string, string> { ["X-Test"] = "value" },
+                ClientRegistration = new OAuthClientRegistrationConfig
+                {
+                    Mode = OAuthClientRegistrationMode.Static,
+                    ClientId = "client-id",
+                    RedirectUris = ["https://client.example/callback"]
+                },
+                ConformanceCredentials = new AuthenticationConformanceCredentials
+                {
+                    WrongAudienceResource = "https://other-resource.example/mcp",
+                    WrongAudienceScopes = ["tools:read"],
+                    PreviouslyGrantedScopes = ["tools:read"]
+                }
+            },
+            Headers = new Dictionary<string, string> { ["X-Server"] = "value" },
+            Environment = new Dictionary<string, string> { ["LOG_LEVEL"] = "debug" }
+        };
+
+        var clone = config.CloneForExecution();
+        config.Authentication.Scopes[0] = "changed";
+        config.Authentication.CustomHeaders["X-Test"] = "changed";
+        config.Authentication.ClientRegistration!.RedirectUris[0] = "https://changed.example/callback";
+        config.Authentication.ConformanceCredentials!.WrongAudienceResource = "https://changed.example/mcp";
+        config.Authentication.ConformanceCredentials.WrongAudienceScopes[0] = "changed";
+        config.Authentication.ConformanceCredentials.PreviouslyGrantedScopes[0] = "changed";
+        config.Headers["X-Server"] = "changed";
+        config.Environment["LOG_LEVEL"] = "changed";
+
+        clone.ProtocolEra.Should().Be(McpProtocolEraSelection.Modern);
+        clone.Authentication!.Token.Should().Be("runtime-token");
+        clone.Authentication.Scopes.Should().Equal("scope-a");
+        clone.Authentication.CustomHeaders["X-Test"].Should().Be("value");
+        clone.Authentication.ClientRegistration!.RedirectUris.Should().Equal("https://client.example/callback");
+        clone.Authentication.ConformanceCredentials!.WrongAudienceResource.Should().Be("https://other-resource.example/mcp");
+        clone.Authentication.ConformanceCredentials.WrongAudienceScopes.Should().Equal("tools:read");
+        clone.Authentication.ConformanceCredentials.PreviouslyGrantedScopes.Should().Equal("tools:read");
+        clone.Headers["X-Server"].Should().Be("value");
+        clone.Environment["LOG_LEVEL"].Should().Be("debug");
+    }
+
+    [Fact]
+    public void AuthenticationConfig_CloneWithoutSecrets_ShouldRetainReferenceAndRedactLegacyToken()
+    {
+        var authentication = new AuthenticationConfig
+        {
+            Type = "bearer",
+            Token = "legacy-secret",
+            TokenRef = new SecretRef { Provider = SecretRefProviders.Environment, Name = "MCPVAL_TOKEN" }
+        };
+
+        var clone = authentication.CloneWithoutSecrets();
+
+        clone.Token.Should().Be("__TOKEN-REDACTED__");
+        clone.TokenRef.Should().NotBeSameAs(authentication.TokenRef);
+        clone.TokenRef!.Provider.Should().Be(SecretRefProviders.Environment);
+        clone.TokenRef.Name.Should().Be("MCPVAL_TOKEN");
+    }
+
     // ─── McpTrustAssessment ──────────────────────────────────────
     [Theory]
-    [InlineData(McpTrustLevel.L5_CertifiedSecure, "Certified")]
-    [InlineData(McpTrustLevel.L4_Trusted, "Trusted")]
+    [InlineData(McpTrustLevel.L5_CertifiedSecure, "High Assurance")]
+    [InlineData(McpTrustLevel.L4_Trusted, "Strong")]
     [InlineData(McpTrustLevel.L3_Acceptable, "Acceptable")]
     [InlineData(McpTrustLevel.L2_Caution, "Caution")]
     [InlineData(McpTrustLevel.L1_Untrusted, "Untrusted")]

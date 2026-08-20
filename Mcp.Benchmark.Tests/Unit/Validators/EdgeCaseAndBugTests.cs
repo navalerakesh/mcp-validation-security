@@ -186,9 +186,11 @@ public class EdgeCaseAndBugTests
 
         var result = await securityValidator.SimulateAttackVectorsAsync(config, new[] { ValidationConstants.AttackVectors.InputValidation1 }, CancellationToken.None);
 
-        // 503 should NOT be classified as "attack blocked" — it's just the service being down
-        // Currently it IS classified as blocked (the bug), so this test documents expected behavior
-        result.AttackSimulations.Should().NotBeEmpty();
+        var simulation = result.AttackSimulations.Should().ContainSingle().Subject;
+        simulation.AttackSuccessful.Should().BeFalse();
+        simulation.DefenseSuccessful.Should().BeFalse();
+        AttackSimulationOutcomeResolver.Resolve(simulation).Should().Be(AttackSimulationOutcome.Inconclusive);
+        result.Status.Should().Be(TestStatus.Inconclusive);
     }
 
     [Fact]
@@ -245,6 +247,20 @@ public class EdgeCaseAndBugTests
         attack.ProbeContexts.Should().Contain(context => context.ProbeId == attackProbe.ProbeId && context.ResponseClassification == ProbeResponseClassification.ProtocolError);
         attack.Evidence.Should().ContainKey("probeIds");
         attack.Evidence["probeIds"].Should().Be("probe-tools-list,probe-tools-call");
+    }
+
+    [Fact]
+    public void AttackOutcomeResolver_TypedOutcome_ShouldOverrideProseAndLegacyFlags()
+    {
+        var attack = new AttackSimulationResult
+        {
+            Outcome = ValidationOutcome.Inconclusive,
+            AttackSuccessful = true,
+            DefenseSuccessful = true,
+            ServerResponse = "Skipped blocked detected accepted"
+        };
+
+        AttackSimulationOutcomeResolver.Resolve(attack).Should().Be(AttackSimulationOutcome.Inconclusive);
     }
 
     [Fact]

@@ -121,20 +121,22 @@ public static class ValidationEvidenceSummarizer
         {
             return declaration.Confidence switch
             {
-                EvidenceConfidenceLevel.High => 1.0,
-                EvidenceConfidenceLevel.Medium => 0.65,
-                EvidenceConfidenceLevel.Low => 0.35,
+                EvidenceConfidenceLevel.High => Constants.ScoringConstants.CoverageConfidenceHigh,
+                EvidenceConfidenceLevel.Medium => Constants.ScoringConstants.CoverageConfidenceMedium,
+                EvidenceConfidenceLevel.Low => Constants.ScoringConstants.CoverageConfidenceLow,
                 _ => 0.0
             };
         }
 
         return declaration.Status switch
         {
-            ValidationCoverageStatus.Covered => 1.0,
+            ValidationCoverageStatus.Covered => Constants.ScoringConstants.CoverageConfidenceHigh,
             ValidationCoverageStatus.NotApplicable => 0.0,
-            ValidationCoverageStatus.Skipped => declaration.Blocker == ValidationEvidenceBlocker.ConfigDisabled ? 0.25 : 0.35,
-            ValidationCoverageStatus.AuthRequired => 0.35,
-            ValidationCoverageStatus.Inconclusive => 0.2,
+            ValidationCoverageStatus.Skipped => declaration.Blocker == ValidationEvidenceBlocker.ConfigDisabled
+                ? Constants.ScoringConstants.CoverageConfidenceSkippedDisabled
+                : Constants.ScoringConstants.CoverageConfidenceLow,
+            ValidationCoverageStatus.AuthRequired => Constants.ScoringConstants.CoverageConfidenceLow,
+            ValidationCoverageStatus.Inconclusive => Constants.ScoringConstants.CoverageConfidenceInconclusive,
             ValidationCoverageStatus.Unavailable => 0.0,
             ValidationCoverageStatus.Blocked => 0.0,
             _ => 0.0
@@ -145,8 +147,8 @@ public static class ValidationEvidenceSummarizer
     {
         return ratio switch
         {
-            >= 0.85 => EvidenceConfidenceLevel.High,
-            >= 0.60 => EvidenceConfidenceLevel.Medium,
+            >= Constants.ScoringConstants.ConfidenceLevelHighThreshold => EvidenceConfidenceLevel.High,
+            >= Constants.ScoringConstants.ConfidenceLevelMediumThreshold => EvidenceConfidenceLevel.Medium,
             > 0 => EvidenceConfidenceLevel.Low,
             _ => EvidenceConfidenceLevel.None
         };

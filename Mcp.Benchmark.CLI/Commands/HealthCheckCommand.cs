@@ -65,7 +65,10 @@ public class HealthCheckCommand(
         string? persistenceMode = null,
         string? redactLevel = null,
         string? traceMode = null,
-        bool? confirmElevatedRisk = null)
+        bool? confirmElevatedRisk = null,
+        string[]? allowedOrigins = null,
+        string? protocolEra = null,
+        CancellationToken cancellationToken = default)
     {
         _nextStepAdvisor.Reset();
         var targetEndpoint = server;
@@ -82,6 +85,7 @@ public class HealthCheckCommand(
             var profileOverride = CommandConnectionHelper.ParseServerProfile(serverProfile);
 
             var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride);
+            configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
             ExecutionPolicyOverrides.Apply(
                 configuration,
                 executionMode: executionMode,
@@ -93,7 +97,8 @@ public class HealthCheckCommand(
                 persistenceMode: persistenceMode,
                 redactLevel: redactLevel,
                 traceMode: traceMode,
-                confirmElevatedRisk: confirmElevatedRisk);
+                confirmElevatedRisk: confirmElevatedRisk,
+                allowedOrigins: allowedOrigins);
 
             var executionPolicy = configuration.Execution ?? new ExecutionPolicy();
             var serverConfig = configuration.Server;
@@ -144,9 +149,21 @@ public class HealthCheckCommand(
                 return;
             }
 
+            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan);
+            if (targetResolutionErrors.Count > 0)
+            {
+                throw new CliUsageException(CommandConnectionHelper.BuildExecutionErrorMessage(targetResolutionErrors));
+            }
+
             var transportExecutionPolicy = executionPolicy.Clone();
             transportExecutionPolicy.AllowedHosts = executionPlan.AllowedHosts.ToList();
+            transportExecutionPolicy.AllowedOrigins = executionPlan.AllowedOrigins.ToList();
             _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
+            serverConfig.ProtocolVersion = executionPlan.ResolvedSchemaVersion;
+
+            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(executionPlan.TimeoutSeconds));
+            await _httpClient.StartSessionAsync(serverConfig.Endpoint!, serverConfig.Environment, cancellationTokenSource.Token);
 
             // Display professional validation plan
             _consoleOutput.DisplayValidationPlan(ValidationMessages.Titles.HealthCheck, serverConfig);
@@ -156,8 +173,6 @@ public class HealthCheckCommand(
 
             // Execute health check with progress indication
             _consoleOutput.ShowProgress(ValidationMessages.Progress.PerformingHealthCheck);
-
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(executionPlan.TimeoutSeconds));
 
             var startTime = DateTime.UtcNow;
             var result = await _validatorService.PerformHealthCheckAsync(serverConfig, cancellationTokenSource.Token);
@@ -340,7 +355,10 @@ public class DiscoverCommand
         string? persistenceMode = null,
         string? redactLevel = null,
         string? traceMode = null,
-        bool? confirmElevatedRisk = null)
+        bool? confirmElevatedRisk = null,
+        string[]? allowedOrigins = null,
+        string? protocolEra = null,
+        CancellationToken cancellationToken = default)
     {
         _nextStepAdvisor.Reset();
         var targetEndpoint = server;
@@ -356,6 +374,7 @@ public class DiscoverCommand
             var profileOverride = CommandConnectionHelper.ParseServerProfile(serverProfile);
 
             var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride);
+            configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
             ExecutionPolicyOverrides.Apply(
                 configuration,
                 executionMode: executionMode,
@@ -367,7 +386,8 @@ public class DiscoverCommand
                 persistenceMode: persistenceMode,
                 redactLevel: redactLevel,
                 traceMode: traceMode,
-                confirmElevatedRisk: confirmElevatedRisk);
+                confirmElevatedRisk: confirmElevatedRisk,
+                allowedOrigins: allowedOrigins);
 
             var executionPolicy = configuration.Execution ?? new ExecutionPolicy();
             var serverConfig = configuration.Server;
@@ -418,16 +438,26 @@ public class DiscoverCommand
                 return;
             }
 
+            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan);
+            if (targetResolutionErrors.Count > 0)
+            {
+                throw new CliUsageException(CommandConnectionHelper.BuildExecutionErrorMessage(targetResolutionErrors));
+            }
+
             var transportExecutionPolicy = executionPolicy.Clone();
             transportExecutionPolicy.AllowedHosts = executionPlan.AllowedHosts.ToList();
+            transportExecutionPolicy.AllowedOrigins = executionPlan.AllowedOrigins.ToList();
             _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
+            serverConfig.ProtocolVersion = executionPlan.ResolvedSchemaVersion;
+
+            using var cancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(executionPlan.TimeoutSeconds));
+            await _httpClient.StartSessionAsync(serverConfig.Endpoint!, serverConfig.Environment, cancellationTokenSource.Token);
 
             // Display discovery plan
             _consoleOutput.DisplayDiscoveryPlan(serverConfig, format);
 
             // Execute capability discovery
-            using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromSeconds(executionPlan.TimeoutSeconds));
-
             var capabilities = await _validatorService.DiscoverServerCapabilitiesAsync(serverConfig, cancellationTokenSource.Token);
 
             // Display results in the requested format
@@ -536,7 +566,7 @@ internal static class CommandConnectionHelper
 
         if (configFile?.Exists == true)
         {
-            var configJson = await File.ReadAllTextAsync(configFile.FullName);
+            var configJson = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
             configuration = JsonSerializer.Deserialize<McpValidatorConfiguration>(configJson) ?? new McpValidatorConfiguration();
         }
         else
@@ -568,6 +598,18 @@ internal static class CommandConnectionHelper
             : null;
     }
 
+    public static McpProtocolEraSelection? ParseProtocolEra(string? rawEra)
+    {
+        if (string.IsNullOrWhiteSpace(rawEra))
+        {
+            return null;
+        }
+
+        return Enum.TryParse<McpProtocolEraSelection>(rawEra, ignoreCase: true, out var parsed)
+            ? parsed
+            : null;
+    }
+
     public static void ApplyServerProfileOverride(McpServerConfig serverConfig, McpServerProfile? overrideProfile)
     {
         if (overrideProfile.HasValue)
@@ -591,7 +633,8 @@ internal static class CommandConnectionHelper
         }
 
         var hasToken = !string.IsNullOrWhiteSpace(token) ||
-                       !string.IsNullOrWhiteSpace(serverConfig.Authentication?.Token);
+                       !string.IsNullOrWhiteSpace(serverConfig.Authentication?.Token) ||
+                       serverConfig.Authentication?.TokenRef is { Name.Length: > 0 };
 
         if (hasToken || interactive)
         {
@@ -632,15 +675,18 @@ internal static class CommandConnectionHelper
         Console.WriteLine($"Command: {executionPlan.CommandName}");
         Console.WriteLine($"Target: {executionPlan.Target}");
         Console.WriteLine($"Transport: {executionPlan.Transport}");
+        Console.WriteLine($"Protocol: {executionPlan.RequestedProtocolProfile} -> {executionPlan.ResolvedSchemaVersion} ({executionPlan.ProtocolEra.ToString().ToLowerInvariant()}; selection={executionPlan.ProtocolEraSelection.ToString().ToLowerInvariant()})");
         Console.WriteLine($"Mode: {executionPlan.ExecutionMode}");
         Console.WriteLine($"Dry Run: {(executionPlan.DryRun ? "enabled" : "disabled")}");
         Console.WriteLine($"Persistence: {executionPlan.PersistenceMode}");
         Console.WriteLine($"Redaction: {executionPlan.RedactionLevel}");
         Console.WriteLine($"Trace: {executionPlan.TraceMode}");
         Console.WriteLine($"Timeout: {executionPlan.TimeoutSeconds}s per request");
+        Console.WriteLine($"Response Limit: {executionPlan.MaxResponseBytes} bytes");
         Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
         Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
         Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
+        Console.WriteLine($"Allowed Origins: {(executionPlan.AllowedOrigins.Count == 0 ? "none" : string.Join(", ", executionPlan.AllowedOrigins))}");
         Console.WriteLine($"Private Addresses: {(executionPlan.AllowPrivateAddresses ? "allowed" : "blocked")}");
 
         if (executionPlan.OutputDirectory != null)

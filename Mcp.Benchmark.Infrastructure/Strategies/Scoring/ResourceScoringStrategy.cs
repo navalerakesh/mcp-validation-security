@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 
@@ -13,10 +14,10 @@ public class ResourceScoringStrategy : IScoringStrategy<ResourceTestResult>
     {
         if (result.ResourceResults.Count == 0)
         {
-            return result.Status == TestStatus.Passed ? 100.0 : 0.0;
+            return result.Status == TestStatus.Passed ? ScoringConstants.ScoreMaximum : ScoringConstants.ScoreMinimum;
         }
 
         var passedCount = result.ResourceResults.Count(r => r.Status == TestStatus.Passed);
-        return (double)passedCount / result.ResourceResults.Count * 100.0;
+        return (double)passedCount / result.ResourceResults.Count * ScoringConstants.ScoreMaximum;
     }
 }

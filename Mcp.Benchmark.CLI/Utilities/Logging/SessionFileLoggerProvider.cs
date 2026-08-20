@@ -87,7 +87,9 @@ internal sealed class SessionFileLoggerProvider : ILoggerProvider
             if (exception != null)
             {
                 builder.AppendLine()
-                       .Append(exception);
+                       .Append(exception.GetType().Name)
+                       .Append(": ")
+                       .Append(SessionLogRedactor.Redact(exception.Message, _sessionContext.RedactionLevel));
             }
 
             lock (_lock)
