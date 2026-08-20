@@ -50,6 +50,18 @@ grep -Fq 'fetch-depth: 0' <<< "$build_job" || {
   echo "Build & Test must fetch complete history before the sensitive-artifact gate." >&2
   exit 1
 }
+grep -Fq -- "--filter 'FullyQualifiedName!~ValidatorOverheadBudgetTests'" <<< "$build_job" || {
+  echo "The parallel Debug suite must exclude timing-sensitive performance budgets." >&2
+  exit 1
+}
+grep -Fq -- "--filter 'FullyQualifiedName~ValidatorOverheadBudgetTests'" <<< "$build_job" || {
+  echo "Build & Test must run performance budgets in the dedicated Release gate." >&2
+  exit 1
+}
+if [[ $(grep -Fc -- '- rid: linux-arm64' .github/workflows/ci.yml) -lt 2 ]]; then
+  echo "Linux ARM64 must be present in standalone packaging and uploaded-artifact smoke matrices." >&2
+  exit 1
+fi
 grep -Fq -- "-printf '%f\\0' | sort -z)" .github/workflows/ci.yml || {
   echo "Release checksums must use portable bare filenames accepted by signature backfill." >&2
   exit 1
