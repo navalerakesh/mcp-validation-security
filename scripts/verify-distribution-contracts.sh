@@ -41,6 +41,10 @@ grep -Fq 'VersionPrefix' action.yml || {
   echo "Composite Action no longer resolves its default from VersionPrefix." >&2
   exit 1
 }
+grep -Fq '<clear />' action.yml || {
+  echo "Composite Action local package smoke must use an isolated NuGet source configuration." >&2
+  exit 1
+}
 grep -Fq "always() && inputs.upload-artifacts == 'true'" action.yml || {
   echo "Composite Action must upload validation evidence even when policy blocks the validation step." >&2
   exit 1
@@ -62,6 +66,12 @@ if [[ $(grep -Fc -- '- rid: linux-arm64' .github/workflows/ci.yml) -lt 2 ]]; the
   echo "Linux ARM64 must be present in standalone packaging and uploaded-artifact smoke matrices." >&2
   exit 1
 fi
+# Match the literal GitHub expression in the workflow.
+# shellcheck disable=SC2016
+grep -Fq 'python -m zipfile -e "${{ matrix.archive }}" extracted' .github/workflows/ci.yml || {
+  echo "Windows standalone smoke must extract ZIP artifacts with a ZIP-aware tool." >&2
+  exit 1
+}
 grep -Fq -- "-printf '%f\\0' | sort -z)" .github/workflows/ci.yml || {
   echo "Release checksums must use portable bare filenames accepted by signature backfill." >&2
   exit 1
