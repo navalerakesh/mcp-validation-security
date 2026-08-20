@@ -41,7 +41,7 @@ flowchart LR
     Session --> Auth[Authentication strategies]
     Session --> Transport[Transport client factory]
     Transport --> Target[(Target MCP server)]
-    Session --> Snapshot[Initialize handshake and capability snapshot]
+    Session --> Snapshot[Protocol-era bootstrap and capability snapshot]
     Snapshot --> Applicability[Applicability resolver and validation packs]
     Schema[Schema registry and version resolver] --> Applicability
     Applicability --> Service[McpValidatorService]
@@ -90,7 +90,7 @@ stateDiagram-v2
 
 1. Command input, config-file state, and CLI overrides are merged into a `McpValidatorConfiguration`.
 2. Execution governance validates the outbound plan, persistence mode, and dry-run behavior before any network or process activity begins.
-3. Session bootstrap resolves transport, checks connectivity, negotiates initialization, and captures the capability snapshot shared by downstream validators.
+3. Session bootstrap resolves transport, applies outbound target policy, selects modern or legacy protocol behavior, and captures the capability snapshot shared by downstream validators.
 4. Applicability resolution selects the effective schema version plus the active protocol feature packs, rule packs, and scenario packs for the run.
 5. Validators collect neutral evidence across the enabled categories, with performance running after the functional probes so load generation cannot distort protocol or auth findings.
 6. The validator service assembles assessment layers, coverage declarations, observations, scoring, trust, and verdict documents from the collected evidence.
@@ -121,6 +121,8 @@ The canonical JSON result contains deterministic validation evidence and determi
 - Execution governance artifacts such as execution plans and audit manifests belong outside the validation-result evidence envelope even when they are saved alongside explicit output artifacts.
 - Transport-specific behavior belongs in shared infrastructure services, not in command handlers.
 - Schema lookups flow through the registry so validators stay version-aware without reading files directly.
+- Modern (`2026-07-28`) and legacy protocol behavior are distinct applicability contracts; modern evidence must not inherit initialization/session assumptions.
+- DNS/private-address admission occurs after dry-run and before active target contact. A shared raw/SDK handler validates every request origin, disables redirects and ambient proxies, re-resolves every new connection, rejects mixed/restricted answers, and connects directly to an approved address.
 - Offline reporting depends on persisted results, which keeps sharing and CI pipelines deterministic.
 
 ## Related Documents

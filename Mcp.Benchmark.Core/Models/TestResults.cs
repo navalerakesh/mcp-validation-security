@@ -256,6 +256,8 @@ public class ResourceTestResult : TestResultBase
     /// </summary>
     public int ResourcesAccessible { get; set; } = 0;
 
+    public int ResourceTemplatesDiscovered { get; set; } = 0;
+
     /// <summary>
     /// Gets or sets the number of resources that failed testing.
     /// </summary>
@@ -365,6 +367,7 @@ public class SecurityTestResult : TestResultBase
 /// </summary>
 public class PerformanceTestResult : TestResultBase
 {
+    public PerformanceMeasurementDisposition MeasurementDisposition { get; set; } = PerformanceMeasurementDisposition.NotEvaluated;
     /// <summary>
     /// Gets or sets load testing results.
     /// </summary>
@@ -394,6 +397,16 @@ public class PerformanceTestResult : TestResultBase
     /// Gets or sets structured records for performance status or score calibration overrides.
     /// </summary>
     public List<PerformanceCalibrationOverride> CalibrationOverrides { get; set; } = new();
+}
+
+public enum PerformanceMeasurementDisposition
+{
+    NotEvaluated = 0,
+    Captured = 1,
+    AuthRequired = 2,
+    TimedOut = 3,
+    Cancelled = 4,
+    Unavailable = 5
 }
 
 /// <summary>
@@ -508,6 +521,17 @@ public class AuthenticationTestResult
     /// </summary>
     public AuthMetadata? ProtectedResourceMetadata { get; set; }
 
+    public List<AuthorizationServerMetadataEvidence> AuthorizationServerMetadata { get; set; } = new();
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OAuthClientRegistrationEvidence? ClientRegistration { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ScopeStepUpEvidence? ScopeStepUp { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledAudienceEvidence? ControlledAudience { get; set; }
+
     /// <summary>
     /// Gets or sets structured authentication findings produced during validation.
     /// </summary>
@@ -591,6 +615,9 @@ public class AuthenticationScenario
     /// Gets or sets the WWW-Authenticate header value if present.
     /// </summary>
     public string? WwwAuthenticateHeader { get; set; }
+
+    [JsonIgnore]
+    public string? RawWwwAuthenticateHeader { get; set; }
 
     /// <summary>
     /// Gets or sets the low-level probe context observed while executing this scenario.

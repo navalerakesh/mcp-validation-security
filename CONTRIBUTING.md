@@ -13,7 +13,7 @@ Thank you for contributing. This repository validates MCP servers for protocol c
 Prerequisites:
 
 - `.NET 8 SDK`
-- `Node.js 20`
+- `Node.js 24.19.0` (reviewed baseline; Node 24 required)
 - `Git`
 - `PowerShell 7` or `Bash` if you want to use the tracked validation scripts
 

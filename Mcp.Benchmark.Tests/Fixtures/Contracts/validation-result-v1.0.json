@@ -1,0 +1,27 @@
+{
+  "documentType": "mcpval.validation-result",
+  "documentSchemaVersion": "1.0.0",
+  "producer": {
+    "name": "mcpval",
+    "packageId": "McpVal",
+    "repositoryUrl": "https://example.test/repository",
+    "packageUrl": "https://example.test/package"
+  },
+  "run": {
+    "validationId": "backward-fixture-v1",
+    "protocolVersion": "2025-11-25",
+    "schemaVersion": "2025-11-25"
+  },
+  "assessments": {},
+  "evidence": {
+    "coverage": [],
+    "observations": [],
+    "appliedPacks": []
+  },
+  "compatibility": {},
+  "overallStatus": "passed",
+  "complianceScore": 100,
+  "minorExtensionUnknownToOldConsumers": {
+    "enabled": true
+  }
+}

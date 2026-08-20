@@ -93,6 +93,8 @@ public interface IConsoleOutputService
     /// <param name="verbose">Whether to show verbose output</param>
     void SetVerbose(bool verbose);
 
+    void SetStructuredOutput(bool structured);
+
     /// <summary>
     /// Displays the discovery plan to the user.
     /// </summary>

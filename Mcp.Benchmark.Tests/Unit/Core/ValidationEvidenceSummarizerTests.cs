@@ -16,6 +16,7 @@ public class ValidationEvidenceSummarizerTests
                 LayerId = "tools",
                 Scope = "tools/list",
                 Status = ValidationCoverageStatus.Covered,
+                ObservedOutcome = ValidationOutcome.Succeeded,
                 Confidence = EvidenceConfidenceLevel.High
             },
             new ValidationCoverageDeclaration

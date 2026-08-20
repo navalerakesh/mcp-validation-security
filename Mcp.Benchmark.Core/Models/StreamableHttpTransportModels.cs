@@ -44,6 +44,8 @@ public sealed class HttpTransportProbeResponse
 
     public double? ElapsedMs { get; init; }
 
+    public bool TimedOut { get; init; }
+
     public ProbeContext? ProbeContext { get; init; }
 
     public List<SseEventRecord> SseEvents { get; init; } = new();

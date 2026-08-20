@@ -6,6 +6,7 @@ public enum AttackSimulationOutcome
 {
     Detected,
     Blocked,
+    Inconclusive,
     Skipped
 }
 
@@ -13,20 +14,14 @@ public static class AttackSimulationOutcomeResolver
 {
     public static AttackSimulationOutcome Resolve(AttackSimulationResult attack)
     {
-        if (attack.Evidence.TryGetValue("outcome", out var outcomeValue) &&
-            outcomeValue is string outcomeText &&
-            Enum.TryParse(outcomeText, ignoreCase: true, out AttackSimulationOutcome parsedOutcome))
+        return attack.Outcome switch
         {
-            return parsedOutcome;
-        }
-
-        if (!string.IsNullOrWhiteSpace(attack.ServerResponse) &&
-            attack.ServerResponse.Contains("Skipped", StringComparison.OrdinalIgnoreCase))
-        {
-            return AttackSimulationOutcome.Skipped;
-        }
-
-        return attack.AttackSuccessful ? AttackSimulationOutcome.Detected : AttackSimulationOutcome.Blocked;
+            ValidationOutcome.Failed => AttackSimulationOutcome.Detected,
+            ValidationOutcome.Succeeded => AttackSimulationOutcome.Blocked,
+            ValidationOutcome.Inconclusive or ValidationOutcome.Unavailable or ValidationOutcome.Blocked or ValidationOutcome.NotEvaluated => AttackSimulationOutcome.Inconclusive,
+            ValidationOutcome.Skipped or ValidationOutcome.NotApplicable => AttackSimulationOutcome.Skipped,
+            _ => throw new InvalidOperationException($"Attack simulation used unsupported canonical outcome {attack.Outcome}.")
+        };
     }
 
     public static string ToEvidenceValue(AttackSimulationOutcome outcome) => outcome.ToString();

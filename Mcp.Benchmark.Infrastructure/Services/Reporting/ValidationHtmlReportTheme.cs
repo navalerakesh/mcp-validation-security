@@ -106,7 +106,7 @@ body {
     color: var(--text-strong);
     font-size: clamp(2rem, 3vw, 3.05rem);
     line-height: 1.04;
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
 }
 .hero-subtitle {
     margin: 0;
@@ -180,7 +180,7 @@ body {
 }
 .hero-side .focus-value {
     font-size: 1.5rem;
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
 }
 .hero-side .focus-label {
     font-size: 0.84rem;
@@ -235,7 +235,7 @@ body {
 .tone-neutral, .status-chip--neutral { color: var(--tone-neutral); background: var(--tone-neutral-soft); border-color: var(--tone-neutral-line); }
 .focus-value {
     font-size: clamp(1.55rem, 1.8vw, 2.15rem);
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
     color: var(--text-strong);
     margin-top: 12px;
     font-weight: 700;
@@ -260,9 +260,21 @@ body {
     gap: 18px;
     margin-top: 18px;
 }
+.brief-grid > * {
+    min-width: 0;
+}
 .brief-side {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 12px;
+    min-width: 0;
+}
+.brief-side > *,
+.decision-brief,
+.report-note,
+.status-callout {
+    min-width: 0;
+    max-width: 100%;
 }
 .decision-brief,
 .report-note,
@@ -290,7 +302,7 @@ body {
     font-size: 1.28rem;
     color: var(--text-strong);
     line-height: 1.2;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
 }
 .decision-summary {
     margin: 0;
@@ -632,7 +644,7 @@ body {
     margin-top: 8px;
     font-size: 1.65rem;
     line-height: 1.05;
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
     color: var(--text-strong);
     font-weight: 700;
 }
@@ -674,7 +686,7 @@ body {
     margin-top: 12px;
     font-size: 2rem;
     line-height: 1;
-    letter-spacing: -0.04em;
+    letter-spacing: 0;
     color: var(--text-strong);
     font-weight: 700;
 }
@@ -869,7 +881,7 @@ body {
     margin: 7px 0 5px;
     font-size: 1.34rem;
     line-height: 1.14;
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
     color: var(--text-strong);
 }
 .section-intro {
@@ -886,6 +898,29 @@ body {
 .section-shell > .section-intro {
     margin-left: auto;
     margin-right: auto;
+}
+.reader-key-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 16px 0 0;
+}
+.reader-key-item {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-card);
+    background: rgba(255,255,255,0.82);
+    padding: 12px 14px;
+}
+.reader-key-item dt {
+    color: var(--text-strong);
+    font-weight: 750;
+    line-height: 1.35;
+}
+.reader-key-item dd {
+    margin: 5px 0 0;
+    color: var(--text-muted);
+    line-height: 1.5;
 }
 .principle-rail {
     display: grid;
@@ -956,7 +991,7 @@ body {
     margin-top: 7px;
     font-size: 1.34rem;
     line-height: 1;
-    letter-spacing: -0.03em;
+    letter-spacing: 0;
     color: var(--text-strong);
     font-weight: 700;
 }
@@ -1073,6 +1108,9 @@ body {
     grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
     gap: 12px;
     margin-top: 14px;
+}
+.summary-grid > * {
+    min-width: 0;
 }
 .summary-card {
     border-radius: 16px;
@@ -1343,7 +1381,12 @@ body {
     max-width: 100%;
     padding-inline: 10px;
     letter-spacing: 0.04em;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: normal;
+    word-break: normal;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.3;
 }
 .table-cell--code code,
 .data-table code {
@@ -1483,7 +1526,7 @@ a:hover {
     font-size: 0.84rem;
     text-align: center;
 }
-@media (max-width: 960px) {
+@media (max-width: 1100px) {
     body { padding: 18px; }
     .report-content { padding: 18px; }
     .hero { padding: 22px; }
@@ -1528,8 +1571,110 @@ a:hover {
     .authority-card__metrics {
         grid-template-columns: 1fr;
     }
+    .reader-key-grid {
+        grid-template-columns: 1fr;
+    }
+    .domain-evidence-table,
+    .layered-report-table {
+        min-width: 1200px;
+    }
+    .table-cell--status .tone-chip {
+        padding-inline: 8px;
+    }
 }
 @media (max-width: 760px) {
+    body {
+        padding: 0;
+        background: var(--surface-muted);
+    }
+    .report-shell {
+        width: 100%;
+        max-width: 100%;
+        border-left: 0;
+        border-right: 0;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    .report-content {
+        width: 100%;
+        max-width: 100%;
+        padding: 10px;
+    }
+    .hero,
+    .panel,
+    .section-card {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+    .hero {
+        padding: 16px;
+        border-radius: 12px;
+    }
+    .hero-title {
+        font-size: 2rem;
+        line-height: 1.08;
+        overflow-wrap: normal;
+        word-break: normal;
+    }
+    .hero-subtitle,
+    .section-card__intro,
+    .section-card__copy {
+        font-size: 0.95rem;
+        line-height: 1.55;
+    }
+    .hero-grid,
+    .hero-main,
+    .hero-side,
+    .brief-grid,
+    .dual-grid,
+    .stack-grid,
+    .section-card__content,
+    .section-card__abstract,
+    .decision-trace-layout,
+    .appendix-grid {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+    }
+    .status-chip,
+    .tone-chip {
+        max-width: 100%;
+        white-space: normal;
+        overflow-wrap: normal;
+        word-break: normal;
+        line-height: 1.3;
+    }
+    .summary-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .focus-value,
+    .meta-value,
+    .fact-item__value {
+        overflow-wrap: anywhere;
+        word-break: normal;
+    }
+    .fact-item__value {
+        font-size: 0.92rem;
+    }
+    .table-shell {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    .data-table {
+        width: 100%;
+        min-width: 620px;
+        table-layout: auto;
+    }
+    .data-table th,
+    .data-table td {
+        min-width: 120px;
+        overflow-wrap: normal;
+        word-break: normal;
+        hyphens: none;
+    }
     .table-shell--domain-evidence,
     .table-shell--layer-summary,
     .table-shell--coverage-summary,
@@ -1573,6 +1718,8 @@ a:hover {
         gap: 12px;
         align-items: start;
         padding: 10px 12px;
+        min-width: 0;
+        overflow-wrap: anywhere;
     }
     .domain-evidence-table td::before,
     .layered-report-table td::before {

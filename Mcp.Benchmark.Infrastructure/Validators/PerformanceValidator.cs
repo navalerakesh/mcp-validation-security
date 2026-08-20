@@ -2,6 +2,7 @@ using System;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Infrastructure.Http;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 
@@ -49,11 +50,12 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             if (authChallenge.RequiresAuthentication)
             {
                 result.Status = TestStatus.AuthRequired;
+                result.MeasurementDisposition = PerformanceMeasurementDisposition.AuthRequired;
                 result.Score = 0;
                 
                 // Determine if this is a failure (bad token) or just enforcement (no token)
                 bool isAuthFailure = serverConfig.Authentication != null && 
-                                     !string.IsNullOrEmpty(serverConfig.Authentication.Token);
+                                     McpAuthenticationHelper.HasCredential(serverConfig.Authentication);
 
                 string message = isAuthFailure
                     ? "Authentication failed during performance test initialization."
@@ -281,6 +283,9 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
 
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
+            result.MeasurementDisposition = PerformanceMeasurementEvaluator.HasObservedMetrics(result)
+                ? PerformanceMeasurementDisposition.Captured
+                : PerformanceMeasurementDisposition.Unavailable;
 
             ValidationCalibration.ApplyPerformanceOutcomeCalibration(serverConfig, result);
             if (result.Status == TestStatus.Skipped)
@@ -339,7 +344,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
 
         var loadTestStart = DateTime.UtcNow;
         var tasks = new List<Task>();
-        var semaphore = new SemaphoreSlim(concurrentConnections);
+        using var semaphore = new SemaphoreSlim(concurrentConnections);
 
         for (int i = 0; i < totalRequests; i++)
         {
@@ -399,6 +404,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         }
 
         await Task.WhenAll(tasks);
+    responseTimes.Sort();
         return new LoadProbeRound(
             totalRequests,
             successfulRequests,
@@ -483,12 +489,17 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             {
                 try
                 {
-                    var tasks = new List<Task>();
+                    var tasks = new List<Task<JsonRpcResponse>>();
                     for (int i = 0; i < 50; i++)
                     {
                         tasks.Add(_httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct));
                     }
-                    await Task.WhenAll(tasks);
+                    var responses = await Task.WhenAll(tasks);
+                    var failedResponses = responses.Count(response => !response.IsSuccess);
+                    if (failedResponses > 0)
+                    {
+                        exhaustionEvents.Add($"Resource exhaustion probe for {resourceType} returned {failedResponses}/{responses.Length} failed responses.");
+                    }
                 }
                 catch (Exception ex)
                 {

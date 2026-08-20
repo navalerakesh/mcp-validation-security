@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Infrastructure.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Services;
 using System.Text.Json;
 using System.Text;
 
@@ -18,38 +19,39 @@ public class JsonRpcErrorSmuggling : BaseAttackVector
 
     public override async Task<AttackResult> ExecuteAsync(McpServerConfig serverConfig, IMcpHttpClient client, CancellationToken cancellationToken)
     {
-        // 1. Test: Missing jsonrpc version
-        // We must use SendAsync to bypass the client's automatic wrapping
         var missingVersionJson = JsonSerializer.Serialize(new { method = "initialize", @params = new { }, id = 1 });
-        var content1 = new StringContent(missingVersionJson, Encoding.UTF8, "application/json");
-        
-        // Add auth header manually if needed, but SendAsync might not do it automatically if we don't use the helper
-        // Actually IMcpHttpClient.SendAsync usually doesn't handle auth unless implemented to do so.
-        // Let's assume we need to handle it or rely on the client implementation.
-        // Checking McpHttpClient.SendAsync implementation... it's a raw send.
-        // We should probably add auth headers to the content or request if possible, but SendAsync takes HttpContent.
-        // Wait, McpHttpClient.SendAsync takes (endpoint, content). It doesn't take auth config.
-        // So we might fail auth if we don't add headers.
-        // But this is "Protocol Abuse", maybe we want to test without auth too?
-        // No, we want to test the JSON-RPC parser, which usually runs *after* auth (or before).
-        // If we get 401, we can't test the parser.
-        
-        // For now, let's use CallAsync for the second test (Invalid Method) as it's a valid JSON-RPC request structure.
-        // For the first test (Missing Version), we really need raw access.
-        // If SendAsync doesn't support auth, we might get 401.
-        // Let's try to use CallAsync but pass a "special" parameter? No.
-        
-        // Let's skip the "Missing Version" test for now if it's too hard to implement without refactoring McpHttpClient.
-        // Or we can just test "Invalid Method" and "Invalid Params".
-        
-        // 2. Test: Invalid method name (system reserved)
+        var missingVersionResponse = await client.SendRawJsonAsync(
+            serverConfig.Endpoint!,
+            missingVersionJson,
+            cancellationToken);
+
+        if (missingVersionResponse.StatusCode is 401 or 403)
+        {
+            return CreateSkippedResult(
+                "Missing-version probe was not evaluated because authentication blocked the raw protocol request.",
+                $"HTTP {missingVersionResponse.StatusCode}",
+                probeContexts: CollectProbeContexts(missingVersionResponse.ProbeContext));
+        }
+
+        if (IsUnavailable(missingVersionResponse.StatusCode))
+        {
+            return CreateResult(
+                false,
+                "Missing-version probe was inconclusive because the target was unavailable or constrained.",
+                missingVersionResponse.Error ?? $"HTTP {missingVersionResponse.StatusCode}",
+                "Low",
+                AttackSimulationOutcome.Inconclusive,
+                CollectProbeContexts(missingVersionResponse.ProbeContext));
+        }
+
         var response2 = await client.CallAsync(serverConfig.Endpoint!, "rpc.system.invalid", null, serverConfig.Authentication, cancellationToken);
 
-        // Analysis
-        bool passed = true;
-        string evidence = "";
+        var missingVersionRejectedCorrectly = HasJsonRpcErrorCode(missingVersionResponse.RawJson, -32600);
+        var passed = missingVersionRejectedCorrectly;
+        var evidence = missingVersionRejectedCorrectly
+            ? "Missing jsonrpc version returned -32600 Invalid Request. "
+            : $"Missing jsonrpc version was not rejected with -32600 (HTTP {missingVersionResponse.StatusCode}). ";
 
-        // Check 2: Invalid method should return MethodNotFound (-32601)
         if (response2.StatusCode == 500)
         {
             passed = false;
@@ -61,14 +63,38 @@ public class JsonRpcErrorSmuggling : BaseAttackVector
              evidence += "Server accepted invalid method name. ";
              // passed = false; // Optional strictness
         }
-        
+
         if (passed)
         {
-            return CreateResult(true, "Server handled malformed requests gracefully with standard errors.", evidence, probeContexts: CollectProbeContexts(response2.ProbeContext));
+            return CreateResult(true, "Server handled malformed requests gracefully with standard errors.", evidence, probeContexts: CollectProbeContexts(missingVersionResponse.ProbeContext, response2.ProbeContext));
         }
         else
         {
-            return CreateResult(false, "Server failed to handle malformed JSON-RPC requests correctly.", evidence, "Critical", probeContexts: CollectProbeContexts(response2.ProbeContext));
+            return CreateResult(false, "Server failed to handle malformed JSON-RPC requests correctly.", evidence, "Critical", probeContexts: CollectProbeContexts(missingVersionResponse.ProbeContext, response2.ProbeContext));
+        }
+    }
+
+    private static bool IsUnavailable(int statusCode) =>
+        statusCode < 0 || statusCode is 408 or 425 or 429 || statusCode >= 500;
+
+    private static bool HasJsonRpcErrorCode(string? rawJson, int expectedCode)
+    {
+        if (string.IsNullOrWhiteSpace(rawJson))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(rawJson);
+            return document.RootElement.TryGetProperty("error", out var error) &&
+                   error.TryGetProperty("code", out var code) &&
+                   code.TryGetInt32(out var actualCode) &&
+                   actualCode == expectedCode;
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 }

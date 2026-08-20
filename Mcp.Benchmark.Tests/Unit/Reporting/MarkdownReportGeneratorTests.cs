@@ -13,6 +13,59 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 /// </summary>
 public class MarkdownReportGeneratorTests
 {
+    [Fact]
+    public void GenerateReport_WithBaselineWaiverAndHostileEndpoint_ShouldRemainSafeAndAligned()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "validation-1",
+            OverallStatus = ValidationStatus.Passed,
+            ServerConfig = new McpServerConfig { Endpoint = "https://example.test/<script>alert(1)</script>|`\r\n| injected | row |", Transport = "http" },
+            BaselineComparison = new ValidationBaselineComparison { BaselineValidationId = "baseline", IsRegression = true, ScoreDelta = -5 },
+            PolicyOutcome = new ValidationPolicyOutcome
+            {
+                Passed = true,
+                AppliedSuppressions = [new AppliedPolicySuppression { Id = "waiver-1" }]
+            }
+        };
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics
+        {
+            RunCorrelationId = result.ValidationId,
+            ValidatorOverheadMs = 12,
+            TotalRunDurationMs = 123.4,
+            RequestsStarted = 4,
+            RequestsCompleted = 4,
+            RequestsFailed = 1,
+            TargetLatencyP50Ms = 2,
+            TargetLatencyP95Ms = 4,
+            TargetLatencyP99Ms = 8,
+            RetryCount = 1,
+            QueueTimeP95Ms = 3,
+            TargetLatencySampleCount = 4,
+            QueueTimeSampleCount = 2,
+            EvidenceCoverageRatio = 0.75,
+            StageDurationMs = new SortedDictionary<string, double>(StringComparer.Ordinal)
+            {
+                ["rule.MCP.TEST@1"] = 1.25
+            }
+        };
+
+        var report = new MarkdownReportGenerator().GenerateReport(result);
+
+        report.Should().Contain("Baseline Regression");
+        report.Should().Contain("Applied Waivers");
+        report.Should().Contain("Validator Overhead");
+        report.Should().Contain("Target Latency (50th / 95th / 99th Percentile)");
+        report.Should().Contain("Total run wall time");
+        report.Should().Contain("4 / 4 / 1");
+        report.Should().Contain("4 / 2");
+        report.Should().Contain("75.0%");
+        report.Should().Contain("rule.MCP.TEST@1");
+        report.Should().NotContain("<script>");
+        report.Should().Contain("&lt;script>");
+        report.Should().NotContain("\n| injected | row |");
+    }
+
     private readonly MarkdownReportGenerator _generator = new();
 
     [Fact]
@@ -25,6 +78,20 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Executive Summary");
         report.Should().Contain("Compliance Score");
         report.Should().Contain("test-endpoint");
+    }
+
+    [Fact]
+    public void GenerateReport_ShouldDefineReportSpecificTerms()
+    {
+        var report = _generator.GenerateReport(BuildMinimalResult());
+
+        report.Should().Contain("Reader Key: Terms And Abbreviations");
+        report.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
+        report.Should().Contain("Priority is not severity.");
+        report.Should().Contain("Trust levels L1-L5");
+        report.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
+        report.Should().Contain("P50 / P95 / P99");
+        report.Should().Contain("UUID means Universally Unique Identifier");
     }
 
     [Fact]
@@ -47,6 +114,30 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Benchmark Trust Profile");
         report.Should().Contain("Protocol Compliance");
         report.Should().Contain("AI Safety");
+    }
+
+    [Fact]
+    public void GenerateReport_WithIncompleteTrustEvidence_ShouldLabelUnevaluatedDimensions()
+    {
+        var result = BuildMinimalResult();
+        result.TrustAssessment = new McpTrustAssessment
+        {
+            TrustLevel = McpTrustLevel.L3_Acceptable,
+            ProtocolCompliance = 100,
+            SecurityPosture = 0,
+            AiSafety = 85,
+            OperationalReadiness = 70,
+            LimitedByIncompleteEvidence = true,
+            UnevaluatedDimensions = ["protocol", "security", "operations"]
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("evidence-limited; unevaluated: protocol, security, operations");
+        report.Should().Contain("| **Protocol Compliance** | Not evaluated |");
+        report.Should().Contain("| **Security Posture** | Not evaluated |");
+        report.Should().Contain("| **Operational Readiness** | Not evaluated |");
+        report.Should().Contain("| **AI Safety** | 85% |");
     }
 
     [Fact]
@@ -727,6 +818,7 @@ public class MarkdownReportGeneratorTests
             LayerId = "tool-surface",
             Scope = "tools/list",
             Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Only partial parser-boundary evidence was available."
         });

@@ -1,15 +1,18 @@
 using System.CommandLine;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Mcp.Benchmark.CLI;
 using Mcp.Benchmark.CLI.Abstractions;
 using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Exceptions;
+using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.CLI.Utilities.Logging;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Core.Services.SessionArtifacts;
 using Mcp.Benchmark.Infrastructure.Authentication;
@@ -28,6 +31,9 @@ using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
 
 /// <summary>
 /// Entry point for the MCP Validator (mcpval) CLI application.
@@ -80,10 +86,31 @@ internal class Program
             var rootCommand = CreateRootCommand(host.Services);
 
             // Execute the command
-            return await rootCommand.Parse(args).InvokeAsync();
+            var parseResult = rootCommand.Parse(args);
+            if (IsStructuredOutput(args) && parseResult.Errors.Count > 0)
+            {
+                WriteStructuredError(
+                    "CLI_PARSE_ERROR",
+                    "usage",
+                    string.Join(" ", parseResult.Errors.Select(error => error.Message)),
+                    64,
+                    retryable: false);
+                return 64;
+            }
+            return await parseResult.InvokeAsync();
         }
         catch (CliExceptionBase cliEx)
         {
+            if (IsStructuredOutput(args))
+            {
+                WriteStructuredError(
+                    cliEx.ErrorCode,
+                    cliEx is CliUsageException ? "usage" : "operation",
+                    cliEx.Message,
+                    cliEx.ExitCode,
+                    cliEx.IsTransient);
+                return cliEx.ExitCode;
+            }
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine(cliEx.Message);
             Console.ResetColor();
@@ -91,6 +118,11 @@ internal class Program
         }
         catch (OutOfMemoryException)
         {
+            if (IsStructuredOutput(args))
+            {
+                WriteStructuredError("OUT_OF_MEMORY", "runtime", "The validator exhausted available memory.", 2, retryable: false);
+                return 2;
+            }
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine("Fatal: Out of memory. The server response may be too large. Try reducing --max-concurrency.");
             Console.ResetColor();
@@ -98,6 +130,11 @@ internal class Program
         }
         catch (Exception ex)
         {
+            if (IsStructuredOutput(args))
+            {
+                WriteStructuredError("UNEXPECTED_ERROR", "runtime", ex.Message, 1, retryable: false);
+                return 1;
+            }
             Console.ForegroundColor = ConsoleColor.Red;
             Console.WriteLine($"Fatal error: {ex.Message}");
             Console.ResetColor();
@@ -109,6 +146,27 @@ internal class Program
 
             return 1;
         }
+    }
+
+    private static bool IsStructuredOutput(IReadOnlyList<string> args) =>
+        args.Any(argument => string.Equals(argument, "--output-format=json", StringComparison.OrdinalIgnoreCase)) ||
+        args.Select((argument, index) => (argument, index)).Any(pair =>
+            string.Equals(pair.argument, "--output-format", StringComparison.OrdinalIgnoreCase) &&
+            pair.index + 1 < args.Count &&
+            string.Equals(args[pair.index + 1], "json", StringComparison.OrdinalIgnoreCase));
+
+    private static void WriteStructuredError(string code, string category, string message, int exitCode, bool retryable)
+    {
+        Console.Error.WriteLine(JsonSerializer.Serialize(
+            new CliErrorEnvelope
+            {
+                Code = code,
+                Category = category,
+                Message = message,
+                ExitCode = exitCode,
+                Retryable = retryable
+            },
+            ArtifactJsonOptions.Create(writeIndented: false)));
     }
 
     private static void ShowCliName()
@@ -133,9 +191,14 @@ internal class Program
         validate.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint (URL or STDIO command)" });
         validate.Options.Add(new Option<string>("--output", "-o") { Description = "Output directory for reports" });
         validate.Options.Add(new Option<string>("--mcpspec") { Description = "Target MCP spec profile (e.g., latest, 2025-11-25)" });
+        validate.Options.Add(new Option<string>("--protocol-era") { Description = "Protocol era selection: auto, legacy, modern" });
         validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
         validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
         validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
+        validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
+        validate.Options.Add(new Option<bool>("--regression-only") { Description = "Block only regressions relative to --baseline" });
+        validate.Options.Add(new Option<string>("--output-format") { Description = "Console output format: human, json" });
+        validate.Options.Add(new Option<bool>("--sign-attestation") { Description = "Sign canonical JSON using MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" });
         var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles") { Description = BuildClientProfileOptionDescription() };
         clientProfileOption.AllowMultipleArgumentsPerToken = true;
         validate.Options.Add(clientProfileOption);
@@ -144,8 +207,11 @@ internal class Program
         var allowHostOption = new Option<string[]>("--allow-host") { Description = "Allowed outbound host. Repeat to permit more than one host." };
         allowHostOption.AllowMultipleArgumentsPerToken = true;
         validate.Options.Add(allowHostOption);
+        var allowOriginOption = new Option<string[]>("--allow-origin") { Description = "Allowed HTTP origin (scheme, host, and optional port). Repeat to permit more than one origin." };
+        allowOriginOption.AllowMultipleArgumentsPerToken = true;
+        validate.Options.Add(allowOriginOption);
         validate.Options.Add(new Option<bool>("--allow-private-addresses") { Description = "Allow loopback or private network addresses" });
-        validate.Options.Add(new Option<int?>("--max-requests") { Description = "Maximum outbound requests allowed for the run" });
+        validate.Options.Add(new Option<int?>("--max-requests") { Description = $"Maximum outbound requests allowed for the run (default: {ExecutionPolicyDefaults.DefaultMaxRequests})" });
         validate.Options.Add(new Option<int?>("--timeout") { Description = "Per-request timeout budget in seconds" });
         validate.Options.Add(new Option<string>("--persistence-mode") { Description = "Persistence mode: ephemeral, explicit-output, session" });
         validate.Options.Add(new Option<string>("--redact-level") { Description = "Operational redaction level: strict, standard" });
@@ -154,7 +220,7 @@ internal class Program
         validate.Options.Add(new Option<bool>("--enable-model-eval") { Description = "Emit an advisory model-evaluation companion artifact when configured" });
         validate.Options.Add(new Option<string>("--token", "-t") { Description = "Bearer token for authentication" });
         validate.Options.Add(new Option<bool>("--interactive", "-i") { Description = "Allow interactive authentication" });
-        validate.Options.Add(new Option<int?>("--max-concurrency") { Description = "Max in-flight HTTP requests (default: CPU count)" });
+        validate.Options.Add(new Option<int?>("--max-concurrency") { Description = $"Maximum in-flight HTTP requests (default: {ExecutionPolicyDefaults.DefaultMaxConcurrency}, maximum: {ExecutionPolicyDefaults.MaximumConcurrency})" });
 
         var health = new Command("health-check", "Quick connectivity check on an MCP server");
         health.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint" });
@@ -186,11 +252,84 @@ internal class Program
     /// </summary>
     private static string? GetServerArgFromArgs(string[] args)
     {
-        for (int i = 0; i < args.Length - 1; i++)
+        for (var index = 0; index < args.Length; index++)
         {
-            if (args[i] is "-s" or "--server")
-                return args[i + 1];
+            if (args[index] is "-s" or "--server" && index + 1 < args.Length)
+            {
+                return args[index + 1];
+            }
+
+            if (args[index].StartsWith("--server=", StringComparison.Ordinal))
+            {
+                return args[index]["--server=".Length..];
+            }
+
+            if (args[index].StartsWith("-s=", StringComparison.Ordinal))
+            {
+                return args[index][3..];
+            }
         }
+        return null;
+    }
+
+    private static bool IsStdioTransport(string[] args)
+    {
+        var serverArg = GetServerArgFromArgs(args);
+        if (!string.IsNullOrWhiteSpace(serverArg))
+        {
+            return !serverArg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                   !serverArg.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        }
+
+        var configPath = GetOptionValue(args, "-c", "--config");
+        if (string.IsNullOrWhiteSpace(configPath) || !File.Exists(configPath))
+        {
+            return false;
+        }
+
+        try
+        {
+            var configJson = BoundedArtifactReader.ReadText(new FileInfo(configPath), BoundedArtifactReader.MaximumConfigurationBytes);
+            using var document = JsonDocument.Parse(configJson);
+            if (!document.RootElement.TryGetProperty("server", out var server) || server.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+
+            if (server.TryGetProperty("transport", out var transport) && transport.ValueKind == JsonValueKind.String)
+            {
+                return string.Equals(transport.GetString(), ValidationConstants.Transports.Stdio, StringComparison.OrdinalIgnoreCase);
+            }
+
+            return server.TryGetProperty("endpoint", out var endpoint) &&
+                   endpoint.ValueKind == JsonValueKind.String &&
+                   !endpoint.GetString()!.StartsWith("http", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
+
+    private static string? GetOptionValue(string[] args, params string[] optionNames)
+    {
+        for (var index = 0; index < args.Length; index++)
+        {
+            if (optionNames.Contains(args[index], StringComparer.Ordinal) && index + 1 < args.Length)
+            {
+                return args[index + 1];
+            }
+
+            foreach (var optionName in optionNames)
+            {
+                var prefix = $"{optionName}=";
+                if (args[index].StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    return args[index][prefix.Length..];
+                }
+            }
+        }
+
         return null;
     }
 
@@ -199,7 +338,7 @@ internal class Program
     /// </summary>
     /// <param name="args">Command line arguments for configuration.</param>
     /// <returns>Configured host builder with all services registered.</returns>
-    private static IHostBuilder CreateHostBuilder(string[] args, CliSessionContext sessionContext) =>
+    internal static IHostBuilder CreateHostBuilder(string[] args, CliSessionContext sessionContext) =>
         Host.CreateDefaultBuilder(args)
             .ConfigureServices((context, services) =>
             {
@@ -215,45 +354,22 @@ internal class Program
 
                 // Register Telemetry Service (NoOp by default for CLI)
                 services.AddSingleton<ITelemetryService, NoOpTelemetryService>();
+                ConfigureOpenTelemetry(services, Environment.GetEnvironmentVariable("OTEL_EXPORTER_OTLP_ENDPOINT"));
 
                 // Register HTTP or STDIO client for MCP communication
                 // Detect transport from CLI args: if --server does not start with http, assume STDIO
-                var serverArg = GetServerArgFromArgs(args);
-                var isStdioTransport = !string.IsNullOrEmpty(serverArg) && 
-                                       !serverArg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
-                                       !serverArg.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+                var isStdioTransport = IsStdioTransport(args);
+
+                services.AddGovernedMcpHttpTransport();
 
                 if (isStdioTransport)
                 {
-                    services.AddSingleton<IMcpHttpClient>(provider =>
-                    {
-                        var logger = provider.GetRequiredService<ILogger<StdioMcpClientAdapter>>();
-                        var adapter = new StdioMcpClientAdapter(logger);
-                        try
-                        {
-                            adapter.StartProcessAsync(serverArg!).GetAwaiter().GetResult();
-                        }
-                        catch (Exception ex)
-                        {
-                            logger.LogError(ex, "Failed to start STDIO server process: {Command}", serverArg);
-                            throw new InvalidOperationException(
-                                $"Failed to start STDIO MCP server '{serverArg}'. " +
-                                $"Ensure the command is installed and on your PATH. Error: {ex.Message}", ex);
-                        }
-                        return adapter;
-                    });
+                    services.AddScoped<IMcpHttpClient, StdioMcpClientAdapter>();
                 }
                 else
                 {
-                    services.AddHttpClient<McpHttpClient>(client =>
-                    {
-                        client.Timeout = TimeSpan.FromSeconds(30);
-                        client.DefaultRequestHeaders.UserAgent.ParseAdd("Visual-Studio-Code/1.96.0 mcp-compliance-validator/1.0.0");
-                    });
-                    services.AddSingleton<IMcpHttpClient>(provider => provider.GetRequiredService<McpHttpClient>());
+                    services.AddScoped<IMcpHttpClient>(provider => provider.GetRequiredService<McpHttpClient>());
                 }
-                services.AddSingleton<IMcpClient, SdkMcpClient>();
-                services.AddSingleton<IMcpClientFactory, McpClientFactory>();
 
                 // Register professional console output service
                 services.AddSingleton<IConsoleOutputService, ConsoleOutputService>();
@@ -269,6 +385,7 @@ internal class Program
                 services.AddSingleton<IAuthenticationStrategy, AzureAuthenticationStrategy>();
                 services.AddSingleton<IAuthenticationStrategy, GitHubAuthenticationStrategy>();
                 services.AddSingleton<IAuthenticationService, AuthenticationService>();
+                services.AddScoped<IAuthorizationCodeFlowCoordinator, AuthorizationCodeFlowCoordinator>();
 
                 // Register core services
                 services.AddSingleton<ISchemaRegistry, EmbeddedSchemaRegistry>();
@@ -283,20 +400,20 @@ internal class Program
                 services.AddSingleton<IProtocolFeatureResolver, ProtocolFeatureResolver>();
                 services.AddSingleton<IValidationRulePack<ProtocolValidationContext>, BuiltInProtocolRulePack>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
-                services.AddSingleton<IValidationSessionBuilder, ValidationSessionBuilder>();
-                services.AddSingleton<IHealthCheckService, HealthCheckService>();
-                services.AddSingleton<IMcpValidatorService, McpValidatorService>();
-                services.AddSingleton<IProtocolComplianceValidator, ProtocolComplianceValidator>();
-                services.AddSingleton<IToolValidator, ToolValidator>();
-                services.AddSingleton<IResourceValidator, ResourceValidator>();
-                services.AddSingleton<IPromptValidator, PromptValidator>();
+                services.AddScoped<IValidationSessionBuilder, ValidationSessionBuilder>();
+                services.AddScoped<IHealthCheckService, HealthCheckService>();
+                services.AddScoped<IMcpValidatorService, McpValidatorService>();
+                services.AddScoped<IProtocolComplianceValidator, ProtocolComplianceValidator>();
+                services.AddScoped<IToolValidator, ToolValidator>();
+                services.AddScoped<IResourceValidator, ResourceValidator>();
+                services.AddScoped<IPromptValidator, PromptValidator>();
 
                 // Register Security Validator and its dependencies
-                services.AddSingleton<McpCompliantAuthValidator>();
-                services.AddSingleton<ISecurityValidator, SecurityValidator>();
+                services.AddScoped<McpCompliantAuthValidator>();
+                services.AddScoped<ISecurityValidator, SecurityValidator>();
 
-                services.AddSingleton<IPerformanceValidator, PerformanceValidator>();
-                services.AddSingleton<IErrorHandlingValidator, ErrorHandlingValidator>();
+                services.AddScoped<IPerformanceValidator, PerformanceValidator>();
+                services.AddScoped<IErrorHandlingValidator, ErrorHandlingValidator>();
 
                 // Register CLI command handlers
                 services.AddScoped<ValidateCommand>();
@@ -321,6 +438,30 @@ internal class Program
                     builder.SetMinimumLevel(LogLevel.Information);
                 });
             });
+
+    internal static void ConfigureOpenTelemetry(IServiceCollection services, string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException("OTEL_EXPORTER_OTLP_ENDPOINT must be an absolute HTTP(S) URI.");
+        }
+
+        services.AddOpenTelemetry()
+            .ConfigureResource(resource => resource.AddService(
+                serviceName: "mcpval",
+                serviceVersion: GetValidatorVersion()))
+            .WithTracing(tracing => tracing
+                .AddSource(ValidationObservability.InstrumentationName)
+                .AddOtlpExporter())
+            .WithMetrics(metrics => metrics
+                .AddMeter(ValidationObservability.InstrumentationName)
+                .AddOtlpExporter());
+    }
 
     /// <summary>
     /// Creates the root command with all available subcommands and options.
@@ -418,6 +559,12 @@ internal class Program
             Description = "Target MCP spec profile (e.g., latest, 2025-11-25, 2025-06-18)"
         };
 
+        var protocolEraOption = new Option<string?>("--protocol-era")
+        {
+            Description = "Protocol era selection (auto, legacy, modern)"
+        };
+        protocolEraOption.AcceptOnlyFromAmong("auto", "legacy", "modern");
+
         var serverProfileOption = new Option<string?>("--access")
         {
             Description = "Declared server access intent (public, authenticated, enterprise)"
@@ -449,7 +596,7 @@ internal class Program
 
         var maxConcurrencyOption = new Option<int?>("--max-concurrency")
         {
-            Description = "Maximum in-flight HTTP requests the validator will issue (default: CPU count)"
+            Description = $"Maximum in-flight HTTP requests (default: {ExecutionPolicyDefaults.DefaultMaxConcurrency}, maximum: {ExecutionPolicyDefaults.MaximumConcurrency})"
         };
 
         var executionModeOption = new Option<string?>("--mode")
@@ -469,6 +616,12 @@ internal class Program
         };
         allowHostOption.AllowMultipleArgumentsPerToken = true;
 
+        var allowOriginOption = new Option<string[]>("--allow-origin")
+        {
+            Description = "Allowed HTTP origin (scheme, host, and optional port). Repeat to permit more than one origin."
+        };
+        allowOriginOption.AllowMultipleArgumentsPerToken = true;
+
         var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
         {
             Description = "Allow loopback or private network addresses"
@@ -476,7 +629,7 @@ internal class Program
 
         var maxRequestsOption = new Option<int?>("--max-requests")
         {
-            Description = "Maximum outbound requests allowed for the run (default: 256)"
+            Description = $"Maximum outbound requests allowed for the run (default: {ExecutionPolicyDefaults.DefaultMaxRequests})"
         };
 
         var timeoutSecondsOption = new Option<int?>("--timeout")
@@ -522,6 +675,27 @@ internal class Program
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Strict);
 
+        var baselineOption = new Option<FileInfo?>("--baseline")
+        {
+            Description = "Prior canonical result JSON used for regression comparison"
+        };
+
+        var regressionOnlyOption = new Option<bool>("--regression-only")
+        {
+            Description = "Block only regressions relative to --baseline"
+        };
+
+        var outputFormatOption = new Option<string?>("--output-format")
+        {
+            Description = "Console output format (human, json)"
+        };
+        outputFormatOption.AcceptOnlyFromAmong("human", "json");
+
+        var signAttestationOption = new Option<bool>("--sign-attestation")
+        {
+            Description = "Sign canonical JSON using MCPVAL_ATTESTATION_PRIVATE_KEY_PEM"
+        };
+
         var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles")
         {
             Description = BuildClientProfileOptionDescription()
@@ -539,10 +713,11 @@ internal class Program
         {
             Description = "Output directory for validation reports"
         };
-            
+
         validateCommand.Options.Add(serverOption);
         validateCommand.Options.Add(outputOption);
         validateCommand.Options.Add(specProfileOption);
+        validateCommand.Options.Add(protocolEraOption);
         validateCommand.Options.Add(serverProfileOption);
         validateCommand.Options.Add(contentSafetyContextOption);
         validateCommand.Options.Add(tokenOption);
@@ -551,6 +726,7 @@ internal class Program
         validateCommand.Options.Add(executionModeOption);
         validateCommand.Options.Add(dryRunOption);
         validateCommand.Options.Add(allowHostOption);
+        validateCommand.Options.Add(allowOriginOption);
         validateCommand.Options.Add(allowPrivateAddressesOption);
         validateCommand.Options.Add(maxRequestsOption);
         validateCommand.Options.Add(timeoutSecondsOption);
@@ -560,6 +736,10 @@ internal class Program
         validateCommand.Options.Add(confirmElevatedRiskOption);
         validateCommand.Options.Add(enableModelEvalOption);
         validateCommand.Options.Add(policyModeOption);
+        validateCommand.Options.Add(baselineOption);
+        validateCommand.Options.Add(regressionOnlyOption);
+        validateCommand.Options.Add(outputFormatOption);
+        validateCommand.Options.Add(signAttestationOption);
         validateCommand.Options.Add(clientProfileOption);
         validateCommand.Options.Add(reportDetailOption);
 
@@ -567,17 +747,19 @@ internal class Program
         {
             var server = parseResult.GetValue(serverOption);
             var specProfile = parseResult.GetValue(specProfileOption);
+            var protocolEra = parseResult.GetValue(protocolEraOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
             var contentSafetyContext = parseResult.GetValue(contentSafetyContextOption);
             var config = parseResult.GetValue(configOption);
             var verbose = parseResult.GetValue(verboseOption);
-            var token = parseResult.GetValue(tokenOption);
+            var token = ResolveBearerToken(parseResult, tokenOption);
             var interactive = parseResult.GetValue(interactiveOption);
             var output = parseResult.GetValue(outputOption);
             var maxConcurrency = parseResult.GetValue(maxConcurrencyOption);
             var executionMode = parseResult.GetValue(executionModeOption);
             var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
             var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowedOrigins = parseResult.GetValue(allowOriginOption);
             var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
             var maxRequests = parseResult.GetValue(maxRequestsOption);
             var timeoutSeconds = parseResult.GetValue(timeoutSecondsOption);
@@ -587,11 +769,17 @@ internal class Program
             var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
             var enableModelEval = GetOptionalBoolean(parseResult, enableModelEvalOption);
             var policyMode = parseResult.GetValue(policyModeOption);
+            var baseline = parseResult.GetValue(baselineOption);
+            var regressionOnly = GetOptionalBoolean(parseResult, regressionOnlyOption);
+            var outputFormat = parseResult.GetValue(outputFormatOption);
+            var signAttestation = GetOptionalBoolean(parseResult, signAttestationOption);
             var clientProfiles = parseResult.GetValue(clientProfileOption);
             var reportDetail = parseResult.GetValue(reportDetailOption);
 
-            var command = serviceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext);
+            await using var commandScope = serviceProvider.CreateAsyncScope();
+            var command = commandScope.ServiceProvider.GetRequiredService<ValidateCommand>();
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, cancellationToken);
+            return Environment.ExitCode;
         });
 
         return validateCommand;
@@ -604,7 +792,9 @@ internal class Program
     {
         var assembly = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
         var infoVersion = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
-        return infoVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
+        var version = infoVersion ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
+        var buildMetadataIndex = version.IndexOf('+', StringComparison.Ordinal);
+        return buildMetadataIndex >= 0 ? version[..buildMetadataIndex] : version;
     }
 
     private static string BuildClientProfileOptionDescription()
@@ -615,6 +805,14 @@ internal class Program
     private static bool? GetOptionalBoolean(ParseResult parseResult, Option<bool> option)
     {
         return parseResult.GetValue(option) ? true : null;
+    }
+
+    private static string? ResolveBearerToken(ParseResult parseResult, Option<string?> tokenOption)
+    {
+        var optionToken = parseResult.GetValue(tokenOption);
+        return !string.IsNullOrWhiteSpace(optionToken)
+            ? optionToken
+            : Environment.GetEnvironmentVariable(ValidationConstants.EnvironmentVariables.BearerToken);
     }
 
     /// <summary>
@@ -646,6 +844,12 @@ internal class Program
         };
         executionModeOption.AcceptOnlyFromAmong("safe", "standard", "elevated");
 
+        var protocolEraOption = new Option<string?>("--protocol-era")
+        {
+            Description = "Protocol era selection (auto, legacy, modern)"
+        };
+        protocolEraOption.AcceptOnlyFromAmong("auto", "legacy", "modern");
+
         var dryRunOption = new Option<bool>("--dry-run")
         {
             Description = "Print the execution plan and exit without contacting the target"
@@ -656,6 +860,12 @@ internal class Program
             Description = "Allowed outbound host. Repeat to permit more than one host."
         };
         allowHostOption.AllowMultipleArgumentsPerToken = true;
+
+        var allowOriginOption = new Option<string[]>("--allow-origin")
+        {
+            Description = "Allowed HTTP origin (scheme, host, and optional port). Repeat to permit more than one origin."
+        };
+        allowOriginOption.AllowMultipleArgumentsPerToken = true;
 
         var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
         {
@@ -712,8 +922,10 @@ internal class Program
         healthCommand.Options.Add(tokenOption);
         healthCommand.Options.Add(interactiveOption);
         healthCommand.Options.Add(executionModeOption);
+        healthCommand.Options.Add(protocolEraOption);
         healthCommand.Options.Add(dryRunOption);
         healthCommand.Options.Add(allowHostOption);
+        healthCommand.Options.Add(allowOriginOption);
         healthCommand.Options.Add(allowPrivateAddressesOption);
         healthCommand.Options.Add(maxRequestsOption);
         healthCommand.Options.Add(persistenceModeOption);
@@ -727,12 +939,14 @@ internal class Program
             var timeout = parseResult.GetValue(timeoutOption);
             var config = parseResult.GetValue(configOption);
             var verbose = parseResult.GetValue(verboseOption);
-            var token = parseResult.GetValue(tokenOption);
+            var token = ResolveBearerToken(parseResult, tokenOption);
             var interactive = parseResult.GetValue(interactiveOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
             var executionMode = parseResult.GetValue(executionModeOption);
+            var protocolEra = parseResult.GetValue(protocolEraOption);
             var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
             var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowedOrigins = parseResult.GetValue(allowOriginOption);
             var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
             var maxRequests = parseResult.GetValue(maxRequestsOption);
             var persistenceMode = parseResult.GetValue(persistenceModeOption);
@@ -740,8 +954,10 @@ internal class Program
             var traceMode = parseResult.GetValue(traceModeOption);
             var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
 
-            var command = serviceProvider.GetRequiredService<HealthCheckCommand>();
-            await command.ExecuteAsync(server, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk);
+            await using var commandScope = serviceProvider.CreateAsyncScope();
+            var command = commandScope.ServiceProvider.GetRequiredService<HealthCheckCommand>();
+            await command.ExecuteAsync(server, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, allowedOrigins, protocolEra, cancellationToken);
+            return Environment.ExitCode;
         });
 
         return healthCommand;
@@ -782,6 +998,12 @@ internal class Program
         };
         executionModeOption.AcceptOnlyFromAmong("safe", "standard", "elevated");
 
+        var protocolEraOption = new Option<string?>("--protocol-era")
+        {
+            Description = "Protocol era selection (auto, legacy, modern)"
+        };
+        protocolEraOption.AcceptOnlyFromAmong("auto", "legacy", "modern");
+
         var dryRunOption = new Option<bool>("--dry-run")
         {
             Description = "Print the execution plan and exit without contacting the target"
@@ -792,6 +1014,12 @@ internal class Program
             Description = "Allowed outbound host. Repeat to permit more than one host."
         };
         allowHostOption.AllowMultipleArgumentsPerToken = true;
+
+        var allowOriginOption = new Option<string[]>("--allow-origin")
+        {
+            Description = "Allowed HTTP origin (scheme, host, and optional port). Repeat to permit more than one origin."
+        };
+        allowOriginOption.AllowMultipleArgumentsPerToken = true;
 
         var allowPrivateAddressesOption = new Option<bool>("--allow-private-addresses")
         {
@@ -849,8 +1077,10 @@ internal class Program
         discoverCommand.Options.Add(tokenOption);
         discoverCommand.Options.Add(interactiveOption);
         discoverCommand.Options.Add(executionModeOption);
+        discoverCommand.Options.Add(protocolEraOption);
         discoverCommand.Options.Add(dryRunOption);
         discoverCommand.Options.Add(allowHostOption);
+        discoverCommand.Options.Add(allowOriginOption);
         discoverCommand.Options.Add(allowPrivateAddressesOption);
         discoverCommand.Options.Add(maxRequestsOption);
         discoverCommand.Options.Add(persistenceModeOption);
@@ -865,12 +1095,14 @@ internal class Program
             var timeout = parseResult.GetValue(timeoutOption);
             var config = parseResult.GetValue(configOption);
             var verbose = parseResult.GetValue(verboseOption);
-            var token = parseResult.GetValue(tokenOption);
+            var token = ResolveBearerToken(parseResult, tokenOption);
             var interactive = parseResult.GetValue(interactiveOption);
             var serverProfile = parseResult.GetValue(serverProfileOption);
             var executionMode = parseResult.GetValue(executionModeOption);
+            var protocolEra = parseResult.GetValue(protocolEraOption);
             var dryRun = GetOptionalBoolean(parseResult, dryRunOption);
             var allowedHosts = parseResult.GetValue(allowHostOption);
+            var allowedOrigins = parseResult.GetValue(allowOriginOption);
             var allowPrivateAddresses = GetOptionalBoolean(parseResult, allowPrivateAddressesOption);
             var maxRequests = parseResult.GetValue(maxRequestsOption);
             var persistenceMode = parseResult.GetValue(persistenceModeOption);
@@ -878,8 +1110,10 @@ internal class Program
             var traceMode = parseResult.GetValue(traceModeOption);
             var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
 
-            var command = serviceProvider.GetRequiredService<DiscoverCommand>();
-            await command.ExecuteAsync(server, format, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk);
+            await using var commandScope = serviceProvider.CreateAsyncScope();
+            var command = commandScope.ServiceProvider.GetRequiredService<DiscoverCommand>();
+            await command.ExecuteAsync(server, format, timeout, config, verbose, token, interactive, serverProfile, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, allowedOrigins, protocolEra, cancellationToken);
+            return Environment.ExitCode;
         });
 
         return discoverCommand;
@@ -933,8 +1167,10 @@ internal class Program
             var verbose = parseResult.GetValue(verboseOption);
             var reportDetail = parseResult.GetValue(reportDetailOption);
 
-            var command = serviceProvider.GetRequiredService<ReportCommand>();
+            await using var commandScope = serviceProvider.CreateAsyncScope();
+            var command = commandScope.ServiceProvider.GetRequiredService<ReportCommand>();
             await command.ExecuteAsync(input, format, output, config, verbose, reportDetail);
+            return Environment.ExitCode;
         });
 
         return reportCommand;

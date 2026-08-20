@@ -9,14 +9,12 @@
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <RestoreLockedMode Condition="'$(CI)' == 'true'">true</RestoreLockedMode>
-    
-    <!-- 
-      Version: Single source of truth for all projects.
-      MAJOR.MINOR is set here. PATCH is auto-incremented from the latest git tag.
-      To bump major/minor: change VersionPrefix here, commit, push.
-    -->
-    <VersionPrefix>1.1.0</VersionPrefix>
-    
+    <McpValSupportedRuntimeIdentifiers>win-x64;linux-x64;linux-arm64;osx-x64;osx-arm64</McpValSupportedRuntimeIdentifiers>
+    <RuntimeIdentifiers>$(McpValSupportedRuntimeIdentifiers)</RuntimeIdentifiers>
+
+    <!-- Exact release version shared by builds, packages, tags, and the composite Action. -->
+    <VersionPrefix>1.1.25</VersionPrefix>
+
     <!-- Metadata -->
     <Authors>Rakesh Navale</Authors>
     <Company>Rakesh Navale</Company>

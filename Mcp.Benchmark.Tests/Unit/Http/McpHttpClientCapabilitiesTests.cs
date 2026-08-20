@@ -17,6 +17,26 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 public class McpHttpClientCapabilitiesTests
 {
     [Fact]
+    public async Task ValidateInitializeAsync_CallerCancellation_ShouldPropagateWithoutRawFallback()
+    {
+        var mcpClient = new Mock<IMcpClient>();
+        mcpClient
+            .Setup(client => client.InitializeAsync(
+                It.IsAny<McpServerConfig>(),
+                It.IsAny<AuthenticationConfig?>(),
+                It.IsAny<string?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        using var httpClient = new HttpClient(new RoutingHandler(_ => throw new InvalidOperationException("Raw fallback must not execute after caller cancellation.")));
+        var client = new McpHttpClient(httpClient, Mock.Of<ILogger<McpHttpClient>>(), mcpClient.Object);
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var action = () => client.ValidateInitializeAsync("https://example.test/mcp", cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
+    }
+    [Fact]
     public async Task ValidateCapabilitiesAsync_UsesMcpClientForToolsAndBuildsSummary()
     {
         // Arrange

@@ -9,6 +9,7 @@ using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Benchmark.Infrastructure.Utilities;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -16,7 +17,7 @@ namespace Mcp.Benchmark.Infrastructure.Services;
 /// Main MCP server validator service implementation.
 /// Orchestrates comprehensive validation testing using the official MCP SDK.
 /// </summary>
-public class McpValidatorService : IMcpValidatorService
+public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidatorService
 {
     private readonly IProtocolComplianceValidator _protocolValidator;
     private readonly IToolValidator _toolValidator;
@@ -83,20 +84,43 @@ public class McpValidatorService : IMcpValidatorService
     /// <param name="configuration">The validation configuration containing server details and test scenarios.</param>
     /// <param name="cancellationToken">Cancellation token to stop the validation process.</param>
     /// <returns>A comprehensive validation result containing all test outcomes.</returns>
-    public async Task<ValidationResult> ValidateServerAsync(McpValidatorConfiguration configuration, CancellationToken cancellationToken = default)
+    public Task<ValidationResult> ValidateServerAsync(McpValidatorConfiguration configuration, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Starting comprehensive validation for server: {Server}", configuration.Server.Endpoint);
-        _telemetryService.TrackEvent("ValidationStarted", new Dictionary<string, string> { { "Endpoint", configuration.Server.Endpoint ?? "Unknown" } });
+        return ValidateServerAsync(ValidationRunRequest.Capture(configuration), cancellationToken);
+    }
+
+    public async Task<ValidationResult> ValidateServerAsync(ValidationRunRequest request, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var configuration = request.CreateConfiguration();
+        ConfigureTransportPolicy(configuration.Server, configuration.Execution, force: true);
+        var safeTarget = configuration.Server.CloneWithoutSecrets().Endpoint ?? "Unknown";
+        _logger.LogInformation("Starting comprehensive validation for target: {Target}", safeTarget);
+        _telemetryService.TrackEvent("ValidationStarted", new Dictionary<string, string> { { "Target", safeTarget } });
 
         var result = new ValidationResult
         {
             ValidationId = Guid.NewGuid().ToString(),
             StartTime = DateTime.UtcNow,
-            ServerConfig = configuration.Server,
-            ValidationConfig = configuration,
+            ServerConfig = configuration.Server.CloneWithoutSecrets(),
+            ValidationConfig = configuration.CloneForDeterministicResult(),
             OverallStatus = ValidationStatus.InProgress,
             ProtocolVersion = configuration.Server.ProtocolVersion
         };
+        result.ValidationId = request.RequestId;
+        var runStopwatch = System.Diagnostics.Stopwatch.StartNew();
+        using var runTelemetry = ValidationObservability.BeginRun(
+            result.ValidationId,
+            configuration.Execution?.MaxRequests ?? ExecutionPolicyDefaults.DefaultMaxRequests);
+
+        ValidationResult CompleteRun()
+        {
+            runStopwatch.Stop();
+            result.Run.OperationalMetrics = runTelemetry.Complete(runStopwatch.Elapsed.TotalMilliseconds);
+            result.Run.OperationalMetrics.EvidenceCoverageRatio = result.VerdictAssessment?.EvidenceSummary.EvidenceCoverageRatio
+                ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage).EvidenceCoverageRatio;
+            return result;
+        }
 
         var requestedConcurrency = configuration.TestExecution?.EnableParallelExecution == false
             ? 1
@@ -107,20 +131,39 @@ public class McpValidatorService : IMcpValidatorService
         ValidationSessionContext session;
         try
         {
-            session = await _sessionBuilder.BuildAsync(configuration, cancellationToken);
+            using (ValidationObservability.MeasureStage("session.bootstrap"))
+            {
+                session = await _sessionBuilder.BuildAsync(configuration, cancellationToken);
+            }
         }
         catch (ValidationSessionException vex)
         {
             _telemetryService.TrackEvent("ValidationSessionFailed", new Dictionary<string, string>
             {
-                { "Endpoint", configuration.Server.Endpoint ?? "Unknown" },
+                { "Target", safeTarget },
                 { "Reason", vex.Message }
             });
 
             result.OverallStatus = vex.Status;
             result.CriticalErrors.Add(vex.Message);
             result.EndTime = DateTime.UtcNow;
-            return result;
+            return CompleteRun();
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            result.OverallStatus = ValidationStatus.Cancelled;
+            result.EndTime = DateTime.UtcNow;
+            _telemetryService.TrackEvent("ValidationCancelled");
+            return CompleteRun();
+        }
+        catch (OperationCanceledException ex)
+        {
+            result.OverallStatus = ValidationStatus.Error;
+            result.EndTime = DateTime.UtcNow;
+            result.CriticalErrors.Add("Validation framework error: an internal operation timed out or was cancelled without caller cancellation.");
+            _logger.LogError(ex, "Validation bootstrap failed due to internal cancellation");
+            _telemetryService.TrackException(ex);
+            return CompleteRun();
         }
 
         // Replace the mutable server config reference with the effective (cloned) instance
@@ -128,6 +171,7 @@ public class McpValidatorService : IMcpValidatorService
         result.ServerConfig = session.EffectiveServer;
         result.ProtocolVersion = session.ProtocolVersion ?? session.EffectiveServer.ProtocolVersion;
         result.InitializationHandshake = session.InitializationHandshake;
+        result.ModernDiscovery = session.ModernDiscovery;
         result.BootstrapHealth = session.BootstrapHealth;
         result.ServerProfile = session.ServerProfile;
         result.ServerProfileSource = session.ServerProfileSource;
@@ -154,6 +198,7 @@ public class McpValidatorService : IMcpValidatorService
         configuration.Validation ??= new ValidationConfig();
         configuration.Validation.Categories ??= new ValidationScenarios();
         var categories = configuration.Validation.Categories;
+        categories.ProtocolCompliance.ModernDiscovery = session.ModernDiscovery?.Payload;
 
         if (session.AuthDiscovery != null)
         {
@@ -167,139 +212,83 @@ public class McpValidatorService : IMcpValidatorService
 
         try
         {
-            // Execute validation categories based on configuration
-            var validationTasks = new List<Task>();
-
-            // Protocol compliance testing
             _logger.LogInformation("Checking Protocol Compliance Config: {Enabled}", categories.ProtocolCompliance.TestJsonRpcCompliance);
-            if (categories.ProtocolCompliance.TestJsonRpcCompliance)
+            Func<Task<CategoryOutcome<ComplianceTestResult>?>> collectProtocol = () => categories.ProtocolCompliance.TestJsonRpcCompliance
+                ? ExecuteCategoryAsync(
+                    "Protocol compliance validation",
+                    ct => _protocolValidator.ValidateJsonRpcComplianceAsync(configuration.Server, categories.ProtocolCompliance, ct),
+                    ex => new ComplianceTestResult { Status = TestStatus.Error, Score = ScoringConstants.ScoreMinimum, Message = ex.Message },
+                    cancellationToken)
+                : Task.FromResult<CategoryOutcome<ComplianceTestResult>?>(null);
+            Func<Task<CategoryOutcome<ToolTestResult>?>> collectTools = () => categories.ToolTesting.TestToolDiscovery
+                ? ExecuteCategoryAsync(
+                    "Tool validation",
+                    ct => _toolValidator.ValidateToolDiscoveryAsync(configuration.Server, categories.ToolTesting, ct),
+                    ex => new ToolTestResult { Status = TestStatus.Error, Score = ScoringConstants.ScoreMinimum, Message = ex.Message },
+                    cancellationToken)
+                : Task.FromResult<CategoryOutcome<ToolTestResult>?>(null);
+            Func<Task<CategoryOutcome<ResourceTestResult>?>> collectResources = () => categories.ResourceTesting.TestResourceDiscovery
+                ? ExecuteCategoryAsync(
+                    "Resource validation",
+                    ct => _resourceValidator.ValidateResourceDiscoveryAsync(configuration.Server, categories.ResourceTesting, ct),
+                    ex => new ResourceTestResult { Status = TestStatus.Error, Score = ScoringConstants.ScoreMinimum, Message = ex.Message },
+                    cancellationToken)
+                : Task.FromResult<CategoryOutcome<ResourceTestResult>?>(null);
+            Func<Task<CategoryOutcome<PromptTestResult>?>> collectPrompts = () => categories.PromptTesting.TestPromptDiscovery
+                ? ExecuteCategoryAsync(
+                    "Prompt validation",
+                    ct => _promptValidator.ValidatePromptDiscoveryAsync(configuration.Server, categories.PromptTesting, ct),
+                    ex => new PromptTestResult { Status = TestStatus.Error, Score = ScoringConstants.ScoreMinimum, Message = ex.Message },
+                    cancellationToken)
+                : Task.FromResult<CategoryOutcome<PromptTestResult>?>(null);
+            Func<Task<CategoryOutcome<SecurityTestResult>?>> collectSecurity = () => categories.SecurityTesting.TestInputValidation
+                ? ExecuteCategoryAsync(
+                    "Security testing",
+                    ct => _securityValidator.PerformSecurityAssessmentAsync(configuration.Server, categories.SecurityTesting, ct),
+                    ex => new SecurityTestResult { Status = TestStatus.Error, Score = ScoringConstants.ScoreMinimum, Message = ex.Message },
+                    cancellationToken)
+                : Task.FromResult<CategoryOutcome<SecurityTestResult>?>(null);
+
+            CategoryOutcome<ComplianceTestResult>? protocolOutcome;
+            CategoryOutcome<ToolTestResult>? toolOutcome;
+            CategoryOutcome<ResourceTestResult>? resourceOutcome;
+            CategoryOutcome<PromptTestResult>? promptOutcome;
+            CategoryOutcome<SecurityTestResult>? securityOutcome;
+
+            if (ShouldCollectCategoriesInParallel(configuration))
             {
-                _logger.LogInformation("Queueing Protocol Compliance Validation...");
-                validationTasks.Add(Task.Run(async () =>
+                using (ValidationObservability.MeasureStage("validation.categories"))
                 {
-                    try
-                    {
-                        _logger.LogInformation("Starting Protocol Compliance Validation...");
-                        result.ProtocolCompliance = await _protocolValidator.ValidateJsonRpcComplianceAsync(
-                            configuration.Server, categories.ProtocolCompliance, cancellationToken);
-                        _logger.LogInformation("Protocol Compliance Validation Completed. Status: {Status}", result.ProtocolCompliance.Status);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Protocol compliance validation failed");
-                        result.CriticalErrors.Add($"Protocol compliance validation error: {ex.Message}");
-                        result.ProtocolCompliance = new ComplianceTestResult 
-                        { 
-                            Status = TestStatus.Failed, 
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
+                    var protocolTask = collectProtocol();
+                    var toolTask = collectTools();
+                    var resourceTask = collectResources();
+                    var promptTask = collectPrompts();
+                    var securityTask = collectSecurity();
+                    await Task.WhenAll(protocolTask, toolTask, resourceTask, promptTask, securityTask);
+                    protocolOutcome = protocolTask.Result;
+                    toolOutcome = toolTask.Result;
+                    resourceOutcome = resourceTask.Result;
+                    promptOutcome = promptTask.Result;
+                    securityOutcome = securityTask.Result;
+                }
             }
             else
             {
-                _logger.LogWarning("Protocol Compliance Validation SKIPPED (Config disabled)");
-            }
-
-            // Tool validation testing
-            if (categories.ToolTesting.TestToolDiscovery)
-            {
-                validationTasks.Add(Task.Run(async () =>
+                using (ValidationObservability.MeasureStage("validation.categories"))
                 {
-                    try
-                    {
-                        result.ToolValidation = await _toolValidator.ValidateToolDiscoveryAsync(
-                            configuration.Server, categories.ToolTesting, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Tool validation failed");
-                        result.CriticalErrors.Add($"Tool validation error: {ex.Message}");
-                        result.ToolValidation = new ToolTestResult
-                        {
-                            Status = TestStatus.Failed,
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
+                    protocolOutcome = await collectProtocol();
+                    toolOutcome = await collectTools();
+                    resourceOutcome = await collectResources();
+                    promptOutcome = await collectPrompts();
+                    securityOutcome = await collectSecurity();
+                }
             }
 
-            // Resource validation testing
-            if (categories.ResourceTesting.TestResourceDiscovery)
-            {
-                validationTasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        result.ResourceTesting = await _resourceValidator.ValidateResourceDiscoveryAsync(
-                            configuration.Server, categories.ResourceTesting, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Resource validation failed");
-                        result.CriticalErrors.Add($"Resource validation error: {ex.Message}");
-                        result.ResourceTesting = new ResourceTestResult
-                        {
-                            Status = TestStatus.Failed,
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
-            }
-
-            // Prompt validation testing
-            if (categories.PromptTesting.TestPromptDiscovery)
-            {
-                validationTasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        result.PromptTesting = await _promptValidator.ValidatePromptDiscoveryAsync(
-                            configuration.Server, categories.PromptTesting, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Prompt validation failed");
-                        result.CriticalErrors.Add($"Prompt validation error: {ex.Message}");
-                        result.PromptTesting = new PromptTestResult
-                        {
-                            Status = TestStatus.Failed,
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
-            }
-
-            // Security testing
-            if (categories.SecurityTesting.TestInputValidation)
-            {
-                validationTasks.Add(Task.Run(async () =>
-                {
-                    try
-                    {
-                        result.SecurityTesting = await _securityValidator.PerformSecurityAssessmentAsync(
-                            configuration.Server, categories.SecurityTesting, cancellationToken);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Security testing failed");
-                        result.CriticalErrors.Add($"Security testing error: {ex.Message}");
-                        result.SecurityTesting = new SecurityTestResult
-                        {
-                            Status = TestStatus.Failed,
-                            Score = 0,
-                            Message = ex.Message
-                        };
-                    }
-                }, cancellationToken));
-            }
-
-            // Wait for all validation tasks to complete
-            await Task.WhenAll(validationTasks);
+            ApplyCategoryOutcome(protocolOutcome, value => result.ProtocolCompliance = value, result);
+            ApplyCategoryOutcome(toolOutcome, value => result.ToolValidation = value, result);
+            ApplyCategoryOutcome(resourceOutcome, value => result.ResourceTesting = value, result);
+            ApplyCategoryOutcome(promptOutcome, value => result.PromptTesting = value, result);
+            ApplyCategoryOutcome(securityOutcome, value => result.SecurityTesting = value, result);
 
             if (IsErrorHandlingEnabled(categories.ErrorHandling))
             {
@@ -310,14 +299,18 @@ public class McpValidatorService : IMcpValidatorService
                         categories.ErrorHandling,
                         cancellationToken);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error-handling validation failed");
                     result.CriticalErrors.Add($"Error-handling validation error: {ex.Message}");
                     result.ErrorHandling = new ErrorHandlingTestResult
                     {
-                        Status = TestStatus.Failed,
-                        Score = 0,
+                        Status = TestStatus.Error,
+                        Score = ScoringConstants.ScoreMinimum,
                         Message = ex.Message
                     };
                 }
@@ -333,14 +326,21 @@ public class McpValidatorService : IMcpValidatorService
                         configuration.Server, categories.PerformanceTesting, cancellationToken);
                     ValidationCalibration.ApplyPerformanceOutcomeCalibration(configuration.Server, result.PerformanceTesting);
                 }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Performance testing failed");
                     result.CriticalErrors.Add($"Performance testing error: {ex.Message}");
                     result.PerformanceTesting = new PerformanceTestResult
                     {
-                        Status = TestStatus.Failed,
-                        Score = 0,
+                        Status = TestStatus.Error,
+                        MeasurementDisposition = ex is TimeoutException or TaskCanceledException
+                            ? PerformanceMeasurementDisposition.TimedOut
+                            : PerformanceMeasurementDisposition.Unavailable,
+                        Score = ScoringConstants.ScoreMinimum,
                         Message = ex.Message
                     };
                 }
@@ -349,17 +349,28 @@ public class McpValidatorService : IMcpValidatorService
             PopulateProtocolDetails(result);
             PopulateAssessmentLayers(result);
             PopulateCoverage(result, categories);
-            await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, cancellationToken);
+            using (ValidationObservability.MeasureStage("validation.scenarios"))
+            {
+                await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, cancellationToken);
+            }
 
             // Calculate overall results
-            CalculateOverallResults(result);
+            using (ValidationObservability.MeasureStage("validation.scoring"))
+            {
+                CalculateOverallResults(result);
+            }
 
             // Calculate MCP Trust Assessment (multi-dimensional AI safety evaluation)
-            result.TrustAssessment = Scoring.McpTrustCalculator.Calculate(result);
-            result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
-            result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)
-                ? ValidationStatus.Passed
-                : ValidationStatus.Failed;
+            using (ValidationObservability.MeasureStage("validation.trust"))
+            {
+                result.TrustAssessment = Scoring.McpTrustCalculator.Calculate(result);
+            }
+            using (ValidationObservability.MeasureStage("validation.verdict"))
+            {
+                result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+            }
+            Scoring.McpTrustCalculator.ApplyAuthoritativeVerdictCap(result.TrustAssessment, result.VerdictAssessment);
+            result.OverallStatus = ValidationVerdictEngine.DetermineValidationStatus(result.VerdictAssessment);
 
             // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
             // protocol version actually negotiated, when that version has an embedded
@@ -386,21 +397,30 @@ public class McpValidatorService : IMcpValidatorService
             _logger.LogInformation("Validation completed with status: {Status}, Score: {Score:F1}%",
                 result.OverallStatus, result.ComplianceScore);
 
-            _telemetryService.TrackEvent("ValidationCompleted", new Dictionary<string, string> 
-            { 
+            _telemetryService.TrackEvent("ValidationCompleted", new Dictionary<string, string>
+            {
                 { "Status", result.OverallStatus.ToString() },
                 { "Score", result.ComplianceScore.ToString("F1") }
             });
 
-            return result;
+            return CompleteRun();
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             result.OverallStatus = ValidationStatus.Cancelled;
             result.EndTime = DateTime.UtcNow;
             _logger.LogWarning("Validation was cancelled");
             _telemetryService.TrackEvent("ValidationCancelled");
-            return result;
+            return CompleteRun();
+        }
+        catch (OperationCanceledException ex)
+        {
+            result.OverallStatus = ValidationStatus.Error;
+            result.EndTime = DateTime.UtcNow;
+            result.CriticalErrors.Add("Validation framework error: an internal operation timed out or was cancelled without caller cancellation.");
+            _logger.LogError(ex, "Validation failed due to internal cancellation");
+            _telemetryService.TrackException(ex);
+            return CompleteRun();
         }
         catch (Exception ex)
         {
@@ -409,8 +429,82 @@ public class McpValidatorService : IMcpValidatorService
             result.CriticalErrors.Add($"Validation framework error: {ex.Message}");
             _logger.LogError(ex, "Validation failed with critical error");
             _telemetryService.TrackException(ex);
-            return result;
+            return CompleteRun();
         }
+    }
+
+    private async Task<CategoryOutcome<T>?> ExecuteCategoryAsync<T>(
+        string categoryName,
+        Func<CancellationToken, Task<T>> execute,
+        Func<Exception, T> createFailure,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            return new CategoryOutcome<T>(await execute(cancellationToken), null);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "{CategoryName} failed", categoryName);
+            return new CategoryOutcome<T>(createFailure(ex), $"{categoryName} error: {ex.Message}");
+        }
+    }
+
+    private static void ApplyCategoryOutcome<T>(
+        CategoryOutcome<T>? outcome,
+        Action<T> apply,
+        ValidationResult result)
+    {
+        if (outcome == null)
+        {
+            return;
+        }
+
+        apply(outcome.Value);
+        if (!string.IsNullOrWhiteSpace(outcome.CriticalError))
+        {
+            result.CriticalErrors.Add(outcome.CriticalError);
+        }
+    }
+
+    private sealed record CategoryOutcome<T>(T Value, string? CriticalError);
+
+    private static bool ShouldCollectCategoriesInParallel(McpValidatorConfiguration configuration)
+    {
+        return configuration.TestExecution?.EnableParallelExecution == true &&
+               !string.Equals(configuration.Server.Transport, "stdio", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void ConfigureTransportPolicy(McpServerConfig serverConfig, ExecutionPolicy? executionPolicy, bool force = false)
+    {
+        if (!force && _httpClient.IsExecutionPolicyConfigured)
+        {
+            return;
+        }
+
+        var policy = executionPolicy?.Clone() ?? new ExecutionPolicy();
+        if (Uri.TryCreate(serverConfig.Endpoint, UriKind.Absolute, out var endpointUri))
+        {
+            if (policy.AllowedHosts.Count == 0)
+            {
+                policy.AllowedHosts.Add(NetworkTargetPolicy.NormalizeHost(endpointUri.IdnHost));
+            }
+
+            if (policy.AllowedOrigins.Count == 0)
+            {
+                policy.AllowedOrigins.Add(NetworkTargetPolicy.NormalizeOrigin(endpointUri));
+                foreach (var host in policy.AllowedHosts.Where(host => !string.Equals(host, endpointUri.IdnHost, StringComparison.OrdinalIgnoreCase)))
+                {
+                    policy.AllowedOrigins.Add(NetworkTargetPolicy.CreateHttpsOrigin(host));
+                }
+            }
+        }
+
+        _httpClient.ConfigureExecutionPolicy(policy);
     }
 
     private static void PropagateCapabilitySnapshot(McpValidatorConfiguration configuration, TransportResult<CapabilitySummary> snapshot)
@@ -526,6 +620,7 @@ public class McpValidatorService : IMcpValidatorService
                 LayerId = layerId,
                 Scope = scope,
                 Status = ValidationCoverageStatus.Skipped,
+                ObservedOutcome = ValidationOutcome.Skipped,
                 Blocker = ValidationEvidenceBlocker.ConfigDisabled,
                 Confidence = EvidenceConfidenceLevel.Low,
                 Reason = "Validation category disabled by configuration."
@@ -540,6 +635,7 @@ public class McpValidatorService : IMcpValidatorService
                 LayerId = layerId,
                 Scope = scope,
                 Status = ValidationCoverageStatus.Unavailable,
+                ObservedOutcome = ValidationOutcome.Unavailable,
                 Blocker = ValidationEvidenceBlocker.Unimplemented,
                 Confidence = EvidenceConfidenceLevel.None,
                 Reason = "Validation category did not produce a result."
@@ -547,15 +643,11 @@ public class McpValidatorService : IMcpValidatorService
             return;
         }
 
-        coverage.Add(new ValidationCoverageDeclaration
-        {
-            LayerId = layerId,
-            Scope = scope,
-            Status = MapCoverageStatus(testResult.Status),
-            Blocker = MapCoverageBlocker(testResult.Status),
-            Confidence = MapCoverageConfidence(testResult.Status),
-            Reason = testResult.Status is TestStatus.Passed or TestStatus.Failed ? null : testResult.Message
-        });
+        coverage.Add(ValidationCoverageFactory.FromTestStatus(
+            layerId,
+            scope,
+            testResult.Status,
+            testResult.Message));
     }
 
     private async Task ExecuteScenarioPacksAsync(
@@ -640,43 +732,6 @@ public class McpValidatorService : IMcpValidatorService
             config.CustomErrorScenarios.Count > 0;
     }
 
-    private static ValidationCoverageStatus MapCoverageStatus(TestStatus status)
-    {
-        return status switch
-        {
-            TestStatus.Passed or TestStatus.Failed => ValidationCoverageStatus.Covered,
-            TestStatus.Skipped => ValidationCoverageStatus.Skipped,
-            TestStatus.AuthRequired => ValidationCoverageStatus.AuthRequired,
-            TestStatus.Inconclusive => ValidationCoverageStatus.Inconclusive,
-            TestStatus.Error or TestStatus.Cancelled => ValidationCoverageStatus.Blocked,
-            _ => ValidationCoverageStatus.Unavailable
-        };
-    }
-
-    private static ValidationEvidenceBlocker MapCoverageBlocker(TestStatus status)
-    {
-        return status switch
-        {
-            TestStatus.AuthRequired => ValidationEvidenceBlocker.AuthRequired,
-            TestStatus.Inconclusive => ValidationEvidenceBlocker.TransientFailure,
-            TestStatus.Skipped => ValidationEvidenceBlocker.ConfigDisabled,
-            TestStatus.Error or TestStatus.Cancelled => ValidationEvidenceBlocker.TransportError,
-            TestStatus.NotRun or TestStatus.InProgress => ValidationEvidenceBlocker.Unimplemented,
-            _ => ValidationEvidenceBlocker.None
-        };
-    }
-
-    private static EvidenceConfidenceLevel MapCoverageConfidence(TestStatus status)
-    {
-        return status switch
-        {
-            TestStatus.Passed or TestStatus.Failed => EvidenceConfidenceLevel.High,
-            TestStatus.AuthRequired or TestStatus.Skipped => EvidenceConfidenceLevel.Low,
-            TestStatus.Inconclusive => EvidenceConfidenceLevel.Low,
-            _ => EvidenceConfidenceLevel.None
-        };
-    }
-
     /// <summary>
     /// Performs a quick health check on the MCP server to verify basic connectivity.
     /// </summary>
@@ -685,6 +740,7 @@ public class McpValidatorService : IMcpValidatorService
     /// <returns>A simple health check result indicating server availability.</returns>
     public async Task<HealthCheckResult> PerformHealthCheckAsync(McpServerConfig serverConfig, CancellationToken cancellationToken = default)
     {
+        ConfigureTransportPolicy(serverConfig, executionPolicy: null);
         return await _healthCheckService.PerformHealthCheckAsync(serverConfig, cancellationToken);
     }
 
@@ -696,7 +752,8 @@ public class McpValidatorService : IMcpValidatorService
     /// <returns>A detailed report of server capabilities and supported features.</returns>
     public async Task<ServerCapabilities> DiscoverServerCapabilitiesAsync(McpServerConfig serverConfig, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Discovering capabilities for server: {Server}", serverConfig.Endpoint);
+        ConfigureTransportPolicy(serverConfig, executionPolicy: null);
+        _logger.LogInformation("Discovering capabilities for target: {Target}", serverConfig.CloneWithoutSecrets().Endpoint);
 
         try
         {
@@ -716,6 +773,48 @@ public class McpValidatorService : IMcpValidatorService
 
             _httpClient.SetProtocolVersion(serverConfig.ProtocolVersion);
             _httpClient.SetAuthentication(serverConfig.Authentication);
+
+            if (ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
+            {
+                var modernConfiguration = new McpValidatorConfiguration
+                {
+                    Server = serverConfig.CloneForExecution()
+                };
+                var session = await _sessionBuilder.BuildAsync(modernConfiguration, cancellationToken);
+                var discovery = session.ModernDiscovery?.Payload;
+                if (discovery?.IsValid != true)
+                {
+                    if (!ProtocolEraVersions.IsModern(session.ProtocolVersion))
+                    {
+                        return BuildLegacyDiscoveredCapabilities(serverConfig, session);
+                    }
+
+                    throw new InvalidOperationException(
+                        session.ModernDiscovery?.Error ?? "Modern server/discover evidence is unavailable or invalid.");
+                }
+
+                var modernCapabilityPayload = session.CapabilitySnapshot?.Payload;
+                return new ServerCapabilities
+                {
+                    ProtocolVersion = session.ProtocolVersion ?? serverConfig.ProtocolVersion ?? "Unknown",
+                    Implementation = new ServerImplementation
+                    {
+                        Name = "Unknown Server",
+                        Version = "Unknown",
+                        Description = discovery.Instructions ?? "Discovered through modern server/discover."
+                    },
+                    SupportedTransports = [serverConfig.Transport ?? "http"],
+                    SupportedTools = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Tools, StringComparer.OrdinalIgnoreCase)
+                        ? [new ToolCapability { Name = "tools-validated", Description = $"Tool validation completed with score: {modernCapabilityPayload?.Score ?? 0:F1}%" }]
+                        : [],
+                    SupportedResources = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Resources, StringComparer.OrdinalIgnoreCase)
+                        ? [new ResourceCapability { UriPattern = "*", Description = "Resources advertised by modern discovery." }]
+                        : [],
+                    SupportedPrompts = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Prompts, StringComparer.OrdinalIgnoreCase)
+                        ? [new PromptCapability { Name = "prompts-advertised", Description = "Prompts advertised by modern discovery." }]
+                        : []
+                };
+            }
 
             // REAL HTTP transport capability discovery using MCP initialize
             _logger.LogDebug("Performing REAL MCP capability discovery via initialize and capability validation");
@@ -751,7 +850,7 @@ public class McpValidatorService : IMcpValidatorService
                 },
                 SupportedResources = new List<ResourceCapability>
                 {
-                    // Basic resource capability 
+                    // Basic resource capability
                     new() { UriPattern = "http://*", Description = "HTTP-based resources discovered via MCP validation" }
                 },
                 SupportedPrompts = new List<PromptCapability>
@@ -773,6 +872,34 @@ public class McpValidatorService : IMcpValidatorService
         }
     }
 
+    private static ServerCapabilities BuildLegacyDiscoveredCapabilities(
+        McpServerConfig serverConfig,
+        ValidationSessionContext session)
+    {
+        var initialize = session.InitializationHandshake?.Payload;
+        var capabilityPayload = session.CapabilitySnapshot?.Payload;
+        return new ServerCapabilities
+        {
+            ProtocolVersion = session.ProtocolVersion ?? initialize?.ProtocolVersion ?? "Unknown",
+            Implementation = new ServerImplementation
+            {
+                Name = initialize?.ServerInfo?.Name ?? "Unknown Server",
+                Version = initialize?.ServerInfo?.Version ?? "Unknown",
+                Description = "Discovered through negotiated legacy initialize and list capabilities."
+            },
+            SupportedTransports = [serverConfig.Transport ?? "http"],
+            SupportedTools = capabilityPayload?.ToolListingSucceeded == true
+                ? [new ToolCapability { Name = "tools-validated", Description = $"Tool validation completed with score: {capabilityPayload.Score:F1}%" }]
+                : [],
+            SupportedResources = capabilityPayload?.ResourceListingSucceeded == true
+                ? [new ResourceCapability { UriPattern = "*", Description = "Resources validated through MCP list capabilities." }]
+                : [],
+            SupportedPrompts = capabilityPayload?.PromptListingSucceeded == true
+                ? [new PromptCapability { Name = "prompts-validated", Description = "Prompts validated through MCP list capabilities." }]
+                : []
+        };
+    }
+
     /// <summary>
     /// Validates specific aspects of the MCP server based on the provided test categories.
     /// </summary>
@@ -782,7 +909,7 @@ public class McpValidatorService : IMcpValidatorService
     /// <returns>Validation results for the specified test categories.</returns>
     public async Task<ValidationResult> ValidateSpecificAspectsAsync(McpServerConfig serverConfig, IEnumerable<TestCategory> testCategories, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Validating specific aspects for server: {Server}", serverConfig.Endpoint);
+        _logger.LogInformation("Validating specific aspects for target: {Target}", serverConfig.CloneWithoutSecrets().Endpoint);
 
         // Create a focused configuration based on the specified categories
         var configuration = new McpValidatorConfiguration
@@ -984,7 +1111,7 @@ public class McpValidatorService : IMcpValidatorService
 
         // Use the scoring strategy to calculate the score and status
         var scoringResult = _scoringStrategy.CalculateScore(result);
-        
+
         result.ComplianceScore = scoringResult.OverallScore;
         result.OverallStatus = scoringResult.Status;
         result.ScoringNotes = scoringResult.ScoringNotes;

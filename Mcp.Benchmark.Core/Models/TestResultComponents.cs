@@ -263,6 +263,9 @@ public class SecurityVulnerability
     /// </summary>
     public bool IsExploitable { get; set; } = false;
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ImpactArea>? ImpactAreas { get; set; }
+
     /// <summary>
     /// Gets or sets the probe contexts that produced this vulnerability finding.
     /// </summary>
@@ -335,6 +338,17 @@ public class AttackSimulationResult
     /// Gets or sets whether the server properly defended against the attack.
     /// </summary>
     public bool DefenseSuccessful { get; set; } = false;
+
+    public ValidationOutcome Outcome { get; set; } = ValidationOutcome.Inconclusive;
+
+    public ValidationFindingSeverity Severity { get; set; } = ValidationFindingSeverity.Info;
+
+    public GateOutcome Gate { get; set; } = GateOutcome.Note;
+
+    public ValidationRuleSource Authority { get; set; } = ValidationRuleSource.Heuristic;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<ImpactArea>? ImpactAreas { get; set; }
 
     /// <summary>
     /// Gets or sets the server response to the attack.

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Globalization;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
@@ -55,6 +56,48 @@ public class ReportSnapshotTests
 
         normalizedActual.Should().Be(expected);
     }
+
+    [Fact]
+    public void OfflineRenderers_ShouldBeByteStableForIdenticalCanonicalEvidence()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+
+        _markdownGenerator.GenerateReport(result).Should().Be(_markdownGenerator.GenerateReport(result));
+        _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true)
+            .Should().Be(_renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true));
+        _renderer.GenerateXmlReport(result, verbose: true).Should().Be(_renderer.GenerateXmlReport(result, verbose: true));
+        _renderer.GenerateJunitReport(result).Should().Be(_renderer.GenerateJunitReport(result));
+        _renderer.GenerateSarifReport(result).Should().Be(_renderer.GenerateSarifReport(result));
+    }
+
+    [Fact]
+    public void OfflineRenderers_ShouldBeByteStableAcrossCultures()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        var invariant = RenderAll(result);
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+            CultureInfo.CurrentUICulture = CultureInfo.GetCultureInfo("fr-FR");
+            RenderAll(result).Should().Equal(invariant);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
+    private string[] RenderAll(ValidationResult result) =>
+    [
+        _markdownGenerator.GenerateReport(result),
+        _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true),
+        _renderer.GenerateXmlReport(result, verbose: true),
+        _renderer.GenerateJunitReport(result),
+        _renderer.GenerateSarifReport(result)
+    ];
 
     private static string GetSnapshotPath(string snapshotName)
     {

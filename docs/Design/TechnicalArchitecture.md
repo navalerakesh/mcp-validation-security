@@ -16,7 +16,7 @@ This document is the detailed companion to [Architecture.md](Architecture.md) an
 
 1. The CLI binds command-line input and optional configuration into a `McpValidatorConfiguration`.
 2. Execution governance validates the run plan, persistence settings, host allowlist, and dry-run behavior before contacting the target.
-3. Session bootstrap resolves the target type, performs health and initialization checks, captures the capability snapshot, and establishes authentication context when needed.
+3. Session bootstrap resolves the target type, validates target address policy, selects the protocol era, captures the capability snapshot, and establishes authentication context when needed.
 4. Applicability resolution determines the effective schema version and the active protocol feature, rule, and scenario packs for the run.
 5. Validators execute against a shared session context and collect neutral evidence for each category, with performance testing running after the functional probes.
 6. Deterministic scoring, trust, verdict, coverage, and policy services interpret the completed evidence into the final run posture.
@@ -72,6 +72,8 @@ stateDiagram-v2
 | `report` | Offline rendering path from a saved JSON result or a Markdown report path that resolves to the sibling JSON result |
 
 Transport detection and auth negotiation are shared infrastructure concerns. Command handlers should not duplicate those decisions.
+
+Execution plans persist the requested protocol profile, resolved embedded schema version, and protocol era. The modern `2026-07-28` era is stateless and feature applicability must not infer legacy initialization, session, task, subscription, or logging behavior.
 
 ## Observability And Reproducibility
 

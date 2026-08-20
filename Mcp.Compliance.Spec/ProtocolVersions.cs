@@ -17,4 +17,5 @@ public static class ProtocolVersions
     public static readonly ProtocolVersion V2025_03_26 = new("2025-03-26");
     public static readonly ProtocolVersion V2025_06_18 = new("2025-06-18");
     public static readonly ProtocolVersion V2025_11_25 = new("2025-11-25");
+    public static readonly ProtocolVersion V2026_07_28 = new("2026-07-28");
 }

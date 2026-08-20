@@ -20,6 +20,18 @@ public class ValidationFinding
 
     public Dictionary<string, string> Metadata { get; set; } = new();
 
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? Score { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool ExcludedFromAggregate { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<ImpactArea>? ImpactAreas { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public GateOutcome? GateOverride { get; set; }
+
     public ValidationRuleSource EffectiveSource => ValidationRuleSourceClassifier.GetSource(this);
 
     public string EffectiveSourceLabel => ValidationRuleSourceClassifier.GetLabel(this);
@@ -46,6 +58,22 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
+    public const string CatalogVersion = "2026-08-19.1";
+
+    private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
+
+    public static IReadOnlyDictionary<string, string> GetVersionedRules() => VersionedRules;
+
+    private static IReadOnlyDictionary<string, string> BuildVersionedRules() =>
+        typeof(ValidationFindingRuleIds)
+            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
+            .Where(field => field.IsLiteral && !field.IsInitOnly && field.FieldType == typeof(string) && field.Name != nameof(CatalogVersion))
+            .Select(field => field.GetRawConstantValue() as string)
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToDictionary(value => value!, _ => CatalogVersion, StringComparer.Ordinal);
+
     public const string PerformanceAuthRequiredAdvisory = "MCP.GUIDELINE.PERFORMANCE.AUTH_REQUIRED_ADVISORY";
     public const string PerformanceRecalibratedAfterTransientLimits = "MCP.GUIDELINE.PERFORMANCE.RECALIBRATED_AFTER_TRANSIENT_LIMITS";
     public const string PerformancePublicRemoteAdvisory = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY";
@@ -59,6 +87,18 @@ public static class ValidationFindingRuleIds
     public const string AuthProtectedResourceMetadataFetchFailed = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_FETCH_FAILED";
     public const string AuthAuthorizationServersMissing = "MCP.AUTH.AUTHORIZATION_SERVERS_MISSING";
     public const string AuthAuthorizationServerInsecure = "MCP.AUTH.AUTHORIZATION_SERVER_INSECURE";
+    public const string AuthAuthorizationServerMetadataUnavailable = "MCP.AUTH.AUTHORIZATION_SERVER_METADATA_UNAVAILABLE";
+    public const string AuthAuthorizationServerIssuerMismatch = "MCP.AUTH.AUTHORIZATION_SERVER_ISSUER_MISMATCH";
+    public const string AuthAuthorizationEndpointInsecure = "MCP.AUTH.AUTHORIZATION_ENDPOINT_INSECURE";
+    public const string AuthTokenEndpointInsecure = "MCP.AUTH.TOKEN_ENDPOINT_INSECURE";
+    public const string AuthPkceS256Missing = "MCP.AUTH.PKCE_S256_MISSING";
+    public const string AuthMetadataBlockedByPolicy = "MCP.COVERAGE.AUTH.METADATA_BLOCKED_BY_POLICY";
+    public const string AuthClientRegistrationInvalid = "MCP.AUTH.CLIENT_REGISTRATION_INVALID";
+    public const string AuthClientRegistrationMetadataUnavailable = "MCP.AUTH.CLIENT_REGISTRATION_METADATA_UNAVAILABLE";
+    public const string AuthLegacyDynamicRegistrationDeclared = "MCP.AUTH.LEGACY_DYNAMIC_REGISTRATION_DECLARED";
+    public const string AuthEnterpriseManagedAuthorizationInvalid = "MCP.AUTH.ENTERPRISE_MANAGED_AUTHORIZATION_INVALID";
+    public const string AuthInsufficientScopeChallengeInvalid = "MCP.AUTH.INSUFFICIENT_SCOPE_CHALLENGE_INVALID";
+    public const string AuthClientMetadataDocumentUnsupported = "MCP.AUTH.CLIENT_METADATA_DOCUMENT_UNSUPPORTED";
     public const string AuthAuthorizationHeaderMissing = "MCP.AUTH.AUTHORIZATION_HEADER_MISSING";
     public const string AuthBearerHeaderUnsupported = "MCP.AUTH.BEARER_HEADER_UNSUPPORTED";
     public const string AuthQueryTokenAccepted = "MCP.AUTH.QUERY_TOKEN_ACCEPTED";
@@ -82,6 +122,10 @@ public static class ValidationFindingRuleIds
     public const string AiElicitationConsentAdvisory = "MCP.AI.ELICITATION.CONSENT_ADVISORY";
     public const string AiTasksIsolationAdvisory = "MCP.AI.TASKS.ISOLATION_ADVISORY";
     public const string AiTaskSupportWithoutCapability = "MCP.AI.TASKS.TOOL_SUPPORT_WITHOUT_CAPABILITY";
+    public const string ModernExtensionNegotiated = "MCP.MODERN.EXTENSION.NEGOTIATED";
+    public const string ModernTasksExtensionNegotiated = "MCP.MODERN.EXTENSION.TASKS_NEGOTIATED";
+    public const string ProtocolFeatureDeprecated = "MCP.PROTOCOL.FEATURE.DEPRECATED";
+    public const string ProtocolFeatureRemoved = "MCP.PROTOCOL.FEATURE.REMOVED";
 
     public const string ToolGuidelineDisplayTitleMissing = "MCP.GUIDELINE.TOOL.DISPLAY_TITLE_MISSING";
     public const string ToolGuidelineReadOnlyHintMissing = "MCP.GUIDELINE.TOOL.READONLY_HINT_MISSING";
@@ -128,6 +172,7 @@ public static class ValidationFindingRuleIds
     public const string AiReadinessTokenBudgetExceeded = "AI.TOOL.SCHEMA.TOKEN_BUDGET_EXCEEDED";
     public const string AiReadinessTokenBudgetWarning = "AI.TOOL.SCHEMA.TOKEN_BUDGET_WARNING";
     public const string ResourceMissingUri = "MCP.RESOURCE.LIST.URI_MISSING";
+    public const string ResourceCatalogTruncated = "MCP.COVERAGE.RESOURCE.CATALOG_TRUNCATED";
     public const string ResourceMissingName = "MCP.RESOURCE.LIST.NAME_MISSING";
     public const string ResourceGuidelineMimeTypeMissing = "MCP.GUIDELINE.RESOURCE.MIMETYPE_MISSING";
     public const string ResourceUriSchemeUnclear = "AI.RESOURCE.URI_SCHEME_UNCLEAR";

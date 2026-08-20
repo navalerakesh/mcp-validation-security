@@ -119,13 +119,58 @@ public class McpTrustCalculatorTests
         var result = BuildResult(protocolScore: 100, securityScore: 100, toolsPassed: 2, toolsDiscovered: 2);
         result.SecurityTesting!.AttackSimulations = new List<AttackSimulationResult>
         {
-            new AttackSimulationResult { AttackVector = "SQLi", AttackSuccessful = true, DefenseSuccessful = false }
+            new AttackSimulationResult { AttackVector = "SQLi", Outcome = ValidationOutcome.Failed, AttackSuccessful = true, DefenseSuccessful = false }
         };
 
         var trust = McpTrustCalculator.Calculate(result);
 
         trust.AiSafety.Should().BeLessThan(100);
         trust.BoundaryFindings.Should().Contain(f => f.Category == "Injection");
+        trust.TrustLevel.Should().Be(McpTrustLevel.L1_Untrusted);
+    }
+
+    [Fact]
+    public void Calculate_WithRejectGatedSecurityFinding_ShouldForceL1()
+    {
+        var result = BuildResult(protocolScore: 100, securityScore: 95, toolsPassed: 2, toolsDiscovered: 2);
+        result.SecurityTesting!.Findings.Add(new ValidationFinding
+        {
+            RuleId = "SECURITY.REJECT",
+            Category = "Security",
+            Component = "tools/call",
+            Severity = ValidationFindingSeverity.High,
+            GateOverride = GateOutcome.Reject,
+            Summary = "Active security probe was accepted."
+        });
+
+        McpTrustCalculator.Calculate(result).TrustLevel.Should().Be(McpTrustLevel.L1_Untrusted);
+    }
+
+    [Fact]
+    public void ApplyAuthoritativeVerdictCap_WithReject_ShouldCapAtL2AndPreserveDimensions()
+    {
+        var trust = new McpTrustAssessment
+        {
+            TrustLevel = McpTrustLevel.L5_CertifiedSecure,
+            ProtocolCompliance = 98,
+            SecurityPosture = 96,
+            AiSafety = 94,
+            OperationalReadiness = 92
+        };
+        var verdict = new VerdictAssessment
+        {
+            BaselineVerdict = ValidationVerdict.Reject,
+            ProtocolVerdict = ValidationVerdict.Reject,
+            CoverageVerdict = ValidationVerdict.Trusted
+        };
+
+        McpTrustCalculator.ApplyAuthoritativeVerdictCap(trust, verdict);
+
+        trust.TrustLevel.Should().Be(McpTrustLevel.L2_Caution);
+        trust.ProtocolCompliance.Should().Be(98);
+        trust.SecurityPosture.Should().Be(96);
+        trust.AiSafety.Should().Be(94);
+        trust.OperationalReadiness.Should().Be(92);
     }
 
     [Fact]
@@ -147,6 +192,7 @@ public class McpTrustCalculatorTests
         result.PerformanceTesting = new PerformanceTestResult
         {
             Status = TestStatus.Failed,
+            MeasurementDisposition = PerformanceMeasurementDisposition.TimedOut,
             Message = "Operation timed out or was cancelled",
             CriticalErrors = new List<string> { "Operation timed out or was cancelled" }
         };

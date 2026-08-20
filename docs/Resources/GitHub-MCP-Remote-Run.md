@@ -9,7 +9,7 @@ DOTNET_ROLL_FORWARD=Major dotnet run --project Mcp.Benchmark.CLI -- validate \
   --server https://api.githubcopilot.com/mcp/ \
   --access authenticated \
   --token "$(gh auth token)" \
-  --output ./PublicReports/github-mcp-remote-live-20260422 \
+  --output "${TMPDIR}/mcpval-github-review" \
   --verbose
 ```
 
@@ -33,7 +33,7 @@ Inside GitHub Actions, the same run also emits a step summary and workflow annot
 
 ## Example Output Directory
 
-A representative output set is typically generated under `PublicReports/github-mcp-remote-live-<date>/` during local or CI runs.
+Generate the output set under an operating system temporary directory during local or CI review. Delete it after checking canonical/report consistency and credential redaction. Do not commit live reports, headers, cookies, tokens, session IDs, account identifiers, or machine-specific paths.
 
 The exact filenames change on every run because they are timestamped. The folder is preserved as an example of the default artifact contract rather than as a normative reference for scores or findings.
 

@@ -1,6 +1,6 @@
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
@@ -190,83 +190,9 @@ public class ReportCommand(
                 jsonSourceFile.FullName);
         }
 
-        var json = await File.ReadAllTextAsync(jsonSourceFile.FullName);
-        var options = new JsonSerializerOptions
-        {
-            PropertyNameCaseInsensitive = true,
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
-        };
-
-        var result = DeserializeWithCapabilityFallback(json, options);
+        var result = await BoundedArtifactReader.ReadValidationResultAsync(jsonSourceFile).ConfigureAwait(false);
         _logger.LogDebug("Loaded validation results for validation ID: {ValidationId}", result.ValidationId);
         return result;
-    }
-
-    private ValidationResult DeserializeWithCapabilityFallback(string json, JsonSerializerOptions options)
-    {
-        try
-        {
-            return DeserializeOrThrow(json, options);
-        }
-        catch (Exception ex) when (IsCapabilitySnapshotSerializationIssue(ex))
-        {
-            _logger.LogWarning(ex, "Capability snapshot contained SDK types that cannot be replayed offline. Stripping tool payload for report rendering.");
-            var sanitizedJson = SanitizeCapabilitySnapshot(json);
-            return DeserializeOrThrow(sanitizedJson, options);
-        }
-    }
-
-    private static ValidationResult DeserializeOrThrow(string json, JsonSerializerOptions options)
-    {
-        var result = JsonSerializer.Deserialize<ValidationResult>(json, options);
-        if (result == null)
-        {
-            throw new CliOperationException("Failed to deserialize validation results");
-        }
-
-        return result;
-    }
-
-    private static bool IsCapabilitySnapshotSerializationIssue(Exception ex)
-    {
-        return ex.Message.IndexOf("McpClientTool", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
-
-    private static string SanitizeCapabilitySnapshot(string json)
-    {
-        try
-        {
-            var root = JsonNode.Parse(json) as JsonObject;
-            if (root == null)
-            {
-                return json;
-            }
-
-            SanitizeCapabilitySnapshotNode(root["capabilitySnapshot"] as JsonObject);
-
-            if (root["run"] is JsonObject run)
-            {
-                SanitizeCapabilitySnapshotNode(run["capabilitySnapshot"] as JsonObject);
-            }
-
-            return root.ToJsonString(new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                WriteIndented = false
-            });
-        }
-        catch
-        {
-            return json;
-        }
-    }
-
-    private static void SanitizeCapabilitySnapshotNode(JsonObject? snapshot)
-    {
-        if (snapshot?["payload"] is JsonObject payload && payload.ContainsKey("tools"))
-        {
-            payload["tools"] = new JsonArray();
-        }
     }
 
     /// <summary>
@@ -279,7 +205,7 @@ public class ReportCommand(
         if (configFile?.Exists == true)
         {
             _logger.LogDebug("Loading report configuration from: {ConfigFile}", configFile.FullName);
-            var json = await File.ReadAllTextAsync(configFile.FullName);
+            var json = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
             var fullConfig = JsonSerializer.Deserialize<McpValidatorConfiguration>(json);
             return fullConfig?.Reporting ?? new ReportingConfig();
         }

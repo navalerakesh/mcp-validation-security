@@ -41,7 +41,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                     return (double)r.ToolValidation.ToolsTestPassed / r.ToolValidation.ToolsDiscovered * 100.0;
                 }
 
-                return r.ToolValidation.Status == TestStatus.Passed ? 100.0 : 0.0;
+                return r.ToolValidation.Status == TestStatus.Passed ? ScoringConstants.ScoreMaximum : ScoringConstants.ScoreMinimum;
             },
             r => r.ToolValidation?.Status),
         new(
@@ -59,7 +59,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                     return (double)r.ResourceTesting.ResourcesAccessible / r.ResourceTesting.ResourcesDiscovered * 100.0;
                 }
 
-                return r.ResourceTesting.Status == TestStatus.Passed ? 100.0 : 0.0;
+                return r.ResourceTesting.Status == TestStatus.Passed ? ScoringConstants.ScoreMaximum : ScoringConstants.ScoreMinimum;
             },
             r => r.ResourceTesting?.Status),
         new(
@@ -77,7 +77,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                     return (double)r.PromptTesting.PromptsTestPassed / r.PromptTesting.PromptsDiscovered * 100.0;
                 }
 
-                return r.PromptTesting.Status == TestStatus.Passed ? 100.0 : 0.0;
+                return r.PromptTesting.Status == TestStatus.Passed ? ScoringConstants.ScoreMaximum : ScoringConstants.ScoreMinimum;
             },
             r => r.PromptTesting?.Status),
         new(
@@ -93,7 +93,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         // and TrustAssessment.OperationalReadiness.
         new(
             "Performance",
-            0.00,
+            ScoringConstants.WeightPerformance,
             r => r.PerformanceTesting?.Score ?? 0,
             r => r.PerformanceTesting?.Status)
     };
@@ -112,7 +112,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 (ctx, r) =>
                 {
                     ctx.HasBlockingFailure = true;
-                    ctx.Score = Math.Min(ctx.Score, 20);
+                    ctx.Score = Math.Min(ctx.Score, ScoringConstants.BlockingAuthenticationScoreCap);
                     ctx.Notes.Add($"BLOCKER: Unauthorized success was observed on a sensitive operation for the {r.ServerProfile} profile.");
                 }
             ),
@@ -123,7 +123,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 r => r.SecurityTesting?.Vulnerabilities.Any(v => v.Severity >= VulnerabilitySeverity.Critical) == true,
                 (ctx, r) => {
                     ctx.HasBlockingFailure = true;
-                    ctx.Score = Math.Min(ctx.Score, 30);
+                    ctx.Score = Math.Min(ctx.Score, ScoringConstants.CriticalVulnerabilityScoreCap);
                     ctx.Notes.Add("BLOCKER: Critical security vulnerabilities detected.");
                 }
             ),
@@ -131,11 +131,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             // 2b. BLOCKER: security posture collapsed to near-zero.
             new ScoringRule(
                 "Severe Security Degradation",
-                r => (r.SecurityTesting?.SecurityScore ?? 100) < 25,
+                r => (r.SecurityTesting?.SecurityScore ?? ScoringConstants.ScoreMaximum) < ScoringConstants.SevereSecurityThreshold,
                 (ctx, r) =>
                 {
                     ctx.HasBlockingFailure = true;
-                    ctx.Score = Math.Min(ctx.Score, 25);
+                    ctx.Score = Math.Min(ctx.Score, ScoringConstants.SevereSecurityScoreCap);
                     ctx.Notes.Add("BLOCKER: Security posture score is critically low.");
                 }
             ),
@@ -156,7 +156,9 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                     var failures = r.SecurityTesting!.AuthenticationTestResult!.TestScenarios
                         .Count(s => s.AssessmentDisposition == AuthenticationAssessmentDisposition.SecureCompatible);
 
-                    var penalty = Math.Min(20, failures * 5);
+                    var penalty = Math.Min(
+                        ScoringConstants.AuthGuidancePenaltyMaximum,
+                        failures * ScoringConstants.AuthGuidancePenaltyPerScenario);
                     ctx.Score -= penalty;
                     ctx.Notes.Add($"GUIDANCE: {failures} protected-endpoint authentication scenarios were secure but not fully aligned with the preferred MCP/OAuth challenge flow. Score reduced by {penalty}%.");
                 }
@@ -169,7 +171,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
                 (ctx, r) =>
                 {
                     ctx.HasBlockingFailure = true;
-                    ctx.Score = Math.Min(ctx.Score, 40);
+                    ctx.Score = Math.Min(ctx.Score, ScoringConstants.CriticalProtocolScoreCap);
                     ctx.Notes.Add("BLOCKER: Critical MCP/JSON-RPC requirement violation detected.");
                 }
             ),
@@ -177,11 +179,11 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             // 5. PENALTY: JSON-RPC format deviations.
             new ScoringRule(
                 "JSON-RPC Violation",
-                r => r.ProtocolCompliance != null && 
+                 r => r.ProtocolCompliance?.JsonRpcCompliance.ErrorHandlingEvaluated == true &&
                      (!r.ProtocolCompliance.JsonRpcCompliance.RequestFormatCompliant || 
                       !r.ProtocolCompliance.JsonRpcCompliance.ResponseFormatCompliant),
                 (ctx, r) => {
-                    ctx.Score -= 15;
+                    ctx.Score -= ScoringConstants.JsonRpcFormatPenalty;
                     ctx.Notes.Add("SPEC: JSON-RPC 2.0 format deviations detected. Score reduced by 15%.");
                 }
             )
@@ -267,7 +269,14 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             }
         }
 
-        scoringResult.OverallScore = Math.Max(0, Math.Round(context.Score, 2));
+        if (evidenceSummary.ApplicableDeclarations > 0 &&
+            evidenceSummary.EvidenceCoverageRatio < ScoringConstants.MinCoverageRatio)
+        {
+            context.Score = Math.Min(context.Score, ScoringConstants.LowCoverageScoreCap);
+            context.Notes.Add($"Score capped at {ScoringConstants.LowCoverageScoreCap:F0} because canonical evidence coverage ({FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F0")}) is below the {FormatPercent(ScoringConstants.MinCoverageRatio, "F0")} minimum.");
+        }
+
+        scoringResult.OverallScore = Math.Max(ScoringConstants.ScoreMinimum, Math.Round(context.Score, 2));
         scoringResult.CategoryScores = categoryScores;
         scoringResult.ScoringNotes = context.Notes;
         scoringResult.CoverageRatio = coverageRatio;
@@ -291,7 +300,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
             scoringResult.Status = ValidationStatus.Passed;
             if (scoringResult.OverallScore < ScoringConstants.PassThreshold)
             {
-                notes.Add("Score is below the preferred target, but no blocking failure was observed in this run.");
+                notes.Add("Score is below the preferred target; interpret it together with the deterministic verdict and coverage gate.");
             }
             else
             {

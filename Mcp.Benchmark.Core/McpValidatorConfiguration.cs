@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace Mcp.Benchmark.Core.Models;
 
@@ -65,7 +66,7 @@ public class McpValidatorConfiguration
     /// </summary>
     public McpValidatorConfiguration CloneWithoutSecrets()
     {
-        return new McpValidatorConfiguration
+        var redacted = new McpValidatorConfiguration
         {
             Server = Server.CloneWithoutSecrets(),
             Validation = Validation,
@@ -76,6 +77,8 @@ public class McpValidatorConfiguration
             ClientProfiles = ClientProfiles,
             Evaluation = Evaluation?.Clone()
         };
+        return JsonSerializer.Deserialize<McpValidatorConfiguration>(JsonSerializer.Serialize(redacted))
+            ?? throw new InvalidOperationException("Unable to clone validator configuration.");
     }
 
     /// <summary>
@@ -87,6 +90,7 @@ public class McpValidatorConfiguration
         var clone = CloneWithoutSecrets();
         clone.Execution = null;
         clone.Evaluation = null;
+        clone.Reporting.OutputDirectory = null;
         return clone;
     }
 }
@@ -110,6 +114,13 @@ public class ValidationPolicyConfig
     /// </summary>
     [JsonPropertyName("suppressions")]
     public List<ValidationPolicySuppression> Suppressions { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets whether policy blocks only regressions relative to an explicit baseline result.
+    /// Execution-integrity failures always remain blocking.
+    /// </summary>
+    [JsonPropertyName("regressionOnly")]
+    public bool RegressionOnly { get; set; }
 }
 
 /// <summary>
@@ -209,6 +220,12 @@ public class McpServerConfig
     public string? ProtocolVersion { get; set; }
 
     /// <summary>
+    /// Gets or sets whether protocol negotiation is automatic or constrained to a legacy or modern era.
+    /// </summary>
+    [JsonPropertyName("protocolEra")]
+    public McpProtocolEraSelection ProtocolEra { get; set; } = McpProtocolEraSelection.Auto;
+
+    /// <summary>
     /// Gets or sets the authentication configuration if required.
     /// </summary>
     [JsonPropertyName("authentication")]
@@ -243,6 +260,23 @@ public class McpServerConfig
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
     public ContentSafetyContextProfile ContentSafetyContext { get; set; } = ContentSafetyContextProfile.Unspecified;
 
+    public McpServerConfig CloneForExecution()
+    {
+        return new McpServerConfig
+        {
+            Endpoint = Endpoint,
+            Transport = Transport,
+            ProtocolVersion = ProtocolVersion,
+            ProtocolEra = ProtocolEra,
+            Profile = Profile,
+            ContentSafetyContext = ContentSafetyContext,
+            Authentication = Authentication?.CloneForExecution(),
+            TimeoutMs = TimeoutMs,
+            Headers = new Dictionary<string, string>(Headers),
+            Environment = new Dictionary<string, string>(Environment)
+        };
+    }
+
     /// <summary>
     /// Creates a copy of this configuration with secrets (tokens, passwords and sensitive headers) redacted
     /// for safe persistence to disk or logs.
@@ -251,15 +285,18 @@ public class McpServerConfig
     {
         var clone = new McpServerConfig
         {
-            Endpoint = Endpoint,
+            Endpoint = !string.IsNullOrWhiteSpace(Endpoint) && string.Equals(Transport, "stdio", StringComparison.OrdinalIgnoreCase)
+                ? "__STDIO_COMMAND_REDACTED__"
+                : RedactEndpoint(Endpoint),
             Transport = Transport,
             ProtocolVersion = ProtocolVersion,
+            ProtocolEra = ProtocolEra,
             Profile = Profile,
             ContentSafetyContext = ContentSafetyContext,
             Authentication = Authentication?.CloneWithoutSecrets(),
             TimeoutMs = TimeoutMs,
             Headers = new Dictionary<string, string>(),
-            Environment = new Dictionary<string, string>(Environment)
+            Environment = new Dictionary<string, string>()
         };
 
         foreach (var header in Headers)
@@ -269,7 +306,41 @@ public class McpServerConfig
                 : header.Value;
         }
 
+        foreach (var variable in Environment)
+        {
+            clone.Environment[variable.Key] = IsSensitiveEnvironmentKey(variable.Key)
+                ? "__ENVIRONMENT-REDACTED__"
+                : variable.Value;
+        }
+
         return clone;
+    }
+
+    private static string? RedactEndpoint(string? endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint) ||
+            !Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) ||
+            uri.Scheme is not ("http" or "https" or "ws" or "wss"))
+        {
+            return endpoint;
+        }
+
+        return new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty
+        }.Uri.AbsoluteUri;
+    }
+
+    internal static bool IsSensitiveEnvironmentKey(string key)
+    {
+        return IsSensitiveHeaderKey(key) ||
+               key.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+               key.Contains("credential", StringComparison.OrdinalIgnoreCase) ||
+               key.Contains("cookie", StringComparison.OrdinalIgnoreCase) ||
+               key.Contains("private", StringComparison.OrdinalIgnoreCase);
     }
 
     internal static bool IsSensitiveHeaderKey(string key)
@@ -312,6 +383,14 @@ public class AuthenticationConfig
     /// </summary>
     [JsonPropertyName("token")]
     public string? Token { get; set; }
+
+    /// <summary>
+    /// Gets or sets a transient credential reference resolved by the runtime host.
+    /// Direct token values remain supported for 1.x compatibility and take precedence.
+    /// </summary>
+    [JsonPropertyName("tokenRef")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public SecretRef? TokenRef { get; set; }
 
     /// <summary>
     /// Gets or sets the username for basic authentication.
@@ -361,6 +440,35 @@ public class AuthenticationConfig
     [JsonPropertyName("allowInteractive")]
     public bool AllowInteractive { get; set; } = false;
 
+    [JsonPropertyName("clientRegistration")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public OAuthClientRegistrationConfig? ClientRegistration { get; set; }
+
+    [JsonPropertyName("conformanceCredentials")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public AuthenticationConformanceCredentials? ConformanceCredentials { get; set; }
+
+    public AuthenticationConfig CloneForExecution()
+    {
+        return new AuthenticationConfig
+        {
+            Type = Type,
+            Required = Required,
+            Token = Token,
+            TokenRef = TokenRef?.Clone(),
+            Username = Username,
+            Password = Password,
+            ClientId = ClientId,
+            TenantId = TenantId,
+            Scopes = Scopes?.ToArray(),
+            Authority = Authority,
+            CustomHeaders = new Dictionary<string, string>(CustomHeaders),
+            AllowInteractive = AllowInteractive,
+            ClientRegistration = ClientRegistration?.Clone(),
+            ConformanceCredentials = ConformanceCredentials?.Clone()
+        };
+    }
+
     /// <summary>
     /// Creates a copy of this authentication configuration with sensitive values redacted
     /// so they can be safely written to disk or logs.
@@ -373,15 +481,18 @@ public class AuthenticationConfig
             Required = Required,
             // Replace any real token value with an explicit redaction marker
             Token = string.IsNullOrEmpty(Token) ? null : "__TOKEN-REDACTED__",
+            TokenRef = TokenRef?.Clone(),
             Username = Username,
             // Never persist real passwords
             Password = string.IsNullOrEmpty(Password) ? null : "__SECRET-REDACTED__",
             ClientId = ClientId,
             TenantId = TenantId,
-            Scopes = Scopes,
+            Scopes = Scopes?.ToArray(),
             Authority = Authority,
             CustomHeaders = new Dictionary<string, string>(),
-            AllowInteractive = AllowInteractive
+            AllowInteractive = AllowInteractive,
+            ClientRegistration = ClientRegistration?.Clone(),
+            ConformanceCredentials = ConformanceCredentials?.Clone()
         };
 
         foreach (var header in CustomHeaders)
@@ -393,6 +504,77 @@ public class AuthenticationConfig
 
         return clone;
     }
+}
+
+public sealed class SecretRef
+{
+    [JsonPropertyName("provider")]
+    public string Provider { get; set; } = SecretRefProviders.Environment;
+
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = string.Empty;
+
+    public SecretRef Clone() => new() { Provider = Provider, Name = Name };
+}
+
+public static class SecretRefProviders
+{
+    public const string Environment = "environment";
+}
+
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum OAuthClientRegistrationMode
+{
+    None,
+    Static,
+    MetadataDocument,
+    LegacyDynamic
+}
+
+public sealed class OAuthClientRegistrationConfig
+{
+    [JsonPropertyName("mode")]
+    public OAuthClientRegistrationMode Mode { get; set; }
+
+    [JsonPropertyName("clientId")]
+    public string? ClientId { get; set; }
+
+    [JsonPropertyName("metadataUri")]
+    public string? MetadataUri { get; set; }
+
+    [JsonPropertyName("authorizationServerIssuer")]
+    public string? AuthorizationServerIssuer { get; set; }
+
+    [JsonPropertyName("redirectUris")]
+    public List<string> RedirectUris { get; set; } = new();
+
+    public OAuthClientRegistrationConfig Clone() => new()
+    {
+        Mode = Mode,
+        ClientId = ClientId,
+        MetadataUri = MetadataUri,
+        AuthorizationServerIssuer = AuthorizationServerIssuer,
+        RedirectUris = new List<string>(RedirectUris)
+    };
+}
+
+public sealed class AuthenticationConformanceCredentials
+{
+    [JsonPropertyName("wrongAudienceResource")]
+    public string? WrongAudienceResource { get; set; }
+
+    [JsonPropertyName("wrongAudienceScopes")]
+    public List<string> WrongAudienceScopes { get; set; } = new();
+
+    [JsonPropertyName("previouslyGrantedScopes")]
+    public List<string> PreviouslyGrantedScopes { get; set; } = new();
+
+    public AuthenticationConformanceCredentials Clone() => new()
+    {
+        WrongAudienceResource = WrongAudienceResource,
+        WrongAudienceScopes = new List<string>(WrongAudienceScopes),
+        PreviouslyGrantedScopes = new List<string>(PreviouslyGrantedScopes)
+    };
 }
 
 /// <summary>

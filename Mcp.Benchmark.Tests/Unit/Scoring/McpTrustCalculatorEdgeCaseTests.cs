@@ -9,13 +9,46 @@ namespace Mcp.Benchmark.Tests.Unit.Scoring;
 public class McpTrustCalculatorEdgeCaseTests
 {
     [Fact]
-    public void Calculate_WithNullResults_ShouldReturnL2OrLower()
+    public void Calculate_WithNullResults_ShouldReturnUnknown()
     {
         var result = new ValidationResult();
         var trust = McpTrustCalculator.Calculate(result);
-        // With no data, MUST checks may still pass (null-safe), 
-        // but dimensions score 0 → L1 or L2
-        trust.TrustLevel.Should().BeOneOf(McpTrustLevel.L1_Untrusted, McpTrustLevel.L2_Caution);
+        trust.TrustLevel.Should().Be(McpTrustLevel.Unknown);
+        trust.EvidenceCompletenessRatio.Should().Be(0);
+        trust.LimitedByIncompleteEvidence.Should().BeTrue();
+        trust.MustPassCount.Should().Be(0);
+        trust.MustFailCount.Should().Be(0);
+    }
+
+    [Fact]
+    public void Calculate_WithPassiveSafeEvidence_ShouldCapAtL3WithoutFabricatingFailure()
+    {
+        var result = new ValidationResult
+        {
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                Status = TestStatus.Inconclusive,
+                ComplianceScore = 100,
+                JsonRpcCompliance = new JsonRpcComplianceResult
+                {
+                    ErrorHandlingEvaluated = false,
+                    ComplianceScore = 100
+                }
+            },
+            ToolValidation = new ToolTestResult
+            {
+                Status = TestStatus.Passed,
+                AiReadinessScore = 90
+            }
+        };
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.TrustLevel.Should().Be(McpTrustLevel.L3_Acceptable);
+        trust.LimitedByIncompleteEvidence.Should().BeTrue();
+        trust.UnevaluatedDimensions.Should().BeEquivalentTo("protocol", "security", "operations");
+        trust.EvidenceCompletenessRatio.Should().BeGreaterThan(0).And.BeLessThan(1);
+        trust.TierChecks.Should().NotContain(check => check.Component == "initialize");
     }
 
     [Theory]
@@ -286,8 +319,8 @@ public class McpTrustCalculatorEdgeCaseTests
         result.ToolValidation.ToolResults = new List<IndividualToolResult>();
         result.SecurityTesting!.AttackSimulations = new List<AttackSimulationResult>
         {
-            new() { AttackSuccessful = true, DefenseSuccessful = false },
-            new() { AttackSuccessful = true, DefenseSuccessful = false },
+            new() { Outcome = ValidationOutcome.Failed, AttackSuccessful = true, DefenseSuccessful = false },
+            new() { Outcome = ValidationOutcome.Failed, AttackSuccessful = true, DefenseSuccessful = false },
             new() { AttackSuccessful = false, DefenseSuccessful = true }
         };
 
@@ -409,6 +442,7 @@ public class McpTrustCalculatorEdgeCaseTests
                     new()
                     {
                         RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+                        Score = 85,
                         Category = "AiReadiness",
                         Component = "test",
                         Severity = ValidationFindingSeverity.Info,
@@ -422,6 +456,38 @@ public class McpTrustCalculatorEdgeCaseTests
         var trust = McpTrustCalculator.Calculate(result);
 
         trust.LlmFriendlinessScore.Should().Be(85.0);
+    }
+
+    [Fact]
+    public void Calculate_WithOnlyLegacyLlmScoreMetadata_ShouldRequireReview()
+    {
+        var result = BuildResult(100, 100);
+        result.ToolValidation!.ToolResults =
+        [
+            new IndividualToolResult
+            {
+                ToolName = "test",
+                Status = TestStatus.Passed,
+                Findings =
+                [
+                    new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+                        Category = "AiReadiness",
+                        Component = "test",
+                        Severity = ValidationFindingSeverity.Info,
+                        Summary = "Legacy finding without typed score.",
+                        Metadata = new Dictionary<string, string> { ["score"] = "85" }
+                    }
+                ]
+            }
+        ];
+
+        var trust = McpTrustCalculator.Calculate(result);
+
+        trust.LlmFriendlinessScore.Should().Be(-1);
+        trust.BoundaryFindings.Should().Contain(f =>
+            f.Category == "LLM-Evidence-Inconclusive" && f.Gate == GateOutcome.ReviewRequired);
     }
 
     [Fact]
@@ -440,6 +506,7 @@ public class McpTrustCalculatorEdgeCaseTests
                     new()
                     {
                         RuleId = ValidationFindingRuleIds.ToolLlmFriendliness,
+                        Score = 20,
                         Category = "AiReadiness",
                         Component = "test",
                         Severity = ValidationFindingSeverity.High,
@@ -489,14 +556,14 @@ public class McpTrustCalculatorEdgeCaseTests
         trust.TrustLevel.Should().Be(McpTrustLevel.L2_Caution);
     }
 
-    [Fact] 
+    [Fact]
     public void TrustLabel_ShouldReturnCorrectTextForEachLevel()
     {
         var a1 = new McpTrustAssessment { TrustLevel = McpTrustLevel.L5_CertifiedSecure };
-        a1.TrustLabel.Should().Contain("Certified");
+        a1.TrustLabel.Should().Contain("High Assurance").And.Contain("not a certification");
 
         var a2 = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted };
-        a2.TrustLabel.Should().Contain("Trusted");
+        a2.TrustLabel.Should().Contain("Strong");
 
         var a3 = new McpTrustAssessment { TrustLevel = McpTrustLevel.L3_Acceptable };
         a3.TrustLabel.Should().Contain("Acceptable");

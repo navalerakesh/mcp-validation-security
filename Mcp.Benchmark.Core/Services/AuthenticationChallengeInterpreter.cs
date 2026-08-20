@@ -8,6 +8,8 @@ namespace Mcp.Benchmark.Core.Services;
 /// </summary>
 public static class AuthenticationChallengeInterpreter
 {
+    private const int MaxChallengeLength = 16 * 1024;
+
     public static AuthenticationChallengeObservation Inspect(JsonRpcResponse? response, double? durationMs = null)
     {
         if (response == null)
@@ -18,20 +20,22 @@ public static class AuthenticationChallengeInterpreter
         var headerValue = TryGetHeaderValue(response.Headers, "WWW-Authenticate");
         var requiresAuthentication = ValidationReliability.IsAuthenticationStatusCode(response.StatusCode);
         var hasChallengeHeader = !string.IsNullOrWhiteSpace(headerValue);
+        var parsed = ParseBearerChallenge(headerValue);
 
         return new AuthenticationChallengeObservation(
             response.StatusCode,
             requiresAuthentication,
-            requiresAuthentication && hasChallengeHeader,
+            requiresAuthentication && parsed.IsValid && parsed.IsPresent,
             headerValue,
             durationMs ?? response.ElapsedMs ?? 0.0,
-            ExtractParameter(headerValue, "resource_metadata"),
-            ExtractParameter(headerValue, "authorization_uri"),
-            ExtractParameter(headerValue, "realm"),
-            ExtractParameter(headerValue, "error"),
-            ExtractParameter(headerValue, "error_description"),
-            ExtractParameter(headerValue, "scope"),
-            headerValue?.Contains("Bearer", StringComparison.OrdinalIgnoreCase) == true);
+            parsed.GetParameter("resource_metadata"),
+            parsed.GetParameter("authorization_uri"),
+            parsed.GetParameter("realm"),
+            parsed.GetParameter("error"),
+            parsed.GetParameter("error_description"),
+            parsed.GetParameter("scope"),
+            parsed.IsPresent && parsed.IsValid,
+            parsed.IsValid);
     }
 
     public static AuthDiscoveryInfo? CreateDiscoveryInfo(AuthenticationChallengeObservation observation, IEnumerable<string>? issues = null)
@@ -53,7 +57,7 @@ public static class AuthenticationChallengeInterpreter
 
         return new AuthDiscoveryInfo
         {
-            WwwAuthenticateHeader = observation.WwwAuthenticateHeader,
+            WwwAuthenticateHeader = SanitizeForEvidence(observation),
             DiscoveryTimeMs = observation.DurationMs,
             Issues = discoveredIssues
         };
@@ -104,7 +108,7 @@ public static class AuthenticationChallengeInterpreter
         target.ErrorResponsesCompliant = true;
         target.HasProperAuthHeaders = observation.HasWwwAuthenticateHeader;
         target.ChallengeStatusCode = observation.StatusCode;
-        target.WwwAuthenticateHeader = observation.WwwAuthenticateHeader;
+        target.WwwAuthenticateHeader = SanitizeForEvidence(observation);
         target.SecurityScore = observation.SecurityScore;
 
         if (observation.DurationMs > 0)
@@ -139,21 +143,7 @@ public static class AuthenticationChallengeInterpreter
 
     public static string? ExtractQuotedParameter(string? headerValue, string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(headerValue) || string.IsNullOrWhiteSpace(parameterName))
-        {
-            return null;
-        }
-
-        var marker = $"{parameterName}=\"";
-        var start = headerValue.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (start < 0)
-        {
-            return null;
-        }
-
-        start += marker.Length;
-        var end = headerValue.IndexOf('"', start);
-        return end > start ? headerValue[start..end] : null;
+        return ExtractParameter(headerValue, parameterName);
     }
 
     public static string? ExtractParameter(string? headerValue, string parameterName)
@@ -163,24 +153,269 @@ public static class AuthenticationChallengeInterpreter
             return null;
         }
 
-        var quotedValue = ExtractQuotedParameter(headerValue, parameterName);
-        if (!string.IsNullOrWhiteSpace(quotedValue))
-        {
-            return quotedValue;
-        }
+        var parsed = ParseBearerChallenge(headerValue);
+        return parsed.IsValid ? parsed.GetParameter(parameterName) : null;
+    }
 
-        var marker = $"{parameterName}=";
-        var start = headerValue.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
-        if (start < 0)
+    public static string? SanitizeForEvidence(AuthenticationChallengeObservation observation)
+    {
+        if (!observation.HasWwwAuthenticateHeader)
         {
             return null;
         }
 
-        start += marker.Length;
-        var end = headerValue.IndexOf(',', start);
-        var rawValue = end >= start ? headerValue[start..end] : headerValue[start..];
-        rawValue = rawValue.Trim();
-        return rawValue.Length > 0 ? rawValue : null;
+        if (!observation.ChallengeSyntaxValid)
+        {
+            return "[INVALID AUTHENTICATION CHALLENGE REDACTED]";
+        }
+
+        if (!observation.UsesBearerChallenge)
+        {
+            return "[NON-BEARER AUTHENTICATION CHALLENGE REDACTED]";
+        }
+
+        var parameters = new List<string>();
+        AddSanitizedParameter(parameters, "realm", observation.Realm, false);
+        AddSanitizedParameter(parameters, "error", observation.Error, false);
+        AddSanitizedParameter(parameters, "scope", observation.Scope, false);
+        AddSanitizedParameter(parameters, "resource_metadata", observation.ResourceMetadataUrl, true);
+        AddSanitizedParameter(parameters, "authorization_uri", observation.AuthorizationUri, true);
+        if (!string.IsNullOrWhiteSpace(observation.ErrorDescription))
+        {
+            parameters.Add("error_description=\"[REDACTED]\"");
+        }
+
+        return parameters.Count == 0 ? "Bearer" : $"Bearer {string.Join(", ", parameters)}";
+    }
+
+    private static ParsedBearerChallenge ParseBearerChallenge(string? headerValue)
+    {
+        if (string.IsNullOrWhiteSpace(headerValue))
+        {
+            return ParsedBearerChallenge.Absent;
+        }
+
+        if (headerValue.Length > MaxChallengeLength || !TrySplitChallengeSegments(headerValue, out var segments))
+        {
+            return ParsedBearerChallenge.Invalid;
+        }
+
+        Dictionary<string, string>? bearerParameters = null;
+        string? activeScheme = null;
+        var activeValid = true;
+        foreach (var segment in segments)
+        {
+            var trimmed = segment.Trim();
+            if (trimmed.Length == 0)
+            {
+                return ParsedBearerChallenge.Invalid;
+            }
+
+            var firstWhitespace = trimmed.IndexOfAny([' ', '\t']);
+            var equals = FindUnquotedEquals(trimmed);
+            var startsParameter = activeScheme != null &&
+                                  equals > 0 &&
+                                  IsToken(trimmed[..equals].Trim());
+            string parameterText;
+            if (startsParameter)
+            {
+                if (activeScheme == null)
+                {
+                    return ParsedBearerChallenge.Invalid;
+                }
+
+                parameterText = trimmed;
+            }
+            else
+            {
+                var scheme = firstWhitespace < 0 ? trimmed : trimmed[..firstWhitespace];
+                if (!IsToken(scheme))
+                {
+                    return ParsedBearerChallenge.Invalid;
+                }
+
+                activeScheme = scheme;
+                activeValid = true;
+                parameterText = firstWhitespace < 0 ? string.Empty : trimmed[(firstWhitespace + 1)..].Trim();
+                if (string.Equals(activeScheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (bearerParameters != null)
+                    {
+                        return ParsedBearerChallenge.Invalid;
+                    }
+
+                    bearerParameters = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                }
+            }
+
+            if (parameterText.Length == 0)
+            {
+                continue;
+            }
+
+            if (!TryParseParameter(parameterText, out var name, out var value))
+            {
+                activeValid = false;
+            }
+            else if (string.Equals(activeScheme, "Bearer", StringComparison.OrdinalIgnoreCase) &&
+                     !bearerParameters!.TryAdd(name, value))
+            {
+                activeValid = false;
+            }
+
+            if (!activeValid && string.Equals(activeScheme, "Bearer", StringComparison.OrdinalIgnoreCase))
+            {
+                return ParsedBearerChallenge.Invalid;
+            }
+        }
+
+        return bearerParameters == null
+            ? ParsedBearerChallenge.Absent
+            : new ParsedBearerChallenge(true, true, bearerParameters);
+    }
+
+    private static bool TrySplitChallengeSegments(string value, out List<string> segments)
+    {
+        segments = new List<string>();
+        var start = 0;
+        var quoted = false;
+        var escaped = false;
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (escaped)
+            {
+                escaped = false;
+                continue;
+            }
+
+            if (quoted && character == '\\')
+            {
+                escaped = true;
+            }
+            else if (character == '"')
+            {
+                quoted = !quoted;
+            }
+            else if (!quoted && character == ',')
+            {
+                segments.Add(value[start..index]);
+                start = index + 1;
+            }
+        }
+
+        if (quoted || escaped)
+        {
+            return false;
+        }
+
+        segments.Add(value[start..]);
+        return true;
+    }
+
+    private static bool TryParseParameter(string value, out string name, out string parameterValue)
+    {
+        name = string.Empty;
+        parameterValue = string.Empty;
+        var equals = FindUnquotedEquals(value);
+        if (equals <= 0)
+        {
+            return false;
+        }
+
+        name = value[..equals].Trim();
+        var rawValue = value[(equals + 1)..].Trim();
+        if (!IsToken(name) || rawValue.Length == 0)
+        {
+            return false;
+        }
+
+        if (rawValue[0] != '"')
+        {
+            if (!IsToken(rawValue))
+            {
+                return false;
+            }
+
+            parameterValue = rawValue;
+            return true;
+        }
+
+        var result = new System.Text.StringBuilder(rawValue.Length);
+        var escaped = false;
+        for (var index = 1; index < rawValue.Length; index++)
+        {
+            var character = rawValue[index];
+            if (escaped)
+            {
+                result.Append(character);
+                escaped = false;
+            }
+            else if (character == '\\')
+            {
+                escaped = true;
+            }
+            else if (character == '"')
+            {
+                if (rawValue[(index + 1)..].Trim().Length != 0)
+                {
+                    return false;
+                }
+
+                parameterValue = result.ToString();
+                return true;
+            }
+            else
+            {
+                result.Append(character);
+            }
+        }
+
+        return false;
+    }
+
+    private static int FindUnquotedEquals(string value) => value.IndexOf('=');
+
+    private static bool IsToken(string value) =>
+        value.Length > 0 && value.All(character =>
+            char.IsAsciiLetterOrDigit(character) || character is '!' or '#' or '$' or '%' or '&' or '\'' or '*' or '+' or '-' or '.' or '^' or '_' or '`' or '|' or '~');
+
+    private static void AddSanitizedParameter(List<string> target, string name, string? value, bool redactUri)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var evidenceValue = redactUri ? RedactUriQuery(value) : value;
+        if (evidenceValue.Length > 1024)
+        {
+            evidenceValue = evidenceValue[..1024];
+        }
+
+        var escaped = evidenceValue
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("\"", "\\\"", StringComparison.Ordinal);
+        target.Add($"{name}=\"{escaped}\"");
+    }
+
+    private static string RedactUriQuery(string value)
+    {
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || string.IsNullOrEmpty(uri.Query))
+        {
+            return value;
+        }
+
+        return new UriBuilder(uri) { Query = "__REDACTED__" }.Uri.AbsoluteUri;
+    }
+
+    private sealed record ParsedBearerChallenge(bool IsPresent, bool IsValid, IReadOnlyDictionary<string, string> Parameters)
+    {
+        public static readonly ParsedBearerChallenge Absent = new(false, true, new Dictionary<string, string>());
+        public static readonly ParsedBearerChallenge Invalid = new(true, false, new Dictionary<string, string>());
+
+        public string? GetParameter(string name) =>
+            Parameters.TryGetValue(name, out var value) ? value : null;
     }
 }
 
@@ -196,9 +431,10 @@ public sealed record AuthenticationChallengeObservation(
     string? Error,
     string? ErrorDescription,
     string? Scope,
-    bool UsesBearerChallenge)
+    bool UsesBearerChallenge,
+    bool ChallengeSyntaxValid)
 {
-    public static readonly AuthenticationChallengeObservation None = new(0, false, false, null, 0.0, null, null, null, null, null, null, false);
+    public static readonly AuthenticationChallengeObservation None = new(0, false, false, null, 0.0, null, null, null, null, null, null, false, true);
 
     public bool HasWwwAuthenticateHeader => !string.IsNullOrWhiteSpace(WwwAuthenticateHeader);
 

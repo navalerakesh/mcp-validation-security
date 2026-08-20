@@ -21,13 +21,8 @@ public static class ValidationReliability
 
     public static bool IsAuthenticationFailure(HealthCheckResult result)
     {
-        if (result.InitializationDetails?.Transport.StatusCode is int statusCode && IsAuthenticationStatusCode(statusCode))
-        {
-            return true;
-        }
-
-        return ContainsAuthenticationSignal(result.InitializationDetails?.Error) ||
-               ContainsAuthenticationSignal(result.ErrorMessage);
+        return result.Disposition == HealthCheckDisposition.Protected ||
+               result.InitializationDetails?.Transport.StatusCode is int statusCode && IsAuthenticationStatusCode(statusCode);
     }
 
     public static bool IsAuthenticationFailure(Exception exception)
@@ -35,7 +30,7 @@ public static class ValidationReliability
         var current = exception;
         while (current != null)
         {
-            if (ContainsAuthenticationSignal(current.Message))
+            if (current is HttpRequestException { StatusCode: HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden })
             {
                 return true;
             }
@@ -48,16 +43,7 @@ public static class ValidationReliability
 
     public static bool IsSoftHealthFailure(string? errorMessage)
     {
-        if (string.IsNullOrWhiteSpace(errorMessage))
-        {
-            return false;
-        }
-
-        var message = errorMessage.Trim();
-        return ContainsStatusCodeSignal(message, HttpStatusCode.Unauthorized) ||
-               ContainsStatusCodeSignal(message, HttpStatusCode.Forbidden) ||
-               ContainsStatusCodeSignal(message, HttpStatusCode.MethodNotAllowed) ||
-               message.Contains("method not allowed", StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     public static HealthCheckDisposition ClassifyHealthCheck(TransportResult<InitializeResult>? result)
@@ -90,21 +76,6 @@ public static class ValidationReliability
             }
         }
 
-        if (ContainsAuthenticationSignal(result.Error))
-        {
-            return HealthCheckDisposition.Protected;
-        }
-
-        if (IsTransientHealthError(result.Error))
-        {
-            return HealthCheckDisposition.TransientFailure;
-        }
-
-        if (IsSoftHealthFailure(result.Error))
-        {
-            return HealthCheckDisposition.Inconclusive;
-        }
-
         return HealthCheckDisposition.Unhealthy;
     }
 
@@ -122,10 +93,12 @@ public static class ValidationReliability
                 : HealthCheckDisposition.TransientFailure;
         }
 
-        if (exception is HttpRequestException && IsTransientHealthError(exception.Message))
+        if (exception is HttpRequestException { StatusCode: HttpStatusCode statusCode } && IsTransientHealthStatusCode((int)statusCode))
         {
             return HealthCheckDisposition.TransientFailure;
         }
+
+        if (exception is HttpRequestException { StatusCode: null }) return HealthCheckDisposition.TransientFailure;
 
         return HealthCheckDisposition.Unhealthy;
     }
@@ -142,9 +115,13 @@ public static class ValidationReliability
             return false;
         }
 
-        if (response.StatusCode < 0)
+        if (response.StatusCode <= 0)
         {
-            return IsRetryableTransportError(response.Error);
+            return response.ProbeContext?.ResponseClassification is
+                ProbeResponseClassification.TransientFailure or
+                ProbeResponseClassification.TransportFailure or
+                ProbeResponseClassification.Timeout or
+                ProbeResponseClassification.NoResponse;
         }
 
         return IsRetryableHttpStatusCode(response.StatusCode);
@@ -157,19 +134,14 @@ public static class ValidationReliability
             return fallback;
         }
 
-        if (!string.IsNullOrWhiteSpace(response.Error))
-        {
-            return response.Error!;
-        }
-
         if (response.StatusCode > 0)
         {
             return $"HTTP {response.StatusCode}";
         }
 
-        if (!string.IsNullOrWhiteSpace(response.RawJson))
+        if (response.ProbeContext?.ResponseClassification is { } classification and not ProbeResponseClassification.Unknown)
         {
-            return response.RawJson!;
+            return classification.ToString();
         }
 
         return fallback;
@@ -214,18 +186,7 @@ public static class ValidationReliability
 
     public static bool IsRetryableTransportError(string? errorMessage)
     {
-        if (string.IsNullOrWhiteSpace(errorMessage))
-        {
-            return false;
-        }
-
-        return errorMessage.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("cancel", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("tempor", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("connection reset", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("connection aborted", StringComparison.OrdinalIgnoreCase) ||
-               errorMessage.Contains("connection refused", StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     public static TimeSpan GetRetryDelay(int attemptNumber, IReadOnlyDictionary<string, string>? headers = null)
@@ -296,44 +257,4 @@ public static class ValidationReliability
         return Math.Max(1, currentConcurrency / 2);
     }
 
-    private static bool ContainsAuthenticationSignal(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        return ContainsStatusCodeSignal(message, HttpStatusCode.Unauthorized) ||
-               ContainsStatusCodeSignal(message, HttpStatusCode.Forbidden) ||
-               message.Contains("unauthorized", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("forbidden", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsTransientHealthError(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-        {
-            return false;
-        }
-
-        return message.Contains("429", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("too many requests", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("503", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("service unavailable", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("504", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("gateway timeout", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("timeout", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("timed out", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("cancel", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("connection reset", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("connection aborted", StringComparison.OrdinalIgnoreCase) ||
-               message.Contains("tempor", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool ContainsStatusCodeSignal(string message, HttpStatusCode statusCode)
-    {
-        var numeric = ((int)statusCode).ToString();
-        return message.Contains(numeric, StringComparison.OrdinalIgnoreCase) ||
-               message.Contains(statusCode.ToString(), StringComparison.OrdinalIgnoreCase);
-    }
 }

@@ -74,6 +74,57 @@ public class SecurityValidatorIntegrationTests
         result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
     }
 
+    [Fact]
+    public async Task PerformSecurityAssessmentAsync_WhenAuthenticationFails_ShouldFailAggregateAndCapScore()
+    {
+        const string metadataUrl = "https://test-server.com/.well-known/oauth-protected-resource";
+        var serverConfig = new McpServerConfig
+        {
+            Endpoint = "https://test-server.com/mcp",
+            Transport = "http",
+            Profile = McpServerProfile.Authenticated
+        };
+        var response = new JsonRpcResponse
+        {
+            StatusCode = 401,
+            IsSuccess = false,
+            Headers = new Dictionary<string, string>
+            {
+                ["WWW-Authenticate"] = $"Bearer resource_metadata=\"{metadataUrl}\""
+            }
+        };
+        _httpClientMock.Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClientMock.Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClientMock.Setup(client => client.GetStringAsync(metadataUrl, It.IsAny<CancellationToken>()))
+            .ReturnsAsync("""
+                {
+                  "resource": "https://test-server.com/mcp",
+                  "authorization_servers": [],
+                  "bearer_methods_supported": ["header"]
+                }
+                """);
+
+        var result = await _securityValidator.PerformSecurityAssessmentAsync(
+            serverConfig,
+            new SecurityTestingConfig { TestInputValidation = false, TestInjectionAttacks = false },
+            CancellationToken.None);
+
+        result.AuthenticationTestResult!.Status.Should().Be(TestStatus.Failed);
+        result.Status.Should().Be(TestStatus.Failed);
+        result.SecurityScore.Should().BeLessThanOrEqualTo(result.AuthenticationTestResult.ComplianceScore);
+    }
+
     [Fact] 
     public async Task ValidateInputSanitizationAsync_WithMaliciousPayloads_ShouldDetectVulnerabilities()
     {

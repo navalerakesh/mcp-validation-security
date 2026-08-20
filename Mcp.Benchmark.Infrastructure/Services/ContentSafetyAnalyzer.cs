@@ -2,6 +2,7 @@ using System.Text.RegularExpressions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Microsoft.Extensions.Logging;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -16,40 +17,12 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
 {
     private readonly ILogger<ContentSafetyAnalyzer> _logger;
 
-    private static readonly string[] SystemImpactHighKeywords =
-    {
-        "delete", "remove", "destroy", "drop", "truncate", "wipe",
-        "shutdown", "terminate", "kill", "lock", "ban",
-        "execute", "exec", "shell", "command", "powershell", "bash",
-        "admin", "root"
-    };
-
-    private static readonly string[] SystemImpactMediumKeywords =
-    {
-        "update", "modify", "change", "set", "write", "patch"
-    };
-
-    private static readonly string[] DataExfiltrationHighKeywords =
-    {
-        "dump", "download", "export", "backup", "snapshot",
-        "all-data", "fulldump", "full-dump"
-    };
-
-    private static readonly string[] DataExfiltrationMediumKeywords =
-    {
-        "list-all", "history", "logs", "audit", "report"
-    };
-
-    private static readonly string[] AbuseHighKeywords =
-    {
-        "broadcast", "notify-all", "email-all", "message-all",
-        "spam", "bulk-send"
-    };
-
-    private static readonly string[] AbuseMediumKeywords =
-    {
-        "notify", "email", "message", "post"
-    };
+    private static readonly IReadOnlyList<string> SystemImpactHighKeywords = ScoringConstants.ContentSafetySystemImpactHighKeywords;
+    private static readonly IReadOnlyList<string> SystemImpactMediumKeywords = ScoringConstants.ContentSafetySystemImpactMediumKeywords;
+    private static readonly IReadOnlyList<string> DataExfiltrationHighKeywords = ScoringConstants.ContentSafetyDataExfiltrationHighKeywords;
+    private static readonly IReadOnlyList<string> DataExfiltrationMediumKeywords = ScoringConstants.ContentSafetyDataExfiltrationMediumKeywords;
+    private static readonly IReadOnlyList<string> AbuseHighKeywords = ScoringConstants.ContentSafetyAbuseHighKeywords;
+    private static readonly IReadOnlyList<string> AbuseMediumKeywords = ScoringConstants.ContentSafetyAbuseMediumKeywords;
 
     public ContentSafetyAnalyzer(ILogger<ContentSafetyAnalyzer> logger)
     {
@@ -165,7 +138,7 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
             context);
 
         // Very argument-rich prompts can be higher risk for system impact
-        if (kind == ContentItemKind.Prompt && argumentsCount > 5)
+        if (kind == ContentItemKind.Prompt && argumentsCount > ScoringConstants.ContentArgumentRichPromptThreshold)
         {
             var finding = new ContentSafetyFinding
             {
@@ -173,7 +146,7 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
                 ItemName = itemName,
                 Axis = ContentRiskAxis.SystemImpact,
                 RiskLevel = ContentRiskLevel.Medium,
-                RiskScore = 65.0,
+                RiskScore = ScoringConstants.ContentArgumentRichPromptScore,
                 Reason = "Prompt accepts many arguments; ensure strict validation and scoping.",
                 Recommendation = "Review this prompt's intended use and enforce least-privilege access to underlying tools/resources.",
                 Context =
@@ -182,7 +155,7 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
                 }
             };
 
-            CalibrateFinding(finding, context, ContentRiskLevel.Medium, 65.0);
+            CalibrateFinding(finding, context, ContentRiskLevel.Medium, ScoringConstants.ContentArgumentRichPromptScore);
             findings.Add(finding);
         }
     }
@@ -211,7 +184,7 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
         var keyword = matchedHigh ?? matchedMedium!;
 
         var level = isHigh ? ContentRiskLevel.High : ContentRiskLevel.Medium;
-        var score = isHigh ? 90.0 : 60.0;
+        var score = isHigh ? ScoringConstants.ContentKeywordHighScore : ScoringConstants.ContentKeywordMediumScore;
 
         var axisLabel = axis switch
         {
@@ -271,53 +244,65 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
         {
             case ContentSafetyContextProfile.PublicUnauthenticated:
                 adjustedLevel = IncreaseRisk(baseLevel);
-                adjustedScore = Math.Max(baseScore, adjustedLevel == ContentRiskLevel.High ? 95.0 : 75.0);
+                adjustedScore = Math.Max(baseScore, adjustedLevel == ContentRiskLevel.High
+                    ? ScoringConstants.ContentPublicAnonymousHighScore
+                    : ScoringConstants.ContentPublicAnonymousOtherScore);
                 adjustment = adjustedLevel == baseLevel ? "public-anonymous-score-increase" : "public-anonymous-escalation";
                 break;
 
             case ContentSafetyContextProfile.PublicAuthenticated:
-                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 90.0 : 65.0);
+                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High
+                    ? ScoringConstants.ContentPublicAuthenticatedHighScore
+                    : ScoringConstants.ContentPublicAuthenticatedOtherScore);
                 adjustment = "public-authenticated-calibration";
                 break;
 
             case ContentSafetyContextProfile.EnterpriseGoverned when hasRelevantControls:
                 adjustedLevel = DecreaseRisk(baseLevel);
-                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 70.0));
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, ScoringConstants.ContentGovernedFallbackScore));
                 adjustment = adjustedLevel == baseLevel ? "enterprise-controls-confirmed" : "enterprise-controls-reduced-risk";
                 break;
 
             case ContentSafetyContextProfile.EnterpriseGoverned:
-                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 88.0 : 62.0);
+                adjustedScore = Math.Max(baseScore, baseLevel == ContentRiskLevel.High
+                    ? ScoringConstants.ContentEnterpriseUncontrolledHighScore
+                    : ScoringConstants.ContentEnterpriseUncontrolledOtherScore);
                 adjustment = "enterprise-controls-not-observed";
                 break;
 
             case ContentSafetyContextProfile.LocalDeveloper:
                 adjustedLevel = DecreaseRisk(baseLevel);
-                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 70.0));
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, ScoringConstants.ContentGovernedFallbackScore));
                 adjustment = adjustedLevel == baseLevel ? "local-development-context" : "local-development-reduced-risk";
                 break;
 
             case ContentSafetyContextProfile.CIOnly:
                 adjustedScore = finding.Axis == ContentRiskAxis.SystemImpact
-                    ? Math.Max(baseScore, baseLevel == ContentRiskLevel.High ? 92.0 : 68.0)
+                    ? Math.Max(baseScore, baseLevel == ContentRiskLevel.High
+                        ? ScoringConstants.ContentCiSystemHighScore
+                        : ScoringConstants.ContentCiSystemOtherScore)
                     : baseScore;
                 adjustment = "ci-only-calibration";
                 break;
 
             case ContentSafetyContextProfile.Internal when hasRelevantControls:
                 adjustedLevel = DecreaseRisk(baseLevel);
-                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, 72.0));
+                adjustedScore = ScoreFor(adjustedLevel, fallbackScore: Math.Min(baseScore, ScoringConstants.ContentInternalGovernedFallbackScore));
                 adjustment = adjustedLevel == baseLevel ? "internal-controls-confirmed" : "internal-controls-reduced-risk";
                 break;
 
             case ContentSafetyContextProfile.Internal:
-                adjustedScore = Math.Min(Math.Max(baseScore, 55.0), baseLevel == ContentRiskLevel.High ? 85.0 : 65.0);
+                adjustedScore = Math.Min(
+                    Math.Max(baseScore, ScoringConstants.ContentInternalFloorScore),
+                    baseLevel == ContentRiskLevel.High
+                        ? ScoringConstants.ContentInternalHighCap
+                        : ScoringConstants.ContentInternalOtherCap);
                 adjustment = "internal-context-without-observed-controls";
                 break;
         }
 
         finding.RiskLevel = adjustedLevel;
-        finding.RiskScore = Math.Clamp(adjustedScore, 0.0, 100.0);
+        finding.RiskScore = Math.Clamp(adjustedScore, ScoringConstants.ScoreMinimum, ScoringConstants.ScoreMaximum);
         AddContextMetadata(finding, context, baseLevel, baseScore, adjustment, hasRelevantControls);
 
         var contextRecommendation = BuildContextRecommendation(context.Profile, hasRelevantControls);
@@ -355,10 +340,10 @@ public class ContentSafetyAnalyzer : IContextualContentSafetyAnalyzer
     {
         return level switch
         {
-            ContentRiskLevel.High => Math.Max(fallbackScore, 88.0),
-            ContentRiskLevel.Medium => Math.Min(fallbackScore, 70.0),
-            ContentRiskLevel.Low => Math.Min(fallbackScore, 40.0),
-            _ => 0.0
+            ContentRiskLevel.High => Math.Max(fallbackScore, ScoringConstants.ContentRiskHighFloor),
+            ContentRiskLevel.Medium => Math.Min(fallbackScore, ScoringConstants.ContentRiskMediumCap),
+            ContentRiskLevel.Low => Math.Min(fallbackScore, ScoringConstants.ContentRiskLowCap),
+            _ => ScoringConstants.ScoreMinimum
         };
     }
 

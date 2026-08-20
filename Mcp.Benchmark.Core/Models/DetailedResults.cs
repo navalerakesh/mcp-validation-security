@@ -8,6 +8,11 @@ namespace Mcp.Benchmark.Core.Models;
 public class JsonRpcComplianceResult
 {
     /// <summary>
+    /// Gets or sets whether active JSON-RPC error handling probes were executed.
+    /// </summary>
+    public bool ErrorHandlingEvaluated { get; set; } = true;
+
+    /// <summary>
     /// Gets or sets whether request format is JSON-RPC 2.0 compliant.
     /// </summary>
     public bool RequestFormatCompliant { get; set; } = false;
@@ -370,6 +375,87 @@ public class AuthMetadata
 
     [System.Text.Json.Serialization.JsonPropertyName("bearer_methods_supported")]
     public List<string>? BearerMethodsSupported { get; set; }
+}
+
+public sealed class AuthorizationServerMetadata
+{
+    [System.Text.Json.Serialization.JsonPropertyName("issuer")]
+    public string? Issuer { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("authorization_endpoint")]
+    public string? AuthorizationEndpoint { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("token_endpoint")]
+    public string? TokenEndpoint { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("registration_endpoint")]
+    public string? RegistrationEndpoint { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("code_challenge_methods_supported")]
+    public List<string>? CodeChallengeMethodsSupported { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("scopes_supported")]
+    public List<string>? ScopesSupported { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("grant_types_supported")]
+    public List<string>? GrantTypesSupported { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("authorization_grant_profiles_supported")]
+    public List<string>? AuthorizationGrantProfilesSupported { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("authorization_response_iss_parameter_supported")]
+    public bool? AuthorizationResponseIssuerParameterSupported { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("client_id_metadata_document_supported")]
+    public bool? ClientIdMetadataDocumentSupported { get; set; }
+}
+
+public sealed class AuthorizationServerMetadataEvidence
+{
+    public string Issuer { get; init; } = string.Empty;
+    public string? MetadataUrl { get; init; }
+    public string? DiscoveryVariant { get; init; }
+    public bool Fetched { get; init; }
+    public bool IsValid { get; init; }
+    public bool EnterpriseManagedAuthorizationSupported { get; init; }
+    public bool EnterpriseManagedAuthorizationValid { get; init; }
+    public AuthorizationServerMetadata? Metadata { get; init; }
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+}
+
+public sealed class OAuthClientRegistrationEvidence
+{
+    public OAuthClientRegistrationMode Mode { get; init; }
+    public bool Declared { get; init; }
+    public bool Evaluated { get; init; }
+    public bool IsValid { get; init; }
+    public string? ClientId { get; init; }
+    public string? MetadataUri { get; init; }
+    public string? AuthorizationServerIssuer { get; init; }
+    public bool AuthorizationServerCompatibilityEvaluated { get; init; }
+    public IReadOnlyList<string> CompatibleAuthorizationServers { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RedirectUris { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+}
+
+public sealed class ScopeStepUpEvidence
+{
+    public bool Evaluated { get; init; }
+    public int RetryAttempts { get; init; }
+    public IReadOnlyList<string> PreviouslyGrantedScopes { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> ChallengedScopes { get; init; } = Array.Empty<string>();
+    public IReadOnlyList<string> RequestedScopes { get; init; } = Array.Empty<string>();
+    public bool LeastPrivilegeSatisfied { get; init; }
+    public string Outcome { get; init; } = "not-evaluated";
+}
+
+public sealed class ControlledAudienceEvidence
+{
+    public bool Declared { get; init; }
+    public bool Evaluated { get; init; }
+    public string? RequestedResource { get; init; }
+    public IReadOnlyList<string> RequestedScopes { get; init; } = Array.Empty<string>();
+    public string Outcome { get; init; } = "not-configured";
 }
 
 /// <summary>

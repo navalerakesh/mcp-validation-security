@@ -34,6 +34,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     public string GenerateHtmlReport(ValidationResult validationResult, ReportingConfig reportConfig, bool verbose)
     {
+        using var culture = InvariantCultureScope.Enter();
         reportConfig ??= new ReportingConfig();
         var document = _htmlDocumentFactory.Create(validationResult, reportConfig, verbose);
         return _htmlReportComposer.Compose(document);
@@ -41,10 +42,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     public string GenerateXmlReport(ValidationResult validationResult, bool verbose)
     {
+        using var culture = InvariantCultureScope.Enter();
         var reportElement = new XElement("ValidationReport",
             new XElement("Report",
                 new XElement("Title", "MCP Server Validation Report"),
-                new XElement("GeneratedAt", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                new XElement("GeneratedAt", ResolveArtifactTime(validationResult).ToString("yyyy-MM-ddTHH:mm:ssZ")),
                 new XElement("ValidationId", validationResult.ValidationId)
             ),
             new XElement("Server",
@@ -477,6 +479,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     public string GenerateSarifReport(ValidationResult validationResult)
     {
+        using var culture = InvariantCultureScope.Enter();
         ArgumentNullException.ThrowIfNull(validationResult);
 
         var entries = BuildSarifEntries(validationResult)
@@ -518,7 +521,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 {
                     name = "MCP Benchmark",
                     fullName = "MCP Benchmark Validation Suite",
-                    semanticVersion = "1.0.0",
+                    semanticVersion = GetValidatorSemanticVersion(),
                     informationUri = "https://github.com/navalerakesh/mcp-validation-security",
                     rules
                 }
@@ -532,7 +535,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             {
                 new
                 {
-                    executionSuccessful = validationResult.OverallStatus != ValidationStatus.InProgress,
+                    executionSuccessful = validationResult.PolicyOutcome?.Passed ?? validationResult.OverallStatus == ValidationStatus.Passed,
                     startTimeUtc = validationResult.StartTime.ToUniversalTime().ToString("O"),
                     endTimeUtc = validationResult.EndTime?.ToUniversalTime().ToString("O"),
                     properties = new
@@ -541,6 +544,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         endpoint = validationResult.ServerConfig.Endpoint,
                         transport = validationResult.ServerConfig.Transport,
                         overallStatus = validationResult.OverallStatus.ToString(),
+                        baselineVerdict = validationResult.VerdictAssessment?.BaselineVerdict.ToString(),
+                        protocolVerdict = validationResult.VerdictAssessment?.ProtocolVerdict.ToString(),
+                        coverageVerdict = validationResult.VerdictAssessment?.CoverageVerdict.ToString(),
+                        policyPassed = validationResult.PolicyOutcome?.Passed,
+                        policySummary = validationResult.PolicyOutcome?.Summary,
+                        evidenceCoverageRatio = validationResult.VerdictAssessment?.EvidenceSummary.EvidenceCoverageRatio,
+                        evidenceConfidenceRatio = validationResult.VerdictAssessment?.EvidenceSummary.EvidenceConfidenceRatio,
                         serverProfile = validationResult.ServerProfile.ToString(),
                         specProfile = validationResult.ValidationConfig.Reporting.SpecProfile
                     }
@@ -550,7 +560,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             {
                 ruleId = entry.RuleId,
                 level = entry.Level,
-                kind = "fail",
+                kind = entry.Source == "coverage" ? "review" : entry.Level == "note" ? "informational" : "fail",
                 message = new { text = entry.Message },
                 partialFingerprints = new { logicalIdentity = entry.Fingerprint },
                 locations = string.IsNullOrWhiteSpace(entry.Component)
@@ -589,10 +599,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     public string GenerateJunitReport(ValidationResult validationResult)
     {
+        using var culture = InvariantCultureScope.Enter();
         ArgumentNullException.ThrowIfNull(validationResult);
 
         var testCases = BuildJunitTestCases(validationResult);
-        var suiteTimestamp = (validationResult.StartTime == default ? DateTime.UtcNow : validationResult.StartTime)
+        var suiteTimestamp = (validationResult.StartTime == default ? DateTime.UnixEpoch : validationResult.StartTime)
             .ToUniversalTime()
             .ToString("O", CultureInfo.InvariantCulture);
 
@@ -672,6 +683,15 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
         return document.ToString();
     }
+
+    private static string GetValidatorSemanticVersion()
+    {
+        var version = typeof(ValidationReportRenderer).Assembly.GetName().Version;
+        return version == null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
+    }
+
+    private static DateTime ResolveArtifactTime(ValidationResult result) =>
+        (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
 
     private static XElement? BuildBootstrapHealthElement(ValidationResult validationResult)
     {
@@ -988,7 +1008,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
     private XElement BuildCapabilitySnapshotElement(CapabilitySummary snapshot)
     {
         var element = new XElement("CapabilitySnapshot");
-        element.Add(CreateCapabilityProbeElement("tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListResponse?.StatusCode, snapshot.ToolListDurationMs, snapshot.ToolListingSucceeded, snapshot.ToolInvocationSucceeded));
+        element.Add(CreateCapabilityProbeElement("tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListResponse?.StatusCode, snapshot.ToolListDurationMs, snapshot.ToolListingSucceeded, snapshot.ToolInvocationAttempted ? snapshot.ToolInvocationSucceeded : null));
         element.Add(CreateCapabilityProbeElement("resources/list", snapshot.DiscoveredResourcesCount, snapshot.ResourceListResponse?.StatusCode, snapshot.ResourceListDurationMs, snapshot.ResourceListingSucceeded));
         element.Add(CreateCapabilityProbeElement("prompts/list", snapshot.DiscoveredPromptsCount, snapshot.PromptListResponse?.StatusCode, snapshot.PromptListDurationMs, snapshot.PromptListingSucceeded));
 
@@ -1573,6 +1593,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 .ThenByDescending(decision => decision.Severity)
                 .Take(5)
                 .Select(decision => $"Blocking Decision Priority: {ReportSeverityNormalizer.ToMachineLabel(ReportSeverityNormalizer.PriorityFrom(decision))} - {decision.Category}/{decision.Component}: {decision.Summary}"));
+            var omitted = validationResult.VerdictAssessment.BlockingDecisions.Count - 5;
+            if (omitted > 0)
+            {
+                details.Add($"Additional Blocking Decisions: {omitted} retained in canonical JSON.");
+            }
         }
 
         if (policyOutcome.AppliedSuppressions.Count > 0)
@@ -1590,7 +1615,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             className: "validation.policy",
             name: $"Policy Gate ({policyOutcome.Mode})",
             status: policyOutcome.Passed ? TestStatus.Passed : TestStatus.Failed,
-            duration: validationResult.Duration ?? TimeSpan.Zero,
+            duration: TimeSpan.Zero,
             message: policyOutcome.Summary,
             details: string.Join(Environment.NewLine, details));
     }

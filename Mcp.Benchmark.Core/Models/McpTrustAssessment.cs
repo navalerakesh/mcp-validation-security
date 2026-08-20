@@ -23,8 +23,8 @@ public class McpTrustAssessment
     /// </summary>
     public string TrustLabel => TrustLevel switch
     {
-        McpTrustLevel.L5_CertifiedSecure => "L5: Certified Secure — Production AI-agent ready",
-        McpTrustLevel.L4_Trusted => "L4: Trusted — Meets enterprise AI safety requirements",
+        McpTrustLevel.L5_CertifiedSecure => "L5: High Assurance — All evaluated dimensions met the L5 threshold; not a certification",
+        McpTrustLevel.L4_Trusted => "L4: Strong — Evaluated dimensions met the L4 threshold",
         McpTrustLevel.L3_Acceptable => "L3: Acceptable — Compliant with known limitations",
         McpTrustLevel.L2_Caution => "L2: Caution — Significant gaps in safety or compliance",
         McpTrustLevel.L1_Untrusted => "L1: Untrusted — Critical failures, not safe for AI agents",
@@ -57,6 +57,21 @@ public class McpTrustAssessment
     /// Sources: Latency, throughput, error rate, stability under load.
     /// </summary>
     public double OperationalReadiness { get; set; }
+
+    /// <summary>
+    /// Weighted fraction of trust dimensions backed by evaluation evidence (0-1).
+    /// </summary>
+    public double EvidenceCompletenessRatio { get; set; }
+
+    /// <summary>
+    /// Dimensions that were not evaluated and therefore did not contribute to the weighted score.
+    /// </summary>
+    public List<string> UnevaluatedDimensions { get; set; } = new();
+
+    /// <summary>
+    /// Whether incomplete evidence capped the maximum trust level.
+    /// </summary>
+    public bool LimitedByIncompleteEvidence { get; set; }
 
     // ─── AI Boundary Checks ──────────────────────────────────────────
 
@@ -187,7 +202,7 @@ public enum McpTrustLevel
     /// <summary>L4: Meets enterprise requirements. Trusted for AI agent consumption with standard controls.</summary>
     L4_Trusted = 4,
 
-    /// <summary>L5: Fully compliant, secure, AI-safe, and performant. Certified for production AI workloads.</summary>
+    /// <summary>L5: Highest descriptive trust band after evaluated dimensions and blocking caps; not a certification.</summary>
     L5_CertifiedSecure = 5
 }
 
@@ -200,15 +215,34 @@ public class AiBoundaryFinding
     /// <summary>Category: Destructive, Exfiltration, PromptInjection, Hallucination, HumanInLoop</summary>
     public string Category { get; set; } = string.Empty;
 
+    public AiBoundaryKind Kind { get; set; } = AiBoundaryKind.Unspecified;
+
     /// <summary>The specific tool, resource, or prompt name involved.</summary>
     public string Component { get; set; } = string.Empty;
 
     /// <summary>Severity: Critical, High, Medium, Low, Info</summary>
     public string Severity { get; set; } = "Medium";
 
+    public ValidationFindingSeverity SeverityLevel { get; set; } = ValidationFindingSeverity.Medium;
+
+    public GateOutcome Gate { get; set; } = GateOutcome.ReviewRequired;
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public List<ImpactArea>? ImpactAreas { get; set; }
+
     /// <summary>Human-readable description of the finding.</summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>Recommended mitigation.</summary>
     public string Mitigation { get; set; } = string.Empty;
+}
+
+public enum AiBoundaryKind
+{
+    Unspecified = 0,
+    DestructiveOperation = 1,
+    DataExfiltration = 2,
+    PromptInjection = 3,
+    InjectionReflection = 4,
+    LlmHostileErrors = 5
 }

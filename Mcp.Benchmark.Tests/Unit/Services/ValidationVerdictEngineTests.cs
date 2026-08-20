@@ -7,6 +7,74 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public class ValidationVerdictEngineTests
 {
     [Fact]
+    public void DetermineValidationStatus_WithTrustedCompleteEvidence_ReturnsPassed()
+    {
+        var status = ValidationVerdictEngine.DetermineValidationStatus(new VerdictAssessment
+        {
+            BaselineVerdict = ValidationVerdict.Trusted,
+            ProtocolVerdict = ValidationVerdict.Trusted,
+            CoverageVerdict = ValidationVerdict.Trusted
+        });
+
+        status.Should().Be(ValidationStatus.Passed);
+    }
+
+    [Fact]
+    public void Calculate_ShouldAttachCurrentDecisionPolicyManifest()
+    {
+        var assessment = ValidationVerdictEngine.Calculate(new ValidationResult());
+
+        assessment.RulesetVersion.Should().Be(DecisionPolicyManifest.CurrentVersion);
+        assessment.Policy.Version.Should().Be(DecisionPolicyManifest.CurrentVersion);
+        assessment.Policy.Thresholds.Should().ContainKey("score.pass");
+        assessment.Policy.Weights.Should().ContainKey("trust.security");
+    }
+
+    [Fact]
+    public void Calculate_PolicyManifest_ShouldContainEveryRuntimeDecisionRuleRevision()
+    {
+        var result = CreateResultWithFinding(
+            GateOutcome.ReviewRequired,
+            ValidationRuleSource.Heuristic,
+            [ImpactArea.OperationalResilience]);
+
+        var assessment = ValidationVerdictEngine.Calculate(result);
+
+        var everyRuleIsVersioned = assessment.TriggeredDecisions.Concat(assessment.CoverageDecisions)
+            .Where(decision => decision.RuleId != null)
+            .All(decision =>
+                assessment.Policy.RuleRevisions.TryGetValue(decision.RuleId!, out var revision) &&
+                revision == decision.RuleRevision);
+        everyRuleIsVersioned.Should().BeTrue();
+    }
+
+    [Fact]
+    public void DetermineValidationStatus_WithDeterministicReject_ReturnsFailed()
+    {
+        var status = ValidationVerdictEngine.DetermineValidationStatus(new VerdictAssessment
+        {
+            BaselineVerdict = ValidationVerdict.Reject,
+            ProtocolVerdict = ValidationVerdict.Trusted,
+            CoverageVerdict = ValidationVerdict.Trusted
+        });
+
+        status.Should().Be(ValidationStatus.Failed);
+    }
+
+    [Fact]
+    public void DetermineValidationStatus_WithCoverageReviewOnly_ReturnsPartiallyCompleted()
+    {
+        var status = ValidationVerdictEngine.DetermineValidationStatus(new VerdictAssessment
+        {
+            BaselineVerdict = ValidationVerdict.ConditionallyAcceptable,
+            ProtocolVerdict = ValidationVerdict.ConditionallyAcceptable,
+            CoverageVerdict = ValidationVerdict.ReviewRequired
+        });
+
+        status.Should().Be(ValidationStatus.PartiallyCompleted);
+    }
+
+    [Fact]
     public void Calculate_WithProtocolViolation_ShouldLinkDecisionToViolationAndObservationEvidence()
     {
         var violation = new ComplianceViolation
@@ -93,6 +161,7 @@ public class ValidationVerdictEngineTests
         var decision = assessment.BlockingDecisions.Single(decision => decision.RuleId == finding.RuleId);
 
         decision.RelatedEvidenceIds.Should().Contain(ValidationEvidenceIdBuilder.ForFinding(finding));
+        decision.RuleRevision.Should().Be(DecisionPolicyManifest.CurrentVersion);
         decision.RelatedEvidenceIds.Should().Contain("tool-delete-repo");
         decision.EvidenceReferences.Should().Contain(reference =>
             reference.EvidenceId == ValidationEvidenceIdBuilder.ForFinding(finding)
@@ -146,6 +215,7 @@ public class ValidationVerdictEngineTests
             LayerId = "tool-surface",
             Scope = "tools/list",
             Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Only partial parser-boundary evidence was available."
         });
@@ -217,4 +287,227 @@ public class ValidationVerdictEngineTests
             ValidationRuleSource.Heuristic,
             ValidationRuleSource.Unspecified);
     }
+
+    [Fact]
+    public void Calculate_TypedBoundaryDecision_ShouldNotDependOnDisplayProse()
+    {
+        static DecisionRecord Calculate(string category, string description)
+        {
+            var result = new ValidationResult
+            {
+                TrustAssessment = new McpTrustAssessment
+                {
+                    BoundaryFindings =
+                    [
+                        new AiBoundaryFinding
+                        {
+                            Category = category,
+                            Kind = AiBoundaryKind.DataExfiltration,
+                            Component = "export",
+                            Severity = "display-only",
+                            SeverityLevel = ValidationFindingSeverity.High,
+                            Gate = GateOutcome.Reject,
+                            ImpactAreas = [ImpactArea.DataExposure],
+                            Description = description
+                        }
+                    ]
+                }
+            };
+            return ValidationVerdictEngine.Calculate(result).TriggeredDecisions.Single();
+        }
+
+        var first = Calculate("benign display", "ordinary words");
+        var second = Calculate("exfiltration prompt injection", "critical token exploit words");
+
+        second.Gate.Should().Be(first.Gate);
+        second.Severity.Should().Be(first.Severity);
+        second.ImpactAreas.Should().Equal(first.ImpactAreas);
+    }
+
+        [Fact]
+        public void Calculate_CoveredFailedOutcomeWithoutFinding_ShouldReject()
+        {
+            var result = new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Failed }
+            };
+            result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = "protocol-core",
+                Scope = "json-rpc",
+                Status = ValidationCoverageStatus.Covered,
+                ObservedOutcome = ValidationOutcome.Failed,
+                Confidence = EvidenceConfidenceLevel.High
+            });
+
+            var assessment = ValidationVerdictEngine.Calculate(result);
+
+            assessment.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+            assessment.BlockingDecisions.Should().Contain(decision =>
+                decision.RuleId == "MCP.OUTCOME.DETERMINISTIC_FAILURE" && decision.Gate == GateOutcome.Reject);
+        }
+
+        [Fact]
+        public void Calculate_CoveredErrorAndBlockedDebt_ShouldRejectAndPublishManifest()
+        {
+            var result = new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Error }
+            };
+            result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = "protocol-core",
+                Scope = "json-rpc",
+                Status = ValidationCoverageStatus.Covered,
+                ObservedOutcome = ValidationOutcome.Error,
+                Confidence = EvidenceConfidenceLevel.High
+            });
+            result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = "tool-surface",
+                Scope = "discovery",
+                Status = ValidationCoverageStatus.Blocked,
+                ObservedOutcome = ValidationOutcome.Blocked,
+                Blocker = ValidationEvidenceBlocker.TransportError,
+                Confidence = EvidenceConfidenceLevel.None
+            });
+
+            var assessment = ValidationVerdictEngine.Calculate(result);
+
+            assessment.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+            assessment.ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
+            assessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
+            assessment.TriggeredDecisions.Should().Contain(decision =>
+                decision.RuleId == "MCP.OUTCOME.DETERMINISTIC_FAILURE" && decision.Gate == GateOutcome.Reject);
+            assessment.CoverageDecisions.Should().Contain(decision => decision.Gate == GateOutcome.CoverageDebt);
+            assessment.Policy.Parameters.Should().NotBeEmpty();
+            assessment.Policy.PatternSets.Should().ContainKey("toolError.upstreamHttpStatusRegex");
+        }
+
+        [Fact]
+        public void Calculate_PolicyManifestCollections_ShouldRejectMutableInterfaceWrites()
+        {
+            var policy = ValidationVerdictEngine.Calculate(new ValidationResult()).Policy;
+
+            var parameters = (IDictionary<string, double>)policy.Parameters;
+            var patterns = (IList<string>)policy.PatternSets["promptInjection"];
+
+            var mutateParameter = () => parameters["new"] = 1;
+            var mutatePattern = () => patterns.Add("new");
+
+            mutateParameter.Should().Throw<NotSupportedException>();
+            mutatePattern.Should().Throw<NotSupportedException>();
+        }
+
+        [Theory]
+        [InlineData(GateOutcome.Note, ValidationVerdict.ConditionallyAcceptable)]
+        [InlineData(GateOutcome.CoverageDebt, ValidationVerdict.ReviewRequired)]
+        [InlineData(GateOutcome.ReviewRequired, ValidationVerdict.ReviewRequired)]
+        [InlineData(GateOutcome.Reject, ValidationVerdict.Reject)]
+        public void Calculate_SingleTypedGate_ShouldProduceExactBaselineVerdict(GateOutcome gate, ValidationVerdict expected)
+        {
+            var result = CreateResultWithFinding(gate, ValidationRuleSource.Heuristic, [ImpactArea.OperationalResilience]);
+
+            ValidationVerdictEngine.Calculate(result).BaselineVerdict.Should().Be(expected);
+        }
+
+        [Fact]
+        public void Calculate_MixedGates_ShouldUseMostRestrictiveVerdict()
+        {
+            var result = CreateResultWithFinding(GateOutcome.Note, ValidationRuleSource.Heuristic, [ImpactArea.OperationalResilience]);
+            result.ToolValidation!.Findings.Add(CreateFinding("reject", GateOutcome.Reject, ValidationRuleSource.Heuristic, [ImpactArea.OperationalResilience]));
+            result.ToolValidation.Findings.Add(CreateFinding("review", GateOutcome.ReviewRequired, ValidationRuleSource.Heuristic, [ImpactArea.OperationalResilience]));
+
+            ValidationVerdictEngine.Calculate(result).BaselineVerdict.Should().Be(ValidationVerdict.Reject);
+        }
+
+        [Fact]
+        public void Calculate_ProtocolVerdict_ShouldUseAuthorityOrProtocolImpactOnly()
+        {
+            var result = CreateResultWithFinding(GateOutcome.Note, ValidationRuleSource.Heuristic, [ImpactArea.OperationalResilience]);
+            result.ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Passed };
+            ValidationVerdictEngine.Calculate(result).ProtocolVerdict.Should().Be(ValidationVerdict.Trusted);
+
+            result.ToolValidation!.Findings.Add(CreateFinding("protocol-note", GateOutcome.Note, ValidationRuleSource.Heuristic, [ImpactArea.ProtocolInteroperability]));
+            ValidationVerdictEngine.Calculate(result).ProtocolVerdict.Should().Be(ValidationVerdict.ConditionallyAcceptable);
+
+            result.ToolValidation.Findings.Add(CreateFinding("spec-review", GateOutcome.ReviewRequired, ValidationRuleSource.Spec, [ImpactArea.OperationalResilience]));
+            ValidationVerdictEngine.Calculate(result).ProtocolVerdict.Should().Be(ValidationVerdict.ReviewRequired);
+
+            result.ToolValidation.Findings.Add(CreateFinding("protocol-reject", GateOutcome.Reject, ValidationRuleSource.Heuristic, [ImpactArea.ProtocolInteroperability]));
+            ValidationVerdictEngine.Calculate(result).ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
+        }
+
+        [Fact]
+        public void Calculate_ProtocolVerdict_ShouldDistinguishMissingAndAvailableProtocolResult()
+        {
+            ValidationVerdictEngine.Calculate(new ValidationResult()).ProtocolVerdict.Should().Be(ValidationVerdict.Unknown);
+            ValidationVerdictEngine.Calculate(new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Passed }
+            }).ProtocolVerdict.Should().Be(ValidationVerdict.Trusted);
+            ValidationVerdictEngine.Calculate(new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Inconclusive }
+            }).ProtocolVerdict.Should().Be(ValidationVerdict.Unknown);
+            ValidationVerdictEngine.Calculate(new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Error }
+            }).ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
+        }
+
+        [Fact]
+        public void Calculate_CoverageVerdict_ShouldDistinguishMissingCompleteAndDebt()
+        {
+            ValidationVerdictEngine.Calculate(new ValidationResult()).CoverageVerdict.Should().Be(ValidationVerdict.Unknown);
+
+            var complete = new ValidationResult();
+            complete.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = "protocol",
+                Scope = "complete",
+                Status = ValidationCoverageStatus.Covered,
+                ObservedOutcome = ValidationOutcome.Succeeded,
+                Confidence = EvidenceConfidenceLevel.High
+            });
+            ValidationVerdictEngine.Calculate(complete).CoverageVerdict.Should().Be(ValidationVerdict.Trusted);
+
+            var debt = new ValidationResult();
+            debt.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+            {
+                LayerId = "protocol",
+                Scope = "blocked",
+                Status = ValidationCoverageStatus.Blocked,
+                ObservedOutcome = ValidationOutcome.Blocked,
+                Blocker = ValidationEvidenceBlocker.TransportError
+            });
+            ValidationVerdictEngine.Calculate(debt).CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
+        }
+
+        private static ValidationResult CreateResultWithFinding(
+            GateOutcome gate,
+            ValidationRuleSource source,
+            IReadOnlyCollection<ImpactArea> impacts) => new()
+        {
+            ToolValidation = new ToolTestResult
+            {
+                Findings = [CreateFinding("single", gate, source, impacts)]
+            }
+        };
+
+        private static ValidationFinding CreateFinding(
+            string suffix,
+            GateOutcome gate,
+            ValidationRuleSource source,
+            IReadOnlyCollection<ImpactArea> impacts) => new()
+        {
+            RuleId = $"TEST.{suffix}",
+            Category = "Test",
+            Component = suffix,
+            Source = source,
+            Severity = gate == GateOutcome.Reject ? ValidationFindingSeverity.Critical : ValidationFindingSeverity.Low,
+            GateOverride = gate,
+            ImpactAreas = impacts.ToList(),
+            Summary = $"Typed {suffix} finding."
+        };
 }

@@ -123,7 +123,8 @@ public class ValidationPolicyEvaluatorTests
         {
             LayerId = "protocol",
             Scope = "full",
-            Status = ValidationCoverageStatus.Covered
+            Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded
         });
         result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
 
@@ -156,6 +157,7 @@ public class ValidationPolicyEvaluatorTests
             LayerId = "tool-surface",
             Scope = "tools/list",
             Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Only a parser-boundary response was available."
         });
@@ -348,6 +350,96 @@ public class ValidationPolicyEvaluatorTests
 
         outcome.Passed.Should().BeFalse();
         outcome.Reasons.Should().ContainSingle(reason => reason.Contains("5/5 component(s)", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RegressionOnlyPolicy_WithoutBaseline_ShouldFailClosed()
+    {
+        var result = CreateResultWithCriticalFinding();
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
+        {
+            RegressionOnly = true
+        });
+
+        outcome.Passed.Should().BeFalse();
+        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("requires a compatible baseline", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void RegressionOnlyPolicy_WithoutNewBlockers_ShouldPass()
+    {
+        var result = CreateResultWithCriticalFinding();
+        result.BaselineComparison = new ValidationBaselineComparison
+        {
+            BaselineValidationId = "baseline",
+            IsRegression = false
+        };
+
+        ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
+        {
+            RegressionOnly = true
+        }).Passed.Should().BeTrue();
+    }
+
+    [Fact]
+    public void RegressionOnlyPolicy_WithVerdictDegradationAndStableScore_ShouldBlock()
+    {
+        var result = CreateResultWithCriticalFinding();
+        result.BaselineComparison = new ValidationBaselineComparison
+        {
+            BaselineValidationId = "baseline",
+            BaselineScore = 80,
+            CurrentScore = 80,
+            ScoreDelta = 0,
+            BaselineVerdictBefore = ValidationVerdict.Trusted,
+            BaselineVerdictAfter = ValidationVerdict.ReviewRequired,
+            IsRegression = true
+        };
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
+        {
+            RegressionOnly = true
+        });
+
+        outcome.Passed.Should().BeFalse();
+        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("verdict degraded", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void RegressionOnlyPolicy_WithGovernedWaiver_ShouldSuppressMatchingNewBlocker()
+    {
+        var result = CreateResultWithCriticalFinding();
+        result.BaselineComparison = new ValidationBaselineComparison
+        {
+            BaselineValidationId = "baseline",
+            IsRegression = true,
+            NewBlockingDecisions =
+            [
+                new BaselineDecisionChange("decision:new", "TEST.CRITICAL", "Security", "delete_repo", GateOutcome.Reject)
+            ]
+        };
+        var policy = new ValidationPolicyConfig
+        {
+            RegressionOnly = true,
+            Suppressions =
+            [
+                new ValidationPolicySuppression
+                {
+                    Id = "waiver-1",
+                    RuleId = "TEST.CRITICAL",
+                    Component = "delete_repo",
+                    Owner = "security-team",
+                    Reason = "Accepted until replacement rollout completes.",
+                    ExpiresOn = DateTimeOffset.UtcNow.AddDays(7)
+                }
+            ]
+        };
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, policy);
+
+        outcome.Passed.Should().BeTrue();
+        outcome.AppliedWaivers.Should().ContainSingle(waiver => waiver.Id == "waiver-1");
     }
 
     private static ValidationResult CreateResultWithCriticalFinding()

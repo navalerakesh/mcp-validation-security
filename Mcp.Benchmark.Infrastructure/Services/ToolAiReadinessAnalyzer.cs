@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -22,7 +23,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
         foreach (var tool in tools)
         {
-            double toolScore = 100.0;
+            double toolScore = ScoringConstants.ScoreMaximum;
             var schema = tool.InputSchema;
             var requiredProperties = GetRequiredPropertyNames(schema);
 
@@ -31,7 +32,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 properties.ValueKind != JsonValueKind.Object ||
                 properties.EnumerateObject().Count() == 0)
             {
-                totalScore += 80.0;
+                totalScore += ScoringConstants.AiReadinessEmptySchemaScore;
                 scored++;
                 continue;
             }
@@ -86,11 +87,11 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
             if (paramCount > 0)
             {
-                toolScore -= (undescribedParams / (double)paramCount) * 30.0;
-                toolScore -= (vagueStringParams / (double)paramCount) * 20.0;
-                toolScore -= (requiredArrayParamsMissingShape / (double)paramCount) * 15.0;
-                toolScore -= (enumCoverageMissingParams / (double)paramCount) * 12.0;
-                toolScore -= (formatHintMissingParams / (double)paramCount) * 12.0;
+                toolScore -= (undescribedParams / (double)paramCount) * ScoringConstants.AiDescriptionPenaltyMax;
+                toolScore -= (vagueStringParams / (double)paramCount) * ScoringConstants.AiVagueTypePenaltyMax;
+                toolScore -= (requiredArrayParamsMissingShape / (double)paramCount) * ScoringConstants.AiRequiredArrayPenaltyMax;
+                toolScore -= (enumCoverageMissingParams / (double)paramCount) * ScoringConstants.AiEnumCoveragePenaltyMax;
+                toolScore -= (formatHintMissingParams / (double)paramCount) * ScoringConstants.AiFormatHintPenaltyMax;
             }
 
             AddFindingIfAny(
@@ -138,7 +139,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 $"Tool '{tool.Name}': {formatHintMissingParams}/{paramCount} string parameters look like structured values but do not declare format/pattern hints",
                 "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings.");
 
-            totalScore += Math.Max(0, toolScore);
+            totalScore += Math.Max(ScoringConstants.ScoreMinimum, toolScore);
             scored++;
         }
 
@@ -148,8 +149,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
         if (payloadChars > 0)
         {
-            estimatedTokenCount = payloadChars / 4;
-            if (estimatedTokenCount > 32000)
+            estimatedTokenCount = payloadChars / ScoringConstants.CharsPerToken;
+            if (estimatedTokenCount > ScoringConstants.TokenPenaltyThreshold)
             {
                 findings.Add(new ValidationFinding
                 {
@@ -166,9 +167,9 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                         [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
                     }
                 });
-                score = Math.Max(0, score - 10);
+                score = Math.Max(ScoringConstants.ScoreMinimum, score - ScoringConstants.TokenExcessPenalty);
             }
-            else if (estimatedTokenCount > 8000)
+            else if (estimatedTokenCount > ScoringConstants.TokenWarningThreshold)
             {
                 findings.Add(new ValidationFinding
                 {
@@ -221,11 +222,11 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         {
             // Preserve a real, modest score that reflects the message's actual signal value
             // for an LLM (status code + URL + reason phrase) but mark it excluded from scoring.
-            score = 60;
+            score = ScoringConstants.ToolErrorUpstreamPassThroughScore;
         }
         else if (errorCode is -32602 or -32600 or -32601 or -32603 or -32700)
         {
-            score += 20;
+            score += ScoringConstants.ToolErrorStandardCodePoints;
         }
         else
         {
@@ -245,13 +246,13 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                         fullText.Contains("required") || fullText.Contains("missing"))
                     {
                         mentionsParam = true;
-                        score += 25;
+                        score += ScoringConstants.ToolErrorParameterPoints;
                     }
 
                     if (fullText.Contains("expected") || fullText.Contains("must be") || fullText.Contains("should be") ||
                         fullText.Contains("type") || fullText.Contains("format") || fullText.Contains("valid"))
                     {
-                        score += 20;
+                        score += ScoringConstants.ToolErrorExpectedFormatPoints;
                     }
                     else
                     {
@@ -260,12 +261,12 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
                     if (error.TryGetProperty("data", out _))
                     {
-                        score += 15;
+                        score += ScoringConstants.ToolErrorDataPoints;
                     }
 
-                    if ((errorMessage?.Length ?? 0) > 20)
+                    if ((errorMessage?.Length ?? 0) > ScoringConstants.ToolErrorMessageMinimumLength)
                     {
-                        score += 10;
+                        score += ScoringConstants.ToolErrorMessageContextPoints;
                     }
                     else
                     {
@@ -285,14 +286,14 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
             if (rawJson.Contains("\"isError\"", StringComparison.Ordinal))
             {
-                score += 10;
+                score += ScoringConstants.ToolErrorIsErrorPoints;
             }
         }
 
-        score = Math.Min(100, score);
+        score = (int)Math.Min(ScoringConstants.ScoreMaximum, score);
 
-        var grade = score >= 70 ? "Pro-LLM" : score >= 40 ? "Neutral" : "Anti-LLM";
-        var gradeIcon = score >= 70 ? "🟢" : score >= 40 ? "🟡" : "🔴";
+        var grade = score >= ScoringConstants.ToolErrorHelpfulThreshold ? "Pro-LLM" : score >= ScoringConstants.ToolErrorNeutralThreshold ? "Neutral" : "Anti-LLM";
+        var gradeIcon = score >= ScoringConstants.ToolErrorHelpfulThreshold ? "🟢" : score >= ScoringConstants.ToolErrorNeutralThreshold ? "🟡" : "🔴";
         string summary;
         ValidationFindingSeverity severity;
         string recommendation;
@@ -304,8 +305,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         }
         else
         {
-            summary = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= 70 ? "Error helps AI self-correct" : score >= 40 ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
-            severity = score >= 70 ? ValidationFindingSeverity.Info : score >= 40 ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High;
+            summary = $"{gradeIcon} LLM-Friendliness: {score}/100 ({grade}) — {(score >= ScoringConstants.ToolErrorHelpfulThreshold ? "Error helps AI self-correct" : score >= ScoringConstants.ToolErrorNeutralThreshold ? "Error partially helpful for AI" : "Error will cause AI hallucination/loops")}";
+            severity = score >= ScoringConstants.ToolErrorHelpfulThreshold ? ValidationFindingSeverity.Info : score >= ScoringConstants.ToolErrorNeutralThreshold ? ValidationFindingSeverity.Medium : ValidationFindingSeverity.High;
             recommendation = "Return specific, structured errors that identify the invalid argument and expected shape.";
         }
 
@@ -317,6 +318,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
             Severity = severity,
             Summary = summary,
             Recommendation = recommendation,
+            Score = score,
+            ExcludedFromAggregate = isUpstreamPassThrough,
             Metadata =
             {
                 ["score"] = score.ToString(),
@@ -336,16 +339,18 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         return new ToolErrorAiReadinessAssessment
         {
             Finding = finding,
-            SupportingIssues = (!isUpstreamPassThrough && score < 70) ? insights.Take(2).ToList() : Array.Empty<string>()
+            SupportingIssues = (!isUpstreamPassThrough && score < ScoringConstants.ToolErrorHelpfulThreshold)
+                ? insights.Take(ScoringConstants.ToolErrorSupportingIssueLimit).ToList()
+                : Array.Empty<string>()
         };
     }
 
     private static readonly System.Text.RegularExpressions.Regex UpstreamHttpStatusPattern = new(
-        @"\b(?:HTTP\s+)?[1-5]\d{2}\b\s*(?:Not\s+Found|Bad\s+Request|Unauthorized|Forbidden|Conflict|Unprocessable|Gone|Too\s+Many\s+Requests|Internal\s+Server\s+Error|Service\s+Unavailable|Gateway)\b",
+        ScoringConstants.UpstreamHttpStatusPattern,
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     private static readonly System.Text.RegularExpressions.Regex UpstreamMethodUrlPattern = new(
-        @"\b(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+https?://[^\s""]+",
+        ScoringConstants.UpstreamMethodUrlPattern,
         System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Compiled);
 
     /// <summary>
@@ -527,20 +532,18 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
     private static bool LooksLikeEnumeratedChoice(string propertyName, JsonElement propertySchema)
     {
         var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
-        string[] markers = ["mode", "type", "kind", "status", "state", "level", "action", "scope", "sort", "order", "direction"];
-        return markers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        return ScoringConstants.AiEnumeratedChoiceMarkers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool LooksLikeStructuredFormatValue(string propertyName, JsonElement propertySchema)
     {
         var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
-        string[] markers = ["url", "uri", "email", "date", "time", "timestamp", "uuid", "guid", "hostname", "domain"];
-        return markers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        return ScoringConstants.AiStructuredFormatMarkers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool HasMeaningfulText(string? value)
     {
-        return !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= 8;
+        return !string.IsNullOrWhiteSpace(value) && value.Trim().Length >= ScoringConstants.AiSemanticGuidanceMinimumLength;
     }
 
     private static string GetSchemaText(JsonElement propertySchema, string propertyName)

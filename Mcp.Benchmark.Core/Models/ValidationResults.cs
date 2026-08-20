@@ -1,5 +1,8 @@
 using System.Text.Json.Serialization;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Models;
 
@@ -9,6 +12,10 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class ValidationResult
 {
+    public string DocumentType { get; set; } = ArtifactContracts.ValidationResultDocumentType;
+
+    public string DocumentSchemaVersion { get; set; } = ArtifactContracts.ValidationResultSchemaVersion;
+
     /// <summary>
     /// Gets or sets metadata about the tool that produced this validation artifact.
     /// </summary>
@@ -220,6 +227,13 @@ public class ValidationResult
         set => Run.CapabilitySnapshot = value;
     }
 
+    [JsonIgnore]
+    public TransportResult<ModernDiscoveryEvidence>? ModernDiscovery
+    {
+        get => Run.ModernDiscovery;
+        set => Run.ModernDiscovery = value;
+    }
+
     /// <summary>
     /// Gets or sets the calibrated bootstrap health outcome used to decide whether
     /// validation could proceed after the initial connectivity and initialize checks.
@@ -243,6 +257,9 @@ public class ValidationResult
     /// </summary>
     public ValidationPolicyOutcome? PolicyOutcome { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ValidationBaselineComparison? BaselineComparison { get; set; }
+
     /// <summary>
     /// Gets or sets the optional host-side client compatibility interpretation derived from the validation result.
     /// </summary>
@@ -262,56 +279,291 @@ public class ValidationResult
     {
         return new ValidationResult
         {
-            Producer = Producer,
+            DocumentType = DocumentType,
+            DocumentSchemaVersion = DocumentSchemaVersion,
+            Producer = DeepCloneRequired(Producer),
             Run = new ValidationRunDocument
             {
                 ValidationId = ValidationId,
                 ProtocolVersion = ProtocolVersion,
                 SchemaVersion = Run.SchemaVersion,
                 ApplicabilityContext = Run.ApplicabilityContext,
-                InitializationHandshake = InitializationHandshake,
-                CapabilitySnapshot = CapabilitySnapshot,
-                BootstrapHealth = BootstrapHealth
+                InitializationHandshake = SanitizeInitializationHandshake(InitializationHandshake),
+                CapabilitySnapshot = SanitizeCapabilitySnapshot(CapabilitySnapshot),
+                ModernDiscovery = SanitizeModernDiscovery(ModernDiscovery),
+                BootstrapHealth = SanitizeBootstrapHealth(BootstrapHealth),
+                OperationalMetrics = Run.OperationalMetrics
             },
-            Assessments = new ValidationAssessmentDocument
-            {
-                ProtocolCompliance = ProtocolCompliance,
-                VerdictAssessment = VerdictAssessment,
-                ToolValidation = ToolValidation,
-                ResourceTesting = ResourceTesting,
-                PromptTesting = PromptTesting,
-                SecurityTesting = SecurityTesting,
-                PerformanceTesting = PerformanceTesting,
-                ErrorHandling = ErrorHandling,
-                Layers = Assessments.Layers,
-                Scenarios = Assessments.Scenarios
-            },
-            Evidence = new ValidationEvidenceDocument
-            {
-                Observations = Evidence.Observations,
-                Coverage = Evidence.Coverage,
-                AppliedPacks = Evidence.AppliedPacks
-            },
-            Compatibility = new ValidationCompatibilityDocument
-            {
-                ClientCompatibility = ClientCompatibility
-            },
+            Assessments = SanitizeAssessments(Assessments),
+            Evidence = SanitizeEvidence(Evidence),
+            Compatibility = DeepCloneRequired(Compatibility),
             StartTime = StartTime,
             EndTime = EndTime,
             OverallStatus = OverallStatus,
             ComplianceScore = ComplianceScore,
-            ScoringNotes = ScoringNotes,
-            ScoringDetails = ScoringDetails,
+            ScoringNotes = ScoringNotes.ToList(),
+            ScoringDetails = DeepClone(ScoringDetails),
             ServerConfig = ServerConfig.CloneWithoutSecrets(),
             ValidationConfig = ValidationConfig.CloneForDeterministicResult(),
             ServerProfile = ServerProfile,
             ServerProfileSource = ServerProfileSource,
-            ExecutionLogs = ExecutionLogs,
-            CriticalErrors = CriticalErrors,
-            Recommendations = Recommendations,
-            Summary = Summary,
-            TrustAssessment = TrustAssessment,
-            PolicyOutcome = PolicyOutcome
+            ExecutionLogs = ExecutionLogs.Select(log => new ValidationLogEntry
+            {
+                Timestamp = log.Timestamp,
+                Level = log.Level,
+                Category = log.Category,
+                Message = "Validation execution event recorded.",
+                Context = new Dictionary<string, object>(),
+                Exception = log.Exception == null ? null : "Exception details redacted from canonical artifacts."
+            }).ToList(),
+            CriticalErrors = CriticalErrors.Select(_ => "Validation framework error details were redacted from the canonical artifact.").ToList(),
+            Recommendations = Recommendations.ToList(),
+            Summary = DeepCloneRequired(Summary),
+            TrustAssessment = DeepClone(TrustAssessment),
+            PolicyOutcome = DeepClone(PolicyOutcome),
+            BaselineComparison = DeepClone(BaselineComparison)
+        };
+    }
+
+    private static T? DeepClone<T>(T? value)
+    {
+        if (value == null) return default;
+        return JsonSerializer.Deserialize<T>(JsonSerializer.Serialize(value));
+    }
+
+    private static T DeepCloneRequired<T>(T value) where T : class =>
+        DeepClone(value) ?? throw new InvalidOperationException($"Unable to clone {typeof(T).Name}.");
+
+    private static ValidationAssessmentDocument SanitizeAssessments(ValidationAssessmentDocument source)
+    {
+        var node = JsonSerializer.SerializeToNode(source) ?? new JsonObject();
+        SanitizeCanonicalNode(node, propertyName: null);
+        return node.Deserialize<ValidationAssessmentDocument>() ?? new ValidationAssessmentDocument();
+    }
+
+    private static ValidationEvidenceDocument SanitizeEvidence(ValidationEvidenceDocument source)
+    {
+        var clone = DeepCloneRequired(source);
+        return new ValidationEvidenceDocument
+        {
+            Observations = clone.Observations.Select(observation => new ValidationObservation
+            {
+                Id = observation.Id,
+                LayerId = observation.LayerId,
+                Component = observation.Component,
+                ObservationKind = observation.ObservationKind,
+                ScenarioId = observation.ScenarioId,
+                RedactedPayloadPreview = string.IsNullOrWhiteSpace(observation.RedactedPayloadPreview)
+                    ? null
+                    : "Redacted typed observation available.",
+                Metadata = new Dictionary<string, string>(observation.Metadata, StringComparer.OrdinalIgnoreCase),
+                ProbeContexts = observation.ProbeContexts?.Select(SanitizeProbeContext).Where(context => context != null).Cast<ProbeContext>().ToList()
+            }).ToList(),
+            Coverage = clone.Coverage,
+            AppliedPacks = clone.AppliedPacks
+        };
+    }
+
+    private static void SanitizeCanonicalNode(JsonNode node, string? propertyName)
+    {
+        if (node is JsonObject obj)
+        {
+            foreach (var property in obj.ToArray())
+            {
+                if (property.Value == null) continue;
+                var name = property.Key;
+                if (name.Equals("rawJson", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("rawContent", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("bodyPreview", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("stdoutPreview", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("stderrPreview", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("proofOfConcept", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("testPayload", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("actualResponse", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("serverResponse", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj[name] = null;
+                    continue;
+                }
+                if (name.Equals("redactedPayloadPreview", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj[name] = property.Value.GetValueKind() == JsonValueKind.Null
+                        ? null
+                        : "Redacted typed observation available.";
+                    continue;
+                }
+                if (name.Equals("headers", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("requestHeaders", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("responseHeaders", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("context", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj[name] = new JsonObject();
+                    continue;
+                }
+                if (name.Equals("evidence", StringComparison.OrdinalIgnoreCase) && obj.ContainsKey("AttackVector"))
+                {
+                    obj[name] = new JsonObject();
+                    continue;
+                }
+                if (name.Equals("probeContexts", StringComparison.OrdinalIgnoreCase) ||
+                    name.Equals("criticalErrors", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj[name] = new JsonArray();
+                    continue;
+                }
+                if (name.Equals("exception", StringComparison.OrdinalIgnoreCase))
+                {
+                    obj[name] = "Exception details redacted from canonical artifacts.";
+                    continue;
+                }
+                SanitizeCanonicalNode(property.Value, name);
+            }
+            return;
+        }
+
+        if (node is JsonArray array)
+        {
+            foreach (var item in array)
+            {
+                if (item != null) SanitizeCanonicalNode(item, propertyName);
+            }
+        }
+    }
+
+    private static HealthCheckResult? SanitizeBootstrapHealth(HealthCheckResult? source)
+    {
+        if (source == null) return null;
+        return new HealthCheckResult
+        {
+            IsHealthy = source.IsHealthy,
+            Disposition = source.Disposition,
+            ResponseTimeMs = source.ResponseTimeMs,
+            ServerVersion = source.ServerVersion,
+            ProtocolVersion = source.ProtocolVersion,
+            ErrorMessage = source.IsHealthy ? null : "Bootstrap health did not complete successfully.",
+            ServerMetadata = new Dictionary<string, object>(),
+            InitializationDetails = SanitizeInitializationHandshake(source.InitializationDetails)
+        };
+    }
+
+    private static TransportResult<InitializeResult>? SanitizeInitializationHandshake(TransportResult<InitializeResult>? source)
+    {
+        if (source == null) return null;
+        return new TransportResult<InitializeResult>
+        {
+            IsSuccessful = source.IsSuccessful,
+            Error = source.IsSuccessful ? null : "Initialize request did not complete successfully.",
+            Payload = source.Payload == null ? null : new InitializeResult
+            {
+                ProtocolVersion = source.Payload.ProtocolVersion,
+                Capabilities = source.Payload.Capabilities,
+                ServerInfo = source.Payload.ServerInfo,
+                Instructions = null
+            },
+            Transport = SanitizeTransport(source.Transport)
+        };
+    }
+
+    private static TransportResult<CapabilitySummary>? SanitizeCapabilitySnapshot(TransportResult<CapabilitySummary>? source)
+    {
+        if (source == null) return null;
+        var payload = source.Payload;
+        return new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = source.IsSuccessful,
+            Error = source.IsSuccessful ? null : "Capability discovery did not complete successfully.",
+            Payload = payload == null ? null : new CapabilitySummary
+            {
+                CapabilityDeclarationsAvailable = payload.CapabilityDeclarationsAvailable,
+                AdvertisedCapabilities = payload.AdvertisedCapabilities.ToArray(),
+                Tools = payload.Tools.ToArray(),
+                ToolListingSucceeded = payload.ToolListingSucceeded,
+                ToolInvocationAttempted = payload.ToolInvocationAttempted,
+                ToolInvocationSucceeded = payload.ToolInvocationSucceeded,
+                FirstToolName = payload.FirstToolName,
+                DiscoveredToolsCount = payload.DiscoveredToolsCount,
+                Score = payload.Score,
+                ToolListResponse = SanitizeJsonRpcResponse(payload.ToolListResponse),
+                ResourceListResponse = SanitizeJsonRpcResponse(payload.ResourceListResponse),
+                PromptListResponse = SanitizeJsonRpcResponse(payload.PromptListResponse),
+                ToolListDurationMs = payload.ToolListDurationMs,
+                ResourceListDurationMs = payload.ResourceListDurationMs,
+                PromptListDurationMs = payload.PromptListDurationMs,
+                ResourceListingSucceeded = payload.ResourceListingSucceeded,
+                PromptListingSucceeded = payload.PromptListingSucceeded,
+                DiscoveredResourcesCount = payload.DiscoveredResourcesCount,
+                DiscoveredPromptsCount = payload.DiscoveredPromptsCount
+            },
+            Transport = SanitizeTransport(source.Transport)
+        };
+    }
+
+    private static TransportResult<ModernDiscoveryEvidence>? SanitizeModernDiscovery(TransportResult<ModernDiscoveryEvidence>? source)
+    {
+        if (source == null) return null;
+        var payload = source.Payload;
+        return new TransportResult<ModernDiscoveryEvidence>
+        {
+            IsSuccessful = source.IsSuccessful,
+            Error = source.IsSuccessful ? null : "Modern discovery did not complete successfully.",
+            Payload = payload == null ? null : new ModernDiscoveryEvidence
+            {
+                IsValid = payload.IsValid,
+                SupportedVersions = payload.SupportedVersions.ToArray(),
+                CapabilityNames = payload.CapabilityNames.ToArray(),
+                ExtensionIds = payload.ExtensionIds.ToArray(),
+                ResultType = payload.ResultType,
+                CacheScope = payload.CacheScope,
+                TtlMs = payload.TtlMs,
+                Instructions = null,
+                Errors = payload.Errors.Count == 0 ? Array.Empty<string>() : ["Discovery evidence contained validation errors."]
+            },
+            Transport = SanitizeTransport(source.Transport)
+        };
+    }
+
+    private static TransportMetadata SanitizeTransport(TransportMetadata source) => new()
+    {
+        StatusCode = source.StatusCode,
+        Duration = source.Duration,
+        Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase),
+        RawContent = null
+    };
+
+    private static JsonRpcResponse? SanitizeJsonRpcResponse(JsonRpcResponse? source)
+    {
+        if (source == null) return null;
+        return new JsonRpcResponse
+        {
+            StatusCode = source.StatusCode,
+            IsSuccess = source.IsSuccess,
+            Error = source.IsSuccess ? null : "JSON-RPC request did not complete successfully.",
+            ResultType = source.ResultType,
+            ProtocolSemanticsValid = source.ProtocolSemanticsValid,
+            ProtocolSemanticError = source.ProtocolSemanticsValid == false ? "Protocol semantics were invalid." : null,
+            RequestState = source.RequestState,
+            InputRequestCount = source.InputRequestCount,
+            ProbeContext = SanitizeProbeContext(source.ProbeContext),
+            ElapsedMs = source.ElapsedMs
+        };
+    }
+
+    private static ProbeContext? SanitizeProbeContext(ProbeContext? source)
+    {
+        if (source == null) return null;
+        return new ProbeContext
+        {
+            ProbeId = source.ProbeId,
+            RequestId = source.RequestId,
+            Method = source.Method,
+            Transport = source.Transport,
+            ProtocolVersion = source.ProtocolVersion,
+            AuthApplied = source.AuthApplied,
+            AuthScheme = source.AuthScheme,
+            AuthStatus = source.AuthStatus,
+            ResponseClassification = source.ResponseClassification,
+            Confidence = source.Confidence,
+            StatusCode = source.StatusCode
         };
     }
 }
@@ -319,6 +571,8 @@ public class ValidationResult
 public class ValidationProducerInfo
 {
     public string Name { get; set; } = string.Empty;
+
+    public string Version { get; set; } = string.Empty;
 
     public string PackageId { get; set; } = string.Empty;
 
@@ -331,10 +585,17 @@ public class ValidationProducerInfo
         return new ValidationProducerInfo
         {
             Name = "MCP Validator",
+            Version = GetCurrentVersion(),
             PackageId = "McpVal",
             RepositoryUrl = "https://github.com/navalerakesh/mcp-validation-security",
             PackageUrl = "https://www.nuget.org/packages/McpVal#versions-body-tab"
         };
+    }
+
+    private static string GetCurrentVersion()
+    {
+        var version = typeof(ValidationProducerInfo).Assembly.GetName().Version;
+        return version == null ? "0.0.0" : $"{version.Major}.{version.Minor}.{version.Build}";
     }
 }
 

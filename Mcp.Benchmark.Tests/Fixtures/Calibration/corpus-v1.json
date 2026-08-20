@@ -1,0 +1,64 @@
+{
+  "version": "1.1.0",
+  "cases": [
+    {
+      "id": "compliant",
+      "kind": "compliant",
+      "coverageStatus": "Covered",
+      "findingSeverity": null,
+      "findingGate": null,
+      "expectedBaseline": "Trusted",
+      "expectedProtocol": "Trusted",
+      "expectedCoverage": "Trusted",
+      "expectedScore": 100
+    },
+    {
+      "id": "vulnerable",
+      "kind": "vulnerable",
+      "coverageStatus": "Covered",
+      "findingSeverity": "Critical",
+      "findingGate": "Reject",
+      "expectedBaseline": "Reject",
+      "expectedProtocol": "Reject",
+      "expectedCoverage": "Trusted",
+      "expectedScore": 25
+    },
+    {
+      "id": "malformed",
+      "kind": "malformed",
+      "coverageStatus": "Covered",
+      "protocolViolationSeverity": "High",
+      "expectedBaseline": "Reject",
+      "expectedProtocol": "Reject",
+      "expectedCoverage": "Trusted",
+      "expectedScore": 30
+    },
+    {
+      "id": "unavailable",
+      "kind": "unavailable",
+      "coverageStatus": "Unavailable",
+      "expectedBaseline": "ReviewRequired",
+      "expectedProtocol": "Unknown",
+      "expectedCoverage": "ReviewRequired",
+      "expectedScore": 0
+    },
+    {
+      "id": "throttled",
+      "kind": "throttled",
+      "coverageStatus": "Inconclusive",
+      "expectedBaseline": "ReviewRequired",
+      "expectedProtocol": "Unknown",
+      "expectedCoverage": "ReviewRequired",
+      "expectedScore": 60
+    },
+    {
+      "id": "auth-protected",
+      "kind": "auth-protected",
+      "coverageStatus": "AuthRequired",
+      "expectedBaseline": "ReviewRequired",
+      "expectedProtocol": "ReviewRequired",
+      "expectedCoverage": "ReviewRequired",
+      "expectedScore": 60
+    }
+  ]
+}

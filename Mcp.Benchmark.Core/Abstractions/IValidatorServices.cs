@@ -42,6 +42,11 @@ public interface IMcpValidatorService
     Task<ValidationResult> ValidateSpecificAspectsAsync(McpServerConfig serverConfig, IEnumerable<TestCategory> testCategories, CancellationToken cancellationToken = default);
 }
 
+public interface ICorrelatedMcpValidatorService
+{
+    Task<ValidationResult> ValidateServerAsync(ValidationRunRequest request, CancellationToken cancellationToken = default);
+}
+
 /// <summary>
 /// Builds transport/session context required before executing validator pipelines.
 /// Handles handshake negotiation, capability discovery, and authentication probing so

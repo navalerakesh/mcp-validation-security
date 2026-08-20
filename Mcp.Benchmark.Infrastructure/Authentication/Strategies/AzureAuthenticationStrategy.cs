@@ -17,7 +17,7 @@ namespace Mcp.Benchmark.Infrastructure.Authentication.Strategies
         public bool CanHandle(AuthMetadata metadata)
         {
             if (metadata?.AuthorizationServers == null) return false;
-            
+
             foreach (var server in metadata.AuthorizationServers)
             {
                 if (server.Contains("login.microsoftonline.com", StringComparison.OrdinalIgnoreCase))
@@ -43,26 +43,38 @@ namespace Mcp.Benchmark.Infrastructure.Authentication.Strategies
                 }
             }
 
-            string cmdArgs = $"account get-access-token --scope \"{scope}\" --query accessToken -o tsv";
+            var commandArguments = new List<string>
+            {
+                "account",
+                "get-access-token",
+                "--scope",
+                scope,
+                "--query",
+                "accessToken",
+                "-o",
+                "tsv"
+            };
+
             if (!string.IsNullOrEmpty(tenantId))
             {
-                cmdArgs += $" --tenant {tenantId}";
+                commandArguments.Add("--tenant");
+                commandArguments.Add(tenantId);
             }
 
             // Try to get token silently first
-            var token = await RunCliCommandAsync("az", cmdArgs, ct);
-            
+            var token = await RunCliCommandAsync("az", commandArguments, ct);
+
             if (string.IsNullOrWhiteSpace(token) && isInteractive)
             {
                 _logger.LogInformation("No active Azure session found. Launching interactive login...");
-                
+
                 // Run interactive login
-                var loginResult = await RunCliCommandAsync("az", "login", ct, isInteractive: true);
-                
+                var loginResult = await RunCliCommandAsync("az", ["login"], ct, isInteractive: true);
+
                 if (loginResult != null)
                 {
                     // Try getting token again after login
-                    token = await RunCliCommandAsync("az", cmdArgs, ct);
+                    token = await RunCliCommandAsync("az", commandArguments, ct);
                 }
             }
 

@@ -3,6 +3,15 @@ using ModelContextProtocol.Protocol;
 
 namespace Mcp.Benchmark.Core.Models;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum McpResultType
+{
+    Unknown,
+    Complete,
+    InputRequired,
+    Invalid
+}
+
 public class JsonRpcRequest
 {
     [JsonPropertyName("jsonrpc")]
@@ -24,6 +33,11 @@ public class JsonRpcResponse
     public bool IsSuccess { get; set; }
     public string? RawJson { get; set; }
     public string? Error { get; set; }
+    public McpResultType ResultType { get; set; }
+    public bool? ProtocolSemanticsValid { get; set; }
+    public string? ProtocolSemanticError { get; set; }
+    public string? RequestState { get; set; }
+    public int InputRequestCount { get; set; }
     public Dictionary<string, string> Headers { get; set; } = new();
 
     public ProbeContext? ProbeContext { get; set; }

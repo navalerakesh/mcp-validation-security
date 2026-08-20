@@ -6,7 +6,7 @@ namespace Mcp.Benchmark.CLI.Abstractions;
 public interface IModelEvaluationExecutor
 {
     Task<ModelEvaluationArtifact> ExecuteAsync(
-        ValidationResult validationResult,
+        ModelEvaluationInput input,
         ExecutionPlan executionPlan,
         ModelEvaluationPolicy evaluationPolicy,
         CancellationToken cancellationToken);

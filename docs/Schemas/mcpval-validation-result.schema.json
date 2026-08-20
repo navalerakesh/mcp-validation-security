@@ -1,0 +1,302 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-validation-result.schema.json",
+  "title": "MCP Validator Canonical Validation Result",
+  "type": "object",
+  "required": [
+    "documentType",
+    "documentSchemaVersion",
+    "producer",
+    "run",
+    "assessments",
+    "evidence",
+    "compatibility",
+    "overallStatus",
+    "complianceScore"
+  ],
+  "properties": {
+    "documentType": { "const": "mcpval.validation-result" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "producer": {
+      "type": "object",
+      "required": ["name", "packageId", "repositoryUrl", "packageUrl"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+        "packageId": { "type": "string", "minLength": 1 },
+        "repositoryUrl": { "type": "string", "format": "uri" },
+        "packageUrl": { "type": "string", "format": "uri" }
+      },
+      "additionalProperties": true
+    },
+    "run": {
+      "type": "object",
+      "required": ["validationId"],
+      "properties": {
+        "validationId": { "type": "string", "minLength": 1 },
+        "protocolVersion": { "type": ["string", "null"] },
+        "schemaVersion": { "type": ["string", "null"] },
+        "operationalMetrics": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "required": ["runCorrelationId", "validatorOverheadMs", "totalRunDurationMs", "requestBudgetLimit", "requestsStarted", "requestsCompleted", "requestsFailed", "retryCount", "retryDelayMs", "truncatedResponseCount", "targetLatencyP50Ms", "targetLatencyP95Ms", "targetLatencyP99Ms", "queueTimeP95Ms", "targetLatencySampleCount", "queueTimeSampleCount", "throughputRequestsPerSecond", "errorRate", "evidenceCoverageRatio", "stageDurationMs"],
+              "properties": {
+                "runCorrelationId": { "type": "string", "minLength": 1 },
+                "validatorOverheadMs": { "type": "number", "minimum": 0 },
+                "totalRunDurationMs": { "type": "number", "minimum": 0 },
+                "requestBudgetLimit": { "type": "integer", "minimum": 0 },
+                "requestsStarted": { "type": "integer", "minimum": 0 },
+                "requestsCompleted": { "type": "integer", "minimum": 0 },
+                "requestsFailed": { "type": "integer", "minimum": 0 },
+                "retryCount": { "type": "integer", "minimum": 0 },
+                "retryDelayMs": { "type": "number", "minimum": 0 },
+                "truncatedResponseCount": { "type": "integer", "minimum": 0 },
+                "targetLatencyP50Ms": { "type": "number", "minimum": 0 },
+                "targetLatencyP95Ms": { "type": "number", "minimum": 0 },
+                "targetLatencyP99Ms": { "type": "number", "minimum": 0 },
+                "queueTimeP95Ms": { "type": "number", "minimum": 0 },
+                "targetLatencySampleCount": { "type": "integer", "minimum": 0, "maximum": 4096 },
+                "queueTimeSampleCount": { "type": "integer", "minimum": 0, "maximum": 4096 },
+                "throughputRequestsPerSecond": { "type": "number", "minimum": 0 },
+                "errorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+                "evidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+                "stageDurationMs": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "modernDiscovery": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/modernDiscoveryTransportResult" }
+          ]
+        }
+      },
+      "additionalProperties": true
+    },
+    "assessments": {
+      "type": "object",
+      "properties": {
+        "protocolCompliance": { "type": ["object", "null"] },
+        "verdictAssessment": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/verdictAssessment" }] },
+        "toolValidation": { "type": ["object", "null"] },
+        "resourceTesting": { "type": ["object", "null"] },
+        "promptTesting": { "type": ["object", "null"] },
+        "securityTesting": { "type": ["object", "null"] },
+        "performanceTesting": { "type": ["object", "null"] },
+        "errorHandling": { "type": ["object", "null"] },
+        "layers": { "type": "array", "items": { "type": "object" } },
+        "scenarios": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": true
+    },
+    "evidence": {
+      "type": "object",
+      "required": ["coverage", "observations", "appliedPacks"],
+      "properties": {
+        "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } },
+        "observations": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
+        "appliedPacks": { "type": "array", "items": { "$ref": "#/$defs/appliedPack" } }
+      },
+      "additionalProperties": true
+    },
+    "compatibility": {
+      "type": "object",
+      "properties": {
+        "clientCompatibility": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/clientCompatibility" }] }
+      },
+      "additionalProperties": true
+    },
+    "overallStatus": {
+      "enum": ["inProgress", "passed", "failed", "partiallyCompleted", "cancelled", "error"]
+    },
+    "complianceScore": { "type": "number", "minimum": 0, "maximum": 100 },
+    "trustAssessment": { "type": ["object", "null"] },
+    "verdictAssessment": { "type": ["object", "null"] },
+    "policyOutcome": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/policyOutcome" }] },
+    "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
+  },
+  "$defs": {
+    "verdict": { "enum": ["unknown", "reject", "reviewRequired", "conditionallyAcceptable", "trusted"] },
+    "verdictAssessment": {
+      "type": "object",
+      "required": ["rulesetVersion", "policy", "baselineVerdict", "protocolVerdict", "coverageVerdict", "summary", "evidenceSummary", "triggeredDecisions", "blockingDecisions", "coverageDecisions"],
+      "properties": {
+        "rulesetVersion": { "type": "string", "minLength": 1 },
+        "policy": { "type": "object" },
+        "baselineVerdict": { "$ref": "#/$defs/verdict" },
+        "protocolVerdict": { "$ref": "#/$defs/verdict" },
+        "coverageVerdict": { "$ref": "#/$defs/verdict" },
+        "summary": { "type": "string" },
+        "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
+        "triggeredDecisions": { "type": "array", "items": { "type": "object" } },
+        "blockingDecisions": { "type": "array", "items": { "type": "object" } },
+        "coverageDecisions": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": true
+    },
+    "policyOutcome": {
+      "type": "object",
+      "required": ["mode", "passed", "recommendedExitCode", "summary", "totalSignalCount", "unsuppressedSignalCount", "blockingSignalCount", "reasons", "suppressedSignalCount", "appliedSuppressions", "ignoredSuppressions"],
+      "properties": {
+        "regressionOnly": { "type": "boolean" },
+        "mode": { "enum": ["advisory", "balanced", "strict"] },
+        "passed": { "type": "boolean" },
+        "recommendedExitCode": { "type": "integer", "minimum": 0 },
+        "summary": { "type": "string" },
+        "totalSignalCount": { "type": "integer", "minimum": 0 },
+        "unsuppressedSignalCount": { "type": "integer", "minimum": 0 },
+        "blockingSignalCount": { "type": "integer", "minimum": 0 },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "suppressedSignalCount": { "type": "integer", "minimum": 0 },
+        "appliedSuppressions": { "type": "array", "items": { "$ref": "#/$defs/appliedSuppression" } },
+        "ignoredSuppressions": { "type": "array", "items": { "type": "object", "required": ["id", "reason"] } }
+      },
+      "additionalProperties": true
+    },
+    "appliedSuppression": {
+      "type": "object",
+      "required": ["id", "owner", "reason", "matchedSignalCount", "matchedSignals"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 },
+        "expiresOn": { "type": ["string", "null"], "format": "date-time" },
+        "matchedSignalCount": { "type": "integer", "minimum": 0 },
+        "matchedSignals": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "baselineComparison": {
+      "type": "object",
+      "required": ["baselineValidationId", "baselineDocumentSchemaVersion", "baselineScore", "currentScore", "scoreDelta", "baselineVerdictBefore", "baselineVerdictAfter", "isRegression", "newBlockingDecisions", "resolvedBlockingDecisionIds"],
+      "properties": {
+        "baselineValidationId": { "type": "string", "minLength": 1 },
+        "baselineDocumentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+        "baselineScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "currentScore": { "type": "number", "minimum": 0, "maximum": 100 },
+        "scoreDelta": { "type": "number", "minimum": -100, "maximum": 100 },
+        "baselineVerdictBefore": { "$ref": "#/$defs/verdict" },
+        "baselineVerdictAfter": { "$ref": "#/$defs/verdict" },
+        "isRegression": { "type": "boolean" },
+        "newBlockingDecisions": { "type": "array", "items": { "type": "object", "required": ["decisionId", "category", "component", "gate"] } },
+        "resolvedBlockingDecisionIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "clientCompatibility": {
+      "type": "object",
+      "required": ["requestedProfiles", "assessments", "compatibleCount", "warningCount", "incompatibleCount"],
+      "properties": {
+        "requestedProfiles": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "assessments": { "type": "array", "items": { "type": "object", "required": ["profileId", "displayName", "status"] } },
+        "compatibleCount": { "type": "integer", "minimum": 0 },
+        "warningCount": { "type": "integer", "minimum": 0 },
+        "incompatibleCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "evidenceSummary": {
+      "type": "object",
+      "required": ["totalDeclarations", "applicableDeclarations", "covered", "authRequired", "inconclusive", "skipped", "notApplicable", "unavailable", "blocked", "evidenceCoverageRatio", "evidenceConfidenceRatio", "confidenceLevel", "categories"],
+      "properties": {
+        "totalDeclarations": { "type": "integer", "minimum": 0 },
+        "applicableDeclarations": { "type": "integer", "minimum": 0 },
+        "covered": { "type": "integer", "minimum": 0 },
+        "authRequired": { "type": "integer", "minimum": 0 },
+        "inconclusive": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "notApplicable": { "type": "integer", "minimum": 0 },
+        "unavailable": { "type": "integer", "minimum": 0 },
+        "blocked": { "type": "integer", "minimum": 0 },
+        "evidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidenceConfidenceRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "confidenceLevel": { "enum": ["none", "low", "medium", "high"] },
+        "categories": { "type": "array", "items": { "type": "object", "required": ["layerId", "evidenceCoverageRatio", "evidenceConfidenceRatio"] } }
+      },
+      "additionalProperties": true
+    },
+    "transportMetadata": {
+      "type": "object",
+      "required": ["statusCode", "headers", "duration", "rawContent"],
+      "properties": {
+        "statusCode": { "type": ["integer", "null"] },
+        "headers": { "type": "object", "additionalProperties": { "type": "string" } },
+        "duration": { "type": "string", "minLength": 1 },
+        "rawContent": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "modernDiscoveryEvidence": {
+      "type": "object",
+      "required": ["isValid", "supportedVersions", "capabilityNames", "extensionIds", "resultType", "cacheScope", "ttlMs", "errors"],
+      "properties": {
+        "isValid": { "type": "boolean" },
+        "supportedVersions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "capabilityNames": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "extensionIds": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+$" }, "uniqueItems": true },
+        "resultType": { "type": ["string", "null"] },
+        "cacheScope": { "enum": ["public", "private", null] },
+        "ttlMs": { "type": ["integer", "null"], "minimum": 0 },
+        "instructions": { "type": ["string", "null"] },
+        "errors": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    },
+    "modernDiscoveryTransportResult": {
+      "type": "object",
+      "required": ["isSuccessful", "error", "payload", "transport"],
+      "properties": {
+        "isSuccessful": { "type": "boolean" },
+        "error": { "type": ["string", "null"] },
+        "payload": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/modernDiscoveryEvidence" }] },
+        "transport": { "$ref": "#/$defs/transportMetadata" }
+      },
+      "additionalProperties": true
+    },
+    "observation": {
+      "type": "object",
+      "required": ["id", "layerId", "component", "observationKind", "metadata"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "layerId": { "type": "string", "minLength": 1 },
+        "component": { "type": "string", "minLength": 1 },
+        "observationKind": { "type": "string", "minLength": 1 },
+        "scenarioId": { "type": ["string", "null"] },
+        "metadata": { "type": "object", "additionalProperties": { "type": "string" } },
+        "redactedPayloadPreview": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "coverage": {
+      "type": "object",
+      "required": ["layerId", "scope", "status", "blocker", "confidence"],
+      "properties": {
+        "layerId": { "type": "string", "minLength": 1 },
+        "scope": { "type": "string", "minLength": 1 },
+        "status": { "type": ["string", "integer"] },
+        "blocker": { "type": ["string", "integer"] },
+        "confidence": { "type": ["string", "integer"] },
+        "reason": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "appliedPack": {
+      "type": "object",
+      "required": ["key", "kind", "revision", "displayName", "stability"],
+      "properties": {
+        "key": { "type": "object", "required": ["value"], "properties": { "value": { "type": "string", "minLength": 1 } } },
+        "kind": { "type": ["string", "integer"] },
+        "revision": { "type": "object", "required": ["value"], "properties": { "value": { "type": "string", "minLength": 1 } } },
+        "displayName": { "type": "string", "minLength": 1 },
+        "stability": { "type": ["string", "integer"] },
+        "documentationUrl": { "type": ["string", "null"], "format": "uri" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

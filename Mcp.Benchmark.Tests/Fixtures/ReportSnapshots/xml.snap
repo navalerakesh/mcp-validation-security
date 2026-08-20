@@ -131,6 +131,7 @@
             </Metadata>
           </EvidenceReference>
         </EvidenceReferences>
+        <RuleId>MCP.AI.BOUNDARY.PromptInjection</RuleId>
       </Decision>
       <Decision id="baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" gate="ReviewRequired" authority="heuristic" authorityPriority="2" origin="HeuristicInference" severity="Medium">
         <Category>AiReadiness</Category>
@@ -174,6 +175,7 @@
             </Metadata>
           </EvidenceReference>
         </EvidenceReferences>
+        <RuleId>MCP.COVERAGE.EVIDENCE_DEBT</RuleId>
       </Decision>
       <Decision id="baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" gate="Reject" authority="operational" authorityPriority="3" origin="DeterministicObservation" severity="Critical">
         <Category>Execution</Category>
@@ -211,6 +213,7 @@
             </Metadata>
           </EvidenceReference>
         </EvidenceReferences>
+        <RuleId>MCP.COVERAGE.EVIDENCE_DEBT</RuleId>
       </Decision>
     </CoverageDecisions>
   </Verdicts>

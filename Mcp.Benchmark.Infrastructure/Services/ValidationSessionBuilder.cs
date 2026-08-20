@@ -8,6 +8,9 @@ using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Authentication;
+using Mcp.Benchmark.Infrastructure.Http;
+using Mcp.Benchmark.Infrastructure.Validators;
+using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using CoreLogLevel = Mcp.Benchmark.Core.Models.LogLevel;
 
@@ -22,6 +25,8 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
     private readonly IMcpHttpClient _httpClient;
     private readonly IAuthenticationService _authenticationService;
     private readonly IHealthCheckService _healthCheckService;
+    private readonly ISchemaRegistry _schemaRegistry;
+    private readonly ISchemaValidator _schemaValidator;
     private readonly ILogger<ValidationSessionBuilder> _logger;
 
     public ValidationSessionBuilder(
@@ -29,10 +34,29 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         IAuthenticationService authenticationService,
         IHealthCheckService healthCheckService,
         ILogger<ValidationSessionBuilder> logger)
+        : this(
+            httpClient,
+            authenticationService,
+            healthCheckService,
+            new EmbeddedSchemaRegistry(),
+            new JsonSchemaValidator(),
+            logger)
+    {
+    }
+
+    public ValidationSessionBuilder(
+        IMcpHttpClient httpClient,
+        IAuthenticationService authenticationService,
+        IHealthCheckService healthCheckService,
+        ISchemaRegistry schemaRegistry,
+        ISchemaValidator schemaValidator,
+        ILogger<ValidationSessionBuilder> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _authenticationService = authenticationService ?? throw new ArgumentNullException(nameof(authenticationService));
         _healthCheckService = healthCheckService ?? throw new ArgumentNullException(nameof(healthCheckService));
+        _schemaRegistry = schemaRegistry ?? throw new ArgumentNullException(nameof(schemaRegistry));
+        _schemaValidator = schemaValidator ?? throw new ArgumentNullException(nameof(schemaValidator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -56,7 +80,7 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         // Here we just validate that the endpoint looks like a valid command for stdio.
         if (string.Equals(server.Transport, ValidationConstants.Transports.Stdio, StringComparison.OrdinalIgnoreCase))
         {
-            _logger.LogInformation("STDIO transport detected. Endpoint will be treated as process command: {Command}", server.Endpoint);
+            _logger.LogInformation("STDIO transport detected; configured process command will remain redacted");
             if (server.Endpoint.StartsWith("http://") || server.Endpoint.StartsWith("https://"))
             {
                 throw new ValidationSessionException(
@@ -87,28 +111,60 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         _httpClient.SetProtocolVersion(server.ProtocolVersion);
         _httpClient.SetAuthentication(server.Authentication);
 
-        var healthCheck = await _healthCheckService.PerformHealthCheckAsync(server, cancellationToken);
-        context.BootstrapHealth = healthCheck;
-        context.InitializationHandshake = healthCheck.InitializationDetails;
-
-        if (!healthCheck.IsHealthy)
+        var modernDiscoverySucceeded = false;
+        if (ProtocolEraVersions.IsModern(server.ProtocolVersion))
         {
-            if (ValidationReliability.ShouldAllowDeferredValidation(healthCheck))
+            context.ModernDiscovery = await CaptureModernDiscoveryAsync(server, cancellationToken);
+            modernDiscoverySucceeded = context.ModernDiscovery.IsSuccessful && context.ModernDiscovery.Payload?.IsValid == true;
+            if (modernDiscoverySucceeded)
             {
-                _logger.LogInformation(
-                    "Health check reported a deferred {Disposition} outcome that will be revisited during validation: {Message}",
-                    healthCheck.Disposition,
-                    healthCheck.ErrorMessage);
+                _httpClient.SetModernDiscovery(context.ModernDiscovery.Payload);
             }
-            else
+            if (!modernDiscoverySucceeded && server.ProtocolEra == McpProtocolEraSelection.Modern)
             {
-                throw new ValidationSessionException(healthCheck.ErrorMessage ?? "Server is unreachable", ValidationStatus.Failed);
+                var reason = context.ModernDiscovery.Payload?.Errors.FirstOrDefault()
+                    ?? context.ModernDiscovery.Error
+                    ?? "server/discover did not return valid modern discovery evidence.";
+                throw new ValidationSessionException($"Modern protocol discovery failed: {reason}", ValidationStatus.Failed);
             }
         }
 
-        var negotiatedVersion = DetermineProtocolVersion(server, healthCheck);
-        server.ProtocolVersion = negotiatedVersion;
-        context.ProtocolVersion = negotiatedVersion;
+        if (modernDiscoverySucceeded)
+        {
+            context.ProtocolVersion = server.ProtocolVersion;
+            context.BootstrapHealth = new HealthCheckResult
+            {
+                IsHealthy = true,
+                ProtocolVersion = server.ProtocolVersion,
+                ErrorMessage = null
+            };
+        }
+        else
+        {
+            var healthCheck = await _healthCheckService.PerformHealthCheckAsync(server, cancellationToken);
+            context.BootstrapHealth = healthCheck;
+            context.InitializationHandshake = healthCheck.InitializationDetails;
+
+            if (!healthCheck.IsHealthy)
+            {
+                if (ValidationReliability.ShouldAllowDeferredValidation(healthCheck))
+                {
+                    _logger.LogInformation(
+                        "Health check reported a deferred {Disposition} outcome that will be revisited during validation: {Message}",
+                        healthCheck.Disposition,
+                        healthCheck.ErrorMessage);
+                }
+                else
+                {
+                    throw new ValidationSessionException(healthCheck.ErrorMessage ?? "Server is unreachable", ValidationStatus.Failed);
+                }
+            }
+
+            var negotiatedVersion = DetermineProtocolVersion(server, healthCheck);
+            ValidateNegotiatedProtocolEra(server.ProtocolEra, negotiatedVersion);
+            server.ProtocolVersion = negotiatedVersion;
+            context.ProtocolVersion = negotiatedVersion;
+        }
 
         _httpClient.SetProtocolVersion(server.ProtocolVersion);
 
@@ -153,6 +209,10 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
             auth.Token = token;
             auth.Type = "bearer";
             _logger.LogInformation("Device code authentication completed successfully.");
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -205,6 +265,10 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
                                 await AcquireTokenAsync(serverConfig, authMetadata, discoveryInfo, cancellationToken);
                                 return discoveryInfo;
                             }
+                        }
+                        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                        {
+                            throw;
                         }
                         catch (Exception ex)
                         {
@@ -295,6 +359,186 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         }
     }
 
+    private async Task<TransportResult<ModernDiscoveryEvidence>> CaptureModernDiscoveryAsync(
+        McpServerConfig serverConfig,
+        CancellationToken cancellationToken)
+    {
+        JsonRpcResponse response;
+        try
+        {
+            response = await _httpClient.CallAsync(
+                serverConfig.Endpoint!,
+                ValidationConstants.Methods.ServerDiscover,
+                null,
+                serverConfig.Authentication,
+                cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (ex is JsonException or InvalidOperationException)
+        {
+            _logger.LogDebug(ex, "Modern server/discover response could not be bound; auto negotiation may fall back to initialize.");
+            return CreateModernDiscoveryFailure(
+                new JsonRpcResponse { StatusCode = -1, IsSuccess = false },
+                "server/discover response could not be parsed as modern discovery evidence.");
+        }
+        if (!response.IsSuccess || string.IsNullOrWhiteSpace(response.RawJson))
+        {
+            return CreateModernDiscoveryFailure(
+                response,
+                response.Error ?? "server/discover returned no successful response.");
+        }
+
+        try
+        {
+            var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
+            if (!SchemaValidationHelpers.TryValidateResponseDefinition(
+                    _schemaRegistry,
+                    _schemaValidator,
+                    protocolVersion,
+                    SchemaValidationHelpers.DiscoverResultResponseDefinition,
+                    response.RawJson,
+                    _logger,
+                    out var schemaResult) || schemaResult is null)
+            {
+                return CreateModernDiscoveryFailure(response, "The embedded server/discover response schema could not be evaluated.");
+            }
+
+            if (!schemaResult.IsValid)
+            {
+                return CreateModernDiscoveryFailure(response, string.Join(Environment.NewLine, schemaResult.Errors));
+            }
+
+            using var document = JsonDocument.Parse(response.RawJson);
+            if (!document.RootElement.TryGetProperty("result", out var result) || result.ValueKind != JsonValueKind.Object)
+            {
+                throw new JsonException("server/discover response is missing an object result.");
+            }
+
+            var errors = new List<string>();
+            var versions = ReadStringArray(result, "supportedVersions", errors);
+            var resultType = ReadRequiredString(result, "resultType", errors);
+            var cacheScope = ReadRequiredString(result, "cacheScope", errors);
+            long? ttlMs = null;
+            if (!result.TryGetProperty("ttlMs", out var ttlElement) || !ttlElement.TryGetInt64(out var parsedTtl) || parsedTtl < 0)
+            {
+                errors.Add("server/discover result requires a non-negative ttlMs.");
+            }
+            else
+            {
+                ttlMs = parsedTtl;
+            }
+
+            var capabilityNames = new List<string>();
+            var extensionIds = new List<string>();
+            if (!result.TryGetProperty("capabilities", out var capabilities) || capabilities.ValueKind != JsonValueKind.Object)
+            {
+                errors.Add("server/discover result requires an object capabilities field.");
+            }
+            else
+            {
+                capabilityNames.AddRange(capabilities.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal));
+                if (capabilities.TryGetProperty("extensions", out var extensions) && extensions.ValueKind == JsonValueKind.Object)
+                {
+                    extensionIds.AddRange(extensions.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal));
+                }
+            }
+
+            if (!versions.Contains(serverConfig.ProtocolVersion ?? string.Empty, StringComparer.Ordinal))
+            {
+                errors.Add($"server/discover supportedVersions does not include selected version '{serverConfig.ProtocolVersion}'.");
+            }
+
+            return new TransportResult<ModernDiscoveryEvidence>
+            {
+                IsSuccessful = true,
+                Payload = new ModernDiscoveryEvidence
+                {
+                    IsValid = errors.Count == 0,
+                    SupportedVersions = versions,
+                    CapabilityNames = capabilityNames,
+                    ExtensionIds = extensionIds,
+                    ResultType = resultType,
+                    CacheScope = cacheScope,
+                    TtlMs = ttlMs,
+                    Instructions = result.TryGetProperty("instructions", out var instructions) && instructions.ValueKind == JsonValueKind.String
+                        ? instructions.GetString()
+                        : null,
+                    Errors = errors
+                },
+                Transport = CreateTransportMetadata(response)
+            };
+        }
+        catch (JsonException ex)
+        {
+            return new TransportResult<ModernDiscoveryEvidence>
+            {
+                IsSuccessful = false,
+                Error = ex.Message,
+                Transport = CreateTransportMetadata(response)
+            };
+        }
+    }
+
+    private static TransportResult<ModernDiscoveryEvidence> CreateModernDiscoveryFailure(JsonRpcResponse response, string error)
+    {
+        return new TransportResult<ModernDiscoveryEvidence>
+        {
+            IsSuccessful = false,
+            Error = error,
+            Payload = new ModernDiscoveryEvidence { IsValid = false, Errors = [error] },
+            Transport = CreateTransportMetadata(response)
+        };
+    }
+
+    private static TransportMetadata CreateTransportMetadata(JsonRpcResponse response)
+    {
+        return new TransportMetadata
+        {
+            StatusCode = response.StatusCode,
+            Headers = new Dictionary<string, string>(response.Headers, StringComparer.OrdinalIgnoreCase),
+            Duration = TimeSpan.FromMilliseconds(response.ElapsedMs ?? 0),
+            RawContent = response.RawJson
+        };
+    }
+
+    private static IReadOnlyList<string> ReadStringArray(JsonElement parent, string propertyName, List<string> errors)
+    {
+        if (!parent.TryGetProperty(propertyName, out var element) || element.ValueKind != JsonValueKind.Array)
+        {
+            errors.Add($"server/discover result requires an array {propertyName} field.");
+            return Array.Empty<string>();
+        }
+
+        var values = element.EnumerateArray()
+            .Where(item => item.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(item.GetString()))
+            .Select(item => item.GetString()!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray();
+        if (values.Length != element.GetArrayLength() || values.Length == 0)
+        {
+            errors.Add($"server/discover result {propertyName} must contain non-empty unique strings.");
+        }
+
+        return values;
+    }
+
+    private static string? ReadRequiredString(JsonElement parent, string propertyName, List<string> errors)
+    {
+        if (!parent.TryGetProperty(propertyName, out var element) ||
+            element.ValueKind != JsonValueKind.String ||
+            string.IsNullOrWhiteSpace(element.GetString()))
+        {
+            errors.Add($"server/discover result requires a non-empty {propertyName} field.");
+            return null;
+        }
+
+        return element.GetString();
+    }
+
     private static (McpServerProfile profile, ServerProfileSource source) ResolveServerProfile(McpServerConfig server)
     {
         if (server.Profile != McpServerProfile.Unspecified)
@@ -303,7 +547,7 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         }
 
         var auth = server.Authentication;
-        if (auth?.Required == true || !string.IsNullOrWhiteSpace(auth?.Token) || auth?.AllowInteractive == true)
+        if (auth?.Required == true || McpAuthenticationHelper.HasCredential(auth) || auth?.AllowInteractive == true)
         {
             return (McpServerProfile.Authenticated, ServerProfileSource.Inferred);
         }
@@ -353,6 +597,30 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         return serverConfig.ProtocolVersion;
     }
 
+    private static void ValidateNegotiatedProtocolEra(McpProtocolEraSelection selection, string? negotiatedVersion)
+    {
+        if (selection == McpProtocolEraSelection.Auto)
+        {
+            return;
+        }
+
+        if (!SchemaRegistryProtocolVersions.IsAvailableVersion(negotiatedVersion))
+        {
+            throw new ValidationSessionException(
+                $"The server negotiated unsupported protocol version '{negotiatedVersion ?? "unknown"}' for explicit {selection.ToString().ToLowerInvariant()} era validation.",
+                ValidationStatus.Failed);
+        }
+
+        var negotiatedModern = ProtocolEraVersions.IsModern(negotiatedVersion);
+        var matches = selection == McpProtocolEraSelection.Modern ? negotiatedModern : !negotiatedModern;
+        if (!matches)
+        {
+            throw new ValidationSessionException(
+                $"The server negotiated protocol version '{negotiatedVersion}', which conflicts with explicit {selection.ToString().ToLowerInvariant()} era validation.",
+                ValidationStatus.Failed);
+        }
+    }
+
     private async Task TryRefreshProtocolVersionAsync(McpServerConfig serverConfig, ValidationSessionContext context, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrWhiteSpace(context.ProtocolVersion))
@@ -398,40 +666,6 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
 
     private static McpServerConfig CloneServerConfig(McpServerConfig source)
     {
-        var clone = new McpServerConfig
-        {
-            Endpoint = source.Endpoint,
-            Transport = source.Transport,
-            ProtocolVersion = source.ProtocolVersion,
-            TimeoutMs = source.TimeoutMs,
-            Authentication = CloneAuthentication(source.Authentication),
-            Headers = new Dictionary<string, string>(source.Headers ?? new Dictionary<string, string>()),
-            Environment = new Dictionary<string, string>(source.Environment ?? new Dictionary<string, string>())
-        };
-
-        return clone;
-    }
-
-    private static AuthenticationConfig? CloneAuthentication(AuthenticationConfig? source)
-    {
-        if (source == null)
-        {
-            return null;
-        }
-
-        return new AuthenticationConfig
-        {
-            Type = source.Type,
-            Required = source.Required,
-            Token = source.Token,
-            Username = source.Username,
-            Password = source.Password,
-            ClientId = source.ClientId,
-            TenantId = source.TenantId,
-            Scopes = source.Scopes,
-            Authority = source.Authority,
-            CustomHeaders = new Dictionary<string, string>(source.CustomHeaders ?? new Dictionary<string, string>()),
-            AllowInteractive = source.AllowInteractive
-        };
+        return source.CloneForExecution();
     }
 }

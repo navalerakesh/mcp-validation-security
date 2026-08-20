@@ -14,6 +14,7 @@ public class MarkdownReportGenerator : IReportGenerator
 {
     public string GenerateReport(ValidationResult result)
     {
+        using var culture = InvariantCultureScope.Enter();
         var sb = new StringBuilder();
         var sectionNumber = 1;
         var bootstrapHealth = ResolveBootstrapHealth(result);
@@ -23,17 +24,19 @@ public class MarkdownReportGenerator : IReportGenerator
         var evidenceSummary = ResolveEvidenceSummary(result);
 
         // Header
-        sb.AppendLine("# MCP Server Compliance & Validation Report");
-        sb.AppendLine($"**Generated:** {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC");
+        sb.AppendLine("# Model Context Protocol (MCP) Server Compliance & Validation Report");
+        sb.AppendLine($"**Generated:** {ResolveArtifactTime(result):yyyy-MM-dd HH:mm:ss} UTC");
         sb.AppendLine();
+
+        AppendReaderKey(sb);
 
         // Executive Summary
         sb.AppendLine($"## {sectionNumber++}. Executive Summary");
         sb.AppendLine();
         sb.AppendLine("| Metric | Value |");
         sb.AppendLine("| :--- | :--- |");
-        sb.AppendLine($"| **Server Endpoint** | `{result.ServerConfig.Endpoint}` |");
-        sb.AppendLine($"| **Validation ID** | `{result.ValidationId}` |");
+        sb.AppendLine($"| **Server Endpoint** | `{EscapeInlineCode(result.ServerConfig.Endpoint)}` |");
+        sb.AppendLine($"| **Validation Identifier** | `{result.ValidationId}` |");
         sb.AppendLine($"| **Overall Status** | {GetStatusIcon(result.OverallStatus)} **{result.OverallStatus}** |");
         if (result.VerdictAssessment != null)
         {
@@ -47,8 +50,26 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"| **Evidence Coverage** | **{FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")}** |");
             sb.AppendLine($"| **Evidence Confidence** | **{evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F1")})** |");
         }
+        if (result.BaselineComparison is { } baseline)
+        {
+            sb.AppendLine($"| **Baseline Regression** | **{(baseline.IsRegression ? "Yes" : "No")}** ({baseline.ScoreDelta:+0.##;-0.##;0} points) |");
+        }
+        if (result.PolicyOutcome is { } policy)
+        {
+            sb.AppendLine($"| **Applied Waivers** | **{policy.AppliedWaivers.Count}** |");
+        }
         sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
+        if (result.Run.OperationalMetrics is { } operations)
+        {
+            sb.AppendLine($"| **Validator Overhead** | {operations.ValidatorOverheadMs:F1} ms |");
+            sb.AppendLine($"| **Target Latency (50th / 95th / 99th Percentile)** | {operations.TargetLatencyP50Ms:F1} / {operations.TargetLatencyP95Ms:F1} / {operations.TargetLatencyP99Ms:F1} ms |");
+            sb.AppendLine($"| **Retries / Queue 95th Percentile** | {operations.RetryCount} / {operations.QueueTimeP95Ms:F1} ms |");
+            sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {operations.ThroughputRequestsPerSecond:F2} requests/second |");
+            sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {operations.ErrorRate:P1} aggregate failure rate |");
+            sb.AppendLine($"| **Budget / Rejected Responses** | {operations.RequestBudgetLimit} / {operations.TruncatedResponseCount} |");
+            sb.AppendLine($"| **Operational Evidence Coverage** | {operations.EvidenceCoverageRatio:P1} |");
+        }
         sb.AppendLine($"| **Transport** | {result.ServerConfig.Transport?.ToUpper() ?? "HTTP"} |");
         if (bootstrapHealth != null)
         {
@@ -69,9 +90,16 @@ public class MarkdownReportGenerator : IReportGenerator
                 McpTrustLevel.L2_Caution => "🟠",
                 _ => "🔴"
             };
-            sb.AppendLine($"| **Benchmark Trust Level** | {trustIcon} **{result.TrustAssessment.TrustLabel}** |");
+            var trustQualifier = result.TrustAssessment.LimitedByIncompleteEvidence
+                ? $" (evidence-limited; unevaluated: {string.Join(", ", result.TrustAssessment.UnevaluatedDimensions)})"
+                : string.Empty;
+            var trustLabelParts = result.TrustAssessment.TrustLabel.Split(':', 2);
+            var trustDescription = trustLabelParts.Length == 2 ? trustLabelParts[1].Trim() : result.TrustAssessment.TrustLabel;
+            sb.AppendLine($"| **Benchmark Trust Level** | {trustIcon} **Level {(int)result.TrustAssessment.TrustLevel} ({trustLabelParts[0]}): {trustDescription}**{trustQualifier} |");
         }
         sb.AppendLine();
+
+        AppendOperationalMetricsSection(sb, result.Run.OperationalMetrics, ref sectionNumber);
 
         AppendBootstrapSection(sb, result, bootstrapHealth, ref sectionNumber);
         AppendPriorityFindingsSection(sb, result, ref sectionNumber);
@@ -104,12 +132,16 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine();
                 foreach (var decision in result.VerdictAssessment.BlockingDecisions.Take(8))
                 {
-                    sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{decision.Category}] `{decision.Component}`: {decision.Summary}");
+                    sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{EscapeMarkdownText(decision.Category)}] `{EscapeInlineCode(decision.Component)}`: {EscapeMarkdownText(decision.Summary)}");
                     var evidence = FormatDecisionEvidence(decision);
                     if (!string.IsNullOrWhiteSpace(evidence))
                     {
                         sb.AppendLine($"  - Evidence: {evidence}");
                     }
+                }
+                if (result.VerdictAssessment.BlockingDecisions.Count > 8)
+                {
+                    sb.AppendLine($"- _{result.VerdictAssessment.BlockingDecisions.Count - 8} additional blocking decision(s) are retained in canonical JSON._");
                 }
                 sb.AppendLine();
             }
@@ -122,13 +154,17 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine();
             sb.AppendLine("Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.");
             sb.AppendLine("This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.");
+            if (result.TrustAssessment.LimitedByIncompleteEvidence)
+            {
+                sb.AppendLine($"Evidence is incomplete. The following dimensions were not evaluated: **{string.Join(", ", result.TrustAssessment.UnevaluatedDimensions)}**.");
+            }
             sb.AppendLine();
             sb.AppendLine("| Dimension | Score | What It Measures |");
             sb.AppendLine("| :--- | :---: | :--- |");
-            sb.AppendLine($"| **Protocol Compliance** | {result.TrustAssessment.ProtocolCompliance:F0}% | MCP spec adherence, JSON-RPC compliance, response structures |");
-            sb.AppendLine($"| **Security Posture** | {result.TrustAssessment.SecurityPosture:F0}% | Auth compliance, injection resistance, attack surface |");
-            sb.AppendLine($"| **AI Safety** | {result.TrustAssessment.AiSafety:F0}% | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |");
-            sb.AppendLine($"| **Operational Readiness** | {result.TrustAssessment.OperationalReadiness:F0}% | Latency, throughput, error rate, stability |");
+            sb.AppendLine($"| **Protocol Compliance** | {FormatTrustDimensionScore(result.TrustAssessment, "protocol", result.TrustAssessment.ProtocolCompliance)} | MCP spec adherence, JSON-RPC compliance, response structures |");
+            sb.AppendLine($"| **Security Posture** | {FormatTrustDimensionScore(result.TrustAssessment, "security", result.TrustAssessment.SecurityPosture)} | Auth compliance, injection resistance, attack surface |");
+            sb.AppendLine($"| **AI Safety** | {FormatTrustDimensionScore(result.TrustAssessment, "ai-safety", result.TrustAssessment.AiSafety)} | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |");
+            sb.AppendLine($"| **Operational Readiness** | {FormatTrustDimensionScore(result.TrustAssessment, "operations", result.TrustAssessment.OperationalReadiness)} | Latency, throughput, error rate, stability |");
             if (result.TrustAssessment.LlmFriendlinessScore >= 0)
             {
                 var llmGrade = result.TrustAssessment.LlmFriendlinessScore >= 70 ? "🟢 Pro-LLM" : result.TrustAssessment.LlmFriendlinessScore >= 40 ? "🟡 Neutral" : "🔴 Anti-LLM";
@@ -147,7 +183,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 foreach (var finding in result.TrustAssessment.BoundaryFindings)
                 {
                     var sevIcon = finding.Severity switch { "Critical" => "🔴", "High" => "🟠", "Medium" => "🟡", _ => "🔵" };
-                    sb.AppendLine($"| {finding.Category} | `{finding.Component}` | {sevIcon} {finding.Severity} | {finding.Description} |");
+                    sb.AppendLine($"| {EscapeTableCell(finding.Category)} | `{EscapeTableCell(finding.Component)}` | {sevIcon} {EscapeTableCell(finding.Severity)} | {EscapeTableCell(finding.Description)} |");
                 }
                 sb.AppendLine();
             }
@@ -163,7 +199,7 @@ public class MarkdownReportGenerator : IReportGenerator
             // Compliance Tiers Table (MUST/SHOULD/MAY)
             if (includeDetailedSections && result.TrustAssessment.TierChecks.Count > 0)
             {
-                sb.AppendLine("### MCP Spec Compliance (RFC 2119 Tiers)");
+                sb.AppendLine("### MCP Specification Compliance (RFC 2119 Tiers)");
                 sb.AppendLine();
                 sb.AppendLine("`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.");
                 sb.AppendLine();
@@ -240,7 +276,7 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine();
         sb.AppendLine("| Category | Status | Score | Issues |");
         sb.AppendLine("| :--- | :---: | :---: | :---: |");
-        
+
         AddMatrixRow(sb, "Protocol Compliance", result.ProtocolCompliance?.Status, result.ProtocolCompliance?.ComplianceScore, GetProtocolIssueCount(result.ProtocolCompliance));
         AddMatrixRow(sb, "Security Assessment", result.SecurityTesting?.Status, result.SecurityTesting?.SecurityScore, result.SecurityTesting?.Vulnerabilities?.Count);
         AddMatrixRow(sb, "Tool Validation", result.ToolValidation?.Status, result.ToolValidation?.Score, result.ToolValidation?.ToolsTestFailed);
@@ -260,7 +296,7 @@ public class MarkdownReportGenerator : IReportGenerator
             {
                 foreach (var finding in result.PerformanceTesting.Findings)
                 {
-                    sb.AppendLine($"- {finding.Summary}");
+                    sb.AppendLine($"- {EscapeMarkdownText(finding.Summary)}");
                 }
                 sb.AppendLine();
             }
@@ -274,7 +310,7 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine();
             sb.AppendLine($"**Security Score:** {result.SecurityTesting.SecurityScore:F1}%");
             sb.AppendLine();
-            
+
             if (result.SecurityTesting.AuthenticationTestResult?.TestScenarios?.Any() == true)
             {
                 sb.AppendLine("### Authentication Analysis");
@@ -282,7 +318,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- | :---: |");
                 foreach (var test in result.SecurityTesting.AuthenticationTestResult.TestScenarios)
                 {
-                    sb.AppendLine($"| {test.ScenarioName} | `{test.Method}` | {test.ExpectedBehavior} | {test.ActualBehavior} | {test.StatusCode} | {test.Analysis} | {GetStatusIcon(test.IsCompliant ? TestStatus.Passed : TestStatus.Failed)} |");
+                    sb.AppendLine($"| {EscapeTableCell(test.ScenarioName)} | `{EscapeTableCell(test.Method)}` | {EscapeTableCell(test.ExpectedBehavior)} | {EscapeTableCell(test.ActualBehavior)} | {EscapeTableCell(test.StatusCode)} | {EscapeTableCell(test.Analysis)} | {GetStatusIcon(test.IsCompliant ? TestStatus.Passed : TestStatus.Failed)} |");
                 }
                 sb.AppendLine();
             }
@@ -307,11 +343,11 @@ public class MarkdownReportGenerator : IReportGenerator
                         _ => "⚠️ REFLECTED / UNSAFE ECHO"
                     };
 
-                    var response = string.IsNullOrEmpty(attack.ServerResponse) 
-                        ? "-" 
+                    var response = string.IsNullOrEmpty(attack.ServerResponse)
+                        ? "-"
                         : $"`{attack.ServerResponse.Replace("|", "\\|").Replace("\n", " ")}`";
-                    
-                    sb.AppendLine($"| {attack.AttackVector} | {attack.Description} | {status} | {FormatProbeContexts(attack.ProbeContexts)} | {response} |");
+
+                    sb.AppendLine($"| {EscapeTableCell(attack.AttackVector)} | {EscapeTableCell(attack.Description)} | {status} | {EscapeTableCell(FormatProbeContexts(attack.ProbeContexts))} | {EscapeTableCell(response)} |");
                 }
                 sb.AppendLine();
             }
@@ -338,7 +374,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine($"**Status Detail:** {result.ProtocolCompliance.Message}");
                 sb.AppendLine();
             }
-            
+
             if (result.ProtocolCompliance.Violations?.Any() == true)
             {
                 sb.AppendLine("### Compliance Violations");
@@ -347,7 +383,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 foreach (var issue in result.ProtocolCompliance.Violations)
                 {
                     var recommendation = !string.IsNullOrWhiteSpace(issue.Recommendation) ? issue.Recommendation : "-";
-                    sb.AppendLine($"| {issue.CheckId} | `{ValidationRuleSourceClassifier.GetLabel(issue)}` | {issue.Description} | {issue.Severity} | {EscapeTableCell(recommendation)} |");
+                    sb.AppendLine($"| {EscapeTableCell(issue.CheckId)} | `{EscapeTableCell(ValidationRuleSourceClassifier.GetLabel(issue))}` | {EscapeTableCell(issue.Description)} | {issue.Severity} | {EscapeTableCell(recommendation)} |");
                 }
                 sb.AppendLine();
 
@@ -423,14 +459,14 @@ public class MarkdownReportGenerator : IReportGenerator
                         sb.AppendLine("#### Tool Metadata");
                         sb.AppendLine("| Property | Value |");
                         sb.AppendLine("| :--- | :--- |");
-                        if (!string.IsNullOrWhiteSpace(tool.DisplayTitle)) sb.AppendLine($"| Display Title | {tool.DisplayTitle} |");
+                        if (!string.IsNullOrWhiteSpace(tool.DisplayTitle)) sb.AppendLine($"| Display Title | {EscapeTableCell(tool.DisplayTitle)} |");
                         if (tool.ReadOnlyHint.HasValue) sb.AppendLine($"| readOnlyHint | {tool.ReadOnlyHint.Value} |");
                         if (tool.DestructiveHint.HasValue) sb.AppendLine($"| destructiveHint | {tool.DestructiveHint.Value} |");
                         if (tool.OpenWorldHint.HasValue) sb.AppendLine($"| openWorldHint | {tool.OpenWorldHint.Value} |");
                         if (tool.IdempotentHint.HasValue) sb.AppendLine($"| idempotentHint | {tool.IdempotentHint.Value} |");
                         sb.AppendLine();
                     }
-                    
+
                     if (tool.AuthMetadata != null)
                     {
                         sb.AppendLine();
@@ -457,11 +493,11 @@ public class MarkdownReportGenerator : IReportGenerator
                         sb.AppendLine("| :--- | :--- | :--- | :--- | :---: |");
                         foreach (var param in tool.ParameterTests)
                         {
-                            sb.AppendLine($"| `{param.ParameterName}` | {param.TestScenario} | {param.ExpectedBehavior} | {param.ActualBehavior} | {(param.ValidationPassed ? "✅" : "❌")} |");
+                            sb.AppendLine($"| `{EscapeTableCell(param.ParameterName)}` | {EscapeTableCell(param.TestScenario)} | {EscapeTableCell(param.ExpectedBehavior)} | {EscapeTableCell(param.ActualBehavior)} | {(param.ValidationPassed ? "✅" : "❌")} |");
                         }
                         sb.AppendLine();
                     }
-                    
+
                     sb.AppendLine("---");
                     sb.AppendLine();
                 }
@@ -515,7 +551,7 @@ public class MarkdownReportGenerator : IReportGenerator
                             _ => "⚪ Info"
                         };
                         var examples = finding.ExampleComponents.Count > 0 ? string.Join(", ", finding.ExampleComponents.Select(component => $"`{component}`")) : "-";
-                        sb.AppendLine($"| `{finding.RuleId}` | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severityIcon} | {examples} | {finding.Summary} |");
+                        sb.AppendLine($"| `{EscapeTableCell(finding.RuleId)}` | `{EscapeTableCell(finding.SourceLabel)}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severityIcon} | {EscapeTableCell(examples)} | {EscapeTableCell(finding.Summary)} |");
                     }
                     sb.AppendLine();
                 }
@@ -535,7 +571,7 @@ public class MarkdownReportGenerator : IReportGenerator
                 sb.AppendLine("| :--- | :--- | :--- | :--- | :---: |");
                 foreach (var res in result.ResourceTesting.ResourceResults)
                 {
-                    sb.AppendLine($"| {res.ResourceName} | `{res.ResourceUri}` | {res.MimeType ?? "-"} | {res.ContentSize?.ToString() ?? "-"} | {GetStatusIcon(res.Status)} |");
+                    sb.AppendLine($"| {EscapeTableCell(res.ResourceName)} | `{EscapeTableCell(res.ResourceUri)}` | {EscapeTableCell(res.MimeType ?? "-")} | {res.ContentSize?.ToString() ?? "-"} | {GetStatusIcon(res.Status)} |");
                 }
                 sb.AppendLine();
             }
@@ -616,7 +652,7 @@ public class MarkdownReportGenerator : IReportGenerator
                         };
 
                         var evidenceBasis = AiReadinessEvidenceKinds.ToDisplayLabel(finding.EvidenceKind, finding.RuleId);
-                        sb.AppendLine($"| `{finding.RuleId}` | {evidenceBasis} | `{finding.SourceLabel}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severity} | {finding.Summary} |");
+                        sb.AppendLine($"| `{EscapeTableCell(finding.RuleId)}` | {EscapeTableCell(evidenceBasis)} | `{EscapeTableCell(finding.SourceLabel)}` | {FormatCoverage(finding.AffectedComponents, finding.TotalComponents)} | {severity} | {EscapeTableCell(finding.Summary)} |");
                     }
                 }
                 else foreach (var issue in result.ToolValidation.AiReadinessIssues)
@@ -696,9 +732,9 @@ public class MarkdownReportGenerator : IReportGenerator
 
                 sb.AppendLine("| Metric | Result | Verdict |");
                 sb.AppendLine("| :--- | :--- | :--- |");
-                sb.AppendLine($"| **Avg Latency** | {result.PerformanceTesting.LoadTesting.AverageResponseTimeMs:F2}ms | {GetPerformanceVerdict(result.PerformanceTesting.LoadTesting.AverageResponseTimeMs)} |");
-                sb.AppendLine($"| **P95 Latency** | {result.PerformanceTesting.LoadTesting.P95ResponseTimeMs:F2}ms | - |");
-                sb.AppendLine($"| **Throughput** | {result.PerformanceTesting.LoadTesting.RequestsPerSecond:F2} req/sec | - |");
+                sb.AppendLine($"| **Average Latency** | {result.PerformanceTesting.LoadTesting.AverageResponseTimeMs:F2} ms | {GetPerformanceVerdict(result.PerformanceTesting.LoadTesting.AverageResponseTimeMs)} |");
+                sb.AppendLine($"| **95th-Percentile Latency** | {result.PerformanceTesting.LoadTesting.P95ResponseTimeMs:F2} ms | - |");
+                sb.AppendLine($"| **Throughput** | {result.PerformanceTesting.LoadTesting.RequestsPerSecond:F2} requests/second | - |");
                 sb.AppendLine($"| **Error Rate** | {result.PerformanceTesting.LoadTesting.ErrorRate:F2}% | {(result.PerformanceTesting.LoadTesting.ErrorRate > 0 ? "⚠️ Check Logs" : "✅ Clean")} |");
                 sb.AppendLine($"| **Requests** | {result.PerformanceTesting.LoadTesting.SuccessfulRequests}/{result.PerformanceTesting.LoadTesting.TotalRequests} successful | - |");
                 if (result.PerformanceTesting.LoadTesting.ProbeRoundsExecuted > 1)
@@ -777,7 +813,67 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine("---");
         sb.AppendLine($"*Produced with [{producer.Name}]({producer.RepositoryUrl}) · [{producer.PackageId} on NuGet]({producer.PackageUrl})*");
 
-        return sb.ToString();
+        return SanitizeRenderedMarkdown(sb.ToString());
+    }
+
+    private static void AppendReaderKey(StringBuilder sb)
+    {
+        sb.AppendLine("## Reader Key: Terms And Abbreviations");
+        sb.AppendLine();
+        sb.AppendLine("| Term | Meaning |");
+        sb.AppendLine("| :--- | :--- |");
+        foreach (var entry in ReportTerminology.Entries)
+        {
+            sb.AppendLine($"| **{EscapeTableCell(entry.Term)}** | {EscapeTableCell(entry.Meaning)} |");
+        }
+        sb.AppendLine();
+    }
+
+    private static string FormatTrustDimensionScore(McpTrustAssessment assessment, string dimension, double score)
+    {
+        return assessment.UnevaluatedDimensions.Contains(dimension, StringComparer.OrdinalIgnoreCase)
+            ? "Not evaluated"
+            : $"{score:F0}%";
+    }
+
+    private static DateTime ResolveArtifactTime(ValidationResult result) =>
+        (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
+
+    private static string EscapeInlineCode(string? value) =>
+        EscapeMarkdownText(value).Replace("`", "\\`", StringComparison.Ordinal).Replace("|", "\\|", StringComparison.Ordinal);
+
+    private static string SanitizeRenderedMarkdown(string value) =>
+        value.Replace("<", "&lt;", StringComparison.Ordinal);
+
+    private static void AppendOperationalMetricsSection(
+        StringBuilder sb,
+        ValidationOperationalMetrics? metrics,
+        ref int sectionNumber)
+    {
+        if (metrics == null)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Validator Operations");
+        sb.AppendLine();
+        sb.AppendLine("| Metric | Value |");
+        sb.AppendLine("| :--- | :--- | ");
+        sb.AppendLine($"| Total run wall time | {metrics.TotalRunDurationMs:F1} ms |");
+        sb.AppendLine($"| Deterministic validator overhead | {metrics.ValidatorOverheadMs:F1} ms |");
+        sb.AppendLine($"| Requests started / completed / failed | {metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed} |");
+        sb.AppendLine($"| Retained latency / queue samples | {metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount} |");
+        sb.AppendLine($"| Evidence coverage | {metrics.EvidenceCoverageRatio:P1} |");
+        sb.AppendLine();
+        sb.AppendLine("### Stage And Rule Timings");
+        sb.AppendLine();
+        sb.AppendLine("| Stage | Duration |");
+        sb.AppendLine("| :--- | ---: |");
+        foreach (var stage in metrics.StageDurationMs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"| `{EscapeTableCell(stage.Key)}` | {stage.Value:F3} ms |");
+        }
+        sb.AppendLine();
     }
 
     private void AppendPriorityFindingsSection(StringBuilder sb, ValidationResult result, ref int sectionNumber)
@@ -1107,7 +1203,7 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine("| :--- | :---: | :---: | :---: | :--- |");
 
         var toolResult = FormatProbeResult(snapshot.ToolListingSucceeded, snapshot.ToolListResponse?.StatusCode ?? 0, "Listed");
-        if (!string.IsNullOrWhiteSpace(snapshot.FirstToolName))
+        if (!string.IsNullOrWhiteSpace(snapshot.FirstToolName) && snapshot.ToolInvocationAttempted)
         {
             var callIcon = snapshot.ToolInvocationSucceeded ? "✅" : "⚠️";
             toolResult += $"<br/>Call {callIcon}";
@@ -1145,7 +1241,7 @@ public class MarkdownReportGenerator : IReportGenerator
             var requirementSummary = $"{assessment.PassedRequirements} passed / {assessment.WarningRequirements} warnings / {assessment.FailedRequirements} failed";
             var documentation = string.IsNullOrWhiteSpace(assessment.DocumentationUrl)
                 ? "-"
-                : $"<{assessment.DocumentationUrl}>";
+                : $"[Open documentation]({assessment.DocumentationUrl})";
             sb.AppendLine($"| **{assessment.DisplayName}** | {FormatClientCompatibilityStatus(assessment.Status)} | {requirementSummary} | {documentation} |");
         }
 
@@ -1262,7 +1358,7 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"| Evidence Coverage | {FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")} |");
             sb.AppendLine($"| Evidence Confidence | {FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F1")} |");
             sb.AppendLine($"| Confidence Level | {evidenceSummary.ConfidenceLevel} |");
-            sb.AppendLine($"| Auth Required | {evidenceSummary.AuthRequired} |");
+            sb.AppendLine($"| Authentication Required | {evidenceSummary.AuthRequired} |");
             sb.AppendLine($"| Inconclusive | {evidenceSummary.Inconclusive} |");
             sb.AppendLine($"| Blocked/Unavailable | {evidenceSummary.Blocked + evidenceSummary.Unavailable} |");
             sb.AppendLine();
@@ -1271,7 +1367,7 @@ public class MarkdownReportGenerator : IReportGenerator
             {
                 sb.AppendLine("### Evidence Confidence By Layer");
                 sb.AppendLine();
-                sb.AppendLine("| Layer | Coverage | Confidence | Covered | Auth Required | Inconclusive | Skipped | Blocked/Unavailable |");
+                sb.AppendLine("| Layer | Coverage | Confidence | Covered | Authentication Required | Inconclusive | Skipped | Blocked/Unavailable |");
                 sb.AppendLine("| :--- | :---: | :---: | ---: | ---: | ---: | ---: | ---: |");
                 foreach (var category in evidenceSummary.Categories)
                 {
@@ -1319,7 +1415,7 @@ public class MarkdownReportGenerator : IReportGenerator
     private void AddMatrixRow(StringBuilder sb, string category, TestStatus? status, double? score, int? issues, string? scoreOverride = null)
     {
         if (status == null) return;
-        
+
         var statusStr = status == TestStatus.Skipped ? "Skipped" : status.ToString();
         var scoreStr = status == TestStatus.Skipped ? "-" : scoreOverride ?? $"{score:F1}%";
         var issuesStr = issues.HasValue && issues > 0 ? $"**{issues}**" : "-";
@@ -1383,7 +1479,7 @@ public class MarkdownReportGenerator : IReportGenerator
     private string FormatProbeResult(bool succeeded, int statusCode, string successText)
     {
         if (succeeded) return $"{GetStatusIcon(ValidationStatus.Passed)} {successText}";
-        if (statusCode == 401 || statusCode == 403) return "🔒 Auth Required";
+        if (statusCode == 401 || statusCode == 403) return "🔒 Authentication Required";
         return $"{GetStatusIcon(ValidationStatus.Failed)} Failed";
     }
 
@@ -1394,7 +1490,7 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private static string FormatHttpStatus(int? statusCode)
     {
-        return statusCode.HasValue ? $"HTTP {statusCode}" : "n/a";
+        return statusCode.HasValue ? $"HTTP {statusCode}" : "Not available";
     }
 
     private static string FormatCoverage(int affectedComponents, int totalComponents)
@@ -1531,8 +1627,11 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private static string EscapeTableCell(string value)
     {
-        return value.Replace("|", "\\|").Replace("\n", " ").Replace("\r", " ");
+        return EscapeMarkdownText(value).Replace("|", "\\|", StringComparison.Ordinal);
     }
+
+    private static string EscapeMarkdownText(string? value) =>
+        (value ?? string.Empty).Replace("\n", " ", StringComparison.Ordinal).Replace("\r", " ", StringComparison.Ordinal);
 
     private static bool ShouldIncludeDetailedSections(ValidationResult result)
     {

@@ -222,4 +222,23 @@ public class PerformanceValidatorIntegrationTests
         result.Score.Should().Be(100);
         result.PerformanceBottlenecks.Should().NotContain(b => b.Contains("tools/call latency", StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public async Task TestResourceExhaustion_WithFailedResponses_ShouldFail()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        _httpClient
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 503, IsSuccess = false });
+
+        var result = await _validator.TestResourceExhaustionAsync(config, ["connections"], CancellationToken.None);
+
+        result.Status.Should().Be(TestStatus.Failed);
+        result.ResourceUsage.ResourceExhaustionEvents.Should().ContainSingle(eventText => eventText.Contains("50/50 failed", StringComparison.Ordinal));
+    }
 }

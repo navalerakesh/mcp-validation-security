@@ -10,6 +10,9 @@ This directory contains the durable product, architecture, and contributor docum
 | [../QUICKSTART.md](../QUICKSTART.md) | Fast path from installation to the first validation run |
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
 | [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
+| [ProtocolCoverageMatrix.md](ProtocolCoverageMatrix.md) | Exact revision/transport/feature behavioral coverage and known limits |
+| [AuthenticationCoverage.md](AuthenticationCoverage.md) | Credential acquisition, registration, conformance evidence, and explicit authentication limits |
+| [CalibrationMethodology.md](CalibrationMethodology.md) | Versioned scoring policy, calibration corpus, mutation threshold, and false-positive/negative limits |
 | [../CHANGELOG.md](../CHANGELOG.md) | Release-facing history for behavior, packaging, and reporting changes |
 
 ## Product And Operations
@@ -17,6 +20,7 @@ This directory contains the durable product, architecture, and contributor docum
 | Document | Purpose |
 | --- | --- |
 | [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) | Representative remote validation run and artifact walkthrough |
+| [Resources/LiveCertificate-1.1.25-MicrosoftLearn.md](Resources/LiveCertificate-1.1.25-MicrosoftLearn.md) | Fresh public Microsoft Learn MCP health, discovery, safe-validation, redaction, and artifact-integrity certificate |
 | [../SECURITY.md](../SECURITY.md) | Vulnerability reporting process and safe usage guidance |
 | [../mcpval-mcp/README.md](../mcpval-mcp/README.md) | Local STDIO wrapper package for MCP-compatible desktop tooling |
 
@@ -29,6 +33,8 @@ This directory contains the durable product, architecture, and contributor docum
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
 | [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
+| [Schemas/](Schemas/) | Versioned JSON Schema contracts for canonical machine artifacts |
+| [Design/EnterpriseRenewalExecutionPlan.md](Design/EnterpriseRenewalExecutionPlan.md) | Active renewal milestones, ownership, scale invariants, and evidence gates |
 | [../Mcp.Compliance.Spec/schema/README.md](../Mcp.Compliance.Spec/schema/README.md) | Embedded schema folder layout used by the spec project |
 
 ## Contribution And Development
@@ -44,8 +50,8 @@ This directory contains the durable product, architecture, and contributor docum
 
 - Keep docs aligned with current CLI behavior, supported transports, and released artifact formats.
 - Prefer durable references over time-bound task tracking or historical delivery notes.
-- Keep generated example artifacts under `PublicReports/`; explain them from docs instead of duplicating their content in multiple places.
-- Do not keep roadmap or task-tracking markdown files in the shipping documentation set.
+- Generate live validation artifacts under the operating system temporary directory and delete them after review. Commit only synthetic, reviewed snapshots under test fixtures; permanent docs contain secret-free summaries rather than live captures.
+- Keep only governing architecture execution plans with measurable evidence gates; remove disposable task notes and stale delivery trackers.
 
 ## When Opening An Issue
 

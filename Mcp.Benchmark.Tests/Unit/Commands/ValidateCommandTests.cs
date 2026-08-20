@@ -1,11 +1,14 @@
 using FluentAssertions;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Mcp.Benchmark.CLI;
 using Mcp.Benchmark.CLI.Abstractions;
+using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.ClientProfiles;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
@@ -29,7 +32,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Failed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 TrustAssessment = new McpTrustAssessment
                 {
                     MustFailCount = 1,
@@ -53,7 +56,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: null,
             specProfile: null,
             configFile: null,
@@ -64,7 +67,10 @@ public sealed class ValidateCommandTests : IDisposable
             maxConcurrency: null,
             policyMode: ValidationPolicyModes.Advisory);
 
-        Environment.ExitCode.Should().Be(0);
+        Environment.ExitCode.Should().Be(0, string.Join("; ", consoleOutput.Invocations
+            .Where(invocation => invocation.Method.Name == nameof(IConsoleOutputService.WriteError))
+            .SelectMany(invocation => invocation.Arguments)
+            .Select(argument => argument?.ToString())));
         consoleOutput.Verify(output => output.WriteSuccess(It.Is<string>(value => value.Contains("ADVISORY", StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
     }
 
@@ -79,7 +85,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 TrustAssessment = new McpTrustAssessment
                 {
                     TrustLevel = McpTrustLevel.L3_Acceptable,
@@ -104,7 +110,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: null,
             specProfile: null,
             configFile: null,
@@ -132,7 +138,7 @@ public sealed class ValidateCommandTests : IDisposable
                         .ReturnsAsync(new ValidationResult
                         {
                                 OverallStatus = ValidationStatus.Passed,
-                                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                                 TrustAssessment = new McpTrustAssessment
                                 {
                                         TrustLevel = McpTrustLevel.L3_Acceptable,
@@ -162,7 +168,7 @@ public sealed class ValidateCommandTests : IDisposable
                         """
                         {
                             "server": {
-                                "endpoint": "https://example.test/mcp",
+                                "endpoint": "https://1.1.1.1/mcp",
                                 "transport": "http"
                             },
                             "policy": {
@@ -192,7 +198,10 @@ public sealed class ValidateCommandTests : IDisposable
                         maxConcurrency: null,
                         policyMode: null);
 
-                Environment.ExitCode.Should().Be(0);
+                Environment.ExitCode.Should().Be(0, string.Join("; ", consoleOutput.Invocations
+                    .Where(invocation => invocation.Method.Name == nameof(IConsoleOutputService.WriteError))
+                    .SelectMany(invocation => invocation.Arguments)
+                    .Select(argument => argument?.ToString())));
                     capturedConfiguration.Should().NotBeNull();
                     capturedConfiguration!.Policy.Mode.Should().Be(ValidationPolicyModes.Strict);
                     capturedConfiguration.Policy.Suppressions.Should().ContainSingle();
@@ -214,7 +223,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
             });
@@ -225,6 +234,7 @@ public sealed class ValidateCommandTests : IDisposable
         var reportRenderer = new Mock<IValidationReportRenderer>();
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+        reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
 
         var command = new ValidateCommand(
             validatorService.Object,
@@ -242,7 +252,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: null,
@@ -257,6 +267,7 @@ public sealed class ValidateCommandTests : IDisposable
         Directory.GetFiles(outputRoot, "*-report.html").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-results.sarif.json").Should().ContainSingle();
+        Directory.GetFiles(outputRoot, "*-results.junit.xml").Should().ContainSingle();
 
         reportRenderer.Verify(renderer => renderer.GenerateHtmlReport(
             It.IsAny<ValidationResult>(),
@@ -270,12 +281,14 @@ public sealed class ValidateCommandTests : IDisposable
         var sessionContext = CreateSessionContext();
         var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
         var validatorService = new Mock<IMcpValidatorService>();
+        McpValidatorConfiguration? capturedConfiguration = null;
         validatorService
             .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .Callback<McpValidatorConfiguration, CancellationToken>((configuration, _) => capturedConfiguration = configuration)
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
             });
@@ -302,7 +315,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: null,
             specProfile: null,
             configFile: null,
@@ -315,6 +328,15 @@ public sealed class ValidateCommandTests : IDisposable
 
         capturedExecutionPolicy.Should().NotBeNull();
         capturedExecutionPolicy!.MaxRequests.Should().Be(256);
+        capturedConfiguration.Should().NotBeNull();
+        var categories = capturedConfiguration!.Validation.Categories;
+        categories.ToolTesting.TestToolExecution.Should().BeFalse();
+        categories.ToolTesting.TestParameterValidation.Should().BeFalse();
+        categories.ResourceTesting.TestResourceReading.Should().BeFalse();
+        categories.PromptTesting.TestPromptExecution.Should().BeFalse();
+        categories.SecurityTesting.TestInputValidation.Should().BeFalse();
+        categories.PerformanceTesting.TestConcurrentRequests.Should().BeFalse();
+        categories.ErrorHandling.TestMalformedJson.Should().BeFalse();
     }
 
     [Fact]
@@ -332,7 +354,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Failed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 PerformanceTesting = new PerformanceTestResult
                 {
@@ -349,6 +371,7 @@ public sealed class ValidateCommandTests : IDisposable
         var reportRenderer = new Mock<IValidationReportRenderer>();
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+        reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
 
         var command = new ValidateCommand(
             validatorService.Object,
@@ -366,7 +389,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: null,
@@ -403,7 +426,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Failed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 PerformanceTesting = new PerformanceTestResult
                 {
@@ -416,7 +439,7 @@ public sealed class ValidateCommandTests : IDisposable
                         AverageResponseTimeMs = 0,
                         P95ResponseTimeMs = 0,
                         RequestsPerSecond = 0
-                        
+
                     }
                 },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L2_Caution }
@@ -428,6 +451,7 @@ public sealed class ValidateCommandTests : IDisposable
         var reportRenderer = new Mock<IValidationReportRenderer>();
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+        reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
 
         var command = new ValidateCommand(
             validatorService.Object,
@@ -445,7 +469,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: null,
@@ -483,7 +507,7 @@ public sealed class ValidateCommandTests : IDisposable
             {
                 StartTime = new DateTime(2026, 4, 21, 8, 35, 35, DateTimeKind.Utc),
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
             });
@@ -494,6 +518,7 @@ public sealed class ValidateCommandTests : IDisposable
         var reportRenderer = new Mock<IValidationReportRenderer>();
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+        reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
 
         List<string>? publishedArtifactPaths = null;
         var gitHubReporter = new Mock<IGitHubActionsReporter>(MockBehavior.Loose);
@@ -517,7 +542,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: null,
@@ -550,7 +575,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 ToolValidation = new ToolTestResult
                 {
@@ -600,7 +625,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: null,
             specProfile: null,
             configFile: null,
@@ -640,7 +665,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: null,
             specProfile: null,
             configFile: null,
@@ -672,7 +697,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted },
                 VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted },
@@ -702,6 +727,7 @@ public sealed class ValidateCommandTests : IDisposable
         var reportRenderer = new Mock<IValidationReportRenderer>();
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+        reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
 
                 var configPath = Path.Combine(Path.GetTempPath(), $"model-eval-{Guid.NewGuid():N}.json");
                 _tempFiles.Add(configPath);
@@ -736,7 +762,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: new FileInfo(configPath),
@@ -751,7 +777,14 @@ public sealed class ValidateCommandTests : IDisposable
         Directory.GetFiles(outputRoot, "*-model-evaluation.json").Should().ContainSingle();
         var modelEvaluationPath = Directory.GetFiles(outputRoot, "*-model-evaluation.json").Single();
         var modelEvaluationJson = await File.ReadAllTextAsync(modelEvaluationPath);
-        modelEvaluationJson.Should().Contain("\"status\": \"Completed\"");
+        using var modelEvaluationDocument = JsonDocument.Parse(modelEvaluationJson);
+        modelEvaluationDocument.RootElement.GetProperty("documentType").GetString().Should().Be(ArtifactContracts.ModelEvaluationDocumentType);
+        modelEvaluationDocument.RootElement.GetProperty("documentSchemaVersion").GetString().Should().Be(ArtifactContracts.ModelEvaluationSchemaVersion);
+        var cost = modelEvaluationDocument.RootElement.GetProperty("cost");
+        cost.GetProperty("inputTokens").GetInt64().Should().Be(0);
+        cost.GetProperty("outputTokens").GetInt64().Should().Be(0);
+        cost.GetProperty("amount").GetDecimal().Should().Be(0);
+        modelEvaluationJson.Should().Contain("\"status\": \"completed\"");
         modelEvaluationJson.Should().Contain("\"relatedDeterministicFindings\"");
         modelEvaluationJson.Should().Contain(ValidationFindingRuleIds.AiReadinessVagueStringSchema);
         modelEvaluationJson.Should().Contain(AiReadinessEvidenceKinds.DeterministicSchemaHeuristic);
@@ -773,7 +806,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
                 VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted }
             });
@@ -794,7 +827,7 @@ public sealed class ValidateCommandTests : IDisposable
             sessionContext);
 
         await command.ExecuteAsync(
-            server: "https://example.test/mcp",
+            server: "https://1.1.1.1/mcp",
             outputDirectory: new DirectoryInfo(outputRoot),
             specProfile: null,
             configFile: null,
@@ -808,6 +841,95 @@ public sealed class ValidateCommandTests : IDisposable
 
         Environment.ExitCode.Should().Be(64);
         consoleOutput.Verify(output => output.WriteError(It.Is<string>(message => message.Contains("no provider was configured", StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WithSignedAttestation_ShouldVerifyCanonicalBytesWithoutPersistingPrivateKey()
+    {
+        var sessionContext = CreateSessionContext();
+        var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(outputRoot);
+        _sessionRoots.Add(outputRoot);
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var privateKeyPem = key.ExportECPrivateKeyPem();
+        var previousKey = Environment.GetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM");
+        Environment.SetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM", privateKeyPem);
+
+        try
+        {
+            var validatorService = new Mock<IMcpValidatorService>();
+            validatorService
+                .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationResult
+                {
+                    ValidationId = "signed-validation",
+                    OverallStatus = ValidationStatus.Passed,
+                    ComplianceScore = 100,
+                    ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
+                    ValidationConfig = new McpValidatorConfiguration(),
+                    Run = new ValidationRunDocument
+                    {
+                        ValidationId = "signed-validation",
+                        OperationalMetrics = new ValidationOperationalMetrics { RunCorrelationId = "service-run" }
+                    },
+                    VerdictAssessment = new VerdictAssessment
+                    {
+                        BaselineVerdict = ValidationVerdict.Trusted,
+                        ProtocolVerdict = ValidationVerdict.Trusted,
+                        CoverageVerdict = ValidationVerdict.Trusted
+                    }
+                });
+            var reportGenerator = new Mock<IReportGenerator>();
+            reportGenerator.Setup(generator => generator.GenerateReport(It.IsAny<ValidationResult>())).Returns("report");
+            var renderer = new Mock<IValidationReportRenderer>();
+            renderer.Setup(value => value.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
+            renderer.Setup(value => value.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
+            renderer.Setup(value => value.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
+            var command = new ValidateCommand(
+                validatorService.Object,
+                new Mock<IConsoleOutputService>(MockBehavior.Loose).Object,
+                new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+                reportGenerator.Object,
+                renderer.Object,
+                new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+                NullLogger<ValidateCommand>.Instance,
+                new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+                new ExecutionGovernanceService(),
+                new NoOpModelEvaluationExecutor(),
+                new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+                new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+                sessionContext);
+
+            await command.ExecuteAsync(
+                server: "https://1.1.1.1/mcp",
+                outputDirectory: new DirectoryInfo(outputRoot),
+                specProfile: null,
+                configFile: null,
+                verbose: false,
+                policyMode: ValidationPolicyModes.Advisory,
+                signAttestation: true);
+
+            var resultPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
+            var attestationPath = Directory.GetFiles(outputRoot, "*-attestation.json").Should().ContainSingle().Subject;
+            var attestation = JsonSerializer.Deserialize<ValidationAttestation>(
+                await File.ReadAllTextAsync(attestationPath),
+                ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true));
+
+            attestation.Should().NotBeNull();
+            ValidationAttestationSigner.Verify(attestation!, await File.ReadAllBytesAsync(resultPath)).Should().BeTrue();
+            using var resultDocument = JsonDocument.Parse(await File.ReadAllTextAsync(resultPath));
+            var run = resultDocument.RootElement.GetProperty("run");
+            run.GetProperty("operationalMetrics").GetProperty("runCorrelationId").GetString()
+                .Should().Be(run.GetProperty("validationId").GetString());
+            foreach (var artifactPath in Directory.GetFiles(outputRoot))
+            {
+                (await File.ReadAllTextAsync(artifactPath)).Should().NotContain(privateKeyPem);
+            }
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM", previousKey);
+        }
     }
 
     private CliSessionContext CreateSessionContext()

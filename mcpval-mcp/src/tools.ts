@@ -3,6 +3,7 @@
  * Each tool maps to a mcpval CLI command with structured input/output.
  */
 import { z } from "zod";
+import { config } from "./config.js";
 
 const ClientProfileIds = [
   "all",
@@ -45,6 +46,10 @@ const ClientProfileSchema = z
   .enum(ClientProfileIds)
   .describe("Client compatibility profile to evaluate. Use 'all' to run every supported profile.");
 
+const ProtocolEraSchema = z
+  .enum(["auto", "legacy", "modern"])
+  .describe("Protocol era selection. Use auto unless the target requires an explicit legacy or modern profile.");
+
 // ─── Input Schemas (Zod) ─────────────────────────────────────
 
 const AccessIntentSchema = z
@@ -52,9 +57,11 @@ const AccessIntentSchema = z
   .default("public")
   .describe("Declared server access intent so the CLI interprets auth expectations correctly.");
 
-const ServerTargetSchema = z
-  .union([RemoteServerTargetSchema, StdioCommandTargetSchema])
-  .describe("MCP server target as an absolute endpoint URL or a local stdio command.");
+const ServerTargetSchema = config.localExecution.enabled
+  ? z
+      .union([RemoteServerTargetSchema, StdioCommandTargetSchema])
+      .describe("MCP server target as an absolute endpoint URL or an explicitly authorized local stdio command.")
+  : RemoteServerTargetSchema.describe("MCP server target as an absolute remote endpoint URL. Local command execution is disabled by the operator.");
 
 export const ValidateInputSchema = z.object({
   server: ServerTargetSchema,
@@ -62,6 +69,7 @@ export const ValidateInputSchema = z.object({
   token: BearerTokenSchema.optional(),
   interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
   mcpspec: McpSpecSchema.optional(),
+  protocolEra: ProtocolEraSchema.optional(),
   policy: z.enum(["advisory", "balanced", "strict"]).optional().describe("Host-side gating mode. Does not change raw findings."),
   clientProfile: z.array(ClientProfileSchema).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
   reportDetail: z.enum(["full", "minimal"]).optional().describe("Human report detail level."),
@@ -73,6 +81,7 @@ export const HealthCheckInputSchema = z.object({
   access: AccessIntentSchema,
   token: BearerTokenSchema.optional(),
   interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
+  protocolEra: ProtocolEraSchema.optional(),
 });
 
 export const DiscoverInputSchema = z.object({
@@ -80,6 +89,7 @@ export const DiscoverInputSchema = z.object({
   access: AccessIntentSchema,
   token: BearerTokenSchema.optional(),
   interactive: z.boolean().default(false).describe("Allow the CLI to trigger an interactive auth flow when supported."),
+  protocolEra: ProtocolEraSchema.optional(),
   format: z.enum(["json", "yaml", "table"]).default("json").describe("Discovery output format. json is usually easiest for agents to consume."),
 });
 

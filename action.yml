@@ -18,7 +18,7 @@ inputs:
     required: false
     default: public
   token:
-    description: Optional bearer token for authenticated servers.
+    description: Optional bearer token for authenticated servers. Passed through a masked environment variable, not command arguments.
     required: false
   interactive:
     description: Whether to allow interactive authentication.
@@ -39,7 +39,10 @@ inputs:
     description: Optional max in-flight request count.
     required: false
   version:
-    description: Optional McpVal NuGet version to install. Defaults to latest published version.
+    description: Optional exact McpVal NuGet version. Defaults to the version declared by this Action revision.
+    required: false
+  package-source:
+    description: Optional NuGet source containing the exact McpVal package. Intended for pre-publish verification.
     required: false
   github-summary:
     description: Emit GitHub step summary markdown.
@@ -57,8 +60,19 @@ inputs:
     description: Artifact name used when uploading results.
     required: false
     default: mcpval-results
-  extra-args:
-    description: Additional raw arguments appended to the validate command.
+  baseline:
+    description: Optional approved canonical result used for regression comparison.
+    required: false
+  regression-only:
+    description: Block only regressions relative to the explicit baseline.
+    required: false
+    default: "false"
+  dry-run:
+    description: Plan validation without contacting the target.
+    required: false
+    default: "false"
+  output-format:
+    description: Optional command output format. Supported value is json.
     required: false
 
 runs:
@@ -67,20 +81,46 @@ runs:
     - name: Setup .NET
       uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
       with:
-        dotnet-version: 8.0.x
+        dotnet-version: 8.0.419
+
+    - name: Resolve McpVal version
+      id: mcpval-version
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+
+        version="$INPUT_VERSION"
+        if [[ -z "$version" ]]; then
+          version=$(sed -n 's:.*<VersionPrefix>\([^<]*\)</VersionPrefix>.*:\1:p' "$GITHUB_ACTION_PATH/Directory.Build.props")
+        fi
+
+        if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+          echo "Unable to resolve an exact McpVal version from this Action revision." >&2
+          exit 1
+        fi
+
+        echo "version=$version" >> "$GITHUB_OUTPUT"
 
     - name: Install McpVal
       shell: bash
+      env:
+        INPUT_PACKAGE_SOURCE: ${{ inputs.package-source }}
       run: |
         set -euo pipefail
         tool_path="$RUNNER_TEMP/mcpval-tool"
         mkdir -p "$tool_path"
 
-        if [[ -n "${{ inputs.version }}" ]]; then
-          dotnet tool install --tool-path "$tool_path" McpVal --version "${{ inputs.version }}"
-        else
-          dotnet tool install --tool-path "$tool_path" McpVal
+        install_args=(--tool-path "$tool_path" McpVal --version "${{ steps.mcpval-version.outputs.version }}")
+        if [[ -n "$INPUT_PACKAGE_SOURCE" ]]; then
+          dotnet new nugetconfig --output "$RUNNER_TEMP/mcpval-nuget-config" --force >/dev/null
+          config_file="$RUNNER_TEMP/mcpval-nuget-config/NuGet.Config"
+          dotnet nuget remove source nuget.org --configfile "$config_file" >/dev/null
+          dotnet nuget add source "$INPUT_PACKAGE_SOURCE" --name local-smoke --configfile "$config_file" >/dev/null
+          install_args+=(--configfile "$config_file")
         fi
+        dotnet tool install "${install_args[@]}"
 
         echo "$tool_path" >> "$GITHUB_PATH"
 
@@ -90,17 +130,24 @@ runs:
         INPUT_SERVER: ${{ inputs.server }}
         INPUT_CONFIG_FILE: ${{ inputs.config-file }}
         INPUT_ACCESS: ${{ inputs.access }}
-        INPUT_TOKEN: ${{ inputs.token }}
+        MCPVAL_TOKEN: ${{ inputs.token }}
         INPUT_INTERACTIVE: ${{ inputs.interactive }}
         INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
         INPUT_MCPSPEC: ${{ inputs.mcpspec }}
         INPUT_POLICY: ${{ inputs.policy }}
         INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
-        INPUT_EXTRA_ARGS: ${{ inputs.extra-args }}
+        INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_REGRESSION_ONLY: ${{ inputs.regression-only }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        INPUT_OUTPUT_FORMAT: ${{ inputs.output-format }}
         MCPVAL_GITHUB_SUMMARY: ${{ inputs.github-summary }}
         MCPVAL_GITHUB_ANNOTATIONS: ${{ inputs.github-annotations }}
       run: |
         set -euo pipefail
+
+        if [[ -n "$MCPVAL_TOKEN" ]]; then
+          echo "::add-mask::$MCPVAL_TOKEN"
+        fi
 
         if [[ -z "$INPUT_SERVER" && -z "$INPUT_CONFIG_FILE" ]]; then
           echo "Either 'server' or 'config-file' must be provided." >&2
@@ -123,10 +170,6 @@ runs:
           cmd+=(--access "$INPUT_ACCESS")
         fi
 
-        if [[ -n "$INPUT_TOKEN" ]]; then
-          cmd+=(--token "$INPUT_TOKEN")
-        fi
-
         if [[ "$INPUT_INTERACTIVE" == "true" ]]; then
           cmd+=(--interactive)
         fi
@@ -139,19 +182,42 @@ runs:
           cmd+=(--max-concurrency "$INPUT_MAX_CONCURRENCY")
         fi
 
-        if [[ -n "$INPUT_EXTRA_ARGS" ]]; then
-          read -r -a extra_args <<< "$INPUT_EXTRA_ARGS"
-          cmd+=("${extra_args[@]}")
+        if [[ -n "$INPUT_BASELINE" ]]; then
+          cmd+=(--baseline "$INPUT_BASELINE")
         fi
 
-        printf 'Running:'
-        printf ' %q' "${cmd[@]}"
-        printf '\n'
+        if [[ "$INPUT_REGRESSION_ONLY" == "true" ]]; then
+          if [[ -z "$INPUT_BASELINE" ]]; then
+            echo "'regression-only' requires 'baseline'." >&2
+            exit 1
+          fi
+          cmd+=(--regression-only)
+        elif [[ "$INPUT_REGRESSION_ONLY" != "false" ]]; then
+          echo "'regression-only' must be 'true' or 'false'." >&2
+          exit 1
+        fi
+
+        if [[ "$INPUT_DRY_RUN" == "true" ]]; then
+          cmd+=(--dry-run)
+        elif [[ "$INPUT_DRY_RUN" != "false" ]]; then
+          echo "'dry-run' must be 'true' or 'false'." >&2
+          exit 1
+        fi
+
+        if [[ -n "$INPUT_OUTPUT_FORMAT" ]]; then
+          if [[ "$INPUT_OUTPUT_FORMAT" != "json" ]]; then
+            echo "'output-format' supports only 'json'." >&2
+            exit 1
+          fi
+          cmd+=(--output-format "$INPUT_OUTPUT_FORMAT")
+        fi
+
+        echo "Running mcpval validation with redacted input values."
 
         "${cmd[@]}"
 
     - name: Upload validation artifacts
-      if: ${{ inputs.upload-artifacts == 'true' && inputs.output-dir != '' }}
+      if: ${{ always() && inputs.upload-artifacts == 'true' && inputs.output-dir != '' }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.artifact-name }}

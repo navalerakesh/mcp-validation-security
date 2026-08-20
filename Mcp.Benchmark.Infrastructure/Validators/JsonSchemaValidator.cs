@@ -15,8 +15,12 @@ public class JsonSchemaValidator : ISchemaValidator
     {
         try
         {
-            // Parse the schema
-            var jsonSchema = JsonSchema.FromText(schema.ToJsonString());
+            var schemaForEvaluation = schema.DeepClone();
+            if (schemaForEvaluation is JsonObject schemaObject)
+            {
+                schemaObject.Remove("$id");
+            }
+            var jsonSchema = JsonSchema.FromText(schemaForEvaluation.ToJsonString());
             
             // Convert JsonNode to JsonElement for evaluation
             // Note: JsonSchema.Net supports JsonNode, but we are seeing compilation errors suggesting it wants JsonElement.
@@ -88,7 +92,12 @@ public class JsonSchemaValidator : ISchemaValidator
         try
         {
             // Parse the schema to ensure it's valid JSON Schema structure
-            var jsonSchema = JsonSchema.FromText(schema.ToJsonString());
+            var schemaForEvaluation = schema.DeepClone();
+            if (schemaForEvaluation is JsonObject schemaObject)
+            {
+                schemaObject.Remove("$id");
+            }
+            _ = JsonSchema.FromText(schemaForEvaluation.ToJsonString());
             
             // Ideally we would validate against the meta-schema here, 
             // but successful parsing is sufficient for basic structural validity.

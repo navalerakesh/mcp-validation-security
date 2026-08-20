@@ -17,6 +17,7 @@ public class ConsoleOutputService : IConsoleOutputService
     private readonly bool _useColors;
     private readonly CliSessionContext _sessionContext;
     private bool _verbose;
+    private bool _structured;
     private bool _sessionBannerDisplayed;
 
     public ConsoleOutputService(CliSessionContext sessionContext)
@@ -31,26 +32,35 @@ public class ConsoleOutputService : IConsoleOutputService
         _verbose = verbose;
     }
 
+    public void SetStructuredOutput(bool structured)
+    {
+        _structured = structured;
+    }
+
     /// <summary>
     /// Displays the main validation results in a professional, clean format.
     /// </summary>
     public void DisplayValidationResults(ValidationResult result, bool showDetails = false)
     {
+        if (_structured) return;
         ValidationFormatter.DisplayResults(result, showDetails, _useColors, _verbose);
     }
 
     public void WriteError(string message)
     {
+        if (_structured) return;
         FormatterUtils.WriteLineWithColor($"❌ Error: {message}", ConsoleColor.Red, _useColors);
     }
 
     public void WriteWarning(string message)
     {
+        if (_structured) return;
         FormatterUtils.WriteLineWithColor($"⚠️ Warning: {message}", ConsoleColor.Yellow, _useColors);
     }
 
     public void WriteInfo(string message)
     {
+        if (_structured) return;
         if (_verbose)
         {
             FormatterUtils.WriteLineWithColor($"ℹ️ {message}", ConsoleColor.White, _useColors);
@@ -59,11 +69,13 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void WriteSuccess(string message)
     {
+        if (_structured) return;
         FormatterUtils.WriteLineWithColor($"✅ {message}", ConsoleColor.Green, _useColors);
     }
 
     public void DisplayValidationPlan(string title, McpServerConfig serverConfig)
     {
+        if (_structured) return;
         DisplaySessionBanner();
         Console.WriteLine();
         WriteHeader(title.ToUpperInvariant());
@@ -83,6 +95,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void ShowProgress(string message, bool showSpinner = true)
     {
+        if (_structured) return;
         if (showSpinner)
         {
             Console.Write($"{message} ");
@@ -97,6 +110,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void DisplayHealthCheckResults(HealthCheckResult result, TimeSpan totalTime, bool verbose = false)
     {
+        if (_structured) return;
         Console.WriteLine();
 
         var statusLabel = GetHealthStatusLabel(result);
@@ -167,7 +181,7 @@ public class ConsoleOutputService : IConsoleOutputService
                 if (handshakePayload.Capabilities.Tools != null) capabilityFlags.Add("tools");
                 if (handshakePayload.Capabilities.Resources != null) capabilityFlags.Add("resources");
                 if (handshakePayload.Capabilities.Prompts != null) capabilityFlags.Add("prompts");
-                if (handshakePayload.Capabilities.Logging != null) capabilityFlags.Add("logging");
+                if (CapabilityDisplayPolicy.HasLegacyLogging(handshakePayload.Capabilities)) capabilityFlags.Add(CapabilityDisplayPolicy.LegacyLoggingLabel);
                 if (handshakePayload.Capabilities.Completions != null) capabilityFlags.Add("completions");
                 if (capabilityFlags.Count > 0)
                 {
@@ -209,11 +223,13 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void WriteHeader(string title, ConsoleColor color = ConsoleColor.Cyan)
     {
+        if (_structured) return;
         FormatterUtils.WriteLineWithColor(title, color, _useColors);
     }
 
     public void DisplayConfigurationStatus(string? configPath, bool loaded)
     {
+        if (_structured) return;
         if (configPath != null)
         {
             if (loaded)
@@ -234,6 +250,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void DisplayDiscoveryPlan(McpServerConfig serverConfig, string format)
     {
+        if (_structured) return;
         DisplaySessionBanner();
         DiscoveryFormatter.DisplayPlan(serverConfig, format,
             (text, color) => FormatterUtils.WriteLineWithColor(text, color, _useColors),
@@ -242,12 +259,14 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void DisplayServerCapabilities(ServerCapabilities capabilities, string format, bool verbose)
     {
+        if (_structured) return;
         CapabilityFormatter.Display(capabilities, format, verbose,
             (text, color) => FormatterUtils.WriteWithColor(text, color, _useColors));
     }
 
     public void DisplayReportPlan(FileInfo inputFile, string outputPath, string format, ValidationResult validationResult)
     {
+        if (_structured) return;
         DisplaySessionBanner();
         Console.WriteLine();
         WriteHeader("REPORT GENERATION");
@@ -265,6 +284,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void DisplaySessionBanner()
     {
+        if (_structured) return;
         if (_sessionBannerDisplayed)
         {
             return;
@@ -300,6 +320,7 @@ public class ConsoleOutputService : IConsoleOutputService
 
     public void WriteSessionLogHint(string? context = null)
     {
+        if (_structured) return;
         if (!_sessionContext.CanPersistLogs)
         {
             return;

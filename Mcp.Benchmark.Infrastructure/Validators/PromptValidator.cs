@@ -472,7 +472,9 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             result.Score = _scoringStrategy.CalculateScore(result);
 
             result.Issues.Add(result.PromptsDiscovered == 0
-                ? "✅ COMPLIANT: No prompts were advertised; no prompt executions were required"
+                ? CapabilitySnapshotUtils.IsCapabilityAdvertised(config.CapabilitySnapshot, McpSpecConstants.Capabilities.Prompts)
+                    ? "✅ COMPLIANT: Prompts capability was advertised and prompts/list returned an empty catalog; no prompt executions were required"
+                    : "✅ COMPLIANT: Prompts capability was not advertised and prompts/list returned an empty catalog; no prompt executions were required"
                 : $"✅ COMPLIANT: {result.PromptsDiscovered} prompts discovered and validated");
             
             return result;

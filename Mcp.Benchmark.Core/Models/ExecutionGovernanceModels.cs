@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Models;
 
@@ -69,6 +70,12 @@ public sealed class ExecutionPolicy
     public List<string> AllowedHosts { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets allowed HTTP origins, including scheme, host, and effective port.
+    /// </summary>
+    [JsonPropertyName("allowedOrigins")]
+    public List<string> AllowedOrigins { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets whether private or loopback addresses may be contacted.
     /// </summary>
     [JsonPropertyName("allowPrivateAddresses")]
@@ -78,19 +85,25 @@ public sealed class ExecutionPolicy
     /// Gets or sets the maximum number of outbound requests allowed for the run.
     /// </summary>
     [JsonPropertyName("maxRequests")]
-    public int MaxRequests { get; set; } = 256;
+    public int MaxRequests { get; set; } = ExecutionPolicyDefaults.DefaultMaxRequests;
 
     /// <summary>
     /// Gets or sets the maximum concurrency allowed for the run.
     /// </summary>
     [JsonPropertyName("maxConcurrency")]
-    public int MaxConcurrency { get; set; } = 4;
+    public int MaxConcurrency { get; set; } = ExecutionPolicyDefaults.DefaultMaxConcurrency;
 
     /// <summary>
     /// Gets or sets the request timeout budget in seconds.
     /// </summary>
     [JsonPropertyName("timeoutSeconds")]
-    public int TimeoutSeconds { get; set; } = 120;
+    public int TimeoutSeconds { get; set; } = ExecutionPolicyDefaults.DefaultTimeoutSeconds;
+
+    /// <summary>
+    /// Gets or sets the maximum response body size read by a transport operation.
+    /// </summary>
+    [JsonPropertyName("maxResponseBytes")]
+    public int MaxResponseBytes { get; set; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
 
     /// <summary>
     /// Gets or sets the operational persistence mode.
@@ -126,10 +139,12 @@ public sealed class ExecutionPolicy
             Mode = Mode,
             DryRun = DryRun,
             AllowedHosts = new List<string>(AllowedHosts),
+            AllowedOrigins = new List<string>(AllowedOrigins),
             AllowPrivateAddresses = AllowPrivateAddresses,
             MaxRequests = MaxRequests,
             MaxConcurrency = MaxConcurrency,
             TimeoutSeconds = TimeoutSeconds,
+            MaxResponseBytes = MaxResponseBytes,
             PersistenceMode = PersistenceMode,
             RedactLevel = RedactLevel,
             TraceMode = TraceMode,

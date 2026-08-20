@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Health;
 using Mcp.Benchmark.Infrastructure.Services.Telemetry;
@@ -8,6 +9,7 @@ using FluentAssertions;
 using Xunit;
 using ModelContextProtocol.Protocol;
 using McpServerCapabilities = ModelContextProtocol.Protocol.ServerCapabilities;
+using ValidatorJsonRpcResponse = Mcp.Benchmark.Core.Models.JsonRpcResponse;
 
 namespace Mcp.Benchmark.Tests.Unit.Services;
 
@@ -51,6 +53,39 @@ public class HealthCheckServiceComprehensiveTests
         result.Disposition.Should().Be(HealthCheckDisposition.Healthy);
         result.ResponseTimeMs.Should().BeGreaterThan(0);
         result.ServerVersion.Should().Be("1.0");
+    }
+
+    [Fact]
+    public async Task HealthCheck_WithModernHttp_ShouldUseServerDiscoveryWithoutInitialize()
+    {
+        var config = new McpServerConfig
+        {
+            Endpoint = "https://test.com/mcp",
+            Transport = "http",
+            ProtocolVersion = "2026-07-28"
+        };
+        _httpClient
+            .Setup(client => client.CallAsync(
+                config.Endpoint,
+                ValidationConstants.Methods.ServerDiscover,
+                null,
+                config.Authentication,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidatorJsonRpcResponse
+            {
+                IsSuccess = true,
+                StatusCode = 200,
+                ElapsedMs = 15,
+                ProtocolSemanticsValid = true,
+                ResultType = McpResultType.Complete
+            });
+
+        var result = await _service.PerformHealthCheckAsync(config);
+
+        result.IsHealthy.Should().BeTrue();
+        result.ProtocolVersion.Should().Be("2026-07-28");
+        result.ServerMetadata["healthMethod"].Should().Be(ValidationConstants.Methods.ServerDiscover);
+        _httpClient.Verify(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -180,6 +215,20 @@ public class HealthCheckServiceComprehensiveTests
         result.Disposition.Should().Be(HealthCheckDisposition.TransientFailure);
         result.AllowsDeferredValidation.Should().BeTrue();
         result.ErrorMessage.Should().Contain("timed out");
+    }
+
+    [Fact]
+    public async Task HealthCheck_WithCallerCancellation_ShouldPropagateCancellation()
+    {
+        var config = new McpServerConfig { Endpoint = "https://slow.com/mcp", Transport = "http" };
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        _httpClient.Setup(x => x.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+
+        var action = () => _service.PerformHealthCheckAsync(config, cancellation.Token);
+
+        await action.Should().ThrowAsync<OperationCanceledException>();
     }
 
     [Fact]

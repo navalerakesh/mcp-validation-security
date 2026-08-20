@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-audit-manifest.schema.json",
+  "title": "MCP Validator Audit Manifest",
+  "type": "object",
+  "required": [
+    "documentType",
+    "documentSchemaVersion",
+    "timestampUtc",
+    "commandName",
+    "validationId",
+    "sessionId",
+    "target",
+    "transport",
+    "requestedProtocolProfile",
+    "resolvedSchemaVersion",
+    "protocolEra",
+    "executionMode",
+    "plannedChecks",
+    "executedChecks",
+    "artifactPaths"
+  ],
+  "properties": {
+    "documentType": { "const": "mcpval.audit-manifest" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "timestampUtc": { "type": "string", "format": "date-time" },
+    "commandName": { "type": "string", "minLength": 1 },
+    "validationId": { "type": "string", "minLength": 1 },
+    "sessionId": { "type": "string", "minLength": 1 },
+    "target": { "type": "string", "minLength": 1 },
+    "transport": { "type": "string", "minLength": 1 },
+    "requestedProtocolProfile": { "type": "string", "minLength": 1 },
+    "resolvedSchemaVersion": { "type": "string", "minLength": 1 },
+    "protocolEra": { "enum": ["legacy", "modern"] },
+    "protocolEraSelection": { "enum": ["auto", "legacy", "modern"] },
+    "executionMode": { "enum": ["safe", "standard", "elevated"] },
+    "maxResponseBytes": { "type": "integer", "minimum": 1 },
+    "allowedOrigins": { "type": "array", "items": { "type": "string", "format": "uri" } },
+    "plannedChecks": { "type": "array", "items": { "type": "string" } },
+    "executedChecks": { "type": "array", "items": { "type": "string" } },
+    "artifactPaths": { "type": "array", "items": { "type": "string" } },
+    "digests": {
+      "type": "object",
+      "required": ["validatorSha256", "ruleCatalogSha256", "profileCatalogSha256", "configSha256", "targetIdentitySha256", "artifactsSha256"],
+      "properties": {
+        "validatorSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "ruleCatalogSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "profileCatalogSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "configSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "targetIdentitySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "artifactsSha256": { "type": "object", "additionalProperties": { "type": "string", "pattern": "^[a-f0-9]{64}$" } }
+      },
+      "additionalProperties": false
+    },
+    "evidenceCompleteness": {
+      "oneOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "required": ["totalDeclarations", "applicableDeclarations", "covered", "authRequired", "inconclusive", "skipped", "notApplicable", "unavailable", "blocked", "evidenceCoverageRatio", "evidenceConfidenceRatio", "confidenceLevel", "categories"],
+          "properties": {
+            "totalDeclarations": { "type": "integer", "minimum": 0 },
+            "applicableDeclarations": { "type": "integer", "minimum": 0 },
+            "covered": { "type": "integer", "minimum": 0 },
+            "authRequired": { "type": "integer", "minimum": 0 },
+            "inconclusive": { "type": "integer", "minimum": 0 },
+            "skipped": { "type": "integer", "minimum": 0 },
+            "notApplicable": { "type": "integer", "minimum": 0 },
+            "unavailable": { "type": "integer", "minimum": 0 },
+            "blocked": { "type": "integer", "minimum": 0 },
+            "evidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "evidenceConfidenceRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+            "confidenceLevel": { "enum": ["none", "low", "medium", "high"] },
+            "categories": { "type": "array" }
+          },
+          "additionalProperties": true
+        }
+      ]
+    }
+  },
+  "additionalProperties": true
+}

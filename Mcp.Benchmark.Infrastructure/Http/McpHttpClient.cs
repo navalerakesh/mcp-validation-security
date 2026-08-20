@@ -23,29 +23,46 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 /// <summary>
 /// Real HTTP-based MCP client for actual server validation.
 /// </summary>
-public class McpHttpClient : IMcpHttpClient
+public class McpHttpClient : IMcpHttpClient, IDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger<McpHttpClient> _logger;
     private readonly IMcpClient _mcpClient;
+    private readonly RunNetworkPolicyContext? _networkPolicyContext;
     private readonly JsonSerializerOptions _jsonOptions;
     private readonly object _concurrencyLock = new();
     private SemaphoreSlim? _requestSemaphore;
+    private readonly List<SemaphoreSlim> _retiredSemaphores = new();
+    private bool _disposed;
     private int _maxConcurrency;
     private string? _protocolVersion;
+    private ModernDiscoveryEvidence? _modernDiscovery;
     private AuthenticationConfig? _defaultAuthentication;
-    private ExecutionPolicy? _executionPolicy;
+    private OperationPolicySnapshot? _executionPolicy;
     private int _requestCount;
     private string? _sessionId;
     private const int DefaultRequestTimeoutSeconds = 60;
     private const string ProtocolVersionHeaderName = "MCP-Protocol-Version";
+    private const string MethodHeaderName = "Mcp-Method";
     private const string SessionIdHeaderName = "MCP-Session-Id";
 
+    public bool IsExecutionPolicyConfigured => _executionPolicy != null;
+
     public McpHttpClient(HttpClient httpClient, ILogger<McpHttpClient> logger, IMcpClient mcpClient)
+        : this(httpClient, logger, mcpClient, networkPolicyContext: null)
+    {
+    }
+
+    internal McpHttpClient(
+        HttpClient httpClient,
+        ILogger<McpHttpClient> logger,
+        IMcpClient mcpClient,
+        RunNetworkPolicyContext? networkPolicyContext)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _mcpClient = mcpClient ?? throw new ArgumentNullException(nameof(mcpClient));
+        _networkPolicyContext = networkPolicyContext;
 
         _jsonOptions = new JsonSerializerOptions
         {
@@ -63,25 +80,15 @@ public class McpHttpClient : IMcpHttpClient
     public void SetAuthentication(AuthenticationConfig? authentication)
     {
         _defaultAuthentication = CloneAuthentication(authentication);
-
-        if (authentication == null)
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = null;
-            return;
-        }
-
-        if (string.Equals(authentication.Type, "bearer", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(authentication.Token))
-        {
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", authentication.Token);
-            return;
-        }
-
         _httpClient.DefaultRequestHeaders.Authorization = null;
     }
 
     public void SetConcurrencyLimit(int maxConcurrency)
     {
-        var normalized = Math.Clamp(maxConcurrency, 1, 256);
+        var normalized = Math.Clamp(
+            maxConcurrency,
+            ExecutionPolicyDefaults.MinimumPositiveValue,
+            ExecutionPolicyDefaults.MaximumConcurrency);
 
         lock (_concurrencyLock)
         {
@@ -90,6 +97,10 @@ public class McpHttpClient : IMcpHttpClient
                 return;
             }
 
+            if (_requestSemaphore != null)
+            {
+                _retiredSemaphores.Add(_requestSemaphore);
+            }
             _requestSemaphore = new SemaphoreSlim(normalized, normalized);
             _maxConcurrency = normalized;
         }
@@ -109,9 +120,18 @@ public class McpHttpClient : IMcpHttpClient
             : protocolVersion.Trim();
     }
 
+    public void SetModernDiscovery(ModernDiscoveryEvidence? discovery)
+    {
+        _modernDiscovery = discovery;
+    }
+
     public void ConfigureExecutionPolicy(ExecutionPolicy? executionPolicy)
     {
-        _executionPolicy = executionPolicy?.Clone();
+        _executionPolicy = executionPolicy == null ? null : OperationPolicySnapshot.From(executionPolicy);
+        if (_executionPolicy != null)
+        {
+            _networkPolicyContext?.Configure(_executionPolicy);
+        }
         Interlocked.Exchange(ref _requestCount, 0);
 
         if (_executionPolicy == null)
@@ -128,8 +148,29 @@ public class McpHttpClient : IMcpHttpClient
     /// </summary>
     public async Task<string> GetStringAsync(string url, CancellationToken cancellationToken = default)
     {
-        EnforceExecutionPolicy(url);
-        return await _httpClient.GetStringAsync(url, cancellationToken);
+        await EnforceExecutionPolicyAsync(url, cancellationToken);
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        var observed = await SendObservedAsync(request, cancellationToken).ConfigureAwait(false);
+        using var response = observed.Response;
+        if (response.StatusCode != HttpStatusCode.OK)
+        {
+            throw new HttpRequestException(
+                $"OAuth metadata endpoint returned HTTP {(int)response.StatusCode}; exact HTTP 200 is required.",
+                null,
+                response.StatusCode);
+        }
+
+        var body = await ReadRawResponseContentAsync(response.Content, cancellationToken, response.IsSuccessStatusCode).ConfigureAwait(false);
+        var mediaType = response.Content.Headers.ContentType?.MediaType;
+        var isJson = string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) ||
+                     mediaType?.StartsWith("application/", StringComparison.OrdinalIgnoreCase) == true &&
+                     mediaType.EndsWith("+json", StringComparison.OrdinalIgnoreCase);
+        if (body.Length > 0 && !isJson)
+        {
+            throw new InvalidDataException("OAuth metadata endpoint must return an application/json media type.");
+        }
+
+        return body;
     }
 
     /// <summary>
@@ -150,14 +191,14 @@ public class McpHttpClient : IMcpHttpClient
         {
             JsonRpc = "2.0",
             Method = method,
-            Params = parameters,
+            Params = ModernRequestMetadata.Enrich(parameters, _protocolVersion, _jsonOptions),
             Id = requestId
         };
 
         _logger.LogDebug("Making JSON-RPC call to {Endpoint}: {Method} with auth: {HasAuth}", endpoint, method, authentication != null);
-        
+
         var json = JsonSerializer.Serialize(request, _jsonOptions);
-        
+
         return await ExecuteWithRetryAsync(endpoint, json, authentication, method, requestId, cancellationToken);
     }
 
@@ -170,9 +211,23 @@ public class McpHttpClient : IMcpHttpClient
         string? authScheme = null;
 
         var throttle = _requestSemaphore ?? throw new InvalidOperationException("HTTP concurrency limiter not initialized.");
+        var acquired = false;
         try
         {
-            await throttle.WaitAsync(cancellationToken);
+            var queueStopwatch = System.Diagnostics.Stopwatch.StartNew();
+            try
+            {
+                await throttle.WaitAsync(cancellationToken);
+            }
+            catch
+            {
+                queueStopwatch.Stop();
+                ValidationObservability.RecordQueue(queueStopwatch.Elapsed.TotalMilliseconds);
+                throw;
+            }
+            queueStopwatch.Stop();
+            ValidationObservability.RecordQueue(queueStopwatch.Elapsed.TotalMilliseconds);
+            acquired = true;
 
             while (true)
             {
@@ -180,7 +235,7 @@ public class McpHttpClient : IMcpHttpClient
                 var content = CreateJsonContent(jsonPayload);
 
                 // Create a new HttpRequestMessage to set authentication headers
-                var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+                using var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
                 {
                     Content = content
                 };
@@ -190,6 +245,7 @@ public class McpHttpClient : IMcpHttpClient
                 requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
 
                 ApplyProtocolVersionHeader(requestMessage);
+                ApplyMethodHeader(requestMessage, method);
                 ApplySessionIdHeader(requestMessage, ShouldIncludeSessionHeader(method));
 
                 // Apply authentication if provided
@@ -216,12 +272,15 @@ public class McpHttpClient : IMcpHttpClient
                         _logger.LogDebug("Added authentication header");
                     }
                 }
-                else if (_httpClient.DefaultRequestHeaders.Authorization != null)
+                else if (_defaultAuthentication != null)
                 {
-                    // Fallback to global auth if set via SetAuthentication
-                    requestMessage.Headers.Authorization = _httpClient.DefaultRequestHeaders.Authorization;
-                    authApplied = true;
-                    authScheme = requestMessage.Headers.Authorization.Scheme;
+                    var defaultHeaderValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(_defaultAuthentication);
+                    if (!string.IsNullOrEmpty(defaultHeaderValue))
+                    {
+                        McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, defaultHeaderValue);
+                        authApplied = true;
+                        authScheme = requestMessage.Headers.Authorization?.Scheme;
+                    }
                 }
                 else
                 {
@@ -235,18 +294,22 @@ public class McpHttpClient : IMcpHttpClient
                 HttpResponseMessage httpResponse;
                 try
                 {
-                    EnforceExecutionPolicy(endpoint);
-                    var sw = System.Diagnostics.Stopwatch.StartNew();
-                    httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
-                    sw.Stop();
-                    lastAttemptElapsedMs = sw.Elapsed.TotalMilliseconds;
+                    await EnforceExecutionPolicyAsync(endpoint, cancellationToken);
+                    var observed = await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+                    httpResponse = observed.Response;
+                    lastAttemptElapsedMs = observed.ElapsedMs;
                 }
                 catch (Exception ex) when (ValidationReliability.ShouldRetryException(ex, cancellationToken) && attempt < maxAttempts)
                 {
                     var delay = ValidationReliability.GetRetryDelay(attempt);
+                    ValidationObservability.RecordRetry(delay);
                     _logger.LogWarning(ex, "Transient transport failure. Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", delay.TotalSeconds, attempt, maxAttempts);
                     await Task.Delay(delay, cancellationToken);
                     continue;
+                }
+                catch
+                {
+                    throw;
                 }
 
                 if (ValidationReliability.IsRetryableHttpStatusCode((int)httpResponse.StatusCode) && attempt < maxAttempts)
@@ -256,6 +319,7 @@ public class McpHttpClient : IMcpHttpClient
                         header => string.Join(",", header.Value),
                         StringComparer.OrdinalIgnoreCase);
                     var delay = httpResponse.Headers.RetryAfter?.Delta ?? ValidationReliability.GetRetryDelay(attempt, responseHeaders);
+                    ValidationObservability.RecordRetry(delay);
 
                     if ((int)httpResponse.StatusCode == (int)HttpStatusCode.TooManyRequests)
                     {
@@ -266,14 +330,15 @@ public class McpHttpClient : IMcpHttpClient
                         _logger.LogWarning("Transient HTTP {StatusCode}. Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", (int)httpResponse.StatusCode, delay.TotalSeconds, attempt, maxAttempts);
                     }
 
+                    httpResponse.Dispose();
                     await Task.Delay(delay, cancellationToken);
                     continue;
                 }
 
-                var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken);
+                using var responseToDispose = httpResponse;
+                var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken, httpResponse.IsSuccessStatusCode);
 
-                _logger.LogDebug("Received response: {Status} - {Response}", httpResponse.StatusCode, 
-                    responseJson?.Length > 1000 ? responseJson.Substring(0, 1000) + "..." : responseJson);
+                _logger.LogDebug("Received response: {Status}; body length: {BodyLength}", httpResponse.StatusCode, responseJson?.Length ?? 0);
 
                 // Capture all headers (both response headers and content headers)
                 var allHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -294,7 +359,7 @@ public class McpHttpClient : IMcpHttpClient
 
                 CaptureHttpStateFromResponse(method, responseJson, allHeaders);
 
-                return new ValidatorJsonRpcResponse
+                var rpcResponse = new ValidatorJsonRpcResponse
                 {
                     StatusCode = (int)httpResponse.StatusCode,
                     IsSuccess = httpResponse.IsSuccessStatusCode,
@@ -313,7 +378,13 @@ public class McpHttpClient : IMcpHttpClient
                         errorMessage,
                         allHeaders)
                 };
+                ModernResultSemantics.Apply(rpcResponse, _protocolVersion, method);
+                return rpcResponse;
             }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -340,11 +411,7 @@ public class McpHttpClient : IMcpHttpClient
         }
         finally
         {
-            // Only release the semaphore if it was successfully acquired. If WaitAsync
-            // throws (e.g., due to cancellation), we must not call Release, otherwise
-            // we will eventually hit "adding the specified count to the semaphore would
-            // cause it to exceed its maximum count".
-            if (throttle.CurrentCount < _maxConcurrency)
+            if (acquired)
             {
                 throttle.Release();
             }
@@ -370,7 +437,7 @@ public class McpHttpClient : IMcpHttpClient
         });
 
         // Test Invalid Request (-32600) - Missing jsonrpc field
-        var invalidRequestResponse = await SendRawJsonAsync(endpoint, 
+        var invalidRequestResponse = await SendRawJsonAsync(endpoint,
             "{\"method\":\"test\",\"id\":1,\"params\":{}}", cancellationToken);
         results.Add(new JsonRpcErrorTest
         {
@@ -394,7 +461,10 @@ public class McpHttpClient : IMcpHttpClient
         // Test Invalid Params (-32602)
         // Sending a string as params is technically an Invalid Request (-32600) per spec because params must be Array/Object.
         // However, some servers might return -32602. We accept either for this test case to be robust.
-        var invalidParamsResponse = await CallAsync(endpoint, "tools/call", "invalid_params_string", cancellationToken);
+        var invalidParamsResponse = await SendRawJsonAsync(
+            endpoint,
+            "{\"jsonrpc\":\"2.0\",\"id\":\"invalid-params\",\"method\":\"tools/call\",\"params\":\"invalid_params_string\"}",
+            cancellationToken);
         results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Params",
@@ -435,7 +505,8 @@ public class McpHttpClient : IMcpHttpClient
                 authentication: null,
                 acceptWildcard: true);
 
-            using var response = await _httpClient.SendAsync(requestMessage, timeoutTokenSource.Token);
+            var observed = await SendObservedAsync(requestMessage, timeoutTokenSource.Token).ConfigureAwait(false);
+            using var response = observed.Response;
             sw.Stop();
 
             result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
@@ -443,7 +514,7 @@ public class McpHttpClient : IMcpHttpClient
             {
                 StatusCode = (int)response.StatusCode,
                 IsSuccess = response.IsSuccessStatusCode,
-                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken),
+                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken, response.IsSuccessStatusCode),
                 ElapsedMs = result.FailureElapsedMs
             };
             result.ActualOutcome = "Timeout probe completed before the induced cancellation window elapsed.";
@@ -489,7 +560,8 @@ public class McpHttpClient : IMcpHttpClient
                 authentication: null,
                 acceptWildcard: true);
 
-            using var response = await _httpClient.SendAsync(requestMessage, cancellationToken);
+            var observed = await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            using var response = observed.Response;
             sw.Stop();
 
             result.FailureElapsedMs = sw.Elapsed.TotalMilliseconds;
@@ -497,7 +569,7 @@ public class McpHttpClient : IMcpHttpClient
             {
                 StatusCode = (int)response.StatusCode,
                 IsSuccess = response.IsSuccessStatusCode,
-                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken),
+                RawJson = await ReadResponseContentAsync(response.Content, cancellationToken, response.IsSuccessStatusCode),
                 ElapsedMs = result.FailureElapsedMs
             };
             result.ActualOutcome = "Connection interruption probe completed without the transport being interrupted.";
@@ -539,6 +611,10 @@ public class McpHttpClient : IMcpHttpClient
                     Payload = initializeResult,
                     Transport = CreateTransportMetadata(DateTime.UtcNow - startTime)
                 };
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -595,6 +671,10 @@ public class McpHttpClient : IMcpHttpClient
                     initializeResponse.RawJson)
             };
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "MCP initialize handshake failed for {Endpoint}", endpoint);
@@ -613,9 +693,14 @@ public class McpHttpClient : IMcpHttpClient
     public async Task<TransportResult<CapabilitySummary>> ValidateCapabilitiesAsync(string endpoint, CancellationToken cancellationToken = default)
     {
         var startTime = DateTime.UtcNow;
-        var initializeResult = await ValidateInitializeAsync(endpoint, cancellationToken).ConfigureAwait(false);
-        var capabilityDeclarationsAvailable = CapabilitySnapshotUtils.HasCapabilityDeclarations(initializeResult.Payload);
-        var advertisedCapabilities = CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(initializeResult.Payload);
+        var isModern = ProtocolEraVersions.IsModern(_protocolVersion) && _modernDiscovery?.IsValid == true;
+        var initializeResult = isModern
+            ? new TransportResult<InitializeResult> { IsSuccessful = false, Transport = TransportMetadata.Empty }
+            : await ValidateInitializeAsync(endpoint, cancellationToken).ConfigureAwait(false);
+        var capabilityDeclarationsAvailable = isModern || CapabilitySnapshotUtils.HasCapabilityDeclarations(initializeResult.Payload);
+        var advertisedCapabilities = isModern
+            ? _modernDiscovery!.CapabilityNames
+            : CapabilitySnapshotUtils.ExtractAdvertisedCapabilities(initializeResult.Payload);
         var shouldProbeTools = CapabilitySnapshotUtils.ShouldProbeCapability(
             capabilityDeclarationsAvailable,
             advertisedCapabilities,
@@ -631,12 +716,11 @@ public class McpHttpClient : IMcpHttpClient
 
         IReadOnlyList<McpClientTool> discoveredTools = Array.Empty<McpClientTool>();
         var toolListingSucceeded = false;
-        var toolInvocationSucceeded = false;
         string? firstToolName = null;
 
         var serverConfig = BuildServerConfig(endpoint);
 
-        if (shouldProbeTools)
+        if (shouldProbeTools && !isModern)
         {
             try
             {
@@ -681,29 +765,6 @@ public class McpHttpClient : IMcpHttpClient
             firstToolName = TryGetFirstToolName(toolListResponse?.RawJson);
         }
 
-        if (toolListingSucceeded && !string.IsNullOrWhiteSpace(firstToolName))
-        {
-            try
-            {
-                var toolCallResponse = await CallAsync(
-                    endpoint,
-                    ValidationConstants.Methods.ToolsCall,
-                    new
-                    {
-                        name = firstToolName,
-                        arguments = new { }
-                    },
-                    cancellationToken).ConfigureAwait(false);
-
-                toolInvocationSucceeded = toolCallResponse.IsSuccess || toolCallResponse.StatusCode == 400;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Unexpected error calling tool {Tool}", firstToolName);
-                toolInvocationSucceeded = false;
-            }
-        }
-
         var payload = BuildSummary();
         var capabilitySnapshotSucceeded = (initializeResult.IsSuccessful && capabilityDeclarationsAvailable) ||
             toolListingSucceeded ||
@@ -734,14 +795,14 @@ public class McpHttpClient : IMcpHttpClient
                 AdvertisedCapabilities = advertisedCapabilities,
                 Tools = discoveredTools,
                 ToolListingSucceeded = toolListingSucceeded,
-                ToolInvocationSucceeded = toolInvocationSucceeded,
+                ToolInvocationAttempted = false,
+                ToolInvocationSucceeded = false,
                 FirstToolName = firstToolName,
                 DiscoveredToolsCount = discoveredToolCount,
                 Score = CalculateCapabilityScore(
                     capabilityDeclarationsAvailable,
                     advertisedCapabilities,
                     toolListingSucceeded,
-                    toolInvocationSucceeded,
                     resourceListingSucceeded,
                     promptListingSucceeded),
                 ToolListResponse = toolListResponse,
@@ -775,6 +836,10 @@ public class McpHttpClient : IMcpHttpClient
                 var response = await CallAsync(serverEndpoint, method, null, token).ConfigureAwait(false);
                 var duration = (DateTime.UtcNow - methodStart).TotalMilliseconds;
                 return (response, duration);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -901,9 +966,10 @@ public class McpHttpClient : IMcpHttpClient
                 acceptWildcard: true,
                 includeSessionId: ShouldIncludeSessionHeader(method));
 
-            EnforceExecutionPolicy(endpoint);
-            var httpResponse = await _httpClient.SendAsync(requestMessage, cancellationToken);
-            var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken);
+            await EnforceExecutionPolicyAsync(endpoint, cancellationToken);
+            var observed = await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            using var httpResponse = observed.Response;
+            var responseJson = await ReadResponseContentAsync(httpResponse.Content, cancellationToken, httpResponse.IsSuccessStatusCode);
             var headers = BuildHeaderDictionary(httpResponse);
 
             CaptureHttpStateFromResponse(method, responseJson, headers);
@@ -925,6 +991,10 @@ public class McpHttpClient : IMcpHttpClient
                     error: httpResponse.IsSuccessStatusCode ? null : $"HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}",
                     headers: headers)
             };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -953,9 +1023,9 @@ public class McpHttpClient : IMcpHttpClient
     /// </summary>
     public async Task<HttpResponseMessage> SendAsync(string endpoint, HttpContent content, CancellationToken cancellationToken = default)
     {
-        EnforceExecutionPolicy(endpoint);
+        await EnforceExecutionPolicyAsync(endpoint, cancellationToken);
         using var requestMessage = CreatePostRequestMessage(endpoint, content, authentication: null);
-        return await _httpClient.SendAsync(requestMessage, cancellationToken);
+        return (await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false)).Response;
     }
 
     public async Task<HttpTransportProbeResponse> SendHttpTransportProbeAsync(HttpTransportProbeRequest request, CancellationToken cancellationToken = default)
@@ -1000,22 +1070,28 @@ public class McpHttpClient : IMcpHttpClient
                     McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, headerValue);
                 }
             }
-            else if (request.IncludeDefaultAuthentication && _httpClient.DefaultRequestHeaders.Authorization is not null)
+            else if (request.IncludeDefaultAuthentication && _defaultAuthentication is not null)
             {
-                requestMessage.Headers.Authorization = _httpClient.DefaultRequestHeaders.Authorization;
+                var defaultHeaderValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(_defaultAuthentication);
+                if (!string.IsNullOrEmpty(defaultHeaderValue))
+                {
+                    McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, defaultHeaderValue);
+                }
             }
 
             requestHeaders = BuildRequestHeaderDictionary(requestMessage);
-            EnforceExecutionPolicy(request.Endpoint);
+            await EnforceExecutionPolicyAsync(request.Endpoint, cancellationToken);
 
-            var httpResponse = await _httpClient.SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+            var observed = await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false);
+            using var httpResponse = observed.Response;
             sw.Stop();
 
             var responseHeaders = BuildHeaderDictionary(httpResponse);
             var contentType = httpResponse.Content.Headers.ContentType?.MediaType;
-            var body = IsEventStreamContentType(contentType)
+            var preview = IsEventStreamContentType(contentType)
                 ? await ReadRawResponsePreviewAsync(httpResponse.Content, cancellationToken).ConfigureAwait(false)
-                : await ReadRawResponseContentAsync(httpResponse.Content, cancellationToken).ConfigureAwait(false);
+                : (Body: await ReadRawResponseContentAsync(httpResponse.Content, cancellationToken, httpResponse.IsSuccessStatusCode).ConfigureAwait(false), TimedOut: false);
+            var body = preview.Body;
             var sseEvents = IsEventStreamContentType(contentType)
                 ? SseEventStreamParser.Parse(body).ToList()
                 : new List<SseEventRecord>();
@@ -1035,6 +1111,7 @@ public class McpHttpClient : IMcpHttpClient
                 Headers = responseHeaders,
                 RequestHeaders = requestHeaders,
                 ElapsedMs = sw.Elapsed.TotalMilliseconds,
+                TimedOut = preview.TimedOut,
                 SseEvents = sseEvents,
                 ProbeContext = CreateProbeContext(
                     null,
@@ -1047,6 +1124,10 @@ public class McpHttpClient : IMcpHttpClient
                     httpResponse.IsSuccessStatusCode ? null : $"HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}",
                     responseHeaders)
             };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1080,17 +1161,20 @@ public class McpHttpClient : IMcpHttpClient
         });
     }
 
-    private void EnforceExecutionPolicy(string endpoint)
+    private async Task EnforceExecutionPolicyAsync(string endpoint, CancellationToken cancellationToken)
     {
         if (_executionPolicy == null)
         {
             return;
         }
 
-        var requestNumber = Interlocked.Increment(ref _requestCount);
-        if (requestNumber > _executionPolicy.MaxRequests)
+        if (_networkPolicyContext == null)
         {
-            throw new InvalidOperationException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
+            var requestNumber = Interlocked.Increment(ref _requestCount);
+            if (requestNumber > _executionPolicy.MaxRequests)
+            {
+                throw new InvalidOperationException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
+            }
         }
 
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
@@ -1098,46 +1182,44 @@ public class McpHttpClient : IMcpHttpClient
             return;
         }
 
+        if (uri.Scheme is not ("http" or "https"))
+        {
+            throw new InvalidOperationException($"Execution policy blocked unsupported URI scheme '{uri.Scheme}'.");
+        }
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            throw new InvalidOperationException("Execution policy blocked a request URI containing user-info.");
+        }
+
+        var normalizedHost = NetworkTargetPolicy.NormalizeHost(uri.IdnHost);
         if (_executionPolicy.AllowedHosts.Count > 0 &&
-            !_executionPolicy.AllowedHosts.Contains(uri.Host, StringComparer.OrdinalIgnoreCase))
+            !_executionPolicy.AllowedHosts.Contains(normalizedHost, StringComparer.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException($"Execution policy blocked outbound request to host '{uri.Host}'.");
+            throw new InvalidOperationException($"Execution policy blocked outbound request to host '{normalizedHost}'.");
         }
 
-        if (!_executionPolicy.AllowPrivateAddresses && IsPrivateAddress(uri.Host))
+        var origin = NetworkTargetPolicy.NormalizeOrigin(uri);
+        if (_executionPolicy.AllowedOrigins.Count > 0 && !_executionPolicy.AllowedOrigins.Contains(origin))
         {
-            throw new InvalidOperationException($"Execution policy blocked private or loopback host '{uri.Host}'.");
-        }
-    }
-
-    private static bool IsPrivateAddress(string host)
-    {
-        if (string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
+            throw new InvalidOperationException($"Execution policy blocked outbound request to origin '{origin}'.");
         }
 
-        if (!IPAddress.TryParse(host, out var address))
+        if (_executionPolicy.AllowPrivateAddresses)
         {
-            return false;
+            return;
         }
 
-        if (IPAddress.IsLoopback(address))
+        var addresses = await Dns.GetHostAddressesAsync(uri.DnsSafeHost, cancellationToken);
+        if (addresses.Length == 0)
         {
-            return true;
+            throw new InvalidOperationException($"Execution policy blocked host '{uri.Host}' because it did not resolve to an address.");
         }
 
-        if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+        if (addresses.Any(NetworkAddressClassifier.IsRestricted))
         {
-            var bytes = address.GetAddressBytes();
-            return bytes[0] == 10 ||
-                   bytes[0] == 127 ||
-                   (bytes[0] == 172 && bytes[1] >= 16 && bytes[1] <= 31) ||
-                   (bytes[0] == 192 && bytes[1] == 168) ||
-                   (bytes[0] == 169 && bytes[1] == 254);
+            throw new InvalidOperationException($"Execution policy blocked private, local, or reserved address resolution for host '{uri.Host}'.");
         }
-
-        return address.IsIPv6LinkLocal || address.IsIPv6SiteLocal;
     }
 
     private static ByteArrayContent CreateJsonContent(string jsonPayload)
@@ -1163,6 +1245,16 @@ public class McpHttpClient : IMcpHttpClient
         if (!string.IsNullOrEmpty(_protocolVersion) && !requestMessage.Headers.Contains(ProtocolVersionHeaderName))
         {
             requestMessage.Headers.TryAddWithoutValidation(ProtocolVersionHeaderName, _protocolVersion);
+        }
+    }
+
+    private void ApplyMethodHeader(HttpRequestMessage requestMessage, string? method)
+    {
+        if (ProtocolEraVersions.IsModern(_protocolVersion) &&
+            !string.IsNullOrWhiteSpace(method) &&
+            !requestMessage.Headers.Contains(MethodHeaderName))
+        {
+            requestMessage.Headers.TryAddWithoutValidation(MethodHeaderName, method);
         }
     }
 
@@ -1287,7 +1379,7 @@ public class McpHttpClient : IMcpHttpClient
         {
             // Perform a detailed connectivity check
             var response = await _httpClient.GetAsync(endpoint, cancellationToken);
-            
+
             if (response.IsSuccessStatusCode || response.StatusCode == System.Net.HttpStatusCode.MethodNotAllowed)
             {
                 // Healthy - standard success or POST-only endpoint
@@ -1319,6 +1411,10 @@ public class McpHttpClient : IMcpHttpClient
             result.OverallStatus = ValidationStatus.Failed;
             result.CriticalErrors.Add($"Connection failed: {ex.Message}");
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (TaskCanceledException)
         {
             result.OverallStatus = ValidationStatus.Failed;
@@ -1337,9 +1433,9 @@ public class McpHttpClient : IMcpHttpClient
         return result;
     }
 
-    private async Task<string> ReadResponseContentAsync(HttpContent content, CancellationToken cancellationToken)
+    private async Task<string> ReadResponseContentAsync(HttpContent content, CancellationToken cancellationToken, bool responseWasInitiallySuccessful = true)
     {
-        var rawContent = await ReadRawResponseContentAsync(content, cancellationToken).ConfigureAwait(false);
+        var rawContent = await ReadRawResponseContentAsync(content, cancellationToken, responseWasInitiallySuccessful).ConfigureAwait(false);
 
         if (IsEventStreamContentType(content.Headers.ContentType?.MediaType) ||
             rawContent.TrimStart().StartsWith("event:", StringComparison.OrdinalIgnoreCase))
@@ -1350,41 +1446,94 @@ public class McpHttpClient : IMcpHttpClient
         return rawContent;
     }
 
-    private async Task<string> ReadRawResponseContentAsync(HttpContent content, CancellationToken cancellationToken)
+    private async Task<(HttpResponseMessage Response, double ElapsedMs)> SendObservedAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
     {
-        try 
+        var observeLocally = _networkPolicyContext == null;
+        if (observeLocally)
         {
-            // Limit to 1MB to prevent memory issues/hanging on huge responses
-            const long MaxResponseSize = 1 * 1024 * 1024; 
-            
-            if (content.Headers.ContentLength > MaxResponseSize)
+            ValidationObservability.RecordRequestStarted(request.Method.Method);
+        }
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        try
+        {
+            var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                cancellationToken).ConfigureAwait(false);
+            stopwatch.Stop();
+            if (observeLocally)
             {
-                _logger.LogWarning("Response too large ({Size} bytes). Max allowed is {Max} bytes.", content.Headers.ContentLength, MaxResponseSize);
-                return string.Empty;
+                ValidationObservability.RecordRequestCompleted(
+                    request.Method.Method,
+                    stopwatch.Elapsed.TotalMilliseconds,
+                    response.IsSuccessStatusCode);
+            }
+            return (response, stopwatch.Elapsed.TotalMilliseconds);
+        }
+        catch
+        {
+            stopwatch.Stop();
+            if (observeLocally)
+            {
+                ValidationObservability.RecordRequestCompleted(
+                    request.Method.Method,
+                    stopwatch.Elapsed.TotalMilliseconds,
+                    success: false);
+            }
+            throw;
+        }
+    }
+
+    private async Task<string> ReadRawResponseContentAsync(HttpContent content, CancellationToken cancellationToken, bool responseWasInitiallySuccessful = true)
+    {
+        try
+        {
+            var maxResponseBytes = _executionPolicy?.MaxResponseBytes ?? ExecutionPolicyDefaults.DefaultMaxResponseBytes;
+
+            if (content.Headers.ContentLength > maxResponseBytes)
+            {
+                ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful);
+                throw new InvalidDataException($"Response body exceeds configured limit of {maxResponseBytes} bytes (Content-Length: {content.Headers.ContentLength}).");
             }
 
-            // If content length is unknown, we still need to be careful
             using var stream = await content.ReadAsStreamAsync(cancellationToken);
-            using var reader = new StreamReader(stream, Encoding.UTF8);
-            
-            var buffer = new char[4096];
-            var memory = new Memory<char>(buffer);
-            var sb = new StringBuilder();
+            using var body = new MemoryStream(Math.Min(maxResponseBytes, 64 * 1024));
+            var buffer = new byte[8192];
             int totalRead = 0;
-            int read;
-            
-            while ((read = await reader.ReadAsync(memory, cancellationToken)) > 0)
+
+            while (true)
             {
-                totalRead += read;
-                if (totalRead > MaxResponseSize)
+                var remaining = maxResponseBytes - totalRead;
+                var read = await stream.ReadAsync(
+                    buffer.AsMemory(0, Math.Min(buffer.Length, remaining + 1)),
+                    cancellationToken).ConfigureAwait(false);
+                if (read == 0)
                 {
-                    _logger.LogWarning("Response exceeded size limit of {Max} bytes. Truncating.", MaxResponseSize);
                     break;
                 }
-                sb.Append(buffer, 0, read);
+
+                if (read > remaining)
+                {
+                    ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful);
+                    throw new InvalidDataException($"Response body exceeds configured limit of {maxResponseBytes} bytes.");
+                }
+
+                await body.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
+                totalRead += read;
             }
-            
-            return sb.ToString();
+
+            return Encoding.UTF8.GetString(body.GetBuffer(), 0, totalRead);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (InvalidDataException ex)
+        {
+            _logger.LogWarning(ex, "Response body rejected by execution policy");
+            throw;
         }
         catch (Exception ex)
         {
@@ -1393,7 +1542,7 @@ public class McpHttpClient : IMcpHttpClient
         }
     }
 
-    private async Task<string> ReadRawResponsePreviewAsync(HttpContent content, CancellationToken cancellationToken)
+    private async Task<(string Body, bool TimedOut)> ReadRawResponsePreviewAsync(HttpContent content, CancellationToken cancellationToken)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(2));
@@ -1420,16 +1569,20 @@ public class McpHttpClient : IMcpHttpClient
                 }
             }
 
-            return builder.ToString();
+            return (builder.ToString(), false);
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
-            return string.Empty;
+            return (string.Empty, true);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
             _logger.LogDebug(ex, "Unable to read SSE response preview");
-            return string.Empty;
+            return (string.Empty, false);
         }
     }
 
@@ -1473,8 +1626,7 @@ public class McpHttpClient : IMcpHttpClient
             var trimmed = response.RawJson.Trim();
             if (!trimmed.StartsWith("{") && !trimmed.StartsWith("["))
             {
-                _logger.LogWarning("Response does not appear to be JSON, received: {ResponseStart}",
-                    trimmed.Substring(0, Math.Min(50, trimmed.Length)));
+                _logger.LogWarning("Response does not appear to be JSON; body length: {BodyLength}", trimmed.Length);
                 return false;
             }
 
@@ -1490,8 +1642,8 @@ public class McpHttpClient : IMcpHttpClient
         }
         catch (JsonException ex)
         {
-            _logger.LogWarning(ex, "Failed to parse JSON response - server may be returning HTML error page. Response: {Response}",
-                response.RawJson?.Substring(0, Math.Min(200, response.RawJson?.Length ?? 0)));
+            _logger.LogWarning(ex, "Failed to parse JSON response; server may be returning a non-JSON error body of length {BodyLength}",
+                response.RawJson?.Length ?? 0);
         }
         catch (Exception ex)
         {
@@ -1505,7 +1657,6 @@ public class McpHttpClient : IMcpHttpClient
         bool capabilityDeclarationsAvailable,
         IReadOnlyCollection<string> advertisedCapabilities,
         bool toolListingSucceeded,
-        bool toolInvocationSucceeded,
         bool resourceListingSucceeded,
         bool promptListingSucceeded)
     {
@@ -1520,11 +1671,6 @@ public class McpHttpClient : IMcpHttpClient
                 passed++;
             }
 
-            totalChecks++;
-            if (toolInvocationSucceeded)
-            {
-                passed++;
-            }
         }
 
         if (CapabilitySnapshotUtils.ShouldProbeCapability(capabilityDeclarationsAvailable, advertisedCapabilities, McpSpecConstants.Capabilities.Resources))
@@ -1630,6 +1776,7 @@ public class McpHttpClient : IMcpHttpClient
             Type = authentication.Type,
             Required = authentication.Required,
             Token = authentication.Token,
+            TokenRef = authentication.TokenRef?.Clone(),
             Username = authentication.Username,
             Password = authentication.Password,
             ClientId = authentication.ClientId,
@@ -1639,6 +1786,28 @@ public class McpHttpClient : IMcpHttpClient
             CustomHeaders = new Dictionary<string, string>(authentication.CustomHeaders ?? new Dictionary<string, string>()),
             AllowInteractive = authentication.AllowInteractive
         };
+    }
+
+    public void Dispose()
+    {
+        lock (_concurrencyLock)
+        {
+            if (_disposed)
+            {
+                return;
+            }
+
+            _disposed = true;
+            _requestSemaphore?.Dispose();
+            _requestSemaphore = null;
+            foreach (var semaphore in _retiredSemaphores)
+            {
+                semaphore.Dispose();
+            }
+            _retiredSemaphores.Clear();
+        }
+
+        GC.SuppressFinalize(this);
     }
 
     private async Task PopulateRecoveryProbeAsync(string endpoint, TransportResilienceProbeResult result, CancellationToken cancellationToken)
@@ -1705,9 +1874,13 @@ public class McpHttpClient : IMcpHttpClient
                 McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, headerValue);
             }
         }
-        else if (_httpClient.DefaultRequestHeaders.Authorization != null)
+        else if (_defaultAuthentication != null)
         {
-            requestMessage.Headers.Authorization = _httpClient.DefaultRequestHeaders.Authorization;
+            var defaultHeaderValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(_defaultAuthentication);
+            if (!string.IsNullOrEmpty(defaultHeaderValue))
+            {
+                McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, defaultHeaderValue);
+            }
         }
 
         return requestMessage;

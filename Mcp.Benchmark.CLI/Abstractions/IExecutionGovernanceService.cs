@@ -17,6 +17,13 @@ public interface IExecutionGovernanceService
         IReadOnlyList<string> plannedChecks,
         IReadOnlyList<string> plannedArtifacts);
 
+    Task<IReadOnlyList<string>> ValidateTargetResolutionAsync(
+        ExecutionPlan plan,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<string>>([
+            "The execution governance implementation does not provide target-resolution validation. Active contact is blocked."
+        ]);
+
     AuditManifest BuildAuditManifest(
         ExecutionPlan plan,
         ValidationResult? result,

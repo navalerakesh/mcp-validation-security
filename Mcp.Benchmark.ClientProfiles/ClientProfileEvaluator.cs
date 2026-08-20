@@ -152,6 +152,7 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
             LayerId = "client-profiles",
             Scope = string.Join(",", requestedProfiles.Select(profile => profile.Descriptor.Id)),
             Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
             Reason = null
         });
     }

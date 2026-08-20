@@ -120,7 +120,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.ToolsTestPassed = 0;
 
                 var authIssues = new List<string>();
-                var authHeaderValue = toolsListAuthChallenge.WwwAuthenticateHeader;
+                var authHeaderValue = AuthenticationChallengeInterpreter.SanitizeForEvidence(toolsListAuthChallenge);
                 var hasWwwAuth = toolsListAuthChallenge.HasWwwAuthenticateHeader;
 
                 if (hasWwwAuth) authIssues.Add("✅ Proper WWW-Authenticate header present");
@@ -182,27 +182,27 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                             authSecurity.InteractiveLoginSucceeded = true;
                         }
 
-                        _httpClient.SetAuthentication(new AuthenticationConfig
+                        var acquiredAuthentication = new AuthenticationConfig
                         {
                             Type = "bearer",
                             Token = token
-                        });
-
-                        // Update server config so subsequent validators use the token
-                        if (serverConfig.Authentication == null) serverConfig.Authentication = new AuthenticationConfig();
-                        serverConfig.Authentication.Type = "bearer";
-                        serverConfig.Authentication.Token = token;
+                        };
 
                         // Retry the request
                         toolsListStartTime = DateTime.UtcNow;
-                        toolsListResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, ct);
+                        toolsListResponse = await _httpClient.CallAsync(
+                            serverConfig.Endpoint!,
+                            ValidationConstants.Methods.ToolsList,
+                            null,
+                            acquiredAuthentication,
+                            ct);
                         toolsListDuration = (DateTime.UtcNow - toolsListStartTime).TotalMilliseconds;
 
                         // If success, proceed to normal validation flow
                         if (toolsListResponse.IsSuccess)
                         {
                             authIssues.Add("✅ Successfully authenticated via strategy-based flow");
-                            
+
                             // Add the auth discovery result so it's preserved in the report
                             result.ToolResults.Add(new IndividualToolResult
                             {
@@ -229,7 +229,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         authIssues.Add("⚠️  Interactive auth attempt failed or was cancelled");
                     }
                 }
-                
+
                 // If still 401/403 after retry (or no retry), return the Auth Check result
                 if (AuthenticationChallengeInterpreter.Inspect(toolsListResponse, toolsListDuration).RequiresAuthentication)
                 {
@@ -240,7 +240,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         result.Score = 0.0;
                         result.ToolsTestPassed = 0;
                         result.Issues.Add("Tool validation requires authentication: interactive authentication failed or was not completed.");
-                        
+
                         result.ToolResults.Add(new IndividualToolResult
                         {
                             ToolName = "tools/list (Auth Check)",
@@ -266,7 +266,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     result.Status = TestStatus.AuthRequired;
                     result.Score = 0.0;
                     result.ToolsTestPassed = 0;
-                    
+
                     result.ToolResults.Add(new IndividualToolResult
                     {
                         ToolName = "tools/list (Auth Check)",
@@ -372,18 +372,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         schemaIssueDetails.Add(detail);
                     }
 
-                    // Surface schema failures/warnings as their own tool
-                    // result so reports clearly show the root cause.
-                    result.ToolResults.Add(new IndividualToolResult
-                    {
-                        ToolName = "tools/list (Schema Compliance)",
-                        Status = hasProcessingError ? TestStatus.Passed : TestStatus.Failed,
-                        DiscoveredCorrectly = true,
-                        MetadataValid = !hasProcessingError,
-                        ExecutionSuccessful = true,
-                        ExecutionTimeMs = toolsListDuration,
-                        Issues = BuildSchemaIssueList(schemaIssueHeader, schemaIssueDetails)
-                    });
             }
 
             if (toolsList.Count == 0)
@@ -399,7 +387,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     Status = TestStatus.Passed,
                     DiscoveredCorrectly = true,
                     MetadataValid = true,
-                    ExecutionSuccessful = true,
+                    ExecutionSuccessful = false,
                     ExecutionTimeMs = toolsListDuration,
                     Issues = new List<string> { "No tools discovered" }
                 });
@@ -433,11 +421,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             if (capabilitySnapshot?.Payload != null)
             {
-                if (capabilitySnapshot.Payload.ToolInvocationSucceeded)
+                if (capabilitySnapshot.Payload.ToolInvocationAttempted && capabilitySnapshot.Payload.ToolInvocationSucceeded)
                 {
                     result.Issues.Add("✅ SDK invocation of the first discovered tool succeeded");
                 }
-                else if (capabilitySnapshot.Payload.ToolListingSucceeded)
+                else if (capabilitySnapshot.Payload.ToolInvocationAttempted && capabilitySnapshot.Payload.ToolListingSucceeded)
                 {
                     result.Issues.Add("⚠️ SDK invocation of the first discovered tool failed; ensure the tool accepts empty arguments");
                 }
@@ -507,6 +495,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         ApplyAiSafetyControlEvidence(result, tool);
         ValidateToolMetadata(tool, result);
 
+        if (!config.TestToolExecution && !config.TestParameterValidation)
+        {
+            result.Status = result.Issues.Any(issue => issue.StartsWith("❌", StringComparison.Ordinal))
+                ? TestStatus.Failed
+                : TestStatus.Passed;
+            result.ExecutionSuccessful = false;
+            result.Issues.Add("Tool execution was not attempted under the active execution policy; metadata and schema checks only.");
+            return result;
+        }
+
         try
         {
             var toolCallStartTime = DateTime.UtcNow;
@@ -540,7 +538,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         // Server returned a 200 with JSON-RPC error — this is COMPLIANT behavior.
                         result.Status = TestStatus.Passed;
                         result.ExecutionSuccessful = true;
-                        
+
                         if (errorCode == -32602 || errorCode == -32600)
                         {
                             result.Issues.Add($"✅ Server correctly validated input: {errorMsg} (code: {errorCode})");
@@ -584,7 +582,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             }
             else if (toolCallResponse.StatusCode < 0)
             {
-                // Negative status = network/timeout error. 
+                // Negative status = network/timeout error.
                 // This is NOT a server compliance failure — it's a connectivity issue.
                 // We should NOT fail the tool for this.
                 result.Status = TestStatus.Passed;
@@ -1430,7 +1428,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                             Name = name.ValueKind == JsonValueKind.String ? name.GetString() ?? string.Empty : string.Empty,
                             RawDefinition = tool.Clone()
                         };
-                        
+
                         // Parse Input Schema for Payload Generation
                         if (tool.TryGetProperty("inputSchema", out var schema))
                         {
@@ -1492,7 +1490,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                                 info.AnthropicMaxResultSizeChars = overrideChars;
                             }
                         }
-                        
+
                         tools.Add(info);
                     }
                 }
@@ -1599,10 +1597,10 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     private object CreateSafeToolCallParams(ToolInfo tool)
     {
         var args = new Dictionary<string, object>();
-        
-        try 
+
+        try
         {
-            if (tool.InputSchema.ValueKind != JsonValueKind.Undefined && 
+            if (tool.InputSchema.ValueKind != JsonValueKind.Undefined &&
                 tool.InputSchema.TryGetProperty("properties", out var props))
             {
                 foreach (var prop in props.EnumerateObject())

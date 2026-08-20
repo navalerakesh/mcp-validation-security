@@ -42,6 +42,11 @@ public sealed class ValidationSessionContext
     public TransportResult<CapabilitySummary>? CapabilitySnapshot { get; set; }
 
     /// <summary>
+    /// Modern server/discover evidence when the selected profile uses the stateless protocol era.
+    /// </summary>
+    public TransportResult<ModernDiscoveryEvidence>? ModernDiscovery { get; set; }
+
+    /// <summary>
     /// The negotiated MCP protocol version, if the server provided one.
     /// </summary>
     public string? ProtocolVersion { get; set; }

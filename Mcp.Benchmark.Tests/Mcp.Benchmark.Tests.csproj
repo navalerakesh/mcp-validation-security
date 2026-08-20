@@ -15,12 +15,11 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5" />
     <PackageReference Include="Moq" Version="4.20.72" />
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.8" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.27" />
-    <PackageReference Include="FluentAssertions" Version="8.10.0" />
+    <PackageReference Include="FluentAssertions" Version="7.2.0" />
     <PackageReference Include="FsCheck.Xunit" Version="3.3.3" />
-    <PackageReference Include="Testcontainers" Version="4.11.0" />
-    <PackageReference Include="WireMock.Net" Version="2.6.0" />
+    <PackageReference Include="WireMock.Net" Version="2.15.0" />
   </ItemGroup>
 
   <ItemGroup>
@@ -35,10 +34,12 @@
     <ProjectReference Include="..\Mcp.Benchmark.Core\Mcp.Benchmark.Core.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.Infrastructure\Mcp.Benchmark.Infrastructure.csproj" />
     <ProjectReference Include="..\Mcp.Benchmark.CLI\Mcp.Benchmark.CLI.csproj" />
+    <ProjectReference Include="..\Mcp.Benchmark.Fleet\Mcp.Benchmark.Fleet.csproj" />
   </ItemGroup>
 
   <ItemGroup>
     <None Include="Fixtures\ReportSnapshots\**\*.snap" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\Calibration\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\Servers\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 

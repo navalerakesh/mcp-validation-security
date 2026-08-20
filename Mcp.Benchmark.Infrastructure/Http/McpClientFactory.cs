@@ -2,10 +2,12 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
@@ -34,12 +36,25 @@ public sealed class McpClientFactory : IMcpClientFactory
     private readonly ConcurrentDictionary<McpClientCacheKey, Lazy<Task<CachedClient>>> _clients = new();
     private readonly ILogger<McpClientFactory> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly GovernedHttpClientProvider _httpClientProvider;
+    private readonly bool _ownsHttpClientProvider;
     private readonly string _clientVersion;
 
     public McpClientFactory(ILogger<McpClientFactory> logger, ILoggerFactory loggerFactory)
+        : this(logger, loggerFactory, CreateCompatibilityHttpClientProvider(), ownsHttpClientProvider: true)
+    {
+    }
+
+    internal McpClientFactory(
+        ILogger<McpClientFactory> logger,
+        ILoggerFactory loggerFactory,
+        GovernedHttpClientProvider httpClientProvider,
+        bool ownsHttpClientProvider = false)
     {
         _logger = logger;
         _loggerFactory = loggerFactory;
+        _httpClientProvider = httpClientProvider;
+        _ownsHttpClientProvider = ownsHttpClientProvider;
         _clientVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
     }
 
@@ -120,6 +135,11 @@ public sealed class McpClientFactory : IMcpClientFactory
         {
             await Task.WhenAll(disposeTasks).ConfigureAwait(false);
         }
+
+        if (_ownsHttpClientProvider)
+        {
+            _httpClientProvider.Dispose();
+        }
     }
 
     private async Task DisposeEntryAsync(Lazy<Task<CachedClient>> lazyClient)
@@ -149,13 +169,13 @@ public sealed class McpClientFactory : IMcpClientFactory
         var transportOptions = new HttpClientTransportOptions
         {
             Endpoint = endpoint,
-            TransportMode = HttpTransportMode.AutoDetect,
+            TransportMode = ResolveHttpTransportMode(serverConfig),
             AdditionalHeaders = headers,
             ConnectionTimeout = TimeSpan.FromMilliseconds(serverConfig.TimeoutMs > 0 ? serverConfig.TimeoutMs : 30000),
             Name = $"http-{endpoint.Host}"
         };
 
-        var transport = new HttpClientTransport(transportOptions, _loggerFactory);
+        var transport = new HttpClientTransport(transportOptions, _httpClientProvider.Client, _loggerFactory, ownsHttpClient: false);
         var clientOptions = new McpClientOptions
         {
             ProtocolVersion = protocolVersion,
@@ -166,6 +186,30 @@ public sealed class McpClientFactory : IMcpClientFactory
         _logger.LogDebug("Creating MCP client for {Endpoint} (protocol {ProtocolVersion})", endpoint, protocolVersion ?? "auto");
         var client = await McpClient.CreateAsync(transport, clientOptions, _loggerFactory, cancellationToken).ConfigureAwait(false);
         return new CachedClient(client, transport);
+    }
+
+    private static GovernedHttpClientProvider CreateCompatibilityHttpClientProvider()
+    {
+        var policyContext = new RunNetworkPolicyContext();
+        policyContext.Configure(OperationPolicySnapshot.From(new ExecutionPolicy()));
+        return new GovernedHttpClientProvider(new GovernedConnectionFactory(
+            policyContext,
+            new DnsHostAddressResolver(),
+            new SocketEndpointConnector()));
+    }
+
+    internal static HttpTransportMode ResolveHttpTransportMode(McpServerConfig serverConfig)
+    {
+        ArgumentNullException.ThrowIfNull(serverConfig);
+        return serverConfig.ProtocolEra switch
+        {
+            McpProtocolEraSelection.Modern => HttpTransportMode.StreamableHttp,
+            McpProtocolEraSelection.Legacy when string.Equals(
+                serverConfig.ProtocolVersion,
+                ProtocolVersions.V2024_11_05.Value,
+                StringComparison.Ordinal) => HttpTransportMode.Sse,
+            _ => HttpTransportMode.AutoDetect
+        };
     }
 
     private static void ApplyProtocolVersion(IDictionary<string, string> headers, string? protocolVersion)
@@ -245,12 +289,12 @@ public sealed class McpClientFactory : IMcpClientFactory
         IDictionary<string, string>? defaultHeaders,
         IDictionary<string, string>? authHeaders)
     {
-        var authFingerprint = BuildAuthFingerprint(authentication);
-        var headerFingerprint = BuildHeaderFingerprint(defaultHeaders, authHeaders);
+        var authFingerprint = ComputeFingerprint(BuildAuthenticationKeyMaterial(authentication));
+        var headerFingerprint = ComputeFingerprint(BuildHeaderKeyMaterial(defaultHeaders, authHeaders));
         return new McpClientCacheKey(endpoint, protocolVersion ?? string.Empty, authFingerprint, headerFingerprint);
     }
 
-    private static string BuildAuthFingerprint(AuthenticationConfig? authentication)
+    private static string BuildAuthenticationKeyMaterial(AuthenticationConfig? authentication)
     {
         if (authentication == null)
         {
@@ -260,7 +304,7 @@ public sealed class McpClientFactory : IMcpClientFactory
         var builder = new StringBuilder();
         builder.Append(authentication.Type?.ToLowerInvariant());
         builder.Append('|');
-        builder.Append(authentication.Token);
+        builder.Append(McpAuthenticationHelper.ResolveToken(authentication));
         builder.Append('|');
         builder.Append(authentication.Username);
         builder.Append('|');
@@ -270,7 +314,7 @@ public sealed class McpClientFactory : IMcpClientFactory
         return builder.ToString();
     }
 
-    private static string BuildHeaderFingerprint(
+    private static string BuildHeaderKeyMaterial(
         IDictionary<string, string>? defaultHeaders,
         IDictionary<string, string>? authHeaders)
     {
@@ -304,6 +348,12 @@ public sealed class McpClientFactory : IMcpClientFactory
 
         pairs.Sort(StringComparer.Ordinal);
         return string.Join('|', pairs);
+    }
+
+    private static string ComputeFingerprint(string keyMaterial)
+    {
+        var digest = SHA256.HashData(Encoding.UTF8.GetBytes(keyMaterial));
+        return Convert.ToHexString(digest);
     }
 
     private sealed record McpClientCacheKey(

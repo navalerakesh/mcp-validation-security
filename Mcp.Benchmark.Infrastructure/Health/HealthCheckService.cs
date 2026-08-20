@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Health;
 
@@ -24,8 +26,9 @@ public class HealthCheckService : IHealthCheckService
 
     public async Task<HealthCheckResult> PerformHealthCheckAsync(McpServerConfig serverConfig, CancellationToken cancellationToken = default)
     {
-        _logger.LogInformation("Performing health check for server: {Server}", serverConfig.Endpoint);
-        _telemetryService.TrackEvent("HealthCheckStarted", new Dictionary<string, string> { { "Endpoint", serverConfig.Endpoint ?? "Unknown" } });
+        var safeTarget = serverConfig.CloneWithoutSecrets().Endpoint ?? "Unknown";
+        _logger.LogInformation("Performing health check for target: {Target}", safeTarget);
+        _telemetryService.TrackEvent("HealthCheckStarted", new Dictionary<string, string> { { "Target", safeTarget } });
 
         _httpClient.SetProtocolVersion(serverConfig.ProtocolVersion);
         _httpClient.SetAuthentication(serverConfig.Authentication);
@@ -57,6 +60,10 @@ public class HealthCheckService : IHealthCheckService
                         stdioInit.IsSuccessful ? "Healthy" : "Unhealthy", result.ResponseTimeMs);
                     return result;
                 }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
                 catch (Exception ex)
                 {
                     result.IsHealthy = false;
@@ -74,6 +81,24 @@ public class HealthCheckService : IHealthCheckService
                 result.Disposition = HealthCheckDisposition.Unhealthy;
                 result.ErrorMessage = "No endpoint specified for HTTP transport health check";
                 result.ResponseTimeMs = (DateTime.UtcNow - startTime).TotalMilliseconds;
+                return result;
+            }
+
+            if (ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
+            {
+                var discovery = await _httpClient.CallAsync(
+                    serverConfig.Endpoint,
+                    ValidationConstants.Methods.ServerDiscover,
+                    null,
+                    serverConfig.Authentication,
+                    cancellationToken);
+                result.IsHealthy = discovery.IsSuccess && discovery.ProtocolSemanticsValid != false;
+                result.Disposition = result.IsHealthy ? HealthCheckDisposition.Healthy : HealthCheckDisposition.Unhealthy;
+                result.ResponseTimeMs = discovery.ElapsedMs ?? (DateTime.UtcNow - startTime).TotalMilliseconds;
+                result.ErrorMessage = result.IsHealthy ? null : discovery.Error ?? "Modern server/discover failed.";
+                result.ProtocolVersion = serverConfig.ProtocolVersion;
+                result.ServerVersion = "Not advertised by server/discover";
+                result.ServerMetadata["healthMethod"] = ValidationConstants.Methods.ServerDiscover;
                 return result;
             }
 
@@ -102,6 +127,12 @@ public class HealthCheckService : IHealthCheckService
             });
 
             return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogInformation("Health check cancelled by caller");
+            _telemetryService.TrackEvent("HealthCheckCancelled");
+            throw;
         }
         catch (OperationCanceledException)
         {

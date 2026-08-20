@@ -1,9 +1,11 @@
 import process from "node:process";
 import type { Readable, Writable } from "node:stream";
+import { StringDecoder } from "node:string_decoder";
 import type { Transport, TransportSendOptions } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { ErrorCode, JSONRPCMessageSchema, type JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js";
 
 type JsonRpcId = string | number;
+const maximumFrameBytes = 1024 * 1024;
 
 export class StrictStdioServerTransport implements Transport {
   onclose?: () => void;
@@ -12,6 +14,7 @@ export class StrictStdioServerTransport implements Transport {
   sessionId?: string;
 
   private buffer = "";
+  private readonly decoder = new StringDecoder("utf8");
   private started = false;
 
   constructor(
@@ -40,23 +43,39 @@ export class StrictStdioServerTransport implements Transport {
     this.stdin.off("close", this.handleClose);
     this.started = false;
     this.buffer = "";
+    this.decoder.end();
     this.onclose?.();
   }
 
   private readonly handleData = (chunk: Buffer | string): void => {
-    this.buffer += chunk.toString();
+    this.buffer += typeof chunk === "string" ? chunk : this.decoder.write(chunk);
 
     while (true) {
       const newlineIndex = this.buffer.indexOf("\n");
       if (newlineIndex < 0) {
+        if (Buffer.byteLength(this.buffer, "utf8") > maximumFrameBytes) {
+          this.rejectOversizedFrame();
+        }
         return;
       }
 
       const line = this.buffer.slice(0, newlineIndex).replace(/\r$/, "");
       this.buffer = this.buffer.slice(newlineIndex + 1);
+      if (Buffer.byteLength(line, "utf8") > maximumFrameBytes) {
+        this.rejectOversizedFrame();
+        return;
+      }
       this.processLine(line);
     }
   };
+
+  private rejectOversizedFrame(): void {
+    const error = new Error(`STDIO JSON-RPC frame exceeds ${maximumFrameBytes} bytes.`);
+    this.buffer = "";
+    this.onerror?.(error);
+    void this.writeError(ErrorCode.InvalidRequest, "Invalid Request", undefined)
+      .finally(() => this.close());
+  }
 
   private readonly handleError = (error: Error): void => {
     this.onerror?.(error);

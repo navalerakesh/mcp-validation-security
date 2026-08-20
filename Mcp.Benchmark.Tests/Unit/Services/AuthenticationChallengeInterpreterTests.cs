@@ -103,4 +103,65 @@ public class AuthenticationChallengeInterpreterTests
         security!.AuthenticationRequired.Should().BeTrue();
         security.HasProperAuthHeaders.Should().BeFalse();
     }
+
+    [Theory]
+    [InlineData("Digest realm=\"legacy\", Bearer error=\"insufficient_scope\", scope=\"tools:read resources:read\"", true, true, "tools:read resources:read")]
+    [InlineData("Bearer error_description=\"expired, retry\", scope=\"tools:\\\"read\"", true, true, "tools:\"read")]
+    [InlineData("Bearer not_scope=\"admin\"", true, true, null)]
+    [InlineData("NotBearer scope=\"admin\"", true, false, null)]
+    [InlineData("Bearer scope=\"read\", scope=\"write\"", false, false, null)]
+    [InlineData("Bearer scope=\"unterminated", false, false, null)]
+    [InlineData("Bearer error=\"insufficient_scope\", scope = \"read\"", true, true, "read")]
+    [InlineData("Bearer realm=foo/bar", false, false, null)]
+    public void Inspect_ShouldParseOnlyUnambiguousBearerChallengeParameters(
+        string header,
+        bool syntaxValid,
+        bool usesBearer,
+        string? expectedScope)
+    {
+        var observation = AuthenticationChallengeInterpreter.Inspect(new JsonRpcResponse
+        {
+            StatusCode = 403,
+            Headers = new Dictionary<string, string> { ["WWW-Authenticate"] = header }
+        });
+
+        observation.ChallengeSyntaxValid.Should().Be(syntaxValid);
+        observation.UsesBearerChallenge.Should().Be(usesBearer);
+        observation.Scope.Should().Be(expectedScope);
+    }
+
+    [Fact]
+    public void Inspect_OversizedChallenge_ShouldRejectWithoutParsingEvidence()
+    {
+        var observation = AuthenticationChallengeInterpreter.Inspect(new JsonRpcResponse
+        {
+            StatusCode = 401,
+            Headers = new Dictionary<string, string>
+            {
+                ["WWW-Authenticate"] = $"Bearer scope=\"{new string('a', 20_000)}\""
+            }
+        });
+
+        observation.ChallengeSyntaxValid.Should().BeFalse();
+        observation.Scope.Should().BeNull();
+    }
+
+    [Fact]
+    public void CreateDiscoveryInfo_ShouldPersistOnlySanitizedChallengeEvidence()
+    {
+        var observation = AuthenticationChallengeInterpreter.Inspect(new JsonRpcResponse
+        {
+            StatusCode = 401,
+            Headers = new Dictionary<string, string>
+            {
+                ["WWW-Authenticate"] = "Bearer error_description=\"secret-description\", resource_metadata=\"https://example.test/metadata?code=secret-query\""
+            }
+        });
+
+        var discovery = AuthenticationChallengeInterpreter.CreateDiscoveryInfo(observation);
+        var security = AuthenticationChallengeInterpreter.CreateSecurityResult(discovery);
+
+        discovery!.WwwAuthenticateHeader.Should().Contain("[REDACTED]").And.NotContain("secret-description").And.NotContain("secret-query");
+        security!.WwwAuthenticateHeader.Should().NotContain("secret-description").And.NotContain("secret-query");
+    }
 }

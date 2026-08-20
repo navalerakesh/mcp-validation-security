@@ -86,13 +86,36 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
             var rawJson = response.RawJson ?? "{}";
             var jsonDoc = JsonDocument.Parse(rawJson);
+            var catalogTruncated = false;
             if (jsonDoc.RootElement.TryGetProperty("result", out var resultElement) &&
                 resultElement.TryGetProperty("resources", out var resourcesElement) &&
                 resourcesElement.ValueKind == JsonValueKind.Array)
             {
                 result.ResourcesDiscovered = resourcesElement.GetArrayLength();
-                
-                foreach (var resource in resourcesElement.EnumerateArray())
+                var maxResources = Math.Max(1, config.MaxResources);
+                catalogTruncated = result.ResourcesDiscovered > maxResources;
+                if (catalogTruncated)
+                {
+                    result.Findings.Add(new ValidationFinding
+                    {
+                        RuleId = ValidationFindingRuleIds.ResourceCatalogTruncated,
+                        Category = "Coverage",
+                        Component = ValidationConstants.Methods.ResourcesList,
+                        Severity = ValidationFindingSeverity.Medium,
+                        Source = ValidationRuleSource.Heuristic,
+                        Summary = $"Resource catalog processing was limited to {maxResources} of {result.ResourcesDiscovered} entries.",
+                        Recommendation = "Raise validation.resources.maxResources only within a reviewed run budget, or validate catalog partitions separately.",
+                        Metadata = new Dictionary<string, string>
+                        {
+                            ["observedCount"] = result.ResourcesDiscovered.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["processedLimit"] = maxResources.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                            ["truncated"] = "true"
+                        }
+                    });
+                    result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} entries.");
+                }
+
+                foreach (var resource in resourcesElement.EnumerateArray().Take(maxResources))
                 {
                     var resourceResult = new IndividualResourceResult
                     {
@@ -284,6 +307,11 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Status = result.ResourceResults.All(r => r.Status == TestStatus.Passed) ? TestStatus.Passed : TestStatus.Failed;
             }
+            if (catalogTruncated && result.Status == TestStatus.Passed)
+            {
+                result.Status = TestStatus.Inconclusive;
+                result.Message = $"Resource validation processed a bounded subset of {result.ResourcesDiscovered} catalog entries.";
+            }
 
             // Resource Templates Validation (MCP spec: resources/templates/list)
             try
@@ -297,6 +325,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                         templates.ValueKind == JsonValueKind.Array)
                     {
                         var templateCount = templates.GetArrayLength();
+                        result.ResourceTemplatesDiscovered = templateCount;
                         result.Issues.Add($"✅ Resource templates: {templateCount} templates discovered");
                         
                         // Validate each template has uriTemplate and name

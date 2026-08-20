@@ -22,7 +22,9 @@ public static class ValidationPolicyEvaluator
         var mode = NormalizeMode(policy.Mode);
         var ignoredSuppressions = new List<IgnoredPolicySuppression>();
         var activeSuppressions = GetActiveSuppressions(policy.Suppressions, ignoredSuppressions);
-        var signals = BuildSignals(result, mode);
+        var signals = policy.RegressionOnly
+            ? BuildRegressionSignals(result)
+            : BuildSignals(result, mode);
         var appliedSuppressions = new Dictionary<string, AppliedPolicySuppression>(StringComparer.OrdinalIgnoreCase);
         var unsuppressedSignals = new List<PolicySignal>();
         var suppressedSignalCount = 0;
@@ -63,6 +65,7 @@ public static class ValidationPolicyEvaluator
         var blockingSignals = unsuppressedSignals.Where(signal => Blocks(mode, signal)).ToList();
         return new ValidationPolicyOutcome
         {
+            RegressionOnly = policy.RegressionOnly,
             Mode = mode,
             Passed = blockingSignals.Count == 0,
             RecommendedExitCode = blockingSignals.Count == 0 ? 0 : 1,
@@ -76,6 +79,96 @@ public static class ValidationPolicyEvaluator
             IgnoredSuppressions = ignoredSuppressions
         };
     }
+
+    private static List<PolicySignal> BuildRegressionSignals(ValidationResult result)
+    {
+        var signals = new List<PolicySignal>();
+        if (IsExecutionIntegrityFailure(result.OverallStatus))
+        {
+            signals.Add(new PolicySignal(
+                PolicySignalKind.ExecutionIntegrity,
+                "POLICY.RUN.INTEGRITY",
+                null,
+                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                "Execution",
+                "validation-run",
+                SeverityBand.Critical,
+                $"Validation run did not complete cleanly: {result.OverallStatus}.",
+                false));
+        }
+
+        if (result.BaselineComparison == null)
+        {
+            signals.Add(new PolicySignal(
+                PolicySignalKind.BaselineUnavailable,
+                "POLICY.BASELINE.REQUIRED",
+                null,
+                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                "Baseline",
+                "validation-run",
+                SeverityBand.Critical,
+                "Regression-only policy requires a compatible baseline validation result.",
+                false));
+            return signals;
+        }
+
+        foreach (var change in result.BaselineComparison.NewBlockingDecisions)
+        {
+            signals.Add(new PolicySignal(
+                PolicySignalKind.BaselineRegression,
+                "POLICY.BASELINE.NEW_BLOCKER",
+                change.RuleId,
+                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                change.Category,
+                change.Component,
+                MapSeverity(change.Gate),
+                $"New blocking decision relative to baseline: {change.DecisionId}.",
+                true));
+        }
+
+        if (IsWorseVerdict(result.BaselineComparison.BaselineVerdictAfter, result.BaselineComparison.BaselineVerdictBefore))
+        {
+            signals.Add(new PolicySignal(
+                PolicySignalKind.BaselineRegression,
+                "POLICY.BASELINE.VERDICT_DEGRADED",
+                null,
+                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                "Baseline",
+                "baseline-verdict",
+                SeverityBand.Critical,
+                $"Baseline verdict degraded from {result.BaselineComparison.BaselineVerdictBefore} to {result.BaselineComparison.BaselineVerdictAfter}.",
+                true));
+        }
+
+        if (result.BaselineComparison.ScoreDelta < 0)
+        {
+            signals.Add(new PolicySignal(
+                PolicySignalKind.BaselineRegression,
+                "POLICY.BASELINE.SCORE_DECREASE",
+                null,
+                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
+                "Baseline",
+                "aggregate-score",
+                SeverityBand.High,
+                $"Aggregate score decreased by {Math.Abs(result.BaselineComparison.ScoreDelta).ToString("F2", CultureInfo.InvariantCulture)} point(s).",
+                true));
+        }
+
+        return signals;
+    }
+
+    private static bool IsWorseVerdict(ValidationVerdict current, ValidationVerdict baseline) =>
+        VerdictRank(current) < VerdictRank(baseline);
+
+    private static int VerdictRank(ValidationVerdict verdict) => verdict switch
+    {
+        ValidationVerdict.Reject => 0,
+        ValidationVerdict.Unknown => 1,
+        ValidationVerdict.ReviewRequired => 2,
+        ValidationVerdict.ConditionallyAcceptable => 3,
+        ValidationVerdict.Trusted => 4,
+        _ => throw new ArgumentOutOfRangeException(nameof(verdict), verdict, "Unknown validation verdict.")
+    };
 
     public static string NormalizeMode(string? requestedMode)
     {
@@ -516,7 +609,7 @@ public static class ValidationPolicyEvaluator
 
     private static bool Blocks(string mode, PolicySignal signal)
     {
-        if (signal.Kind is PolicySignalKind.ExecutionIntegrity or PolicySignalKind.CriticalError)
+        if (signal.Kind is PolicySignalKind.ExecutionIntegrity or PolicySignalKind.CriticalError or PolicySignalKind.BaselineUnavailable)
         {
             return true;
         }
@@ -559,8 +652,8 @@ public static class ValidationPolicyEvaluator
         }
 
         return suppressedSignalCount > 0
-            ? $"{modeLabel} policy blocked the validation result with {blockingSignalCount} unsuppressed signal(s) after suppressing {suppressedSignalCount}."
-            : $"{modeLabel} policy blocked the validation result with {blockingSignalCount} unsuppressed signal(s).";
+            ? $"{modeLabel} policy blocked the validation result with {blockingSignalCount} blocking signal(s) after suppressing {suppressedSignalCount}."
+            : $"{modeLabel} policy blocked the validation result with {blockingSignalCount} blocking signal(s).";
     }
 
     private static string GetSuppressionId(ValidationPolicySuppression suppression)
@@ -682,7 +775,9 @@ public static class ValidationPolicyEvaluator
         BoundaryFinding,
         TrustThreshold,
         TrustAssessmentMissing,
-        VerdictUnavailable
+        VerdictUnavailable,
+        BaselineRegression,
+        BaselineUnavailable
     }
 
     private sealed record PolicySignal(

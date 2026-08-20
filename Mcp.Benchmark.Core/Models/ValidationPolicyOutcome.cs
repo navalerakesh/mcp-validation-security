@@ -5,6 +5,8 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class ValidationPolicyOutcome
 {
+    public bool RegressionOnly { get; set; }
+
     /// <summary>
     /// Gets or sets the normalized policy mode used for evaluation.
     /// </summary>
@@ -59,6 +61,9 @@ public class ValidationPolicyOutcome
     /// Gets or sets suppressions that were ignored because they were invalid or expired.
     /// </summary>
     public List<IgnoredPolicySuppression> IgnoredSuppressions { get; set; } = new();
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public List<AppliedPolicySuppression> AppliedWaivers => AppliedSuppressions;
 }
 
 public class AppliedPolicySuppression

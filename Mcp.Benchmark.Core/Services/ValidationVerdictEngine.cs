@@ -5,6 +5,8 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class ValidationVerdictEngine
 {
+    private static readonly IReadOnlySet<string> ObservableRuleIds = DecisionPolicyManifest.CreateCurrent().RuleRevisions.Keys.ToHashSet(StringComparer.Ordinal);
+
     public static VerdictAssessment Calculate(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -14,19 +16,28 @@ public static class ValidationVerdictEngine
         var decisionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var coverageDecisionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-        ProjectExecutionErrors(result, decisions, decisionIds);
-        ProjectTierChecks(result, decisions, decisionIds);
-        ProjectProtocolViolations(result, decisions, decisionIds);
-        ProjectSecurityVulnerabilities(result, decisions, decisionIds);
-        ProjectBoundaryFindings(result, decisions, decisionIds);
-        ProjectStructuredFindings(result, decisions, decisionIds);
-        ProjectContentSafetyFindings(result, decisions, decisionIds);
-        ProjectCoverage(result, coverageDecisions, coverageDecisionIds);
+        using (ValidationObservability.MeasureStage("rules.execution-errors"))
+            ProjectExecutionErrors(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.tier-checks"))
+            ProjectTierChecks(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.protocol"))
+            ProjectProtocolViolations(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.security"))
+            ProjectSecurityVulnerabilities(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.boundaries"))
+            ProjectBoundaryFindings(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.findings"))
+            ProjectStructuredFindings(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.content-safety"))
+            ProjectContentSafetyFindings(result, decisions, decisionIds);
+        using (ValidationObservability.MeasureStage("rules.coverage"))
+            ProjectCoverage(result, decisions, decisionIds, coverageDecisions, coverageDecisionIds);
 
         var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
 
         var orderedDecisions = Order(decisions);
         var orderedCoverageDecisions = Order(coverageDecisions);
+        var allDecisions = orderedDecisions.Concat(orderedCoverageDecisions).ToArray();
         var blockingDecisions = Order(orderedDecisions
             .Concat(orderedCoverageDecisions)
             .Where(decision => decision.Gate >= GateOutcome.CoverageDebt)
@@ -34,9 +45,10 @@ public static class ValidationVerdictEngine
 
         return new VerdictAssessment
         {
-            BaselineVerdict = DetermineBaselineVerdict(orderedDecisions, orderedCoverageDecisions),
-            ProtocolVerdict = DetermineProtocolVerdict(result, orderedDecisions),
-            CoverageVerdict = DetermineCoverageVerdict(result, orderedCoverageDecisions),
+            Policy = DecisionPolicyManifest.CreateCurrent(allDecisions, result.Evidence.AppliedPacks),
+            BaselineVerdict = VerdictReducer.DetermineBaselineVerdict(orderedDecisions, orderedCoverageDecisions),
+            ProtocolVerdict = VerdictReducer.DetermineProtocolVerdict(ResolveProtocolOutcome(result), orderedDecisions),
+            CoverageVerdict = VerdictReducer.DetermineCoverageVerdict(result.Evidence.Coverage.Count > 0, orderedCoverageDecisions),
             Summary = BuildSummary(result, orderedDecisions, orderedCoverageDecisions, evidenceSummary),
             EvidenceSummary = evidenceSummary,
             TriggeredDecisions = orderedDecisions,
@@ -55,6 +67,27 @@ public static class ValidationVerdictEngine
         return IsPassing(assessment.BaselineVerdict)
             && IsPassing(assessment.ProtocolVerdict)
             && assessment.CoverageVerdict == ValidationVerdict.Trusted;
+    }
+
+    public static ValidationStatus DetermineValidationStatus(VerdictAssessment? assessment)
+    {
+        if (assessment == null)
+        {
+            return ValidationStatus.Error;
+        }
+
+        if (IsPassing(assessment))
+        {
+            return ValidationStatus.Passed;
+        }
+
+        var hasDeterministicRejection = assessment.BaselineVerdict == ValidationVerdict.Reject ||
+                                        assessment.ProtocolVerdict == ValidationVerdict.Reject ||
+                                        assessment.TriggeredDecisions.Any(decision => decision.Gate == GateOutcome.Reject);
+
+        return hasDeterministicRejection
+            ? ValidationStatus.Failed
+            : ValidationStatus.PartiallyCompleted;
     }
 
     private static bool IsPassing(ValidationVerdict verdict)
@@ -119,6 +152,7 @@ public static class ValidationVerdictEngine
                 new DecisionRecord
                 {
                     DecisionId = $"baseline:tier:{NormalizeToken(normalizedTier)}:{NormalizeToken(check.Component)}:{NormalizeToken(check.Requirement)}",
+                    RuleId = $"MCP.TIER.{NormalizeToken(normalizedTier)}.{NormalizeToken(check.Component)}",
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     Lane = EvaluationLane.Baseline,
@@ -154,6 +188,7 @@ public static class ValidationVerdictEngine
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     RuleId = string.IsNullOrWhiteSpace(violation.CheckId) ? null : violation.CheckId,
+                    RuleRevision = "2026-04",
                     Lane = EvaluationLane.Baseline,
                     Authority = ValidationRuleSourceClassifier.GetSource(violation),
                     Origin = EvidenceOrigin.DeterministicObservation,
@@ -188,6 +223,7 @@ public static class ValidationVerdictEngine
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     RuleId = string.IsNullOrWhiteSpace(vulnerability.Id) ? null : vulnerability.Id,
+                    RuleRevision = DecisionPolicyManifest.CurrentVersion,
                     Lane = EvaluationLane.Baseline,
                     Authority = ValidationRuleSourceClassifier.GetSource(vulnerability),
                     Origin = EvidenceOrigin.DeterministicObservation,
@@ -196,11 +232,12 @@ public static class ValidationVerdictEngine
                     Category = string.IsNullOrWhiteSpace(vulnerability.Category) ? "SecurityTesting" : vulnerability.Category,
                     Component = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent) ? "security" : vulnerability.AffectedComponent,
                     Summary = vulnerability.Description,
-                    ImpactAreas = GetImpactAreas(vulnerability.Category, vulnerability.AffectedComponent, vulnerability.Name, vulnerability.Description)
+                    ImpactAreas = ResolveImpactAreas(vulnerability.ImpactAreas, ImpactArea.OperationalResilience)
                 });
         }
 
-        foreach (var attack in result.SecurityTesting.AttackSimulations.Where(attack => attack.AttackSuccessful))
+        foreach (var attack in result.SecurityTesting.AttackSimulations.Where(attack =>
+                 AttackSimulationOutcomeResolver.Resolve(attack) == AttackSimulationOutcome.Detected))
         {
             var evidenceReferences = BuildAttackSimulationEvidenceReferences(attack, result);
 
@@ -210,17 +247,18 @@ public static class ValidationVerdictEngine
                 new DecisionRecord
                 {
                     DecisionId = $"baseline:attack:{NormalizeToken(attack.AttackVector)}:{NormalizeToken(attack.Description)}",
+                    RuleId = string.IsNullOrWhiteSpace(attack.AttackVector) ? "MCP.ATTACK.UNKNOWN" : attack.AttackVector,
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     Lane = EvaluationLane.Baseline,
-                    Authority = ValidationRuleSource.Heuristic,
+                    Authority = attack.Authority,
                     Origin = EvidenceOrigin.DeterministicObservation,
-                    Gate = GateForAttackSimulation(attack),
-                    Severity = SeverityForAttackSimulation(attack),
+                    Gate = attack.Gate,
+                    Severity = attack.Severity,
                     Category = "SecuritySimulation",
                     Component = string.IsNullOrWhiteSpace(attack.AttackVector) ? "security" : attack.AttackVector,
                     Summary = string.IsNullOrWhiteSpace(attack.Description) ? "Attack simulation succeeded." : attack.Description,
-                    ImpactAreas = GetImpactAreas(attack.AttackVector, attack.AttackVector, attack.Description, attack.ServerResponse)
+                    ImpactAreas = ResolveImpactAreas(attack.ImpactAreas, ImpactArea.OperationalResilience)
                 });
         }
     }
@@ -234,7 +272,7 @@ public static class ValidationVerdictEngine
 
         foreach (var finding in findings)
         {
-            var severity = MapSeverity(finding.Severity);
+            var severity = finding.SeverityLevel;
             var evidenceReferences = BuildBoundaryFindingEvidenceReferences(finding, result);
             AddDecision(
                 decisions,
@@ -242,17 +280,18 @@ public static class ValidationVerdictEngine
                 new DecisionRecord
                 {
                     DecisionId = $"baseline:boundary:{NormalizeToken(finding.Category)}:{NormalizeToken(finding.Component)}:{NormalizeToken(finding.Description)}",
+                    RuleId = $"MCP.AI.BOUNDARY.{finding.Kind}",
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     Lane = EvaluationLane.Baseline,
                     Authority = ValidationRuleSource.Heuristic,
                     Origin = EvidenceOrigin.HeuristicInference,
-                    Gate = GateForBoundaryFinding(finding),
+                    Gate = finding.Gate,
                     Severity = severity,
                     Category = string.IsNullOrWhiteSpace(finding.Category) ? "Boundary" : finding.Category,
                     Component = string.IsNullOrWhiteSpace(finding.Component) ? "boundary" : finding.Component,
                     Summary = finding.Description,
-                    ImpactAreas = GetImpactAreas(finding.Category, finding.Component, finding.Description, finding.Mitigation)
+                    ImpactAreas = ResolveImpactAreas(finding.ImpactAreas, ImpactArea.UnsafeAutonomy)
                 });
         }
     }
@@ -284,6 +323,7 @@ public static class ValidationVerdictEngine
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     RuleId = string.IsNullOrWhiteSpace(finding.RuleId) ? null : finding.RuleId,
+                    RuleRevision = ResolveFindingRuleRevision(finding.RuleId),
                     Lane = EvaluationLane.Baseline,
                     Authority = finding.EffectiveSource,
                     Origin = OriginForFinding(finding),
@@ -293,7 +333,7 @@ public static class ValidationVerdictEngine
                     Component = string.IsNullOrWhiteSpace(finding.Component) ? "validation" : finding.Component,
                     Summary = finding.Summary,
                     SpecReference = finding.EffectiveSpecReference,
-                    ImpactAreas = GetImpactAreas(finding.Category, finding.Component, finding.RuleId, finding.Summary),
+                    ImpactAreas = ResolveImpactAreas(finding.ImpactAreas, ImpactArea.CapabilityContract),
                     Metadata = new Dictionary<string, string>(finding.Metadata, StringComparer.OrdinalIgnoreCase)
                 });
         }
@@ -314,6 +354,7 @@ public static class ValidationVerdictEngine
                 new DecisionRecord
                 {
                     DecisionId = $"baseline:content:{NormalizeToken(category)}:{NormalizeToken(finding.ItemName)}:{NormalizeToken(finding.Reason)}",
+                    RuleId = $"MCP.CONTENT.{finding.Axis}",
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     Lane = EvaluationLane.Baseline,
@@ -324,15 +365,48 @@ public static class ValidationVerdictEngine
                     Category = category,
                     Component = string.IsNullOrWhiteSpace(finding.ItemName) ? finding.ItemKind.ToString() : finding.ItemName,
                     Summary = finding.Reason,
-                    ImpactAreas = GetImpactAreas(category, finding.ItemName, finding.Axis.ToString(), finding.Reason)
+                    ImpactAreas = ImpactAreasForContentSafety(finding.Axis)
                 });
         }
     }
 
-    private static void ProjectCoverage(ValidationResult result, List<DecisionRecord> decisions, HashSet<string> decisionIds)
+    private static void ProjectCoverage(
+        ValidationResult result,
+        List<DecisionRecord> outcomeDecisions,
+        HashSet<string> outcomeDecisionIds,
+        List<DecisionRecord> coverageDecisions,
+        HashSet<string> coverageDecisionIds)
     {
         foreach (var coverage in result.Evidence.Coverage)
         {
+            if (ValidationOutcomeTaxonomy.IsDeterministicFailure(coverage.Outcome))
+            {
+                var outcomeEvidenceReferences = BuildCoverageEvidenceReferences(coverage, result);
+                AddDecision(
+                    outcomeDecisions,
+                    outcomeDecisionIds,
+                    new DecisionRecord
+                    {
+                        DecisionId = $"outcome:{NormalizeToken(coverage.LayerId)}:{NormalizeToken(coverage.Scope)}:{coverage.Outcome}",
+                        RelatedEvidenceIds = GetEvidenceIds(outcomeEvidenceReferences),
+                        EvidenceReferences = outcomeEvidenceReferences,
+                        RuleId = "MCP.OUTCOME.DETERMINISTIC_FAILURE",
+                        RuleRevision = ValidationOutcomeTaxonomy.Version,
+                        Lane = EvaluationLane.Baseline,
+                        Authority = ValidationRuleSource.Unspecified,
+                        Origin = EvidenceOrigin.DeterministicAggregation,
+                        Gate = GateOutcome.Reject,
+                        Severity = coverage.Outcome == ValidationOutcome.Error
+                            ? ValidationFindingSeverity.Critical
+                            : ValidationFindingSeverity.High,
+                        Category = "ValidationOutcome",
+                        Component = coverage.LayerId,
+                        Summary = $"{coverage.LayerId}/{coverage.Scope} completed with canonical outcome {coverage.Outcome}.",
+                        ImpactAreas = [ImpactArea.CoverageIntegrity]
+                    });
+                continue;
+            }
+
             var isEvidenceDebt = ValidationEvidenceSummarizer.IsEvidenceDebt(coverage);
             var isConfidenceDebt = ValidationEvidenceSummarizer.IsConfidenceDebt(coverage);
             if (!isEvidenceDebt && !isConfidenceDebt)
@@ -343,13 +417,14 @@ public static class ValidationVerdictEngine
             var evidenceReferences = BuildCoverageEvidenceReferences(coverage, result);
 
             AddDecision(
-                decisions,
-                decisionIds,
+                coverageDecisions,
+                coverageDecisionIds,
                 new DecisionRecord
                 {
                     DecisionId = isConfidenceDebt
                         ? $"coverage-confidence:{NormalizeToken(coverage.LayerId)}:{NormalizeToken(coverage.Scope)}:{coverage.Confidence}"
                         : $"coverage:{NormalizeToken(coverage.LayerId)}:{NormalizeToken(coverage.Scope)}:{coverage.Status}",
+                    RuleId = isConfidenceDebt ? "MCP.COVERAGE.LOW_CONFIDENCE" : "MCP.COVERAGE.EVIDENCE_DEBT",
                     RelatedEvidenceIds = GetEvidenceIds(evidenceReferences),
                     EvidenceReferences = evidenceReferences,
                     Lane = EvaluationLane.Baseline,
@@ -378,6 +453,10 @@ public static class ValidationVerdictEngine
 
     private static void AddDecision(List<DecisionRecord> decisions, HashSet<string> decisionIds, DecisionRecord decision)
     {
+        using var ruleTiming = ValidationObservability.MeasureStage(
+            ObservableRuleIds.Contains(decision.RuleId ?? string.Empty)
+                ? $"rule.{decision.RuleId}"
+                : "rule.unversioned");
         if (decision.Gate == GateOutcome.Note && decision.Severity == ValidationFindingSeverity.Info)
         {
             return;
@@ -389,81 +468,29 @@ public static class ValidationVerdictEngine
         }
     }
 
-    private static ValidationVerdict DetermineBaselineVerdict(IEnumerable<DecisionRecord> decisions, IEnumerable<DecisionRecord> coverageDecisions)
-    {
-        var combined = decisions.Concat(coverageDecisions).ToList();
-        if (combined.Any(decision => decision.Gate == GateOutcome.Reject))
-        {
-            return ValidationVerdict.Reject;
-        }
-
-        if (combined.Any(decision => decision.Gate is GateOutcome.ReviewRequired or GateOutcome.CoverageDebt))
-        {
-            return ValidationVerdict.ReviewRequired;
-        }
-
-        if (combined.Count == 0)
-        {
-            return ValidationVerdict.Trusted;
-        }
-
-        return combined.Any(decision => decision.Gate == GateOutcome.Note)
-            ? ValidationVerdict.ConditionallyAcceptable
-            : ValidationVerdict.Trusted;
-    }
-
-    private static ValidationVerdict DetermineProtocolVerdict(ValidationResult result, IEnumerable<DecisionRecord> decisions)
-    {
-        var protocolDecisions = decisions
-            .Where(decision => decision.Authority == ValidationRuleSource.Spec || decision.ImpactAreas.Contains(ImpactArea.ProtocolInteroperability))
-            .ToList();
-
-        if (protocolDecisions.Any(decision => decision.Gate == GateOutcome.Reject))
-        {
-            return ValidationVerdict.Reject;
-        }
-
-        if (protocolDecisions.Any(decision => decision.Gate == GateOutcome.ReviewRequired))
-        {
-            return ValidationVerdict.ReviewRequired;
-        }
-
-        if (protocolDecisions.Count == 0)
-        {
-            return result.ProtocolCompliance == null ? ValidationVerdict.Unknown : ValidationVerdict.Trusted;
-        }
-
-        return protocolDecisions.Any(decision => decision.Gate == GateOutcome.Note)
-            ? ValidationVerdict.ConditionallyAcceptable
-            : ValidationVerdict.Trusted;
-    }
-
-    private static ValidationVerdict DetermineCoverageVerdict(ValidationResult result, IEnumerable<DecisionRecord> coverageDecisions)
-    {
-        var coverageList = coverageDecisions.ToList();
-        if (coverageList.Any())
-        {
-            return ValidationVerdict.ReviewRequired;
-        }
-
-        return result.Evidence.Coverage.Count == 0
-            ? ValidationVerdict.Unknown
-            : ValidationVerdict.Trusted;
-    }
-
     private static string BuildSummary(
         ValidationResult result,
         IReadOnlyCollection<DecisionRecord> decisions,
         IReadOnlyCollection<DecisionRecord> coverageDecisions,
         EvidenceCoverageSummary evidenceSummary)
     {
-        var protocolVerdict = DetermineProtocolVerdict(result, decisions);
-        var coverageVerdict = DetermineCoverageVerdict(result, coverageDecisions);
-        var baselineVerdict = DetermineBaselineVerdict(decisions, coverageDecisions);
+        var protocolVerdict = VerdictReducer.DetermineProtocolVerdict(ResolveProtocolOutcome(result), decisions);
+        var coverageVerdict = VerdictReducer.DetermineCoverageVerdict(result.Evidence.Coverage.Count > 0, coverageDecisions);
+        var baselineVerdict = VerdictReducer.DetermineBaselineVerdict(decisions, coverageDecisions);
         var blockingCount = decisions.Count(decision => decision.Gate >= GateOutcome.ReviewRequired)
             + coverageDecisions.Count(decision => decision.Gate >= GateOutcome.CoverageDebt);
 
         return $"Baseline={baselineVerdict}; Protocol={protocolVerdict}; Coverage={coverageVerdict}; EvidenceConfidence={evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F0")}); BlockingDecisions={blockingCount}.";
+    }
+
+    private static ValidationOutcome? ResolveProtocolOutcome(ValidationResult result)
+    {
+        var protocolCoverage = result.Evidence.Coverage.FirstOrDefault(coverage =>
+            string.Equals(coverage.LayerId, "protocol-core", StringComparison.OrdinalIgnoreCase));
+
+        return protocolCoverage?.Outcome ?? (result.ProtocolCompliance == null
+            ? null
+            : ValidationOutcomeTaxonomy.From(result.ProtocolCompliance.Status));
     }
 
     private static IEnumerable<ValidationFinding> CollectDistinctFindings(params IEnumerable<ValidationFinding>?[] sources)
@@ -514,34 +541,16 @@ public static class ValidationVerdictEngine
         };
     }
 
-    private static GateOutcome GateForBoundaryFinding(AiBoundaryFinding finding)
-    {
-        var category = finding.Category ?? string.Empty;
-        var severity = MapSeverity(finding.Severity);
-
-        if (category.Contains("exfiltration", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("humaninloop", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("promptinjection", StringComparison.OrdinalIgnoreCase))
-        {
-            return severity >= ValidationFindingSeverity.High ? GateOutcome.Reject : GateOutcome.ReviewRequired;
-        }
-
-        return severity >= ValidationFindingSeverity.High
-            ? GateOutcome.ReviewRequired
-            : GateOutcome.Note;
-    }
-
     private static GateOutcome GateForFinding(ValidationFinding finding)
     {
-        var authority = finding.EffectiveSource;
-        var ruleId = finding.RuleId ?? string.Empty;
-
-        if (authority == ValidationRuleSource.Spec)
+        if (finding.GateOverride.HasValue)
         {
-            return finding.Severity >= ValidationFindingSeverity.High ? GateOutcome.Reject : GateOutcome.ReviewRequired;
+            return finding.GateOverride.Value;
         }
 
-        if (ruleId.StartsWith("AI.", StringComparison.OrdinalIgnoreCase))
+        var authority = finding.EffectiveSource;
+
+        if (authority == ValidationRuleSource.Spec)
         {
             return finding.Severity >= ValidationFindingSeverity.High ? GateOutcome.Reject : GateOutcome.ReviewRequired;
         }
@@ -564,34 +573,17 @@ public static class ValidationVerdictEngine
         };
     }
 
-    private static GateOutcome GateForAttackSimulation(AttackSimulationResult attack)
-    {
-        var attackText = string.Join(' ', new[] { attack.AttackVector, attack.Description, attack.ServerResponse });
-        if (attackText.Contains("schema", StringComparison.OrdinalIgnoreCase)
-            || attackText.Contains("prompt", StringComparison.OrdinalIgnoreCase)
-            || attackText.Contains("exfil", StringComparison.OrdinalIgnoreCase)
-            || attackText.Contains("reflection", StringComparison.OrdinalIgnoreCase)
-            || attackText.Contains("echo", StringComparison.OrdinalIgnoreCase))
-        {
-            return GateOutcome.Reject;
-        }
-
-        return GateOutcome.ReviewRequired;
-    }
-
-    private static ValidationFindingSeverity SeverityForAttackSimulation(AttackSimulationResult attack)
-    {
-        return GateForAttackSimulation(attack) == GateOutcome.Reject
-            ? ValidationFindingSeverity.Critical
-            : ValidationFindingSeverity.High;
-    }
-
     private static EvidenceOrigin OriginForFinding(ValidationFinding finding)
     {
         return finding.EffectiveSource == ValidationRuleSource.Spec
             ? EvidenceOrigin.DeterministicObservation
             : EvidenceOrigin.HeuristicInference;
     }
+
+    private static string ResolveFindingRuleRevision(string? ruleId) =>
+        !string.IsNullOrWhiteSpace(ruleId) && ValidationFindingRuleIds.GetVersionedRules().ContainsKey(ruleId)
+            ? ValidationFindingRuleIds.CatalogVersion
+            : DecisionPolicyManifest.CurrentVersion;
 
     private static IReadOnlyList<DecisionEvidenceReference> BuildExecutionErrorEvidenceReferences(string error)
     {
@@ -904,88 +896,18 @@ public static class ValidationVerdictEngine
         return metadata;
     }
 
-    private static List<ImpactArea> GetImpactAreas(params string?[] values)
+    private static IReadOnlyList<ImpactArea> ResolveImpactAreas(IReadOnlyCollection<ImpactArea>? areas, ImpactArea fallback) =>
+        areas is { Count: > 0 }
+            ? areas.Distinct().OrderBy(area => area).ToArray()
+            : [fallback];
+
+    private static IReadOnlyList<ImpactArea> ImpactAreasForContentSafety(ContentRiskAxis axis) => axis switch
     {
-        var text = string.Join(' ', values.Where(value => !string.IsNullOrWhiteSpace(value)));
-        var impacts = new List<ImpactArea>();
-
-        void Add(ImpactArea area)
-        {
-            if (!impacts.Contains(area))
-            {
-                impacts.Add(area);
-            }
-        }
-
-        if (text.Contains("auth", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("oauth", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("token", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.AuthenticationBoundary);
-        }
-
-        if (text.Contains("protocol", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("json-rpc", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("content", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("schema", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("message", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.ProtocolInteroperability);
-            Add(ImpactArea.CapabilityContract);
-        }
-
-        if (text.Contains("llm", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("prompt", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("destructive", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("readOnlyHint", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("openWorldHint", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("idempotent", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("confirm", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.UnsafeAutonomy);
-        }
-
-        if (text.Contains("reflect", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("echo", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("output", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.OutputIntegrity);
-        }
-
-        if (text.Contains("resource", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("uri", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("path", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("exfil", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("sensitive", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("data", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.DataExposure);
-        }
-
-        if (text.Contains("timeout", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("disconnect", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("error", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("recover", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.RecoveryIntegrity);
-        }
-
-        if (text.Contains("performance", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("load", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("latency", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("concurrency", StringComparison.OrdinalIgnoreCase)
-            || text.Contains("execution", StringComparison.OrdinalIgnoreCase))
-        {
-            Add(ImpactArea.OperationalResilience);
-        }
-
-        if (impacts.Count == 0)
-        {
-            Add(ImpactArea.OperationalResilience);
-        }
-
-        return impacts;
-    }
+        ContentRiskAxis.Abuse => [ImpactArea.UnsafeAutonomy],
+        ContentRiskAxis.DataExfiltration => [ImpactArea.DataExposure],
+        ContentRiskAxis.SystemImpact => [ImpactArea.UnsafeAutonomy, ImpactArea.OperationalResilience],
+        _ => throw new ArgumentOutOfRangeException(nameof(axis), axis, "Unknown content risk axis.")
+    };
 
     private static ValidationFindingSeverity MapSeverity(ViolationSeverity severity)
     {
@@ -1019,18 +941,6 @@ public static class ValidationVerdictEngine
             ContentRiskLevel.High => ValidationFindingSeverity.High,
             ContentRiskLevel.Medium => ValidationFindingSeverity.Medium,
             ContentRiskLevel.Low => ValidationFindingSeverity.Low,
-            _ => ValidationFindingSeverity.Info
-        };
-    }
-
-    private static ValidationFindingSeverity MapSeverity(string? severity)
-    {
-        return severity?.Trim().ToLowerInvariant() switch
-        {
-            "critical" => ValidationFindingSeverity.Critical,
-            "high" => ValidationFindingSeverity.High,
-            "medium" => ValidationFindingSeverity.Medium,
-            "low" => ValidationFindingSeverity.Low,
             _ => ValidationFindingSeverity.Info
         };
     }

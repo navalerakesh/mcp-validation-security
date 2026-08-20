@@ -77,6 +77,30 @@ public class SecurityFocusedScoringStrategyTests
     }
 
     [Fact]
+    public void CalculateScore_ShouldNotPenalizeUnevaluatedJsonRpcFormatFlags()
+    {
+        var results = new ValidationResult
+        {
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                Status = TestStatus.Inconclusive,
+                Score = 100,
+                ComplianceScore = 100,
+                JsonRpcCompliance = new JsonRpcComplianceResult
+                {
+                    ErrorHandlingEvaluated = false,
+                    RequestFormatCompliant = false,
+                    ResponseFormatCompliant = false
+                }
+            }
+        };
+
+        var score = _strategy.CalculateScore(results);
+
+        score.ScoringNotes.Should().NotContain(note => note.Contains("JSON-RPC 2.0 format deviations", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void CalculateScore_Should_Treat_AuthBreaches_As_Critical_For_Strict_Profiles()
     {
         // Arrange

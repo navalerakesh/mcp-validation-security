@@ -66,7 +66,7 @@ run_nuget_audit() {
   audit_file="$(mktemp)"
   trap 'rm -f "$audit_file"' RETURN
 
-  dotnet list ./mcp-benchmark-validation.sln package --vulnerable --include-transitive --format json > "$audit_file"
+  dotnet list "$repo_root/mcp-benchmark-validation.sln" package --vulnerable --include-transitive --format json > "$audit_file"
 
   python3 - "$audit_file" <<'PY'
 import json
@@ -120,6 +120,9 @@ PY
 echo "Repository root: $repo_root"
 cd "$repo_root"
 
+echo "==> Checking sensitive artifacts"
+scripts/check-sensitive-artifacts.sh
+
 if $run_dotnet; then
   require_command dotnet
 fi
@@ -153,6 +156,9 @@ if $run_node; then
   echo "==> Installing npm dependencies"
   pushd ./mcpval-mcp >/dev/null
   npm ci
+
+  echo "==> Testing npm package"
+  npm test
 
   echo "==> Building npm package"
   npm run build

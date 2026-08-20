@@ -39,6 +39,37 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_PassivePolicy_DoesNotRunActiveProbes()
+    {
+        var validator = CreateValidator();
+
+        var result = await validator.ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http" },
+            new ProtocolComplianceConfig
+            {
+                TestJsonRpcCompliance = true,
+                TestMessageFormat = false,
+                TestNotifications = false
+            });
+
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.JsonRpcCompliance.Should().NotBeNull();
+        result.JsonRpcCompliance!.ErrorHandlingEvaluated.Should().BeFalse();
+        result.Findings.Should().ContainSingle(finding => finding.RuleId == "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN");
+        _mcpHttpClientMock.Verify(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _mcpHttpClientMock.Verify(client => client.SendRawJsonAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Fact]
     public void Constructor_WithNullLogger_ShouldThrowArgumentNullException()
     {
         Action act = () => new ProtocolComplianceValidator(null!, _mcpHttpClientMock.Object, _ruleRegistry, _applicabilityResolver, _protocolFeatureResolver);
@@ -164,10 +195,11 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         var serverConfig = new McpServerConfig
         {
             Endpoint = "npx -y mcpval-localmcp",
-            Transport = "stdio"
+            Transport = "stdio",
+            ProtocolVersion = "2025-11-25"
         };
 
-        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig());
+        var result = await validator.ValidateJsonRpcComplianceAsync(serverConfig, new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
 
         result.Status.Should().Be(TestStatus.Passed);
         result.Violations.Should().NotContain(v => v.Description.Contains("Batch processing", StringComparison.OrdinalIgnoreCase));
@@ -249,6 +281,249 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Violations.Should().Contain(v => v.CheckId == ValidationConstants.CheckIds.HttpGetSseOrMethodNotAllowed);
         result.Violations.Should().Contain(v => v.CheckId == ValidationConstants.CheckIds.HttpInvalidProtocolVersion);
         result.Violations.Should().Contain(v => v.CheckId == ValidationConstants.CheckIds.HttpOriginValidation);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ProtocolFeatureDeprecated &&
+            finding.Component == "logging/setLevel" &&
+            finding.Severity == ValidationFindingSeverity.Info &&
+            finding.GateOverride == GateOutcome.Note &&
+            finding.Metadata["isFailure"] == "false");
+    }
+
+    [Theory]
+    [InlineData("2025-03-26", true)]
+    [InlineData("2025-06-18", true)]
+    [InlineData("2025-11-25", true)]
+    [InlineData("2026-07-28", true)]
+    [InlineData("2024-11-05", false)]
+    public async Task ValidateJsonRpcComplianceAsync_HttpTransportApplicability_ShouldMatchProtocolRevision(
+        string protocolVersion,
+        bool expectedTransportEvidence)
+    {
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = protocolVersion },
+            new ProtocolComplianceConfig { ProtocolVersion = protocolVersion });
+
+        (result.StreamableHttpTransport != null).Should().Be(expectedTransportEvidence);
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithModernTransport_ShouldValidateMetadataAndTypedVersionError()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
+            {
+                if (request.Body?.Contains("subscriptions/listen", StringComparison.Ordinal) == true)
+                {
+                    return CreateSubscriptionProbeResponse(request, "mcpval-subscription-http");
+                }
+                if (request.Body?.Contains("modern-mismatch", StringComparison.Ordinal) == true)
+                {
+                    return CreateTransportProbeResponse(request, 400, "");
+                }
+
+                if (request.Body?.Contains("modern-unsupported", StringComparison.Ordinal) == true)
+                {
+                    return CreateTransportProbeResponse(
+                        request,
+                        400,
+                        "{\"jsonrpc\":\"2.0\",\"id\":\"modern-unsupported\",\"error\":{\"code\":-32022,\"message\":\"Unsupported protocol version\",\"data\":{\"requested\":\"2099-01-01\",\"supported\":[\"2026-07-28\"]}}}");
+                }
+
+                return CreateTransportProbeResponse(
+                    request,
+                    200,
+                    "{\"jsonrpc\":\"2.0\",\"id\":\"modern-matching\",\"result\":{\"resultType\":\"complete\"}}");
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig
+            {
+                Endpoint = "https://example.test/mcp",
+                Transport = "http",
+                ProtocolEra = McpProtocolEraSelection.Modern,
+                ProtocolVersion = "2026-07-28"
+            },
+            new ProtocolComplianceConfig
+            {
+                ProtocolVersion = "2026-07-28",
+                ModernDiscovery = new ModernDiscoveryEvidence
+                {
+                    IsValid = true,
+                    SupportedVersions = ["2026-07-28"],
+                    CapabilityNames = ["logging"],
+                    ExtensionIds = ["io.modelcontextprotocol/tasks", "com.example/audit"],
+                    ResultType = "complete",
+                    CacheScope = "public",
+                    TtlMs = 60000
+                }
+            });
+
+        result.StreamableHttpTransport.Should().NotBeNull();
+        result.StreamableHttpTransport!.FailedMandatoryProbeCount.Should().Be(0);
+        result.StreamableHttpTransport.Probes.Select(probe => probe.CheckId).Should().BeEquivalentTo(
+            [
+                ValidationConstants.CheckIds.HttpModernRequestMetadata,
+                ValidationConstants.CheckIds.HttpModernResultType,
+                ValidationConstants.CheckIds.HttpModernInputRequired,
+                ValidationConstants.CheckIds.HttpModernMetadataHeaderMismatch,
+                ValidationConstants.CheckIds.HttpUnsupportedProtocolVersionError,
+                ValidationConstants.CheckIds.ModernSubscriptionAcknowledged
+            ]);
+        result.StreamableHttpTransport.Probes.Where(probe => probe.Mandatory).Should().OnlyContain(probe => probe.Passed == true);
+        result.StreamableHttpTransport.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.HttpModernInputRequired && probe.Passed == null);
+        _mcpHttpClientMock.Verify(client => client.SendHttpTransportProbeAsync(
+            It.Is<HttpTransportProbeRequest>(request => request.Body != null && request.Body.Contains("transport-initialize", StringComparison.Ordinal)),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(
+            It.IsAny<string>(),
+            ValidationConstants.Methods.Initialize,
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(
+            It.IsAny<string>(),
+            ValidationConstants.Methods.LoggingSetLevel,
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported &&
+            finding.Component == "io.modelcontextprotocol/logLevel");
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ModernTasksExtensionNegotiated &&
+            finding.Component == "io.modelcontextprotocol/tasks");
+        result.Findings.Should().Contain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ModernExtensionNegotiated &&
+            finding.Component == "com.example/audit");
+        result.Findings.Where(finding => finding.RuleId == ValidationFindingRuleIds.ProtocolFeatureRemoved)
+            .Should().OnlyContain(finding => finding.GateOverride == GateOutcome.Note && finding.Metadata["isFailure"] == "false");
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ModernStdio_ShouldAcknowledgeAndCloseSubscription()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendStdioTransportProbeAsync(
+                It.Is<StdioTransportProbeRequest>(request => request.RawMessage != null && request.RawMessage.Contains("subscriptions/listen", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new StdioTransportProbeResponse
+            {
+                ProbeId = "modern-stdio-subscription-listen",
+                Kind = StdioTransportProbeKind.MessageExchange,
+                StatusCode = 200,
+                IsSuccess = true,
+                Executed = true,
+                RawStdout = "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/subscriptions/acknowledged\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/subscriptionId\":\"mcpval-subscription-stdio\"},\"notifications\":{}}}"
+            });
+        _mcpHttpClientMock
+            .Setup(client => client.SendRawJsonAsync(
+                It.IsAny<string>(),
+                It.Is<string>(message => message.Contains("notifications/cancelled", StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"id\":\"mcpval-subscription-stdio\",\"result\":{\"resultType\":\"complete\",\"_meta\":{\"io.modelcontextprotocol/subscriptionId\":\"mcpval-subscription-stdio\"}}}"
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "node modern-server.js", Transport = "stdio", ProtocolVersion = "2026-07-28" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2026-07-28" });
+
+        result.StdioTransport.Should().NotBeNull();
+        result.StdioTransport!.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.ModernSubscriptionAcknowledged && probe.Passed == true);
+        result.StdioTransport.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.ModernSubscriptionClosed && probe.Passed == true);
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ModernToolsList_ShouldValidateCacheAndDeterminism()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
+            {
+                if (request.Body?.Contains("subscriptions/listen", StringComparison.Ordinal) == true)
+                {
+                    return CreateSubscriptionProbeResponse(request, "mcpval-subscription-http");
+                }
+                if (request.Body?.Contains("modern-mismatch", StringComparison.Ordinal) == true)
+                {
+                    return CreateTransportProbeResponse(request, 400, "");
+                }
+                if (request.Body?.Contains("modern-unsupported", StringComparison.Ordinal) == true)
+                {
+                    return CreateTransportProbeResponse(request, 400, "{\"jsonrpc\":\"2.0\",\"id\":\"modern-unsupported\",\"error\":{\"code\":-32022,\"data\":{\"requested\":\"2099-01-01\",\"supported\":[\"2026-07-28\"]}}}");
+                }
+                return CreateTransportProbeResponse(request, 200, "{\"jsonrpc\":\"2.0\",\"id\":\"modern-matching\",\"result\":{\"resultType\":\"complete\"}}");
+            });
+        _mcpHttpClientMock
+            .Setup(client => client.CallAsync(
+                It.IsAny<string>(),
+                ValidationConstants.Methods.ToolsList,
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200,
+                IsSuccess = true,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"id\":\"tools\",\"result\":{\"resultType\":\"complete\",\"cacheScope\":\"public\",\"ttlMs\":60000,\"tools\":[{\"name\":\"search\"}]}}"
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ProtocolComplianceConfig
+            {
+                ProtocolVersion = "2026-07-28",
+                ModernDiscovery = new ModernDiscoveryEvidence
+                {
+                    IsValid = true,
+                    SupportedVersions = ["2026-07-28"],
+                    CapabilityNames = ["tools"],
+                    ResultType = "complete",
+                    CacheScope = "public",
+                    TtlMs = 60000
+                }
+            });
+
+        result.StreamableHttpTransport!.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.HttpModernListCacheMetadata && probe.Passed == true);
+        result.StreamableHttpTransport.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.HttpModernListDeterminism && probe.Passed == true);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(
+            It.IsAny<string>(),
+            ValidationConstants.Methods.ToolsList,
+            null,
+            It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ModernSubscriptionPreviewTimeout_ShouldBeInconclusive()
+    {
+        _mcpHttpClientMock
+            .Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
+                request.Body?.Contains("subscriptions/listen", StringComparison.Ordinal) == true
+                    ? new HttpTransportProbeResponse
+                    {
+                        StatusCode = 200,
+                        IsSuccess = true,
+                        ContentType = "text/event-stream",
+                        TimedOut = true,
+                        RequestHeaders = BuildRequestHeaders(request)
+                    }
+                    : CreateDefaultTransportProbeResponse(request));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2026-07-28" });
+
+        result.StreamableHttpTransport!.Probes.Should().ContainSingle(probe =>
+            probe.CheckId == ValidationConstants.CheckIds.ModernSubscriptionAcknowledged && probe.Passed == null);
+        result.Violations.Should().NotContain(violation => violation.CheckId == ValidationConstants.CheckIds.ModernSubscriptionAcknowledged);
     }
 
     [Fact]
@@ -312,24 +587,21 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     [Fact]
     public async Task ValidateJsonRpcComplianceAsync_WithLatestAlias_ShouldAdvertiseNewestEmbeddedVersion()
     {
-        object? initializePayload = null;
-
-        _mcpHttpClientMock
-            .Setup(client => client.CallAsync(
-                It.IsAny<string>(),
-                ValidationConstants.Methods.Initialize,
-                It.IsAny<object?>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<string, string, object?, CancellationToken>((_, _, payload, _) => initializePayload = payload)
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{}},\"id\":\"init\"}"));
-
         await CreateValidator().ValidateJsonRpcComplianceAsync(
             new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
             new ProtocolComplianceConfig { ProtocolVersion = "latest" });
 
-        initializePayload.Should().NotBeNull();
-        var version = initializePayload!.GetType().GetProperty("protocolVersion")?.GetValue(initializePayload) as string;
-        version.Should().Be(SchemaRegistryProtocolVersions.GetLatestVersion().Value);
+        var modernProbe = _mcpHttpClientMock.Invocations
+            .Where(invocation => invocation.Method.Name == nameof(IMcpHttpClient.SendHttpTransportProbeAsync))
+            .Select(invocation => invocation.Arguments[0] as HttpTransportProbeRequest)
+            .Single(request => request?.Body?.Contains("modern-matching", StringComparison.Ordinal) == true)!;
+        modernProbe.Headers["MCP-Protocol-Version"].Should().Be(SchemaRegistryProtocolVersions.GetLatestVersion().Value);
+        modernProbe.Body.Should().Contain($"\"io.modelcontextprotocol/protocolVersion\":\"{SchemaRegistryProtocolVersions.GetLatestVersion().Value}\"");
+        _mcpHttpClientMock.Verify(client => client.CallAsync(
+            It.IsAny<string>(),
+            ValidationConstants.Methods.Initialize,
+            It.IsAny<object?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -724,8 +996,8 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             });
 
         var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
-            new McpServerConfig { Endpoint = "npx -y mcpval-localmcp", Transport = "stdio" },
-            new ProtocolComplianceConfig());
+            new McpServerConfig { Endpoint = "npx -y mcpval-localmcp", Transport = "stdio", ProtocolVersion = "2025-11-25" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
 
         result.MessageFormat.RequestFormatValid.Should().BeTrue();
         result.JsonRpcCompliance.ErrorHandlingCompliant.Should().BeTrue();
@@ -1039,6 +1311,11 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             return CreateTransportProbeResponse(request, 400, string.Empty);
         }
 
+        if (request.Body?.Contains("subscriptions/listen", StringComparison.Ordinal) == true)
+        {
+            return CreateSubscriptionProbeResponse(request, "mcpval-subscription-http");
+        }
+
         if (request.Headers.ContainsKey("Origin"))
         {
             return CreateTransportProbeResponse(request, 403, string.Empty);
@@ -1071,6 +1348,24 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         Headers = string.IsNullOrWhiteSpace(contentType)
             ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             : new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Content-Type"] = contentType }
+    };
+
+    private static HttpTransportProbeResponse CreateSubscriptionProbeResponse(
+        HttpTransportProbeRequest request,
+        string subscriptionId) => new()
+    {
+        StatusCode = 200,
+        IsSuccess = true,
+        ContentType = "text/event-stream",
+        RequestHeaders = BuildRequestHeaders(request),
+        Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Content-Type"] = "text/event-stream" },
+        SseEvents =
+        [
+            new SseEventRecord
+            {
+                Data = $"{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/subscriptions/acknowledged\",\"params\":{{\"_meta\":{{\"io.modelcontextprotocol/subscriptionId\":\"{subscriptionId}\"}},\"notifications\":{{}}}}}}"
+            }
+        ]
     };
 
     private static StdioTransportProbeResponse CreateDefaultStdioTransportProbeResponse(StdioTransportProbeRequest request)

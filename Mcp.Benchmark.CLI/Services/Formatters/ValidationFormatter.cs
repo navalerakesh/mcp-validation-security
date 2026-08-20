@@ -116,11 +116,12 @@ public static class ValidationFormatter
                 : capabilities.Tools?.Count ?? 0;
 
             var toolListingSucceeded = capabilities.ToolListingSucceeded;
-            bool? toolInvocationSucceeded = capabilities.ToolInvocationSucceeded;
+            bool? toolInvocationSucceeded = capabilities.ToolInvocationAttempted
+                ? capabilities.ToolInvocationSucceeded
+                : null;
 
-            // If detailed tool validation ran and found no hard failures,
-            // treat the high-level Tools summary as successful even if
-            // the capability probe reported softer issues (e.g. schema-only warnings).
+            // Detailed metadata validation can confirm listing quality, but it
+            // cannot turn a non-attempted tool invocation into a successful call.
             if (result.ToolValidation is { } toolValidation)
             {
                 var hasHardFailures = toolValidation.ToolsTestFailed > 0 ||
@@ -130,11 +131,6 @@ public static class ValidationFormatter
                 if (!hasHardFailures)
                 {
                     toolListingSucceeded = true;
-
-                    if (toolValidation.ToolResults?.Count > 0)
-                    {
-                        toolInvocationSucceeded = true;
-                    }
                 }
             }
 
@@ -159,7 +155,7 @@ public static class ValidationFormatter
                     useColors);
             }
 
-            if (!string.IsNullOrWhiteSpace(capabilities.FirstToolName))
+            if (!string.IsNullOrWhiteSpace(capabilities.FirstToolName) && capabilities.ToolInvocationAttempted)
             {
                 var callStatus = capabilities.ToolInvocationSucceeded ? "✅" : "⚠️";
                 WriteKeyValue("First Tool", $"{capabilities.FirstToolName} ({callStatus} invocation)", useColors);
@@ -370,7 +366,7 @@ public static class ValidationFormatter
                 if (capabilities.Tools != null) capabilityFlags.Add("Tools");
                 if (capabilities.Resources != null) capabilityFlags.Add("Resources");
                 if (capabilities.Prompts != null) capabilityFlags.Add("Prompts");
-                if (capabilities.Logging != null) capabilityFlags.Add("Logging");
+                if (CapabilityDisplayPolicy.HasLegacyLogging(capabilities)) capabilityFlags.Add(CapabilityDisplayPolicy.LegacyLoggingLabel);
                 if (capabilities.Completions != null) capabilityFlags.Add("Completions");
                 if (capabilityFlags.Count > 0)
                 {
@@ -401,7 +397,7 @@ public static class ValidationFormatter
             }
 
             FormatterUtils.WriteLineWithColor("CAPABILITY PROBES", ConsoleColor.White, useColors);
-            Console.WriteLine(BuildProbeDescription("Tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListingSucceeded, snapshot.ToolListDurationMs, snapshot.ToolListResponse?.StatusCode, snapshot.ToolInvocationSucceeded));
+            Console.WriteLine(BuildProbeDescription("Tools/list", snapshot.DiscoveredToolsCount, snapshot.ToolListingSucceeded, snapshot.ToolListDurationMs, snapshot.ToolListResponse?.StatusCode, snapshot.ToolInvocationAttempted ? snapshot.ToolInvocationSucceeded : null));
             Console.WriteLine(BuildProbeDescription("Resources/list", snapshot.DiscoveredResourcesCount, snapshot.ResourceListingSucceeded, snapshot.ResourceListDurationMs, snapshot.ResourceListResponse?.StatusCode, null));
             Console.WriteLine(BuildProbeDescription("Prompts/list", snapshot.DiscoveredPromptsCount, snapshot.PromptListingSucceeded, snapshot.PromptListDurationMs, snapshot.PromptListResponse?.StatusCode, null));
             Console.WriteLine();
