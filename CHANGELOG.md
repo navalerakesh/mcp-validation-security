@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.30 - 2026-08-20
+
+### Fixed
+
+- Registry publication now waits for NuGet/npm indexing before verification and audits signatures from an installed npm package.
+- Successful npm promotion removes stale temporary candidate tags.
+
 ## 1.1.29 - 2026-08-20
 
 ### Fixed

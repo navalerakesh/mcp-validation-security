@@ -98,6 +98,20 @@ if grep -Fq "github.event_name == 'push'" <<< "$install_smoke_job"; then
   echo "Cross-platform package install smoke must run on pull requests." >&2
   exit 1
 fi
+grep -Fq 'for attempt in {1..60}' .github/workflows/ci.yml || {
+  echo "Registry publication must allow bounded propagation before verification." >&2
+  exit 1
+}
+# Match the literal workflow variable in the signature-audit command.
+# shellcheck disable=SC2016
+grep -Fq 'npm install --ignore-scripts "mcpval-localmcp@$version"' .github/workflows/ci.yml || {
+  echo "npm signature audit must install the published registry package." >&2
+  exit 1
+}
+grep -Fq 'startswith("candidate-")' .github/workflows/ci.yml || {
+  echo "npm publication must remove stale candidate tags after promotion." >&2
+  exit 1
+}
 # Match the literal GitHub expression in the workflow.
 # shellcheck disable=SC2016
 grep -Fq 'python -m zipfile -e "${{ matrix.archive }}" extracted' .github/workflows/ci.yml || {

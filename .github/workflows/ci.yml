@@ -1009,12 +1009,12 @@ jobs:
           else
             dotnet nuget push "$package" --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
           fi
-          for attempt in {1..12}; do
+          for attempt in {1..60}; do
             if curl --fail --silent --show-error "$url" --output "$remote" && dotnet nuget verify "$remote" --all; then
               break
             fi
-            [[ "$attempt" -lt 12 ]] || { echo "Published NuGet package was not downloadable with a valid repository signature." >&2; exit 1; }
-            sleep 5
+            [[ "$attempt" -lt 60 ]] || { echo "Published NuGet package was not downloadable with a valid repository signature." >&2; exit 1; }
+            sleep 10
           done
           rm -rf "$RUNNER_TEMP/nuget-local" "$RUNNER_TEMP/nuget-remote"
           mkdir -p "$RUNNER_TEMP/nuget-local" "$RUNNER_TEMP/nuget-remote"
@@ -1073,7 +1073,13 @@ jobs:
             candidate_tag="candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
             npm publish "$package" --access public --provenance --tag "$candidate_tag"
           fi
-          remote_url=$(npm view "mcpval-localmcp@$version" dist.tarball)
+          remote_url=""
+          for attempt in {1..60}; do
+            remote_url=$(npm view "mcpval-localmcp@$version" dist.tarball 2>/dev/null || true)
+            [[ -n "$remote_url" ]] && break
+            [[ "$attempt" -lt 60 ]] || { echo "Published npm package was not visible after registry propagation timeout." >&2; exit 1; }
+            sleep 5
+          done
           remote_package="$RUNNER_TEMP/mcpval-localmcp-$version.tgz"
           curl --fail --silent --show-error "$remote_url" --output "$remote_package"
           local_sha256=$(sha256sum "$package" | awk '{print $1}')
@@ -1086,14 +1092,16 @@ jobs:
           }
           audit_dir="$RUNNER_TEMP/npm-provenance-$version"
           mkdir -p "$audit_dir"
-          (cd "$audit_dir" && npm init --yes >/dev/null && npm install --package-lock-only "mcpval-localmcp@$version" >/dev/null && npm audit signatures)
+          (cd "$audit_dir" && npm init --yes >/dev/null && npm install --ignore-scripts "mcpval-localmcp@$version" >/dev/null && npm audit signatures)
           publish_tag=latest
           [[ "$version" == *-* ]] && publish_tag=preview
           current_channel_version=$(npm view "mcpval-localmcp" "dist-tags.$publish_tag" 2>/dev/null || true)
           node "$GITHUB_WORKSPACE/scripts/verify-version-promotion.mjs" "$current_channel_version" "$version"
           npm dist-tag add "mcpval-localmcp@$version" "$publish_tag"
-          candidate_tag="candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          npm dist-tag rm "mcpval-localmcp" "$candidate_tag" >/dev/null 2>&1 || true
+          while IFS= read -r candidate_tag; do
+            [[ -n "$candidate_tag" ]] || continue
+            npm dist-tag rm "mcpval-localmcp" "$candidate_tag" >/dev/null 2>&1 || true
+          done < <(npm view "mcpval-localmcp" dist-tags --json | jq -r 'to_entries[] | select(.key | startswith("candidate-")) | .key')
           echo "package-sha256=$remote_sha256" >> "$GITHUB_OUTPUT"
 
   docker-publish:
