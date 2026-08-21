@@ -261,9 +261,7 @@ jobs:
   # Create the self-contained EXE for multiple platforms
   package:
     name: Package ${{ matrix.rid }} v${{ needs.build-and-test.outputs.version }}
-    needs: [build-and-test, release-reservation]
-    # Only package on pushes to main (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-and-test]
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -345,7 +343,6 @@ jobs:
   standalone-artifact-smoke:
     name: "Smoke uploaded standalone (${{ matrix.rid }})"
     needs: [build-and-test, package]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ${{ matrix.runner }}
     strategy:
       matrix:
@@ -673,7 +670,6 @@ jobs:
   nuget-package:
     name: "Prepare NuGet (v${{ needs.build-and-test.outputs.version }})"
     needs: [build-and-test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -749,6 +745,7 @@ jobs:
           output-file: artifacts/nuget/mcpval.nuget.spdx.json
 
       - name: Attest NuGet Package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
@@ -768,7 +765,6 @@ jobs:
   npm-package:
     name: "Prepare npm (v${{ needs.build-and-test.outputs.version }})"
     needs: [build-and-test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -830,6 +826,7 @@ jobs:
           output-file: ./mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
 
       - name: Attest npm Package
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: |
@@ -847,7 +844,6 @@ jobs:
   docker-package:
     name: "Prepare Docker Image ${{ matrix.platform }} (v${{ needs.build-and-test.outputs.version }})"
     needs: [build-and-test]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -918,7 +914,6 @@ jobs:
   package-install-smoke:
     name: "Clean install smoke (${{ matrix.os }})"
     needs: [build-and-test, nuget-package, npm-package]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:

@@ -55,6 +55,14 @@ grep -Fq 'process.platform === "win32" ? "npm.cmd" : "npm"' scripts/smoke-npm-pa
   echo "npm package smoke must invoke the Windows npm command explicitly." >&2
   exit 1
 }
+grep -Fq 'const child = spawn(process.execPath, [executable]' scripts/smoke-npm-package.mjs || {
+  echo "npm package smoke must launch the installed server without a platform shell wrapper." >&2
+  exit 1
+}
+grep -Fq 'await exited.catch(() => undefined)' scripts/smoke-npm-package.mjs || {
+  echo "npm package smoke must await child termination before deleting its temporary install." >&2
+  exit 1
+}
 grep -Fq "always() && inputs.upload-artifacts == 'true'" action.yml || {
   echo "Composite Action must upload validation evidence even when policy blocks the validation step." >&2
   exit 1
@@ -74,6 +82,20 @@ grep -Fq -- "--filter 'FullyQualifiedName~ValidatorOverheadBudgetTests'" <<< "$b
 }
 if [[ $(grep -Fc -- '- rid: linux-arm64' .github/workflows/ci.yml) -lt 2 ]]; then
   echo "Linux ARM64 must be present in standalone packaging and uploaded-artifact smoke matrices." >&2
+  exit 1
+fi
+package_job=$(sed -n '/^  package:/,/^  standalone-artifact-smoke:/p' .github/workflows/ci.yml)
+grep -Fq 'needs: [build-and-test]' <<< "$package_job" || {
+  echo "Standalone packaging must run during pull-request validation without release reservation." >&2
+  exit 1
+}
+if grep -Fq 'release-reservation' <<< "$package_job"; then
+  echo "Standalone packaging must not depend on the main-only release reservation job." >&2
+  exit 1
+fi
+install_smoke_job=$(sed -n '/^  package-install-smoke:/,/^  nuget-publish:/p' .github/workflows/ci.yml)
+if grep -Fq "github.event_name == 'push'" <<< "$install_smoke_job"; then
+  echo "Cross-platform package install smoke must run on pull requests." >&2
   exit 1
 fi
 # Match the literal GitHub expression in the workflow.
