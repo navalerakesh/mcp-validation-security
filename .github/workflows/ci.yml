@@ -1224,10 +1224,23 @@ jobs:
           current_channel_version=""
           if docker buildx imagetools inspect "$image:$channel_tag" --raw > "$RUNNER_TEMP/current-channel-manifest.json" 2>/dev/null; then
             current_channel_version=$(jq -r '.annotations["org.opencontainers.image.version"] // empty' "$RUNNER_TEMP/current-channel-manifest.json")
-            [[ -n "$current_channel_version" ]] || {
-              echo "Existing $image:$channel_tag lacks required OCI version metadata; refusing mutable alias replacement." >&2
-              exit 1
-            }
+            if [[ -z "$current_channel_version" ]]; then
+              current_channel_digest=$(docker buildx imagetools inspect "$image:$channel_tag" --format '{{json .Manifest.Digest}}' | tr -d '"')
+              git fetch --force --tags origin
+              while IFS= read -r immutable_tag; do
+                candidate_version=${immutable_tag#v}
+                immutable_digest=$(docker buildx imagetools inspect "$image:$candidate_version" --format '{{json .Manifest.Digest}}' 2>/dev/null | tr -d '"' || true)
+                if [[ -n "$immutable_digest" && "$immutable_digest" == "$current_channel_digest" ]]; then
+                  current_channel_version="$candidate_version"
+                  break
+                fi
+              done < <(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname)
+              [[ -n "$current_channel_version" ]] || {
+                echo "Existing $image:$channel_tag lacks version metadata and does not match an immutable release tag; refusing replacement." >&2
+                exit 1
+              }
+              echo "Resolved legacy $channel_tag to immutable version $current_channel_version by exact digest match."
+            fi
           fi
           node scripts/verify-version-promotion.mjs "$current_channel_version" "$version"
           docker buildx imagetools create \

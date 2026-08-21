@@ -112,6 +112,12 @@ grep -Fq 'startswith("candidate-")' .github/workflows/ci.yml || {
   echo "npm publication must remove stale candidate tags after promotion." >&2
   exit 1
 }
+# Match the literal workflow digest comparison.
+# shellcheck disable=SC2016
+grep -Fq 'immutable_digest" == "$current_channel_digest' .github/workflows/ci.yml || {
+  echo "Legacy container aliases must resolve only by exact immutable-tag digest match." >&2
+  exit 1
+}
 # Match the literal GitHub expression in the workflow.
 # shellcheck disable=SC2016
 grep -Fq 'python -m zipfile -e "${{ matrix.archive }}" extracted' .github/workflows/ci.yml || {

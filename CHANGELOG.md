@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.31 - 2026-08-21
+
+### Fixed
+
+- Legacy GHCR channel aliases without OCI version metadata are migrated only when their digest exactly matches an immutable release tag.
+
 ## 1.1.30 - 2026-08-20
 
 ### Fixed
