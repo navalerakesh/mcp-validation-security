@@ -387,7 +387,11 @@ jobs:
           set -euo pipefail
           cd smoke/standalone
           mkdir extracted
-          tar -xf "${{ matrix.archive }}" -C extracted
+          if [[ "${{ matrix.windows }}" == "true" ]]; then
+            python -m zipfile -e "${{ matrix.archive }}" extracted
+          else
+            tar -xf "${{ matrix.archive }}" -C extracted
+          fi
           executable="extracted/${{ matrix.executable }}"
           if [[ "${{ matrix.windows }}" == "false" ]]; then chmod +x "$executable"; fi
           "$GITHUB_WORKSPACE/scripts/smoke-distribution.sh" \

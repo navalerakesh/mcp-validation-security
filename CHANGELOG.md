@@ -6,6 +6,13 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.26 - 2026-08-20
+
+### Fixed
+
+- Composite Action package smoke now installs from an explicit isolated local NuGet source configuration.
+- Windows standalone archive smoke now extracts ZIP payloads with a ZIP-aware tool.
+
 ## 1.1.25 - 2026-08-19
 
 ### Added

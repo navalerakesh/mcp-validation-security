@@ -114,10 +114,18 @@ runs:
 
         install_args=(--tool-path "$tool_path" McpVal --version "${{ steps.mcpval-version.outputs.version }}")
         if [[ -n "$INPUT_PACKAGE_SOURCE" ]]; then
-          dotnet new nugetconfig --output "$RUNNER_TEMP/mcpval-nuget-config" --force >/dev/null
-          config_file="$RUNNER_TEMP/mcpval-nuget-config/NuGet.Config"
-          dotnet nuget remove source nuget.org --configfile "$config_file" >/dev/null
-          dotnet nuget add source "$INPUT_PACKAGE_SOURCE" --name local-smoke --configfile "$config_file" >/dev/null
+          config_dir="$RUNNER_TEMP/mcpval-nuget-config"
+          config_file="$config_dir/NuGet.Config"
+          mkdir -p "$config_dir"
+          cat > "$config_file" <<EOF
+        <?xml version="1.0" encoding="utf-8"?>
+        <configuration>
+          <packageSources>
+            <clear />
+            <add key="local-smoke" value="$INPUT_PACKAGE_SOURCE" />
+          </packageSources>
+        </configuration>
+        EOF
           install_args+=(--configfile "$config_file")
         fi
         dotnet tool install "${install_args[@]}"
