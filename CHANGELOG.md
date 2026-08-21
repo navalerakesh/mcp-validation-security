@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.28 - 2026-08-20
+
+### Fixed
+
+- Windows clean-install smoke now invokes the platform-specific npm command when installing packed artifacts.
+
 ## 1.1.27 - 2026-08-20
 
 ### Fixed
