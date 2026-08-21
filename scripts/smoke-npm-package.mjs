@@ -25,8 +25,16 @@ try {
   const installedPackage = JSON.parse(await readFile(join(root, "node_modules", "mcpval-localmcp", "package.json"), "utf8"));
   assert.equal(installedPackage.version, expectedVersion);
 
-  const executable = join(root, "node_modules", ".bin", process.platform === "win32" ? "mcpval-localmcp.cmd" : "mcpval-localmcp");
-  const child = spawn(executable, [], { cwd: root, stdio: ["pipe", "pipe", "pipe"], shell: process.platform === "win32" });
+  const binTarget = typeof installedPackage.bin === "string"
+    ? installedPackage.bin
+    : installedPackage.bin?.["mcpval-localmcp"];
+  assert.equal(typeof binTarget, "string");
+  const executable = join(root, "node_modules", "mcpval-localmcp", binTarget);
+  const child = spawn(process.execPath, [executable], { cwd: root, stdio: ["pipe", "pipe", "pipe"] });
+  const exited = new Promise((resolveExit, reject) => {
+    child.once("exit", (code, signal) => resolveExit({ code, signal }));
+    child.once("error", reject);
+  });
   let stdout = "";
   const response = new Promise((resolveResponse, reject) => {
     const timeout = setTimeout(() => reject(new Error("Timed out waiting for MCP initialize response.")), 10_000);
@@ -45,13 +53,18 @@ try {
     });
   });
 
-  child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "package-smoke", version: "1" } } })}\n`);
-  const message = await response;
-  assert.equal(message.jsonrpc, "2.0");
-  assert.equal(message.id, 1);
-  assert.equal(message.result?.serverInfo?.name, "mcpval");
-  assert.equal(message.result?.serverInfo?.version, expectedVersion);
-  child.kill("SIGTERM");
+  try {
+    child.stdin.write(`${JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-11-25", capabilities: {}, clientInfo: { name: "package-smoke", version: "1" } } })}\n`);
+    const message = await response;
+    assert.equal(message.jsonrpc, "2.0");
+    assert.equal(message.id, 1);
+    assert.equal(message.result?.serverInfo?.name, "mcpval");
+    assert.equal(message.result?.serverInfo?.version, expectedVersion);
+  } finally {
+    child.stdin.end();
+    if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+    await exited.catch(() => undefined);
+  }
 } finally {
   await rm(root, { recursive: true, force: true });
 }

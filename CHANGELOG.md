@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.29 - 2026-08-20
+
+### Fixed
+
+- Packed npm smoke now launches the installed server directly with Node and awaits process exit before deleting temporary files.
+
 ## 1.1.28 - 2026-08-20
 
 ### Fixed
