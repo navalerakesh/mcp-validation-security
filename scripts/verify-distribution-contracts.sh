@@ -51,6 +51,10 @@ grep -Fq 'package_dir=$(cygpath -aw "$package_dir")' scripts/smoke-distribution.
   echo "NuGet package smoke must convert embedded Git Bash feed paths for Windows." >&2
   exit 1
 }
+grep -Fq 'process.platform === "win32" ? "npm.cmd" : "npm"' scripts/smoke-npm-package.mjs || {
+  echo "npm package smoke must invoke the Windows npm command explicitly." >&2
+  exit 1
+}
 grep -Fq "always() && inputs.upload-artifacts == 'true'" action.yml || {
   echo "Composite Action must upload validation evidence even when policy blocks the validation step." >&2
   exit 1

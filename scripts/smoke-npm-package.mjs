@@ -9,6 +9,8 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const npmCommand = process.platform === "win32" ? "npm.cmd" : "npm";
+const npmOptions = (cwd) => ({ cwd, shell: process.platform === "win32" });
 const [packageArg, expectedVersion] = process.argv.slice(2);
 if (!packageArg || !expectedVersion) {
   console.error("Usage: smoke-npm-package.mjs PACKAGE.tgz VERSION");
@@ -18,8 +20,8 @@ if (!packageArg || !expectedVersion) {
 const packagePath = resolve(packageArg);
 const root = await mkdtemp(join(tmpdir(), "mcpval-npm-smoke-"));
 try {
-  await execFileAsync("npm", ["init", "-y"], { cwd: root });
-  await execFileAsync("npm", ["install", "--ignore-scripts", packagePath], { cwd: root });
+  await execFileAsync(npmCommand, ["init", "-y"], npmOptions(root));
+  await execFileAsync(npmCommand, ["install", "--ignore-scripts", packagePath], npmOptions(root));
   const installedPackage = JSON.parse(await readFile(join(root, "node_modules", "mcpval-localmcp", "package.json"), "utf8"));
   assert.equal(installedPackage.version, expectedVersion);
 
