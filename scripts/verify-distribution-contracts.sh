@@ -45,6 +45,12 @@ grep -Fq '<clear />' action.yml || {
   echo "Composite Action local package smoke must use an isolated NuGet source configuration." >&2
   exit 1
 }
+# Match the literal shell assignment in the smoke script.
+# shellcheck disable=SC2016
+grep -Fq 'package_dir=$(cygpath -aw "$package_dir")' scripts/smoke-distribution.sh || {
+  echo "NuGet package smoke must convert embedded Git Bash feed paths for Windows." >&2
+  exit 1
+}
 grep -Fq "always() && inputs.upload-artifacts == 'true'" action.yml || {
   echo "Composite Action must upload validation evidence even when policy blocks the validation step." >&2
   exit 1

@@ -6,6 +6,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.27 - 2026-08-20
+
+### Fixed
+
+- Windows clean-install smoke now converts Git Bash paths before embedding a local NuGet feed in configuration.
+
 ## 1.1.26 - 2026-08-20
 
 ### Fixed
