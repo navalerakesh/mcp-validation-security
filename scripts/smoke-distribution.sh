@@ -44,6 +44,9 @@ if [[ -n "$nuget_package" ]]; then
   smoke_root=$(mktemp -d "${TMPDIR:-/tmp}/mcpval-nuget-smoke.XXXXXX")
   trap 'rm -rf "$smoke_root"' EXIT
   package_dir=$(cd "$(dirname "$nuget_package")" && pwd)
+  if command -v cygpath >/dev/null 2>&1; then
+    package_dir=$(cygpath -aw "$package_dir")
+  fi
   cat > "$smoke_root/NuGet.Config" <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
