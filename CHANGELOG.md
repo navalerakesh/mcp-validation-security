@@ -6,6 +6,16 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.32 - 2026-08-22
+
+### Security
+
+- Pull-request package jobs now use read-only permissions; package attestations and all deployments are isolated to guarded main-push jobs.
+
+### Fixed
+
+- Immutable release tags are reserved only after every package, container, standalone, and cross-platform install smoke succeeds.
+
 ## 1.1.31 - 2026-08-21
 
 ### Fixed

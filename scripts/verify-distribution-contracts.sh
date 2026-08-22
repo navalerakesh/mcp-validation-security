@@ -93,11 +93,63 @@ if grep -Fq 'release-reservation' <<< "$package_job"; then
   echo "Standalone packaging must not depend on the main-only release reservation job." >&2
   exit 1
 fi
-install_smoke_job=$(sed -n '/^  package-install-smoke:/,/^  nuget-publish:/p' .github/workflows/ci.yml)
+install_smoke_job=$(sed -n '/^  package-install-smoke:/,/^  package-attest:/p' .github/workflows/ci.yml)
 if grep -Fq "github.event_name == 'push'" <<< "$install_smoke_job"; then
   echo "Cross-platform package install smoke must run on pull requests." >&2
   exit 1
 fi
+main_push_guard="if: github.ref == 'refs/heads/main' && github.event_name == 'push'"
+assert_main_push_guard() {
+  local job_name="$1"
+  local job_block="$2"
+  grep -Fq "$main_push_guard" <<< "$job_block" || {
+    echo "$job_name must be restricted to push events on refs/heads/main." >&2
+    exit 1
+  }
+}
+
+release_reservation_job=$(sed -n '/^  release-reservation:/,/^  package:/p' .github/workflows/ci.yml)
+publish_job=$(sed -n '/^  publish:/,/^  nuget-package:/p' .github/workflows/ci.yml)
+package_attest_job=$(sed -n '/^  package-attest:/,/^  nuget-publish:/p' .github/workflows/ci.yml)
+nuget_publish_job=$(sed -n '/^  nuget-publish:/,/^  npm-publish:/p' .github/workflows/ci.yml)
+npm_publish_job=$(sed -n '/^  npm-publish:/,/^  docker-publish:/p' .github/workflows/ci.yml)
+docker_publish_job=$(sed -n '/^  docker-publish:/,$p' .github/workflows/ci.yml)
+
+assert_main_push_guard "Release reservation" "$release_reservation_job"
+assert_main_push_guard "GitHub Release publication" "$publish_job"
+assert_main_push_guard "Package attestation" "$package_attest_job"
+assert_main_push_guard "NuGet publication" "$nuget_publish_job"
+assert_main_push_guard "npm publication" "$npm_publish_job"
+assert_main_push_guard "GHCR publication" "$docker_publish_job"
+
+for prerequisite in package standalone-artifact-smoke docker-package package-install-smoke nuget-package npm-package; do
+  grep -Fq "$prerequisite" <<< "$release_reservation_job" || {
+    echo "Release reservation must wait for $prerequisite before creating an immutable tag." >&2
+    exit 1
+  }
+done
+
+environment_count=$(grep -Ec '^    environment: (NuGet|Npm|Ghcr)' .github/workflows/ci.yml || true)
+[[ "$environment_count" -eq 3 ]] || {
+  echo "Exactly NuGet, Npm, and Ghcr may be deployment environments in the release workflow." >&2
+  exit 1
+}
+grep -Fq 'environment: NuGet' <<< "$nuget_publish_job" || { echo "NuGet publication must own the NuGet environment." >&2; exit 1; }
+grep -Fq 'environment: Npm' <<< "$npm_publish_job" || { echo "npm publication must own the Npm environment." >&2; exit 1; }
+grep -Fq 'environment: Ghcr' <<< "$docker_publish_job" || { echo "GHCR publication must own the Ghcr environment." >&2; exit 1; }
+
+nuget_package_job=$(sed -n '/^  nuget-package:/,/^  npm-package:/p' .github/workflows/ci.yml)
+npm_package_job=$(sed -n '/^  npm-package:/,/^  docker-package:/p' .github/workflows/ci.yml)
+for package_block in "$nuget_package_job" "$npm_package_job"; do
+  if grep -Eq 'environment:|attestations: write|id-token: write' <<< "$package_block"; then
+    echo "Pull-request package preparation must not receive deployment environments or OIDC/attestation write permissions." >&2
+    exit 1
+  fi
+done
+grep -Fq 'package-attest' <<< "$nuget_publish_job" || {
+  echo "NuGet publication must wait for the main-only package attestation job." >&2
+  exit 1
+}
 grep -Fq 'for attempt in {1..60}' .github/workflows/ci.yml || {
   echo "Registry publication must allow bounded propagation before verification." >&2
   exit 1
