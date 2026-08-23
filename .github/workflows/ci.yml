@@ -1067,20 +1067,21 @@ jobs:
         id: publish-npm
         shell: bash
         working-directory: artifacts/npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           version="${{ needs.build-and-test.outputs.version }}"
           package=$(find . -maxdepth 1 -name '*.tgz' -print -quit)
           [[ -n "$package" ]] || { echo "No npm package found." >&2; exit 1; }
+          publish_tag=latest
+          [[ "$version" == *-* ]] && publish_tag=preview
+          current_channel_version=$(npm view "mcpval-localmcp" "dist-tags.$publish_tag" 2>/dev/null || true)
+          node "$GITHUB_WORKSPACE/scripts/verify-version-promotion.mjs" "$current_channel_version" "$version"
           local_sha=$(shasum "$package" | awk '{print $1}')
           remote_sha=$(npm view "mcpval-localmcp@$version" dist.shasum 2>/dev/null || true)
           if [[ -n "$remote_sha" ]]; then
             "$GITHUB_WORKSPACE/scripts/verify-retry-payload.sh" digest "$local_sha" "$remote_sha" "npm $version"
             echo "npm package already published with identical bytes; retry is safe."
           else
-            candidate_tag="candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-            npm publish "$package" --access public --provenance --tag "$candidate_tag"
+            npm publish "$package" --access public --provenance --tag "$publish_tag"
           fi
           remote_url=""
           for attempt in {1..60}; do
@@ -1102,15 +1103,11 @@ jobs:
           audit_dir="$RUNNER_TEMP/npm-provenance-$version"
           mkdir -p "$audit_dir"
           (cd "$audit_dir" && npm init --yes >/dev/null && npm install --ignore-scripts "mcpval-localmcp@$version" >/dev/null && npm audit signatures)
-          publish_tag=latest
-          [[ "$version" == *-* ]] && publish_tag=preview
-          current_channel_version=$(npm view "mcpval-localmcp" "dist-tags.$publish_tag" 2>/dev/null || true)
-          node "$GITHUB_WORKSPACE/scripts/verify-version-promotion.mjs" "$current_channel_version" "$version"
-          npm dist-tag add "mcpval-localmcp@$version" "$publish_tag"
-          while IFS= read -r candidate_tag; do
-            [[ -n "$candidate_tag" ]] || continue
-            npm dist-tag rm "mcpval-localmcp" "$candidate_tag" >/dev/null 2>&1 || true
-          done < <(npm view "mcpval-localmcp" dist-tags --json | jq -r 'to_entries[] | select(.key | startswith("candidate-")) | .key')
+          published_channel_version=$(npm view "mcpval-localmcp" "dist-tags.$publish_tag")
+          [[ "$published_channel_version" == "$version" ]] || {
+            echo "npm $publish_tag tag did not resolve to published version $version." >&2
+            exit 1
+          }
           echo "package-sha256=$remote_sha256" >> "$GITHUB_OUTPUT"
 
   docker-publish:

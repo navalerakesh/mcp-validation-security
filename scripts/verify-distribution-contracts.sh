@@ -160,8 +160,20 @@ grep -Fq 'npm install --ignore-scripts "mcpval-localmcp@$version"' .github/workf
   echo "npm signature audit must install the published registry package." >&2
   exit 1
 }
-grep -Fq 'startswith("candidate-")' .github/workflows/ci.yml || {
-  echo "npm publication must remove stale candidate tags after promotion." >&2
+# Match the literal trusted-publishing command in the workflow.
+# shellcheck disable=SC2016
+grep -Fq 'npm publish "$package" --access public --provenance --tag "$publish_tag"' .github/workflows/ci.yml || {
+  echo "npm trusted publishing must publish directly to the final channel tag." >&2
+  exit 1
+}
+if grep -Eq 'NODE_AUTH_TOKEN:.*NPM_TOKEN|npm dist-tag|candidate-\$\{GITHUB_RUN_ID\}' <<< "$npm_publish_job"; then
+  echo "npm trusted publishing must not depend on long-lived tokens or post-publish tag mutation." >&2
+  exit 1
+fi
+# Match the literal final channel verification in the workflow.
+# shellcheck disable=SC2016
+grep -Fq 'published_channel_version" == "$version' .github/workflows/ci.yml || {
+  echo "npm publication must verify the final channel tag after trusted publishing." >&2
   exit 1
 }
 # Match the literal workflow digest comparison.
