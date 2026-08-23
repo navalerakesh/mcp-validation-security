@@ -6,6 +6,16 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 1.1.33 - 2026-08-23
+
+### Security
+
+- npm publishing now uses GitHub Actions trusted publishing directly to the final channel tag without a long-lived npm token.
+
+### Fixed
+
+- npm publication verifies the final `latest` or `preview` tag without unsupported post-publish OIDC tag mutations.
+
 ## 1.1.32 - 2026-08-22
 
 ### Security
