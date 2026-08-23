@@ -232,7 +232,7 @@ jobs:
 
   release-reservation:
     name: Reserve Immutable Release Tag
-    needs: [build-and-test, security-analysis]
+    needs: [build-and-test, security-analysis, package, standalone-artifact-smoke, docker-package, package-install-smoke, nuget-package, npm-package]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
@@ -666,15 +666,13 @@ jobs:
             git push origin "refs/tags/$alias_tag" --force
           done
 
-  # Build, smoke, attest, and stage the NuGet global tool before any registry write.
+  # Build, smoke, and stage the NuGet global tool without deployment credentials.
   nuget-package:
     name: "Prepare NuGet (v${{ needs.build-and-test.outputs.version }})"
     needs: [build-and-test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      attestations: write
-      id-token: write
     outputs:
       package-sha256: ${{ steps.nuget-checksum.outputs.package-sha256 }}
     steps:
@@ -744,13 +742,6 @@ jobs:
           format: spdx-json
           output-file: artifacts/nuget/mcpval.nuget.spdx.json
 
-      - name: Attest NuGet Package
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: |
-            artifacts/nuget/*.nupkg
-
       - name: Upload NuGet Package Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -761,15 +752,13 @@ jobs:
             artifacts/nuget/mcpval.nuget.SHA256SUMS.txt
             artifacts/nuget/mcpval.nuget.spdx.json
 
-  # Build, smoke, attest, and stage the npm package before any registry write.
+  # Build, smoke, and stage the npm package without deployment credentials.
   npm-package:
     name: "Prepare npm (v${{ needs.build-and-test.outputs.version }})"
     needs: [build-and-test]
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      attestations: write
-      id-token: write
     outputs:
       package-sha256: ${{ steps.npm-checksum.outputs.package-sha256 }}
     defaults:
@@ -824,13 +813,6 @@ jobs:
           path: ./mcpval-mcp/dist-pack
           format: spdx-json
           output-file: ./mcpval-mcp/dist-pack/mcpval-localmcp.npm.spdx.json
-
-      - name: Attest npm Package
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: |
-            mcpval-mcp/dist-pack/*.tgz
 
       - name: Upload npm Package Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -964,9 +946,36 @@ jobs:
           scripts/smoke-distribution.sh --version "${{ needs.build-and-test.outputs.version }}" --nuget "$nuget_package"
           node scripts/smoke-npm-package.mjs "$npm_package" "${{ needs.build-and-test.outputs.version }}"
 
+  package-attest:
+    name: "Attest Packages (v${{ needs.build-and-test.outputs.version }})"
+    needs: [build-and-test, release-reservation, nuget-package, npm-package, package-install-smoke]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      attestations: write
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: mcpval-nuget-package-artifacts
+          path: artifacts/nuget
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          name: mcpval-npm-package-artifacts
+          path: artifacts/npm
+
+      - name: Attest Package Archives
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: |
+            artifacts/nuget/*.nupkg
+            artifacts/npm/*.tgz
+
   nuget-publish:
     name: "Publish NuGet (v${{ needs.build-and-test.outputs.version }})"
-    needs: [build-and-test, release-reservation, package, standalone-artifact-smoke, docker-package, package-install-smoke, nuget-package, npm-package]
+    needs: [build-and-test, release-reservation, package, standalone-artifact-smoke, docker-package, package-install-smoke, package-attest, nuget-package, npm-package]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: NuGet

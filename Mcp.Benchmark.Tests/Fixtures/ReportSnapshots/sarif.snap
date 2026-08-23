@@ -7,7 +7,7 @@
         "driver": {
           "name": "MCP Benchmark",
           "fullName": "MCP Benchmark Validation Suite",
-          "semanticVersion": "1.1.31",
+          "semanticVersion": "1.1.32",
           "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
           "rules": [
             {
