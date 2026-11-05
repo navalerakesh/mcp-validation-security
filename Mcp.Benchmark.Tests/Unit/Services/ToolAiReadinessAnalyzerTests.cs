@@ -47,6 +47,41 @@ public class ToolAiReadinessAnalyzerTests
     }
 
     [Fact]
+    public void AnalyzeCatalog_WithMarkerSubstringsInFreeformDescriptions_ShouldNotRequireEnums()
+    {
+        var analysis = _analyzer.AnalyzeCatalog(
+        [
+            new ToolAiReadinessTarget
+            {
+                Name = "query-docs",
+                InputSchema = ParseJsonElement("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "libraryId": {
+                      "type": "string",
+                      "description": "Exact compatible library ID in /org/project format."
+                    },
+                    "query": {
+                      "type": "string",
+                      "description": "Question scoped to a single concept."
+                    },
+                    "language": {
+                      "type": "string",
+                      "description": "Programming language such as Python or TypeScript."
+                    }
+                  }
+                }
+                """)
+            }
+        ],
+        rawJson: null);
+
+        analysis.Findings.Should().NotContain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
+    }
+
+    [Fact]
     public void AnalyzeErrorResponse_WithStructuredHelpfulError_ShouldGradeAsProLlm()
     {
         var assessment = _analyzer.AnalyzeErrorResponse(

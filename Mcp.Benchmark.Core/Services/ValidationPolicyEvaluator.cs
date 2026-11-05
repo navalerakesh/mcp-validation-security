@@ -638,7 +638,7 @@ public static class ValidationPolicyEvaluator
 
     private static bool IsExecutionIntegrityFailure(ValidationStatus status)
     {
-        return status is ValidationStatus.Error or ValidationStatus.Cancelled or ValidationStatus.InProgress or ValidationStatus.PartiallyCompleted;
+        return status is ValidationStatus.Error or ValidationStatus.Cancelled or ValidationStatus.InProgress;
     }
 
     private static string BuildSummary(string mode, bool passed, int blockingSignalCount, int suppressedSignalCount)

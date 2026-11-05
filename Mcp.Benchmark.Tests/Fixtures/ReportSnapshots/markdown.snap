@@ -43,15 +43,15 @@
 
 ## 2. Connectivity & Session Bootstrap
 
-This section explains how the validator established initial connectivity and whether validation started from a clean initialize handshake or a deferred advisory state.
+This section explains how the validator established initial connectivity and whether validation started from a clean protocol bootstrap or a deferred advisory state.
 
 | Bootstrap Signal | Value |
 | :--- | :--- |
 | **Bootstrap State** | 🔒 Reachable (Protected) |
 | **Validation Proceeded Under Deferment** | Yes — validation continued with a calibrated advisory bootstrap state. |
-| **Initialize Handshake** | 🔒 Initialize handshake confirmed a protected endpoint boundary. |
-| **Handshake HTTP Status** | `HTTP 401` |
-| **Handshake Duration** | 84.2 ms |
+| **Protocol Bootstrap** | 🔒 Protocol bootstrap confirmed a protected endpoint boundary. |
+| **Bootstrap HTTP Status** | `HTTP 401` |
+| **Bootstrap Duration** | 84.2 ms |
 | **Negotiated Protocol** | `2025-11-25` |
 | **Observed Server Version** | `2.4.1` |
 | **Server Profile Resolution** | `Authenticated (UserDeclared)` |
@@ -106,8 +106,9 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| Prompt output includes reflected untrusted content. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `prompt:get` | [Heuristic] · `MCP.AI.BOUNDARY.PromptInjection` · Critical |
+| Prompt output includes reflected untrusted content. | Sanitize or clearly label untrusted data. | `prompt:get` | [Heuristic] · `MCP.AI.BOUNDARY.PromptInjection` · Critical |
 | Server reflected untrusted prompt content without sanitization. | Sanitize and label untrusted content before returning it. | `prompt:get` | [Heuristic] · `MCP.SECURITY.PROMPT_INJECTION` · Critical |
+| Critical execution error recorded: Prompt validation hit an unsafe reflection path. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `validation-run` | [Operational] · `Execution` · Critical |
 | Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability. | Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope. | `prompt-surface` | [Heuristic] · `MCP.COVERAGE.EVIDENCE_DEBT` · Medium |
 
 ## 6. Deterministic Verdicts
