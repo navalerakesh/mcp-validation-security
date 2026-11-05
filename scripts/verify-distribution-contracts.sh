@@ -34,7 +34,8 @@ RELEASE_VERSION="$version" node -e '
   if (pkg.version !== process.env.RELEASE_VERSION) throw new Error(`npm version ${pkg.version} does not match release ${process.env.RELEASE_VERSION}`);
   const lock = JSON.parse(fs.readFileSync("mcpval-mcp/package-lock.json", "utf8"));
   if (lock.version !== pkg.version || lock.packages?.[""]?.version !== pkg.version) throw new Error("npm lock metadata version drift");
-  if (pkg.dependencies?.["@modelcontextprotocol/sdk"] !== "1.30.0") throw new Error("MCP SDK must remain exactly pinned");
+  if (pkg.dependencies?.["@modelcontextprotocol/sdk"] !== "1.32.2") throw new Error("MCP SDK must remain exactly pinned");
+  if (pkg.dependencies?.zod !== "4.6.7") throw new Error("Zod must remain exactly pinned");
 '
 
 grep -Fq 'VersionPrefix' action.yml || {
