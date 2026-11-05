@@ -32,6 +32,7 @@ This directory contains the durable product, architecture, and contributor docum
 | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
+| [Design/ExtensionIntegrationProposal.md](Design/ExtensionIntegrationProposal.md) | Official-source assessment and gated roadmap for conformance, Apps, Skills, and Tasks integration |
 | [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
 | [Schemas/](Schemas/) | Versioned JSON Schema contracts for canonical machine artifacts |
 | [Design/EnterpriseRenewalExecutionPlan.md](Design/EnterpriseRenewalExecutionPlan.md) | Active renewal milestones, ownership, scale invariants, and evidence gates |
