@@ -41,6 +41,270 @@ This order follows the MCP design principles of convergence, composability, inte
 - Skills moved into the Beta lifecycle directory recently and has no GitHub releases. Its accepted SEP does not make the extension Stable.
 - Tasks publishes an immutable `2026-07-28` schema snapshot, but the extension lifecycle remains Beta and its npm releases are marked prerelease.
 
+## Grounded Ecosystem Signal
+
+These are time-sensitive adoption signals observed from official GitHub repositories and official implementation inventories on 2026-11-04. Re-check them at each phase gate; they are prioritization evidence, not protocol authority.
+
+| Surface | External signal | What it demonstrates | Product implication |
+| --- | --- | --- | --- |
+| Official conformance | About 140 stars, 118 forks, 280 dependents, 57 contributors; package `0.2.0-alpha.12` | Real SDK/CI adoption, but the machine contract is still prerelease | Integrate for credibility and drift detection behind a pinned companion boundary |
+| MCP Apps | About 3,000 stars, 428 forks, 50 contributors, 40 releases; current SDK `2.0.4` | Broad host/server use and active production maintenance | Highest-value first extension pack, especially for security visibility |
+| Skills over MCP | About 762 stars, 67 forks, 18 contributors; no repository release | Strong interest and many server implementations, but host and SDK support is still uneven | Valuable AI-safety Preview, not a stable default gate |
+| MCP Tasks | About 62 stars, 16 forks, 160 dependents, 11 contributors; current `0.2.3` prerelease | Useful async primitive with SDK consumers, but lower direct product adoption and continuing change | Import official tests; avoid duplicating a Beta-to-Core lifecycle suite |
+
+### How the ecosystem uses these surfaces
+
+- **Official conformance** is used by SDKs and implementations to test client/server wire behavior, frozen protocol-revision requirement sets, authentication flows, and extension scenarios. It produces check-level evidence, not security posture, operational readiness, or governance artifacts.
+- **MCP Apps** is used to attach interactive HTML views to tools for charts, forms, media, dashboards, and multi-step workflows. The server controls UI metadata and HTML resources; the host controls sandboxing and user interaction.
+- **Skills** is used to publish reusable workflow instructions and supporting files through MCP resources. Servers expose manifests and content; hosts verify, approve, namespace, cache, and load the instructions into model context.
+- **Tasks** is used for long-running work, external jobs, approval waits, reconnectable operations, polling, and mid-flight input. The server creates durable task handles after the client declares support.
+
+The product opportunity is not to implement these capabilities for users. MCP Validator should make their declared behavior, security boundary, evidence completeness, and interoperability visible and governable.
+
+## Product Operating Model
+
+### Keep the current command surface
+
+Do not add separate `apps`, `skills`, or `tasks` top-level commands. The existing command ownership remains coherent:
+
+| Command | Extension/conformance behavior |
+| --- | --- |
+| `mcpval health-check` | Bootstrap and transport health only. It may report advertised extension IDs but does not execute extension packs or import conformance runs. |
+| `mcpval discover` | Shows negotiated extensions, official stage, recognized spec revision, available mcpval pack, and whether active validation requires opt-in. No scoring. |
+| `mcpval validate` | Automatically resolves applicable stable/passive packs, imports explicitly supplied official evidence, executes governed probes, reduces decisions, and writes the unified artifact set. |
+| `mcpval report` | Renders saved canonical evidence offline. It never contacts a target, downloads conformance tooling, or recomputes findings. |
+
+This preserves one obvious workflow:
+
+```bash
+mcpval validate --server https://example.test/mcp --mode safe --output ./mcp-reports
+```
+
+The validator should enrich this workflow when the target advertises extensions, not require users to learn a second product.
+
+### Add only two narrow CLI concepts
+
+1. `--conformance-results <wrapper.json>` imports a previously generated, mcpval-wrapped official conformance run. It is repeatable only when each artifact has a distinct scenario identity. Raw `checks.json` is display-only and unverified.
+2. `--extension <identifier>` is repeatable and explicitly authorizes active Preview/Experimental extension probes. It does not force an undeclared extension to become applicable.
+
+Equivalent configuration is required for repeatable CI. Do not add a separate extension policy mode; the existing advisory/balanced/strict policy remains the host gate, while lifecycle defaults cap what an extension is allowed to block.
+
+The GitHub Action may later add:
+
+- `official-conformance: false|true` to run a pinned companion before mcpval;
+- `extension-probes: <comma-separated identifiers>` for explicit Preview/Experimental active probes;
+- `conformance-version` only for an exact reviewed pin, never `latest`.
+
+Because the official runner is alpha and HTTP-server-oriented, `official-conformance` remains opt-in initially. Enabling it must not install or execute mutable code outside the pinned Action revision.
+
+### Automatic identification and execution
+
+```mermaid
+flowchart TD
+        Start[validate] --> Bootstrap[Negotiate protocol and call server/discover]
+        Bootstrap --> Inventory[Build capability and extension inventory]
+        Inventory --> Resolve[Resolve packs by protocol, extension ID, stage, mode, and config]
+        Resolve --> Passive[Run passive and safe discovery checks]
+        Resolve --> Active{Active probe authorized?}
+        Active -->|yes| Governed[Run bounded standard or elevated scenarios]
+        Active -->|no| Coverage[Record skipped or not-applicable coverage]
+        Passive --> Import{Verified conformance wrapper supplied?}
+        Governed --> Import
+        Coverage --> Import
+        Import -->|yes| External[Import external observations and decisions]
+        Import -->|no| Reduce[Reduce native evidence]
+        External --> Reconcile[Reconcile native and official evidence]
+        Reconcile --> Reduce
+        Reduce --> Artifacts[Console plus JSON, Markdown, HTML, SARIF, JUnit, audit]
+```
+
+### Automatic behavior matrix
+
+| Condition | Safe mode | Standard mode | Elevated mode |
+| --- | --- | --- | --- |
+| Extension not advertised | Record `notApplicable`; no extension request | Same | Same unless a controlled negative scenario explicitly owns the target |
+| Unknown extension advertised | Inventory and schema-shape observation only | Same | Same; unknown code is never downloaded |
+| Stable Apps advertised | Automatically validate negotiation, tool linkage, metadata, URI, CSP, and permission declarations | Also read bounded referenced UI resources and perform static HTML/CSP analysis | Reserved for future explicitly owned browser or cross-identity certificates; never automatic |
+| Beta Skills advertised | Automatically run non-mutating catalog/manifest analysis as Preview and advisory | Content reads require `--extension io.modelcontextprotocol/skills`; remain Preview | Only explicitly configured controlled security scenarios |
+| Beta Tasks advertised | Validate declaration and pinned response schemas without task creation | Import official evidence when supplied; no generic task creation | Native cross-identity/task-state security certificates require explicit extension opt-in and owned fixtures |
+| Verified official conformance wrapper supplied | Import and display; core requirement-set failures can affect the external conformance verdict | Same | Same |
+| Raw/unwrapped official checks supplied | Display as unverified, non-gating evidence | Same | Same |
+
+Automatic means the target's negotiated extension inventory selects passive checks. It never means downloading extension code, running HTML, executing skill scripts, creating tasks, or escalating permissions without operator authority.
+
+## Product And Repository Value
+
+### Visibility
+
+- One report shows core MCP verdicts, official conformance, extension readiness, security findings, and evidence gaps with distinct authorities.
+- Extension declarations no longer look like support certificates when only negotiation was observed.
+- Applied specification revisions and source digests make fast-moving Beta surfaces auditable.
+
+### Usability
+
+- Existing `validate` and `discover` workflows remain the entry points.
+- Automatic passive detection means users do not need to know extension identifiers before the first run.
+- Action hints explain the exact opt-in needed for deeper validation instead of silently skipping or attempting unsafe work.
+- Offline `report` preserves reproducibility and allows governance teams to render the same evidence without target access.
+
+### Credibility
+
+- Official conformance evidence is visibly attributed instead of rebranded as mcpval-native evidence.
+- mcpval stops competing with the official wire suite and concentrates on security, safety, coverage, policy, reports, attestations, and regression history.
+- Evidence conflicts are surfaced, creating useful feedback for both projects and reducing silent specification drift.
+
+### Repeated use
+
+- Baseline comparison can identify extension regressions separately from core regressions.
+- CI can retain a single signed artifact set while still linking to official scenario IDs.
+- Stable Apps security findings and Preview Skills risks create actionable reasons to rerun on server or extension changes.
+- A later badge/dashboard can project verified core and extension states without inventing a single misleading score.
+
+## Unified Result And Report Design
+
+The current rendering architecture is suitable. The HTML pipeline already separates the hero, release decision, metrics, domain summaries, decision trace, compatibility, evidence envelope, and detailed findings. Extend the report document and composers; do not build a second report application.
+
+### Decision hierarchy
+
+The first viewport remains core and policy focused:
+
+1. Run status
+2. Core deterministic verdict
+3. Trust level and evidence limitation
+4. Policy/release decision
+
+Official conformance and extensions appear immediately after the core decision surface, before client-profile compatibility and detailed evidence. They must not replace the core hero or be averaged into the compliance score.
+
+### New HTML and Markdown sections
+
+#### Official Conformance
+
+Show:
+
+- state: `Verified`, `Unverified`, `Not run`, `Incomplete`, or `Conflict`;
+- pinned runner version/commit and requirement-set revision;
+- required scenarios passed/failed;
+- non-scored extension scenarios separately;
+- failed official check IDs with source links;
+- provenance and artifact digest;
+- native/official conflict count.
+
+#### Extension Readiness
+
+One row per advertised extension:
+
+| Field | Example |
+| --- | --- |
+| Extension | MCP Apps (`io.modelcontextprotocol/ui`) |
+| Official stage | Stable |
+| Spec revision | `2026-01-26` |
+| Pack | `apps-server-security` revision and digest |
+| Result | Compatible, review required, failed, not evaluated, or not applicable |
+| Evidence | Covered/applicable checks and confidence |
+| Active probes | Not required, not authorized, completed, or blocked |
+| Highest finding | Concise rule/component summary |
+| Next action | Exact mode/option or remediation |
+
+Use the existing static, print-ready HTML visual language and expandable section pattern. No JavaScript dashboard, nested card hierarchy, or separate navigation application is required.
+
+### Canonical JSON
+
+Additive minor-version fields should conceptually follow this shape:
+
+```json
+{
+    "assessments": {
+        "officialConformance": {
+            "verificationStatus": "verified",
+            "runner": {},
+            "requirementSets": [],
+            "scenarioResults": [],
+            "conflicts": []
+        },
+        "extensions": [
+            {
+                "extensionId": "io.modelcontextprotocol/ui",
+                "stage": "stable",
+                "specRevision": "2026-01-26",
+                "pack": {},
+                "verdict": "reviewRequired",
+                "coverage": {},
+                "findings": []
+            }
+        ]
+    }
+}
+```
+
+The canonical result stores the normalized projection. The full official wrapper remains a separately versioned subject artifact listed and hashed by the audit manifest.
+
+### Other formats
+
+| Output | Integration rule |
+| --- | --- |
+| Console | Add a compact `Official conformance` line and one `Extensions` summary; show at most the highest-signal next actions. |
+| Markdown | Mirror HTML section order and terminology; retain full check/rule IDs for reviews. |
+| SARIF | Emit only actionable verified failures/warnings with extension ID, stage, evidence origin, and official check ID properties. Do not emit success inventory as SARIF results. |
+| JUnit | Use separate test suites for core mcpval, official conformance, and each extension pack. Skipped/unavailable states remain distinguishable from passes. |
+| XML | Add explicit `OfficialConformance` and `Extensions` elements for parity with canonical JSON. |
+| Profile summary | Keep client-profile interpretation separate. Add extension interpretation only when a dated profile source explicitly documents support. |
+| Audit manifest | Hash the conformance wrapper, extension specs/schemas, applied pack manifests, and every rendered artifact. |
+| Signed attestation | Sign the canonical result after imported and native evidence are finalized; include subject digests, not external raw payloads. |
+
+### Baseline and regression behavior
+
+- Compare core verdicts independently from extension verdicts.
+- Compare an extension only when its ID, stage, spec revision, and pack revision are compatible.
+- Compare official conformance only when runner identity and requirement-set digests are compatible.
+- A newly advertised extension is a surface change requiring review, not automatically a regression.
+- A removed extension is reported as a capability change; policy decides whether it blocks.
+- Preview findings remain non-blocking by default even when they are new.
+- Never blend extension scores into the existing aggregate compliance score. Prefer counts, verdicts, coverage, and confidence.
+
+Lifecycle or revision changes make that extension's baseline comparison incompatible. Report the extension as changed and require baseline review; do not calculate a score delta across Beta-to-Stable, specification-revision, or pack-revision boundaries. After review, the operator records a new baseline. Core comparison remains valid when its own compatibility contract still matches.
+
+### Resolved CLI and artifact edge states
+
+| Situation | Required behavior |
+| --- | --- |
+| Explicit conformance wrapper is missing, unreadable, malformed, oversized, or fails provenance validation | Fail before target contact with a typed `CONFORMANCE_ARTIFACT_INVALID` stderr envelope and usage/configuration exit semantics. Never downgrade an explicitly requested import to a warning. |
+| Wrapper is valid but records an incomplete/timed-out official run | Complete mcpval validation, record official conformance as incomplete/unavailable, and let the selected policy evaluate that evidence. |
+| `--extension <id>` is requested but the target does not advertise it | Emit a concise warning, record the extension as `notApplicable`, and run no active probe. Requiring support is a separate explicit configuration policy, not implied by probe authorization. |
+| Unknown extension is requested | Fail option validation with the supported identifier list; arbitrary extension code is never loaded. |
+| Preview extension is newly advertised | Report a surface change and Preview findings; do not alter core verdict, aggregate score, or trust level. |
+| Extension stage/spec/pack differs from baseline | Mark extension comparison incompatible and require review; preserve independent core comparison. |
+
+Dry-run output uses one compact extension block:
+
+```text
+Extensions:
+    io.modelcontextprotocol/ui      stable   passive=yes  active=standard  pack=apps-server-security@<revision>
+    io.modelcontextprotocol/skills  beta     passive=yes  active=not-authorized  pack=skills-preview@<revision>
+Official conformance: import=<verified wrapper | none>; runner execution=disabled
+```
+
+Preview and Experimental findings never contribute to `ComplianceScore`, the L1-L5 trust calculation, or the core deterministic verdict. They have their own extension verdict, coverage, confidence, and policy projection. A future stable extension policy may gate only when the operator explicitly selects that extension policy.
+
+The normal artifact set remains stable. Add one companion only when official evidence is supplied or generated:
+
+- `mcp-validation-<timestamp>-official-conformance.json` contains the provenance wrapper and imported official records;
+- the canonical `*-result.json` embeds only the normalized assessment projection and the companion digest;
+- extension assessments remain inside canonical/rendered artifacts rather than creating one file per extension;
+- the audit manifest lists and hashes the official companion, canonical projection, vendored extension source digests, and rendered outputs.
+
+### Report implementation impact
+
+The current HTML/report model needs additive changes only:
+
+- extend the canonical assessment document;
+- add official-conformance and extension summary models to the HTML report document;
+- build those summaries in the existing document factory;
+- render two sections in the existing composer;
+- update Markdown/XML/SARIF/JUnit projections from the same canonical data;
+- update schemas, snapshots, accessibility checks, hostile-text encoding tests, and byte-stability tests.
+
+No renderer may contact the target or invoke the official conformance runner. The existing offline rendering contract remains intact.
+
 ## Product Decision Criteria
 
 Every proposed pack must satisfy all of these conditions:
