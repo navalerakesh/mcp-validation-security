@@ -859,6 +859,58 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
+    public void GenerateReport_WithSafeModeProtocolCoverageFinding_ShouldPreserveSpecificRemediation()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolCompliance = new ComplianceTestResult
+        {
+            Findings =
+            {
+                new ValidationFinding
+                {
+                    RuleId = "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN",
+                    Category = "Coverage",
+                    Component = "protocol-active-probes",
+                    Severity = ValidationFindingSeverity.Info,
+                    Source = ValidationRuleSource.Spec,
+                    Summary = "Active protocol conformance probes were not run under the safe execution policy.",
+                    Recommendation = "Use standard mode against an authorized non-production target when active malformed-message and error-handling evidence is required."
+                }
+            }
+        };
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var report = _generator.GenerateReport(result);
+
+        var protocolPriority = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
+        var recommendation = report.IndexOf("Use standard mode against an authorized non-production target", StringComparison.Ordinal);
+        protocolPriority.Should().BeGreaterThanOrEqualTo(0);
+        recommendation.Should().BeGreaterThan(protocolPriority);
+        report.Should().NotContain("Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `protocol-active-probes`");
+    }
+
+    [Fact]
+    public void GenerateReport_WithModernBootstrap_ShouldNotClaimInitializeHandshake()
+    {
+        var result = BuildMinimalResult();
+        result.ProtocolVersion = "2026-07-28";
+        result.BootstrapHealth = new HealthCheckResult
+        {
+            IsHealthy = true,
+            Disposition = HealthCheckDisposition.Healthy,
+            ResponseTimeMs = 42,
+            ProtocolVersion = "2026-07-28"
+        };
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Protocol Bootstrap");
+        report.Should().Contain("Protocol bootstrap succeeded");
+        report.Should().Contain("Bootstrap Duration");
+        report.Should().NotContain("Initialize handshake succeeded");
+    }
+
+    [Fact]
     public void GenerateReport_WithClientCompatibility_ShouldIncludeCompatibilitySection()
     {
         var result = BuildMinimalResult();

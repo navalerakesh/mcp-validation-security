@@ -135,6 +135,8 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
             context.BootstrapHealth = new HealthCheckResult
             {
                 IsHealthy = true,
+                Disposition = HealthCheckDisposition.Healthy,
+                ResponseTimeMs = context.ModernDiscovery?.Transport.Duration.TotalMilliseconds ?? 0,
                 ProtocolVersion = server.ProtocolVersion,
                 ErrorMessage = null
             };

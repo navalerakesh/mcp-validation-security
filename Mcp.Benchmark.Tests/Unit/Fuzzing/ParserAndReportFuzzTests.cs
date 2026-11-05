@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml;
@@ -47,6 +48,7 @@ public class ParserAndReportFuzzTests
     public void JsonSchemaValidator_StringMaxLength_ShouldMatchGeneratedTextLength(string? value, NonNegativeInt maxLengthSeed)
     {
         var text = ToSafeText(value, maxLength: 128);
+        var textLength = new StringInfo(text).LengthInTextElements;
         var maxLength = maxLengthSeed.Get % 129;
         var schema = new JsonObject
         {
@@ -56,7 +58,23 @@ public class ParserAndReportFuzzTests
 
         var result = _schemaValidator.Validate(JsonValue.Create(text)!, schema);
 
-        result.IsValid.Should().Be(text.Length <= maxLength);
+        result.IsValid.Should().Be(textLength <= maxLength);
+    }
+
+    [Fact]
+    public void JsonSchemaValidator_StringMaxLength_ShouldCountCrLfAsOneTextElement()
+    {
+        const string text = "aa\r\naaaaa";
+        var schema = new JsonObject
+        {
+            ["type"] = "string",
+            ["maxLength"] = 8
+        };
+
+        var result = _schemaValidator.Validate(JsonValue.Create(text)!, schema);
+
+        new StringInfo(text).LengthInTextElements.Should().Be(8);
+        result.IsValid.Should().BeTrue();
     }
 
     [Property(MaxTest = 75)]

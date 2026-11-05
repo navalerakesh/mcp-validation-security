@@ -2057,7 +2057,7 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Priority 1</div><div class="section-abstract__value">1</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Priority 3</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Priority 4</div><div class="section-abstract__value">3</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Priority 4</div><div class="section-abstract__value">4</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2107,20 +2107,25 @@ a:hover {
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 4</div>
                 <div class="ledger-title">AI Safety, Security, And Performance</div>
-                <span class="tone-chip tone-neutral">3 items</span>
+                <span class="tone-chip tone-neutral">4 items</span>
               </div>
               <div class="ledger-body">
                 <p class="ledger-copy"><strong>Impact after fix:</strong> After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.</p>
                 <ul class="compact-list">
                   <li>
                     <strong>Prompt output includes reflected untrusted content.</strong>
-                    <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
+                    <div class="ledger-links"><strong>Fix:</strong> Sanitize or clearly label untrusted data.</div>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.AI.BOUNDARY.PromptInjection</code> · <strong>Severity:</strong> Critical</div>
                   </li>
                   <li>
                     <strong>Server reflected untrusted prompt content without sanitization.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Sanitize and label untrusted content before returning it.</div>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.SECURITY.PROMPT_INJECTION</code> · <strong>Severity:</strong> Critical</div>
+                  </li>
+                  <li>
+                    <strong>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</strong>
+                    <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>validation-run</code> · <strong>Evidence:</strong> [Operational] <code>Execution</code> · <strong>Severity:</strong> Critical</div>
                   </li>
                   <li>
                     <strong>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</strong>

@@ -6,6 +6,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Security
+
+- Updated the local MCP wrapper to patched MCP SDK and Zod releases and refreshed transitive dependencies so the production npm audit reports zero vulnerabilities.
+
+### Fixed
+
+- Advisory policy now returns a successful exit for expected coverage-limited safe-mode results while execution errors, cancellation, and incomplete execution remain blocking.
+- Modern stateless bootstrap evidence now records healthy disposition and discovery duration, and reports no longer describe `server/discover` as an initialize handshake.
+- Remediation reports preserve finding-specific recommendations and classify missing active protocol evidence with protocol work instead of advertised-capability fixes.
+- AI-readiness schema markers now match semantic tokens instead of substrings, avoiding false enum recommendations for prose such as `scoped` and `TypeScript`.
+
 ## 1.1.33 - 2026-08-23
 
 ### Security

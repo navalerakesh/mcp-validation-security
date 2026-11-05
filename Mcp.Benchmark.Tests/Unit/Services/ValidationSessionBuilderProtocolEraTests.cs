@@ -40,6 +40,7 @@ public sealed class ValidationSessionBuilderProtocolEraTests
             {
                 StatusCode = 200,
                 IsSuccess = true,
+                ElapsedMs = 42,
                 RawJson = """
                     {
                       "jsonrpc": "2.0",
@@ -71,6 +72,9 @@ public sealed class ValidationSessionBuilderProtocolEraTests
         context.ModernDiscovery.Payload.SupportedVersions.Should().Equal("2026-07-28");
         context.ModernDiscovery.Payload.CapabilityNames.Should().Equal("extensions", "tools");
         context.ModernDiscovery.Payload.ExtensionIds.Should().Equal("com.example/audit", "io.modelcontextprotocol/tasks");
+        context.BootstrapHealth.Should().NotBeNull();
+        context.BootstrapHealth!.Disposition.Should().Be(HealthCheckDisposition.Healthy);
+        context.BootstrapHealth.ResponseTimeMs.Should().Be(42);
     }
 
     [Fact]

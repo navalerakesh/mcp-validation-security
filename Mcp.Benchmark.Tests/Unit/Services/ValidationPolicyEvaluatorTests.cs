@@ -48,6 +48,35 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_AdvisoryMode_WithCoverageLimitedPartialResult_ShouldReturnSuccessExitCode()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.PartiallyCompleted,
+            TrustAssessment = new McpTrustAssessment
+            {
+                TrustLevel = McpTrustLevel.L3_Acceptable,
+                LimitedByIncompleteEvidence = true
+            }
+        };
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol-core",
+            Scope = "json-rpc",
+            Status = ValidationCoverageStatus.Inconclusive,
+            ObservedOutcome = ValidationOutcome.Inconclusive,
+            Reason = "Active probes were not run in safe mode."
+        });
+        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Advisory);
+
+        outcome.Passed.Should().BeTrue();
+        outcome.RecommendedExitCode.Should().Be(0);
+        outcome.BlockingSignalCount.Should().Be(0);
+    }
+
+    [Fact]
     public void Evaluate_BalancedMode_WithCriticalFinding_ShouldFail()
     {
         var result = CreateResultWithCriticalFinding();

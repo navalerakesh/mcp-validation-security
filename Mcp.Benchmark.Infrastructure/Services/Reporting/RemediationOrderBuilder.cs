@@ -205,6 +205,11 @@ internal static class RemediationOrderBuilder
         // to mention "capability". They are NOT capability-contract violations even though
         // they may be rendered alongside tool catalogs.
         var ruleId = candidate.RuleId ?? string.Empty;
+        if (ruleId.StartsWith("MCP.COVERAGE.PROTOCOL", StringComparison.OrdinalIgnoreCase))
+        {
+            return 1;
+        }
+
         if (candidate.Authority == ValidationRuleSource.Heuristic ||
             ruleId.StartsWith("AI.", StringComparison.OrdinalIgnoreCase) ||
             ruleId.StartsWith("ContentSafety.", StringComparison.OrdinalIgnoreCase))
@@ -262,6 +267,14 @@ internal static class RemediationOrderBuilder
         if (decision.Metadata.TryGetValue("recommendation", out var recommendation) && !string.IsNullOrWhiteSpace(recommendation))
         {
             return recommendation;
+        }
+
+        var evidenceRemediation = decision.EvidenceReferences
+            .Select(reference => reference.Remediation)
+            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+        if (!string.IsNullOrWhiteSpace(evidenceRemediation))
+        {
+            return evidenceRemediation;
         }
 
         return decision.Gate == GateOutcome.CoverageDebt

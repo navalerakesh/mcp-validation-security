@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
@@ -531,14 +532,47 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
     private static bool LooksLikeEnumeratedChoice(string propertyName, JsonElement propertySchema)
     {
-        var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
-        return ScoringConstants.AiEnumeratedChoiceMarkers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        return HasSemanticMarker(propertyName, ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: true) ||
+               HasSemanticMarker(GetSchemaText(propertySchema, "description"), ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: false) ||
+               HasSemanticMarker(GetSchemaText(propertySchema, "title"), ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: false);
     }
 
     private static bool LooksLikeStructuredFormatValue(string propertyName, JsonElement propertySchema)
     {
-        var candidateText = $"{propertyName} {GetSchemaText(propertySchema, "description")} {GetSchemaText(propertySchema, "title")}";
-        return ScoringConstants.AiStructuredFormatMarkers.Any(marker => candidateText.Contains(marker, StringComparison.OrdinalIgnoreCase));
+        return HasSemanticMarker(propertyName, ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: true) ||
+               HasSemanticMarker(GetSchemaText(propertySchema, "description"), ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: false) ||
+               HasSemanticMarker(GetSchemaText(propertySchema, "title"), ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: false);
+    }
+
+    private static bool HasSemanticMarker(string? value, IReadOnlyCollection<string> markers, bool splitCamelCase)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var normalized = new StringBuilder(value.Length * 2);
+        for (var index = 0; index < value.Length; index++)
+        {
+            var character = value[index];
+            if (!char.IsLetterOrDigit(character))
+            {
+                normalized.Append(' ');
+                continue;
+            }
+
+            if (splitCamelCase && index > 0 && char.IsUpper(character) &&
+                (char.IsLower(value[index - 1]) || char.IsDigit(value[index - 1])))
+            {
+                normalized.Append(' ');
+            }
+
+            normalized.Append(character);
+        }
+
+        return normalized.ToString()
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Any(token => markers.Contains(token, StringComparer.OrdinalIgnoreCase));
     }
 
     private static bool HasMeaningfulText(string? value)

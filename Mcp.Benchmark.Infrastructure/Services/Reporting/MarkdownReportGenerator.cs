@@ -1148,22 +1148,22 @@ public class MarkdownReportGenerator : IReportGenerator
 
         sb.AppendLine($"## {sectionNumber++}. Connectivity & Session Bootstrap");
         sb.AppendLine();
-        sb.AppendLine("This section explains how the validator established initial connectivity and whether validation started from a clean initialize handshake or a deferred advisory state.");
+        sb.AppendLine("This section explains how the validator established initial connectivity and whether validation started from a clean protocol bootstrap or a deferred advisory state.");
         sb.AppendLine();
         sb.AppendLine("| Bootstrap Signal | Value |");
         sb.AppendLine("| :--- | :--- |");
         sb.AppendLine($"| **Bootstrap State** | {FormatHealthDispositionLabel(bootstrapHealth)} |");
         sb.AppendLine($"| **Validation Proceeded Under Deferment** | {FormatDeferredValidationLabel(bootstrapHealth)} |");
-        sb.AppendLine($"| **Initialize Handshake** | {FormatHandshakeOutcomeLabel(bootstrapHealth)} |");
+        sb.AppendLine($"| **Protocol Bootstrap** | {FormatBootstrapOutcomeLabel(bootstrapHealth)} |");
 
         if (bootstrapHealth.InitializationDetails?.Transport.StatusCode is int statusCode)
         {
-            sb.AppendLine($"| **Handshake HTTP Status** | `HTTP {statusCode}` |");
+            sb.AppendLine($"| **Bootstrap HTTP Status** | `HTTP {statusCode}` |");
         }
 
         if (bootstrapHealth.ResponseTimeMs > 0)
         {
-            sb.AppendLine($"| **Handshake Duration** | {bootstrapHealth.ResponseTimeMs:F1} ms |");
+            sb.AppendLine($"| **Bootstrap Duration** | {bootstrapHealth.ResponseTimeMs:F1} ms |");
         }
 
         var effectiveProtocolVersion = result.ProtocolVersion ?? bootstrapHealth.ProtocolVersion;
@@ -1718,14 +1718,14 @@ public class MarkdownReportGenerator : IReportGenerator
         return "No — validation started from a clean bootstrap state.";
     }
 
-    private static string FormatHandshakeOutcomeLabel(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
+    private static string FormatBootstrapOutcomeLabel(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
     {
-        HealthCheckDisposition.Healthy => "✅ Initialize handshake succeeded.",
-        HealthCheckDisposition.Protected => "🔒 Initialize handshake confirmed a protected endpoint boundary.",
-        HealthCheckDisposition.TransientFailure => "⚠️ Initialize handshake encountered a transient capacity or transport constraint.",
-        HealthCheckDisposition.Inconclusive => "ℹ️ Initialize handshake responded, but could not fully establish readiness.",
-        HealthCheckDisposition.Unhealthy => "❌ Initialize handshake failed definitively.",
-        _ => bootstrapHealth.IsHealthy ? "✅ Initialize handshake succeeded." : "ℹ️ Initialize handshake outcome is unknown."
+        HealthCheckDisposition.Healthy => "✅ Protocol bootstrap succeeded.",
+        HealthCheckDisposition.Protected => "🔒 Protocol bootstrap confirmed a protected endpoint boundary.",
+        HealthCheckDisposition.TransientFailure => "⚠️ Protocol bootstrap encountered a transient capacity or transport constraint.",
+        HealthCheckDisposition.Inconclusive => "ℹ️ Protocol bootstrap responded, but could not fully establish readiness.",
+        HealthCheckDisposition.Unhealthy => "❌ Protocol bootstrap failed definitively.",
+        _ => bootstrapHealth.IsHealthy ? "✅ Protocol bootstrap succeeded." : "ℹ️ Protocol bootstrap outcome is unknown."
     };
 
     private static string GetBootstrapNarrative(HealthCheckResult bootstrapHealth) => bootstrapHealth.Disposition switch
