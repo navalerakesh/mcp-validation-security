@@ -102,6 +102,8 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendOperationalMetricsSection(sb, result.Run.OperationalMetrics, ref sectionNumber);
 
         AppendBootstrapSection(sb, result, bootstrapHealth, ref sectionNumber);
+        AppendOfficialConformanceSection(sb, result, ref sectionNumber);
+        AppendExtensionReadinessSection(sb, result, ref sectionNumber);
         AppendPriorityFindingsSection(sb, result, ref sectionNumber);
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
         AppendRemediationOrderSection(sb, remediationOrder, ref sectionNumber);
@@ -814,6 +816,67 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"*Produced with [{producer.Name}]({producer.RepositoryUrl}) · [{producer.PackageId} on NuGet]({producer.PackageUrl})*");
 
         return SanitizeRenderedMarkdown(sb.ToString());
+    }
+
+    private static void AppendOfficialConformanceSection(
+        StringBuilder sb,
+        ValidationResult result,
+        ref int sectionNumber)
+    {
+        var assessment = result.Assessments.OfficialConformance;
+        if (assessment == null)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Official Conformance");
+        sb.AppendLine();
+        sb.AppendLine("Official conformance evidence is imported from a pinned external runner and remains separate from the MCP Validator core score and trust level.");
+        sb.AppendLine();
+        sb.AppendLine("| Provenance / Result | Value |");
+        sb.AppendLine("| :--- | :--- |");
+        sb.AppendLine($"| Verification | **{assessment.VerificationStatus}** |");
+        sb.AppendLine($"| Runner | `{EscapeInlineCode(assessment.Runner.PackageName)}@{EscapeInlineCode(assessment.Runner.Version)}` |");
+        sb.AppendLine($"| Requirement Set | `{EscapeInlineCode(assessment.RequirementSet.Revision)}` |");
+        sb.AppendLine($"| Runner Statuses (Success / Failure / Warning / Skipped / Informational) | {assessment.Passed} / {assessment.Failed} / {assessment.Warnings} / {assessment.Skipped} / {assessment.Informational} |");
+        sb.AppendLine($"| Credited Passes | {assessment.CreditedPassed} |");
+        sb.AppendLine($"| Evidence Conflicts | {assessment.Conflicts.Count} |");
+        sb.AppendLine($"| Evidence Coverage | {FormatPercent(assessment.EvidenceSummary.EvidenceCoverageRatio, "F1")} |");
+        sb.AppendLine();
+
+        foreach (var scenario in assessment.Scenarios)
+        {
+            var scoring = scenario.ScoringDisposition == OfficialConformanceScoringDisposition.NotScored
+                ? $"; not scored: {scenario.NotScoredReason}"
+                : string.Empty;
+            sb.AppendLine($"- `{EscapeInlineCode(scenario.ScenarioId)}`: {scenario.Passed} passed, {scenario.Failed} failed, {scenario.Warnings} warning(s), {scenario.Skipped} skipped{EscapeMarkdownText(scoring)}");
+        }
+        foreach (var conflict in assessment.Conflicts)
+        {
+            sb.AppendLine($"- **Review required:** `{EscapeInlineCode(conflict.Component)}`: {EscapeMarkdownText(conflict.Summary)}");
+        }
+        sb.AppendLine();
+    }
+
+    private static void AppendExtensionReadinessSection(
+        StringBuilder sb,
+        ValidationResult result,
+        ref int sectionNumber)
+    {
+        if (result.Assessments.Extensions.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine($"## {sectionNumber++}. Extension Readiness");
+        sb.AppendLine();
+        sb.AppendLine("| Extension | Stage | Specification Revision | Verdict | Evidence Coverage |");
+        sb.AppendLine("| :--- | :--- | :--- | :--- | :---: |");
+        foreach (var extension in result.Assessments.Extensions.OrderBy(item => item.ExtensionId, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"| `{EscapeTableCell(extension.ExtensionId)}` | {extension.Stage} | `{EscapeTableCell(extension.SpecificationRevision)}` | **{FormatVerdictLabel(extension.Verdict)}** | {FormatPercent(extension.EvidenceSummary.EvidenceCoverageRatio, "F1")} |");
+        }
+        sb.AppendLine();
     }
 
     private static void AppendReaderKey(StringBuilder sb)

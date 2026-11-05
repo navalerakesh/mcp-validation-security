@@ -27,6 +27,8 @@ If you are looking for installation or end-user usage guidance, start with the r
 
 Transport support is intentionally command-specific: `validate` and `health-check` support HTTP and STDIO targets today, `discover` is HTTP-first, and `report` is offline only.
 
+`validate --conformance-results <wrapper.json>` imports pinned official conformance evidence through the Core importer contract. Repeatable `--extension <id>` selections flow through the existing applicability resolver; they do not create extension-specific top-level commands. External conformance and extension verdicts remain separate from the core score, trust level, and policy gate.
+
 ## Local Development
 
 Run the CLI host directly from source:

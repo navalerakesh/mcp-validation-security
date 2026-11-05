@@ -668,6 +668,6 @@ The work is successful when:
 - [MCP Tasks extension](https://github.com/modelcontextprotocol/ext-tasks)
 - [Tasks 2026-07-28 specification snapshot](https://github.com/modelcontextprotocol/ext-tasks/blob/main/specification/2026-07-28/tasks.md)
 - [Skills Beta specification](https://github.com/modelcontextprotocol/ext-skills/blob/main/specification/beta/skills.mdx)
-- [Skills implementation inventory](https://github.com/modelcontextprotocol/ext-skills/blob/main/docs/implementations.md)
-- [Stable MCP authorization extensions](https://github.com/modelcontextprotocol/ext-auth)
+- [Skills implementation inventory](https://github.com/modelcontextprotocol/ext-skills/blob/649f7aee87d631ac4d1fdd3b12eef0c6264fdb3a/docs/implementations.md)
+- [Stable MCP authorization extensions](https://github.com/modelcontextprotocol/ext-auth/blob/15ca394e00a66434520b9ade26294999295a43ae/README.md)
 - [MCP feature lifecycle and deprecation policy](https://modelcontextprotocol.io/community/feature-lifecycle)

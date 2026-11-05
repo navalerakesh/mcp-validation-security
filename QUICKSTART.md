@@ -108,6 +108,27 @@ mcpval validate \
 
 Structured mode writes one versioned result envelope to stdout and typed failures to stderr. To emit a signed attestation, set `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM` in the process environment and add `--sign-attestation`; the private key is never persisted.
 
+To combine a run with pinned official conformance evidence, supply a wrapper that conforms to `docs/Schemas/mcpval-official-conformance-evidence.schema.json`:
+
+```bash
+mcpval validate \
+  --server https://example.com/mcp \
+  --conformance-results ./official-conformance-wrapper.json \
+  --output ./mcp-reports
+```
+
+The wrapper target digest and protocol version must match the validation run. Official checks appear in a separate report lane and never increase the core score or trust level. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit.
+
+Advertised Apps and Skills extensions are detected automatically. Explicitly authorize Skills content reads only on a reviewed target:
+
+```bash
+mcpval validate \
+  --server https://example.com/mcp \
+  --mode standard \
+  --extension io.modelcontextprotocol/skills \
+  --output ./mcp-reports
+```
+
 ## 6. Render Additional Offline Formats
 
 Use the saved JSON result when you need a different artifact format for downstream systems.

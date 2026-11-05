@@ -95,6 +95,11 @@
         "resolved": "2.0.8",
         "contentHash": "FbpgF8p/ClXnoXEWLjQB34kNh5rsLewEgIgLyVzLDucAOQ4cNs7ec9Cam7gdKPruSb6zp4Mx8htZGTL4/5PJPg=="
       },
+      "AngleSharp": {
+        "type": "Transitive",
+        "resolved": "1.9.1",
+        "contentHash": "QgOLaoPvDofo66KBOHlI9WLH+L/3xGDDd1joM4CrsFsxm0knRu/6ZoiWU0DUOhBZzSCa13zYKAeVPS/CxnF12Q=="
+      },
       "Humanizer.Core": {
         "type": "Transitive",
         "resolved": "2.14.1",
@@ -469,10 +474,15 @@
           "System.Text.Encodings.Web": "10.0.10"
         }
       },
+      "YamlDotNet": {
+        "type": "Transitive",
+        "resolved": "18.1.0",
+        "contentHash": "5K+9KFg2TdTl7VXv88Qzi/0lqK6JFoNP3lRuImPYGRV7K/QYklDyTrj4+A+KAki1JsQi6qKY+hDyY7d6WRqjrw=="
+      },
       "mcp.benchmark.clientprofiles": {
         "type": "Project",
         "dependencies": {
-          "Mcp.Benchmark.Core": "[1.1.25, )"
+          "Mcp.Benchmark.Core": "[1.1.33, )"
         }
       },
       "mcp.benchmark.core": {
@@ -488,15 +498,17 @@
       "mcp.benchmark.infrastructure": {
         "type": "Project",
         "dependencies": {
+          "AngleSharp": "[1.9.1, )",
           "JsonSchema.Net": "[9.2.1, )",
-          "Mcp.Benchmark.Core": "[1.1.25, )",
-          "Mcp.Compliance.Spec": "[1.1.25, )",
+          "Mcp.Benchmark.Core": "[1.1.33, )",
+          "Mcp.Compliance.Spec": "[1.1.33, )",
           "Microsoft.Extensions.Configuration": "[10.0.10, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
           "Microsoft.Extensions.Logging": "[10.0.10, )",
           "Microsoft.Extensions.Options.ConfigurationExtensions": "[10.0.10, )",
           "Microsoft.Identity.Client": "[4.84.0, )",
-          "ModelContextProtocol": "[2.2.0, )"
+          "ModelContextProtocol": "[2.2.0, )",
+          "YamlDotNet": "[18.1.0, )"
         }
       },
       "mcp.compliance.spec": {

@@ -309,6 +309,16 @@ public static class ScoringConstants
         "you are", "act as", "pretend"
     ];
 
+    public static ImmutableArray<string> SkillSecretRequestPatterns { get; } =
+    [
+        "api key", "access token", "password", "credential", "private key", "secret"
+    ];
+
+    public static ImmutableArray<string> SkillCodeExecutionPatterns { get; } =
+    [
+        "run shell", "execute command", "execute this script", "chmod +x", "curl | sh", "powershell -command"
+    ];
+
     public static ImmutableArray<string> DestructiveToolNamePatterns { get; } =
     [
         "delete", "remove", "drop", "destroy", "write", "update",

@@ -17,7 +17,14 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
     public ValidationApplicabilityContext Build(
         ValidationSessionContext session,
         McpValidatorConfiguration configuration,
-        IReadOnlyList<string> selectedClientProfiles)
+        IReadOnlyList<string> selectedClientProfiles) =>
+        Build(session, configuration, selectedClientProfiles, Array.Empty<string>());
+
+    public ValidationApplicabilityContext Build(
+        ValidationSessionContext session,
+        McpValidatorConfiguration configuration,
+        IReadOnlyList<string> selectedClientProfiles,
+        IReadOnlyList<string> selectedExtensionIds)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(configuration);
@@ -29,7 +36,14 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
             session.CapabilitySnapshot,
             session.AuthDiscovery != null,
             session.ServerProfile.ToString(),
-            session.ServerProfile.ToString());
+            session.ServerProfile.ToString(),
+            session.ModernDiscovery?.Payload is { IsValid: true } discovery
+                ? discovery.ExtensionIds
+                : Array.Empty<string>(),
+            selectedExtensionIds,
+            session.ModernDiscovery?.Payload is { IsValid: true } extensionDiscovery
+                ? extensionDiscovery.ExtensionAdvertisements
+                : null);
     }
 
     public ValidationApplicabilityContext Build(
@@ -39,7 +53,10 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
         TransportResult<CapabilitySummary>? capabilitySnapshot = null,
         bool isAuthenticated = false,
         string? accessMode = null,
-        string? serverProfile = null)
+        string? serverProfile = null,
+        IReadOnlyList<string>? advertisedExtensionIds = null,
+        IReadOnlyList<string>? selectedExtensionIds = null,
+        IReadOnlyDictionary<string, ModernExtensionAdvertisement>? advertisedExtensions = null)
     {
         ArgumentNullException.ThrowIfNull(serverConfig);
 
@@ -48,6 +65,8 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
         var transport = string.IsNullOrWhiteSpace(serverConfig.Transport) ? "stdio" : serverConfig.Transport;
         var normalizedProfiles = selectedClientProfiles?.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToArray()
             ?? Array.Empty<string>();
+        var normalizedAdvertisedExtensions = NormalizeExtensionIds(advertisedExtensionIds);
+        var normalizedSelectedExtensions = NormalizeExtensionIds(selectedExtensionIds);
 
         return new ValidationApplicabilityContext
         {
@@ -59,10 +78,23 @@ public sealed class ValidationApplicabilityResolver : IValidationApplicabilityRe
             IsAuthenticated = isAuthenticated || McpAuthenticationHelper.HasCredential(serverConfig.Authentication),
             AdvertisedCapabilities = ExtractCapabilities(capabilitySnapshot),
             AdvertisedSurfaces = ExtractSurfaces(capabilitySnapshot),
+            AdvertisedExtensionIds = normalizedAdvertisedExtensions,
+            AdvertisedExtensions = advertisedExtensions == null
+                ? new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal)
+                : new Dictionary<string, ModernExtensionAdvertisement>(advertisedExtensions, StringComparer.Ordinal),
+            SelectedExtensionIds = normalizedSelectedExtensions,
             SelectedClientProfiles = normalizedProfiles,
             EnvironmentHints = BuildEnvironmentHints(serverConfig)
         };
     }
+
+    private static IReadOnlyList<string> NormalizeExtensionIds(IReadOnlyList<string>? extensionIds) =>
+        extensionIds?
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToArray()
+        ?? Array.Empty<string>();
 
     private static IReadOnlyList<string> ExtractCapabilities(TransportResult<CapabilitySummary>? capabilitySnapshot)
     {

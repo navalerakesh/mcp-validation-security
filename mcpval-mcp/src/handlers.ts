@@ -46,6 +46,11 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
       args.push("--client-profile", profile);
     }
   }
+  if (input.extension?.length) {
+    for (const extension of input.extension) {
+      args.push("--extension", extension);
+    }
+  }
 
   const result = await runCli({
     command: "validate",

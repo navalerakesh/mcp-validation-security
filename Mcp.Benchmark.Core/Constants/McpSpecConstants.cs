@@ -115,6 +115,13 @@ public static class McpSpecConstants
         public const string Complete = "completion/complete";
     }
 
+    public static class ExtensionMethods
+    {
+        public const string SkillsList = "skills/list";
+        public const string SkillsGet = "skills/get";
+        public const string ResourcesDirectoryRead = "resources/directory/read";
+    }
+
     /// <summary>
     /// Standard MCP content types for tool responses.
     /// Reference: https://modelcontextprotocol.io/specification/basic/types#content

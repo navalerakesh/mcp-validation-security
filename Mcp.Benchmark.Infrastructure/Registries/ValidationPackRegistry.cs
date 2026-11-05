@@ -40,8 +40,27 @@ internal static class ValidationPackApplicabilityMatcher
             && MatchesAny(applicability.AccessModes, context.AccessMode)
             && MatchesAll(applicability.RequiredCapabilities, context.AdvertisedCapabilities)
             && MatchesAll(applicability.RequiredSurfaces, context.AdvertisedSurfaces)
+            && MatchesExtensions(
+                applicability.RequiredExtensionIds,
+                context.AdvertisedExtensionIds,
+                context.SelectedExtensionIds)
             && MatchesRequestedProfiles(applicability.ClientProfiles, context.SelectedClientProfiles)
             && MatchesAuthentication(applicability.RequiresAuthentication, context.IsAuthenticated);
+    }
+
+    private static bool MatchesExtensions(
+        IReadOnlyList<string> required,
+        IReadOnlyList<string> advertised,
+        IReadOnlyList<string> selected)
+    {
+        if (required.Count == 0)
+        {
+            return true;
+        }
+
+        var available = new HashSet<string>(advertised, StringComparer.Ordinal);
+        available.UnionWith(selected);
+        return required.All(available.Contains);
     }
 
     private static bool MatchesAny(IReadOnlyList<string> allowed, string actual)

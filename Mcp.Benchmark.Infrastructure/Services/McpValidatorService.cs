@@ -190,7 +190,10 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
 
         var selectedClientProfiles = configuration.ClientProfiles?.Profiles?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray()
             ?? Array.Empty<string>();
-        var applicabilityContext = _applicabilityResolver.Build(session, configuration, selectedClientProfiles);
+        var selectedExtensions = configuration.Validation?.Extensions ?? new List<string>();
+        var applicabilityContext = selectedExtensions.Count == 0
+            ? _applicabilityResolver.Build(session, configuration, selectedClientProfiles)
+            : _applicabilityResolver.Build(session, configuration, selectedClientProfiles, selectedExtensions);
         result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
         result.Run.ApplicabilityContext = applicabilityContext;
         PopulateAppliedPacks(result, applicabilityContext);
@@ -657,6 +660,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         CancellationToken cancellationToken)
     {
         result.Assessments.Scenarios.Clear();
+        result.Assessments.Extensions.Clear();
         result.Evidence.Observations.Clear();
 
         var scenarioContext = new ValidationScenarioContext
@@ -669,14 +673,66 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
 
         foreach (var pack in _scenarioPackRegistry.Resolve(applicabilityContext))
         {
+            var extensionCoverage = new List<ValidationCoverageDeclaration>();
+            var extensionFindings = new List<ValidationFinding>();
             foreach (var scenario in pack.GetScenarios())
             {
                 var execution = await scenario.ExecuteAsync(scenarioContext, cancellationToken);
                 result.Assessments.Scenarios.Add(execution.Scenario);
-                AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
+                if (pack.Descriptor.ExtensionId == null)
+                {
+                    AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
+                }
+                else
+                {
+                    extensionCoverage.AddRange(execution.Coverage);
+                    extensionFindings.AddRange(execution.Scenario.Findings);
+                }
                 AddObservations(result.Evidence.Observations, execution.Observations);
             }
+
+            if (pack.Descriptor.ExtensionId != null)
+            {
+                result.Assessments.Extensions.Add(BuildExtensionAssessment(
+                    pack.Descriptor,
+                    extensionCoverage,
+                    extensionFindings));
+            }
         }
+    }
+
+    private static ExtensionAssessment BuildExtensionAssessment(
+        ValidationPackDescriptor descriptor,
+        IReadOnlyList<ValidationCoverageDeclaration> coverage,
+        IReadOnlyList<ValidationFinding> findings)
+    {
+        var summary = ValidationEvidenceSummarizer.Summarize(coverage);
+        var hasFailure = coverage.Any(item => item.Status == ValidationCoverageStatus.Covered && item.ObservedOutcome == ValidationOutcome.Failed);
+        var hasReviewSignal = findings.Any(finding => finding.Severity >= ValidationFindingSeverity.Medium) ||
+            coverage.Any(ValidationEvidenceSummarizer.IsEvidenceDebt);
+        var verdict = descriptor.ExtensionStage switch
+        {
+            ExtensionLifecycleStage.Beta or ExtensionLifecycleStage.Experimental =>
+                hasFailure || hasReviewSignal ? ValidationVerdict.ReviewRequired : ValidationVerdict.ConditionallyAcceptable,
+            _ => hasFailure
+                ? ValidationVerdict.Reject
+                : hasReviewSignal
+                    ? ValidationVerdict.ReviewRequired
+                    : ValidationVerdict.Trusted
+        };
+
+        return new ExtensionAssessment
+        {
+            ExtensionId = descriptor.ExtensionId!,
+            Stage = descriptor.ExtensionStage ?? ExtensionLifecycleStage.Experimental,
+            SpecificationRevision = descriptor.SpecificationRevision ?? "unknown",
+            SpecificationSha256 = descriptor.SpecificationSha256 ?? new string('0', 64),
+            Verdict = verdict,
+            EvidenceSummary = summary,
+            Findings = findings
+                .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
+                .ToArray()
+        };
     }
 
     private static void AddCoverageDeclarations(

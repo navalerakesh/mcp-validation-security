@@ -6,6 +6,14 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Added
+
+- Added bounded import of pinned official MCP conformance evidence with runner, package, requirement-set, scenario, target, and wrapper digest verification; contradictory native evidence produces a separate `EvidenceConflict` review decision.
+- Added extension-aware applicability and provenance, automatic passive discovery, repeatable `--extension`, and separate extension assessments that do not inflate core score or trust.
+- Added the Stable MCP Apps server-security pack for tool/UI linkage, extension settings, UI resource MIME/content, HTML5, CSP origin, permission, and executable-content analysis without rendering server HTML.
+- Added the Beta MCP Skills security Preview for bounded catalog/manifest analysis and explicitly authorized SKILL.md digest, size, YAML frontmatter, prompt-injection, secret-request, and code-execution risk analysis without executing instructions or scripts.
+- Added Official Conformance and Extension Readiness projections across Markdown, HTML, XML, SARIF, JUnit, canonical JSON, and audit manifests.
+
 ### Security
 
 - Updated the local MCP wrapper to patched MCP SDK and Zod releases and refreshed transitive dependencies so the production npm audit reports zero vulnerabilities.

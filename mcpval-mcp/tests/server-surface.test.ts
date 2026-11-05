@@ -78,6 +78,7 @@ test("server exposes rich initialize metadata and guidance", async () => {
     assert.equal(validateTool?.annotations?.openWorldHint, true);
     assert.doesNotMatch(JSON.stringify(validateTool?.inputSchema), /STDIO command/);
     assert.match(JSON.stringify(validateTool?.inputSchema), /"protocolEra".*"auto".*"legacy".*"modern"/);
+    assert.match(JSON.stringify(validateTool?.inputSchema), /"extension".*"maxItems":16.*\^\[A-Za-z0-9\]/);
 
     const discoverTool = tools.find((tool) => tool.name === "discover");
     assert.ok(discoverTool);

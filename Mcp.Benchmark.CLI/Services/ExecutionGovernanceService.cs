@@ -259,6 +259,11 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
                 path => Path.GetFileName(path),
                 ArtifactDigestUtility.ComputeFile,
                 StringComparer.Ordinal);
+        var externalEvidenceDigests = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        if (result?.Assessments.OfficialConformance is { SourceEvidenceSha256.Length: 64 } officialConformance)
+        {
+            externalEvidenceDigests["official-conformance"] = officialConformance.SourceEvidenceSha256;
+        }
 
         return new AuditDigestSet
         {
@@ -267,6 +272,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             ProfileCatalogSha256 = ArtifactDigestUtility.ComputeText(string.Join("\n", profileCatalog)),
             ConfigSha256 = plan.ConfigDigest,
             TargetIdentitySha256 = plan.TargetDigest,
+            ExternalEvidenceSha256 = externalEvidenceDigests,
             ArtifactsSha256 = new SortedDictionary<string, string>(artifactDigests, StringComparer.Ordinal)
         };
     }

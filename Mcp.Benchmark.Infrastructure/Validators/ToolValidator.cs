@@ -490,6 +490,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             OpenWorldHint = tool.OpenWorldHint,
             IdempotentHint = tool.IdempotentHint,
             AnthropicMaxResultSizeChars = tool.AnthropicMaxResultSizeChars,
+            AppMetadata = tool.AppMetadata,
             InputParameterNames = GetInputParameterNames(tool)
         };
         ApplyAiSafetyControlEvidence(result, tool);
@@ -1483,6 +1484,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
                         if (tool.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
                         {
+                            info.AppMetadata = McpAppToolMetadataParser.Parse(metadata);
                             if (metadata.TryGetProperty("anthropic/maxResultSizeChars", out var maxResultSizeChars)
                                 && maxResultSizeChars.ValueKind == JsonValueKind.Number
                                 && maxResultSizeChars.TryGetInt64(out var overrideChars))
@@ -1676,6 +1678,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         public bool? OpenWorldHint { get; set; }
         public bool? IdempotentHint { get; set; }
         public long? AnthropicMaxResultSizeChars { get; set; }
+        public McpAppToolMetadata? AppMetadata { get; set; }
     }
 
     private static void ApplyGuidelineFindings(

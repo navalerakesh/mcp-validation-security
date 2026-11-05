@@ -29,6 +29,29 @@ public sealed class ExecutionGovernanceDigestTests : IDisposable
             VerdictAssessment = new VerdictAssessment { Policy = DecisionPolicyManifest.CreateCurrent() },
             ClientCompatibility = new ClientCompatibilityReport { RequestedProfiles = ["claude-code"] }
         };
+        result.Assessments.OfficialConformance = new OfficialConformanceAssessment
+        {
+            VerificationStatus = OfficialConformanceVerificationStatus.Verified,
+            SourceEvidenceSha256 = new string('4', 64),
+            Runner = new OfficialConformanceRunnerIdentity
+            {
+                PackageName = "@modelcontextprotocol/conformance",
+                Version = "0.2.0-alpha.12",
+                SourceCommit = new string('5', 40),
+                PackageSha256 = new string('6', 64)
+            },
+            RequirementSet = new OfficialConformanceRequirementSet
+            {
+                Revision = "2026-07-28",
+                Sha256 = new string('7', 64)
+            },
+            Target = new OfficialConformanceTargetIdentity
+            {
+                IdentitySha256 = plan.TargetDigest,
+                Transport = "http",
+                ProtocolVersion = "2026-07-28"
+            }
+        };
         result.Evidence.AppliedPacks.Add(new ValidationPackDescriptor
         {
             Key = new ValidationDescriptorKey("client-profile-pack/built-in"),
@@ -45,6 +68,9 @@ public sealed class ExecutionGovernanceDigestTests : IDisposable
         manifest.Digests.ProfileCatalogSha256.Should().Be(ArtifactDigestUtility.ComputeText(
             "client-profile-pack/built-in=2026-04\nprofile=claude-code"));
         manifest.Digests.ValidatorSha256.Should().Be(plan.ValidatorDigest);
+        manifest.Digests.ExternalEvidenceSha256.Should().Contain(
+            "official-conformance",
+            result.Assessments.OfficialConformance.SourceEvidenceSha256);
         manifest.ArtifactPaths.Should().Equal("result.json");
     }
 

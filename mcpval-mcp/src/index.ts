@@ -82,7 +82,7 @@ async function main(): Promise<void> {
       outputSchema: toolOutputSchema,
       annotations: validateAnnotations,
     },
-    async ({ server: endpoint, access, token, interactive, mcpspec, policy, clientProfile, reportDetail, verbose }) => {
+    async ({ server: endpoint, access, token, interactive, mcpspec, policy, clientProfile, extension, reportDetail, verbose }) => {
       try {
         const result = await handleValidate({
           server: endpoint,
@@ -92,6 +92,7 @@ async function main(): Promise<void> {
           mcpspec,
           policy,
           clientProfile,
+          extension,
           reportDetail,
           verbose,
         });

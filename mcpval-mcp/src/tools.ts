@@ -50,6 +50,13 @@ const ProtocolEraSchema = z
   .enum(["auto", "legacy", "modern"])
   .describe("Protocol era selection. Use auto unless the target requires an explicit legacy or modern profile.");
 
+const ExtensionIdSchema = z
+  .string()
+  .min(1)
+  .max(256)
+  .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "Use an MCP extension identifier such as io.modelcontextprotocol/skills.")
+  .describe("MCP extension identifier to assess.");
+
 // ─── Input Schemas (Zod) ─────────────────────────────────────
 
 const AccessIntentSchema = z
@@ -72,6 +79,7 @@ export const ValidateInputSchema = z.object({
   protocolEra: ProtocolEraSchema.optional(),
   policy: z.enum(["advisory", "balanced", "strict"]).optional().describe("Host-side gating mode. Does not change raw findings."),
   clientProfile: z.array(ClientProfileSchema).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
+  extension: z.array(ExtensionIdSchema).max(16).optional().describe("Optional MCP extension IDs to assess. Active probes remain constrained by the wrapper's safe execution mode."),
   reportDetail: z.enum(["full", "minimal"]).optional().describe("Human report detail level."),
   verbose: z.boolean().default(false).describe("Include detailed output"),
 });

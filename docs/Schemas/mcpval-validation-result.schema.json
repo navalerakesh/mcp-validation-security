@@ -88,6 +88,8 @@
         "securityTesting": { "type": ["object", "null"] },
         "performanceTesting": { "type": ["object", "null"] },
         "errorHandling": { "type": ["object", "null"] },
+        "officialConformance": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/officialConformanceAssessment" }] },
+        "extensions": { "type": "array", "items": { "$ref": "#/$defs/extensionAssessment" } },
         "layers": { "type": "array", "items": { "type": "object" } },
         "scenarios": { "type": "array", "items": { "type": "object" } }
       },
@@ -238,6 +240,21 @@
         "supportedVersions": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "capabilityNames": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "extensionIds": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._/-]+$" }, "uniqueItems": true },
+        "extensionAdvertisements": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["extensionId", "isValid", "mimeTypes", "errors"],
+            "properties": {
+              "extensionId": { "type": "string", "minLength": 1 },
+              "isValid": { "type": "boolean" },
+              "mimeTypes": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+              "directoryRead": { "type": ["boolean", "null"] },
+              "errors": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": false
+          }
+        },
         "resultType": { "type": ["string", "null"] },
         "cacheScope": { "enum": ["public", "private", null] },
         "ttlMs": { "type": ["integer", "null"], "minimum": 0 },
@@ -266,6 +283,8 @@
         "component": { "type": "string", "minLength": 1 },
         "observationKind": { "type": "string", "minLength": 1 },
         "scenarioId": { "type": ["string", "null"] },
+        "lane": { "enum": ["baseline", "externalConformance", "extensionReadiness", "clientCompatibility", "modelAdvisory", null] },
+        "origin": { "enum": ["deterministicObservation", "deterministicAggregation", "externalConformanceCheck", "heuristicInference", "modelAssistance", null] },
         "metadata": { "type": "object", "additionalProperties": { "type": "string" } },
         "redactedPayloadPreview": { "type": ["string", "null"] }
       },
@@ -278,6 +297,8 @@
         "layerId": { "type": "string", "minLength": 1 },
         "scope": { "type": "string", "minLength": 1 },
         "status": { "type": ["string", "integer"] },
+        "lane": { "enum": ["baseline", "externalConformance", "extensionReadiness", "clientCompatibility", "modelAdvisory", null] },
+        "origin": { "enum": ["deterministicObservation", "deterministicAggregation", "externalConformanceCheck", "heuristicInference", "modelAssistance", null] },
         "blocker": { "type": ["string", "integer"] },
         "confidence": { "type": ["string", "integer"] },
         "reason": { "type": ["string", "null"] }
@@ -293,7 +314,49 @@
         "revision": { "type": "object", "required": ["value"], "properties": { "value": { "type": "string", "minLength": 1 } } },
         "displayName": { "type": "string", "minLength": 1 },
         "stability": { "type": ["string", "integer"] },
-        "documentationUrl": { "type": ["string", "null"], "format": "uri" }
+        "documentationUrl": { "type": ["string", "null"], "format": "uri" },
+        "extensionId": { "type": ["string", "null"] },
+        "extensionStage": { "enum": ["experimental", "beta", "stable", "core", null] },
+        "specificationRevision": { "type": ["string", "null"] },
+        "specificationSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "extensionPolicyBehavior": { "enum": ["observationOnly", "preview", "explicitExtensionGate", "core"] }
+      },
+      "additionalProperties": true
+    },
+    "officialConformanceAssessment": {
+      "type": "object",
+      "required": ["verificationStatus", "runner", "requirementSet", "target", "runState", "passed", "creditedPassed", "failed", "warnings", "skipped", "informational", "evidenceSummary", "scenarios", "conflicts", "decisions"],
+      "properties": {
+        "verificationStatus": { "enum": ["verified", "unverified", "incomplete", "conflict"] },
+        "sourceEvidenceSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "runner": { "type": "object", "required": ["packageName", "version", "sourceCommit", "packageSha256"] },
+        "requirementSet": { "type": "object", "required": ["revision", "sha256"] },
+        "target": { "type": "object", "required": ["identitySha256", "transport", "protocolVersion"] },
+        "runState": { "enum": ["completed", "failed", "timedOut", "cancelled"] },
+        "passed": { "type": "integer", "minimum": 0 },
+        "creditedPassed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "informational": { "type": "integer", "minimum": 0 },
+        "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
+        "scenarios": { "type": "array", "items": { "type": "object" } },
+        "conflicts": { "type": "array", "items": { "type": "object" } },
+        "decisions": { "type": "array", "items": { "type": "object" } }
+      },
+      "additionalProperties": true
+    },
+    "extensionAssessment": {
+      "type": "object",
+      "required": ["extensionId", "stage", "specificationRevision", "specificationSha256", "verdict", "evidenceSummary", "findings"],
+      "properties": {
+        "extensionId": { "type": "string", "minLength": 1 },
+        "stage": { "enum": ["experimental", "beta", "stable", "core"] },
+        "specificationRevision": { "type": "string", "minLength": 1 },
+        "specificationSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "verdict": { "$ref": "#/$defs/verdict" },
+        "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
+        "findings": { "type": "array", "items": { "type": "object" } }
       },
       "additionalProperties": true
     }

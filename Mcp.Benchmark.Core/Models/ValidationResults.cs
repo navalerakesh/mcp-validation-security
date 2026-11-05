@@ -353,6 +353,8 @@ public class ValidationResult
                 Component = observation.Component,
                 ObservationKind = observation.ObservationKind,
                 ScenarioId = observation.ScenarioId,
+                Lane = observation.Lane,
+                Origin = observation.Origin,
                 RedactedPayloadPreview = string.IsNullOrWhiteSpace(observation.RedactedPayloadPreview)
                     ? null
                     : "Redacted typed observation available.",
@@ -512,6 +514,10 @@ public class ValidationResult
                 SupportedVersions = payload.SupportedVersions.ToArray(),
                 CapabilityNames = payload.CapabilityNames.ToArray(),
                 ExtensionIds = payload.ExtensionIds.ToArray(),
+                ExtensionAdvertisements = payload.ExtensionAdvertisements.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value,
+                    StringComparer.Ordinal),
                 ResultType = payload.ResultType,
                 CacheScope = payload.CacheScope,
                 TtlMs = payload.TtlMs,

@@ -40,6 +40,16 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine(RenderBootstrap(document.Bootstrap));
         }
 
+        if (result.Assessments.OfficialConformance != null)
+        {
+            sb.AppendLine(RenderOfficialConformance(result.Assessments.OfficialConformance));
+        }
+
+        if (result.Assessments.Extensions.Count > 0)
+        {
+            sb.AppendLine(RenderExtensionReadiness(result.Assessments.Extensions));
+        }
+
         if (result.ClientCompatibility?.Assessments.Count > 0 == true)
         {
             sb.AppendLine(RenderClientCompatibility(document));
@@ -70,6 +80,43 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("  </div>");
         sb.AppendLine("</body>");
         sb.AppendLine("</html>");
+        return sb.ToString();
+    }
+
+    private static string RenderOfficialConformance(OfficialConformanceAssessment assessment)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("      <section class=\"section\" aria-labelledby=\"official-conformance-title\">");
+        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">External Evidence</div><h2 id=\"official-conformance-title\">Official Conformance</h2></div></div>");
+        sb.AppendLine("        <p>Imported official conformance evidence is provenance-verified separately and does not change the core score or trust level.</p>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th scope=\"col\">Verification</th><th scope=\"col\">Runner</th><th scope=\"col\">Requirement Set</th><th scope=\"col\">Runner Successes</th><th scope=\"col\">Credited Passes</th><th scope=\"col\">Failures</th><th scope=\"col\">Warnings</th><th scope=\"col\">Skipped</th><th scope=\"col\">Conflicts</th></tr></thead><tbody>");
+        sb.AppendLine($"          <tr><td>{Encode(assessment.VerificationStatus.ToString())}</td><td><code>{Encode($"{assessment.Runner.PackageName}@{assessment.Runner.Version}")}</code></td><td><code>{Encode(assessment.RequirementSet.Revision)}</code></td><td>{assessment.Passed}</td><td>{assessment.CreditedPassed}</td><td>{assessment.Failed}</td><td>{assessment.Warnings}</td><td>{assessment.Skipped}</td><td>{assessment.Conflicts.Count}</td></tr>");
+        sb.AppendLine("        </tbody></table></div>");
+        if (assessment.Conflicts.Count > 0)
+        {
+            sb.AppendLine("        <ul>");
+            foreach (var conflict in assessment.Conflicts)
+            {
+                sb.AppendLine($"          <li><strong>Review required:</strong> <code>{Encode(conflict.Component)}</code>: {Encode(conflict.Summary)}</li>");
+            }
+            sb.AppendLine("        </ul>");
+        }
+        sb.AppendLine("      </section>");
+        return sb.ToString();
+    }
+
+    private static string RenderExtensionReadiness(IReadOnlyList<ExtensionAssessment> extensions)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine("      <section class=\"section\" aria-labelledby=\"extension-readiness-title\">");
+        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">Optional Specifications</div><h2 id=\"extension-readiness-title\">Extension Readiness</h2></div></div>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th scope=\"col\">Extension</th><th scope=\"col\">Stage</th><th scope=\"col\">Revision</th><th scope=\"col\">Verdict</th><th scope=\"col\">Evidence Coverage</th></tr></thead><tbody>");
+        foreach (var extension in extensions.OrderBy(item => item.ExtensionId, StringComparer.Ordinal))
+        {
+            sb.AppendLine($"          <tr><td><code>{Encode(extension.ExtensionId)}</code></td><td>{Encode(extension.Stage.ToString())}</td><td><code>{Encode(extension.SpecificationRevision)}</code></td><td>{Encode(extension.Verdict.ToString())}</td><td>{extension.EvidenceSummary.EvidenceCoverageRatio:P1}</td></tr>");
+        }
+        sb.AppendLine("        </tbody></table></div>");
+        sb.AppendLine("      </section>");
         return sb.ToString();
     }
 

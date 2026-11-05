@@ -142,6 +142,65 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
+    public void OfficialConformanceEvidence_PublicJson_ConformsToPublishedSchema()
+    {
+        var checks = new[]
+        {
+            new OfficialConformanceCheckRecord
+            {
+                Id = "initialize-version",
+                Name = "Initialize version",
+                Description = "Negotiated version is valid.",
+                Status = OfficialConformanceCheckStatus.Success,
+                Timestamp = DateTimeOffset.Parse("2026-11-04T10:00:00Z")
+            }
+        };
+        var evidence = new OfficialConformanceEvidenceDocument
+        {
+            Runner = new OfficialConformanceRunnerIdentity
+            {
+                PackageName = OfficialConformanceContract.PackageName,
+                Version = OfficialConformanceContract.PackageVersion,
+                SourceCommit = OfficialConformanceContract.SourceCommit,
+                PackageSha256 = OfficialConformanceContract.PackageSha256,
+                PackageIntegrity = OfficialConformanceContract.PackageIntegrity
+            },
+            RequirementSet = new OfficialConformanceRequirementSet
+            {
+                Revision = OfficialConformanceContract.RequirementSetRevision,
+                Sha256 = OfficialConformanceContract.RequirementSetSha256
+            },
+            Target = new OfficialConformanceTargetIdentity
+            {
+                IdentitySha256 = new string('0', 64),
+                Transport = "http",
+                ProtocolVersion = "2026-07-28"
+            },
+            Invocation = new OfficialConformanceInvocation { Mode = "server" },
+            Run = new OfficialConformanceRunRecord
+            {
+                StartedAtUtc = DateTimeOffset.Parse("2026-11-04T10:00:00Z"),
+                EndedAtUtc = DateTimeOffset.Parse("2026-11-04T10:00:01Z"),
+                ExitCode = 0,
+                State = OfficialConformanceRunState.Completed
+            },
+            Scenarios =
+            [
+                new OfficialConformanceScenarioRecord
+                {
+                    ScenarioId = "server-initialize",
+                    ChecksSha256 = OfficialConformanceContract.ComputeChecksSha256(checks),
+                    Checks = checks
+                }
+            ]
+        };
+
+        AssertConforms(
+            "mcpval-official-conformance-evidence.schema.json",
+            JsonNode.Parse(JsonSerializer.Serialize(evidence, OfficialConformanceContract.CreateJsonOptions()))!);
+    }
+
+    [Fact]
     public void ValidationResult_MissingProducerIdentity_DoesNotConformToPublishedSchema()
     {
         var instance = Serialize(new ValidationResult());

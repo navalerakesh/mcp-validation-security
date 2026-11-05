@@ -47,7 +47,7 @@ For every modern list surface advertised by `server/discover`, the validator req
 
 Modern subscription checks require `notifications/subscriptions/acknowledged` as the first subscription message with a matching subscription ID. STDIO validation then cancels the long-lived request and requires a correlated complete close result; HTTP validates the first SSE event and closes the bounded probe stream.
 
-Modern discovery records extension identifiers as typed evidence. The tasks extension (`io.modelcontextprotocol/tasks`) receives a dedicated stable finding; the validator does not invent task RPCs because the embedded protocol schema defines tasks as negotiated extension metadata.
+Modern discovery records extension identifiers and bounded known settings as typed evidence. Apps (`io.modelcontextprotocol/ui`) receives a Stable server-security pack. Skills (`io.modelcontextprotocol/skills`) receives a non-blocking Beta Preview. Tasks evidence is imported from the pinned official suite; the validator does not duplicate its evolving Beta-to-Core lifecycle RPC scenarios.
 
 Tool input/output schemas and returned `structuredContent` are evaluated with JSON Schema Draft 2020-12 semantics, including `unevaluatedProperties` and `prefixItems`. Resource catalogs have a configuration-owned processing limit; exceeding it produces explicit truncation evidence and an inconclusive result rather than silently scoring an incomplete catalog.
 
@@ -59,6 +59,9 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | Tools | `tools/list`, `tools/call`, pagination, annotations, destructive-action signaling, and AI-readiness schema checks |
 | Prompts | `prompts/list` and `prompts/get` structure, metadata quality, argument guidance, and prompt-safety checks |
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
+| Official conformance | Pinned external wrapper import, runner/requirement/scenario digest verification, target binding, separate evidence coverage, and explicit evidence-conflict review decisions |
+| MCP Apps | Stable passive tool/UI linkage and settings checks; standard-mode bounded `resources/read` plus HTML5, CSP origin, permission, and executable-content analysis |
+| MCP Skills | Beta Preview catalog, manifest, URI, collision, digest/size, and risk-bearing frontmatter checks; explicitly authorized bounded SKILL.md integrity/frontmatter/content analysis |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
 | Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML reports open with Run Status, Deterministic Verdict, and Trust Level decision cards. |
@@ -73,6 +76,8 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | `elevated` | Broadest configured active surface with explicit acknowledgement | Isolated environments with reviewed target ownership |
 
 Incomplete safe-mode evidence produces a partial/review disposition and an L3 maximum, not a fabricated failure or enterprise-trusted rating.
+
+Apps linked-resource reads require standard/elevated mode. Skills content reads require standard/elevated mode plus explicit `--extension io.modelcontextprotocol/skills`; passive Skills catalog analysis remains Preview. Apps HTML is parsed but never rendered, and Skills scripts/instructions are analyzed but never executed.
 
 HTTP response bodies are bounded by `execution.maxResponseBytes` (1 MiB by default, 16 MiB maximum). The normalized value is captured in immutable operation policy state and emitted in the audit manifest; oversized bodies produce explicit failed transport evidence rather than silent truncation or an empty response.
 

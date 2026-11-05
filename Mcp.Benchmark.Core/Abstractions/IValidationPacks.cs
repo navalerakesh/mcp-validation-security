@@ -24,13 +24,22 @@ public interface IValidationApplicabilityResolver
         IReadOnlyList<string> selectedClientProfiles);
 
     ValidationApplicabilityContext Build(
+        ValidationSessionContext session,
+        McpValidatorConfiguration configuration,
+        IReadOnlyList<string> selectedClientProfiles,
+        IReadOnlyList<string> selectedExtensionIds);
+
+    ValidationApplicabilityContext Build(
         McpServerConfig serverConfig,
         string? protocolVersion,
         IReadOnlyList<string> selectedClientProfiles,
         TransportResult<CapabilitySummary>? capabilitySnapshot = null,
         bool isAuthenticated = false,
         string? accessMode = null,
-        string? serverProfile = null);
+        string? serverProfile = null,
+        IReadOnlyList<string>? advertisedExtensionIds = null,
+        IReadOnlyList<string>? selectedExtensionIds = null,
+        IReadOnlyDictionary<string, ModernExtensionAdvertisement>? advertisedExtensions = null);
 }
 
 public interface IProtocolFeaturePack : IValidationPack

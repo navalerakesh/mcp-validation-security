@@ -45,6 +45,16 @@ public sealed class ValidationPackDescriptor
     public required ValidationStability Stability { get; init; }
 
     public string? DocumentationUrl { get; init; }
+
+    public string? ExtensionId { get; init; }
+
+    public ExtensionLifecycleStage? ExtensionStage { get; init; }
+
+    public string? SpecificationRevision { get; init; }
+
+    public string? SpecificationSha256 { get; init; }
+
+    public ExtensionPolicyBehavior ExtensionPolicyBehavior { get; init; } = ExtensionPolicyBehavior.Core;
 }
 
 public sealed class ValidationApplicability
@@ -60,6 +70,8 @@ public sealed class ValidationApplicability
     public IReadOnlyList<string> RequiredCapabilities { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<string> RequiredSurfaces { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<string> RequiredExtensionIds { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<string> ClientProfiles { get; init; } = Array.Empty<string>();
 
@@ -110,6 +122,13 @@ public sealed class ValidationApplicabilityContext
 
     public IReadOnlyList<string> AdvertisedSurfaces { get; init; } = Array.Empty<string>();
 
+    public IReadOnlyList<string> AdvertisedExtensionIds { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyDictionary<string, ModernExtensionAdvertisement> AdvertisedExtensions { get; init; }
+        = new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal);
+
+    public IReadOnlyList<string> SelectedExtensionIds { get; init; } = Array.Empty<string>();
+
     public IReadOnlyList<string> SelectedClientProfiles { get; init; } = Array.Empty<string>();
 
     public IReadOnlyDictionary<string, string> EnvironmentHints { get; init; }
@@ -135,6 +154,22 @@ public enum ProtocolFeatureLifecycle
     Active,
     Deprecated,
     Removed
+}
+
+public enum ExtensionLifecycleStage
+{
+    Experimental,
+    Beta,
+    Stable,
+    Core
+}
+
+public enum ExtensionPolicyBehavior
+{
+    ObservationOnly,
+    Preview,
+    ExplicitExtensionGate,
+    Core
 }
 
 public sealed class ProtocolFeatureSet
@@ -209,6 +244,9 @@ public sealed class ModernDiscoveryEvidence
 
     public IReadOnlyList<string> ExtensionIds { get; init; } = Array.Empty<string>();
 
+    public IReadOnlyDictionary<string, ModernExtensionAdvertisement> ExtensionAdvertisements { get; init; }
+        = new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal);
+
     public string? ResultType { get; init; }
 
     public string? CacheScope { get; init; }
@@ -216,6 +254,19 @@ public sealed class ModernDiscoveryEvidence
     public long? TtlMs { get; init; }
 
     public string? Instructions { get; init; }
+
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+}
+
+public sealed class ModernExtensionAdvertisement
+{
+    public required string ExtensionId { get; init; }
+
+    public bool IsValid { get; init; }
+
+    public IReadOnlyList<string> MimeTypes { get; init; } = Array.Empty<string>();
+
+    public bool? DirectoryRead { get; init; }
 
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 }
@@ -237,6 +288,10 @@ public sealed class ValidationAssessmentDocument
     public PerformanceTestResult? PerformanceTesting { get; set; }
 
     public ErrorHandlingTestResult? ErrorHandling { get; set; }
+
+    public OfficialConformanceAssessment? OfficialConformance { get; set; }
+
+    public List<ExtensionAssessment> Extensions { get; set; } = new();
 
     public List<ValidationLayerResult> Layers { get; init; } = new();
 
@@ -314,6 +369,12 @@ public sealed class ValidationObservation
     public required string ObservationKind { get; init; }
 
     public string? ScenarioId { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvidenceOrigin? Origin { get; init; }
 
     public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -419,6 +480,12 @@ public sealed class ValidationCoverageDeclaration
     public required ValidationCoverageStatus Status { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvidenceOrigin? Origin { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ValidationOutcome? ObservedOutcome { get; init; }
 
     public ValidationOutcome Outcome => Status switch
@@ -519,6 +586,8 @@ public sealed class EvidenceCoverageCategory
 public enum EvaluationLane
 {
     Baseline,
+    ExternalConformance,
+    ExtensionReadiness,
     ClientCompatibility,
     ModelAdvisory
 }
@@ -527,6 +596,7 @@ public enum EvidenceOrigin
 {
     DeterministicObservation,
     DeterministicAggregation,
+    ExternalConformanceCheck,
     HeuristicInference,
     ModelAssistance
 }

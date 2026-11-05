@@ -41,6 +41,7 @@ public class ValidateCommand
     private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
     private readonly IAggregateScoringStrategy? _scoringStrategy;
+    private readonly IOfficialConformanceEvidenceImporter _officialConformanceEvidenceImporter;
 
     public ValidateCommand(
         IMcpValidatorService validatorService,
@@ -56,7 +57,8 @@ public class ValidateCommand
         ISessionArtifactStore artifactStore,
         IMcpHttpClient httpClient,
         CliSessionContext sessionContext,
-        IAggregateScoringStrategy? scoringStrategy = null)
+        IAggregateScoringStrategy? scoringStrategy = null,
+        IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
@@ -72,6 +74,15 @@ public class ValidateCommand
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
         _scoringStrategy = scoringStrategy;
+        _officialConformanceEvidenceImporter = officialConformanceEvidenceImporter ?? UnavailableOfficialConformanceEvidenceImporter.Instance;
+    }
+
+    private sealed class UnavailableOfficialConformanceEvidenceImporter : IOfficialConformanceEvidenceImporter
+    {
+        public static UnavailableOfficialConformanceEvidenceImporter Instance { get; } = new();
+
+        public OfficialConformanceImportResult Import(string json, OfficialConformanceImportContext? context = null) =>
+            throw new InvalidOperationException("Official conformance evidence importer is not configured for this host.");
     }
 
     /// <summary>
@@ -109,6 +120,8 @@ public class ValidateCommand
         bool? regressionOnly = null,
         string? outputFormat = null,
         bool? signAttestation = null,
+        FileInfo? conformanceResultsFile = null,
+        string[]? extensionIds = null,
         CancellationToken cancellationToken = default)
     {
         var structuredOutput = string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase);
@@ -137,6 +150,7 @@ public class ValidateCommand
             configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
             ApplyPolicyOverride(configuration, policyMode);
             ApplyClientProfileOverride(configuration, clientProfiles);
+            ApplyExtensionOverride(configuration, extensionIds);
             ApplyReportingOverrides(configuration, reportDetail);
             ExecutionPolicyOverrides.Apply(
                 configuration,
@@ -209,6 +223,10 @@ public class ValidateCommand
             {
                 throw new CliUsageException(BuildExecutionErrorMessage(executionPlan.ValidationErrors));
             }
+
+            var conformanceEvidenceJson = await LoadOfficialConformanceEvidenceAsync(
+                conformanceResultsFile,
+                cancellationToken).ConfigureAwait(false);
 
             if (!structuredOutput)
             {
@@ -308,6 +326,15 @@ public class ValidateCommand
                     result);
             }
             result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
+
+            if (conformanceEvidenceJson != null)
+            {
+                AttachOfficialConformanceEvidence(
+                    result,
+                    conformanceEvidenceJson,
+                    executionPlan.TargetDigest,
+                    result.ProtocolVersion ?? executionPlan.ResolvedSchemaVersion);
+            }
 
             result.ValidationConfig = configuration.CloneWithoutSecrets();
 
@@ -510,6 +537,75 @@ public class ValidateCommand
         {
             Profiles = normalizedProfiles
         };
+    }
+
+    private static void ApplyExtensionOverride(McpValidatorConfiguration configuration, string[]? extensionIds)
+    {
+        if (extensionIds == null || extensionIds.Length == 0)
+        {
+            return;
+        }
+
+        configuration.Validation ??= new ValidationConfig();
+        configuration.Validation.Extensions = extensionIds
+            .SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(value => value, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private async Task<string?> LoadOfficialConformanceEvidenceAsync(
+        FileInfo? conformanceResultsFile,
+        CancellationToken cancellationToken)
+    {
+        if (conformanceResultsFile == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            var json = await BoundedArtifactReader.ReadTextAsync(
+                conformanceResultsFile,
+                OfficialConformanceContract.MaximumEvidenceBytes,
+                cancellationToken).ConfigureAwait(false);
+            _officialConformanceEvidenceImporter.Import(json);
+            return json;
+        }
+        catch (Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException exception)
+        {
+            throw new CliUsageException(exception.Message);
+        }
+    }
+
+    private void AttachOfficialConformanceEvidence(
+        ValidationResult result,
+        string json,
+        string targetIdentitySha256,
+        string protocolVersion)
+    {
+        try
+        {
+            var imported = _officialConformanceEvidenceImporter.Import(json, new OfficialConformanceImportContext
+            {
+                ExpectedTargetIdentitySha256 = targetIdentitySha256,
+                ExpectedProtocolVersion = protocolVersion
+            });
+            var reconciliation = OfficialConformanceReconciler.Reconcile(imported.Assessment, result.VerdictAssessment);
+            imported.Assessment.Conflicts.AddRange(reconciliation.Conflicts);
+            imported.Assessment.Decisions.AddRange(reconciliation.Decisions);
+            if (reconciliation.Conflicts.Count > 0)
+            {
+                imported.Assessment.VerificationStatus = OfficialConformanceVerificationStatus.Conflict;
+            }
+            result.Assessments.OfficialConformance = imported.Assessment;
+            result.Evidence.Coverage.AddRange(imported.Coverage);
+            result.Evidence.Observations.AddRange(imported.Observations);
+        }
+        catch (Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException exception)
+        {
+            throw new CliUsageException(exception.Message);
+        }
     }
 
     private static void ApplyReportingOverrides(McpValidatorConfiguration configuration, string? reportDetail)

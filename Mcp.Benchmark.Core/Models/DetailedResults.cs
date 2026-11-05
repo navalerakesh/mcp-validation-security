@@ -312,6 +312,8 @@ public class IndividualToolResult
     /// </summary>
     public long? AnthropicMaxResultSizeChars { get; set; }
 
+    public McpAppToolMetadata? AppMetadata { get; set; }
+
     /// <summary>
     /// Gets or sets the tool execution response time in milliseconds.
     /// </summary>
@@ -357,6 +359,21 @@ public class IndividualToolResult
     /// Gets or sets consent, human-control, audit, and data-boundary evidence for this tool.
     /// </summary>
     public List<AiSafetyControlEvidence> AiSafetyControlEvidence { get; set; } = new();
+}
+
+public sealed class McpAppToolMetadata
+{
+    public bool IsPresent { get; init; }
+
+    public string? ResourceUri { get; init; }
+
+    public IReadOnlyList<string> Visibility { get; init; } = Array.Empty<string>();
+
+    public bool UsesDeprecatedResourceUri { get; init; }
+
+    public bool IsMalformed { get; init; }
+
+    public IReadOnlyList<string> Issues { get; init; } = Array.Empty<string>();
 }
 
 /// <summary>

@@ -219,6 +219,8 @@ public sealed class AuditDigestSet
 
     public string TargetIdentitySha256 { get; init; } = string.Empty;
 
+    public IReadOnlyDictionary<string, string> ExternalEvidenceSha256 { get; init; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
+
     public IReadOnlyDictionary<string, string> ArtifactsSha256 { get; init; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
 }
 

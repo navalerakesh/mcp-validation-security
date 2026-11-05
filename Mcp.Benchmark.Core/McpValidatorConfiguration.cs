@@ -587,4 +587,7 @@ public class ValidationConfig
     /// </summary>
     [JsonPropertyName("categories")]
     public ValidationScenarios Categories { get; set; } = new();
+
+    [JsonPropertyName("extensions")]
+    public List<string> Extensions { get; set; } = new();
 }

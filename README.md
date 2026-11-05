@@ -88,6 +88,8 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
 | `--baseline <result.json>` | Compares this run with a compatible prior canonical result. |
+| `--conformance-results <wrapper.json>` | Imports a bounded, provenance-bearing wrapper for the pinned official conformance runner. External results remain separate from the core score and trust level. |
+| `--extension <id>` | Explicitly selects an MCP extension. Repeat for more than one. Passive advertised-extension checks run automatically; active Skills content reads additionally require this option and standard/elevated mode. |
 | `--regression-only` | Blocks only new blockers, verdict degradation, or score regression relative to `--baseline`; execution failures still block. |
 | <code>--output-format &lt;human&#124;json&gt;</code> | Emits human output or one versioned JSON stdout envelope with typed JSON stderr errors. |
 | `--sign-attestation` | Signs the final canonical JSON bytes using the ECDSA P-256 key in `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; requires `--output`. |
@@ -108,15 +110,18 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
 
-Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with compatibility rules in [`docs/SchemaCompatibility.md`](docs/SchemaCompatibility.md). Audit manifests include SHA-256 digests for the validator, redacted config, target identity, rule/profile catalogs, and final bytes of every listed subject artifact; the manifest intentionally excludes itself from that non-recursive list.
 | `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. Remote functional probes may still self-calibrate below this cap so transient throttling does not become a false protocol or tool failure. |
 | `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
 | <code>--report-detail &lt;full&#124;minimal&gt;</code> | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
 | `-v, --verbose` | Increases console and diagnostic logging detail. |
 
+Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with compatibility rules in [`docs/SchemaCompatibility.md`](docs/SchemaCompatibility.md). Audit manifests include SHA-256 digests for the validator, redacted config, target identity, rule/profile catalogs, imported external evidence, and final bytes of every listed subject artifact; the manifest intentionally excludes itself from that non-recursive list. See [`docs/OfficialConformanceAndExtensions.md`](docs/OfficialConformanceAndExtensions.md) for the wrapper contract and extension execution boundaries.
+
 For automation, prefer the `MCPVAL_TOKEN` environment variable over `--token` so the credential does not appear in process arguments. An explicit `--token` value takes precedence. The GitHub Action uses the masked environment-variable path.
 
 `safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports explicitly identify unevaluated security/operations dimensions and cap trust at L3. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
+
+Modern `server/discover` runs automatically inspect advertised Apps and Skills settings. Apps passive linkage checks run in safe mode; linked UI resource reads and bounded HTML/CSP analysis require standard/elevated mode. Skills catalog analysis remains Preview; SKILL.md reads require both standard/elevated mode and `--extension io.modelcontextprotocol/skills`. The validator never renders Apps HTML or executes skill instructions/scripts.
 
 Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings. `validate` includes that interpretation by default; use `--client-profile` only when you want a smaller subset of host profiles.
 

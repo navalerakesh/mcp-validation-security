@@ -435,6 +435,8 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
 
             var capabilityNames = new List<string>();
             var extensionIds = new List<string>();
+            IReadOnlyDictionary<string, ModernExtensionAdvertisement> extensionAdvertisements =
+                new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal);
             if (!result.TryGetProperty("capabilities", out var capabilities) || capabilities.ValueKind != JsonValueKind.Object)
             {
                 errors.Add("server/discover result requires an object capabilities field.");
@@ -445,6 +447,7 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
                 if (capabilities.TryGetProperty("extensions", out var extensions) && extensions.ValueKind == JsonValueKind.Object)
                 {
                     extensionIds.AddRange(extensions.EnumerateObject().Select(property => property.Name).OrderBy(name => name, StringComparer.Ordinal));
+                    extensionAdvertisements = ModernExtensionAdvertisementParser.Parse(extensions);
                 }
             }
 
@@ -462,6 +465,7 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
                     SupportedVersions = versions,
                     CapabilityNames = capabilityNames,
                     ExtensionIds = extensionIds,
+                    ExtensionAdvertisements = extensionAdvertisements,
                     ResultType = resultType,
                     CacheScope = cacheScope,
                     TtlMs = ttlMs,

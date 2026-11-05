@@ -11,6 +11,7 @@ This directory contains the durable product, architecture, and contributor docum
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
 | [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
 | [ProtocolCoverageMatrix.md](ProtocolCoverageMatrix.md) | Exact revision/transport/feature behavioral coverage and known limits |
+| [OfficialConformanceAndExtensions.md](OfficialConformanceAndExtensions.md) | Official conformance wrapper contract plus Apps/Skills execution and evidence boundaries |
 | [AuthenticationCoverage.md](AuthenticationCoverage.md) | Credential acquisition, registration, conformance evidence, and explicit authentication limits |
 | [CalibrationMethodology.md](CalibrationMethodology.md) | Versioned scoring policy, calibration corpus, mutation threshold, and false-positive/negative limits |
 | [../CHANGELOG.md](../CHANGELOG.md) | Release-facing history for behavior, packaging, and reporting changes |

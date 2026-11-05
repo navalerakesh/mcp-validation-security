@@ -156,7 +156,7 @@ On Windows, use the full path to `mcpval.exe`.
 
 ### Input Highlights
 
-- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `clientProfile`, `reportDetail`, and `verbose`.
+- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `clientProfile`, bounded repeatable `extension` IDs, `reportDetail`, and `verbose`.
 - `health_check`: supports `server`, `access`, `token`, `interactive`, and `protocolEra`.
 - `discover`: supports `server`, `access`, `token`, `interactive`, `protocolEra`, and `format` (`json`, `yaml`, or `table`).
 
@@ -169,6 +169,7 @@ On Windows, use the full path to `mcpval.exe`.
 - `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
 - Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
 - The wrapper uses the CLI's default safe mode. Safe mode performs discovery and static metadata/schema analysis and does not call target tools.
+- The wrapper intentionally does not expose the CLI's local `--conformance-results` file path to agent callers. Import official wrappers through the CLI or GitHub Action where the operator/workflow owns the file boundary.
 
 `discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints.
 

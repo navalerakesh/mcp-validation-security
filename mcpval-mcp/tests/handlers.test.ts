@@ -220,6 +220,7 @@ test("handlers forward explicit protocol era selections", async () => {
       interactive: false,
       verbose: false,
       protocolEra: "modern",
+      extension: ["io.modelcontextprotocol/ui", "io.modelcontextprotocol/skills"],
     });
     const health = await handleHealthCheck({
       server: "https://example.test/mcp",
@@ -235,7 +236,15 @@ test("handlers forward explicit protocol era selections", async () => {
       format: "json",
     });
 
-    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 3), ["validate", "--protocol-era", "modern"]);
+    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 7), [
+      "validate",
+      "--protocol-era",
+      "modern",
+      "--extension",
+      "io.modelcontextprotocol/ui",
+      "--extension",
+      "io.modelcontextprotocol/skills",
+    ]);
     assert.deepEqual(JSON.parse(health.text.split("\n\n", 2)[1]).slice(0, 3), ["health-check", "--protocol-era", "legacy"]);
     assert.deepEqual(JSON.parse(discover.text.split("\n\n", 2)[1]).slice(0, 5), ["discover", "--format", "json", "--protocol-era", "auto"]);
   } finally {
