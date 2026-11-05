@@ -478,7 +478,7 @@ public class ValidationResult
             {
                 CapabilityDeclarationsAvailable = payload.CapabilityDeclarationsAvailable,
                 AdvertisedCapabilities = payload.AdvertisedCapabilities.ToArray(),
-                Tools = payload.Tools.ToArray(),
+                Tools = Array.Empty<ModelContextProtocol.Client.McpClientTool>(),
                 ToolListingSucceeded = payload.ToolListingSucceeded,
                 ToolInvocationAttempted = payload.ToolInvocationAttempted,
                 ToolInvocationSucceeded = payload.ToolInvocationSucceeded,

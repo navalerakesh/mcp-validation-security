@@ -101,6 +101,44 @@ public class SecurityFocusedScoringStrategyTests
     }
 
     [Fact]
+    public void CalculateScore_ShouldExcludeClientCompatibilityCoverageFromCoreEvidenceSummary()
+    {
+        var results = new ValidationResult
+        {
+            ProtocolCompliance = new ComplianceTestResult
+            {
+                Status = TestStatus.Passed,
+                Score = 100,
+                ComplianceScore = 100
+            }
+        };
+        results.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol-core",
+            Scope = "json-rpc",
+            Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
+            Lane = EvaluationLane.Baseline,
+            Confidence = EvidenceConfidenceLevel.High
+        });
+        results.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "client-profiles",
+            Scope = "incompatible-client",
+            Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Failed,
+            Lane = EvaluationLane.ClientCompatibility,
+            Confidence = EvidenceConfidenceLevel.High
+        });
+
+        var score = _strategy.CalculateScore(results);
+
+        score.EvidenceSummary.TotalDeclarations.Should().Be(1);
+        score.EvidenceSummary.Covered.Should().Be(1);
+        score.EvidenceSummary.EvidenceCoverageRatio.Should().Be(1);
+    }
+
+    [Fact]
     public void CalculateScore_Should_Treat_AuthBreaches_As_Critical_For_Strict_Profiles()
     {
         // Arrange

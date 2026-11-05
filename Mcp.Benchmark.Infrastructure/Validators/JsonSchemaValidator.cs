@@ -11,6 +11,8 @@ namespace Mcp.Benchmark.Infrastructure.Validators;
 /// </summary>
 public class JsonSchemaValidator : ISchemaValidator
 {
+    private static readonly Dialect ExtensibleDraft202012 = CreateExtensibleDraft202012();
+
     public SchemaValidationResult Validate(JsonNode instance, JsonNode schema)
     {
         try
@@ -20,7 +22,7 @@ public class JsonSchemaValidator : ISchemaValidator
             {
                 schemaObject.Remove("$id");
             }
-            var jsonSchema = JsonSchema.FromText(schemaForEvaluation.ToJsonString());
+            var jsonSchema = ParseSchema(schemaForEvaluation);
             
             // Convert JsonNode to JsonElement for evaluation
             // Note: JsonSchema.Net supports JsonNode, but we are seeing compilation errors suggesting it wants JsonElement.
@@ -30,7 +32,8 @@ public class JsonSchemaValidator : ISchemaValidator
             // Evaluate the instance against the schema
             var result = jsonSchema.Evaluate(doc.RootElement, new EvaluationOptions
             {
-                OutputFormat = OutputFormat.List
+                OutputFormat = OutputFormat.List,
+                AddAnnotationForUnknownKeywords = true
             });
 
             if (result.IsValid)
@@ -97,7 +100,7 @@ public class JsonSchemaValidator : ISchemaValidator
             {
                 schemaObject.Remove("$id");
             }
-            _ = JsonSchema.FromText(schemaForEvaluation.ToJsonString());
+            _ = ParseSchema(schemaForEvaluation);
             
             // Ideally we would validate against the meta-schema here, 
             // but successful parsing is sufficient for basic structural validity.
@@ -108,5 +111,30 @@ public class JsonSchemaValidator : ISchemaValidator
             errors.Add($"Invalid JSON Schema definition: {ex.Message}");
             return false;
         }
+    }
+
+    private static JsonSchema ParseSchema(JsonNode schema) =>
+        JsonSchema.FromText(
+            schema.ToJsonString(),
+            new BuildOptions { Dialect = ExtensibleDraft202012 });
+
+    private static Dialect CreateExtensibleDraft202012()
+    {
+        var vocabularies = new[]
+        {
+            Vocabulary.Draft202012_Core,
+            Vocabulary.Draft202012_Applicator,
+            Vocabulary.Draft202012_Unevaluated,
+            Vocabulary.Draft202012_Validation,
+            Vocabulary.Draft202012_MetaData,
+            Vocabulary.Draft202012_FormatAnnotation,
+            Vocabulary.Draft202012_Content
+        };
+        return new Dialect(vocabularies.SelectMany(vocabulary => vocabulary.Keywords))
+        {
+            Id = Dialect.Draft202012.Id,
+            RefIgnoresSiblingKeywords = Dialect.Draft202012.RefIgnoresSiblingKeywords,
+            AllowUnknownKeywords = true
+        };
     }
 }

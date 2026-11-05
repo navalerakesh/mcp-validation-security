@@ -7,6 +7,36 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public class ValidationVerdictEngineTests
 {
     [Fact]
+    public void Calculate_ShouldNotPromoteClientCompatibilityFailureIntoCoreReject()
+    {
+        var result = new ValidationResult();
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol-core",
+            Scope = "json-rpc",
+            Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Succeeded,
+            Lane = EvaluationLane.Baseline,
+            Confidence = EvidenceConfidenceLevel.High
+        });
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "client-profiles",
+            Scope = "incompatible-client",
+            Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Failed,
+            Lane = EvaluationLane.ClientCompatibility,
+            Confidence = EvidenceConfidenceLevel.High
+        });
+
+        var assessment = ValidationVerdictEngine.Calculate(result);
+
+        assessment.TriggeredDecisions.Should().NotContain(decision => decision.Component == "client-profiles");
+        assessment.BlockingDecisions.Should().NotContain(decision => decision.Component == "client-profiles");
+        assessment.EvidenceSummary.TotalDeclarations.Should().Be(1);
+    }
+
+    [Fact]
     public void DetermineValidationStatus_WithTrustedCompleteEvidence_ReturnsPassed()
     {
         var status = ValidationVerdictEngine.DetermineValidationStatus(new VerdictAssessment

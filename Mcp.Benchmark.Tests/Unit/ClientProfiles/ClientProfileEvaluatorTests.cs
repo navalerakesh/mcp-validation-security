@@ -60,7 +60,9 @@ public class ClientProfileEvaluatorTests
             layer.Status == TestStatus.Passed);
         result.Evidence.Coverage.Should().ContainSingle(coverage =>
             coverage.LayerId == "client-profiles" &&
-            coverage.Status == ValidationCoverageStatus.Covered);
+            coverage.Status == ValidationCoverageStatus.Covered &&
+            coverage.Lane == EvaluationLane.ClientCompatibility &&
+            coverage.Origin == EvidenceOrigin.DeterministicAggregation);
     }
 
     [Fact]

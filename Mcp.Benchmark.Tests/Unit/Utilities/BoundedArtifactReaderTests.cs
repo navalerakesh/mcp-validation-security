@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Models;
@@ -51,6 +52,34 @@ public sealed class BoundedArtifactReaderTests : IDisposable
         var actual = await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path));
 
         actual.ValidationId.Should().Be(expected.ValidationId);
+    }
+
+    [Fact]
+    public async Task ReadValidationResultAsync_ShouldDiscardPersistedRuntimeToolHandles()
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "runtime-tools.json");
+        var expected = new ValidationResult { ValidationId = "validation-runtime-tools" };
+        expected.CapabilitySnapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary { DiscoveredToolsCount = 1 }
+        };
+        var root = JsonSerializer.SerializeToNode(
+            expected,
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
+        root["run"]!["capabilitySnapshot"]!["payload"]!["tools"] = new JsonArray(new JsonObject
+        {
+            ["name"] = "runtime-only-tool",
+            ["description"] = "SDK runtime object that is not part of the canonical contract"
+        });
+        await File.WriteAllTextAsync(path, root.ToJsonString());
+
+        var actual = await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path));
+
+        actual.ValidationId.Should().Be(expected.ValidationId);
+        actual.CapabilitySnapshot!.Payload!.DiscoveredToolsCount.Should().Be(1);
+        actual.CapabilitySnapshot.Payload.Tools.Should().BeEmpty();
     }
 
     public void Dispose()

@@ -20,6 +20,9 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Canonical results no longer persist SDK runtime tool handles, and offline reporting tolerates older `1.x` artifacts that contain them.
+- Draft 2020-12 tool schemas now accept unknown extension keywords such as GitHub MCP's `x-mcp-header` as annotations while continuing to validate known constraints.
+- Client-profile compatibility coverage now remains in its own lane and cannot alter the neutral core score, evidence summary, or deterministic verdict.
 - Advisory policy now returns a successful exit for expected coverage-limited safe-mode results while execution errors, cancellation, and incomplete execution remain blocking.
 - Modern stateless bootstrap evidence now records healthy disposition and discovery duration, and reports no longer describe `server/discover` as an initialize handshake.
 - Remediation reports preserve finding-specific recommendations and classify missing active protocol evidence with protocol work instead of advertised-capability fixes.

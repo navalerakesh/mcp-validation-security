@@ -195,7 +195,8 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         var scoringResult = new ScoringResult();
         var notes = new List<string>();
         var categoryScores = new Dictionary<string, double>();
-        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(
+            ValidationEvidenceLaneClassifier.BaselineOnly(result.Evidence.Coverage));
 
         // 1. Calculate Component Scores (0-100) and capture coverage metadata
         var evaluations = CategoryDefinitions

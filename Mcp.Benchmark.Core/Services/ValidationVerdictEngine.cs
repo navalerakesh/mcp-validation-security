@@ -15,6 +15,7 @@ public static class ValidationVerdictEngine
         var coverageDecisions = new List<DecisionRecord>();
         var decisionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var coverageDecisionIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var baselineCoverage = ValidationEvidenceLaneClassifier.BaselineOnly(result.Evidence.Coverage).ToArray();
 
         using (ValidationObservability.MeasureStage("rules.execution-errors"))
             ProjectExecutionErrors(result, decisions, decisionIds);
@@ -31,9 +32,9 @@ public static class ValidationVerdictEngine
         using (ValidationObservability.MeasureStage("rules.content-safety"))
             ProjectContentSafetyFindings(result, decisions, decisionIds);
         using (ValidationObservability.MeasureStage("rules.coverage"))
-            ProjectCoverage(result, decisions, decisionIds, coverageDecisions, coverageDecisionIds);
+            ProjectCoverage(result, baselineCoverage, decisions, decisionIds, coverageDecisions, coverageDecisionIds);
 
-        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(baselineCoverage);
 
         var orderedDecisions = Order(decisions);
         var orderedCoverageDecisions = Order(coverageDecisions);
@@ -48,7 +49,7 @@ public static class ValidationVerdictEngine
             Policy = DecisionPolicyManifest.CreateCurrent(allDecisions, result.Evidence.AppliedPacks),
             BaselineVerdict = VerdictReducer.DetermineBaselineVerdict(orderedDecisions, orderedCoverageDecisions),
             ProtocolVerdict = VerdictReducer.DetermineProtocolVerdict(ResolveProtocolOutcome(result), orderedDecisions),
-            CoverageVerdict = VerdictReducer.DetermineCoverageVerdict(result.Evidence.Coverage.Count > 0, orderedCoverageDecisions),
+            CoverageVerdict = VerdictReducer.DetermineCoverageVerdict(baselineCoverage.Length > 0, orderedCoverageDecisions),
             Summary = BuildSummary(result, orderedDecisions, orderedCoverageDecisions, evidenceSummary),
             EvidenceSummary = evidenceSummary,
             TriggeredDecisions = orderedDecisions,
@@ -372,12 +373,13 @@ public static class ValidationVerdictEngine
 
     private static void ProjectCoverage(
         ValidationResult result,
+        IEnumerable<ValidationCoverageDeclaration> baselineCoverage,
         List<DecisionRecord> outcomeDecisions,
         HashSet<string> outcomeDecisionIds,
         List<DecisionRecord> coverageDecisions,
         HashSet<string> coverageDecisionIds)
     {
-        foreach (var coverage in result.Evidence.Coverage)
+        foreach (var coverage in baselineCoverage)
         {
             if (ValidationOutcomeTaxonomy.IsDeterministicFailure(coverage.Outcome))
             {
@@ -475,7 +477,9 @@ public static class ValidationVerdictEngine
         EvidenceCoverageSummary evidenceSummary)
     {
         var protocolVerdict = VerdictReducer.DetermineProtocolVerdict(ResolveProtocolOutcome(result), decisions);
-        var coverageVerdict = VerdictReducer.DetermineCoverageVerdict(result.Evidence.Coverage.Count > 0, coverageDecisions);
+        var coverageVerdict = VerdictReducer.DetermineCoverageVerdict(
+            ValidationEvidenceLaneClassifier.BaselineOnly(result.Evidence.Coverage).Any(),
+            coverageDecisions);
         var baselineVerdict = VerdictReducer.DetermineBaselineVerdict(decisions, coverageDecisions);
         var blockingCount = decisions.Count(decision => decision.Gate >= GateOutcome.ReviewRequired)
             + coverageDecisions.Count(decision => decision.Gate >= GateOutcome.CoverageDebt);
@@ -486,6 +490,7 @@ public static class ValidationVerdictEngine
     private static ValidationOutcome? ResolveProtocolOutcome(ValidationResult result)
     {
         var protocolCoverage = result.Evidence.Coverage.FirstOrDefault(coverage =>
+            ValidationEvidenceLaneClassifier.IsBaseline(coverage) &&
             string.Equals(coverage.LayerId, "protocol-core", StringComparison.OrdinalIgnoreCase));
 
         return protocolCoverage?.Outcome ?? (result.ProtocolCompliance == null

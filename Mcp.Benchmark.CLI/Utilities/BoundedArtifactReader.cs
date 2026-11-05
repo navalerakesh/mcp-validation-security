@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
@@ -39,9 +40,26 @@ internal static class BoundedArtifactReader
         }
 
         return JsonSerializer.Deserialize<ValidationResult>(
-            json,
+            RemoveRuntimeOnlyFields(json),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
+    }
+
+    private static string RemoveRuntimeOnlyFields(string json)
+    {
+        var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
+        {
+            MaxDepth = 128,
+            CommentHandling = JsonCommentHandling.Disallow,
+            AllowTrailingCommas = false
+        });
+        if (root?["run"]?["capabilitySnapshot"]?["payload"] is JsonObject payload &&
+            payload["tools"] is JsonArray { Count: > 0 })
+        {
+            payload["tools"] = new JsonArray();
+        }
+
+        return root?.ToJsonString() ?? json;
     }
 
     internal static async Task<string> ReadTextAsync(
