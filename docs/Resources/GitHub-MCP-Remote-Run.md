@@ -41,7 +41,7 @@ The exact filenames change on every run because they are timestamped. The folder
 
 - It demonstrates an authenticated remote validation flow against a widely recognized MCP endpoint.
 - It shows the full artifact set produced by `validate` without requiring a separate rendering step.
-- It shows the HTML report's top decision surface, which separates release status, deterministic verdict, and L1-L5 trust level.
+- It shows the HTML report's top decision surface, which separates certificate eligibility, core conformance, security assurance, and operational readiness.
 - It demonstrates the all-profiles compatibility rollup that produces `*-profile-summary.json` alongside the core artifacts.
 - It provides a realistic example of the type of evidence teams can archive in CI or attach to change reviews.
 

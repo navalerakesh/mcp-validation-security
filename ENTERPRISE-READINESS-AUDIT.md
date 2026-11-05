@@ -80,7 +80,7 @@ These are audit judgments, not MCP Validator's own scores.
 
 ### Product purpose
 
-`mcpval` actively connects to an MCP server, captures protocol and operational evidence, evaluates security and AI-facing risk, derives a deterministic verdict and weighted L1-L5 posture, and emits reports for developers, CI systems, and governance workflows.
+`mcpval` actively connects to an MCP server, captures protocol and operational evidence, evaluates security and AI-facing risk, projects typed claims into independent assessments and certificate eligibility, and emits reports for developers, CI systems, and governance workflows.
 
 ### Component map
 

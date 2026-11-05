@@ -77,12 +77,12 @@ async function main(): Promise<void> {
     "validate",
     {
       title: "Validate MCP Server",
-      description: "Validate an MCP server for compliance, security, and AI safety. Assigns trust level L1-L5.",
+      description: "Evaluate an MCP server using typed claims, independent assurance assessments, and explicit certificate eligibility.",
       inputSchema: ValidateInputSchema.shape,
       outputSchema: toolOutputSchema,
       annotations: validateAnnotations,
     },
-    async ({ server: endpoint, access, token, interactive, mcpspec, policy, clientProfile, extension, reportDetail, verbose }) => {
+    async ({ server: endpoint, access, token, interactive, mcpspec, policy, assurance, clientProfile, extension, reportDetail, verbose }) => {
       try {
         const result = await handleValidate({
           server: endpoint,
@@ -91,6 +91,7 @@ async function main(): Promise<void> {
           interactive,
           mcpspec,
           policy,
+          assurance,
           clientProfile,
           extension,
           reportDetail,

@@ -33,7 +33,7 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
 
         var advisoryNotes = BuildAdvisoryNotes(input);
         var relatedFindings = BuildRelatedDeterministicFindings(input);
-        var blockingCount = input.BlockingDecisions.Count;
+        var nonSuccessCount = input.NonSuccessClaims.Count;
 
         return Task.FromResult(new ModelEvaluationArtifact
         {
@@ -51,8 +51,12 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
                 Currency = "USD",
                 Estimated = false
             },
-            Summary = BuildSummary(input, blockingCount),
-            BaselineVerdict = input.BaselineVerdict,
+            Summary = BuildSummary(input, nonSuccessCount),
+            AssuranceProfile = input.AssuranceProfile,
+            CoreConformance = input.CoreConformance,
+            SecurityAssurance = input.SecurityAssurance,
+            OperationalReadiness = input.OperationalReadiness,
+            CertificateEligibility = input.CertificateEligibility,
             AdvisoryNotes = advisoryNotes,
             RelatedDeterministicFindings = relatedFindings
         });
@@ -65,21 +69,21 @@ public sealed class NoOpModelEvaluationExecutor : IModelEvaluationExecutor
             || string.Equals(provider, "rubric", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string BuildSummary(ModelEvaluationInput input, int blockingCount)
+    private static string BuildSummary(ModelEvaluationInput input, int nonSuccessCount)
     {
-        return $"Built-in rubric evaluation completed. Baseline verdict={input.BaselineVerdict}; blocking decisions={blockingCount}. Experimental companion output only.";
+        return $"Built-in rubric evaluation completed. Profile={input.AssuranceProfile}; certificate={input.CertificateEligibility}; non-success claims={nonSuccessCount}. Experimental companion output only.";
     }
 
     private static IReadOnlyList<string> BuildAdvisoryNotes(ModelEvaluationInput input)
     {
         var notes = new List<string>
         {
-            "Experimental model evaluation is stored as a companion artifact and never alters the deterministic baseline verdict."
+            "Experimental model evaluation is stored as a companion artifact and never alters canonical claims, independent assessments, or certificate eligibility."
         };
 
-        foreach (var decision in input.BlockingDecisions.Take(3))
+        foreach (var claim in input.NonSuccessClaims.Take(3))
         {
-            notes.Add($"Decision {decision.DecisionId}: {decision.Category}/{decision.Component}; gate={decision.Gate}; severity={decision.Severity}.");
+            notes.Add($"Claim {claim.ClaimId}: {claim.Dimension}/{claim.Subject}; authority={claim.Authority}; outcome={claim.Outcome}.");
         }
 
         foreach (var assessment in input.ClientProfiles.Take(2))

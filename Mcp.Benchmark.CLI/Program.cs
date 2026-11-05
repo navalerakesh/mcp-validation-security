@@ -195,6 +195,7 @@ internal class Program
         validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
         validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
         validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
+        validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: inventory, ci, provider" });
         validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
         validate.Options.Add(new Option<string>("--conformance-results") { Description = "Pinned official conformance evidence wrapper JSON" });
         var extensionOption = new Option<string[]>("--extension") { Description = "MCP extension ID to assess. Repeat to select more than one extension." };
@@ -682,6 +683,13 @@ internal class Program
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Strict);
 
+        var assuranceProfileOption = new Option<string?>("--assurance")
+        {
+            Description = "Assurance profile (inventory, ci, provider)",
+            DefaultValueFactory = _ => "inventory"
+        };
+        assuranceProfileOption.AcceptOnlyFromAmong("inventory", "ci", "provider");
+
         var baselineOption = new Option<FileInfo?>("--baseline")
         {
             Description = "Prior canonical result JSON used for regression comparison"
@@ -754,6 +762,7 @@ internal class Program
         validateCommand.Options.Add(confirmElevatedRiskOption);
         validateCommand.Options.Add(enableModelEvalOption);
         validateCommand.Options.Add(policyModeOption);
+        validateCommand.Options.Add(assuranceProfileOption);
         validateCommand.Options.Add(baselineOption);
         validateCommand.Options.Add(conformanceResultsOption);
         validateCommand.Options.Add(extensionOption);
@@ -789,6 +798,7 @@ internal class Program
             var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
             var enableModelEval = GetOptionalBoolean(parseResult, enableModelEvalOption);
             var policyMode = parseResult.GetValue(policyModeOption);
+            var assuranceProfile = parseResult.GetValue(assuranceProfileOption);
             var baseline = parseResult.GetValue(baselineOption);
             var conformanceResults = parseResult.GetValue(conformanceResultsOption);
             var extensions = parseResult.GetValue(extensionOption);
@@ -800,7 +810,7 @@ internal class Program
 
             await using var commandScope = serviceProvider.CreateAsyncScope();
             var command = commandScope.ServiceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, cancellationToken);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, cancellationToken);
             return Environment.ExitCode;
         });
 

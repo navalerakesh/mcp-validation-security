@@ -25,14 +25,17 @@ if (outputIndex >= 0) {
   await mkdir(outputDir, { recursive: true });
   if (process.env.MOCK_WRITE_RESULT_JSON === "1") {
     await writeFile(join(outputDir, "validation-result.json"), JSON.stringify({
-      overallStatus: "NeedsReview",
-      complianceScore: 62,
-      assessments: {
-        verdictAssessment: {
-          baselineVerdict: "Reject",
-          protocolVerdict: "Reject",
-          coverageVerdict: "ReviewRequired",
+      documentType: "mcpval.assurance-result",
+      documentSchemaVersion: "2.0.0",
+      assurance: {
+        profile: { profileId: "provider" },
+        assessments: {
+          coreConformance: { status: "nonconformant" },
+          securityAssurance: { status: "issuesFound" },
+          operationalReadiness: { status: "incomplete" },
         },
+        certificateEligibility: { status: "ineligible" },
+        evidenceSummary: { evidenceCoverageRatio: 0.62, evidenceConfidenceRatio: 0.75 },
       },
     }));
   }
@@ -83,10 +86,12 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
     });
 
     assert.equal(result.isError, true);
-    assert.match(result.text, /Compliance Score: 62%/);
-    assert.match(result.text, /Baseline Verdict: Reject/);
-    assert.match(result.text, /Protocol Verdict: Reject/);
-    assert.match(result.text, /Coverage Verdict: ReviewRequired/);
+    assert.match(result.text, /Assurance Profile: provider/);
+    assert.match(result.text, /Certificate Eligibility: ineligible/);
+    assert.match(result.text, /Core Conformance: nonconformant/);
+    assert.match(result.text, /Security Assurance: issuesFound/);
+    assert.match(result.text, /Operational Readiness: incomplete/);
+    assert.match(result.text, /Evidence Coverage: 62.0%/);
     assert.equal(result.structuredContent.command, "validate");
     assert.equal(result.structuredContent.exitCode, 3);
     assert.deepEqual(result.structuredContent.contentTrust, {
@@ -219,6 +224,7 @@ test("handlers forward explicit protocol era selections", async () => {
       access: "public",
       interactive: false,
       verbose: false,
+      assurance: "provider",
       protocolEra: "modern",
       extension: ["io.modelcontextprotocol/ui", "io.modelcontextprotocol/skills"],
     });
@@ -236,8 +242,10 @@ test("handlers forward explicit protocol era selections", async () => {
       format: "json",
     });
 
-    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 7), [
+    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 9), [
       "validate",
+      "--assurance",
+      "provider",
       "--protocol-era",
       "modern",
       "--extension",

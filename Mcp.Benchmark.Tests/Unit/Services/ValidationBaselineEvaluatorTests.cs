@@ -6,59 +6,71 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public sealed class ValidationBaselineEvaluatorTests
 {
     [Fact]
-    public void Compare_NewBlockingDecision_ShouldReportRegression()
+    public void Compare_NewViolatedClaim_ShouldReportRegression()
     {
-        var baseline = CreateResult("baseline", 90, ValidationVerdict.Trusted);
-        var current = CreateResult("current", 80, ValidationVerdict.Reject, "decision:new");
+        var baseline = CreateResult("baseline", CertificateEligibilityStatus.Eligible);
+        var current = CreateResult("current", CertificateEligibilityStatus.Ineligible, "claim:new");
 
         var comparison = ValidationBaselineEvaluator.Compare(baseline, current);
 
         comparison.IsRegression.Should().BeTrue();
-        comparison.ScoreDelta.Should().Be(-10);
-        comparison.NewBlockingDecisions.Should().ContainSingle(change => change.DecisionId == "decision:new");
+        comparison.NewNonSuccessClaims.Should().ContainSingle(change => change.ClaimId == "claim:new");
+        comparison.CertificateEligibilityBefore.Should().Be(CertificateEligibilityStatus.Eligible);
+        comparison.CertificateEligibilityAfter.Should().Be(CertificateEligibilityStatus.Ineligible);
     }
 
     [Fact]
-    public void Compare_ResolvedDecisionAndImprovedScore_ShouldNotReportRegression()
+    public void Compare_ResolvedClaimAndImprovedAssessment_ShouldNotReportRegression()
     {
-        var baseline = CreateResult("baseline", 70, ValidationVerdict.Reject, "decision:old");
-        var current = CreateResult("current", 90, ValidationVerdict.Trusted);
+        var baseline = CreateResult("baseline", CertificateEligibilityStatus.Ineligible, "claim:old");
+        var current = CreateResult("current", CertificateEligibilityStatus.Eligible);
 
         var comparison = ValidationBaselineEvaluator.Compare(baseline, current);
 
         comparison.IsRegression.Should().BeFalse();
-        comparison.ResolvedBlockingDecisionIds.Should().Equal("decision:old");
+        comparison.ResolvedNonSuccessClaimIds.Should().Equal("claim:old");
     }
 
     private static ValidationResult CreateResult(
         string id,
-        double score,
-        ValidationVerdict verdict,
-        string? decisionId = null)
+        CertificateEligibilityStatus eligibility,
+        string? claimId = null)
     {
-        var assessment = new VerdictAssessment { BaselineVerdict = verdict };
-        if (decisionId != null)
+        var claims = new List<AssuranceClaim>();
+        if (claimId != null)
         {
-            assessment.BlockingDecisions.Add(new DecisionRecord
+            claims.Add(new AssuranceClaim
             {
-                DecisionId = decisionId,
-                RuleId = "TEST.RULE",
-                Lane = EvaluationLane.Baseline,
-                Authority = ValidationRuleSource.Heuristic,
-                Origin = EvidenceOrigin.DeterministicAggregation,
-                Gate = GateOutcome.Reject,
-                Severity = ValidationFindingSeverity.Critical,
-                Category = "Test",
-                Component = "component",
-                Summary = "Test blocker."
+                ClaimId = claimId,
+                Subject = "component",
+                Dimension = AssuranceDimension.Security,
+                RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                Authority = AssuranceAuthority.DeterministicSecurity,
+                Source = new AssuranceSourceReference { Revision = "test" },
+                Outcome = AssuranceClaimOutcome.Violated,
+                Summary = "Test claim."
             });
         }
 
         return new ValidationResult
         {
             ValidationId = id,
-            ComplianceScore = score,
-            VerdictAssessment = assessment
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Provider,
+                Claims = claims,
+                Assessments = new AssuranceAssessmentSet
+                {
+                    CoreConformance = new CoreConformanceAssessment { Status = eligibility == CertificateEligibilityStatus.Eligible ? CoreConformanceStatus.Conformant : CoreConformanceStatus.Incomplete },
+                    SecurityAssurance = new SecurityAssuranceAssessment { Status = eligibility == CertificateEligibilityStatus.Eligible ? SecurityAssuranceStatus.Verified : SecurityAssuranceStatus.Incomplete },
+                    OperationalReadiness = new OperationalReadinessAssessment { Status = eligibility == CertificateEligibilityStatus.Eligible ? OperationalReadinessStatus.Ready : OperationalReadinessStatus.Incomplete }
+                },
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "provider",
+                    Status = eligibility
+                }
+            }
         };
     }
 }

@@ -17,7 +17,7 @@ public sealed class BoundedArtifactReaderTests : IDisposable
         var missingPath = Path.Combine(_root, "missing.json");
         var incompatiblePath = Path.Combine(_root, "incompatible.json");
         await File.WriteAllTextAsync(missingPath, "{\"run\":{\"validationId\":\"test\"}}");
-        await File.WriteAllTextAsync(incompatiblePath, "{\"documentType\":\"mcpval.validation-result\",\"documentSchemaVersion\":\"2.0.0\"}");
+        await File.WriteAllTextAsync(incompatiblePath, "{\"documentType\":\"mcpval.validation-result\",\"documentSchemaVersion\":\"1.2.0\"}");
 
         var missing = () => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(missingPath));
         var incompatible = () => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(incompatiblePath));

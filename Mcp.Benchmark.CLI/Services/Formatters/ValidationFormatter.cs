@@ -168,26 +168,21 @@ public static class ValidationFormatter
 
     private static void DisplayOverallResults(ValidationResult result, bool useColors)
     {
-        var statusColor = result.OverallStatus switch
+        var assurance = result.Assurance;
+        var certificateColor = assurance.CertificateEligibility.Status switch
         {
-            ValidationStatus.Passed => ConsoleColor.Green,
-            ValidationStatus.Failed => ConsoleColor.Red,
-            ValidationStatus.PartiallyCompleted => ConsoleColor.Yellow,
-            _ => ConsoleColor.White
+            CertificateEligibilityStatus.Eligible => ConsoleColor.Green,
+            CertificateEligibilityStatus.Ineligible => ConsoleColor.Red,
+            _ => ConsoleColor.Yellow
         };
 
-        FormatterUtils.WriteWithColor("Status: ", ConsoleColor.Gray, useColors);
-        FormatterUtils.WriteLineWithColor(result.OverallStatus.ToString().ToUpper(), statusColor, useColors);
-
-        FormatterUtils.WriteWithColor("Score:  ", ConsoleColor.Gray, useColors);
-        FormatterUtils.WriteLineWithColor($"{result.ComplianceScore:F1}%", FormatterUtils.GetScoreColor(result.ComplianceScore), useColors);
-
-        if (result.VerdictAssessment != null)
-        {
-            WriteKeyValue("Baseline", FormatVerdict(result.VerdictAssessment.BaselineVerdict), useColors);
-            WriteKeyValue("Protocol", FormatVerdict(result.VerdictAssessment.ProtocolVerdict), useColors);
-            WriteKeyValue("Coverage", FormatVerdict(result.VerdictAssessment.CoverageVerdict), useColors);
-        }
+        FormatterUtils.WriteWithColor("Certificate: ", ConsoleColor.Gray, useColors);
+        FormatterUtils.WriteLineWithColor(assurance.CertificateEligibility.Status.ToString().ToUpperInvariant(), certificateColor, useColors);
+        WriteKeyValue("Profile", assurance.Profile.ProfileId, useColors);
+        WriteKeyValue("Core", assurance.Assessments.CoreConformance.Status.ToString(), useColors);
+        WriteKeyValue("Security", assurance.Assessments.SecurityAssurance.Status.ToString(), useColors);
+        WriteKeyValue("Operations", assurance.Assessments.OperationalReadiness.Status.ToString(), useColors);
+        WriteKeyValue("Evidence", $"{assurance.EvidenceSummary.EvidenceCoverageRatio:P1} coverage / {assurance.EvidenceSummary.EvidenceConfidenceRatio:P1} confidence", useColors);
 
         Console.WriteLine();
     }

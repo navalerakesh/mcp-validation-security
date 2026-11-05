@@ -4,65 +4,107 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class ValidationBaselineEvaluator
 {
-    public static ValidationBaselineComparison Compare(ValidationResult baseline, ValidationResult current)
+    public static AssuranceBaselineComparison Compare(ValidationResult baseline, ValidationResult current)
     {
         ArgumentNullException.ThrowIfNull(baseline);
         ArgumentNullException.ThrowIfNull(current);
+        if (!string.Equals(baseline.DocumentType, Constants.ArtifactContracts.ValidationResultDocumentType, StringComparison.Ordinal) ||
+            !Constants.ArtifactContracts.IsCompatible(baseline.DocumentType, baseline.DocumentSchemaVersion))
+        {
+            throw new ArgumentException("Baseline must be a compatible V2 assurance result.", nameof(baseline));
+        }
+        if (!string.Equals(baseline.Assurance.Profile.ProfileId, current.Assurance.Profile.ProfileId, StringComparison.Ordinal) ||
+            !string.Equals(baseline.Assurance.Profile.Revision, current.Assurance.Profile.Revision, StringComparison.Ordinal))
+        {
+            throw new ArgumentException("Baseline and current results must use the same assurance profile and revision.", nameof(baseline));
+        }
 
-        var baselineDecisions = GetBlockingDecisions(baseline)
-            .ToDictionary(decision => decision.DecisionId, StringComparer.Ordinal);
-        var currentDecisions = GetBlockingDecisions(current)
-            .ToDictionary(decision => decision.DecisionId, StringComparer.Ordinal);
+        var baselineClaims = GetNonSuccessClaims(baseline).ToDictionary(claim => claim.ClaimId, StringComparer.Ordinal);
+        var currentClaims = GetNonSuccessClaims(current).ToDictionary(claim => claim.ClaimId, StringComparer.Ordinal);
 
-        var newDecisions = currentDecisions
-            .Where(pair => !baselineDecisions.ContainsKey(pair.Key))
-            .Select(pair => new BaselineDecisionChange(
-                pair.Value.DecisionId,
-                pair.Value.RuleId,
-                pair.Value.Category,
-                pair.Value.Component,
-                pair.Value.Gate))
-            .OrderBy(change => change.DecisionId, StringComparer.Ordinal)
+        var newClaims = currentClaims
+            .Where(pair => !baselineClaims.TryGetValue(pair.Key, out var previous) || OutcomeRank(pair.Value.Outcome) > OutcomeRank(previous.Outcome))
+            .Select(pair => new BaselineClaimChange(pair.Value.ClaimId, pair.Value.Dimension, pair.Value.Authority, pair.Value.Outcome, pair.Value.Subject))
+            .OrderBy(change => change.ClaimId, StringComparer.Ordinal)
             .ToArray();
-        var resolvedDecisionIds = baselineDecisions.Keys
-            .Where(id => !currentDecisions.ContainsKey(id))
+        var resolvedClaimIds = baselineClaims.Keys
+            .Where(id => !currentClaims.ContainsKey(id))
             .OrderBy(id => id, StringComparer.Ordinal)
             .ToArray();
 
-        var baselineVerdict = baseline.VerdictAssessment?.BaselineVerdict ?? ValidationVerdict.Unknown;
-        var currentVerdict = current.VerdictAssessment?.BaselineVerdict ?? ValidationVerdict.Unknown;
-    var scoreDelta = Math.Round(current.ComplianceScore - baseline.ComplianceScore, 2);
+        var before = baseline.Assurance.Assessments;
+        var after = current.Assurance.Assessments;
+        var coverageDelta = Math.Round(current.Assurance.EvidenceSummary.EvidenceCoverageRatio - baseline.Assurance.EvidenceSummary.EvidenceCoverageRatio, 4);
+        var confidenceDelta = Math.Round(current.Assurance.EvidenceSummary.EvidenceConfidenceRatio - baseline.Assurance.EvidenceSummary.EvidenceConfidenceRatio, 4);
 
-        return new ValidationBaselineComparison
+        return new AssuranceBaselineComparison
         {
             BaselineValidationId = baseline.ValidationId,
             BaselineDocumentSchemaVersion = baseline.DocumentSchemaVersion,
-            BaselineScore = baseline.ComplianceScore,
-            CurrentScore = current.ComplianceScore,
-            ScoreDelta = scoreDelta,
-            BaselineVerdictBefore = baselineVerdict,
-            BaselineVerdictAfter = currentVerdict,
-            IsRegression = newDecisions.Length > 0 || IsWorse(currentVerdict, baselineVerdict) || scoreDelta < 0,
-            NewBlockingDecisions = newDecisions,
-            ResolvedBlockingDecisionIds = resolvedDecisionIds
+            ProfileId = current.Assurance.Profile.ProfileId,
+            ProfileRevision = current.Assurance.Profile.Revision,
+            CoreConformanceBefore = before.CoreConformance.Status,
+            CoreConformanceAfter = after.CoreConformance.Status,
+            SecurityAssuranceBefore = before.SecurityAssurance.Status,
+            SecurityAssuranceAfter = after.SecurityAssurance.Status,
+            OperationalReadinessBefore = before.OperationalReadiness.Status,
+            OperationalReadinessAfter = after.OperationalReadiness.Status,
+            CertificateEligibilityBefore = baseline.Assurance.CertificateEligibility.Status,
+            CertificateEligibilityAfter = current.Assurance.CertificateEligibility.Status,
+            EvidenceCoverageDelta = coverageDelta,
+            EvidenceConfidenceDelta = confidenceDelta,
+            IsRegression = newClaims.Length > 0 ||
+                CoreRank(after.CoreConformance.Status) < CoreRank(before.CoreConformance.Status) ||
+                SecurityRank(after.SecurityAssurance.Status) < SecurityRank(before.SecurityAssurance.Status) ||
+                OperationsRank(after.OperationalReadiness.Status) < OperationsRank(before.OperationalReadiness.Status) ||
+                CertificateRank(current.Assurance.CertificateEligibility.Status) < CertificateRank(baseline.Assurance.CertificateEligibility.Status),
+            NewNonSuccessClaims = newClaims,
+            ResolvedNonSuccessClaimIds = resolvedClaimIds
         };
     }
 
-    private static IEnumerable<DecisionRecord> GetBlockingDecisions(ValidationResult result) =>
-        result.VerdictAssessment?.BlockingDecisions
-            .Where(decision => decision.Gate is GateOutcome.Reject or GateOutcome.ReviewRequired or GateOutcome.CoverageDebt)
-        ?? Enumerable.Empty<DecisionRecord>();
+    private static IEnumerable<AssuranceClaim> GetNonSuccessClaims(ValidationResult result) =>
+        result.Assurance.Claims.Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable));
 
-    private static bool IsWorse(ValidationVerdict current, ValidationVerdict baseline) =>
-        Rank(current) < Rank(baseline);
-
-    private static int Rank(ValidationVerdict verdict) => verdict switch
+    private static int OutcomeRank(AssuranceClaimOutcome outcome) => outcome switch
     {
-        ValidationVerdict.Reject => 0,
-        ValidationVerdict.Unknown => 1,
-        ValidationVerdict.ReviewRequired => 2,
-        ValidationVerdict.ConditionallyAcceptable => 3,
-        ValidationVerdict.Trusted => 4,
-        _ => throw new ArgumentOutOfRangeException(nameof(verdict), verdict, "Unknown validation verdict.")
+        AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable => 0,
+        AssuranceClaimOutcome.ReviewRequired => 1,
+        AssuranceClaimOutcome.Incomplete => 2,
+        AssuranceClaimOutcome.Violated => 3,
+        AssuranceClaimOutcome.Error => 4,
+        _ => throw new ArgumentOutOfRangeException(nameof(outcome), outcome, null)
+    };
+
+    private static int CoreRank(CoreConformanceStatus status) => status switch
+    {
+        CoreConformanceStatus.Nonconformant => 0,
+        CoreConformanceStatus.Incomplete => 1,
+        CoreConformanceStatus.Conformant => 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+    };
+
+    private static int SecurityRank(SecurityAssuranceStatus status) => status switch
+    {
+        SecurityAssuranceStatus.IssuesFound => 0,
+        SecurityAssuranceStatus.Incomplete => 1,
+        SecurityAssuranceStatus.Verified => 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+    };
+
+    private static int OperationsRank(OperationalReadinessStatus status) => status switch
+    {
+        OperationalReadinessStatus.NotReady => 0,
+        OperationalReadinessStatus.Incomplete => 1,
+        OperationalReadinessStatus.Ready => 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
+    };
+
+    private static int CertificateRank(CertificateEligibilityStatus status) => status switch
+    {
+        CertificateEligibilityStatus.Ineligible => 0,
+        CertificateEligibilityStatus.ReviewRequired => 1,
+        CertificateEligibilityStatus.Eligible => 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
     };
 }

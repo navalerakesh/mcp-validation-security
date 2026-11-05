@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 namespace Mcp.Benchmark.Tests.Unit.Reporting;
@@ -20,7 +22,7 @@ public sealed class OfficialConformanceConflictReportTests
         JsonNode.Parse(renderer.GenerateSarifReport(result))!.ToJsonString().Should().Contain("EvidenceConflict");
         XDocument.Parse(renderer.GenerateJunitReport(result)).Descendants("testcase")
             .Should().Contain(element => element.Attribute("classname") != null &&
-                element.Attribute("classname")!.Value == "official-conformance.evidence-conflict");
+                element.Attribute("classname")!.Value == "assurance.externalconformance");
     }
 
     private static ValidationResult CreateResult()
@@ -72,6 +74,7 @@ public sealed class OfficialConformanceConflictReportTests
         assessment.Decisions.Add(decision);
         var result = new ValidationResult();
         result.Assessments.OfficialConformance = assessment;
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
         return result;
     }
 }

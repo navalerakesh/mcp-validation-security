@@ -158,9 +158,9 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderFactGrid(hero.MetaItems, "hero-facts"));
         sb.AppendLine("          </div>");
         sb.AppendLine("          <div class=\"hero-side\">");
-        sb.AppendLine(RenderStatusPanel("Run Status", hero.StatusLabel, hero.StatusTone, document.GeneratedAtLabel));
-        sb.AppendLine(RenderStatusPanel("Deterministic Verdict", hero.VerdictLabel, hero.VerdictTone, document.Result.VerdictAssessment != null ? "Authoritative gate" : "No deterministic gate available"));
-        sb.AppendLine(RenderStatusPanel("Trust Level", hero.TrustLevelLabel, hero.TrustLevelTone, hero.TrustLevelDetail));
+        sb.AppendLine(RenderStatusPanel("Certificate Eligibility", hero.StatusLabel, hero.StatusTone, document.GeneratedAtLabel));
+        sb.AppendLine(RenderStatusPanel("Core Conformance", hero.VerdictLabel, hero.VerdictTone, "Official specification and conformance claims"));
+        sb.AppendLine(RenderStatusPanel("Security Assurance", hero.TrustLevelLabel, hero.TrustLevelTone, hero.TrustLevelDetail));
         sb.AppendLine("          </div>");
         sb.AppendLine("        </div>");
         sb.AppendLine("      </section>");
@@ -203,10 +203,10 @@ internal sealed class ValidationHtmlReportComposer
     {
         var executiveAbstract = new (string Label, string Value, HtmlReportTone Tone)[]
         {
-            ("Release", document.ReleaseDecision.Title, document.ReleaseDecision.Tone),
-            ("Blocking", document.ReleaseDecision.BlockingSignalCount.ToString(CultureInfo.InvariantCulture), document.ReleaseDecision.Tone),
-            ("Policy", document.ReleaseDecision.PolicyModeLabel, HtmlReportTone.Info),
-            ("Verdict", document.ReleaseDecision.VerdictLabel, document.ReleaseDecision.Tone)
+            ("Assurance", document.ReleaseDecision.Title, document.ReleaseDecision.Tone),
+            ("Violated", document.ReleaseDecision.BlockingSignalCount.ToString(CultureInfo.InvariantCulture), document.ReleaseDecision.Tone),
+            ("Profile", document.ReleaseDecision.PolicyModeLabel, HtmlReportTone.Info),
+            ("Certificate", document.ReleaseDecision.VerdictLabel, document.ReleaseDecision.Tone)
         };
         var sb = new StringBuilder();
         sb.AppendLine(RenderSectionCardOpen(
@@ -412,7 +412,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine($"              <h3 class=\"decision-title\">{Encode(decision.Title)}</h3>");
         sb.AppendLine($"              <p class=\"decision-summary\">{Encode(decision.Summary)}</p>");
         sb.AppendLine("              <div class=\"summary-grid\">");
-        sb.AppendLine(RenderExecutiveSummaryCard("Verdict", decision.VerdictLabel));
+        sb.AppendLine(RenderExecutiveSummaryCard("Certificate", decision.VerdictLabel));
         sb.AppendLine(RenderExecutiveSummaryCard("Policy Mode", decision.PolicyModeLabel));
         sb.AppendLine(RenderExecutiveSummaryCard("Recommended Exit", decision.ExitCodeLabel));
         sb.AppendLine(RenderExecutiveSummaryCard("Blocking Signals", decision.BlockingSignalCount.ToString(CultureInfo.InvariantCulture)));

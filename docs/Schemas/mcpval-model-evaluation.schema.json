@@ -13,12 +13,17 @@
     "status",
     "cost",
     "summary",
+    "assuranceProfile",
+    "coreConformance",
+    "securityAssurance",
+    "operationalReadiness",
+    "certificateEligibility",
     "advisoryNotes",
     "relatedDeterministicFindings"
   ],
   "properties": {
     "documentType": { "const": "mcpval.model-evaluation" },
-    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "documentSchemaVersion": { "const": "2.0.0" },
     "timestampUtc": { "type": "string", "format": "date-time" },
     "validationId": { "type": "string", "minLength": 1 },
     "sessionId": { "type": "string", "minLength": 1 },
@@ -40,7 +45,11 @@
       "additionalProperties": false
     },
     "summary": { "type": "string" },
-    "baselineVerdict": { "enum": ["unknown", "reject", "reviewRequired", "conditionallyAcceptable", "trusted", null] },
+    "assuranceProfile": { "enum": ["inventory", "ci", "provider"] },
+    "coreConformance": { "enum": ["conformant", "nonconformant", "incomplete"] },
+    "securityAssurance": { "enum": ["verified", "issuesFound", "incomplete"] },
+    "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },
+    "certificateEligibility": { "enum": ["eligible", "ineligible", "reviewRequired"] },
     "advisoryNotes": { "type": "array", "items": { "type": "string" } },
     "relatedDeterministicFindings": {
       "type": "array",

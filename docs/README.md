@@ -34,8 +34,11 @@ This directory contains the durable product, architecture, and contributor docum
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
 | [Design/ExtensionIntegrationProposal.md](Design/ExtensionIntegrationProposal.md) | Official-source assessment and gated roadmap for conformance, Apps, Skills, and Tasks integration |
+| [Design/V2AssuranceArchitecture.md](Design/V2AssuranceArchitecture.md) | Governing breaking V2 design for claims, independent assessments, certificate eligibility, and provider dependency |
+| [Design/V2DependencyStrategy.md](Design/V2DependencyStrategy.md) | V2 package admission, official MCP reuse, cryptography, and supply-chain decisions |
 | [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
 | [Schemas/](Schemas/) | Versioned JSON Schema contracts for canonical machine artifacts |
+| [V2BreakingChanges.md](V2BreakingChanges.md) | Internal migration record for intentionally removed V1 semantics and V2 replacements |
 | [Design/EnterpriseRenewalExecutionPlan.md](Design/EnterpriseRenewalExecutionPlan.md) | Active renewal milestones, ownership, scale invariants, and evidence gates |
 | [../Mcp.Compliance.Spec/schema/README.md](../Mcp.Compliance.Spec/schema/README.md) | Embedded schema folder layout used by the spec project |
 

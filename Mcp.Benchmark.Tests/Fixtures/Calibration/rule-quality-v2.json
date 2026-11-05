@@ -1,0 +1,14 @@
+[
+  { "sampleId": "benign-delete-cache", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "http", "notes": "Bounded application cache cleanup." },
+  { "sampleId": "benign-delete-draft", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "stdio", "notes": "User-owned draft deletion with confirmation." },
+  { "sampleId": "benign-remove-label", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": false, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "benign-archive-repository", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": false, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "benign-clear-filter", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": false, "protocolRevision": "2026-07-28", "transport": "stdio" },
+  { "sampleId": "benign-revoke-session", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": false, "observedPositive": false, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "impact-wipe-disk", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "stdio" },
+  { "sampleId": "impact-drop-production", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "impact-delete-account", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "impact-rotate-root-key", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": false, "protocolRevision": "2026-07-28", "transport": "http" },
+  { "sampleId": "impact-disable-firewall", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "stdio" },
+  { "sampleId": "impact-purge-audit", "ruleId": "MCP.CONTENT.SystemImpact", "expectedPositive": true, "observedPositive": true, "protocolRevision": "2026-07-28", "transport": "http" }
+]

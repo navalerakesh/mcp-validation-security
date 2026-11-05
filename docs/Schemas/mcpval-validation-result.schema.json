@@ -1,22 +1,21 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-validation-result.schema.json",
-  "title": "MCP Validator Canonical Validation Result",
+  "title": "MCP Validator Canonical Assurance Result",
   "type": "object",
   "required": [
     "documentType",
     "documentSchemaVersion",
     "producer",
     "run",
-    "assessments",
+    "measurements",
     "evidence",
     "compatibility",
-    "overallStatus",
-    "complianceScore"
+    "assurance"
   ],
   "properties": {
-    "documentType": { "const": "mcpval.validation-result" },
-    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "documentType": { "const": "mcpval.assurance-result" },
+    "documentSchemaVersion": { "const": "2.0.0" },
     "producer": {
       "type": "object",
       "required": ["name", "packageId", "repositoryUrl", "packageUrl"],
@@ -77,11 +76,10 @@
       },
       "additionalProperties": true
     },
-    "assessments": {
+    "measurements": {
       "type": "object",
       "properties": {
         "protocolCompliance": { "type": ["object", "null"] },
-        "verdictAssessment": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/verdictAssessment" }] },
         "toolValidation": { "type": ["object", "null"] },
         "resourceTesting": { "type": ["object", "null"] },
         "promptTesting": { "type": ["object", "null"] },
@@ -112,16 +110,129 @@
       },
       "additionalProperties": true
     },
-    "overallStatus": {
-      "enum": ["inProgress", "passed", "failed", "partiallyCompleted", "cancelled", "error"]
-    },
-    "complianceScore": { "type": "number", "minimum": 0, "maximum": 100 },
-    "trustAssessment": { "type": ["object", "null"] },
-    "verdictAssessment": { "type": ["object", "null"] },
-    "policyOutcome": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/policyOutcome" }] },
+    "assurance": { "$ref": "#/$defs/assuranceEvaluation" },
+    "policyDecision": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/policyOutcome" }] },
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "$defs": {
+    "assuranceEvaluation": {
+      "type": "object",
+      "required": ["contractVersion", "profile", "claims", "assessments", "evidenceSummary", "certificateEligibility"],
+      "properties": {
+        "contractVersion": { "const": "2.0.0" },
+        "profile": { "$ref": "#/$defs/assuranceProfile" },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/assuranceClaim" } },
+        "assessments": { "$ref": "#/$defs/assuranceAssessments" },
+        "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
+        "certificateEligibility": { "$ref": "#/$defs/certificateEligibility" }
+      },
+      "additionalProperties": false
+    },
+    "assuranceProfile": {
+      "type": "object",
+      "required": ["profileId", "revision", "minimumExecutionMode", "minimumEvidenceCoverageRatio", "minimumEvidenceConfidenceRatio", "minimumRepeatedRunConsistency", "requiresOfficialConformance", "requiresSignedAttestation", "requiresRepeatedRuns", "certificateEligible"],
+      "properties": {
+        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "revision": { "type": "string", "minLength": 1 },
+        "minimumExecutionMode": { "enum": ["safe", "standard", "elevated"] },
+        "minimumEvidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minimumEvidenceConfidenceRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "minimumRepeatedRunConsistency": { "type": "number", "minimum": 0, "maximum": 1 },
+        "requiresOfficialConformance": { "type": "boolean" },
+        "requiresSignedAttestation": { "type": "boolean" },
+        "requiresRepeatedRuns": { "type": "boolean" },
+        "certificateEligible": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "assuranceClaim": {
+      "type": "object",
+      "required": ["claimId", "subject", "dimension", "requirementLevel", "authority", "source", "applicability", "outcome", "confidence", "evidenceIds", "summary", "metadata"],
+      "properties": {
+        "claimId": { "type": "string", "minLength": 1 },
+        "subject": { "type": "string", "minLength": 1 },
+        "dimension": { "enum": ["coreProtocol", "capabilityContract", "security", "operations", "extension", "clientCompatibility", "externalConformance", "executionIntegrity"] },
+        "requirementLevel": { "enum": ["must", "should", "may", "securityControl", "operationalObjective", "policy"] },
+        "authority": { "enum": ["officialSpecification", "officialConformance", "deterministicSecurity", "operationalMeasurement", "providerPolicy", "heuristic", "modelAdvisory"] },
+        "source": { "$ref": "#/$defs/assuranceSource" },
+        "applicability": { "enum": ["applicable", "notApplicable"] },
+        "applicabilityReason": { "type": ["string", "null"] },
+        "outcome": { "enum": ["satisfied", "violated", "incomplete", "reviewRequired", "notApplicable", "error"] },
+        "confidence": { "enum": ["none", "low", "medium", "high"] },
+        "evidenceIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "summary": { "type": "string", "minLength": 1 },
+        "remediation": { "type": ["string", "null"] },
+        "metadata": { "type": "object", "additionalProperties": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "assuranceSource": {
+      "type": "object",
+      "required": ["revision"],
+      "properties": {
+        "uri": { "type": ["string", "null"] },
+        "revision": { "type": "string", "minLength": 1 },
+        "sha256": { "type": ["string", "null"], "pattern": "^(null|[a-f0-9]{64})$" }
+      },
+      "additionalProperties": false
+    },
+    "assuranceAssessments": {
+      "type": "object",
+      "required": ["coreConformance", "securityAssurance", "operationalReadiness"],
+      "properties": {
+        "coreConformance": { "$ref": "#/$defs/coreConformanceAssessment" },
+        "securityAssurance": { "$ref": "#/$defs/securityAssuranceAssessment" },
+        "operationalReadiness": { "$ref": "#/$defs/operationalReadinessAssessment" }
+      },
+      "additionalProperties": false
+    },
+    "coreConformanceAssessment": {
+      "type": "object",
+      "required": ["status", "requiredClaims", "satisfiedRequiredClaims", "blockingClaimIds", "incompleteClaimIds"],
+      "properties": {
+        "status": { "enum": ["conformant", "nonconformant", "incomplete"] },
+        "requiredClaims": { "type": "integer", "minimum": 0 },
+        "satisfiedRequiredClaims": { "type": "integer", "minimum": 0 },
+        "blockingClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "incompleteClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "securityAssuranceAssessment": {
+      "type": "object",
+      "required": ["status", "deterministicControlClaims", "reviewClaimCount", "issueClaimIds", "incompleteClaimIds"],
+      "properties": {
+        "status": { "enum": ["verified", "issuesFound", "incomplete"] },
+        "deterministicControlClaims": { "type": "integer", "minimum": 0 },
+        "reviewClaimCount": { "type": "integer", "minimum": 0 },
+        "issueClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "incompleteClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "operationalReadinessAssessment": {
+      "type": "object",
+      "required": ["status", "objectiveClaims", "failedClaimIds", "incompleteClaimIds"],
+      "properties": {
+        "status": { "enum": ["ready", "notReady", "incomplete"] },
+        "objectiveClaims": { "type": "integer", "minimum": 0 },
+        "failedClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "incompleteClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "certificateEligibility": {
+      "type": "object",
+      "required": ["status", "profileId", "reasons", "evidenceCoverageRatio", "evidenceConfidenceRatio"],
+      "properties": {
+        "status": { "enum": ["eligible", "ineligible", "reviewRequired"] },
+        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "evidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
+        "evidenceConfidenceRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+      },
+      "additionalProperties": false
+    },
     "verdict": { "enum": ["unknown", "reject", "reviewRequired", "conditionallyAcceptable", "trusted"] },
     "verdictAssessment": {
       "type": "object",
@@ -174,18 +285,39 @@
     },
     "baselineComparison": {
       "type": "object",
-      "required": ["baselineValidationId", "baselineDocumentSchemaVersion", "baselineScore", "currentScore", "scoreDelta", "baselineVerdictBefore", "baselineVerdictAfter", "isRegression", "newBlockingDecisions", "resolvedBlockingDecisionIds"],
+      "required": ["baselineValidationId", "baselineDocumentSchemaVersion", "profileId", "profileRevision", "coreConformanceBefore", "coreConformanceAfter", "securityAssuranceBefore", "securityAssuranceAfter", "operationalReadinessBefore", "operationalReadinessAfter", "certificateEligibilityBefore", "certificateEligibilityAfter", "evidenceCoverageDelta", "evidenceConfidenceDelta", "isRegression", "newNonSuccessClaims", "resolvedNonSuccessClaimIds"],
       "properties": {
         "baselineValidationId": { "type": "string", "minLength": 1 },
-        "baselineDocumentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
-        "baselineScore": { "type": "number", "minimum": 0, "maximum": 100 },
-        "currentScore": { "type": "number", "minimum": 0, "maximum": 100 },
-        "scoreDelta": { "type": "number", "minimum": -100, "maximum": 100 },
-        "baselineVerdictBefore": { "$ref": "#/$defs/verdict" },
-        "baselineVerdictAfter": { "$ref": "#/$defs/verdict" },
+        "baselineDocumentSchemaVersion": { "type": "string", "pattern": "^2\\.[0-9]+\\.[0-9]+$" },
+        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "profileRevision": { "type": "string", "minLength": 1 },
+        "coreConformanceBefore": { "enum": ["conformant", "nonconformant", "incomplete"] },
+        "coreConformanceAfter": { "enum": ["conformant", "nonconformant", "incomplete"] },
+        "securityAssuranceBefore": { "enum": ["verified", "issuesFound", "incomplete"] },
+        "securityAssuranceAfter": { "enum": ["verified", "issuesFound", "incomplete"] },
+        "operationalReadinessBefore": { "enum": ["ready", "notReady", "incomplete"] },
+        "operationalReadinessAfter": { "enum": ["ready", "notReady", "incomplete"] },
+        "certificateEligibilityBefore": { "enum": ["eligible", "ineligible", "reviewRequired"] },
+        "certificateEligibilityAfter": { "enum": ["eligible", "ineligible", "reviewRequired"] },
+        "evidenceCoverageDelta": { "type": "number", "minimum": -1, "maximum": 1 },
+        "evidenceConfidenceDelta": { "type": "number", "minimum": -1, "maximum": 1 },
         "isRegression": { "type": "boolean" },
-        "newBlockingDecisions": { "type": "array", "items": { "type": "object", "required": ["decisionId", "category", "component", "gate"] } },
-        "resolvedBlockingDecisionIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+        "newNonSuccessClaims": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["claimId", "dimension", "authority", "outcome", "subject"],
+            "properties": {
+              "claimId": { "type": "string", "minLength": 1 },
+              "dimension": { "enum": ["coreProtocol", "capabilityContract", "security", "operations", "extension", "clientCompatibility", "externalConformance", "executionIntegrity"] },
+              "authority": { "enum": ["officialSpecification", "officialConformance", "deterministicSecurity", "operationalMeasurement", "providerPolicy", "heuristic", "modelAdvisory"] },
+              "outcome": { "enum": ["satisfied", "violated", "incomplete", "reviewRequired", "notApplicable", "error"] },
+              "subject": { "type": "string", "minLength": 1 }
+            },
+            "additionalProperties": false
+          }
+        },
+        "resolvedNonSuccessClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
       },
       "additionalProperties": false
     },

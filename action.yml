@@ -35,6 +35,10 @@ inputs:
     description: Validation policy mode.
     required: false
     default: balanced
+  assurance:
+    description: Assurance profile (inventory, ci, provider).
+    required: false
+    default: inventory
   max-concurrency:
     description: Optional max in-flight request count.
     required: false
@@ -157,6 +161,7 @@ runs:
         INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
         INPUT_MCPSPEC: ${{ inputs.mcpspec }}
         INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_ASSURANCE: ${{ inputs.assurance }}
         INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
         INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_CONFORMANCE_RESULTS: ${{ inputs.conformance-results }}
@@ -183,6 +188,12 @@ runs:
         mkdir -p "$INPUT_OUTPUT_DIR"
 
         cmd=(mcpval validate --output "$INPUT_OUTPUT_DIR" --policy "$INPUT_POLICY")
+
+        if [[ "$INPUT_ASSURANCE" != "inventory" && "$INPUT_ASSURANCE" != "ci" && "$INPUT_ASSURANCE" != "provider" ]]; then
+          echo "'assurance' must be 'inventory', 'ci', or 'provider'." >&2
+          exit 1
+        fi
+        cmd+=(--assurance "$INPUT_ASSURANCE")
 
         if [[ -n "$INPUT_SERVER" ]]; then
           cmd+=(--server "$INPUT_SERVER")

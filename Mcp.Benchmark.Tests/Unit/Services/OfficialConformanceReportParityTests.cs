@@ -2,6 +2,8 @@ using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 namespace Mcp.Benchmark.Tests.Unit.Services;
@@ -31,8 +33,8 @@ public sealed class OfficialConformanceReportParityTests
         sarifText.Should().Contain("required-failure");
         sarifText.Should().NotContain("required-success");
         junit.Descendants("testsuite").Select(element => element.Attribute("name")?.Value)
-            .Should().Contain(["official-conformance", "extension-readiness"]);
-        junit.Descendants("testsuite").Single(element => element.Attribute("name")?.Value == "official-conformance")
+            .Should().Contain(["assurance-externalconformance", "assurance-extension"]);
+        junit.Descendants("testsuite").Single(element => element.Attribute("name")?.Value == "assurance-externalconformance")
             .Attribute("failures")!.Value.Should().Be("1");
     }
 
@@ -113,6 +115,7 @@ public sealed class OfficialConformanceReportParityTests
                 ConfidenceLevel = EvidenceConfidenceLevel.Low
             }
         });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
         return result;
     }
 

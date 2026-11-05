@@ -110,10 +110,35 @@ public class ParserAndReportFuzzTests
                 }
             }
         };
+        result.Assurance = new AssuranceEvaluation
+        {
+            Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory,
+            Claims =
+            [
+                new AssuranceClaim
+                {
+                    ClaimId = $"MCP.FUZZ.{token}",
+                    Subject = $"component-{token.ToLowerInvariant()}",
+                    Dimension = AssuranceDimension.Security,
+                    RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                    Authority = AssuranceAuthority.Heuristic,
+                    Source = new AssuranceSourceReference { Revision = "fuzz" },
+                    Outcome = AssuranceClaimOutcome.ReviewRequired,
+                    Confidence = EvidenceConfidenceLevel.Medium,
+                    Summary = text,
+                    Remediation = $"Review generated input {token}."
+                }
+            ],
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = "inventory",
+                Status = CertificateEligibilityStatus.Ineligible
+            }
+        };
 
         using var sarif = JsonDocument.Parse(_reportRenderer.GenerateSarifReport(result));
         var sarifResult = sarif.RootElement.GetProperty("runs")[0].GetProperty("results")[0];
-        sarifResult.GetProperty("properties").GetProperty("ruleIdSource").GetString().Should().Be("explicit");
+        sarifResult.GetProperty("properties").GetProperty("authority").GetString().Should().Be("Heuristic");
         sarifResult.GetProperty("ruleId").GetString().Should().Be($"MCP.FUZZ.{token}");
 
         XDocument.Parse(_reportRenderer.GenerateXmlReport(result, verbose: true)).Root.Should().NotBeNull();

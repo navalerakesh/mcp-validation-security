@@ -21,7 +21,6 @@ public class MarkdownReportGeneratorTests
             ValidationId = "validation-1",
             OverallStatus = ValidationStatus.Passed,
             ServerConfig = new McpServerConfig { Endpoint = "https://example.test/<script>alert(1)</script>|`\r\n| injected | row |", Transport = "http" },
-            BaselineComparison = new ValidationBaselineComparison { BaselineValidationId = "baseline", IsRegression = true, ScoreDelta = -5 },
             PolicyOutcome = new ValidationPolicyOutcome
             {
                 Passed = true,
@@ -52,7 +51,7 @@ public class MarkdownReportGeneratorTests
 
         var report = new MarkdownReportGenerator().GenerateReport(result);
 
-        report.Should().Contain("Baseline Regression");
+        report.Should().NotContain("Baseline Regression");
         report.Should().Contain("Applied Waivers");
         report.Should().Contain("Validator Overhead");
         report.Should().Contain("Target Latency (50th / 95th / 99th Percentile)");
@@ -76,7 +75,8 @@ public class MarkdownReportGeneratorTests
         var report = _generator.GenerateReport(result);
 
         report.Should().Contain("Executive Summary");
-        report.Should().Contain("Compliance Score");
+        report.Should().Contain("Assurance Profile");
+        report.Should().Contain("Certificate Eligibility");
         report.Should().Contain("test-endpoint");
     }
 
@@ -88,36 +88,92 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Reader Key: Terms And Abbreviations");
         report.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
         report.Should().Contain("Priority is not severity.");
-        report.Should().Contain("Trust levels L1-L5");
+        report.Should().Contain("Certificate eligibility");
+        report.Should().Contain("Typed claim");
         report.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
         report.Should().Contain("P50 / P95 / P99");
         report.Should().Contain("UUID means Universally Unique Identifier");
     }
 
     [Fact]
-    public void GenerateReport_WithTrustAssessment_ShouldIncludeTrustLevel()
+    public void GenerateReport_WithAssuranceAssessment_ShouldIncludeIndependentStatuses()
     {
         var result = BuildMinimalResult();
-        result.TrustAssessment = new McpTrustAssessment
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Conformant,
+            SecurityAssuranceStatus.Verified,
+            OperationalReadinessStatus.Ready,
+            CertificateEligibilityStatus.Eligible);
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Core Conformance");
+        report.Should().Contain("Conformant");
+        report.Should().Contain("Security Assurance");
+        report.Should().Contain("Verified");
+        report.Should().Contain("Operational Readiness");
+        report.Should().Contain("Ready");
+        report.Should().NotContain("Benchmark Trust Level");
+    }
+
+    [Fact]
+    public void GenerateReport_WithIncompleteAssurance_ShouldExplainCertificateGap()
+    {
+        var result = BuildMinimalResult();
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Incomplete,
+            SecurityAssuranceStatus.Incomplete,
+            OperationalReadinessStatus.Incomplete,
+            CertificateEligibilityStatus.Ineligible,
+            "Required active security evidence is missing.");
+
+        var report = _generator.GenerateReport(result);
+
+        report.Should().Contain("Required active security evidence is missing.");
+        report.Should().Contain("Evidence Coverage");
+        report.Should().Contain("Evidence Confidence");
+    }
+
+    [Fact]
+    public void GenerateReport_WithReviewClaim_ShouldIncludeAuthorityAndOutcome()
+    {
+        var result = BuildMinimalResult();
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Incomplete,
+            SecurityAssuranceStatus.Incomplete,
+            OperationalReadinessStatus.Incomplete,
+            CertificateEligibilityStatus.Ineligible);
+        result.Assurance = new AssuranceEvaluation
         {
-            TrustLevel = McpTrustLevel.L4_Trusted,
-            ProtocolCompliance = 100,
-            SecurityPosture = 100,
-            AiSafety = 85,
-            OperationalReadiness = 90
+            Profile = result.Assurance.Profile,
+            Assessments = result.Assurance.Assessments,
+            CertificateEligibility = result.Assurance.CertificateEligibility,
+            Claims =
+            [
+                new AssuranceClaim
+                {
+                    ClaimId = "security:tool:delete",
+                    Subject = "delete_tool",
+                    Dimension = AssuranceDimension.Security,
+                    RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                    Authority = AssuranceAuthority.Heuristic,
+                    Source = new AssuranceSourceReference { Revision = "test" },
+                    Outcome = AssuranceClaimOutcome.ReviewRequired,
+                    Confidence = EvidenceConfidenceLevel.Medium,
+                    Summary = "Tool requires human review."
+                }
+            ]
         };
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("Benchmark Trust Level");
-        report.Should().Contain("L4");
-        report.Should().Contain("Benchmark Trust Profile");
-        report.Should().Contain("Protocol Compliance");
-        report.Should().Contain("AI Safety");
+        report.Should().Contain("security:tool:delete");
+        report.Should().Contain("Heuristic");
+        report.Should().Contain("ReviewRequired");
     }
 
     [Fact]
-    public void GenerateReport_WithIncompleteTrustEvidence_ShouldLabelUnevaluatedDimensions()
+    public void GenerateReport_ShouldNotRenderLegacyTrustOrTierSections()
     {
         var result = BuildMinimalResult();
         result.TrustAssessment = new McpTrustAssessment
@@ -133,15 +189,12 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("evidence-limited; unevaluated: protocol, security, operations");
-        report.Should().Contain("| **Protocol Compliance** | Not evaluated |");
-        report.Should().Contain("| **Security Posture** | Not evaluated |");
-        report.Should().Contain("| **Operational Readiness** | Not evaluated |");
-        report.Should().Contain("| **AI Safety** | 85% |");
+        report.Should().NotContain("evidence-limited; unevaluated");
+        report.Should().NotContain("Benchmark Trust Profile");
     }
 
     [Fact]
-    public void GenerateReport_WithBoundaryFindings_ShouldIncludeBoundaryTable()
+    public void GenerateReport_WithBoundaryFindings_ShouldNotRenderLegacyBoundaryTable()
     {
         var result = BuildMinimalResult();
         result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
@@ -162,13 +215,11 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("AI Boundary Findings");
-        report.Should().Contain("Destructive");
-        report.Should().Contain("delete_tool");
+        report.Should().NotContain("AI Boundary Findings");
     }
 
     [Fact]
-    public void GenerateReport_WithComplianceTiers_ShouldIncludeMustShouldMay()
+    public void GenerateReport_WithComplianceTiers_ShouldNotRenderLegacyTierTable()
     {
         var result = BuildMinimalResult();
         result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
@@ -193,11 +244,8 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("RFC 2119 Tiers");
-        report.Should().Contain("MUST");
-        report.Should().Contain("SHOULD");
-        report.Should().Contain("MAY");
-        report.Should().Contain("Fully compliant");
+        report.Should().NotContain("RFC 2119 Tiers");
+        report.Should().NotContain("Fully compliant");
     }
 
     [Fact]
@@ -1004,6 +1052,40 @@ public class MarkdownReportGeneratorTests
             ResourceTesting = new ResourceTestResult { Status = TestStatus.Passed, Score = 100 },
             PromptTesting = new PromptTestResult { Status = TestStatus.Passed, Score = 100 },
             PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Passed, Score = 100, LoadTesting = new LoadTestResult() }
+        };
+    }
+
+    private static AssuranceEvaluation CreateAssurance(
+        CoreConformanceStatus core,
+        SecurityAssuranceStatus security,
+        OperationalReadinessStatus operations,
+        CertificateEligibilityStatus certificate,
+        params string[] reasons)
+    {
+        return new AssuranceEvaluation
+        {
+            Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Provider,
+            Assessments = new AssuranceAssessmentSet
+            {
+                CoreConformance = new CoreConformanceAssessment { Status = core },
+                SecurityAssurance = new SecurityAssuranceAssessment { Status = security },
+                OperationalReadiness = new OperationalReadinessAssessment { Status = operations }
+            },
+            EvidenceSummary = new EvidenceCoverageSummary
+            {
+                TotalDeclarations = 2,
+                ApplicableDeclarations = 2,
+                Covered = 1,
+                EvidenceCoverageRatio = 0.5,
+                EvidenceConfidenceRatio = 0.75,
+                ConfidenceLevel = EvidenceConfidenceLevel.Medium
+            },
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = "provider",
+                Status = certificate,
+                Reasons = reasons
+            }
         };
     }
 }

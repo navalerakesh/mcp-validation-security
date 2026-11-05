@@ -169,11 +169,11 @@ The current rendering architecture is suitable. The HTML pipeline already separa
 The first viewport remains core and policy focused:
 
 1. Run status
-2. Core deterministic verdict
-3. Trust level and evidence limitation
+2. Certificate eligibility and core conformance
+3. Security assurance, operational readiness, and evidence limitation
 4. Policy/release decision
 
-Official conformance and extensions appear immediately after the core decision surface, before client-profile compatibility and detailed evidence. They must not replace the core hero or be averaged into the compliance score.
+Official conformance and extensions appear immediately after the neutral assurance surface, before client-profile compatibility and detailed evidence. They retain separate authority and applicability and are never averaged into another assessment.
 
 ### New HTML and Markdown sections
 
@@ -259,7 +259,7 @@ The canonical result stores the normalized projection. The full official wrapper
 - A newly advertised extension is a surface change requiring review, not automatically a regression.
 - A removed extension is reported as a capability change; policy decides whether it blocks.
 - Preview findings remain non-blocking by default even when they are new.
-- Never blend extension scores into the existing aggregate compliance score. Prefer counts, verdicts, coverage, and confidence.
+- Never blend extension findings into core conformance or unrelated assurance dimensions. Prefer typed claims, coverage, and confidence.
 
 Lifecycle or revision changes make that extension's baseline comparison incompatible. Report the extension as changed and require baseline review; do not calculate a score delta across Beta-to-Stable, specification-revision, or pack-revision boundaries. After review, the operator records a new baseline. Core comparison remains valid when its own compatibility contract still matches.
 
@@ -271,7 +271,7 @@ Lifecycle or revision changes make that extension's baseline comparison incompat
 | Wrapper is valid but records an incomplete/timed-out official run | Complete mcpval validation, record official conformance as incomplete/unavailable, and let the selected policy evaluate that evidence. |
 | `--extension <id>` is requested but the target does not advertise it | Emit a concise warning, record the extension as `notApplicable`, and run no active probe. Requiring support is a separate explicit configuration policy, not implied by probe authorization. |
 | Unknown extension is requested | Fail option validation with the supported identifier list; arbitrary extension code is never loaded. |
-| Preview extension is newly advertised | Report a surface change and Preview findings; do not alter core verdict, aggregate score, or trust level. |
+| Preview extension is newly advertised | Report a surface change and Preview findings; do not alter core conformance, security assurance, or certificate eligibility unless the selected policy explicitly requires that extension. |
 | Extension stage/spec/pack differs from baseline | Mark extension comparison incompatible and require review; preserve independent core comparison. |
 
 Dry-run output uses one compact extension block:
@@ -283,7 +283,7 @@ Extensions:
 Official conformance: import=<verified wrapper | none>; runner execution=disabled
 ```
 
-Preview and Experimental findings never contribute to `ComplianceScore`, the L1-L5 trust calculation, or the core deterministic verdict. They have their own extension verdict, coverage, confidence, and policy projection. A future stable extension policy may gate only when the operator explicitly selects that extension policy.
+Preview and Experimental findings have their own extension claims, coverage, confidence, and policy projection. They do not affect core conformance. A selected policy may require an extension explicitly, but absence or failure never leaks into unrelated assessment dimensions.
 
 The normal artifact set remains stable. Add one companion only when official evidence is supplied or generated:
 
@@ -315,7 +315,7 @@ Every proposed pack must satisfy all of these conditions:
 4. **Versioned:** The extension stage, revision, schema digest, rule revision, and conformance runner identity are captured in canonical evidence.
 5. **Safe by default:** Discovery and metadata checks can run in safe mode. Content reads, tool calls, task creation, browser execution, and cross-account probes require stronger modes and explicit authority.
 6. **Graceful:** Undeclared optional extensions are not failures. Declared-but-broken behavior is a finding. Unsupported or unobservable behavior remains explicit coverage debt.
-7. **Calibrated:** No extension contributes to the core deterministic verdict until its policy and corpus have independent calibration evidence.
+7. **Calibrated:** No extension claim becomes default-blocking until its policy and corpus meet the V2 rule-quality gate.
 
 ## 1. Official Conformance Companion
 
@@ -567,7 +567,7 @@ Implement a stable native Tasks pack only after Tasks reaches Stable/Core and th
 | Skill installer, registry, or marketplace | Product scope is validation, not distribution or activation |
 | Native duplication of official Tasks/Skills scenarios | Violates convergence and creates drift |
 | Generic third-party plugin loading | Expands the trust boundary before built-in pack contracts are proven |
-| Extension findings in the core score | Optional extensions are not core conformance requirements |
+| Extension findings in core conformance | Optional extensions are not dated core requirements unless officially promoted |
 
 ## Delivery Plan
 
@@ -647,7 +647,7 @@ Mutation scope includes both the external-status/import mapping and the existing
 The work is successful when:
 
 - adopters can see official conformance and mcpval security evidence in one report without confusing their authorities;
-- no core score changes merely because an optional extension is absent;
+- no core-conformance changes merely because an optional extension is absent;
 - declared extension behavior has explicit coverage rather than declaration-only pass credit;
 - Apps reports identify actionable server-controlled CSP, permission, and UI-resource risks;
 - Skills Preview finds verified-content and prompt-injection risks not covered by wire conformance;

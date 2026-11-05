@@ -38,7 +38,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
             DetailLabel = detailLabel,
             Verbose = verbose,
             Hero = BuildHero(result, reportConfig),
-            ReleaseDecision = BuildReleaseDecision(result, priorityFindings, decisionTrace, compatibilityThemes),
+            ReleaseDecision = BuildReleaseDecision(result),
             OverviewMetrics = BuildOverviewMetrics(result),
             RiskMetrics = BuildRiskMetrics(result),
             DomainSummaries = BuildDomainSummaries(result),
@@ -59,14 +59,12 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static ValidationHtmlHero BuildHero(ValidationResult result, ReportingConfig reportConfig)
     {
         var releaseTone = ResolveReleaseTone(result);
-        var title = result.PolicyOutcome is { Passed: false }
-            ? "Release Hold"
-            : result.OverallStatus switch
-            {
-                ValidationStatus.Passed => "Validation Ready",
-                ValidationStatus.Failed => "Validation Review Required",
-                _ => "Validation Completed with Warnings"
-            };
+        var title = result.Assurance.CertificateEligibility.Status switch
+        {
+            CertificateEligibilityStatus.Eligible => "Provider Certificate Eligible",
+            CertificateEligibilityStatus.Ineligible => "Assurance Requirements Not Met",
+            _ => "Assurance Review Required"
+        };
         var protocolVersion = result.ProtocolVersion
             ?? result.InitializationHandshake?.Payload?.ProtocolVersion
             ?? result.ServerConfig.ProtocolVersion
@@ -77,18 +75,16 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
         return new ValidationHtmlHero
         {
-            Eyebrow = "Model Context Protocol (MCP) Validation Report",
+            Eyebrow = "Model Context Protocol (MCP) Assurance Report",
             Title = title,
             Subtitle = BuildHeroSubtitle(result),
             StatusLabel = ResolveReleaseStatusLabel(result),
             StatusTone = releaseTone,
-            VerdictLabel = BuildHeroVerdictLabel(result),
-            VerdictTone = result.VerdictAssessment != null
-                ? MapVerdictTone(result.VerdictAssessment.BaselineVerdict)
-                : HtmlReportTone.Neutral,
-            TrustLevelLabel = BuildTrustLevelValue(result.TrustAssessment),
-            TrustLevelDetail = BuildTrustLevelDetail(result.TrustAssessment),
-            TrustLevelTone = ResolveTrustTone(result.TrustAssessment),
+            VerdictLabel = result.Assurance.Assessments.CoreConformance.Status.ToString(),
+            VerdictTone = MapCoreTone(result.Assurance.Assessments.CoreConformance.Status),
+            TrustLevelLabel = result.Assurance.Assessments.SecurityAssurance.Status.ToString(),
+            TrustLevelDetail = $"Operational readiness: {result.Assurance.Assessments.OperationalReadiness.Status}",
+            TrustLevelTone = MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
                 new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
@@ -144,184 +140,81 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return $"Limited by incomplete evidence.{missing} {detail}".Trim();
     }
 
-    private static ValidationHtmlReleaseDecision BuildReleaseDecision(
-        ValidationResult result,
-        IReadOnlyList<string> priorityFindings,
-        IReadOnlyList<ValidationHtmlDecisionTraceItem> decisionTrace,
-        IReadOnlyList<ValidationHtmlCompatibilityTheme> compatibilityThemes)
+    private static ValidationHtmlReleaseDecision BuildReleaseDecision(ValidationResult result)
     {
-        var policyOutcome = result.PolicyOutcome;
-        var verdictLabel = BuildVerdictCompositeLabel(result);
-        var highlights = BuildReleaseHighlights(result, priorityFindings, decisionTrace, compatibilityThemes).ToList();
-        var blockingSignalCount = ResolveBlockingSignalCount(result);
-        var unsuppressedSignalCount = ResolveUnsuppressedSignalCount(result);
-        var totalSignalCount = ResolveTotalSignalCount(result);
-        var suppressedSignalCount = policyOutcome?.SuppressedSignalCount ?? 0;
-        if (result.BaselineComparison is { } baseline)
+        var assurance = result.Assurance;
+        var exitCode = AssuranceExitCodeMapper.Map(assurance, result.PolicyOutcome);
+        var eligible = assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Eligible;
+        var assuranceHighlights = assurance.CertificateEligibility.Reasons.Take(4).ToList();
+        if (result.PolicyOutcome?.AppliedWaivers.Count > 0)
         {
-            highlights.Insert(0, $"Baseline regression: {(baseline.IsRegression ? "yes" : "no")}; score delta {baseline.ScoreDelta:+0.##;-0.##;0} points.");
+            assuranceHighlights.Add($"{result.PolicyOutcome.AppliedWaivers.Count} governed waiver(s) applied.");
         }
-        if (policyOutcome?.AppliedWaivers.Count > 0)
-        {
-            highlights.Add($"{policyOutcome.AppliedWaivers.Count} governed waiver(s) applied.");
-        }
-
-        if (policyOutcome is { Passed: false })
-        {
-            return new ValidationHtmlReleaseDecision
-            {
-                Eyebrow = "Release Decision",
-                Title = "Hold release until blocking signals are resolved",
-                Summary = policyOutcome.Summary,
-                Tone = HtmlReportTone.Danger,
-                Highlights = highlights,
-                PolicyModeLabel = FormatModeLabel(policyOutcome.Mode),
-                ExitCodeLabel = policyOutcome.RecommendedExitCode.ToString(),
-                VerdictLabel = verdictLabel,
-                TotalSignalCount = totalSignalCount,
-                UnsuppressedSignalCount = unsuppressedSignalCount,
-                BlockingSignalCount = blockingSignalCount,
-                SuppressedSignalCount = suppressedSignalCount
-            };
-        }
-
-        if (result.OverallStatus == ValidationStatus.Failed)
-        {
-            return new ValidationHtmlReleaseDecision
-            {
-                Eyebrow = "Release Decision",
-                Title = "Resolve failed validation areas before rollout",
-                Summary = "Deterministic validation failed even though no additional host policy block was applied. Use the decision trace to verify which domains still need remediation.",
-                Tone = HtmlReportTone.Warning,
-                Highlights = highlights,
-                PolicyModeLabel = policyOutcome != null ? FormatModeLabel(policyOutcome.Mode) : "Not applied",
-                ExitCodeLabel = policyOutcome?.RecommendedExitCode.ToString() ?? "1",
-                VerdictLabel = verdictLabel,
-                TotalSignalCount = totalSignalCount,
-                UnsuppressedSignalCount = unsuppressedSignalCount,
-                BlockingSignalCount = blockingSignalCount,
-                SuppressedSignalCount = suppressedSignalCount
-            };
-        }
-
         return new ValidationHtmlReleaseDecision
         {
-            Eyebrow = "Release Decision",
-            Title = "Release gate satisfied with documented follow-up",
-            Summary = "Core release criteria passed. Remaining notes are advisory and should be scheduled according to the domain summaries below.",
-            Tone = HtmlReportTone.Info,
-            Highlights = highlights,
-            PolicyModeLabel = policyOutcome != null ? FormatModeLabel(policyOutcome.Mode) : "Not applied",
-            ExitCodeLabel = policyOutcome?.RecommendedExitCode.ToString() ?? "0",
-            VerdictLabel = verdictLabel,
-            TotalSignalCount = totalSignalCount,
-            UnsuppressedSignalCount = unsuppressedSignalCount,
-            BlockingSignalCount = blockingSignalCount,
-            SuppressedSignalCount = suppressedSignalCount
+            Eyebrow = "Assurance Decision",
+            Title = eligible ? "Selected assurance profile satisfied" : "Selected assurance profile is not satisfied",
+            Summary = assurance.CertificateEligibility.Reasons.Count == 0
+                ? "All requirements for the selected assurance profile are satisfied."
+                : string.Join(" ", assurance.CertificateEligibility.Reasons.Take(3)),
+            Tone = ResolveReleaseTone(result),
+            Highlights = assuranceHighlights,
+            PolicyModeLabel = assurance.Profile.ProfileId,
+            ExitCodeLabel = exitCode.ToString(),
+            VerdictLabel = assurance.CertificateEligibility.Status.ToString(),
+            TotalSignalCount = assurance.Claims.Count,
+            UnsuppressedSignalCount = assurance.Claims.Count(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)),
+            BlockingSignalCount = assurance.Claims.Count(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error),
+            SuppressedSignalCount = result.PolicyOutcome?.SuppressedSignalCount ?? 0
         };
     }
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildOverviewMetrics(ValidationResult result)
     {
-        var evidenceSummary = ResolveEvidenceSummary(result);
-
-        if (result.VerdictAssessment != null)
-        {
-            var verdictCards = new List<ValidationHtmlMetricCard>
-            {
-                CreateVerdictCard("Baseline Verdict", result.VerdictAssessment.BaselineVerdict, "Authoritative release gate"),
-                CreateVerdictCard("Protocol Verdict", result.VerdictAssessment.ProtocolVerdict, "Protocol correctness and contract integrity"),
-                CreateVerdictCard("Coverage Verdict", result.VerdictAssessment.CoverageVerdict, "Evidence completeness across enabled checks"),
-                new()
-                {
-                    Eyebrow = "Benchmark",
-                    Value = $"{result.ComplianceScore:F1}%",
-                    Label = "Compliance Score",
-                    SupportingText = "Descriptive benchmarking signal",
-                    Tone = MapScoreTone(result.ComplianceScore)
-                }
-            };
-
-            if (evidenceSummary.TotalDeclarations > 0)
-            {
-                verdictCards.Add(new ValidationHtmlMetricCard
-                {
-                    Eyebrow = "Evidence",
-                    Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
-                    Label = "Evidence Confidence",
-                    SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
-                    Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
-                });
-            }
-
-            if (result.TrustAssessment != null)
-            {
-                verdictCards.Add(new ValidationHtmlMetricCard
-                {
-                    Eyebrow = "Benchmark",
-                    Value = result.TrustAssessment.TrustLabel.Split(':', 2)[0],
-                    Label = "Trust Profile",
-                    SupportingText = result.TrustAssessment.TrustLabel,
-                    Tone = ResolveTrustTone(result.TrustAssessment)
-                });
-            }
-
-            AppendOperationalMetricCards(verdictCards, result.Run.OperationalMetrics);
-
-            return verdictCards;
-        }
-
+        var assurance = result.Assurance;
         var cards = new List<ValidationHtmlMetricCard>
         {
             new()
             {
-                Eyebrow = "Outcome",
-                Value = $"{result.ComplianceScore:F1}%",
-                Label = "Compliance Score",
-                SupportingText = GetScoreNarrative(result.ComplianceScore),
-                Tone = MapScoreTone(result.ComplianceScore)
+                Eyebrow = "Certificate",
+                Value = assurance.CertificateEligibility.Status.ToString(),
+                Label = "Eligibility",
+                SupportingText = $"Profile: {assurance.Profile.ProfileId}",
+                Tone = ResolveReleaseTone(result)
             },
             new()
             {
-                Eyebrow = "Coverage",
-                Value = $"{result.Summary.PassRate:F1}%",
-                Label = "Pass Rate",
-                SupportingText = $"{result.Summary.PassedTests}/{result.Summary.TotalTests} checks passed",
-                Tone = MapScoreTone(result.Summary.PassRate)
+                Eyebrow = "Core",
+                Value = assurance.Assessments.CoreConformance.Status.ToString(),
+                Label = "Conformance",
+                SupportingText = $"{assurance.Assessments.CoreConformance.SatisfiedRequiredClaims}/{assurance.Assessments.CoreConformance.RequiredClaims} required claims satisfied",
+                Tone = MapCoreTone(assurance.Assessments.CoreConformance.Status)
             },
             new()
             {
-                Eyebrow = "Trust",
-                Value = result.TrustAssessment != null ? BuildTrustLevelValue(result.TrustAssessment) : "Not available",
-                Label = "Trust Level",
-                SupportingText = BuildTrustLevelDetail(result.TrustAssessment),
-                Tone = ResolveTrustTone(result.TrustAssessment)
-            }
-        };
-
-        if (result.Summary.CoverageRatio > 0)
-        {
-            cards.Add(new ValidationHtmlMetricCard
+                Eyebrow = "Security",
+                Value = assurance.Assessments.SecurityAssurance.Status.ToString(),
+                Label = "Assurance",
+                SupportingText = $"{assurance.Assessments.SecurityAssurance.DeterministicControlClaims} deterministic control claim(s)",
+                Tone = MapSecurityTone(assurance.Assessments.SecurityAssurance.Status)
+            },
+            new()
             {
-                Eyebrow = "Coverage",
-                Value = $"{result.Summary.CoverageRatio * 100:F1}%",
-                Label = "Rule Coverage",
-                SupportingText = "Collected evidence coverage across enabled checks",
-                Tone = MapScoreTone(result.Summary.CoverageRatio * 100)
-            });
-        }
-
-        if (evidenceSummary.TotalDeclarations > 0)
-        {
-            cards.Add(new ValidationHtmlMetricCard
+                Eyebrow = "Operations",
+                Value = assurance.Assessments.OperationalReadiness.Status.ToString(),
+                Label = "Readiness",
+                SupportingText = $"{assurance.Assessments.OperationalReadiness.ObjectiveClaims} objective claim(s)",
+                Tone = MapOperationsTone(assurance.Assessments.OperationalReadiness.Status)
+            },
+            new()
             {
                 Eyebrow = "Evidence",
-                Value = $"{evidenceSummary.EvidenceConfidenceRatio * 100:F1}%",
-                Label = "Evidence Confidence",
-                SupportingText = $"{evidenceSummary.ConfidenceLevel}; coverage {evidenceSummary.EvidenceCoverageRatio * 100:F1}%",
-                Tone = MapScoreTone(evidenceSummary.EvidenceConfidenceRatio * 100)
-            });
-        }
+                Value = $"{assurance.EvidenceSummary.EvidenceCoverageRatio:P1}",
+                Label = "Coverage",
+                SupportingText = $"{assurance.EvidenceSummary.EvidenceConfidenceRatio:P1} confidence",
+                Tone = MapScoreTone(assurance.EvidenceSummary.EvidenceCoverageRatio * 100)
+            }
+        };
 
         AppendOperationalMetricCards(cards, result.Run.OperationalMetrics);
 
@@ -372,23 +265,41 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildRiskMetrics(ValidationResult result)
     {
-        if (result.TrustAssessment != null)
-        {
-            return new List<ValidationHtmlMetricCard>
-            {
-                CreateRiskCard("Protocol", result.TrustAssessment.ProtocolCompliance, "Specification adherence and response structure"),
-                CreateRiskCard("Security", result.TrustAssessment.SecurityPosture, "Authentication boundaries and exploit resistance"),
-                CreateRiskCard("AI Safety", result.TrustAssessment.AiSafety, "Schema quality and agent safety posture"),
-                CreateRiskCard("Operations", result.TrustAssessment.OperationalReadiness, "Latency, throughput, and stability")
-            };
-        }
-
+        var claims = result.Assurance.Claims;
         return new List<ValidationHtmlMetricCard>
         {
-            CreateRiskCard("Protocol", result.ProtocolCompliance?.ComplianceScore ?? 0, "Specification adherence and response structure"),
-            CreateRiskCard("Security", result.SecurityTesting?.SecurityScore ?? 0, "Authentication boundaries and exploit resistance"),
-            CreateRiskCard("Tools", result.ToolValidation?.Score ?? 0, "Contract quality and execution evidence"),
-            CreateRiskCard("Performance", result.PerformanceTesting?.Score ?? 0, "Latency, throughput, and stability")
+            new()
+            {
+                Eyebrow = "Claims",
+                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.Violated).ToString(),
+                Label = "Violated",
+                SupportingText = "Deterministic claim failures",
+                Tone = HtmlReportTone.Danger
+            },
+            new()
+            {
+                Eyebrow = "Claims",
+                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.ReviewRequired).ToString(),
+                Label = "Review Required",
+                SupportingText = "Claims requiring human review",
+                Tone = HtmlReportTone.Warning
+            },
+            new()
+            {
+                Eyebrow = "Claims",
+                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.Incomplete).ToString(),
+                Label = "Incomplete",
+                SupportingText = "Applicable claims lacking evidence",
+                Tone = HtmlReportTone.Warning
+            },
+            new()
+            {
+                Eyebrow = "Claims",
+                Value = claims.Count.ToString(),
+                Label = "Total",
+                SupportingText = "All projected assurance claims",
+                Tone = HtmlReportTone.Info
+            }
         };
     }
 
@@ -396,12 +307,32 @@ internal sealed class ValidationHtmlReportDocumentFactory
     {
         return new List<ValidationHtmlDomainSummary>
         {
-            BuildProtocolDomainSummary(result),
-            BuildSecurityDomainSummary(result),
-            BuildAiSafetyDomainSummary(result),
-            BuildOperationsDomainSummary(result),
+            BuildAssuranceDomainSummary(result, AssuranceDimension.CoreProtocol, "Core Conformance", result.Assurance.Assessments.CoreConformance.Status.ToString(), MapCoreTone(result.Assurance.Assessments.CoreConformance.Status)),
+            BuildAssuranceDomainSummary(result, AssuranceDimension.Security, "Security Assurance", result.Assurance.Assessments.SecurityAssurance.Status.ToString(), MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status)),
+            BuildAssuranceDomainSummary(result, AssuranceDimension.Operations, "Operational Readiness", result.Assurance.Assessments.OperationalReadiness.Status.ToString(), MapOperationsTone(result.Assurance.Assessments.OperationalReadiness.Status)),
             BuildCompatibilityDomainSummary(result),
             BuildCoverageDomainSummary(result)
+        };
+    }
+
+    private static ValidationHtmlDomainSummary BuildAssuranceDomainSummary(
+        ValidationResult result,
+        AssuranceDimension dimension,
+        string domain,
+        string status,
+        HtmlReportTone tone)
+    {
+        var claims = result.Assurance.Claims.Where(claim => claim.Dimension == dimension).ToList();
+        var nonSuccess = claims.Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)).ToList();
+        return new ValidationHtmlDomainSummary
+        {
+            Domain = domain,
+            StatusLabel = status,
+            SignalLabel = $"{nonSuccess.Count} non-success claim(s)",
+            EvidenceLabel = $"{claims.Count} applicable/projected claim(s)",
+            Summary = nonSuccess.FirstOrDefault()?.Summary ?? "No non-success claims were projected for this dimension.",
+            ActionLabel = nonSuccess.FirstOrDefault()?.Remediation ?? "Preserve evidence and monitor for drift.",
+            Tone = tone
         };
     }
 
@@ -830,34 +761,12 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static string BuildHeroSubtitle(ValidationResult result)
     {
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
+        if (result.Assurance.CertificateEligibility.Reasons.Count > 0)
         {
-            var modeLabel = FormatModeLabel(policyOutcome.Mode);
-            var blockingSignalCount = ResolveBlockingSignalCount(result);
-            var unsuppressedSignalCount = ResolveUnsuppressedSignalCount(result);
-            var totalSignalCount = ResolveTotalSignalCount(result);
-
-            return policyOutcome.SuppressedSignalCount > 0
-                ? $"{modeLabel} policy blocked release readiness with {blockingSignalCount} blocking signal(s); {policyOutcome.SuppressedSignalCount} signal(s) were suppressed from {totalSignalCount} evaluated."
-                : $"{modeLabel} policy blocked release readiness with {blockingSignalCount} blocking signal(s) across {unsuppressedSignalCount} unsuppressed signal(s).";
+            return string.Join(" ", result.Assurance.CertificateEligibility.Reasons.Take(2));
         }
 
-        if (result.CriticalErrors.Count > 0)
-        {
-            return $"Review {result.CriticalErrors.Count} critical signal(s) before adoption.";
-        }
-
-        if (result.VerdictAssessment != null)
-        {
-            return result.VerdictAssessment.Summary;
-        }
-
-        if (result.TrustAssessment != null)
-        {
-            return "Protocol, security, AI safety, and operational evidence are summarized below.";
-        }
-
-        return "Review the summarized validation evidence before adoption.";
+        return "All requirements for the selected assurance profile are satisfied.";
     }
 
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult validationResult)
@@ -1013,27 +922,39 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static string ResolveReleaseStatusLabel(ValidationResult result)
     {
-        return result.PolicyOutcome is { Passed: false }
-            ? "Hold Release"
-            : result.OverallStatus == ValidationStatus.Passed
-                ? "Proceed"
-                : "Review Before Release";
+        return result.Assurance.CertificateEligibility.Status.ToString();
     }
 
     private static HtmlReportTone ResolveReleaseTone(ValidationResult result)
     {
-        if (result.PolicyOutcome is { Passed: false })
+        return result.Assurance.CertificateEligibility.Status switch
         {
-            return HtmlReportTone.Danger;
-        }
-
-        return result.OverallStatus switch
-        {
-            ValidationStatus.Passed => HtmlReportTone.Success,
-            ValidationStatus.Failed => HtmlReportTone.Warning,
+            CertificateEligibilityStatus.Eligible => HtmlReportTone.Success,
+            CertificateEligibilityStatus.Ineligible => HtmlReportTone.Danger,
             _ => HtmlReportTone.Warning
         };
     }
+
+    private static HtmlReportTone MapCoreTone(CoreConformanceStatus status) => status switch
+    {
+        CoreConformanceStatus.Conformant => HtmlReportTone.Success,
+        CoreConformanceStatus.Nonconformant => HtmlReportTone.Danger,
+        _ => HtmlReportTone.Warning
+    };
+
+    private static HtmlReportTone MapSecurityTone(SecurityAssuranceStatus status) => status switch
+    {
+        SecurityAssuranceStatus.Verified => HtmlReportTone.Success,
+        SecurityAssuranceStatus.IssuesFound => HtmlReportTone.Danger,
+        _ => HtmlReportTone.Warning
+    };
+
+    private static HtmlReportTone MapOperationsTone(OperationalReadinessStatus status) => status switch
+    {
+        OperationalReadinessStatus.Ready => HtmlReportTone.Success,
+        OperationalReadinessStatus.NotReady => HtmlReportTone.Danger,
+        _ => HtmlReportTone.Warning
+    };
 
     private static string BuildEvidencePostureLabel(ValidationResult result)
     {

@@ -1,5 +1,6 @@
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Constants;
 using ModelContextProtocol.Protocol;
 
 namespace Mcp.Benchmark.Tests.Fixtures;
@@ -726,6 +727,10 @@ public static class ReportSnapshotTestData
         {
             Mode = ValidationPolicyModes.Strict
         });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            AssuranceProfileCatalog.Provider,
+            new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Standard });
 
         return result;
     }

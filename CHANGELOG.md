@@ -6,6 +6,15 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 2.0.0 - 2026-11-05
+
+### Changed
+
+- **Breaking:** replaced the V1 global score, L1-L5 trust, baseline verdict, and generic overall gate with V2 typed claims, independent core/security/operations assessments, assurance profiles, explicit certificate eligibility, and stable incomplete-evidence exit semantics.
+- **Breaking:** canonical validation artifacts now use document type `mcpval.assurance-result` and schema version `2.0.0`; V1 artifacts are not accepted as V2 baselines or offline report inputs.
+- Added `--assurance inventory|ci|provider` consistently across the CLI, GitHub Action, and local MCP wrapper.
+- Reports and automation now consume the canonical V2 assurance object; SARIF emits actionable non-success claims and JUnit groups claims by assurance dimension.
+
 ### Added
 
 - Added bounded import of pinned official MCP conformance evidence with runner, package, requirement-set, scenario, target, and wrapper digest verification; contradictory native evidence produces a separate `EvidenceConflict` review decision.

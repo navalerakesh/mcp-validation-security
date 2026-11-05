@@ -275,6 +275,7 @@ public sealed class ValidationAssessmentDocument
 {
     public ComplianceTestResult? ProtocolCompliance { get; set; }
 
+    [JsonIgnore]
     public VerdictAssessment? VerdictAssessment { get; set; }
 
     public ToolTestResult? ToolValidation { get; set; }

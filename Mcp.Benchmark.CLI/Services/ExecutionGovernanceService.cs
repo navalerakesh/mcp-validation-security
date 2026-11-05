@@ -138,11 +138,12 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             ExecutedChecks = result == null ? Array.Empty<string>() : CollectExecutedChecks(result),
             ArtifactPaths = artifactPaths.Select(Path.GetFileName).Where(path => !string.IsNullOrWhiteSpace(path)).Cast<string>().ToArray(),
             Digests = BuildDigests(plan, result, artifactPaths),
-            EvidenceCompleteness = result?.VerdictAssessment?.EvidenceSummary,
-            OverallStatus = result?.OverallStatus,
-            BaselineVerdict = result?.VerdictAssessment?.BaselineVerdict,
-            ProtocolVerdict = result?.VerdictAssessment?.ProtocolVerdict,
-            CoverageVerdict = result?.VerdictAssessment?.CoverageVerdict
+            EvidenceCompleteness = result?.Assurance.EvidenceSummary,
+            AssuranceProfile = result?.Assurance.Profile.ProfileId ?? "inventory",
+            CoreConformance = result?.Assurance.Assessments.CoreConformance.Status ?? CoreConformanceStatus.Incomplete,
+            SecurityAssurance = result?.Assurance.Assessments.SecurityAssurance.Status ?? SecurityAssuranceStatus.Incomplete,
+            OperationalReadiness = result?.Assurance.Assessments.OperationalReadiness.Status ?? OperationalReadinessStatus.Incomplete,
+            CertificateEligibility = result?.Assurance.CertificateEligibility.Status ?? CertificateEligibilityStatus.Ineligible
         };
     }
 

@@ -100,6 +100,7 @@ public class ValidateCommand
         string? serverProfile = null,
         int? maxConcurrency = null,
         string? policyMode = null,
+        string? assuranceProfile = null,
         string[]? clientProfiles = null,
         string? reportDetail = null,
         string? executionMode = null,
@@ -149,6 +150,7 @@ public class ValidateCommand
             configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride, contentSafetyContextOverride);
             configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
             ApplyPolicyOverride(configuration, policyMode);
+            ApplyAssuranceOverride(configuration, assuranceProfile);
             ApplyClientProfileOverride(configuration, clientProfiles);
             ApplyExtensionOverride(configuration, extensionIds);
             ApplyReportingOverrides(configuration, reportDetail);
@@ -336,6 +338,14 @@ public class ValidateCommand
                     result.ProtocolVersion ?? executionPlan.ResolvedSchemaVersion);
             }
 
+            result.Assurance = AssuranceAssessmentEngine.Evaluate(
+                result,
+                AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
+                new AssuranceEvaluationContext
+                {
+                    ExecutionMode = configuration.Execution.Mode
+                });
+
             result.ValidationConfig = configuration.CloneWithoutSecrets();
 
             var safeConfig = configuration.CloneWithoutSecrets();
@@ -354,6 +364,7 @@ public class ValidateCommand
 
             // Display main results; verbose turns on additional console output via ConsoleOutputService
             _consoleOutput.DisplayValidationResults(result, showDetails: verbose);
+            DisplayAssuranceOutcome(result.Assurance);
             DisplayPolicyOutcome(result.PolicyOutcome);
             DisplayClientCompatibility(result.ClientCompatibility);
 
@@ -397,7 +408,9 @@ public class ValidateCommand
 
             _gitHubActionsReporter.PublishValidationResult(safeResult, artifactPaths);
 
-            Environment.ExitCode = result.PolicyOutcome?.RecommendedExitCode ?? (result.OverallStatus == ValidationStatus.Passed ? 0 : 1);
+            Environment.ExitCode = result.Assurance == null
+                ? result.PolicyOutcome?.RecommendedExitCode ?? (result.OverallStatus == ValidationStatus.Passed ? 0 : 1)
+                : AssuranceExitCodeMapper.Map(result.Assurance, result.PolicyOutcome);
             if (structuredOutput)
             {
                 Console.Out.WriteLine(JsonSerializer.Serialize(
@@ -514,6 +527,21 @@ public class ValidateCommand
         configuration.Policy.Mode = ValidationPolicyEvaluator.NormalizeMode(string.IsNullOrWhiteSpace(policyMode)
             ? configuration.Policy.Mode
             : policyMode);
+    }
+
+    private static void ApplyAssuranceOverride(McpValidatorConfiguration configuration, string? assuranceProfile)
+    {
+        var requestedProfile = string.IsNullOrWhiteSpace(assuranceProfile)
+            ? configuration.Assurance.Profile
+            : assuranceProfile;
+        try
+        {
+            configuration.Assurance.Profile = AssuranceProfileCatalog.Resolve(requestedProfile).ProfileId;
+        }
+        catch (ArgumentException ex)
+        {
+            throw new CliUsageException(ex.Message);
+        }
     }
 
     private static void ApplyClientProfileOverride(McpValidatorConfiguration configuration, string[]? clientProfiles)
@@ -838,6 +866,34 @@ public class ValidateCommand
         }
     }
 
+    private void DisplayAssuranceOutcome(AssuranceEvaluation? assurance)
+    {
+        if (assurance == null)
+        {
+            return;
+        }
+
+        var assessments = assurance.Assessments;
+        var summary = $"Assurance {assurance.Profile.ProfileId.ToUpperInvariant()}: " +
+            $"core={assessments.CoreConformance.Status}, " +
+            $"security={assessments.SecurityAssurance.Status}, " +
+            $"operations={assessments.OperationalReadiness.Status}, " +
+            $"certificate={assurance.CertificateEligibility.Status}.";
+        if (assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Eligible)
+        {
+            _consoleOutput.WriteSuccess(summary);
+        }
+        else
+        {
+            _consoleOutput.WriteWarning(summary);
+        }
+
+        foreach (var reason in assurance.CertificateEligibility.Reasons.Take(3))
+        {
+            _consoleOutput.WriteWarning($"Assurance reason: {reason}");
+        }
+    }
+
     private void DisplayClientCompatibility(ClientCompatibilityReport? compatibilityReport)
     {
         if (compatibilityReport?.Assessments.Count > 0 != true)
@@ -1129,17 +1185,14 @@ public class ValidateCommand
             validationId = result.ValidationId,
             validatorVersion = result.Producer.Version,
             serverEndpoint = result.ServerConfig.Endpoint,
-            complianceScore = result.ComplianceScore,
-            trustLevel = result.TrustAssessment?.TrustLabel,
-            trustLimitedByIncompleteEvidence = result.TrustAssessment?.LimitedByIncompleteEvidence ?? true,
-            unevaluatedDimensions = result.TrustAssessment?.UnevaluatedDimensions ?? [],
-            overallStatus = result.OverallStatus,
-            baselineVerdict = result.VerdictAssessment?.BaselineVerdict,
-            protocolVerdict = result.VerdictAssessment?.ProtocolVerdict,
-            coverageVerdict = result.VerdictAssessment?.CoverageVerdict,
+            assuranceProfile = result.Assurance.Profile.ProfileId,
+            certificateEligibility = result.Assurance.CertificateEligibility.Status,
+            coreConformance = result.Assurance.Assessments.CoreConformance.Status,
+            securityAssurance = result.Assurance.Assessments.SecurityAssurance.Status,
+            operationalReadiness = result.Assurance.Assessments.OperationalReadiness.Status,
             policyPassed = result.PolicyOutcome?.Passed,
             policySummary = result.PolicyOutcome?.Summary,
-            evidenceSummary = result.VerdictAssessment?.EvidenceSummary,
+            evidenceSummary = result.Assurance.EvidenceSummary,
             profileCount = assessments.Count,
             compatibleCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.Compatible),
             warningCount = assessments.Count(a => a.Status == ClientProfileCompatibilityStatus.CompatibleWithWarnings),
@@ -1172,16 +1225,15 @@ public class ValidateCommand
         return new ModelEvaluationInput
         {
             ValidationId = result.ValidationId,
-            BaselineVerdict = result.VerdictAssessment?.BaselineVerdict ?? ValidationVerdict.Unknown,
-            BlockingDecisions = result.VerdictAssessment?.BlockingDecisions
-                .Select(decision => new ModelEvaluationDecisionInput(
-                    decision.DecisionId,
-                    decision.RuleId,
-                    decision.Gate,
-                    decision.Severity,
-                    decision.Category,
-                    decision.Component))
-                .ToArray() ?? Array.Empty<ModelEvaluationDecisionInput>(),
+            AssuranceProfile = result.Assurance.Profile.ProfileId,
+            CoreConformance = result.Assurance.Assessments.CoreConformance.Status,
+            SecurityAssurance = result.Assurance.Assessments.SecurityAssurance.Status,
+            OperationalReadiness = result.Assurance.Assessments.OperationalReadiness.Status,
+            CertificateEligibility = result.Assurance.CertificateEligibility.Status,
+            NonSuccessClaims = result.Assurance.Claims
+                .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+                .Select(claim => new ModelEvaluationClaimInput(claim.ClaimId, claim.Dimension, claim.Authority, claim.Outcome, claim.Subject))
+                .ToArray(),
             ClientProfiles = result.ClientCompatibility?.Assessments
                 .Select(assessment => new ModelEvaluationClientInput(assessment.ProfileId, assessment.Status))
                 .ToArray() ?? Array.Empty<ModelEvaluationClientInput>(),
@@ -1202,8 +1254,8 @@ public class ValidateCommand
     private static void AnnotatePerformanceMeasurementState(JsonObject root, PerformanceTestResult? performance)
     {
         if (performance == null ||
-            root["assessments"] is not JsonObject assessmentsObject ||
-            assessmentsObject["performanceTesting"] is not JsonObject performanceObject)
+            root["measurements"] is not JsonObject measurementsObject ||
+            measurementsObject["performanceTesting"] is not JsonObject performanceObject)
         {
             return;
         }

@@ -21,7 +21,8 @@ public class GitHubActionsReporterTests
 
         summary.Should().Contain("## MCP Validator");
         summary.Should().Contain("strict blocked");
-        summary.Should().Contain("L3: Acceptable");
+        summary.Should().Contain("Assurance Profile");
+        summary.Should().Contain("Certificate Eligibility");
         summary.Should().Contain("Blocking Reasons");
         summary.Should().Contain("Top Findings");
         summary.Should().Contain("Client Profiles");

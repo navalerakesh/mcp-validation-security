@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-provider-harness.schema.json",
+  "title": "MCP Validator Provider Harness Manifest",
+  "type": "object",
+  "required": ["documentType", "documentSchemaVersion", "providerId", "targetIdentitySha256", "protocolRevision", "authorization", "requiredRunCount", "minimumConsistency", "runs"],
+  "properties": {
+    "documentType": { "const": "mcpval.provider-harness" },
+    "documentSchemaVersion": { "const": "1.0.0" },
+    "providerId": { "type": "string", "minLength": 1, "maxLength": 256 },
+    "targetIdentitySha256": { "$ref": "#/$defs/sha256" },
+    "protocolRevision": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "authorization": { "$ref": "#/$defs/authorization" },
+    "requiredRunCount": { "type": "integer", "minimum": 3, "maximum": 20 },
+    "minimumConsistency": { "type": "number", "minimum": 0.99, "maximum": 1 },
+    "runs": { "type": "array", "maxItems": 20, "items": { "$ref": "#/$defs/run" } }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "authorization": {
+      "type": "object",
+      "required": ["grantId", "authority", "targetIdentitySha256", "validFromUtc", "expiresAtUtc", "allowedExecutionModes", "allowedProbeClasses", "grantDocumentSha256", "verificationStatus"],
+      "properties": {
+        "grantId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "authority": { "type": "string", "minLength": 1, "maxLength": 512 },
+        "targetIdentitySha256": { "$ref": "#/$defs/sha256" },
+        "validFromUtc": { "type": "string", "format": "date-time" },
+        "expiresAtUtc": { "type": "string", "format": "date-time" },
+        "allowedExecutionModes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["safe", "standard", "elevated"] }
+        },
+        "allowedProbeClasses": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 64,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 256 }
+        },
+        "grantDocumentSha256": { "$ref": "#/$defs/sha256" },
+        "verificationStatus": { "enum": ["verified", "unverified", "invalid"] }
+      },
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": ["runId", "resultSha256", "executionPlanSha256", "startedAtUtc", "endedAtUtc", "coreConformance", "securityAssurance", "operationalReadiness", "nonSuccessClaimIds"],
+      "properties": {
+        "runId": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "resultSha256": { "$ref": "#/$defs/sha256" },
+        "executionPlanSha256": { "$ref": "#/$defs/sha256" },
+        "startedAtUtc": { "type": "string", "format": "date-time" },
+        "endedAtUtc": { "type": "string", "format": "date-time" },
+        "coreConformance": { "enum": ["conformant", "nonconformant", "incomplete"] },
+        "securityAssurance": { "enum": ["verified", "issuesFound", "incomplete"] },
+        "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },
+        "nonSuccessClaimIds": {
+          "type": "array",
+          "maxItems": 4096,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

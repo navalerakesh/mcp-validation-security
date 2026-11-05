@@ -36,6 +36,7 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
 
   const args: string[] = [];
   if (input.policy) args.push("--policy", input.policy);
+  if (input.assurance) args.push("--assurance", input.assurance);
   if (input.mcpspec) args.push("--mcpspec", input.mcpspec);
   if (input.protocolEra) args.push("--protocol-era", input.protocolEra);
   if (input.reportDetail) args.push("--report-detail", input.reportDetail);
@@ -257,29 +258,27 @@ function mapAccessProfile(access: "public" | "authenticated" | "enterprise" | "u
 function formatValidationResult(json: Record<string, unknown>): string {
   const lines: string[] = [];
 
-  const score = json.complianceScore ?? json.ComplianceScore;
-  const status = json.overallStatus ?? json.OverallStatus;
-  const trust = json.trustAssessment as Record<string, unknown> | undefined;
+  const assurance = (json.assurance ?? json.Assurance) as Record<string, unknown> | undefined;
+  const profile = assurance?.profile as Record<string, unknown> | undefined;
+  const assessments = assurance?.assessments as Record<string, unknown> | undefined;
+  const core = assessments?.coreConformance as Record<string, unknown> | undefined;
+  const security = assessments?.securityAssurance as Record<string, unknown> | undefined;
+  const operations = assessments?.operationalReadiness as Record<string, unknown> | undefined;
+  const certificate = assurance?.certificateEligibility as Record<string, unknown> | undefined;
+  const evidence = assurance?.evidenceSummary as Record<string, unknown> | undefined;
   const recommendations = json.recommendations as unknown[] | undefined;
   const summary = json.summary as Record<string, unknown> | undefined;
-  const assessments = (json.assessments ?? json.Assessments) as Record<string, unknown> | undefined;
-  const verdict = (assessments?.verdictAssessment ?? assessments?.VerdictAssessment) as Record<string, unknown> | undefined;
 
-  lines.push(`Status: ${status}`);
-  lines.push(`Compliance Score: ${score}%`);
-
-  if (verdict) {
-    lines.push(`Baseline Verdict: ${verdict.baselineVerdict ?? verdict.BaselineVerdict}`);
-    lines.push(`Protocol Verdict: ${verdict.protocolVerdict ?? verdict.ProtocolVerdict}`);
-    lines.push(`Coverage Verdict: ${verdict.coverageVerdict ?? verdict.CoverageVerdict}`);
-  }
-
-  if (trust) {
-    lines.push(`Trust Level: ${trust.trustLabel ?? trust.TrustLabel}`);
-    lines.push(`  Protocol: ${trust.protocolCompliance ?? trust.ProtocolCompliance}%`);
-    lines.push(`  Security: ${trust.securityPosture ?? trust.SecurityPosture}%`);
-    lines.push(`  AI Safety: ${trust.aiSafety ?? trust.AiSafety}%`);
-    lines.push(`  Operations: ${trust.operationalReadiness ?? trust.OperationalReadiness}%`);
+  if (assurance) {
+    lines.push(`Assurance Profile: ${profile?.profileId ?? "unknown"}`);
+    lines.push(`Certificate Eligibility: ${certificate?.status ?? "unknown"}`);
+    lines.push(`Core Conformance: ${core?.status ?? "unknown"}`);
+    lines.push(`Security Assurance: ${security?.status ?? "unknown"}`);
+    lines.push(`Operational Readiness: ${operations?.status ?? "unknown"}`);
+    lines.push(`Evidence Coverage: ${formatRatio(evidence?.evidenceCoverageRatio)}`);
+    lines.push(`Evidence Confidence: ${formatRatio(evidence?.evidenceConfidenceRatio)}`);
+  } else {
+    lines.push("Assurance: unavailable (result is not a V2 assurance artifact)");
   }
 
   if (summary) {
@@ -297,4 +296,10 @@ function formatValidationResult(json: Record<string, unknown>): string {
   }
 
   return lines.join("\n");
+}
+
+function formatRatio(value: unknown): string {
+  return typeof value === "number" && Number.isFinite(value)
+    ? `${(value * 100).toFixed(1)}%`
+    : "unknown";
 }

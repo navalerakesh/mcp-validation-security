@@ -64,8 +64,8 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | MCP Skills | Beta Preview catalog, manifest, URI, collision, digest/size, and risk-bearing frontmatter checks; explicitly authorized bounded SKILL.md integrity/frontmatter/content analysis |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
-| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML reports open with Run Status, Deterministic Verdict, and Trust Level decision cards. |
-| CI gating | Advisory, balanced, and strict policy modes with structured policy outcomes |
+| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML reports open with Certificate Eligibility, Core Conformance, and Security Assurance. |
+| CI gating | Inventory, CI, and provider assurance profiles plus advisory, balanced, and strict host policy modes; exit `2` distinguishes incomplete evidence from deterministic failure |
 
 ## Execution Modes
 

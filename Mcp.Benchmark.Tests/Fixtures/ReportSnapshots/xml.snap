@@ -1,6 +1,6 @@
 <ValidationReport>
   <Report>
-    <Title>MCP Server Validation Report</Title>
+    <Title>MCP Server Assurance Report</Title>
     <GeneratedAt><normalized-timestamp></GeneratedAt>
     <ValidationId>validation-snapshot-001</ValidationId>
   </Report>
@@ -8,215 +8,97 @@
     <Endpoint>https://snapshot.example.test/mcp</Endpoint>
     <Transport>http</Transport>
   </Server>
-  <Results>
-    <OverallStatus>Failed</OverallStatus>
-    <ComplianceScore>81.4</ComplianceScore>
+  <Assurance>
+    <Profile>provider</Profile>
+    <CertificateEligibility>Ineligible</CertificateEligibility>
+    <CoreConformance>Nonconformant</CoreConformance>
+    <SecurityAssurance>Incomplete</SecurityAssurance>
+    <OperationalReadiness>NotReady</OperationalReadiness>
+    <EvidenceCoverageRatio>0.8750</EvidenceCoverageRatio>
+    <EvidenceConfidenceRatio>0.9188</EvidenceConfidenceRatio>
     <DurationSeconds>12.0</DurationSeconds>
     <StartTime>2026-04-20T10:00:00Z</StartTime>
     <EndTime>2026-04-20T10:00:12Z</EndTime>
-  </Results>
-  <Verdicts>
-    <BaselineVerdict>Reject</BaselineVerdict>
-    <ProtocolVerdict>Reject</ProtocolVerdict>
-    <CoverageVerdict>ReviewRequired</CoverageVerdict>
-    <Summary>Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.</Summary>
-    <BlockingDecisionCount>8</BlockingDecisionCount>
-    <BlockingDecisions>
-      <Decision id="baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" gate="Reject" authority="spec" authorityPriority="0" origin="DeterministicObservation" severity="High">
-        <Category>Initialization</Category>
-        <Component>Initialization</Component>
-        <Summary>Server ignored the requested MCP protocol version.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" kind="protocol-violation">
-            <Summary>Server ignored the requested MCP protocol version.</Summary>
-            <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
-            <Remediation>Echo the negotiated protocol version in initialize.result.</Remediation>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.INIT.VERSION_NEGOTIATION</RuleId>
-        <SpecReference>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</SpecReference>
-      </Decision>
-      <Decision id="baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" gate="ReviewRequired" authority="spec" authorityPriority="0" origin="DeterministicObservation" severity="Medium">
-        <Category>ProtocolCompliance</Category>
-        <Component>tools/call</Component>
-        <Summary>One tool response omitted the outer result object.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" kind="structured-finding">
-            <Summary>One tool response omitted the outer result object.</Summary>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</RuleId>
-      </Decision>
-      <Decision id="baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" gate="ReviewRequired" authority="guideline" authorityPriority="1" origin="HeuristicInference" severity="High">
-        <Category>McpGuideline</Category>
-        <Component>delete_repo</Component>
-        <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint</EvidenceId>
-          <EvidenceId>obs-tool-delete-repo</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" kind="structured-finding">
-            <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
-          </EvidenceReference>
-          <EvidenceReference id="obs-tool-delete-repo" kind="tool-metadata">
-            <Summary>tool-surface/delete_repo</Summary>
-            <RedactedPayloadPreview>Tool metadata missing annotations.destructiveHint.</RedactedPayloadPreview>
-            <Metadata>
-              <Entry key="displayTitle">Delete Repository</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</RuleId>
-      </Decision>
-      <Decision id="baseline:security:mcp-security-prompt-injection:prompt-get" gate="Reject" authority="heuristic" authorityPriority="2" origin="DeterministicObservation" severity="Critical">
-        <Category>PromptInjection</Category>
-        <Component>prompt:get</Component>
-        <Summary>Server reflected untrusted prompt content without sanitization.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization</EvidenceId>
-          <EvidenceId>probe:probe-prompt-get-reflection-200</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization" kind="security-vulnerability">
-            <Summary>Prompt injection reflection</Summary>
-            <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
-            <Metadata>
-              <Entry key="category">PromptInjection</Entry>
-              <Entry key="affectedComponent">prompt:get</Entry>
-              <Entry key="severity">Critical</Entry>
-              <Entry key="isExploitable">True</Entry>
-            </Metadata>
-          </EvidenceReference>
-          <EvidenceReference id="probe:probe-prompt-get-reflection-200" kind="probe-context">
-            <Summary>prompts/get -&gt; Success</Summary>
-            <RedactedPayloadPreview>Prompt response reflected untrusted content.</RedactedPayloadPreview>
-            <Metadata>
-              <Entry key="requestId"></Entry>
-              <Entry key="method">prompts/get</Entry>
-              <Entry key="transport">http</Entry>
-              <Entry key="protocolVersion">2025-11-25</Entry>
-              <Entry key="authApplied">True</Entry>
-              <Entry key="authScheme"></Entry>
-              <Entry key="authStatus">Applied</Entry>
-              <Entry key="responseClassification">Success</Entry>
-              <Entry key="confidence">High</Entry>
-              <Entry key="statusCode">200</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.SECURITY.PROMPT_INJECTION</RuleId>
-      </Decision>
-      <Decision id="baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" gate="Reject" authority="heuristic" authorityPriority="2" origin="HeuristicInference" severity="Critical">
-        <Category>PromptInjection</Category>
-        <Component>prompt:get</Component>
+    <EligibilityReasons>
+      <Reason>Core conformance is Nonconformant.</Reason>
+      <Reason>Security assurance is Incomplete.</Reason>
+      <Reason>Operational readiness is NotReady.</Reason>
+      <Reason>Evidence coverage 87.5% is below 90.0%.</Reason>
+      <Reason>Verified official conformance evidence is required.</Reason>
+      <Reason>A verified signed attestation is required.</Reason>
+      <Reason>A verified provider harness receipt with target-bound authorization is required.</Reason>
+      <Reason>Repeated-run consistency of at least 99.0% is required.</Reason>
+    </EligibilityReasons>
+    <Claims>
+      <Claim id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>github-copilot-cli,github-copilot-cloud-agent</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:error-handling:error-handling" dimension="Operations" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>error-handling</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:error-handling:error-handling-matrix" dimension="Operations" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>error-handling-matrix</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:prompt-surface:prompts-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Incomplete" confidence="None">
+        <Subject>prompts/list</Subject>
+        <Summary>Server does not advertise prompts capability.</Summary>
+      </Claim>
+      <Claim id="coverage:protocol-core:json-rpc" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>json-rpc</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:security-boundaries:security-authentication-challenge" dimension="Security" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>security-authentication-challenge</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:tool-surface:tool-catalog-smoke" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>tool-catalog-smoke</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="coverage:tool-surface:tools-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+        <Subject>tools/list</Subject>
+        <Summary>Coverage outcome: Succeeded.</Summary>
+      </Claim>
+      <Claim id="decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" dimension="Security" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+        <Subject>prompt:get</Subject>
         <Summary>Prompt output includes reflected untrusted content.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" kind="ai-boundary-finding">
-            <Summary>Prompt output includes reflected untrusted content.</Summary>
-            <Remediation>Sanitize or clearly label untrusted data.</Remediation>
-            <Metadata>
-              <Entry key="category">PromptInjection</Entry>
-              <Entry key="component">prompt:get</Entry>
-              <Entry key="severity">Critical</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.AI.BOUNDARY.PromptInjection</RuleId>
-      </Decision>
-      <Decision id="baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" gate="ReviewRequired" authority="heuristic" authorityPriority="2" origin="HeuristicInference" severity="Medium">
-        <Category>AiReadiness</Category>
-        <Component>delete_repo</Component>
-        <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions</EvidenceId>
-          <EvidenceId>obs-tool-delete-repo</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" kind="structured-finding">
-            <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
-          </EvidenceReference>
-          <EvidenceReference id="obs-tool-delete-repo" kind="tool-metadata">
-            <Summary>tool-surface/delete_repo</Summary>
-            <RedactedPayloadPreview>Tool metadata missing annotations.destructiveHint.</RedactedPayloadPreview>
-            <Metadata>
-              <Entry key="displayTitle">Delete Repository</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</RuleId>
-      </Decision>
-      <Decision id="coverage:prompt-surface:prompts-list:Skipped" gate="CoverageDebt" authority="heuristic" authorityPriority="2" origin="DeterministicAggregation" severity="Medium">
-        <Category>Coverage</Category>
-        <Component>prompt-surface</Component>
-        <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>coverage:prompt-surface:prompts-list:Skipped</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="coverage:prompt-surface:prompts-list:Skipped" kind="coverage-declaration">
-            <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
-            <RedactedPayloadPreview>Server does not advertise prompts capability.</RedactedPayloadPreview>
-            <Metadata>
-              <Entry key="layerId">prompt-surface</Entry>
-              <Entry key="scope">prompts/list</Entry>
-              <Entry key="status">Skipped</Entry>
-              <Entry key="blocker">None</Entry>
-              <Entry key="confidence">None</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.COVERAGE.EVIDENCE_DEBT</RuleId>
-      </Decision>
-      <Decision id="baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" gate="Reject" authority="operational" authorityPriority="3" origin="DeterministicObservation" severity="Critical">
-        <Category>Execution</Category>
-        <Component>validation-run</Component>
+        <Remediation>Sanitize or clearly label untrusted data.</Remediation>
+      </Claim>
+      <Claim id="decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" dimension="Operations" authority="OperationalMeasurement" requirementLevel="OperationalObjective" outcome="Violated" confidence="High">
+        <Subject>validation-run</Subject>
         <Summary>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>execution-error:prompt-validation-hit-an-unsafe-reflection-path</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="execution-error:prompt-validation-hit-an-unsafe-reflection-path" kind="execution-error">
-            <Summary>Critical execution error recorded.</Summary>
-            <RedactedPayloadPreview>Prompt validation hit an unsafe reflection path.</RedactedPayloadPreview>
-          </EvidenceReference>
-        </EvidenceReferences>
-      </Decision>
-    </BlockingDecisions>
-    <CoverageDecisions>
-      <Decision id="coverage:prompt-surface:prompts-list:Skipped" gate="CoverageDebt" authority="heuristic" authorityPriority="2" origin="DeterministicAggregation" severity="Medium">
-        <Category>Coverage</Category>
-        <Component>prompt-surface</Component>
+      </Claim>
+      <Claim id="decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+        <Subject>delete_repo</Subject>
+        <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
+      </Claim>
+      <Claim id="decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+        <Subject>delete_repo</Subject>
+        <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
+      </Claim>
+      <Claim id="decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" dimension="CapabilityContract" authority="OfficialSpecification" requirementLevel="Should" outcome="ReviewRequired" confidence="High">
+        <Subject>tools/call</Subject>
+        <Summary>One tool response omitted the outer result object.</Summary>
+      </Claim>
+      <Claim id="decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" dimension="CapabilityContract" authority="OfficialSpecification" requirementLevel="Must" outcome="Violated" confidence="High">
+        <Subject>Initialization</Subject>
+        <Summary>Server ignored the requested MCP protocol version.</Summary>
+        <Remediation>Echo the negotiated protocol version in initialize.result.</Remediation>
+      </Claim>
+      <Claim id="decision:baseline:security:mcp-security-prompt-injection:prompt-get" dimension="Operations" authority="OperationalMeasurement" requirementLevel="OperationalObjective" outcome="Violated" confidence="High">
+        <Subject>prompt:get</Subject>
+        <Summary>Server reflected untrusted prompt content without sanitization.</Summary>
+        <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
+      </Claim>
+      <Claim id="decision:coverage:prompt-surface:prompts-list:Skipped" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Incomplete" confidence="High">
+        <Subject>prompt-surface</Subject>
         <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
-        <RelatedEvidenceIds>
-          <EvidenceId>coverage:prompt-surface:prompts-list:Skipped</EvidenceId>
-        </RelatedEvidenceIds>
-        <EvidenceReferences>
-          <EvidenceReference id="coverage:prompt-surface:prompts-list:Skipped" kind="coverage-declaration">
-            <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
-            <RedactedPayloadPreview>Server does not advertise prompts capability.</RedactedPayloadPreview>
-            <Metadata>
-              <Entry key="layerId">prompt-surface</Entry>
-              <Entry key="scope">prompts/list</Entry>
-              <Entry key="status">Skipped</Entry>
-              <Entry key="blocker">None</Entry>
-              <Entry key="confidence">None</Entry>
-            </Metadata>
-          </EvidenceReference>
-        </EvidenceReferences>
-        <RuleId>MCP.COVERAGE.EVIDENCE_DEBT</RuleId>
-      </Decision>
-    </CoverageDecisions>
-  </Verdicts>
+      </Claim>
+    </Claims>
+  </Assurance>
   <Summary>
     <TotalTests>7</TotalTests>
     <PassedTests>4</PassedTests>

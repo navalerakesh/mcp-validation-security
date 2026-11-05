@@ -399,9 +399,11 @@ public class ValidationPolicyEvaluatorTests
     public void RegressionOnlyPolicy_WithoutNewBlockers_ShouldPass()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
+            ProfileId = "provider",
+            ProfileRevision = "test",
             IsRegression = false
         };
 
@@ -412,17 +414,16 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
-    public void RegressionOnlyPolicy_WithVerdictDegradationAndStableScore_ShouldBlock()
+    public void RegressionOnlyPolicy_WithAssessmentDegradation_ShouldBlock()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
-            BaselineScore = 80,
-            CurrentScore = 80,
-            ScoreDelta = 0,
-            BaselineVerdictBefore = ValidationVerdict.Trusted,
-            BaselineVerdictAfter = ValidationVerdict.ReviewRequired,
+            ProfileId = "provider",
+            ProfileRevision = "test",
+            CoreConformanceBefore = CoreConformanceStatus.Conformant,
+            CoreConformanceAfter = CoreConformanceStatus.Incomplete,
             IsRegression = true
         };
 
@@ -432,20 +433,22 @@ public class ValidationPolicyEvaluatorTests
         });
 
         outcome.Passed.Should().BeFalse();
-        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("verdict degraded", StringComparison.OrdinalIgnoreCase));
+        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("assessments degraded", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void RegressionOnlyPolicy_WithGovernedWaiver_ShouldSuppressMatchingNewBlocker()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
+            ProfileId = "provider",
+            ProfileRevision = "test",
             IsRegression = true,
-            NewBlockingDecisions =
+            NewNonSuccessClaims =
             [
-                new BaselineDecisionChange("decision:new", "TEST.CRITICAL", "Security", "delete_repo", GateOutcome.Reject)
+                new BaselineClaimChange("TEST.CRITICAL", AssuranceDimension.Security, AssuranceAuthority.DeterministicSecurity, AssuranceClaimOutcome.Violated, "delete_repo")
             ]
         };
         var policy = new ValidationPolicyConfig

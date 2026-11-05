@@ -21,10 +21,11 @@ public class MarkdownReportGenerator : IReportGenerator
         var includeDetailedSections = ShouldIncludeDetailedSections(result);
         var actionHints = ReportActionHintBuilder.Build(result);
         var remediationOrder = RemediationOrderBuilder.Build(result);
-        var evidenceSummary = ResolveEvidenceSummary(result);
+        var evidenceSummary = result.Assurance.EvidenceSummary;
+        var includeLegacyBenchmarkAppendix = false;
 
         // Header
-        sb.AppendLine("# Model Context Protocol (MCP) Server Compliance & Validation Report");
+        sb.AppendLine("# Model Context Protocol (MCP) Assurance Report");
         sb.AppendLine($"**Generated:** {ResolveArtifactTime(result):yyyy-MM-dd HH:mm:ss} UTC");
         sb.AppendLine();
 
@@ -37,28 +38,21 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine("| :--- | :--- |");
         sb.AppendLine($"| **Server Endpoint** | `{EscapeInlineCode(result.ServerConfig.Endpoint)}` |");
         sb.AppendLine($"| **Validation Identifier** | `{result.ValidationId}` |");
-        sb.AppendLine($"| **Overall Status** | {GetStatusIcon(result.OverallStatus)} **{result.OverallStatus}** |");
-        if (result.VerdictAssessment != null)
-        {
-            sb.AppendLine($"| **Baseline Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** |");
-            sb.AppendLine($"| **Protocol Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** |");
-            sb.AppendLine($"| **Coverage Verdict** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** |");
-        }
-        sb.AppendLine($"| **Compliance Score** | **{result.ComplianceScore:F1}%** |");
+        sb.AppendLine($"| **Assurance Profile** | `{EscapeInlineCode(result.Assurance.Profile.ProfileId)}` |");
+        sb.AppendLine($"| **Certificate Eligibility** | **{result.Assurance.CertificateEligibility.Status}** |");
+        sb.AppendLine($"| **Core Conformance** | **{result.Assurance.Assessments.CoreConformance.Status}** |");
+        sb.AppendLine($"| **Security Assurance** | **{result.Assurance.Assessments.SecurityAssurance.Status}** |");
+        sb.AppendLine($"| **Operational Readiness** | **{result.Assurance.Assessments.OperationalReadiness.Status}** |");
         if (evidenceSummary.TotalDeclarations > 0)
         {
             sb.AppendLine($"| **Evidence Coverage** | **{FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")}** |");
             sb.AppendLine($"| **Evidence Confidence** | **{evidenceSummary.ConfidenceLevel} ({FormatPercent(evidenceSummary.EvidenceConfidenceRatio, "F1")})** |");
         }
-        if (result.BaselineComparison is { } baseline)
-        {
-            sb.AppendLine($"| **Baseline Regression** | **{(baseline.IsRegression ? "Yes" : "No")}** ({baseline.ScoreDelta:+0.##;-0.##;0} points) |");
-        }
         if (result.PolicyOutcome is { } policy)
         {
             sb.AppendLine($"| **Applied Waivers** | **{policy.AppliedWaivers.Count}** |");
         }
-        sb.AppendLine($"| **Compliance Profile** | `{FormatProfileLabel(result)}` |");
+        sb.AppendLine($"| **Specification Profile** | `{FormatProfileLabel(result)}` |");
         sb.AppendLine($"| **Duration** | {result.Duration?.TotalSeconds:F2}s |");
         if (result.Run.OperationalMetrics is { } operations)
         {
@@ -80,7 +74,7 @@ public class MarkdownReportGenerator : IReportGenerator
         {
             sb.AppendLine($"| **MCP Protocol Version (Effective)** | `{result.ProtocolVersion}` |");
         }
-        if (result.TrustAssessment != null)
+        if (includeLegacyBenchmarkAppendix && result.TrustAssessment != null)
         {
             var trustIcon = result.TrustAssessment.TrustLevel switch
             {
@@ -99,6 +93,8 @@ public class MarkdownReportGenerator : IReportGenerator
         }
         sb.AppendLine();
 
+        AppendAssuranceSection(sb, result.Assurance, ref sectionNumber);
+
         AppendOperationalMetricsSection(sb, result.Run.OperationalMetrics, ref sectionNumber);
 
         AppendBootstrapSection(sb, result, bootstrapHealth, ref sectionNumber);
@@ -108,7 +104,7 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
         AppendRemediationOrderSection(sb, remediationOrder, ref sectionNumber);
 
-        if (result.VerdictAssessment != null)
+        if (includeLegacyBenchmarkAppendix && result.VerdictAssessment != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Deterministic Verdicts");
             sb.AppendLine();
@@ -150,7 +146,7 @@ public class MarkdownReportGenerator : IReportGenerator
         }
 
         // Benchmark trust profile (descriptive only)
-        if (result.TrustAssessment != null)
+        if (includeLegacyBenchmarkAppendix && result.TrustAssessment != null)
         {
             sb.AppendLine($"## {sectionNumber++}. Benchmark Trust Profile");
             sb.AppendLine();
@@ -260,7 +256,7 @@ public class MarkdownReportGenerator : IReportGenerator
 
         AppendCapabilitySnapshotSection(sb, result, ref sectionNumber);
 
-        if (includeDetailedSections && result.ScoringNotes?.Any() == true)
+        if (includeLegacyBenchmarkAppendix && includeDetailedSections && result.ScoringNotes?.Any() == true)
         {
             sb.AppendLine($"## {sectionNumber++}. Scoring Methodology");
             sb.AppendLine();
@@ -273,8 +269,10 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine();
         }
 
-        // Compliance Matrix
-        sb.AppendLine($"## {sectionNumber++}. Compliance Matrix");
+        // Raw measurement matrix
+        sb.AppendLine($"## {sectionNumber++}. Measurement Matrix");
+        sb.AppendLine();
+        sb.AppendLine("These category measurements are supporting evidence. They do not replace the independent assurance assessments above.");
         sb.AppendLine();
         sb.AppendLine("| Category | Status | Score | Issues |");
         sb.AppendLine("| :--- | :---: | :---: | :---: |");
@@ -907,6 +905,45 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private static string SanitizeRenderedMarkdown(string value) =>
         value.Replace("<", "&lt;", StringComparison.Ordinal);
+
+    private static void AppendAssuranceSection(
+        StringBuilder sb,
+        AssuranceEvaluation assurance,
+        ref int sectionNumber)
+    {
+        sb.AppendLine($"## {sectionNumber++}. Assurance Decision");
+        sb.AppendLine();
+        foreach (var reason in assurance.CertificateEligibility.Reasons)
+        {
+            sb.AppendLine($"- {EscapeMarkdownText(reason)}");
+        }
+        if (assurance.CertificateEligibility.Reasons.Count == 0)
+        {
+            sb.AppendLine("- All requirements for the selected assurance profile are satisfied.");
+        }
+        sb.AppendLine();
+
+        var nonSuccessClaims = assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+            .OrderBy(claim => claim.Dimension)
+            .ThenBy(claim => claim.ClaimId, StringComparer.Ordinal)
+            .Take(20)
+            .ToList();
+        if (nonSuccessClaims.Count == 0)
+        {
+            return;
+        }
+
+        sb.AppendLine("### Non-Success Claims");
+        sb.AppendLine();
+        sb.AppendLine("| Claim | Dimension | Authority | Outcome | Confidence | Summary |");
+        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- | :--- |");
+        foreach (var claim in nonSuccessClaims)
+        {
+            sb.AppendLine($"| `{EscapeInlineCode(claim.ClaimId)}` | {claim.Dimension} | {claim.Authority} | **{claim.Outcome}** | {claim.Confidence} | {EscapeTableCell(claim.Summary)} |");
+        }
+        sb.AppendLine();
+    }
 
     private static void AppendOperationalMetricsSection(
         StringBuilder sb,

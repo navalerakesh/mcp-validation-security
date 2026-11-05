@@ -1860,9 +1860,9 @@ a:hover {
       <section class="hero">
         <div class="hero-grid">
           <div class="hero-main">
-            <div class="eyebrow">Model Context Protocol (MCP) Validation Report</div>
-            <h1 class="hero-title">Release Hold</h1>
-            <p class="hero-subtitle">Strict policy blocked release readiness with 9 blocking signal(s) across 9 unsuppressed signal(s).</p>
+            <div class="eyebrow">Model Context Protocol (MCP) Assurance Report</div>
+            <h1 class="hero-title">Assurance Requirements Not Met</h1>
+            <p class="hero-subtitle">Core conformance is Nonconformant. Security assurance is Incomplete.</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1893,19 +1893,19 @@ a:hover {
           </div>
           <div class="hero-side">
 <div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Run Status</span>
-    <div class="focus-value">Hold Release</div>
+    <span class="status-chip status-chip--danger">Certificate Eligibility</span>
+    <div class="focus-value">Ineligible</div>
     <div class="focus-label">Generated on <normalized-timestamp></div>
 </div>
 <div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Deterministic Verdict</span>
-    <div class="focus-value">Baseline Reject &#183; Protocol Reject &#183; Coverage Review Required</div>
-    <div class="focus-label">Authoritative gate</div>
+    <span class="status-chip status-chip--danger">Core Conformance</span>
+    <div class="focus-value">Nonconformant</div>
+    <div class="focus-label">Official specification and conformance claims</div>
 </div>
-<div class="panel status-panel panel--soft panel--tone-info">
-    <span class="status-chip status-chip--info">Trust Level</span>
-    <div class="focus-value">Level 3 (L3)</div>
-    <div class="focus-label">Acceptable — Compliant with known limitations</div>
+<div class="panel status-panel panel--soft panel--tone-warning">
+    <span class="status-chip status-chip--warning">Security Assurance</span>
+    <div class="focus-value">Incomplete</div>
+    <div class="focus-label">Operational readiness: NotReady</div>
 </div>
           </div>
         </div>
@@ -1929,12 +1929,16 @@ a:hover {
             <dd>Remediation dependency order: Priority 1 should be addressed first and Priority 4 later. Priority is not severity.</dd>
           </div>
           <div class="reader-key-item">
-            <dt>Trust levels L1-L5</dt>
-            <dd>A descriptive benchmark scale from L1 (untrusted) to L5 (high assurance). It is not a certification and does not override the deterministic verdict.</dd>
+            <dt>Certificate eligibility</dt>
+            <dd>A deterministic decision that states whether every requirement of the selected assurance profile is satisfied.</dd>
           </div>
           <div class="reader-key-item">
-            <dt>Deterministic verdict</dt>
-            <dd>The authoritative gate derived from rule outcomes and evidence coverage; benchmark scores are descriptive only.</dd>
+            <dt>Typed claim</dt>
+            <dd>A conclusion bound to authority, requirement level, applicability, confidence, and immutable evidence references.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Independent assessments</dt>
+            <dd>Core conformance, security assurance, and operational readiness are reduced separately and never averaged into one score.</dd>
           </div>
           <div class="reader-key-item">
             <dt>Authority labels</dt>
@@ -1980,10 +1984,10 @@ a:hover {
               <p class="section-intro section-intro--card">This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Release</div><div class="section-abstract__value">Hold release until blocking signals are resolved</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Blocking</div><div class="section-abstract__value">9</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Policy</div><div class="section-abstract__value">Strict</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Verdict</div><div class="section-abstract__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Review Required</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Selected assurance profile is not satisfied</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Violated</div><div class="section-abstract__value">3</div></div>
+              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profile</div><div class="section-abstract__value">provider</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Certificate</div><div class="section-abstract__value">Ineligible</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -1995,20 +1999,20 @@ a:hover {
 
           <div class="brief-grid">
             <div class="decision-brief decision-brief--tone-danger">
-              <div class="section-kicker">Release Decision</div>
-              <h3 class="decision-title">Hold release until blocking signals are resolved</h3>
-              <p class="decision-summary">Strict policy blocked the validation result with 9 blocking signal(s).</p>
+              <div class="section-kicker">Assurance Decision</div>
+              <h3 class="decision-title">Selected assurance profile is not satisfied</h3>
+              <p class="decision-summary">Core conformance is Nonconformant. Security assurance is Incomplete. Operational readiness is NotReady.</p>
               <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Verdict</div><div class="summary-card__value">Baseline Reject &#183; Protocol Reject &#183; Coverage Review Required</div></div>
-                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">Strict</div></div>
+                <div class="summary-card"><div class="summary-card__label">Certificate</div><div class="summary-card__value">Ineligible</div></div>
+                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">provider</div></div>
                 <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">3</div></div>
               </div>
               <ul class="compact-list">
-                <li>9 blocking signal(s) remain under Strict policy.</li>
-                <li>MCP.INIT.VERSION_NEGOTIATION</li>
-                <li>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</li>
-                <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
+                <li>Core conformance is Nonconformant.</li>
+                <li>Security assurance is Incomplete.</li>
+                <li>Operational readiness is NotReady.</li>
+                <li>Evidence coverage 87.5% is below 90.0%.</li>
               </ul>
             </div>
 
@@ -2037,10 +2041,10 @@ a:hover {
             </div>
           </div>
           <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">16</div></div>
                 <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">9</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">3</div></div>
           </div>
 
           </div>
@@ -2365,10 +2369,10 @@ a:hover {
               <p class="section-intro section-intro--card">Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Baseline Verdict</div><div class="section-abstract__value">Reject</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Protocol Verdict</div><div class="section-abstract__value">Reject</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Coverage Verdict</div><div class="section-abstract__value">Review Required</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Compliance Score</div><div class="section-abstract__value">81.4%</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Eligibility</div><div class="section-abstract__value">Ineligible</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Conformance</div><div class="section-abstract__value">Nonconformant</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Incomplete</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Readiness</div><div class="section-abstract__value">NotReady</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2403,34 +2407,29 @@ a:hover {
 
           <div class="score-strip">
             <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Baseline Verdict</div>
-              <div class="score-pill__value">Reject</div>
-              <div class="score-pill__meta">Authoritative release gate</div>
+              <div class="score-pill__eyebrow">Eligibility</div>
+              <div class="score-pill__value">Ineligible</div>
+              <div class="score-pill__meta">Profile: provider</div>
             </div>
             <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Protocol Verdict</div>
-              <div class="score-pill__value">Reject</div>
-              <div class="score-pill__meta">Protocol correctness and contract integrity</div>
+              <div class="score-pill__eyebrow">Conformance</div>
+              <div class="score-pill__value">Nonconformant</div>
+              <div class="score-pill__meta">0/1 required claims satisfied</div>
             </div>
             <div class="score-pill score-pill--warning">
-              <div class="score-pill__eyebrow">Coverage Verdict</div>
-              <div class="score-pill__value">Review Required</div>
-              <div class="score-pill__meta">Evidence completeness across enabled checks</div>
+              <div class="score-pill__eyebrow">Assurance</div>
+              <div class="score-pill__value">Incomplete</div>
+              <div class="score-pill__meta">0 deterministic control claim(s)</div>
+            </div>
+            <div class="score-pill score-pill--danger">
+              <div class="score-pill__eyebrow">Readiness</div>
+              <div class="score-pill__value">NotReady</div>
+              <div class="score-pill__meta">2 objective claim(s)</div>
             </div>
             <div class="score-pill score-pill--info">
-              <div class="score-pill__eyebrow">Compliance Score</div>
-              <div class="score-pill__value">81.4%</div>
-              <div class="score-pill__meta">Descriptive benchmarking signal</div>
-            </div>
-            <div class="score-pill score-pill--success">
-              <div class="score-pill__eyebrow">Evidence Confidence</div>
-              <div class="score-pill__value">91.9%</div>
-              <div class="score-pill__meta">High; coverage 87.5%</div>
-            </div>
-            <div class="score-pill score-pill--info">
-              <div class="score-pill__eyebrow">Trust Profile</div>
-              <div class="score-pill__value">L3</div>
-              <div class="score-pill__meta">L3: Acceptable — Compliant with known limitations</div>
+              <div class="score-pill__eyebrow">Coverage</div>
+              <div class="score-pill__value">87.5%</div>
+              <div class="score-pill__meta">91.9% confidence</div>
             </div>
           </div>
 
@@ -2439,24 +2438,24 @@ a:hover {
               <thead><tr><th>Domain</th><th>Score</th><th>Reading</th></tr></thead>
               <tbody>
                 <tr>
-                  <td><div class="cell-title">Protocol</div></td>
-                  <td><span class="tone-chip tone-info">84%</span></td>
-                  <td>Specification adherence and response structure</td>
+                  <td><div class="cell-title">Violated</div></td>
+                  <td><span class="tone-chip tone-danger">3</span></td>
+                  <td>Deterministic claim failures</td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Security</div></td>
-                  <td><span class="tone-chip tone-warning">69%</span></td>
-                  <td>Authentication boundaries and exploit resistance</td>
+                  <td><div class="cell-title">Review Required</div></td>
+                  <td><span class="tone-chip tone-warning">4</span></td>
+                  <td>Claims requiring human review</td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">AI Safety</div></td>
-                  <td><span class="tone-chip tone-info">75%</span></td>
-                  <td>Schema quality and agent safety posture</td>
+                  <td><div class="cell-title">Incomplete</div></td>
+                  <td><span class="tone-chip tone-warning">2</span></td>
+                  <td>Applicable claims lacking evidence</td>
                 </tr>
                 <tr>
-                  <td><div class="cell-title">Operations</div></td>
-                  <td><span class="tone-chip tone-success">88%</span></td>
-                  <td>Latency, throughput, and stability</td>
+                  <td><div class="cell-title">Total</div></td>
+                  <td><span class="tone-chip tone-info">16</span></td>
+                  <td>All projected assurance claims</td>
                 </tr>
               </tbody>
             </table>
@@ -2468,36 +2467,28 @@ a:hover {
               <thead><tr><th>Domain</th><th>Status</th><th>Signals</th><th>Evidence</th><th>Interpretation</th><th>Next Action</th></tr></thead>
               <tbody>
                 <tr>
-                  <td data-label="Domain"><div class="cell-title">Protocol</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Reject</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 blocking / 3 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">1 protocol violation(s) &#183; 3/3 error scenarios handled correctly</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server ignored the requested MCP protocol version.</div></td>
-                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Echo the negotiated protocol version in initialize.result.</div></td>
+                  <td data-label="Domain"><div class="cell-title">Core Conformance</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Nonconformant</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">2 non-success claim(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">6 applicable/projected claim(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server does not advertise prompts capability.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Preserve evidence and monitor for drift.</div></td>
                 </tr>
                 <tr>
-                  <td data-label="Domain"><div class="cell-title">Security</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">69%</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">No escalated signals</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">1 vulnerability finding(s) &#183; 1 attack simulation(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">1 security vulnerability finding(s) require remediation.</div></td>
-                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize and label untrusted content before returning it.</div></td>
-                </tr>
-                <tr>
-                  <td data-label="Domain"><div class="cell-title">AI Safety</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">75%</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 blocking / 3 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">1 schema finding(s) &#183; 1 boundary finding(s) &#183; 0 content-safety finding(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server reflected untrusted prompt content without sanitization.</div></td>
+                  <td data-label="Domain"><div class="cell-title">Security Assurance</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Incomplete</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 non-success claim(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">2 applicable/projected claim(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Prompt output includes reflected untrusted content.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize or clearly label untrusted data.</div></td>
                 </tr>
                 <tr>
-                  <td data-label="Domain"><div class="cell-title">Operations</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">88%</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 blocking / 1 total</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">Average 120.5 ms &#183; 95th percentile 210.4 ms &#183; 0.00% errors</div></td>
+                  <td data-label="Domain"><div class="cell-title">Operational Readiness</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">NotReady</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">2 non-success claim(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">4 applicable/projected claim(s)</div></td>
                   <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</div></td>
-                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Preserve evidence and monitor for drift.</div></td>
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Compatibility</div></td>

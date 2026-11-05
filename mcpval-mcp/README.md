@@ -150,13 +150,13 @@ On Windows, use the full path to `mcpval.exe`.
 
 | Tool | Description |
 | --- | --- |
-| `validate` | Validate an MCP server for compliance, security, AI safety, and trust level (L1-L5) |
+| `validate` | Evaluate typed claims, independent assurance assessments, and certificate eligibility for an MCP server |
 | `health_check` | Quick connectivity check — verifies initialize handshake |
 | `discover` | List tools, resources, and prompts exposed by a remote MCP server |
 
 ### Input Highlights
 
-- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `clientProfile`, bounded repeatable `extension` IDs, `reportDetail`, and `verbose`.
+- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `assurance`, `clientProfile`, bounded repeatable `extension` IDs, `reportDetail`, and `verbose`.
 - `health_check`: supports `server`, `access`, `token`, `interactive`, and `protocolEra`.
 - `discover`: supports `server`, `access`, `token`, `interactive`, `protocolEra`, and `format` (`json`, `yaml`, or `table`).
 

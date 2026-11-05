@@ -374,6 +374,13 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             }
             Scoring.McpTrustCalculator.ApplyAuthoritativeVerdictCap(result.TrustAssessment, result.VerdictAssessment);
             result.OverallStatus = ValidationVerdictEngine.DetermineValidationStatus(result.VerdictAssessment);
+            result.Assurance = AssuranceAssessmentEngine.Evaluate(
+                result,
+                AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
+                new AssuranceEvaluationContext
+                {
+                    ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe
+                });
 
             // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
             // protocol version actually negotiated, when that version has an embedded

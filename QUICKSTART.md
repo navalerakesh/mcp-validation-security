@@ -93,13 +93,14 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 
 The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
-Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Run Status, Deterministic Verdict, and Trust Level cards so the gating decision and L1-L5 posture are visible immediately. Use `--report-detail minimal` when you want the executive-only view.
+Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Certificate Eligibility, Core Conformance, and Security Assurance, with operational readiness and evidence completeness visible immediately. Use `--report-detail minimal` when you want the executive-only view.
 
 For regression-only CI gating:
 
 ```bash
 mcpval validate \
   --server https://example.com/mcp \
+  --assurance ci \
   --baseline ./approved-result.json \
   --regression-only \
   --output-format json \
@@ -117,7 +118,7 @@ mcpval validate \
   --output ./mcp-reports
 ```
 
-The wrapper target digest and protocol version must match the validation run. Official checks appear in a separate report lane and never increase the core score or trust level. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit.
+The wrapper target digest and protocol version must match the validation run. Official checks retain their own authority and affect only applicable conformance claims; extensions remain separate. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit.
 
 Advertised Apps and Skills extensions are detected automatically. Explicitly authorize Skills content reads only on a reviewed target:
 

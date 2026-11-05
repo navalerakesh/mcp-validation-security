@@ -112,45 +112,31 @@ public static class ValidationPolicyEvaluator
             return signals;
         }
 
-        foreach (var change in result.BaselineComparison.NewBlockingDecisions)
+        foreach (var change in result.BaselineComparison.NewNonSuccessClaims)
         {
             signals.Add(new PolicySignal(
                 PolicySignalKind.BaselineRegression,
-                "POLICY.BASELINE.NEW_BLOCKER",
-                change.RuleId,
-                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
-                change.Category,
-                change.Component,
-                MapSeverity(change.Gate),
-                $"New blocking decision relative to baseline: {change.DecisionId}.",
+            "POLICY.BASELINE.NEW_CLAIM",
+            change.ClaimId,
+            change.Authority.ToString(),
+            change.Dimension.ToString(),
+            change.Subject,
+            change.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error ? SeverityBand.Critical : SeverityBand.High,
+            $"New non-success assurance claim relative to baseline: {change.ClaimId} ({change.Outcome}).",
                 true));
         }
 
-        if (IsWorseVerdict(result.BaselineComparison.BaselineVerdictAfter, result.BaselineComparison.BaselineVerdictBefore))
+        if (result.BaselineComparison.IsRegression && result.BaselineComparison.NewNonSuccessClaims.Count == 0)
         {
             signals.Add(new PolicySignal(
                 PolicySignalKind.BaselineRegression,
-                "POLICY.BASELINE.VERDICT_DEGRADED",
+            "POLICY.BASELINE.ASSESSMENT_DEGRADED",
                 null,
                 ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
                 "Baseline",
-                "baseline-verdict",
+            "assurance-assessments",
                 SeverityBand.Critical,
-                $"Baseline verdict degraded from {result.BaselineComparison.BaselineVerdictBefore} to {result.BaselineComparison.BaselineVerdictAfter}.",
-                true));
-        }
-
-        if (result.BaselineComparison.ScoreDelta < 0)
-        {
-            signals.Add(new PolicySignal(
-                PolicySignalKind.BaselineRegression,
-                "POLICY.BASELINE.SCORE_DECREASE",
-                null,
-                ValidationRuleSourceClassifier.GetLabel(ValidationRuleSource.Heuristic),
-                "Baseline",
-                "aggregate-score",
-                SeverityBand.High,
-                $"Aggregate score decreased by {Math.Abs(result.BaselineComparison.ScoreDelta).ToString("F2", CultureInfo.InvariantCulture)} point(s).",
+            "One or more independent assurance assessments degraded relative to baseline.",
                 true));
         }
 

@@ -53,10 +53,13 @@ public sealed class GitHubActionsReporter : IGitHubActionsReporter
         var builder = new StringBuilder();
         builder.AppendLine("## MCP Validator");
         builder.AppendLine();
-        builder.AppendLine($"- Status: **{validationResult.OverallStatus}**");
+        builder.AppendLine($"- Assurance Profile: **{validationResult.Assurance.Profile.ProfileId}**");
+        builder.AppendLine($"- Certificate Eligibility: **{validationResult.Assurance.CertificateEligibility.Status}**");
+        builder.AppendLine($"- Core Conformance: **{validationResult.Assurance.Assessments.CoreConformance.Status}**");
+        builder.AppendLine($"- Security Assurance: **{validationResult.Assurance.Assessments.SecurityAssurance.Status}**");
+        builder.AppendLine($"- Operational Readiness: **{validationResult.Assurance.Assessments.OperationalReadiness.Status}**");
+        builder.AppendLine($"- Evidence: **{validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio:P1} coverage / {validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio:P1} confidence**");
         builder.AppendLine($"- Policy: **{FormatPolicy(validationResult.PolicyOutcome)}**");
-        builder.AppendLine($"- Trust: **{FormatTrust(validationResult.TrustAssessment)}**");
-        builder.AppendLine($"- Compliance Score: **{validationResult.ComplianceScore:F1}%**");
         builder.AppendLine($"- Endpoint: `{validationResult.ServerConfig.Endpoint ?? "unknown"}`");
         builder.AppendLine($"- Validation ID: `{validationResult.ValidationId}`");
         builder.AppendLine();
@@ -66,6 +69,17 @@ public sealed class GitHubActionsReporter : IGitHubActionsReporter
             builder.AppendLine("### Blocking Reasons");
             builder.AppendLine();
             foreach (var reason in validationResult.PolicyOutcome.Reasons.Take(5))
+            {
+                builder.AppendLine($"- {reason}");
+            }
+            builder.AppendLine();
+        }
+
+        if (validationResult.Assurance.CertificateEligibility.Reasons.Count > 0)
+        {
+            builder.AppendLine("### Assurance Gaps");
+            builder.AppendLine();
+            foreach (var reason in validationResult.Assurance.CertificateEligibility.Reasons.Take(5))
             {
                 builder.AppendLine($"- {reason}");
             }

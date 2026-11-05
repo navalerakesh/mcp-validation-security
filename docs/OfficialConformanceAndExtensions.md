@@ -1,6 +1,6 @@
 # Official Conformance And Extensions
 
-MCP Validator treats official conformance, MCP core validation, and extension readiness as separate evidence lanes. External or optional evidence never earns core pass credit or increases the core score or trust level.
+MCP Validator treats official conformance, MCP core validation, and extension readiness as separate typed evidence lanes. External or optional evidence never earns unrelated pass credit or changes a neutral assessment outside its applicability.
 
 ## Official Conformance Import
 

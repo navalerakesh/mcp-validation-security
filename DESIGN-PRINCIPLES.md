@@ -21,11 +21,11 @@ When work reveals a correctness, security, privacy, reliability, or product-trut
 
 ## P1: Evidence Before Verdict
 
-Every verdict, score, trust level, policy outcome, and client-profile interpretation MUST derive from typed findings and explicit coverage evidence.
+Every claim, independent assessment, certificate decision, policy outcome, and client-profile interpretation MUST derive from typed findings and explicit coverage evidence.
 
 - Transport failure, authentication required, rate limiting, unavailable capability, unimplemented coverage, and a tested failure are distinct outcomes.
 - Missing or inconclusive evidence MUST NOT be converted into a pass.
-- Deterministic verdicts are the automation gate. Weighted scores and L1-L5 trust levels are summaries for review, not substitutes for blocking findings.
+- Core conformance, security assurance, operational readiness, and certificate eligibility remain independent automation inputs. They MUST NOT be averaged into a global pass score.
 - Model-assisted evaluation remains advisory and in a separate artifact unless it becomes reproducible, versioned, and independently calibrated.
 - Findings MUST include a stable rule ID, authority (`spec`, `guideline`, or `heuristic`), severity, tested scope, evidence, confidence, and remediation.
 
@@ -85,11 +85,11 @@ Each validation run MUST have isolated mutable state.
 
 Validators MUST emit structured findings before rendering.
 
-- Scoring, verdicts, SARIF, Markdown, HTML, JUnit, XML, console output, and client profiles consume the same canonical result.
+- Assurance reducers, SARIF, Markdown, HTML, JUnit, XML, console output, policy, and client profiles consume the same canonical claims and evidence.
 - Business decisions MUST NOT parse human-readable finding text.
 - Renderers MUST NOT contact the target or recompute validation.
 - Report schemas require an explicit schema version and documented compatibility policy.
-- Offline rendering from a saved canonical result MUST preserve verdict and evidence semantics.
+- Offline rendering from a saved canonical result MUST preserve claim, assessment, certificate, and evidence semantics.
 
 ## P6: Determinism And Reproducibility
 
@@ -202,20 +202,20 @@ Cancellation MUST propagate through every network, SDK, validator, report, and s
 - CI regression gates use stable, controlled runners or statistically robust tolerances.
 - The engine MUST support bounded parallel execution across independent targets without shared mutable run state before a hosted multi-tenant service is claimed.
 
-## P17: Scoring And Calibration Are Governed Product Logic
+## P17: Assurance And Calibration Are Governed Product Logic
 
-- Rule weights, hard caps, trust thresholds, and policy gates are versioned and reviewable.
-- Critical protocol or security blockers cannot be averaged away by unrelated passing checks.
+- Claim authority, assessment reducers, certificate thresholds, calibration thresholds, and policy gates are versioned and reviewable.
+- Critical protocol or security failures cannot be averaged away by unrelated passing checks.
 - Heuristics disclose false-positive/false-negative limitations and do not claim exploit confirmation without a discriminating probe.
 - Calibration uses a maintained corpus of compliant, vulnerable, malformed, authenticated, rate-limited, and partially implemented servers.
 - Enterprise release gates SHOULD baseline accepted findings and compare regressions, while preserving raw current findings.
-- Changes to scoring require golden fixtures demonstrating intended movement and protection against score inflation.
+- Changes to claim or assessment behavior require golden fixtures demonstrating intended classification and protection against false pass credit.
 
 ## P18: Reports Are Durable Enterprise Interfaces
 
 - JSON and SARIF are first-class public contracts with schema/version documentation and compatibility tests.
 - Reports include coverage gaps, confidence, policy, tool/rule versions, and enough redacted evidence for independent review.
-- Human reports prioritize deterministic verdict, blocking findings, tested scope, and remediation before weighted summaries.
+- Human reports prioritize certificate eligibility, independent assessments, non-success claims, tested scope, and remediation.
 - Artifact filenames are collision-resistant. Writes are atomic, and output paths stay inside the operator-approved directory.
 - Reports never label an endpoint “secure” based only on absence of detected findings.
 - Accessibility and safe offline viewing are required for HTML output; external active content is avoided.

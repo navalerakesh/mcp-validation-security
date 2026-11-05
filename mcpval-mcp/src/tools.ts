@@ -78,6 +78,7 @@ export const ValidateInputSchema = z.object({
   mcpspec: McpSpecSchema.optional(),
   protocolEra: ProtocolEraSchema.optional(),
   policy: z.enum(["advisory", "balanced", "strict"]).optional().describe("Host-side gating mode. Does not change raw findings."),
+  assurance: z.enum(["inventory", "ci", "provider"]).optional().describe("Assurance profile used for independent assessments and certificate eligibility. Defaults to inventory."),
   clientProfile: z.array(ClientProfileSchema).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
   extension: z.array(ExtensionIdSchema).max(16).optional().describe("Optional MCP extension IDs to assess. Active probes remain constrained by the wrapper's safe execution mode."),
   reportDetail: z.enum(["full", "minimal"]).optional().describe("Human report detail level."),
@@ -107,8 +108,8 @@ export const tools = [
   {
     name: "validate",
     description:
-      "Validate an MCP server for protocol compliance, security posture, AI safety, and trust level (L1-L5). " +
-      "Tests JSON-RPC compliance, injection resistance, LLM-friendliness of errors, and schema quality.",
+      "Evaluate an MCP server using typed evidence claims, independent core conformance, security assurance, operational readiness, and explicit certificate eligibility. " +
+      "Tests JSON-RPC compliance, security controls, error behavior, and schema quality without averaging them into one trust score.",
     inputSchema: ValidateInputSchema,
   },
   {
