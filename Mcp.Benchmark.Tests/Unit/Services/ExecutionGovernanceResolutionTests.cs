@@ -77,6 +77,30 @@ public sealed class ExecutionGovernanceResolutionTests
         plan.ConfigDigest.Should().NotBe(ArtifactDigestUtility.ComputeText("secret"));
     }
 
+    [Fact]
+    public void BuildCommandPlan_StdioTargets_ShouldPersistRedactedDisplayButDistinctOpaqueIdentity()
+    {
+        const string firstCommand = "node /tmp/first-server.cjs";
+        const string secondCommand = "node /tmp/second-server.cjs";
+        var first = BuildStdioPlan(firstCommand);
+        var second = BuildStdioPlan(secondCommand);
+
+        first.Target.Should().Be("__STDIO_COMMAND_REDACTED__");
+        second.Target.Should().Be("__STDIO_COMMAND_REDACTED__");
+        first.TargetDigest.Should().Be(ArtifactDigestUtility.ComputeText(firstCommand));
+        second.TargetDigest.Should().Be(ArtifactDigestUtility.ComputeText(secondCommand));
+        first.TargetDigest.Should().NotBe(second.TargetDigest);
+
+        ExecutionPlan BuildStdioPlan(string command) => _service.BuildCommandPlan(
+            new CliSessionContext("session-test"),
+            "validate",
+            new McpServerConfig { Endpoint = command, Transport = "stdio" },
+            new ExecutionPolicy(),
+            outputDirectory: null,
+            plannedChecks: ["protocol-compliance"],
+            plannedArtifacts: []);
+    }
+
     [Theory]
     [InlineData(McpProtocolEraSelection.Auto, "latest", "2026-07-28", McpProtocolEra.Modern, true)]
     [InlineData(McpProtocolEraSelection.Modern, "latest", "2026-07-28", McpProtocolEra.Modern, true)]

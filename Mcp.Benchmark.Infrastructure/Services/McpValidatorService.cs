@@ -754,29 +754,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
 
     private static void AddObservations(
         ICollection<ValidationObservation> target,
-        IEnumerable<ValidationObservation> observations)
-    {
-        foreach (var observation in observations)
-        {
-            var effectiveId = observation.Id;
-            var suffix = 2;
-            while (target.Any(existing => string.Equals(existing.Id, effectiveId, StringComparison.Ordinal)))
-            {
-                effectiveId = $"{observation.Id}-{suffix++}";
-            }
-
-            target.Add(new ValidationObservation
-            {
-                Id = effectiveId,
-                LayerId = observation.LayerId,
-                Component = observation.Component,
-                ObservationKind = observation.ObservationKind,
-                ScenarioId = observation.ScenarioId,
-                RedactedPayloadPreview = observation.RedactedPayloadPreview,
-                Metadata = observation.Metadata
-            });
-        }
-    }
+        IEnumerable<ValidationObservation> observations) =>
+        ValidationObservationMerger.AddDistinct(target, observations);
 
     private static bool IsErrorHandlingEnabled(ErrorHandlingConfig config)
     {

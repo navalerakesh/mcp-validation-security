@@ -188,11 +188,14 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         }
 
         var safeTarget = serverConfig.CloneWithoutSecrets().Endpoint ?? string.Empty;
+        var targetIdentity = string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase)
+            ? serverConfig.Endpoint ?? string.Empty
+            : safeTarget;
         return new ExecutionPlan
         {
             ValidatorDigest = GetValidatorDigest(),
             ConfigDigest = configDigest,
-            TargetDigest = ArtifactDigestUtility.ComputeText(safeTarget),
+            TargetDigest = ArtifactDigestUtility.ComputeText(targetIdentity),
             CommandName = commandName,
             SessionId = sessionContext.SessionId,
             Target = safeTarget,
