@@ -1572,7 +1572,7 @@
         "authority": 5,
         "source": {
           "uri": null,
-          "revision": "2026-11-04.1",
+          "revision": "2026-11-06.1",
           "sha256": null
         },
         "applicability": 0,
@@ -1595,7 +1595,7 @@
         "authority": 4,
         "source": {
           "uri": null,
-          "revision": "2026-11-04.1",
+          "revision": "2026-11-06.1",
           "sha256": null
         },
         "applicability": 0,
@@ -1618,7 +1618,7 @@
         "authority": 0,
         "source": {
           "uri": null,
-          "revision": "2026-11-04.1",
+          "revision": "2026-11-06.1",
           "sha256": null
         },
         "applicability": 0,
@@ -1666,7 +1666,7 @@
         "authority": 2,
         "source": {
           "uri": null,
-          "revision": "2026-11-04.1",
+          "revision": "2026-11-06.1",
           "sha256": null
         },
         "applicability": 0,

@@ -208,12 +208,12 @@ public static class ScoringConstants
 
     public static ImmutableArray<string> AiEnumeratedChoiceMarkers { get; } =
     [
-        "mode", "type", "kind", "status", "state", "level", "action", "scope", "sort", "order", "direction"
+        "mode", "method", "type", "kind", "status", "state", "level", "action", "scope", "sort", "order", "direction"
     ];
 
     public static ImmutableArray<string> AiStructuredFormatMarkers { get; } =
     [
-        "url", "uri", "email", "date", "time", "timestamp", "uuid", "guid", "hostname", "domain"
+        "url", "uri", "email", "date", "time", "timestamp", "since", "until", "uuid", "guid", "hostname", "domain"
     ];
 
     public static ImmutableArray<string> ContentSafetySystemImpactHighKeywords { get; } =

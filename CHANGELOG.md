@@ -24,6 +24,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - HTML reports now use assurance terminology, provide console-clean offline icons, meet WCAG AA text contrast, and retain bounded mobile table scrolling.
 - Safe-mode reports now distinguish catalog validation from tool invocation, resource reads, and prompt execution; omitted tool annotations retain their MCP-defined defaults, and coverage exclusions remain provider-policy evidence rather than specification failures.
 - GitHub Copilot Cloud Agent compatibility now treats missing explicit destructive hints as an advisory because MCP defaults omitted write-tool hints to destructive and GitHub does not document explicit hints as an admission requirement.
+- AI-readiness enum and format advisories now derive schema intent from parameter names and titles instead of incidental words in free-form descriptions.
 
 ## 2.0.0 - 2026-11-05
 
