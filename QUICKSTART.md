@@ -147,9 +147,9 @@ Supported offline formats are `html`, `xml`, `sarif`, and `junit`.
 
 | Policy | Intended use |
 | --- | --- |
-| `advisory` | Always complete the run and keep exit code `0` unless execution itself fails |
-| `balanced` | Default mode for most teams; fail on non-passing results, MUST failures, low trust, or critical findings |
-| `strict` | Enterprise gate; includes balanced conditions plus SHOULD failures, trust below `L4`, and high-severity findings |
+| `advisory` | Preserve findings without blocking on assurance debt; execution-integrity and required-baseline failures still block |
+| `balanced` | Default gate; blocks rejected assurance assessments and critical policy signals |
+| `strict` | Enterprise gate; also blocks review-required assessments, incomplete coverage, and high-severity policy signals |
 
 ## 8. Use The Other Commands
 

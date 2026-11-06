@@ -122,7 +122,7 @@ Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with
 
 For automation, prefer the `MCPVAL_TOKEN` environment variable over `--token` so the credential does not appear in process arguments. An explicit `--token` value takes precedence. The GitHub Action uses the masked environment-variable path.
 
-`safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports explicitly identify unevaluated security/operations dimensions and cap trust at L3. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
+`safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports preserve those unperformed dimensions as incomplete evidence, and the inventory profile never issues a provider certificate. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
 
 Modern `server/discover` runs automatically inspect advertised Apps and Skills settings. Apps passive linkage checks run in safe mode; linked UI resource reads and bounded HTML/CSP analysis require standard/elevated mode. Skills catalog analysis remains Preview; SKILL.md reads require both standard/elevated mode and `--extension io.modelcontextprotocol/skills`. The validator never renders Apps HTML or executes skill instructions/scripts.
 
@@ -143,7 +143,7 @@ The standard artifact set is:
 
 When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
-The HTML report opens on the decision surface: **Certificate Eligibility**, **Core Conformance**, and **Security Assurance**, with operational readiness and evidence completeness alongside them. Missing evidence produces an explicit incomplete assessment and never earns pass credit.
+The HTML report opens with profile-aware assessment framing, the exact tested scope, and independent core, security, and operational outcomes. Inventory is presented as a completed assessment with no certificate issued, not as a failed provider certification. Semantic color is limited to status chips and rails; the executive decision is expanded first, while detailed evidence and terminology use accessible progressive disclosure. Missing evidence produces an explicit incomplete assessment and never earns pass credit. See [docs/Reporting.md](docs/Reporting.md).
 
 When experimental model evaluation is enabled, `validate` writes `mcp-validation-<timestamp>-model-evaluation.json` as a separate companion artifact. The canonical `*-result.json` file remains deterministic and does not embed experimental model output. `--enable-model-eval` now fails fast when no provider is configured; this build currently includes the deterministic companion provider `builtin-rubric`.
 
@@ -205,7 +205,7 @@ Once a tagged release is published, the same root action can be listed in GitHub
 - Explicit provider certificate eligibility that fails closed on missing evidence
 - Typed RFC 2119 claims that distinguish MUST, SHOULD, and MAY authority
 - AI safety analysis covering schema quality, destructive actions, exfiltration risk, and error quality for self-correcting agents
-- Real auth and security testing against the target surface instead of purely static metadata review
+- Governed active auth and security testing in authorized standard/provider runs; safe inventory reports active coverage as incomplete
 - Structured findings with stable rule IDs, remediation guidance, and machine-readable outputs for CI workflows
 - Shared evidence model that can be interpreted against documented client profiles without forking validator logic
 

@@ -34,8 +34,8 @@ Include the following information:
 
 | Version | Supported |
 | --- | --- |
-| `1.1.x` | Yes |
-| `< 1.1` | No |
+| `2.0.x` | Yes |
+| `< 2.0` | No |
 
 ## Safe Use Guidance
 
@@ -58,7 +58,7 @@ When using MCP Validator against third-party or production-adjacent systems:
 - Set `--max-concurrency` conservatively for shared or rate-limited services.
 - Use `--persistence-mode ephemeral` or `explicit-output` when you do not want session logs on disk.
 - Treat `--enable-model-eval` as an experimental companion lane. It now requires an explicit supported provider and never changes the deterministic baseline verdict.
-- Treat low-trust results as a signal for review, not as a reason to probe a server more aggressively.
+- Treat violated, review-required, incomplete, or error claims as signals for review, not as reasons to probe a server more aggressively.
 - Follow responsible disclosure practices when the validator surfaces weaknesses in a target server.
 
 ## AI Safety Scope
@@ -70,7 +70,7 @@ MCP Validator evaluates more than transport and protocol mechanics. It also exam
 - Data exfiltration opportunities exposed through tools or resources
 - Error quality and schema clarity that influence AI self-correction behavior
 
-Servers rated below `L3` should be reviewed before being granted autonomous agent access.
+Do not grant autonomous agent access from a descriptive score. Review typed security claims, incomplete evidence, tool annotations, client-profile warnings, and the host/server responsibility boundary. Safe inventory evidence alone is not a security certificate.
 
 ## Out Of Scope
 

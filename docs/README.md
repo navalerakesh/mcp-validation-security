@@ -11,6 +11,7 @@ This directory contains the durable product, architecture, and contributor docum
 | [../QUICKSTART.md](../QUICKSTART.md) | Fast path from installation to the first validation run |
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
 | [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
+| [Reporting.md](Reporting.md) | Canonical artifacts, HTML reading order, outcome semantics, offline rendering, and safe sharing |
 | [ProtocolCoverageMatrix.md](ProtocolCoverageMatrix.md) | Exact revision/transport/feature behavioral coverage and known limits |
 | [OfficialConformanceAndExtensions.md](OfficialConformanceAndExtensions.md) | Official conformance wrapper contract plus Apps/Skills execution and evidence boundaries |
 | [AuthenticationCoverage.md](AuthenticationCoverage.md) | Credential acquisition, registration, conformance evidence, and explicit authentication limits |
@@ -22,7 +23,7 @@ This directory contains the durable product, architecture, and contributor docum
 | Document | Purpose |
 | --- | --- |
 | [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) | Representative remote validation run and artifact walkthrough |
-| [Resources/LiveCertificate-1.1.25-MicrosoftLearn.md](Resources/LiveCertificate-1.1.25-MicrosoftLearn.md) | Fresh public Microsoft Learn MCP health, discovery, safe-validation, redaction, and artifact-integrity certificate |
+| [Resources/LiveCertificate-1.1.25-MicrosoftLearn.md](Resources/LiveCertificate-1.1.25-MicrosoftLearn.md) | Historical V1 Microsoft Learn interoperability and artifact-integrity evidence |
 | [../SECURITY.md](../SECURITY.md) | Vulnerability reporting process and safe usage guidance |
 | [../mcpval-mcp/README.md](../mcpval-mcp/README.md) | Local STDIO wrapper package for MCP-compatible desktop tooling |
 

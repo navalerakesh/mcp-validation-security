@@ -11,6 +11,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Added signed ECDSA P-256 provider authorization grants and signed prior-run harness manifests, target/protocol/execution-plan/current-run binding, repeated-run admission, and a controlled end-to-end provider certificate proof.
 - Added an isolated official-conformance companion with exact runner, requirement-set, frozen-scenario, raw-result, and transitive npm dependency locks.
 - Added deterministic 50-run parallel isolation, 25-render concurrency, 1,000-evaluation soak, structural HTML accessibility, WCAG AA token, and browser desktop/mobile/keyboard proofs.
+- Added a repository PR/merge/release readiness skill that audits documentation and STDIO-wrapper drift, composes existing local gates, and verifies protected checks plus NuGet/npm publication.
 
 ### Changed
 
