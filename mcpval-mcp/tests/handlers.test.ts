@@ -296,21 +296,29 @@ test("handlers forward explicit protocol era selections", async () => {
 });
 
 test("handleValidate rejects provider assurance when operator trust inputs are absent", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  process.env[config.cliPathEnvVar] = mockCliPath;
   assert.equal(config.providerAssurance.enabled, false);
 
-  const result = await handleValidate({
-    server: "https://example.test/mcp",
-    access: "public",
-    interactive: false,
-    verbose: false,
-    assurance: "provider",
-  });
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "public",
+      interactive: false,
+      verbose: false,
+      assurance: "provider",
+    });
 
-  assert.equal(result.isError, true);
-  assert.equal(
-    (result.structuredContent.error as { code: string }).code,
-    "PROVIDER_ASSURANCE_NOT_CONFIGURED",
-  );
+    assert.equal(result.isError, true);
+    assert.equal(
+      (result.structuredContent.error as { code: string }).code,
+      "PROVIDER_ASSURANCE_NOT_CONFIGURED",
+    );
+  } finally {
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+  }
 });
 
 test("handleValidate uses standard mode for operator-enabled provider assurance", async () => {
