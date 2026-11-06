@@ -22,7 +22,6 @@ public class MarkdownReportGenerator : IReportGenerator
         var actionHints = ReportActionHintBuilder.Build(result);
         var remediationOrder = RemediationOrderBuilder.Build(result);
         var evidenceSummary = result.Assurance.EvidenceSummary;
-        var includeLegacyBenchmarkAppendix = false;
 
         // Header
         sb.AppendLine("# Model Context Protocol (MCP) Assurance Report");
@@ -74,23 +73,6 @@ public class MarkdownReportGenerator : IReportGenerator
         {
             sb.AppendLine($"| **MCP Protocol Version (Effective)** | `{result.ProtocolVersion}` |");
         }
-        if (includeLegacyBenchmarkAppendix && result.TrustAssessment != null)
-        {
-            var trustIcon = result.TrustAssessment.TrustLevel switch
-            {
-                McpTrustLevel.L5_CertifiedSecure => "🟢",
-                McpTrustLevel.L4_Trusted => "🔵",
-                McpTrustLevel.L3_Acceptable => "🟡",
-                McpTrustLevel.L2_Caution => "🟠",
-                _ => "🔴"
-            };
-            var trustQualifier = result.TrustAssessment.LimitedByIncompleteEvidence
-                ? $" (evidence-limited; unevaluated: {string.Join(", ", result.TrustAssessment.UnevaluatedDimensions)})"
-                : string.Empty;
-            var trustLabelParts = result.TrustAssessment.TrustLabel.Split(':', 2);
-            var trustDescription = trustLabelParts.Length == 2 ? trustLabelParts[1].Trim() : result.TrustAssessment.TrustLabel;
-            sb.AppendLine($"| **Benchmark Trust Level** | {trustIcon} **Level {(int)result.TrustAssessment.TrustLevel} ({trustLabelParts[0]}): {trustDescription}**{trustQualifier} |");
-        }
         sb.AppendLine();
 
         AppendAssuranceSection(sb, result.Assurance, ref sectionNumber);
@@ -104,170 +86,11 @@ public class MarkdownReportGenerator : IReportGenerator
         AppendActionHintsSection(sb, actionHints, ref sectionNumber);
         AppendRemediationOrderSection(sb, remediationOrder, ref sectionNumber);
 
-        if (includeLegacyBenchmarkAppendix && result.VerdictAssessment != null)
-        {
-            sb.AppendLine($"## {sectionNumber++}. Deterministic Verdicts");
-            sb.AppendLine();
-            sb.AppendLine("These verdicts are the authoritative gate for pass/fail and policy decisions. Weighted benchmark scores remain descriptive only.");
-            sb.AppendLine($"> **Authority legend:** {ValidationAuthorityHierarchy.Legend}");
-            sb.AppendLine();
-            sb.AppendLine("| Lane | Verdict | Meaning |");
-            sb.AppendLine("| :--- | :--- | :--- |");
-            sb.AppendLine($"| **Baseline** | **{FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)}** | Overall deterministic gate across blocking findings and coverage debt. |");
-            sb.AppendLine($"| **Protocol** | **{FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)}** | Protocol correctness and contract integrity. |");
-            sb.AppendLine($"| **Coverage** | **{FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}** | Whether enabled validation surfaces produced authoritative evidence. |");
-            sb.AppendLine();
-
-            if (!string.IsNullOrWhiteSpace(result.VerdictAssessment.Summary))
-            {
-                sb.AppendLine(result.VerdictAssessment.Summary);
-                sb.AppendLine();
-            }
-
-            if (result.VerdictAssessment.BlockingDecisions.Count > 0)
-            {
-                sb.AppendLine("### Blocking Decisions");
-                sb.AppendLine();
-                foreach (var decision in result.VerdictAssessment.BlockingDecisions.Take(8))
-                {
-                    sb.AppendLine($"- **{FormatGateLabel(decision.Gate)}** [{EscapeMarkdownText(decision.Category)}] `{EscapeInlineCode(decision.Component)}`: {EscapeMarkdownText(decision.Summary)}");
-                    var evidence = FormatDecisionEvidence(decision);
-                    if (!string.IsNullOrWhiteSpace(evidence))
-                    {
-                        sb.AppendLine($"  - Evidence: {evidence}");
-                    }
-                }
-                if (result.VerdictAssessment.BlockingDecisions.Count > 8)
-                {
-                    sb.AppendLine($"- _{result.VerdictAssessment.BlockingDecisions.Count - 8} additional blocking decision(s) are retained in canonical JSON._");
-                }
-                sb.AppendLine();
-            }
-        }
-
-        // Benchmark trust profile (descriptive only)
-        if (includeLegacyBenchmarkAppendix && result.TrustAssessment != null)
-        {
-            sb.AppendLine($"## {sectionNumber++}. Benchmark Trust Profile");
-            sb.AppendLine();
-            sb.AppendLine("Multi-dimensional benchmarking view of server trustworthiness for AI agent consumption.");
-            sb.AppendLine("This section is descriptive only. Release gating and pass/fail status are driven by the deterministic verdicts above, not by weighted trust averages.");
-            if (result.TrustAssessment.LimitedByIncompleteEvidence)
-            {
-                sb.AppendLine($"Evidence is incomplete. The following dimensions were not evaluated: **{string.Join(", ", result.TrustAssessment.UnevaluatedDimensions)}**.");
-            }
-            sb.AppendLine();
-            sb.AppendLine("| Dimension | Score | What It Measures |");
-            sb.AppendLine("| :--- | :---: | :--- |");
-            sb.AppendLine($"| **Protocol Compliance** | {FormatTrustDimensionScore(result.TrustAssessment, "protocol", result.TrustAssessment.ProtocolCompliance)} | MCP spec adherence, JSON-RPC compliance, response structures |");
-            sb.AppendLine($"| **Security Posture** | {FormatTrustDimensionScore(result.TrustAssessment, "security", result.TrustAssessment.SecurityPosture)} | Auth compliance, injection resistance, attack surface |");
-            sb.AppendLine($"| **AI Safety** | {FormatTrustDimensionScore(result.TrustAssessment, "ai-safety", result.TrustAssessment.AiSafety)} | Schema quality, destructive tool detection, exfiltration risk, prompt injection surface |");
-            sb.AppendLine($"| **Operational Readiness** | {FormatTrustDimensionScore(result.TrustAssessment, "operations", result.TrustAssessment.OperationalReadiness)} | Latency, throughput, error rate, stability |");
-            if (result.TrustAssessment.LlmFriendlinessScore >= 0)
-            {
-                var llmGrade = result.TrustAssessment.LlmFriendlinessScore >= 70 ? "🟢 Pro-LLM" : result.TrustAssessment.LlmFriendlinessScore >= 40 ? "🟡 Neutral" : "🔴 Anti-LLM";
-                sb.AppendLine($"| **LLM-Friendliness** | {result.TrustAssessment.LlmFriendlinessScore:F0}% | {llmGrade} — Do error responses help AI agents self-correct? |");
-            }
-            sb.AppendLine();
-
-            if (includeDetailedSections && result.TrustAssessment.BoundaryFindings.Count > 0)
-            {
-                sb.AppendLine("### AI Boundary Findings");
-                sb.AppendLine();
-                sb.AppendLine("These findings go **beyond MCP protocol** to assess how AI agents interact with this server.");
-                sb.AppendLine();
-                sb.AppendLine("| Category | Component | Severity | Finding |");
-                sb.AppendLine("| :--- | :--- | :---: | :--- |");
-                foreach (var finding in result.TrustAssessment.BoundaryFindings)
-                {
-                    var sevIcon = finding.Severity switch { "Critical" => "🔴", "High" => "🟠", "Medium" => "🟡", _ => "🔵" };
-                    sb.AppendLine($"| {EscapeTableCell(finding.Category)} | `{EscapeTableCell(finding.Component)}` | {sevIcon} {EscapeTableCell(finding.Severity)} | {EscapeTableCell(finding.Description)} |");
-                }
-                sb.AppendLine();
-            }
-
-            sb.AppendLine("### Summary");
-            sb.AppendLine();
-            var toolCatalogSize = ValidationFindingAggregator.GetToolCatalogSize(result.ToolValidation);
-            sb.AppendLine($"- Destructive tools: **{FormatCoverage(result.TrustAssessment.DestructiveToolCount, toolCatalogSize)}**");
-            sb.AppendLine($"- Data exfiltration risk: **{FormatCoverage(result.TrustAssessment.DataExfiltrationRiskCount, toolCatalogSize)}**");
-            sb.AppendLine($"- Prompt injection surface: **{FormatCoverage(result.TrustAssessment.PromptInjectionSurfaceCount, toolCatalogSize)}**");
-            sb.AppendLine();
-
-            // Compliance Tiers Table (MUST/SHOULD/MAY)
-            if (includeDetailedSections && result.TrustAssessment.TierChecks.Count > 0)
-            {
-                sb.AppendLine("### MCP Specification Compliance (RFC 2119 Tiers)");
-                sb.AppendLine();
-                sb.AppendLine("`Evaluated` reflects how many tier checks were applicable to this run, not the total count of MUST/SHOULD/MAY clauses in the MCP specification. Conditional checks (e.g. auth-only requirements on a public profile) are skipped and do not contribute to this column.");
-                sb.AppendLine();
-                sb.AppendLine($"| Tier | Passed | Failed | Evaluated | Impact |");
-                sb.AppendLine($"| :--- | :---: | :---: | :---: | :--- |");
-                sb.AppendLine($"| **MUST** | {result.TrustAssessment.MustPassCount} | {result.TrustAssessment.MustFailCount} | {result.TrustAssessment.MustTotalCount} | {(result.TrustAssessment.MustFailCount > 0 ? "❌ Non-compliant (trust capped at L2)" : "✅ Fully compliant")} |");
-                sb.AppendLine($"| **SHOULD** | {result.TrustAssessment.ShouldPassCount} | {result.TrustAssessment.ShouldFailCount} | {result.TrustAssessment.ShouldTotalCount} | {(result.TrustAssessment.ShouldFailCount > 0 ? $"⚠️ {result.TrustAssessment.ShouldFailCount} penalties applied" : "✅ All expected behaviors present")} |");
-                sb.AppendLine($"| **MAY** | {result.TrustAssessment.MaySupported} | {result.TrustAssessment.MayTotal - result.TrustAssessment.MaySupported} | {result.TrustAssessment.MayTotal} | ℹ️ Informational (no score impact) |");
-                sb.AppendLine();
-
-                // Show failed MUST checks prominently
-                var mustFails = result.TrustAssessment.TierChecks.Where(c => c.Tier == "MUST" && !c.Passed).ToList();
-                if (mustFails.Count > 0)
-                {
-                    sb.AppendLine("#### ❌ MUST Failures (Compliance Blockers)");
-                    sb.AppendLine();
-                    foreach (var fail in mustFails)
-                    {
-                        sb.AppendLine($"- **{fail.Requirement}** ({fail.Component}){(fail.Detail != null ? $" — {fail.Detail}" : "")}");
-                    }
-                    sb.AppendLine();
-                }
-
-                // Show SHOULD failures as warnings
-                var shouldFails = result.TrustAssessment.TierChecks.Where(c => c.Tier == "SHOULD" && !c.Passed).ToList();
-                if (shouldFails.Count > 0)
-                {
-                    sb.AppendLine("#### ⚠️ SHOULD Gaps (Score Penalties)");
-                    sb.AppendLine();
-                    foreach (var fail in shouldFails)
-                    {
-                        sb.AppendLine($"- {fail.Requirement} ({fail.Component})");
-                    }
-                    sb.AppendLine();
-                }
-
-                // Show MAY features as informational
-                var mayChecks = result.TrustAssessment.TierChecks.Where(c => c.Tier == "MAY").ToList();
-                if (mayChecks.Count > 0)
-                {
-                    sb.AppendLine("#### ℹ️ Optional Features (MAY)");
-                    sb.AppendLine();
-                    foreach (var check in mayChecks)
-                    {
-                        var icon = check.Passed ? "✅" : "➖";
-                        sb.AppendLine($"- {icon} {check.Requirement}");
-                    }
-                    sb.AppendLine();
-                }
-            }
-        }
-
         AppendClientCompatibilitySection(sb, result, ref sectionNumber);
 
         AppendValidationEnvelopeSection(sb, result, ref sectionNumber);
 
         AppendCapabilitySnapshotSection(sb, result, ref sectionNumber);
-
-        if (includeLegacyBenchmarkAppendix && includeDetailedSections && result.ScoringNotes?.Any() == true)
-        {
-            sb.AppendLine($"## {sectionNumber++}. Scoring Methodology");
-            sb.AppendLine();
-            sb.AppendLine("These notes explain how the overall score and blocking decision were calibrated for this run.");
-            sb.AppendLine();
-            foreach (var note in result.ScoringNotes)
-            {
-                sb.AppendLine($"- {note}");
-            }
-            sb.AppendLine();
-        }
 
         // Raw measurement matrix
         sb.AppendLine($"## {sectionNumber++}. Measurement Matrix");
@@ -890,13 +713,6 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine();
     }
 
-    private static string FormatTrustDimensionScore(McpTrustAssessment assessment, string dimension, double score)
-    {
-        return assessment.UnevaluatedDimensions.Contains(dimension, StringComparer.OrdinalIgnoreCase)
-            ? "Not evaluated"
-            : $"{score:F0}%";
-    }
-
     private static DateTime ResolveArtifactTime(ValidationResult result) =>
         (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
 
@@ -1234,9 +1050,7 @@ public class MarkdownReportGenerator : IReportGenerator
 
     private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
     {
-        return result.VerdictAssessment?.EvidenceSummary
-               ?? result.ScoringDetails?.EvidenceSummary
-               ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+        return result.Assurance.EvidenceSummary;
     }
 
     private void AppendBootstrapSection(StringBuilder sb, ValidationResult result, HealthCheckResult? bootstrapHealth, ref int sectionNumber)

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using Xunit;
@@ -92,37 +93,29 @@ public class ValidationReportRendererTests
                         Severity = ViolationSeverity.High,
                         SpecReference = "javascript:alert(2)"
                     }
-                ]
-            },
-            VerdictAssessment = new VerdictAssessment
-            {
-                BaselineVerdict = ValidationVerdict.Reject,
-                ProtocolVerdict = ValidationVerdict.Reject,
-                CoverageVerdict = ValidationVerdict.Trusted,
-                TriggeredDecisions =
+                ],
+                Findings =
                 [
-                    new DecisionRecord
+                    new ValidationFinding
                     {
-                        DecisionId = "decision:unsafe-link",
-                        RuleId = "TEST.URI",
-                        Lane = EvaluationLane.Baseline,
-                        Authority = ValidationRuleSource.Spec,
-                        Origin = EvidenceOrigin.DeterministicObservation,
-                        Gate = GateOutcome.Reject,
-                        Severity = ValidationFindingSeverity.High,
-                        Category = "Protocol",
+                        RuleId = "TEST.URI.CLAIM",
+                        Source = ValidationRuleSource.Spec,
                         Component = "response",
+                        Severity = ValidationFindingSeverity.High,
                         Summary = "Unsafe decision spec reference.",
                         SpecReference = "javascript:alert(3)"
                     }
                 ]
             }
         };
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().NotContain("href=\"javascript:");
-        html.Should().NotContain("href=\"data:");
+        html.Should().NotContain("<a href=\"data:");
         html.Should().Contain("Unsafe producer");
         html.Should().Contain("javascript:alert(2)");
         html.Should().Contain("javascript:alert(3)");

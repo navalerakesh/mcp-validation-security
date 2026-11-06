@@ -27,7 +27,7 @@ If you are looking for installation or end-user usage guidance, start with the r
 
 Transport support is intentionally command-specific: `validate` and `health-check` support HTTP and STDIO targets today, `discover` is HTTP-first, and `report` is offline only.
 
-`validate --assurance inventory|ci|provider` selects the V2 assurance contract. `validate --conformance-results <wrapper.json>` imports pinned official conformance evidence through the Core importer contract. Repeatable `--extension <id>` selections flow through the existing applicability resolver; they do not create extension-specific top-level commands. Core, security, operations, extensions, clients, and external conformance remain independent typed assessments.
+`validate --assurance inventory|ci|provider` selects the V2 assurance contract. `validate --conformance-results <wrapper.json>` imports pinned official conformance evidence through the Core importer contract. Provider assurance additionally requires `--provider-harness <manifest.json>`, `--provider-authorization-key <public-key.pem>`, and `--sign-attestation`; the P-256-signed authorization and prior-run harness, target, protocol revision, dry-run execution-plan digest, repeated receipts, and internally produced current run must all verify. Repeatable `--extension <id>` selections flow through the existing applicability resolver; they do not create extension-specific top-level commands. Core, security, operations, extensions, clients, and external conformance remain independent typed assessments.
 
 ## Local Development
 

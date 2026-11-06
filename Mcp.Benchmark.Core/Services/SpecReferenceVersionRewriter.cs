@@ -117,66 +117,6 @@ public static class SpecReferenceVersionRewriter
             }
         }
 
-        // Verdict assessment decisions copy SpecReference + Recommendation strings.
-        if (result.VerdictAssessment is { } verdict)
-        {
-            RewriteDecisions(verdict.TriggeredDecisions, Rewrite);
-            RewriteDecisions(verdict.BlockingDecisions, Rewrite);
-            RewriteDecisions(verdict.CoverageDecisions, Rewrite);
-        }
-    }
-
-    private static void RewriteDecisions(IList<DecisionRecord>? decisions, Func<string?, string> rewrite)
-    {
-        if (decisions is null) return;
-        for (int i = 0; i < decisions.Count; i++)
-        {
-            var d = decisions[i];
-            // DecisionRecord uses init-only properties; replace the record entry with a
-            // copy carrying the rewritten URL fields.
-            var rewrittenSpec = rewrite(d.SpecReference);
-            var rewrittenRefs = d.EvidenceReferences
-                .Select(er => new DecisionEvidenceReference
-                {
-                    EvidenceId = er.EvidenceId,
-                    EvidenceKind = er.EvidenceKind,
-                    Summary = rewrite(er.Summary),
-                    SpecReference = rewrite(er.SpecReference),
-                    Remediation = rewrite(er.Remediation),
-                    RedactedPayloadPreview = rewrite(er.RedactedPayloadPreview),
-                    Metadata = RewriteSpecRefMetadata(er.Metadata, rewrite)
-                })
-                .ToArray();
-
-            decisions[i] = new DecisionRecord
-            {
-                DecisionId = d.DecisionId,
-                RelatedEvidenceIds = d.RelatedEvidenceIds,
-                EvidenceReferences = rewrittenRefs,
-                RuleId = d.RuleId,
-                Lane = d.Lane,
-                Authority = d.Authority,
-                Origin = d.Origin,
-                Gate = d.Gate,
-                Severity = d.Severity,
-                Category = d.Category,
-                Component = d.Component,
-                Summary = rewrite(d.Summary),
-                SpecReference = string.IsNullOrEmpty(rewrittenSpec) ? null : rewrittenSpec,
-                ImpactAreas = d.ImpactAreas,
-                Metadata = RewriteSpecRefMetadata(d.Metadata, rewrite)
-            };
-        }
-    }
-
-    private static Dictionary<string, string> RewriteSpecRefMetadata(IDictionary<string, string> metadata, Func<string?, string> rewrite)
-    {
-        var copy = new Dictionary<string, string>(metadata, StringComparer.OrdinalIgnoreCase);
-        if (copy.TryGetValue("specReference", out var specRef))
-        {
-            copy["specReference"] = rewrite(specRef);
-        }
-        return copy;
     }
 
     private static void RewriteFindings(IList<ValidationFinding>? findings, Func<string?, string> rewrite)

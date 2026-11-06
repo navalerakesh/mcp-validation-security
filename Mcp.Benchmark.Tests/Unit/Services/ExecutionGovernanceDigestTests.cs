@@ -26,7 +26,6 @@ public sealed class ExecutionGovernanceDigestTests : IDisposable
         var result = new ValidationResult
         {
             ValidationId = "validation-1",
-            VerdictAssessment = new VerdictAssessment { Policy = DecisionPolicyManifest.CreateCurrent() },
             ClientCompatibility = new ClientCompatibilityReport { RequestedProfiles = ["claude-code"] }
         };
         result.Assessments.OfficialConformance = new OfficialConformanceAssessment

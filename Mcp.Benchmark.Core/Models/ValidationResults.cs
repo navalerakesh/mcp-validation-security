@@ -110,13 +110,6 @@ public class ValidationResult
         set => Assessments.ProtocolCompliance = value;
     }
 
-    [JsonIgnore]
-    public VerdictAssessment? VerdictAssessment
-    {
-        get => Assessments.VerdictAssessment;
-        set => Assessments.VerdictAssessment = value;
-    }
-
     /// <summary>
     /// Gets or sets the tool validation test results.
     /// </summary>
@@ -251,14 +244,6 @@ public class ValidationResult
     }
 
     /// <summary>
-    /// Gets or sets the MCP Trust Assessment — a multi-dimensional evaluation
-    /// of how trustworthy this MCP server is for AI agent consumption.
-    /// Computed after all validators complete.
-    /// </summary>
-    [JsonIgnore]
-    public McpTrustAssessment? TrustAssessment { get; set; }
-
-    /// <summary>
     /// Gets or sets the host-level policy decision derived from the validation result.
     /// </summary>
     [JsonPropertyName("policyDecision")]
@@ -308,6 +293,10 @@ public class ValidationResult
                 ValidationId = ValidationId,
                 ProtocolVersion = ProtocolVersion,
                 SchemaVersion = Run.SchemaVersion,
+                TargetIdentitySha256 = Run.TargetIdentitySha256,
+                ExecutionPlanSha256 = Run.ExecutionPlanSha256,
+                ExecutionMode = Run.ExecutionMode,
+                PlannedChecks = Run.PlannedChecks.ToArray(),
                 ApplicabilityContext = Run.ApplicabilityContext,
                 InitializationHandshake = SanitizeInitializationHandshake(InitializationHandshake),
                 CapabilitySnapshot = SanitizeCapabilitySnapshot(CapabilitySnapshot),
@@ -340,7 +329,6 @@ public class ValidationResult
             CriticalErrors = CriticalErrors.Select(_ => "Validation framework error details were redacted from the canonical artifact.").ToList(),
             Recommendations = Recommendations.ToList(),
             Summary = DeepCloneRequired(Summary),
-            TrustAssessment = DeepClone(TrustAssessment),
             PolicyOutcome = DeepClone(PolicyOutcome),
             Assurance = DeepCloneRequired(Assurance),
             BaselineComparison = DeepClone(BaselineComparison)

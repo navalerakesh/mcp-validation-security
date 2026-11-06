@@ -90,7 +90,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         // Performance data is still collected and reported in the Trust Assessment.
         // Uses the nuanced score from PerformanceScoringStrategy (latency/error
         // penalties) so the category score in JSON matches human-readable reports
-        // and TrustAssessment.OperationalReadiness.
+        // and the independent operational readiness assessment.
         new(
             "Performance",
             ScoringConstants.WeightPerformance,

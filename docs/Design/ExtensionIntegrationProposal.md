@@ -84,7 +84,7 @@ The validator should enrich this workflow when the target advertises extensions,
 
 ### Add only two narrow CLI concepts
 
-1. `--conformance-results <wrapper.json>` imports a previously generated, mcpval-wrapped official conformance run. It is repeatable only when each artifact has a distinct scenario identity. Raw `checks.json` is display-only and unverified.
+1. `--conformance-results <wrapper.json>` imports a previously generated, mcpval-wrapped official conformance run. Every scenario has a distinct identity and exact raw-payload digest. Raw `checks.json` is rejected because it lacks runner, requirement-set, target, run-state, and frozen-scenario provenance.
 2. `--extension <identifier>` is repeatable and explicitly authorizes active Preview/Experimental extension probes. It does not force an undeclared extension to become applicable.
 
 Equivalent configuration is required for repeatable CI. Do not add a separate extension policy mode; the existing advisory/balanced/strict policy remains the host gate, while lifecycle defaults cap what an extension is allowed to block.
@@ -128,7 +128,7 @@ flowchart TD
 | Beta Skills advertised | Automatically run non-mutating catalog/manifest analysis as Preview and advisory | Content reads require `--extension io.modelcontextprotocol/skills`; remain Preview | Only explicitly configured controlled security scenarios |
 | Beta Tasks advertised | Validate declaration and pinned response schemas without task creation | Import official evidence when supplied; no generic task creation | Native cross-identity/task-state security certificates require explicit extension opt-in and owned fixtures |
 | Verified official conformance wrapper supplied | Import and display; core requirement-set failures can affect the external conformance verdict | Same | Same |
-| Raw/unwrapped official checks supplied | Display as unverified, non-gating evidence | Same | Same |
+| Raw/unwrapped official checks supplied | Reject; require the bounded provenance wrapper | Same | Same |
 
 Automatic means the target's negotiated extension inventory selects passive checks. It never means downloading extension code, running HTML, executing skill scripts, creating tasks, or escalating permissions without operator authority.
 
@@ -280,7 +280,7 @@ Dry-run output uses one compact extension block:
 Extensions:
     io.modelcontextprotocol/ui      stable   passive=yes  active=standard  pack=apps-server-security@<revision>
     io.modelcontextprotocol/skills  beta     passive=yes  active=not-authorized  pack=skills-preview@<revision>
-Official conformance: import=<verified wrapper | none>; runner execution=disabled
+Official conformance: import=<verified wrapper | none>; runner execution=external companion only
 ```
 
 Preview and Experimental findings have their own extension claims, coverage, confidence, and policy projection. They do not affect core conformance. A selected policy may require an extension explicitly, but absence or failure never leaks into unrelated assessment dimensions.
@@ -359,7 +359,7 @@ Official per-scenario `checks.json` currently contains only check records. Befor
 - start/end time, exit code, timeout, and incomplete-run state;
 - runner environment facts required for reproducibility.
 
-An unwrapped `checks.json` can be displayed but must remain `unverifiedExternalEvidence` and cannot gate a release.
+An unwrapped `checks.json` is not accepted. The isolated companion must bind exact raw bytes to pinned runner, requirement-set, target, invocation, run-state, and frozen-scenario provenance before import.
 
 ### Status mapping
 

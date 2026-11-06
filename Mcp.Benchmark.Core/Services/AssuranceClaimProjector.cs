@@ -9,8 +9,10 @@ public static class AssuranceClaimProjector
     {
         ArgumentNullException.ThrowIfNull(result);
         var claims = new List<AssuranceClaim>();
-        ProjectTierChecks(result, claims);
-        ProjectDecisions(result, claims);
+        ProjectProtocolViolations(result, claims);
+        ProjectStructuredFindings(result, claims);
+        ProjectSecurityVulnerabilities(result, claims);
+        ProjectAttackOutcomes(result, claims);
         ProjectCoverage(result, claims);
         ProjectExternalConformance(result, claims);
         ProjectExtensions(result, claims);
@@ -22,55 +24,162 @@ public static class AssuranceClaimProjector
             .ToArray();
     }
 
-    private static void ProjectTierChecks(ValidationResult result, ICollection<AssuranceClaim> claims)
+    private static void ProjectProtocolViolations(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
-        foreach (var check in result.TrustAssessment?.TierChecks ?? [])
+        foreach (var violation in result.ProtocolCompliance?.Violations ?? [])
         {
-            var requirementLevel = ParseRequirementLevel(check.Tier);
+            var claimId = string.IsNullOrWhiteSpace(violation.CheckId)
+                ? $"protocol:{Normalize(violation.Category)}:{Normalize(violation.Rule ?? violation.Description)}"
+                : $"protocol:{Normalize(violation.CheckId)}";
             claims.Add(new AssuranceClaim
             {
-                ClaimId = $"core:tier:{Normalize(check.Tier)}:{Normalize(check.Component)}:{Normalize(check.Requirement)}",
-                Subject = string.IsNullOrWhiteSpace(check.Component) ? "protocol" : check.Component,
+                ClaimId = claimId,
+                Subject = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category,
                 Dimension = AssuranceDimension.CoreProtocol,
-                RequirementLevel = requirementLevel,
+                RequirementLevel = AssuranceRequirementLevel.Must,
                 Authority = AssuranceAuthority.OfficialSpecification,
                 Source = new AssuranceSourceReference
                 {
+                    Uri = violation.SpecReference,
                     Revision = result.ProtocolVersion ?? "unknown"
                 },
-                Outcome = check.Passed ? AssuranceClaimOutcome.Satisfied : AssuranceClaimOutcome.Violated,
+                Outcome = AssuranceClaimOutcome.Violated,
                 Confidence = EvidenceConfidenceLevel.High,
-                Summary = check.Requirement,
-                Remediation = check.Detail
+                EvidenceIds = string.IsNullOrWhiteSpace(violation.CheckId) ? [] : [$"protocol/{violation.CheckId}"],
+                Summary = violation.Description,
+                Remediation = violation.Recommendation,
+                Metadata = new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["ruleId"] = string.IsNullOrWhiteSpace(violation.CheckId) ? claimId : violation.CheckId,
+                    ["severity"] = violation.Severity.ToString()
+                }
             });
         }
     }
 
-    private static void ProjectDecisions(ValidationResult result, ICollection<AssuranceClaim> claims)
+    private static void ProjectStructuredFindings(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
-        var decisions = (result.VerdictAssessment?.TriggeredDecisions ?? [])
-            .Concat(result.VerdictAssessment?.CoverageDecisions ?? []);
-        foreach (var decision in decisions)
+        AddFindings(result.ProtocolCompliance?.Findings, AssuranceDimension.CoreProtocol);
+        AddFindings(result.ToolValidation?.Findings, AssuranceDimension.CapabilityContract);
+        AddFindings(result.ToolValidation?.AiReadinessFindings, AssuranceDimension.CapabilityContract);
+        AddFindings(result.ToolValidation?.AuthenticationSecurity?.StructuredFindings, AssuranceDimension.Security);
+        AddFindings(result.ToolValidation?.ToolResults.SelectMany(tool => tool.Findings), AssuranceDimension.CapabilityContract);
+        AddFindings(result.ResourceTesting?.Findings, AssuranceDimension.CapabilityContract);
+        AddFindings(result.ResourceTesting?.ResourceResults.SelectMany(resource => resource.Findings), AssuranceDimension.CapabilityContract);
+        AddFindings(result.PromptTesting?.Findings, AssuranceDimension.CapabilityContract);
+        AddFindings(result.PromptTesting?.PromptResults.SelectMany(prompt => prompt.Findings), AssuranceDimension.CapabilityContract);
+        AddFindings(result.SecurityTesting?.Findings, AssuranceDimension.Security);
+        AddFindings(result.PerformanceTesting?.Findings, AssuranceDimension.Operations);
+        AddFindings(result.ErrorHandling?.Findings, AssuranceDimension.Operations);
+
+        void AddFindings(IEnumerable<ValidationFinding>? findings, AssuranceDimension defaultDimension)
         {
-            var authority = ResolveAuthority(decision);
+            foreach (var finding in findings ?? [])
+            {
+                var authority = finding.EffectiveSource switch
+                {
+                    ValidationRuleSource.Spec => AssuranceAuthority.OfficialSpecification,
+                    ValidationRuleSource.Heuristic => AssuranceAuthority.Heuristic,
+                    _ => AssuranceAuthority.ProviderPolicy
+                };
+                var dimension = ResolveFindingDimension(finding, defaultDimension);
+                var requirement = ResolveFindingRequirement(finding, authority, dimension);
+                var outcome = ResolveFindingOutcome(finding, authority);
+                var ruleId = string.IsNullOrWhiteSpace(finding.RuleId)
+                    ? $"unidentified:{Normalize(finding.Category)}:{Normalize(finding.Component)}"
+                    : finding.RuleId;
+                var metadata = new Dictionary<string, string>(finding.Metadata, StringComparer.Ordinal)
+                {
+                    ["ruleId"] = ruleId,
+                    ["severity"] = finding.Severity.ToString()
+                };
+                claims.Add(new AssuranceClaim
+                {
+                    ClaimId = $"finding:{Normalize(ruleId)}:{Normalize(finding.Component)}",
+                    Subject = string.IsNullOrWhiteSpace(finding.Component) ? defaultDimension.ToString() : finding.Component,
+                    Dimension = dimension,
+                    RequirementLevel = requirement,
+                    Authority = authority,
+                    Source = new AssuranceSourceReference
+                    {
+                        Uri = finding.EffectiveSpecReference,
+                        Revision = finding.Metadata.TryGetValue("ruleRevision", out var revision)
+                            ? revision
+                            : ValidationFindingRuleIds.CatalogVersion
+                    },
+                    Outcome = outcome,
+                    Confidence = authority is AssuranceAuthority.OfficialSpecification
+                        ? EvidenceConfidenceLevel.High
+                        : EvidenceConfidenceLevel.Medium,
+                    EvidenceIds = finding.Metadata.TryGetValue("evidenceId", out var evidenceId) ? [evidenceId] : [],
+                    Summary = finding.Summary,
+                    Remediation = finding.Recommendation,
+                    Metadata = metadata
+                });
+            }
+        }
+    }
+
+    private static void ProjectSecurityVulnerabilities(ValidationResult result, ICollection<AssuranceClaim> claims)
+    {
+        foreach (var vulnerability in result.SecurityTesting?.Vulnerabilities ?? [])
+        {
+            var ruleId = string.IsNullOrWhiteSpace(vulnerability.Id)
+                ? $"security:{Normalize(vulnerability.Category)}:{Normalize(vulnerability.Name)}"
+                : vulnerability.Id;
+            var deterministic = vulnerability.IsExploitable;
             claims.Add(new AssuranceClaim
             {
-                ClaimId = $"decision:{decision.DecisionId}",
-                Subject = decision.Component,
-                Dimension = ResolveDimension(decision),
-                RequirementLevel = ResolveRequirementLevel(decision, authority),
-                Authority = authority,
-                Source = new AssuranceSourceReference
+                ClaimId = $"vulnerability:{Normalize(ruleId)}:{Normalize(vulnerability.AffectedComponent)}",
+                Subject = string.IsNullOrWhiteSpace(vulnerability.AffectedComponent) ? "security" : vulnerability.AffectedComponent,
+                Dimension = AssuranceDimension.Security,
+                RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                Authority = deterministic ? AssuranceAuthority.DeterministicSecurity : AssuranceAuthority.Heuristic,
+                Source = new AssuranceSourceReference { Revision = ValidationFindingRuleIds.CatalogVersion },
+                Outcome = deterministic ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.ReviewRequired,
+                Confidence = deterministic ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.Medium,
+                EvidenceIds = vulnerability.ProbeContexts?.Where(context => !string.IsNullOrWhiteSpace(context.ProbeId)).Select(context => context.ProbeId).ToArray() ?? [],
+                Summary = vulnerability.Description,
+                Remediation = vulnerability.Remediation,
+                Metadata = new Dictionary<string, string>(StringComparer.Ordinal)
                 {
-                    Uri = decision.SpecReference,
-                    Revision = decision.RuleRevision
+                    ["ruleId"] = ruleId,
+                    ["severity"] = vulnerability.Severity.ToString(),
+                    ["exploitable"] = vulnerability.IsExploitable.ToString()
+                }
+            });
+        }
+    }
+
+    private static void ProjectAttackOutcomes(ValidationResult result, ICollection<AssuranceClaim> claims)
+    {
+        foreach (var attack in result.SecurityTesting?.AttackSimulations ?? [])
+        {
+            var authority = attack.Authority == ValidationRuleSource.Spec
+                ? AssuranceAuthority.OfficialSpecification
+                : attack.Authority == ValidationRuleSource.Heuristic
+                    ? AssuranceAuthority.Heuristic
+                    : AssuranceAuthority.DeterministicSecurity;
+            if (attack.Outcome == ValidationOutcome.Succeeded && authority == AssuranceAuthority.Heuristic) continue;
+            claims.Add(new AssuranceClaim
+            {
+                ClaimId = $"attack:{Normalize(attack.AttackVector)}",
+                Subject = attack.AttackVector,
+                Dimension = AssuranceDimension.Security,
+                RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                Authority = authority,
+                Source = new AssuranceSourceReference { Revision = ValidationFindingRuleIds.CatalogVersion },
+                Outcome = attack.Outcome switch
+                {
+                    ValidationOutcome.Succeeded => AssuranceClaimOutcome.Satisfied,
+                    ValidationOutcome.Failed when authority != AssuranceAuthority.Heuristic => AssuranceClaimOutcome.Violated,
+                    ValidationOutcome.Error => AssuranceClaimOutcome.Error,
+                    ValidationOutcome.Inconclusive or ValidationOutcome.Unavailable or ValidationOutcome.Blocked => AssuranceClaimOutcome.Incomplete,
+                    _ => AssuranceClaimOutcome.ReviewRequired
                 },
-                Outcome = ResolveOutcome(decision, authority),
-                Confidence = ResolveConfidence(decision),
-                EvidenceIds = decision.RelatedEvidenceIds,
-                Summary = decision.Summary,
-                Remediation = decision.EvidenceReferences.Select(reference => reference.Remediation).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)),
-                Metadata = new Dictionary<string, string>(decision.Metadata, StringComparer.Ordinal)
+                Confidence = authority == AssuranceAuthority.Heuristic ? EvidenceConfidenceLevel.Medium : EvidenceConfidenceLevel.High,
+                EvidenceIds = attack.ProbeContexts?.Where(context => !string.IsNullOrWhiteSpace(context.ProbeId)).Select(context => context.ProbeId).ToArray() ?? [],
+                Summary = attack.Description
             });
         }
     }
@@ -84,7 +193,12 @@ public static class AssuranceClaimProjector
                 ClaimId = $"coverage:{Normalize(coverage.LayerId)}:{Normalize(coverage.Scope)}",
                 Subject = coverage.Scope,
                 Dimension = DimensionForLayer(coverage.LayerId, coverage.Lane),
-                RequirementLevel = AssuranceRequirementLevel.Policy,
+                RequirementLevel = DimensionForLayer(coverage.LayerId, coverage.Lane) switch
+                {
+                    AssuranceDimension.Operations => AssuranceRequirementLevel.OperationalObjective,
+                    AssuranceDimension.Security => AssuranceRequirementLevel.SecurityControl,
+                    _ => AssuranceRequirementLevel.Policy
+                },
                 Authority = AssuranceAuthority.ProviderPolicy,
                 Source = new AssuranceSourceReference { Revision = AssuranceProfileCatalog.Revision },
                 Applicability = coverage.Status == ValidationCoverageStatus.NotApplicable
@@ -173,6 +287,12 @@ public static class AssuranceClaimProjector
     {
         foreach (var extension in result.Assessments.Extensions)
         {
+            var hasSpecFailure = extension.Findings.Any(finding =>
+                finding.Source == ValidationRuleSource.Spec &&
+                finding.Severity >= ValidationFindingSeverity.High);
+            var hasReviewFinding = extension.Findings.Count > 0;
+            var evidenceIncomplete = extension.EvidenceSummary.ApplicableDeclarations > 0 &&
+                extension.EvidenceSummary.Covered < extension.EvidenceSummary.ApplicableDeclarations;
             claims.Add(new AssuranceClaim
             {
                 ClaimId = $"extension:{Normalize(extension.ExtensionId)}:assessment",
@@ -185,15 +305,21 @@ public static class AssuranceClaimProjector
                     Revision = extension.SpecificationRevision,
                     Sha256 = extension.SpecificationSha256
                 },
-                Outcome = extension.Verdict switch
-                {
-                    ValidationVerdict.Trusted => AssuranceClaimOutcome.Satisfied,
-                    ValidationVerdict.Reject => AssuranceClaimOutcome.Violated,
-                    ValidationVerdict.ReviewRequired => AssuranceClaimOutcome.ReviewRequired,
-                    _ => AssuranceClaimOutcome.Incomplete
-                },
+                Outcome = hasSpecFailure
+                    ? AssuranceClaimOutcome.Violated
+                    : evidenceIncomplete
+                        ? AssuranceClaimOutcome.Incomplete
+                        : hasReviewFinding
+                            ? AssuranceClaimOutcome.ReviewRequired
+                            : AssuranceClaimOutcome.Satisfied,
                 Confidence = extension.EvidenceSummary.ConfidenceLevel,
-                Summary = $"Extension readiness assessment is {extension.Verdict}."
+                Summary = hasSpecFailure
+                    ? "Extension has specification failures."
+                    : evidenceIncomplete
+                        ? "Extension evidence is incomplete."
+                        : hasReviewFinding
+                            ? "Extension findings require review."
+                            : "Extension evidence satisfies the assessed server requirements."
             });
             foreach (var finding in extension.Findings)
             {
@@ -236,7 +362,7 @@ public static class AssuranceClaimProjector
                 Dimension = AssuranceDimension.ClientCompatibility,
                 RequirementLevel = AssuranceRequirementLevel.Policy,
                 Authority = AssuranceAuthority.ProviderPolicy,
-                Source = new AssuranceSourceReference { Revision = "interpreted-v1" },
+                Source = new AssuranceSourceReference { Uri = profile.DocumentationUrl, Revision = profile.Revision },
                 Outcome = profile.Status switch
                 {
                     ClientProfileCompatibilityStatus.Compatible => AssuranceClaimOutcome.Satisfied,
@@ -248,60 +374,6 @@ public static class AssuranceClaimProjector
             });
         }
     }
-
-    private static AssuranceAuthority ResolveAuthority(DecisionRecord decision)
-    {
-        if (decision.Origin == EvidenceOrigin.ExternalConformanceCheck) return AssuranceAuthority.OfficialConformance;
-        if (decision.Authority == ValidationRuleSource.Spec) return AssuranceAuthority.OfficialSpecification;
-        if (decision.Origin == EvidenceOrigin.ModelAssistance) return AssuranceAuthority.ModelAdvisory;
-        if (decision.Origin == EvidenceOrigin.HeuristicInference) return AssuranceAuthority.Heuristic;
-        if (decision.ImpactAreas.Any(area => area is ImpactArea.AuthenticationBoundary or ImpactArea.DataExposure or ImpactArea.UnsafeAutonomy))
-            return AssuranceAuthority.DeterministicSecurity;
-        if (decision.ImpactAreas.Contains(ImpactArea.OperationalResilience)) return AssuranceAuthority.OperationalMeasurement;
-        return AssuranceAuthority.ProviderPolicy;
-    }
-
-    private static AssuranceDimension ResolveDimension(DecisionRecord decision)
-    {
-        if (decision.Lane == EvaluationLane.ExternalConformance) return AssuranceDimension.ExternalConformance;
-        if (decision.Lane == EvaluationLane.ExtensionReadiness) return AssuranceDimension.Extension;
-        if (decision.Lane == EvaluationLane.ClientCompatibility) return AssuranceDimension.ClientCompatibility;
-        if (decision.ImpactAreas.Contains(ImpactArea.OperationalResilience)) return AssuranceDimension.Operations;
-        if (decision.ImpactAreas.Any(area => area is ImpactArea.AuthenticationBoundary or ImpactArea.DataExposure or ImpactArea.UnsafeAutonomy))
-            return AssuranceDimension.Security;
-        if (decision.ImpactAreas.Contains(ImpactArea.CapabilityContract)) return AssuranceDimension.CapabilityContract;
-        if (decision.ImpactAreas.Contains(ImpactArea.ProtocolInteroperability)) return AssuranceDimension.CoreProtocol;
-        return decision.Category.Contains("Security", StringComparison.OrdinalIgnoreCase)
-            ? AssuranceDimension.Security
-            : AssuranceDimension.CoreProtocol;
-    }
-
-    private static AssuranceRequirementLevel ResolveRequirementLevel(DecisionRecord decision, AssuranceAuthority authority)
-    {
-        if (authority == AssuranceAuthority.OfficialSpecification)
-            return decision.Gate == GateOutcome.Reject ? AssuranceRequirementLevel.Must : AssuranceRequirementLevel.Should;
-        if (authority == AssuranceAuthority.DeterministicSecurity) return AssuranceRequirementLevel.SecurityControl;
-        if (authority == AssuranceAuthority.OperationalMeasurement) return AssuranceRequirementLevel.OperationalObjective;
-        return AssuranceRequirementLevel.Policy;
-    }
-
-    private static AssuranceClaimOutcome ResolveOutcome(DecisionRecord decision, AssuranceAuthority authority) => decision.Gate switch
-    {
-        GateOutcome.Reject when authority is AssuranceAuthority.OfficialSpecification or AssuranceAuthority.OfficialConformance or AssuranceAuthority.DeterministicSecurity or AssuranceAuthority.OperationalMeasurement
-            => AssuranceClaimOutcome.Violated,
-        GateOutcome.Reject => AssuranceClaimOutcome.ReviewRequired,
-        GateOutcome.ReviewRequired => AssuranceClaimOutcome.ReviewRequired,
-        GateOutcome.CoverageDebt => AssuranceClaimOutcome.Incomplete,
-        _ => AssuranceClaimOutcome.Satisfied
-    };
-
-    private static EvidenceConfidenceLevel ResolveConfidence(DecisionRecord decision) => decision.Origin switch
-    {
-        EvidenceOrigin.DeterministicObservation or EvidenceOrigin.ExternalConformanceCheck => EvidenceConfidenceLevel.High,
-        EvidenceOrigin.DeterministicAggregation => EvidenceConfidenceLevel.High,
-        EvidenceOrigin.HeuristicInference => EvidenceConfidenceLevel.Medium,
-        _ => EvidenceConfidenceLevel.Low
-    };
 
     private static AssuranceClaimOutcome CoverageOutcome(ValidationCoverageDeclaration coverage) => coverage.Status switch
     {
@@ -327,12 +399,49 @@ public static class AssuranceClaimProjector
         return AssuranceDimension.CoreProtocol;
     }
 
-    private static AssuranceRequirementLevel ParseRequirementLevel(string? tier) => tier?.Trim().ToUpperInvariant() switch
+    private static AssuranceDimension ResolveFindingDimension(
+        ValidationFinding finding,
+        AssuranceDimension defaultDimension)
     {
-        "MUST" => AssuranceRequirementLevel.Must,
-        "SHOULD" => AssuranceRequirementLevel.Should,
-        _ => AssuranceRequirementLevel.May
-    };
+        if (finding.ImpactAreas?.Contains(ImpactArea.OperationalResilience) == true) return AssuranceDimension.Operations;
+        if (finding.ImpactAreas?.Any(area => area is ImpactArea.AuthenticationBoundary or ImpactArea.DataExposure or ImpactArea.UnsafeAutonomy) == true)
+            return AssuranceDimension.Security;
+        if (finding.ImpactAreas?.Contains(ImpactArea.ProtocolInteroperability) == true) return AssuranceDimension.CoreProtocol;
+        if (finding.ImpactAreas?.Contains(ImpactArea.CapabilityContract) == true) return AssuranceDimension.CapabilityContract;
+        if (finding.Category.Contains("security", StringComparison.OrdinalIgnoreCase) ||
+            finding.Category.Contains("auth", StringComparison.OrdinalIgnoreCase))
+            return AssuranceDimension.Security;
+        return defaultDimension;
+    }
+
+    private static AssuranceRequirementLevel ResolveFindingRequirement(
+        ValidationFinding finding,
+        AssuranceAuthority authority,
+        AssuranceDimension dimension)
+    {
+        if (finding.Metadata.TryGetValue("requirementLevel", out var requirementLevel) &&
+            Enum.TryParse<AssuranceRequirementLevel>(requirementLevel, ignoreCase: true, out var parsed))
+            return parsed;
+        if (dimension == AssuranceDimension.Security) return AssuranceRequirementLevel.SecurityControl;
+        if (dimension == AssuranceDimension.Operations) return AssuranceRequirementLevel.OperationalObjective;
+        if (authority == AssuranceAuthority.OfficialSpecification)
+            return finding.GateOverride == GateOutcome.Reject || finding.Severity >= ValidationFindingSeverity.High
+                ? AssuranceRequirementLevel.Must
+                : AssuranceRequirementLevel.Should;
+        return AssuranceRequirementLevel.Policy;
+    }
+
+    private static AssuranceClaimOutcome ResolveFindingOutcome(
+        ValidationFinding finding,
+        AssuranceAuthority authority)
+    {
+        if (finding.GateOverride == GateOutcome.CoverageDebt) return AssuranceClaimOutcome.Incomplete;
+        if (authority is AssuranceAuthority.Heuristic or AssuranceAuthority.ProviderPolicy)
+            return AssuranceClaimOutcome.ReviewRequired;
+        if (finding.GateOverride == GateOutcome.Reject || finding.Severity >= ValidationFindingSeverity.High)
+            return AssuranceClaimOutcome.Violated;
+        return AssuranceClaimOutcome.ReviewRequired;
+    }
 
     private static string Normalize(string? value)
     {

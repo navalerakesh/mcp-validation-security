@@ -224,7 +224,7 @@ test("handlers forward explicit protocol era selections", async () => {
       access: "public",
       interactive: false,
       verbose: false,
-      assurance: "provider",
+      assurance: "ci",
       protocolEra: "modern",
       extension: ["io.modelcontextprotocol/ui", "io.modelcontextprotocol/skills"],
     });
@@ -245,7 +245,7 @@ test("handlers forward explicit protocol era selections", async () => {
     assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 9), [
       "validate",
       "--assurance",
-      "provider",
+      "ci",
       "--protocol-era",
       "modern",
       "--extension",
@@ -261,6 +261,24 @@ test("handlers forward explicit protocol era selections", async () => {
     if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture;
     else delete process.env.MOCK_CAPTURE_ARGS;
   }
+});
+
+test("handleValidate rejects provider assurance when operator trust inputs are absent", async () => {
+  assert.equal(config.providerAssurance.enabled, false);
+
+  const result = await handleValidate({
+    server: "https://example.test/mcp",
+    access: "public",
+    interactive: false,
+    verbose: false,
+    assurance: "provider",
+  });
+
+  assert.equal(result.isError, true);
+  assert.equal(
+    (result.structuredContent.error as { code: string }).code,
+    "PROVIDER_ASSURANCE_NOT_CONFIGURED",
+  );
 });
 
 test("handleValidate blocks local commands when local execution is disabled", async () => {

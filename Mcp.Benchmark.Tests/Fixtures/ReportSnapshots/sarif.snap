@@ -33,54 +33,8 @@
               }
             },
             {
-              "id": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
-              "name": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
-              "shortDescription": {
-                "text": "Prompt output includes reflected untrusted content."
-              },
-              "fullDescription": {
-                "text": "Prompt output includes reflected untrusted content."
-              },
-              "help": {
-                "text": "Sanitize or clearly label untrusted data."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "Heuristic",
-                "category": "Security",
-                "ruleIdSource": null,
-                "tags": [
-                  "Heuristic",
-                  "Security",
-                  "prompt:get"
-                ]
-              }
-            },
-            {
-              "id": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-              "name": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-              "shortDescription": {
-                "text": "Critical execution error recorded: Prompt validation hit an unsafe reflection path."
-              },
-              "fullDescription": {
-                "text": "Critical execution error recorded: Prompt validation hit an unsafe reflection path."
-              },
-              "help": null,
-              "helpUri": null,
-              "properties": {
-                "source": "OperationalMeasurement",
-                "category": "Operations",
-                "ruleIdSource": null,
-                "tags": [
-                  "OperationalMeasurement",
-                  "Operations",
-                  "validation-run"
-                ]
-              }
-            },
-            {
-              "id": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
-              "name": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+              "id": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
+              "name": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
               "shortDescription": {
                 "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
               },
@@ -101,8 +55,8 @@
               }
             },
             {
-              "id": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-              "name": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+              "id": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
+              "name": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
               "shortDescription": {
                 "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
               },
@@ -112,19 +66,19 @@
               "help": null,
               "helpUri": null,
               "properties": {
-                "source": "Heuristic",
+                "source": "ProviderPolicy",
                 "category": "CapabilityContract",
                 "ruleIdSource": null,
                 "tags": [
-                  "Heuristic",
+                  "ProviderPolicy",
                   "CapabilityContract",
                   "delete_repo"
                 ]
               }
             },
             {
-              "id": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
-              "name": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+              "id": "finding:mcp-tool-call-result-object-missing:tools-call",
+              "name": "finding:mcp-tool-call-result-object-missing:tools-call",
               "shortDescription": {
                 "text": "One tool response omitted the outer result object."
               },
@@ -135,18 +89,18 @@
               "helpUri": null,
               "properties": {
                 "source": "OfficialSpecification",
-                "category": "CapabilityContract",
+                "category": "CoreProtocol",
                 "ruleIdSource": null,
                 "tags": [
                   "OfficialSpecification",
-                  "CapabilityContract",
+                  "CoreProtocol",
                   "tools/call"
                 ]
               }
             },
             {
-              "id": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
-              "name": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+              "id": "protocol:mcp-init-version-negotiation",
+              "name": "protocol:mcp-init-version-negotiation",
               "shortDescription": {
                 "text": "Server ignored the requested MCP protocol version."
               },
@@ -159,18 +113,18 @@
               "helpUri": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
               "properties": {
                 "source": "OfficialSpecification",
-                "category": "CapabilityContract",
+                "category": "CoreProtocol",
                 "ruleIdSource": null,
                 "tags": [
                   "OfficialSpecification",
-                  "CapabilityContract",
+                  "CoreProtocol",
                   "Initialization"
                 ]
               }
             },
             {
-              "id": "decision:baseline:security:mcp-security-prompt-injection:prompt-get",
-              "name": "decision:baseline:security:mcp-security-prompt-injection:prompt-get",
+              "id": "vulnerability:mcp-security-prompt-injection:prompt-get",
+              "name": "vulnerability:mcp-security-prompt-injection:prompt-get",
               "shortDescription": {
                 "text": "Server reflected untrusted prompt content without sanitization."
               },
@@ -182,35 +136,13 @@
               },
               "helpUri": null,
               "properties": {
-                "source": "OperationalMeasurement",
-                "category": "Operations",
+                "source": "DeterministicSecurity",
+                "category": "Security",
                 "ruleIdSource": null,
                 "tags": [
-                  "OperationalMeasurement",
-                  "Operations",
+                  "DeterministicSecurity",
+                  "Security",
                   "prompt:get"
-                ]
-              }
-            },
-            {
-              "id": "decision:coverage:prompt-surface:prompts-list:Skipped",
-              "name": "decision:coverage:prompt-surface:prompts-list:Skipped",
-              "shortDescription": {
-                "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
-              },
-              "fullDescription": {
-                "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
-              },
-              "help": null,
-              "helpUri": null,
-              "properties": {
-                "source": "ProviderPolicy",
-                "category": "CoreProtocol",
-                "ruleIdSource": null,
-                "tags": [
-                  "ProviderPolicy",
-                  "CoreProtocol",
-                  "prompt-surface"
                 ]
               }
             }
@@ -235,10 +167,10 @@
             "assuranceProfile": "provider",
             "certificateEligibility": "Ineligible",
             "coreConformance": "Nonconformant",
-            "securityAssurance": "Incomplete",
-            "operationalReadiness": "NotReady",
+            "securityAssurance": "IssuesFound",
+            "operationalReadiness": "Ready",
             "policyPassed": false,
-            "policySummary": "Strict policy blocked the validation result with 9 blocking signal(s).",
+            "policySummary": "Strict policy blocked the validation result with 6 blocking signal(s).",
             "evidenceCoverageRatio": 0.875,
             "evidenceConfidenceRatio": 0.9188,
             "serverProfile": "Authenticated",
@@ -283,84 +215,14 @@
           }
         },
         {
-          "ruleId": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
-          "level": "warning",
-          "kind": "fail",
-          "message": {
-            "text": "Prompt output includes reflected untrusted content."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "prompt:get"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "claimId": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
-            "dimension": "Security",
-            "authority": "Heuristic",
-            "requirementLevel": "Policy",
-            "outcome": "ReviewRequired",
-            "confidence": "Medium",
-            "sourceRevision": "2026-08-19.2",
-            "sourceSha256": null,
-            "evidenceIds": [
-              "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content"
-            ],
-            "claimMetadata": {}
-          }
-        },
-        {
-          "ruleId": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "Critical execution error recorded: Prompt validation hit an unsafe reflection path."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "validation-run"
-                }
-              ]
-            }
-          ],
-          "properties": {
-            "claimId": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-            "dimension": "Operations",
-            "authority": "OperationalMeasurement",
-            "requirementLevel": "OperationalObjective",
-            "outcome": "Violated",
-            "confidence": "High",
-            "sourceRevision": "2026-08-19.2",
-            "sourceSha256": null,
-            "evidenceIds": [
-              "execution-error:prompt-validation-hit-an-unsafe-reflection-path"
-            ],
-            "claimMetadata": {}
-          }
-        },
-        {
-          "ruleId": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+          "ruleId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
           "level": "warning",
           "kind": "fail",
           "message": {
             "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
           },
           "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions"
+            "logicalIdentity": "finding:ai-tool-schema-parameter-description-missing:delete-repo"
           },
           "locations": [
             {
@@ -373,7 +235,7 @@
             }
           ],
           "properties": {
-            "claimId": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+            "claimId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
             "dimension": "CapabilityContract",
             "authority": "Heuristic",
             "requirementLevel": "Policy",
@@ -381,22 +243,22 @@
             "confidence": "Medium",
             "sourceRevision": "2026-11-04.1",
             "sourceSha256": null,
-            "evidenceIds": [
-              "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
-              "obs-tool-delete-repo"
-            ],
-            "claimMetadata": {}
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+              "severity": "Medium"
+            }
           }
         },
         {
-          "ruleId": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+          "ruleId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
           "level": "warning",
           "kind": "fail",
           "message": {
             "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
           },
           "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint"
+            "logicalIdentity": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo"
           },
           "locations": [
             {
@@ -409,30 +271,30 @@
             }
           ],
           "properties": {
-            "claimId": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+            "claimId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
             "dimension": "CapabilityContract",
-            "authority": "Heuristic",
+            "authority": "ProviderPolicy",
             "requirementLevel": "Policy",
             "outcome": "ReviewRequired",
             "confidence": "Medium",
             "sourceRevision": "2026-11-04.1",
             "sourceSha256": null,
-            "evidenceIds": [
-              "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-              "obs-tool-delete-repo"
-            ],
-            "claimMetadata": {}
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "severity": "High"
+            }
           }
         },
         {
-          "ruleId": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+          "ruleId": "finding:mcp-tool-call-result-object-missing:tools-call",
           "level": "warning",
           "kind": "fail",
           "message": {
             "text": "One tool response omitted the outer result object."
           },
           "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object"
+            "logicalIdentity": "finding:mcp-tool-call-result-object-missing:tools-call"
           },
           "locations": [
             {
@@ -445,29 +307,30 @@
             }
           ],
           "properties": {
-            "claimId": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
-            "dimension": "CapabilityContract",
+            "claimId": "finding:mcp-tool-call-result-object-missing:tools-call",
+            "dimension": "CoreProtocol",
             "authority": "OfficialSpecification",
             "requirementLevel": "Should",
             "outcome": "ReviewRequired",
             "confidence": "High",
             "sourceRevision": "2026-11-04.1",
             "sourceSha256": null,
-            "evidenceIds": [
-              "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object"
-            ],
-            "claimMetadata": {}
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+              "severity": "Medium"
+            }
           }
         },
         {
-          "ruleId": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+          "ruleId": "protocol:mcp-init-version-negotiation",
           "level": "error",
           "kind": "fail",
           "message": {
             "text": "Server ignored the requested MCP protocol version."
           },
           "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+            "logicalIdentity": "protocol:mcp-init-version-negotiation"
           },
           "locations": [
             {
@@ -480,29 +343,32 @@
             }
           ],
           "properties": {
-            "claimId": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
-            "dimension": "CapabilityContract",
+            "claimId": "protocol:mcp-init-version-negotiation",
+            "dimension": "CoreProtocol",
             "authority": "OfficialSpecification",
             "requirementLevel": "Must",
             "outcome": "Violated",
             "confidence": "High",
-            "sourceRevision": "2026-04",
+            "sourceRevision": "2025-11-25",
             "sourceSha256": null,
             "evidenceIds": [
-              "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+              "protocol/MCP.INIT.VERSION_NEGOTIATION"
             ],
-            "claimMetadata": {}
+            "claimMetadata": {
+              "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+              "severity": "High"
+            }
           }
         },
         {
-          "ruleId": "decision:baseline:security:mcp-security-prompt-injection:prompt-get",
+          "ruleId": "vulnerability:mcp-security-prompt-injection:prompt-get",
           "level": "error",
           "kind": "fail",
           "message": {
             "text": "Server reflected untrusted prompt content without sanitization."
           },
           "partialFingerprints": {
-            "logicalIdentity": "decision:baseline:security:mcp-security-prompt-injection:prompt-get"
+            "logicalIdentity": "vulnerability:mcp-security-prompt-injection:prompt-get"
           },
           "locations": [
             {
@@ -515,54 +381,22 @@
             }
           ],
           "properties": {
-            "claimId": "decision:baseline:security:mcp-security-prompt-injection:prompt-get",
-            "dimension": "Operations",
-            "authority": "OperationalMeasurement",
-            "requirementLevel": "OperationalObjective",
+            "claimId": "vulnerability:mcp-security-prompt-injection:prompt-get",
+            "dimension": "Security",
+            "authority": "DeterministicSecurity",
+            "requirementLevel": "SecurityControl",
             "outcome": "Violated",
             "confidence": "High",
-            "sourceRevision": "2026-08-19.2",
+            "sourceRevision": "2026-11-04.1",
             "sourceSha256": null,
             "evidenceIds": [
-              "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
-              "probe:probe-prompt-get-reflection-200"
+              "probe-prompt-get-reflection-200"
             ],
-            "claimMetadata": {}
-          }
-        },
-        {
-          "ruleId": "decision:coverage:prompt-surface:prompts-list:Skipped",
-          "level": "note",
-          "kind": "informational",
-          "message": {
-            "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "decision:coverage:prompt-surface:prompts-list:Skipped"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "prompt-surface"
-                }
-              ]
+            "claimMetadata": {
+              "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+              "severity": "Critical",
+              "exploitable": "True"
             }
-          ],
-          "properties": {
-            "claimId": "decision:coverage:prompt-surface:prompts-list:Skipped",
-            "dimension": "CoreProtocol",
-            "authority": "ProviderPolicy",
-            "requirementLevel": "Policy",
-            "outcome": "Incomplete",
-            "confidence": "High",
-            "sourceRevision": "2026-08-19.2",
-            "sourceSha256": null,
-            "evidenceIds": [
-              "coverage:prompt-surface:prompts-list:Skipped"
-            ],
-            "claimMetadata": {}
           }
         }
       ]

@@ -37,6 +37,21 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
   const args: string[] = [];
   if (input.policy) args.push("--policy", input.policy);
   if (input.assurance) args.push("--assurance", input.assurance);
+  if (input.assurance === "provider") {
+    if (!config.providerAssurance.enabled) {
+      return commandError(
+        "validate",
+        "PROVIDER_ASSURANCE_NOT_CONFIGURED",
+        "Provider assurance is disabled. The wrapper operator must configure signed harness, trusted authorization key, official conformance evidence, and attestation key environment variables.",
+      );
+    }
+    args.push(
+      "--provider-harness", config.providerAssurance.harnessPath!,
+      "--provider-authorization-key", config.providerAssurance.authorizationKeyPath!,
+      "--conformance-results", config.providerAssurance.conformanceResultsPath!,
+      "--sign-attestation",
+    );
+  }
   if (input.mcpspec) args.push("--mcpspec", input.mcpspec);
   if (input.protocolEra) args.push("--protocol-era", input.protocolEra);
   if (input.reportDetail) args.push("--report-detail", input.reportDetail);

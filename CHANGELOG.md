@@ -6,6 +6,23 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Added
+
+- Added signed ECDSA P-256 provider authorization grants and signed prior-run harness manifests, target/protocol/execution-plan/current-run binding, repeated-run admission, and a controlled end-to-end provider certificate proof.
+- Added an isolated official-conformance companion with exact runner, requirement-set, frozen-scenario, raw-result, and transitive npm dependency locks.
+- Added deterministic 50-run parallel isolation, 25-render concurrency, 1,000-evaluation soak, structural HTML accessibility, WCAG AA token, and browser desktop/mobile/keyboard proofs.
+
+### Changed
+
+- Removed the dormant V1 trust calculator, verdict engine, duplicate decision manifest, policy branch, report fallbacks, and calibration corpus so V2 claims and independent assessments are the only decision pipeline.
+- Provider assurance, baselines, policy, console output, reports, audit identities, and exit codes now consume the final V2 assurance state after external evidence and current-run receipts are attached.
+
+### Fixed
+
+- Official conformance import now fails closed on missing, unexpected, empty, or misclassified frozen scenarios and verifies the exact bounded `checks.json` bytes before parsing.
+- Normative security violations now contribute to deterministic security assurance instead of remaining outside the security reducer.
+- HTML reports now use assurance terminology, provide console-clean offline icons, meet WCAG AA text contrast, and retain bounded mobile table scrolling.
+
 ## 2.0.0 - 2026-11-05
 
 ### Changed

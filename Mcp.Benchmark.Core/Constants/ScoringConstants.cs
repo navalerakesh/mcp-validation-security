@@ -11,30 +11,6 @@ public static class ScoringConstants
 {
     public const string PolicyVersion = "2026-08-19.2";
 
-    // ─── Trust Level Thresholds ──────────────────────────────────────
-    // The weighted trust score maps to a level and may then be capped by blocking findings.
-    
-    /// <summary>Weighted trust score >= 90 before any blocking caps → L5 High Assurance</summary>
-    public const double TrustL5Threshold = 90.0;
-    
-    /// <summary>Weighted trust score >= 75 before any blocking caps → L4 Trusted</summary>
-    public const double TrustL4Threshold = 75.0;
-    
-    /// <summary>Weighted trust score >= 50 after applying caps → L3 Acceptable</summary>
-    public const double TrustL3Threshold = 50.0;
-    
-    /// <summary>Weighted trust score >= 25 or capped into caution range → L2 Caution</summary>
-    public const double TrustL2Threshold = 25.0;
-    
-    // Below L2 → L1 Untrusted
-
-    // ─── Trust Dimension Weights ───────────────────────────────────
-
-    public const double TrustWeightProtocol = 0.30;
-    public const double TrustWeightSecurity = 0.35;
-    public const double TrustWeightAiSafety = 0.20;
-    public const double TrustWeightOperations = 0.15;
-
     // ─── Category Weights (Aggregate Scoring) ────────────────────────
     
     public const double WeightProtocol = 0.30;

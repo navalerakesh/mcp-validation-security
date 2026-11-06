@@ -173,82 +173,6 @@ public class MarkdownReportGeneratorTests
     }
 
     [Fact]
-    public void GenerateReport_ShouldNotRenderLegacyTrustOrTierSections()
-    {
-        var result = BuildMinimalResult();
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L3_Acceptable,
-            ProtocolCompliance = 100,
-            SecurityPosture = 0,
-            AiSafety = 85,
-            OperationalReadiness = 70,
-            LimitedByIncompleteEvidence = true,
-            UnevaluatedDimensions = ["protocol", "security", "operations"]
-        };
-
-        var report = _generator.GenerateReport(result);
-
-        report.Should().NotContain("evidence-limited; unevaluated");
-        report.Should().NotContain("Benchmark Trust Profile");
-    }
-
-    [Fact]
-    public void GenerateReport_WithBoundaryFindings_ShouldNotRenderLegacyBoundaryTable()
-    {
-        var result = BuildMinimalResult();
-        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L3_Acceptable,
-            BoundaryFindings = new List<AiBoundaryFinding>
-            {
-                new AiBoundaryFinding
-                {
-                    Category = "Destructive",
-                    Component = "delete_tool",
-                    Severity = "High",
-                    Description = "Tool appears destructive"
-                }
-            }
-        };
-
-        var report = _generator.GenerateReport(result);
-
-        report.Should().NotContain("AI Boundary Findings");
-    }
-
-    [Fact]
-    public void GenerateReport_WithComplianceTiers_ShouldNotRenderLegacyTierTable()
-    {
-        var result = BuildMinimalResult();
-        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L4_Trusted,
-            MustPassCount = 6,
-            MustFailCount = 0,
-            MustTotalCount = 6,
-            ShouldPassCount = 5,
-            ShouldFailCount = 2,
-            ShouldTotalCount = 7,
-            MaySupported = 3,
-            MayTotal = 5,
-            TierChecks = new List<ComplianceTierCheck>
-            {
-                new ComplianceTierCheck { Tier = "MUST", Requirement = "Test req", Passed = true, Component = "init" },
-                new ComplianceTierCheck { Tier = "SHOULD", Requirement = "Test should", Passed = false, Component = "tools" },
-                new ComplianceTierCheck { Tier = "MAY", Requirement = "Test may", Passed = true, Component = "caps" }
-            }
-        };
-
-        var report = _generator.GenerateReport(result);
-
-        report.Should().NotContain("RFC 2119 Tiers");
-        report.Should().NotContain("Fully compliant");
-    }
-
-    [Fact]
     public void GenerateReport_WithSkippedPerformance_ShouldShowSkippedNotZeros()
     {
         var result = BuildMinimalResult();
@@ -412,7 +336,7 @@ public class MarkdownReportGeneratorTests
                 }
             }
         };
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -503,46 +427,37 @@ public class MarkdownReportGeneratorTests
                 }
             }
         };
-        result.VerdictAssessment = new VerdictAssessment
+        result.SecurityTesting.Findings.Add(new ValidationFinding
         {
-            BlockingDecisions =
-            {
-                new()
+            RuleId = "MCP.AUTH.AUDIENCE",
+            Source = ValidationRuleSource.Spec,
+            GateOverride = GateOutcome.ReviewRequired,
+            Severity = ValidationFindingSeverity.High,
+            Category = "Authentication",
+            Component = "oauth",
+            Summary = "Bearer token audience was not enforced.",
+            Recommendation = "Reject bearer tokens with the wrong resource audience.",
+            ImpactAreas = [ImpactArea.AuthenticationBoundary]
+        });
+        result.ToolValidation = new ToolTestResult
+        {
+            Findings =
+            [
+                new ValidationFinding
                 {
-                    DecisionId = "auth-boundary",
-                    Lane = EvaluationLane.Baseline,
-                    Authority = ValidationRuleSource.Spec,
-                    Origin = EvidenceOrigin.DeterministicObservation,
-                    Gate = GateOutcome.ReviewRequired,
-                    Severity = ValidationFindingSeverity.High,
-                    Category = "Authentication",
-                    Component = "oauth",
-                    Summary = "Bearer token audience was not enforced.",
-                    ImpactAreas = [ImpactArea.AuthenticationBoundary],
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["recommendation"] = "Reject bearer tokens with the wrong resource audience."
-                    }
-                },
-                new()
-                {
-                    DecisionId = "capability-contract",
-                    Lane = EvaluationLane.Baseline,
-                    Authority = ValidationRuleSource.Spec,
-                    Origin = EvidenceOrigin.DeterministicObservation,
-                    Gate = GateOutcome.ReviewRequired,
+                    RuleId = "MCP.CAPABILITY.TOOLS",
+                    Source = ValidationRuleSource.Spec,
+                    GateOverride = GateOutcome.ReviewRequired,
                     Severity = ValidationFindingSeverity.High,
                     Category = "CapabilityCoverage",
                     Component = "tools/call",
                     Summary = "tools/call was exercised even though tools were not advertised.",
-                    ImpactAreas = [ImpactArea.CapabilityContract],
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["recommendation"] = "Align initialize capabilities with implemented tool support."
-                    }
+                    Recommendation = "Align initialize capabilities with implemented tool support.",
+                    ImpactAreas = [ImpactArea.CapabilityContract]
                 }
-            }
+            ]
         };
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -879,6 +794,9 @@ public class MarkdownReportGeneratorTests
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Protected surface required credentials."
         });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -926,7 +844,7 @@ public class MarkdownReportGeneratorTests
                 }
             }
         };
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 

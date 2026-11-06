@@ -244,10 +244,11 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         ValidationResult? result,
         IEnumerable<string> artifactPaths)
     {
-        var ruleCatalog = result?.VerdictAssessment?.Policy.RuleRevisions
+        var ruleCatalog = ValidationFindingRuleIds.GetVersionedRules()
             .Select(pair => $"{pair.Key}={pair.Value}")
-            .OrderBy(value => value, StringComparer.Ordinal)
-            ?? Enumerable.Empty<string>();
+            .Append($"assurance-profile={AssuranceProfileCatalog.Revision}")
+            .Append($"calibration-policy={RuleCalibrationPolicy.Revision}")
+            .OrderBy(value => value, StringComparer.Ordinal);
         var profileCatalog = (result?.Evidence.AppliedPacks
             .Where(pack => pack.Key.Value.Contains("client-profile", StringComparison.OrdinalIgnoreCase))
             .Select(pack => $"{pack.Key.Value}={pack.Revision.Value}")

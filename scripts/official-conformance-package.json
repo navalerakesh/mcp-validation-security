@@ -1,0 +1,8 @@
+{
+  "name": "mcpval-official-conformance-companion",
+  "private": true,
+  "version": "0.0.0",
+  "dependencies": {
+    "@modelcontextprotocol/conformance": "0.2.0-alpha.12"
+  }
+}

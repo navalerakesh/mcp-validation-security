@@ -65,6 +65,8 @@ public sealed class ExecutionPlan
 
     public string TargetDigest { get; init; } = string.Empty;
 
+    public string ProviderExecutionPlanSha256 { get; set; } = string.Empty;
+
     public string CommandName { get; init; } = "validate";
 
     public string SessionId { get; init; } = string.Empty;

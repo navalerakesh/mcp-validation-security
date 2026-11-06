@@ -666,41 +666,6 @@ public static class ReportSnapshotTestData
                         ProbeContexts = new List<ProbeContext> { attackDiscoveryProbe, attackExecutionProbe }
                     }
                 }
-            },
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L3_Acceptable,
-                ProtocolCompliance = 84,
-                SecurityPosture = 69,
-                AiSafety = 75,
-                OperationalReadiness = 88,
-                BoundaryFindings = new List<AiBoundaryFinding>
-                {
-                    new()
-                    {
-                        Category = "PromptInjection",
-                        Kind = AiBoundaryKind.PromptInjection,
-                        Component = "prompt:get",
-                        Severity = "Critical",
-                        SeverityLevel = ValidationFindingSeverity.Critical,
-                        Gate = GateOutcome.Reject,
-                        ImpactAreas = [ImpactArea.UnsafeAutonomy, ImpactArea.OutputIntegrity],
-                        Description = "Prompt output includes reflected untrusted content.",
-                        Mitigation = "Sanitize or clearly label untrusted data."
-                    }
-                }
-            },
-            PolicyOutcome = new ValidationPolicyOutcome
-            {
-                Mode = ValidationPolicyModes.Strict,
-                Passed = false,
-                RecommendedExitCode = 1,
-                Summary = "Strict policy blocked the validation result with 2 blocking signal(s).",
-                Reasons = new List<string>
-                {
-                    "Trust level L3_Acceptable is below the strict minimum of L4_Trusted.",
-                    "Tool 'delete_repo' does not declare annotations.destructiveHint."
-                }
             }
         };
 
@@ -719,18 +684,15 @@ public static class ReportSnapshotTestData
             result.ToolValidation.AiSafetyControlEvidence.AddRange(controlAnalysis.Evidence);
         }
 
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
-        result.OverallStatus = ValidationVerdictEngine.IsPassing(result.VerdictAssessment)
-            ? ValidationStatus.Passed
-            : ValidationStatus.Failed;
-        result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
-        {
-            Mode = ValidationPolicyModes.Strict
-        });
         result.Assurance = AssuranceAssessmentEngine.Evaluate(
             result,
             AssuranceProfileCatalog.Provider,
             new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Standard });
+        result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(result.Assurance);
+        result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig
+        {
+            Mode = ValidationPolicyModes.Strict
+        });
 
         return result;
     }

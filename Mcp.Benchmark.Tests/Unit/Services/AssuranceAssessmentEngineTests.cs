@@ -17,19 +17,51 @@ public sealed class AssuranceAssessmentEngineTests
         nullProfile.Should().Throw<ArgumentNullException>();
     }
 
+    [Theory]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.Ready, false, ValidationStatus.Passed)]
+    [InlineData(CoreConformanceStatus.Nonconformant, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.Ready, false, ValidationStatus.Failed)]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.IssuesFound, OperationalReadinessStatus.Ready, false, ValidationStatus.Failed)]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.NotReady, false, ValidationStatus.Failed)]
+    [InlineData(CoreConformanceStatus.Incomplete, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.Ready, false, ValidationStatus.PartiallyCompleted)]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.Incomplete, OperationalReadinessStatus.Ready, false, ValidationStatus.PartiallyCompleted)]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.Incomplete, false, ValidationStatus.PartiallyCompleted)]
+    [InlineData(CoreConformanceStatus.Conformant, SecurityAssuranceStatus.Verified, OperationalReadinessStatus.Ready, true, ValidationStatus.Error)]
+    public void DetermineValidationStatus_ShouldRespectIndependentAssessmentPrecedence(
+        CoreConformanceStatus core,
+        SecurityAssuranceStatus security,
+        OperationalReadinessStatus operations,
+        bool hasCriticalErrors,
+        ValidationStatus expected)
+    {
+        var evaluation = new AssuranceEvaluation
+        {
+            Profile = AssuranceProfileCatalog.Inventory,
+            Assessments = new AssuranceAssessmentSet
+            {
+                CoreConformance = new CoreConformanceAssessment { Status = core },
+                SecurityAssurance = new SecurityAssuranceAssessment { Status = security },
+                OperationalReadiness = new OperationalReadinessAssessment { Status = operations }
+            },
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = AssuranceProfileCatalog.Inventory.ProfileId,
+                Status = CertificateEligibilityStatus.Ineligible
+            }
+        };
+
+        AssuranceAssessmentEngine.DetermineValidationStatus(evaluation, hasCriticalErrors).Should().Be(expected);
+    }
+
     [Fact]
     public void Evaluate_HeuristicReject_ShouldRequireReviewWithoutCoreNonconformance()
     {
         var result = CreateResultWithCoveredBaseline();
-        result.VerdictAssessment = new VerdictAssessment();
-        result.VerdictAssessment.TriggeredDecisions.Add(new DecisionRecord
+        result.ToolValidation = new ToolTestResult();
+        result.ToolValidation.AiReadinessFindings.Add(new ValidationFinding
         {
-            DecisionId = "heuristic-delete",
             RuleId = "MCP.CONTENT.SystemImpact",
-            Lane = EvaluationLane.Baseline,
-            Authority = ValidationRuleSource.Heuristic,
-            Origin = EvidenceOrigin.HeuristicInference,
-            Gate = GateOutcome.Reject,
+            Source = ValidationRuleSource.Heuristic,
+            GateOverride = GateOutcome.Reject,
             Severity = ValidationFindingSeverity.High,
             Category = "ContentSafety.SystemImpact",
             Component = "delete_file",
@@ -40,7 +72,7 @@ public sealed class AssuranceAssessmentEngineTests
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
 
         evaluation.Claims.Should().ContainSingle(claim =>
-            claim.ClaimId == "decision:heuristic-delete" &&
+            claim.Metadata.GetValueOrDefault("ruleId") == "MCP.CONTENT.SystemImpact" &&
             claim.Authority == AssuranceAuthority.Heuristic &&
             claim.Outcome == AssuranceClaimOutcome.ReviewRequired);
         evaluation.Assessments.CoreConformance.Status.Should().Be(CoreConformanceStatus.Incomplete);
@@ -51,24 +83,21 @@ public sealed class AssuranceAssessmentEngineTests
     public void Evaluate_MustViolation_ShouldMakeCoreNonconformant()
     {
         var result = CreateResultWithCoveredBaseline();
-        result.TrustAssessment = new McpTrustAssessment
+        result.ProtocolCompliance = new ComplianceTestResult
         {
-            TierChecks =
+            Violations =
             [
-                new ComplianceTierCheck
+                new ComplianceViolation
                 {
-                    Tier = "MUST",
-                    Component = "json-rpc",
-                    Requirement = "Requests include a non-null ID.",
-                    Passed = false
+                    CheckId = "MCP.JSONRPC.REQUEST_ID",
+                    Category = "JSON-RPC",
+                    Description = "Requests must include a non-null ID.",
+                    Severity = ViolationSeverity.High
                 }
             ]
         };
 
-        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Ci, new AssuranceEvaluationContext
-        {
-            ExecutionMode = ExecutionMode.Standard
-        });
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
 
         evaluation.Assessments.CoreConformance.Status.Should().Be(CoreConformanceStatus.Nonconformant);
         evaluation.Assessments.CoreConformance.BlockingClaimIds.Should().ContainSingle();
@@ -109,12 +138,14 @@ public sealed class AssuranceAssessmentEngineTests
     public void Evaluate_ShouldAndExtensionClaims_ShouldNotCountAsRequiredCoreClaims()
     {
         var result = CreateCompleteResult();
-        result.TrustAssessment!.TierChecks.Add(new ComplianceTierCheck
+        result.ProtocolCompliance!.Findings.Add(new ValidationFinding
         {
-            Tier = "SHOULD",
+            RuleId = "MCP.SHOULD.DESCRIPTION",
+            Source = ValidationRuleSource.Spec,
             Component = "optional",
-            Requirement = "Recommended behavior.",
-            Passed = false
+            Severity = ValidationFindingSeverity.Medium,
+            Summary = "Recommended behavior is absent.",
+            Metadata = new Dictionary<string, string> { ["requirementLevel"] = "Should" }
         });
         result.Assessments.Extensions.Add(new ExtensionAssessment
         {
@@ -205,16 +236,24 @@ public sealed class AssuranceAssessmentEngineTests
         SecurityAssuranceStatus expected)
     {
         var result = CreateCompleteResult();
-        result.VerdictAssessment!.TriggeredDecisions.RemoveAll(decision => decision.DecisionId == "security-control");
-        result.VerdictAssessment.TriggeredDecisions.Add(CreateDecision("security-control", gate, ImpactArea.AuthenticationBoundary));
+        result.SecurityTesting!.AttackSimulations.Clear();
+        result.SecurityTesting.AttackSimulations.Add(new AttackSimulationResult
+        {
+            AttackVector = "security-control",
+            Description = "Security control outcome.",
+            Authority = ValidationRuleSource.Guideline,
+            Gate = gate,
+            Outcome = gate == GateOutcome.Reject ? ValidationOutcome.Failed : ValidationOutcome.Inconclusive,
+            Severity = gate == GateOutcome.Reject ? ValidationFindingSeverity.High : ValidationFindingSeverity.Medium
+        });
 
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
 
         evaluation.Assessments.SecurityAssurance.Status.Should().Be(expected);
         if (expected == SecurityAssuranceStatus.IssuesFound)
-            evaluation.Assessments.SecurityAssurance.IssueClaimIds.Should().ContainSingle("decision:security-control");
+            evaluation.Assessments.SecurityAssurance.IssueClaimIds.Should().ContainSingle("attack:security-control");
         else
-            evaluation.Assessments.SecurityAssurance.IncompleteClaimIds.Should().ContainSingle("decision:security-control");
+            evaluation.Assessments.SecurityAssurance.IncompleteClaimIds.Should().ContainSingle("attack:security-control");
     }
 
     [Theory]
@@ -226,8 +265,16 @@ public sealed class AssuranceAssessmentEngineTests
         OperationalReadinessStatus expected)
     {
         var result = CreateCompleteResult();
-        result.VerdictAssessment!.TriggeredDecisions.RemoveAll(decision => decision.DecisionId == "operations-objective");
-        result.VerdictAssessment.TriggeredDecisions.Add(CreateDecision("operations-objective", gate, ImpactArea.OperationalResilience));
+        result.PerformanceTesting!.Findings.Add(new ValidationFinding
+        {
+            RuleId = "OPERATIONS.OBJECTIVE",
+            Source = ValidationRuleSource.Spec,
+            Component = "operations-objective",
+            Severity = gate == GateOutcome.Reject ? ValidationFindingSeverity.High : ValidationFindingSeverity.Medium,
+            GateOverride = gate,
+            ImpactAreas = [ImpactArea.OperationalResilience],
+            Summary = "Operational objective outcome."
+        });
 
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
 
@@ -272,20 +319,18 @@ public sealed class AssuranceAssessmentEngineTests
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
 
         evaluation.Assessments.OperationalReadiness.Status.Should().Be(OperationalReadinessStatus.Incomplete);
-        evaluation.Assessments.OperationalReadiness.IncompleteClaimIds.Should().Contain("coverage:operations");
+        evaluation.Assessments.OperationalReadiness.IncompleteClaimIds.Should().Contain("coverage:performance:repeated-measurements");
     }
 
     [Fact]
     public void Evaluate_HeuristicReview_ShouldNotDowngradeVerifiedDeterministicSecurity()
     {
         var result = CreateCompleteResult();
-        result.VerdictAssessment!.TriggeredDecisions.Add(new DecisionRecord
+        result.ToolValidation = new ToolTestResult();
+        result.ToolValidation.AiReadinessFindings.Add(new ValidationFinding
         {
-            DecisionId = "heuristic-review",
-            Lane = EvaluationLane.Baseline,
-            Authority = ValidationRuleSource.Heuristic,
-            Origin = EvidenceOrigin.HeuristicInference,
-            Gate = GateOutcome.ReviewRequired,
+            RuleId = "HEURISTIC.REVIEW",
+            Source = ValidationRuleSource.Heuristic,
             Severity = ValidationFindingSeverity.Medium,
             Category = "Security",
             Component = "tool",
@@ -317,6 +362,85 @@ public sealed class AssuranceAssessmentEngineTests
 
         evaluation.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.Verified);
         evaluation.Assessments.OperationalReadiness.Status.Should().Be(OperationalReadinessStatus.Ready);
+    }
+
+    [Fact]
+    public void Evaluate_OperationalRequirementOutsideOperationsDimension_ShouldNotAffectReadiness()
+    {
+        var result = CreateCompleteResult();
+        result.SecurityTesting!.Findings.Add(new ValidationFinding
+        {
+            RuleId = "SECURITY.OPERATIONAL_LABEL",
+            Source = ValidationRuleSource.Spec,
+            Component = "security-control",
+            Severity = ValidationFindingSeverity.High,
+            ImpactAreas = [ImpactArea.AuthenticationBoundary],
+            Summary = "Security failure carrying an operational requirement label.",
+            Metadata = new Dictionary<string, string> { ["requirementLevel"] = "OperationalObjective" }
+        });
+
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
+
+        evaluation.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.IssuesFound);
+        evaluation.Assessments.OperationalReadiness.Status.Should().Be(OperationalReadinessStatus.Ready);
+    }
+
+    [Fact]
+    public void Evaluate_ExtensionAndClientAssessments_ShouldBeOrdinallyStable()
+    {
+        var result = CreateCompleteResult();
+        result.Assessments.Extensions.Add(CreateExtension("z.extension"));
+        var extension = CreateExtension("a.extension",
+        [
+            new ValidationFinding
+            {
+                RuleId = "Z.RULE",
+                Source = ValidationRuleSource.Heuristic,
+                Component = "z-component",
+                Summary = "Z review finding."
+            },
+            new ValidationFinding
+            {
+                RuleId = "A.RULE",
+                Source = ValidationRuleSource.Heuristic,
+                Component = "a-component",
+                Summary = "A review finding."
+            }
+        ]);
+        result.Assessments.Extensions.Add(extension);
+        result.ClientCompatibility = new ClientCompatibilityReport
+        {
+            Assessments =
+            [
+                new ClientProfileAssessment { ProfileId = "z-client", Revision = "1", Summary = "Z" },
+                new ClientProfileAssessment { ProfileId = "a-client", Revision = "1", Summary = "A" }
+            ]
+        };
+
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
+
+        evaluation.Assessments.ExtensionReadiness.Select(item => item.ExtensionId).Should().Equal("a.extension", "z.extension");
+        evaluation.Assessments.ExtensionReadiness[0].NonSuccessClaimIds.Should().BeInAscendingOrder(StringComparer.Ordinal);
+        evaluation.Assessments.ClientCompatibility.Select(item => item.ProfileId).Should().Equal("a-client", "z-client");
+        evaluation.Assessments.ClientCompatibility.Should().OnlyContain(item => item.Verification == ClientCompatibilityVerification.Interpreted);
+    }
+
+    [Theory]
+    [InlineData(0, ExternalConformanceStatus.Verified)]
+    [InlineData(1, ExternalConformanceStatus.Nonconformant)]
+    public void Evaluate_VerifiedExternalConformance_ShouldHonorFailureBoundary(
+        int failed,
+        ExternalConformanceStatus expected)
+    {
+        var result = CreateCompleteResult();
+        result.Assessments.OfficialConformance = CreateOfficialConformance(
+            OfficialConformanceVerificationStatus.Verified,
+            failed: failed);
+
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
+
+        evaluation.Assessments.ExternalConformance.Status.Should().Be(expected);
+        evaluation.Assessments.ExternalConformance.Failed.Should().Be(failed);
     }
 
     [Fact]
@@ -474,6 +598,18 @@ public sealed class AssuranceAssessmentEngineTests
             verificationStatus == OfficialConformanceVerificationStatus.Conflict
                 ? CertificateEligibilityStatus.Ineligible
                 : CertificateEligibilityStatus.ReviewRequired);
+        if (verificationStatus == OfficialConformanceVerificationStatus.Conflict)
+        {
+            evaluation.CertificateEligibility.Reasons.Should().Contain(new[]
+            {
+                "Verified official conformance evidence is required.",
+                "Official and native evidence conflicts remain unresolved."
+            });
+        }
+        else
+        {
+            evaluation.CertificateEligibility.Reasons.Should().Contain("Verified official conformance evidence is required.");
+        }
     }
 
     [Fact]
@@ -486,6 +622,117 @@ public sealed class AssuranceAssessmentEngineTests
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Provider, context);
 
         evaluation.CertificateEligibility.Status.Should().Be(CertificateEligibilityStatus.Ineligible);
+    }
+
+    [Fact]
+    public void Evaluate_MissingRequiredExtension_ShouldRequireReview()
+    {
+        var result = CreateCompleteResult();
+        var evaluation = AssuranceAssessmentEngine.Evaluate(
+            result,
+            CertificateProfile(),
+            new AssuranceEvaluationContext
+            {
+                ExecutionMode = ExecutionMode.Standard,
+                RequiredExtensionIds = ["io.modelcontextprotocol/ui"]
+            });
+
+        evaluation.CertificateEligibility.Status.Should().Be(CertificateEligibilityStatus.ReviewRequired);
+        evaluation.CertificateEligibility.Reasons.Should().ContainSingle()
+            .Which.Should().Be("Required extension 'io.modelcontextprotocol/ui' was not assessed.");
+    }
+
+    [Theory]
+    [InlineData(ValidationVerdict.Reject, CertificateEligibilityStatus.Ineligible)]
+    [InlineData(ValidationVerdict.ReviewRequired, CertificateEligibilityStatus.ReviewRequired)]
+    [InlineData(ValidationVerdict.Trusted, CertificateEligibilityStatus.Eligible)]
+    public void Evaluate_RequiredExtensionOutcome_ShouldAffectCertificate(
+        ValidationVerdict extensionVerdict,
+        CertificateEligibilityStatus expected)
+    {
+        var result = CreateCompleteResult();
+        result.Assessments.Extensions.Add(new ExtensionAssessment
+        {
+            ExtensionId = "io.modelcontextprotocol/ui",
+            Stage = ExtensionLifecycleStage.Stable,
+            SpecificationRevision = "2026-01-26",
+            SpecificationSha256 = new string('e', 64),
+            Verdict = extensionVerdict,
+            Findings = extensionVerdict switch
+            {
+                ValidationVerdict.Reject =>
+                [
+                    new ValidationFinding
+                    {
+                        RuleId = "EXT.REQUIRED",
+                        Source = ValidationRuleSource.Spec,
+                        Component = "extension",
+                        Severity = ValidationFindingSeverity.High,
+                        Summary = "Required extension behavior failed."
+                    }
+                ],
+                ValidationVerdict.ReviewRequired =>
+                [
+                    new ValidationFinding
+                    {
+                        RuleId = "EXT.REVIEW",
+                        Source = ValidationRuleSource.Heuristic,
+                        Component = "extension",
+                        Severity = ValidationFindingSeverity.Medium,
+                        Summary = "Extension behavior requires review."
+                    }
+                ],
+                _ => []
+            }
+        });
+
+        var evaluation = AssuranceAssessmentEngine.Evaluate(
+            result,
+            CertificateProfile(),
+            new AssuranceEvaluationContext
+            {
+                ExecutionMode = ExecutionMode.Standard,
+                RequiredExtensionIds = ["io.modelcontextprotocol/ui"]
+            });
+
+        evaluation.CertificateEligibility.Status.Should().Be(expected);
+        if (extensionVerdict == ValidationVerdict.Trusted)
+        {
+            evaluation.CertificateEligibility.Reasons.Should().BeEmpty();
+            return;
+        }
+
+        evaluation.CertificateEligibility.Reasons.Should().ContainSingle().Which.Should().Be(extensionVerdict switch
+        {
+            ValidationVerdict.Reject => "Required extension 'io.modelcontextprotocol/ui' was rejected.",
+            ValidationVerdict.ReviewRequired => "Required extension 'io.modelcontextprotocol/ui' is Incomplete.",
+            _ => throw new InvalidOperationException("Unexpected extension verdict.")
+        }, "non-ready extension outcomes must retain stable machine-readable reasons");
+    }
+
+    [Theory]
+    [InlineData(1, 0, CertificateEligibilityStatus.ReviewRequired)]
+    [InlineData(0, 1, CertificateEligibilityStatus.Ineligible)]
+    public void Evaluate_Waivers_ShouldPreventProviderEligibility(
+        int activeWaivers,
+        int invalidWaivers,
+        CertificateEligibilityStatus expected)
+    {
+        var evaluation = AssuranceAssessmentEngine.Evaluate(
+            CreateCompleteResult(),
+            CertificateProfile(),
+            new AssuranceEvaluationContext
+            {
+                ExecutionMode = ExecutionMode.Standard,
+                ActiveWaiverCount = activeWaivers,
+                InvalidWaiverCount = invalidWaivers
+            });
+
+        evaluation.CertificateEligibility.Status.Should().Be(expected);
+        evaluation.CertificateEligibility.Reasons.Should().ContainSingle().Which.Should().Be(
+            activeWaivers > 0
+                ? $"Provider certification does not permit {activeWaivers} applied waiver(s)."
+                : $"Provider certification found {invalidWaivers} expired or invalid waiver(s).");
     }
 
     [Fact]
@@ -504,7 +751,7 @@ public sealed class AssuranceAssessmentEngineTests
         var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Provider, context);
 
         evaluation.CertificateEligibility.Status.Should().Be(CertificateEligibilityStatus.ReviewRequired);
-        evaluation.CertificateEligibility.Reasons.Should().Contain(reason => reason.Contains("below required mode", StringComparison.Ordinal));
+        evaluation.CertificateEligibility.Reasons.Should().Contain("Execution mode Safe is below required mode Standard.");
     }
 
     private static ValidationResult CreateResultWithCoveredBaseline()
@@ -526,42 +773,31 @@ public sealed class AssuranceAssessmentEngineTests
     {
         var result = new ValidationResult
         {
-            TrustAssessment = new McpTrustAssessment
+            ProtocolCompliance = new ComplianceTestResult(),
+            SecurityTesting = new SecurityTestResult
             {
-                TierChecks =
+                AttackSimulations =
                 [
-                    new ComplianceTierCheck
+                    new AttackSimulationResult
                     {
-                        Tier = "MUST",
-                        Component = "json-rpc",
-                        Requirement = "Request IDs are valid.",
-                        Passed = true
+                        AttackVector = "security-control",
+                        Description = "Deterministic security control passed.",
+                        Authority = ValidationRuleSource.Guideline,
+                        Outcome = ValidationOutcome.Succeeded,
+                        Gate = GateOutcome.Note,
+                        Severity = ValidationFindingSeverity.Info,
+                        DefenseSuccessful = true
                     }
                 ]
             },
-            VerdictAssessment = new VerdictAssessment()
+            PerformanceTesting = new PerformanceTestResult()
         };
-        result.VerdictAssessment.TriggeredDecisions.Add(CreateDecision("security-control", GateOutcome.Note, ImpactArea.AuthenticationBoundary));
-        result.VerdictAssessment.TriggeredDecisions.Add(CreateDecision("operations-objective", GateOutcome.Note, ImpactArea.OperationalResilience));
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified);
         AddCovered(result, "protocol-core", "json-rpc");
         AddCovered(result, "security-controls", "authentication");
         AddCovered(result, "performance", "repeated-measurements");
         return result;
     }
-
-    private static DecisionRecord CreateDecision(string id, GateOutcome gate, ImpactArea impactArea) => new()
-    {
-        DecisionId = id,
-        Lane = EvaluationLane.Baseline,
-        Authority = ValidationRuleSource.Heuristic,
-        Origin = EvidenceOrigin.DeterministicObservation,
-        Gate = gate,
-        Severity = gate == GateOutcome.Reject ? ValidationFindingSeverity.High : ValidationFindingSeverity.Info,
-        Category = impactArea.ToString(),
-        Component = id,
-        Summary = $"Decision {id}.",
-        ImpactAreas = [impactArea]
-    };
 
     private static void AddCovered(ValidationResult result, string layer, string scope) =>
         result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
@@ -574,9 +810,29 @@ public sealed class AssuranceAssessmentEngineTests
             Confidence = EvidenceConfidenceLevel.High
         });
 
+    private static ExtensionAssessment CreateExtension(
+        string extensionId,
+        IReadOnlyList<ValidationFinding>? findings = null) => new()
+    {
+        ExtensionId = extensionId,
+        Stage = ExtensionLifecycleStage.Stable,
+        SpecificationRevision = "1",
+        SpecificationSha256 = new string('e', 64),
+        Verdict = ValidationVerdict.Trusted,
+        Findings = findings ?? [],
+        EvidenceSummary = new EvidenceCoverageSummary
+        {
+            TotalDeclarations = 1,
+            ApplicableDeclarations = 1,
+            Covered = 1,
+            ConfidenceLevel = EvidenceConfidenceLevel.High
+        }
+    };
+
     private static OfficialConformanceAssessment CreateOfficialConformance(
         OfficialConformanceVerificationStatus status,
-        IReadOnlyList<OfficialConformanceScenarioAssessment>? scenarios = null) => new()
+        IReadOnlyList<OfficialConformanceScenarioAssessment>? scenarios = null,
+        int failed = 0) => new()
     {
         VerificationStatus = status,
         Runner = new OfficialConformanceRunnerIdentity
@@ -597,7 +853,25 @@ public sealed class AssuranceAssessmentEngineTests
             Transport = "http",
             ProtocolVersion = "2026-07-28"
         },
-        Scenarios = scenarios ?? []
+        Failed = failed,
+        Scenarios = scenarios ??
+        [
+            new OfficialConformanceScenarioAssessment
+            {
+                ScenarioId = "required-core",
+                ScoringDisposition = OfficialConformanceScoringDisposition.Required,
+                Checks =
+                [
+                    new OfficialConformanceCheckAssessment
+                    {
+                        Id = "required-success",
+                        Name = "required-success",
+                        Description = "Required official check passed.",
+                        Status = OfficialConformanceCheckStatus.Success
+                    }
+                ]
+            }
+        ]
     };
 
     private static AssuranceEvaluationContext CompleteProviderContext(

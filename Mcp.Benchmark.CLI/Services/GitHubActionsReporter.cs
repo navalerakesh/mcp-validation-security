@@ -318,11 +318,6 @@ public sealed class GitHubActionsReporter : IGitHubActionsReporter
             : $"{policyOutcome.Mode} blocked";
     }
 
-    private static string FormatTrust(McpTrustAssessment? trustAssessment)
-    {
-        return trustAssessment == null ? "unknown" : trustAssessment.TrustLabel;
-    }
-
     private static string EscapePipe(string value)
     {
         return value.Replace("|", "\\|");

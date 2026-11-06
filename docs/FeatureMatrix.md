@@ -59,13 +59,13 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | Tools | `tools/list`, `tools/call`, pagination, annotations, destructive-action signaling, and AI-readiness schema checks |
 | Prompts | `prompts/list` and `prompts/get` structure, metadata quality, argument guidance, and prompt-safety checks |
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
-| Official conformance | Pinned external wrapper import, runner/requirement/scenario digest verification, target binding, separate evidence coverage, and explicit evidence-conflict review decisions |
+| Official conformance | Isolated pinned companion, exact transitive dependency lock, runner/requirement/raw-scenario digest verification, frozen scenario completeness, target binding, separate evidence coverage, and explicit evidence-conflict review decisions |
 | MCP Apps | Stable passive tool/UI linkage and settings checks; standard-mode bounded `resources/read` plus HTML5, CSP origin, permission, and executable-content analysis |
 | MCP Skills | Beta Preview catalog, manifest, URI, collision, digest/size, and risk-bearing frontmatter checks; explicitly authorized bounded SKILL.md integrity/frontmatter/content analysis |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
 | Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML reports open with Certificate Eligibility, Core Conformance, and Security Assurance. |
-| CI gating | Inventory, CI, and provider assurance profiles plus advisory, balanced, and strict host policy modes; exit `2` distinguishes incomplete evidence from deterministic failure |
+| CI gating | Inventory, CI, and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`) |
 
 ## Execution Modes
 
@@ -75,7 +75,7 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | `standard` | Configured active functional and conformance probes | Authorized non-production targets |
 | `elevated` | Broadest configured active surface with explicit acknowledgement | Isolated environments with reviewed target ownership |
 
-Incomplete safe-mode evidence produces a partial/review disposition and an L3 maximum, not a fabricated failure or enterprise-trusted rating.
+Incomplete safe-mode evidence produces explicit incomplete claims and a partial/review disposition, not a fabricated failure or provider certificate.
 
 Apps linked-resource reads require standard/elevated mode. Skills content reads require standard/elevated mode plus explicit `--extension io.modelcontextprotocol/skills`; passive Skills catalog analysis remains Preview. Apps HTML is parsed but never rendered, and Skills scripts/instructions are analyzed but never executed.
 
@@ -93,7 +93,7 @@ Subprocess stdout/stderr is byte-bounded while streaming. Authentication CLI ove
 | Rule-source labeling | Findings distinguish `spec`, `guideline`, and `heuristic` origins |
 | Remediation guidance | Findings include remediation text suitable for reports and CI output |
 | Structured evidence | Capability checks and interpretation layers attach explicit evidence instead of only free-form text |
-| Canonical result object | `ValidationResult` preserves run, assessment, evidence, and compatibility documents plus trust assessment and policy outcome |
+| Canonical result object | `ValidationResult` preserves run, assessment, evidence, compatibility, V2 assurance, certificate eligibility, and policy documents without a parallel trust/verdict pipeline |
 | Offline report replay | `report` can start from the canonical JSON result or from the Markdown report path that resolves to the sibling JSON snapshot |
 | Transient probe calibration | Retryable protocol and tool probe responses are preserved as inconclusive operational evidence instead of being overstated as hard spec failures |
 
@@ -109,6 +109,8 @@ Subprocess stdout/stderr is byte-bounded while streaming. Authentication CLI ove
 - `all`
 
 These profiles do not mutate the underlying findings. They provide an additional host-specific interpretation layer on top of the same raw evidence set.
+
+Current built-in client profiles are documentation-derived and are explicitly labeled `Interpreted`; executable client verification remains planned and cannot be inferred from these assessments.
 
 When profile evaluation is enabled, `validate` also emits `*-profile-summary.json` for dashboards and CI systems that only need the compatibility rollup.
 

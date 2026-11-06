@@ -7,6 +7,19 @@ public static class AssuranceExitCodeMapper
     public const int Satisfied = 0;
     public const int Failed = 1;
     public const int Incomplete = 2;
+    public const int UsageError = 64;
+    public const int RuntimeIntegrityFailure = 70;
+    public const int TargetUnavailable = 75;
+    public const int TimeoutOrCancellation = 124;
+
+    public static int Map(ValidationResult result)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        if (IsTargetUnavailable(result)) return TargetUnavailable;
+        if (result.OverallStatus == ValidationStatus.Error && result.CriticalErrors.Count > 0)
+            return RuntimeIntegrityFailure;
+        return Map(result.Assurance, result.PolicyOutcome);
+    }
 
     public static int Map(AssuranceEvaluation assurance, ValidationPolicyOutcome? policyOutcome)
     {
@@ -41,5 +54,16 @@ public static class AssuranceExitCodeMapper
         }
 
         return policyOutcome?.RecommendedExitCode ?? Satisfied;
+    }
+
+    private static bool IsTargetUnavailable(ValidationResult result)
+    {
+        if (result.BootstrapHealth?.Disposition == HealthCheckDisposition.Unhealthy) return true;
+        var baselineCoverage = result.Evidence.Coverage
+            .Where(ValidationEvidenceLaneClassifier.IsBaseline)
+            .Where(coverage => coverage.Status != ValidationCoverageStatus.NotApplicable)
+            .ToArray();
+        return baselineCoverage.Length > 0 &&
+            baselineCoverage.All(coverage => coverage.Status == ValidationCoverageStatus.Unavailable);
     }
 }

@@ -299,20 +299,17 @@ public class McpValidatorServiceUnitTests
         result.ComplianceScore.Should().BeGreaterThan(0);
         result.ScoringDetails.Should().NotBeNull();
         result.ScoringDetails!.OverallScore.Should().Be(result.ComplianceScore);
-        result.VerdictAssessment.Should().NotBeNull();
-        result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
-        result.VerdictAssessment.ProtocolVerdict.Should().Be(ValidationVerdict.Reject);
-        result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
+        result.Assurance.Should().NotBeNull();
+        result.Assurance.Assessments.CoreConformance.Status.Should().Be(CoreConformanceStatus.Nonconformant);
         result.Run.OperationalMetrics.Should().NotBeNull();
         result.Run.OperationalMetrics!.RunCorrelationId.Should().Be(result.ValidationId);
         result.Run.OperationalMetrics.TotalRunDurationMs.Should().BeGreaterThan(0);
         result.Run.OperationalMetrics.StageDurationMs.Should().ContainKeys(
             "session.bootstrap",
             "validation.categories",
-            "validation.scoring",
-            "validation.verdict");
-        result.Run.OperationalMetrics.StageDurationMs.Keys.Should().Contain(key => key.StartsWith("rule.", StringComparison.Ordinal));
-        result.Run.OperationalMetrics.EvidenceCoverageRatio.Should().Be(result.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio);
+            "validation.scoring");
+        result.Run.OperationalMetrics.StageDurationMs.Keys.Should().NotContain(key => key.StartsWith("rule.", StringComparison.Ordinal));
+        result.Run.OperationalMetrics.EvidenceCoverageRatio.Should().Be(result.Assurance.EvidenceSummary.EvidenceCoverageRatio);
         config.Validation.Categories.ToolTesting.CapabilitySnapshot.Should().BeNull();
         config.Validation.Categories.ResourceTesting.CapabilitySnapshot.Should().BeNull();
         config.Validation.Categories.PromptTesting.CapabilitySnapshot.Should().BeNull();
@@ -569,8 +566,10 @@ public class McpValidatorServiceUnitTests
         result.PerformanceTesting.Findings.Should().Contain(f => f.RuleId == ValidationFindingRuleIds.PerformancePublicRemoteTimeoutAdvisory);
         result.Summary.SkippedTests.Should().Be(1);
         result.Summary.FailedTests.Should().Be(0);
-        result.TrustAssessment.Should().NotBeNull();
-        result.TrustAssessment!.OperationalReadiness.Should().Be(ValidationCalibration.AdvisoryPerformanceScore);
+        result.Assurance.Assessments.OperationalReadiness.Status.Should().Be(OperationalReadinessStatus.Incomplete);
+        result.Assurance.Claims.Should().Contain(claim =>
+            claim.Metadata.GetValueOrDefault("ruleId") == ValidationFindingRuleIds.PerformancePublicRemoteTimeoutAdvisory &&
+            claim.Outcome == AssuranceClaimOutcome.ReviewRequired);
     }
 
     [Fact]
@@ -761,10 +760,8 @@ public class McpValidatorServiceUnitTests
         result.CriticalErrors.Should().NotContain(
             error => error.StartsWith("Validation framework error:", StringComparison.Ordinal),
             string.Join(Environment.NewLine, result.CriticalErrors));
-        result.VerdictAssessment.Should().NotBeNull();
-        result.VerdictAssessment!.BaselineVerdict.Should().Be(ValidationVerdict.Reject);
-        result.VerdictAssessment.Policy.Parameters.Should().NotBeEmpty();
-        result.OverallStatus.Should().Be(ValidationStatus.Failed);
+        result.Assurance.Should().NotBeNull();
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
     }
 
     [Fact]
@@ -944,7 +941,16 @@ public class McpValidatorServiceUnitTests
                 CapabilitySnapshot = new TransportResult<CapabilitySummary>
                 {
                     IsSuccessful = true,
-                    Payload = new CapabilitySummary { Score = 100, ToolListingSucceeded = true },
+                    Payload = new CapabilitySummary
+                    {
+                        ToolListingSucceeded = true,
+                        DiscoveredToolsCount = 1,
+                        ToolListResponse = new JsonRpcResponse
+                        {
+                            IsSuccess = true,
+                            RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"actual-tool\",\"description\":\"Observed tool.\"}]},\"id\":1}"
+                        }
+                    },
                     Transport = TransportMetadata.Empty
                 }
             });
@@ -952,7 +958,8 @@ public class McpValidatorServiceUnitTests
         var result = await _validatorService.DiscoverServerCapabilitiesAsync(server, CancellationToken.None);
 
         result.ProtocolVersion.Should().Be("2026-07-28");
-        result.SupportedTools.Should().ContainSingle();
+        result.SupportedTools.Should().ContainSingle(tool => tool.Name == "actual-tool");
+        result.SupportedTools.Should().NotContain(tool => tool.Name == "tools-validated");
         _httpClientMock.Verify(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -996,7 +1003,21 @@ public class McpValidatorServiceUnitTests
                         ToolListingSucceeded = true,
                         ResourceListingSucceeded = true,
                         PromptListingSucceeded = true,
-                        Score = 100
+                        DiscoveredToolsCount = 1,
+                        DiscoveredResourcesCount = 1,
+                        DiscoveredPromptsCount = 1,
+                        ToolListResponse = new JsonRpcResponse
+                        {
+                            RawJson = "{\"result\":{\"tools\":[{\"name\":\"legacy-tool\"}]}}"
+                        },
+                        ResourceListResponse = new JsonRpcResponse
+                        {
+                            RawJson = "{\"result\":{\"resources\":[{\"uri\":\"file:///observed.txt\",\"mimeType\":\"text/plain\"}]}}"
+                        },
+                        PromptListResponse = new JsonRpcResponse
+                        {
+                            RawJson = "{\"result\":{\"prompts\":[{\"name\":\"observed-prompt\"}]}}"
+                        }
                     }
                 }
             });
@@ -1005,9 +1026,10 @@ public class McpValidatorServiceUnitTests
 
         result.ProtocolVersion.Should().Be("2025-06-18");
         result.Implementation.Name.Should().Be("legacy-server");
-        result.SupportedTools.Should().ContainSingle();
-        result.SupportedResources.Should().ContainSingle();
-        result.SupportedPrompts.Should().ContainSingle();
+        result.SupportedTools.Should().ContainSingle(tool => tool.Name == "legacy-tool");
+        result.SupportedResources.Should().ContainSingle(resource => resource.UriPattern == "file:///observed.txt");
+        result.SupportedPrompts.Should().ContainSingle(prompt => prompt.Name == "observed-prompt");
+        result.SupportedResources.Should().NotContain(resource => resource.UriPattern.Contains('*'));
     }
 
     [Fact]

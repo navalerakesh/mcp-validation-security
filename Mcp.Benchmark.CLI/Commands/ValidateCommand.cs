@@ -14,6 +14,7 @@ using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Utilities;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.CLI.Utilities.Logging;
@@ -40,7 +41,6 @@ public class ValidateCommand
     private readonly ISessionArtifactStore _artifactStore;
     private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
-    private readonly IAggregateScoringStrategy? _scoringStrategy;
     private readonly IOfficialConformanceEvidenceImporter _officialConformanceEvidenceImporter;
 
     public ValidateCommand(
@@ -57,7 +57,6 @@ public class ValidateCommand
         ISessionArtifactStore artifactStore,
         IMcpHttpClient httpClient,
         CliSessionContext sessionContext,
-        IAggregateScoringStrategy? scoringStrategy = null,
         IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
@@ -73,7 +72,6 @@ public class ValidateCommand
         _artifactStore = artifactStore ?? throw new ArgumentNullException(nameof(artifactStore));
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
-        _scoringStrategy = scoringStrategy;
         _officialConformanceEvidenceImporter = officialConformanceEvidenceImporter ?? UnavailableOfficialConformanceEvidenceImporter.Instance;
     }
 
@@ -123,6 +121,8 @@ public class ValidateCommand
         bool? signAttestation = null,
         FileInfo? conformanceResultsFile = null,
         string[]? extensionIds = null,
+        FileInfo? providerHarnessFile = null,
+        FileInfo? providerAuthorizationKeyFile = null,
         CancellationToken cancellationToken = default)
     {
         var structuredOutput = string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase);
@@ -207,17 +207,42 @@ public class ValidateCommand
             }
 
             var explicitOutputDirectory = ResolveExplicitOutputDirectory(outputDirectory, configuration);
+            var providerAssuranceRequested = string.Equals(
+                configuration.Assurance.Profile,
+                AssuranceProfileCatalog.Provider.ProfileId,
+                StringComparison.Ordinal);
+            var providerActiveExecution = providerAssuranceRequested && configuration.Execution.DryRun != true;
+            var attestationReady = false;
             if (configuration.Reporting.SignAttestation)
             {
                 if (string.IsNullOrWhiteSpace(explicitOutputDirectory))
                 {
                     throw new CliUsageException("Signed attestations require an explicit output directory.");
                 }
-                if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM")))
+                var privateKeyPem = Environment.GetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM");
+                if (string.IsNullOrWhiteSpace(privateKeyPem))
                 {
                     throw new CliUsageException("Signed attestations require MCPVAL_ATTESTATION_PRIVATE_KEY_PEM.");
                 }
+                try
+                {
+                    ValidationAttestationSigner.ValidatePrivateKey(privateKeyPem);
+                    attestationReady = true;
+                }
+                catch (Exception exception) when (exception is ArgumentException or CryptographicException)
+                {
+                    throw new CliUsageException($"Attestation private key is invalid: {exception.Message}");
+                }
             }
+
+            if (providerActiveExecution && !configuration.Reporting.SignAttestation)
+                throw new CliUsageException("Provider assurance requires --sign-attestation and an explicit output directory.");
+            if (providerActiveExecution && (providerHarnessFile == null || providerAuthorizationKeyFile == null))
+                throw new CliUsageException("Provider assurance requires --provider-harness and --provider-authorization-key.");
+            if (!providerAssuranceRequested && (providerHarnessFile != null || providerAuthorizationKeyFile != null))
+                throw new CliUsageException("Provider harness inputs are accepted only with --assurance provider.");
+            if (providerAssuranceRequested && (providerHarnessFile == null) != (providerAuthorizationKeyFile == null))
+                throw new CliUsageException("Provider harness and authorization key must be supplied together.");
 
             _sessionContext.ApplyExecutionPolicy(configuration.Execution);
             var executionPlan = _executionGovernanceService.BuildValidationPlan(_sessionContext, configuration, explicitOutputDirectory);
@@ -225,10 +250,42 @@ public class ValidateCommand
             {
                 throw new CliUsageException(BuildExecutionErrorMessage(executionPlan.ValidationErrors));
             }
+            executionPlan.ProviderExecutionPlanSha256 = ComputeProviderExecutionPlanDigest(executionPlan);
 
             var conformanceEvidenceJson = await LoadOfficialConformanceEvidenceAsync(
                 conformanceResultsFile,
                 cancellationToken).ConfigureAwait(false);
+            ProviderHarnessManifest? providerHarnessManifest = null;
+            ProviderAuthorizationVerification? providerAuthorizationVerification = null;
+            ProviderHarnessAssessment? providerHarnessAssessment = null;
+            var providerExecutionPlanDigest = executionPlan.ProviderExecutionPlanSha256;
+            if (providerHarnessFile != null && providerAuthorizationKeyFile != null)
+            {
+                providerHarnessManifest = await BoundedArtifactReader.ReadProviderHarnessAsync(
+                    providerHarnessFile!,
+                    cancellationToken).ConfigureAwait(false);
+                var trustedPublicKey = await BoundedArtifactReader.ReadTextAsync(
+                    providerAuthorizationKeyFile!,
+                    BoundedArtifactReader.MaximumPublicKeyBytes,
+                    cancellationToken).ConfigureAwait(false);
+                providerAuthorizationVerification = ProviderAuthorizationVerifier.Verify(
+                    providerHarnessManifest,
+                    trustedPublicKey);
+                providerHarnessAssessment = ProviderHarnessEvaluator.Evaluate(
+                    providerHarnessManifest,
+                    providerAuthorizationVerification,
+                    executionPlan.TargetDigest,
+                    executionPlan.ResolvedSchemaVersion,
+                    providerExecutionPlanDigest,
+                    configuration.Execution.Mode,
+                    DateTimeOffset.UtcNow,
+                    executionPlan.PlannedChecks);
+                if (providerHarnessAssessment.Status == ProviderHarnessStatus.Invalid)
+                {
+                    throw new CliUsageException(
+                        "Provider harness verification failed: " + string.Join(" ", providerHarnessAssessment.Reasons));
+                }
+            }
 
             if (!structuredOutput)
             {
@@ -292,8 +349,6 @@ public class ValidateCommand
                     result.Run.OperationalMetrics.RunCorrelationId = result.ValidationId;
                 }
             }
-            var coverageCountBeforeProfiles = result.Evidence.Coverage.Count;
-            var packCountBeforeProfiles = result.Evidence.AppliedPacks.Count;
             try
             {
                 result.ClientCompatibility = _clientProfileEvaluator.Evaluate(result, configuration.ClientProfiles);
@@ -302,33 +357,6 @@ public class ValidateCommand
             {
                 throw new CliUsageException(ex.Message);
             }
-            if (result.Evidence.Coverage.Count != coverageCountBeforeProfiles ||
-                result.Evidence.AppliedPacks.Count != packCountBeforeProfiles)
-            {
-                if (_scoringStrategy != null)
-                {
-                    var scoring = _scoringStrategy.CalculateScore(result);
-                    result.ComplianceScore = scoring.OverallScore;
-                    result.ScoringNotes = scoring.ScoringNotes;
-                    result.ScoringDetails = scoring;
-                    result.Summary.CoverageRatio = scoring.CoverageRatio;
-                    result.Summary.EvidenceConfidenceRatio = scoring.EvidenceSummary.EvidenceConfidenceRatio;
-                    if (result.Run.OperationalMetrics != null)
-                    {
-                        result.Run.OperationalMetrics.EvidenceCoverageRatio = scoring.EvidenceSummary.EvidenceCoverageRatio;
-                    }
-                }
-                result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
-                result.OverallStatus = ValidationVerdictEngine.DetermineValidationStatus(result.VerdictAssessment);
-            }
-            if (baselineFile != null)
-            {
-                result.BaselineComparison = ValidationBaselineEvaluator.Compare(
-                    await LoadBaselineAsync(baselineFile, cancellationToken),
-                    result);
-            }
-            result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
-
             if (conformanceEvidenceJson != null)
             {
                 AttachOfficialConformanceEvidence(
@@ -338,13 +366,63 @@ public class ValidateCommand
                     result.ProtocolVersion ?? executionPlan.ResolvedSchemaVersion);
             }
 
+            var assuranceProfileManifest = AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile);
+            var certificationTime = DateTimeOffset.UtcNow;
+            var suppressionAssessment = ValidationPolicyEvaluator.AssessSuppressions(
+                configuration.Policy,
+                certificationTime);
+            var preliminaryContext = new AssuranceEvaluationContext
+            {
+                ExecutionMode = configuration.Execution.Mode,
+                HasSignedAttestation = attestationReady,
+                RequiredExtensionIds = configuration.Validation.Extensions,
+                ActiveWaiverCount = suppressionAssessment.ActiveCount,
+                InvalidWaiverCount = suppressionAssessment.InvalidSuppressions.Count
+            };
             result.Assurance = AssuranceAssessmentEngine.Evaluate(
                 result,
-                AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
+                assuranceProfileManifest,
+                preliminaryContext);
+
+            if (providerHarnessManifest != null && providerAuthorizationVerification != null)
+            {
+                providerHarnessAssessment = ProviderHarnessEvaluator.Evaluate(
+                    providerHarnessManifest,
+                    providerAuthorizationVerification,
+                    executionPlan.TargetDigest,
+                    executionPlan.ResolvedSchemaVersion,
+                    providerExecutionPlanDigest,
+                    configuration.Execution.Mode,
+                    certificationTime,
+                    executionPlan.PlannedChecks,
+                    BuildCurrentProviderRunReceipt(result, providerExecutionPlanDigest, certificationTime));
+            }
+
+            result.Assurance = AssuranceAssessmentEngine.Evaluate(
+                result,
+                assuranceProfileManifest,
                 new AssuranceEvaluationContext
                 {
-                    ExecutionMode = configuration.Execution.Mode
+                    ExecutionMode = configuration.Execution.Mode,
+                    HasSignedAttestation = attestationReady,
+                    ProviderHarness = providerHarnessAssessment,
+                    RequiredExtensionIds = configuration.Validation.Extensions,
+                    ActiveWaiverCount = suppressionAssessment.ActiveCount,
+                    InvalidWaiverCount = suppressionAssessment.InvalidSuppressions.Count
                 });
+
+            if (baselineFile != null)
+            {
+                result.BaselineComparison = ValidationBaselineEvaluator.Compare(
+                    await LoadBaselineAsync(baselineFile, cancellationToken),
+                    result);
+            }
+            result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
+
+            result.Run.TargetIdentitySha256 = executionPlan.TargetDigest;
+            result.Run.ExecutionPlanSha256 = providerExecutionPlanDigest;
+            result.Run.ExecutionMode = configuration.Execution.Mode;
+            result.Run.PlannedChecks = executionPlan.PlannedChecks.ToArray();
 
             result.ValidationConfig = configuration.CloneWithoutSecrets();
 
@@ -408,9 +486,7 @@ public class ValidateCommand
 
             _gitHubActionsReporter.PublishValidationResult(safeResult, artifactPaths);
 
-            Environment.ExitCode = result.Assurance == null
-                ? result.PolicyOutcome?.RecommendedExitCode ?? (result.OverallStatus == ValidationStatus.Passed ? 0 : 1)
-                : AssuranceExitCodeMapper.Map(result.Assurance, result.PolicyOutcome);
+            Environment.ExitCode = AssuranceExitCodeMapper.Map(result);
             if (structuredOutput)
             {
                 Console.Out.WriteLine(JsonSerializer.Serialize(
@@ -454,9 +530,9 @@ public class ValidateCommand
             var loggedTarget = SessionLogRedactor.Redact(targetEndpoint, RedactionLevel.Strict);
             if (structuredOutput)
             {
-                WriteStructuredError("VALIDATION_FAILED", "runtime", ex.Message, 1, retryable: false);
+                WriteStructuredError("VALIDATION_RUNTIME_INTEGRITY", "runtime", ValidationMessages.Errors.UnexpectedError, AssuranceExitCodeMapper.RuntimeIntegrityFailure, retryable: false);
             }
-            _consoleOutput.WriteError($"{ValidationMessages.Errors.UnexpectedError}: {ex.Message}");
+            _consoleOutput.WriteError(ValidationMessages.Errors.UnexpectedError);
             _consoleOutput.WriteSessionLogHint("Validation log");
             _nextStepAdvisor.SuggestSessionLogReview("Validation log");
             _logger.LogError(ex, "Validation failed for target {Target}", loggedTarget);
@@ -464,7 +540,7 @@ public class ValidateCommand
             {
                 _nextStepAdvisor.SuggestAuthenticationFlow("validate", targetEndpoint);
             }
-            Environment.ExitCode = 1;
+            Environment.ExitCode = AssuranceExitCodeMapper.RuntimeIntegrityFailure;
         }
         finally
         {
@@ -619,7 +695,7 @@ public class ValidateCommand
                 ExpectedTargetIdentitySha256 = targetIdentitySha256,
                 ExpectedProtocolVersion = protocolVersion
             });
-            var reconciliation = OfficialConformanceReconciler.Reconcile(imported.Assessment, result.VerdictAssessment);
+            var reconciliation = OfficialConformanceReconciler.Reconcile(imported.Assessment, result.Assurance.Claims);
             imported.Assessment.Conflicts.AddRange(reconciliation.Conflicts);
             imported.Assessment.Decisions.AddRange(reconciliation.Decisions);
             if (reconciliation.Conflicts.Count > 0)
@@ -1136,6 +1212,7 @@ public class ValidateCommand
         Console.WriteLine($"Response Limit: {executionPlan.MaxResponseBytes} bytes");
         Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
         Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
+        Console.WriteLine($"Provider Plan SHA-256: {executionPlan.ProviderExecutionPlanSha256}");
         Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
         Console.WriteLine($"Allowed Origins: {(executionPlan.AllowedOrigins.Count == 0 ? "none" : string.Join(", ", executionPlan.AllowedOrigins))}");
         Console.WriteLine($"Private Addresses: {(executionPlan.AllowPrivateAddresses ? "allowed" : "blocked")}");
@@ -1159,6 +1236,59 @@ public class ValidateCommand
     private static string BuildExecutionErrorMessage(IReadOnlyList<string> errors)
     {
         return "Execution plan rejected:" + Environment.NewLine + string.Join(Environment.NewLine, errors.Select(error => $"- {error}"));
+    }
+
+    internal static string ComputeProviderExecutionPlanDigest(ExecutionPlan plan)
+    {
+        ArgumentNullException.ThrowIfNull(plan);
+        return CanonicalJsonDigest.ComputeObject(new
+        {
+            plan.TargetDigest,
+            plan.Transport,
+            plan.ResolvedSchemaVersion,
+            plan.ProtocolEra,
+            plan.ExecutionMode,
+            plan.MaxRequests,
+            plan.MaxConcurrency,
+            plan.TimeoutSeconds,
+            plan.MaxResponseBytes,
+            AllowedHosts = plan.AllowedHosts.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
+            AllowedOrigins = plan.AllowedOrigins.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
+            PlannedChecks = plan.PlannedChecks.OrderBy(value => value, StringComparer.Ordinal).ToArray()
+        });
+    }
+
+    internal static ProviderHarnessRunReceipt BuildCurrentProviderRunReceipt(
+        ValidationResult result,
+        string executionPlanSha256,
+        DateTimeOffset completedAtUtc)
+    {
+        ArgumentNullException.ThrowIfNull(result);
+        var nonSuccessClaimIds = result.Assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+            .Select(claim => claim.ClaimId)
+            .Distinct(StringComparer.Ordinal)
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var semanticResultSha256 = CanonicalJsonDigest.ComputeObject(new
+        {
+            CoreConformance = result.Assurance.Assessments.CoreConformance.Status,
+            SecurityAssurance = result.Assurance.Assessments.SecurityAssurance.Status,
+            OperationalReadiness = result.Assurance.Assessments.OperationalReadiness.Status,
+            NonSuccessClaimIds = nonSuccessClaimIds
+        });
+        return new ProviderHarnessRunReceipt
+        {
+            RunId = result.ValidationId,
+            ResultSha256 = semanticResultSha256,
+            ExecutionPlanSha256 = executionPlanSha256,
+            StartedAtUtc = new DateTimeOffset(result.StartTime.ToUniversalTime()),
+            EndedAtUtc = completedAtUtc,
+            CoreConformance = result.Assurance.Assessments.CoreConformance.Status,
+            SecurityAssurance = result.Assurance.Assessments.SecurityAssurance.Status,
+            OperationalReadiness = result.Assurance.Assessments.OperationalReadiness.Status,
+            NonSuccessClaimIds = nonSuccessClaimIds
+        };
     }
 
     private static string? ResolveExplicitOutputDirectory(DirectoryInfo? outputDirectory, McpValidatorConfiguration configuration)

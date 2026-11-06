@@ -52,7 +52,7 @@ Unsupported enum values throw instead of falling through to pass or failure defa
 
 The committed secret-free corpora cover two different questions:
 
-- `corpus-v1.json` remains a migration fixture for production protocol/auth/security observations and V1 differential behavior until its V2 claim golden replacement is complete.
+- `assurance-corpus-v2.json` covers production protocol, authentication, security, availability, throttling, and protected-surface observations through V2 claims and independent assessments.
 - `rule-quality-v2.json` contains individual expected/observed labels for measured heuristic quality.
 
 `CalibrationTargetIntegrationTests` runs six target classes against deterministic local WireMock HTTP targets through production protocol, authentication, and security components. Live endpoints are unsuitable as goldens because deployment and policy change independently of validator code.
@@ -74,8 +74,8 @@ The targets are deterministic local fixtures. Live endpoints are unsuitable as g
 - Production differential tests compare compliant/vulnerable/malformed/unavailable/throttled/auth-protected claims and evidence outcomes.
 - Rule-quality tests assert confusion matrices, threshold boundaries, and fail-closed empty/undersized corpora.
 - Focused authority-lane tests verify specification, guideline, heuristic, and model decisions remain separate.
-- Synthetic metamorphic tests prove adding blocking evidence cannot improve a verdict; they are not golden calibration evidence.
-- Stryker.NET 4.16.0 mutates the production `VerdictReducer`; CI enforces a 90% break threshold. The current certificate kills 26/26 tested mutants (100%).
+- Synthetic metamorphic tests prove adding blocking evidence cannot improve an assurance assessment; they are not golden calibration evidence.
+- Stryker.NET 4.16.0 mutates the production `AssuranceAssessmentEngine`; CI enforces a 90% break threshold. The current score is recorded by the local readiness receipt rather than hard-coded in this document.
 - Snapshot tests certify stable human and machine representations.
 
 ## False-Positive Review

@@ -32,12 +32,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Failed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                TrustAssessment = new McpTrustAssessment
-                {
-                    MustFailCount = 1,
-                    TrustLevel = McpTrustLevel.L2_Caution
-                }
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" }
             });
 
         var command = new ValidateCommand(
@@ -85,13 +80,7 @@ public sealed class ValidateCommandTests : IDisposable
             .ReturnsAsync(new ValidationResult
             {
                 OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                TrustAssessment = new McpTrustAssessment
-                {
-                    TrustLevel = McpTrustLevel.L3_Acceptable,
-                    MustFailCount = 0,
-                    ShouldFailCount = 0
-                }
+                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" }
             });
 
         var command = new ValidateCommand(
@@ -126,7 +115,7 @@ public sealed class ValidateCommandTests : IDisposable
     }
 
         [Fact]
-        public async Task ExecuteAsync_WithStrictPolicySuppressionFromConfig_ShouldReturnExitCodeZero()
+        public async Task ExecuteAsync_WithStrictPolicySuppressionFromConfig_ShouldNotOverrideAssuranceFailure()
         {
                 var sessionContext = CreateSessionContext();
                 var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
@@ -138,12 +127,7 @@ public sealed class ValidateCommandTests : IDisposable
                         .ReturnsAsync(new ValidationResult
                         {
                                 OverallStatus = ValidationStatus.Passed,
-                                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                                TrustAssessment = new McpTrustAssessment
-                                {
-                                        TrustLevel = McpTrustLevel.L3_Acceptable,
-                                        TierChecks = new List<ComplianceTierCheck>()
-                                }
+                                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" }
                         });
 
                 var command = new ValidateCommand(
@@ -198,10 +182,7 @@ public sealed class ValidateCommandTests : IDisposable
                         maxConcurrency: null,
                         policyMode: null);
 
-                Environment.ExitCode.Should().Be(0, string.Join("; ", consoleOutput.Invocations
-                    .Where(invocation => invocation.Method.Name == nameof(IConsoleOutputService.WriteError))
-                    .SelectMany(invocation => invocation.Arguments)
-                    .Select(argument => argument?.ToString())));
+                Environment.ExitCode.Should().Be(1);
                     capturedConfiguration.Should().NotBeNull();
                     capturedConfiguration!.Policy.Mode.Should().Be(ValidationPolicyModes.Strict);
                     capturedConfiguration.Policy.Suppressions.Should().ContainSingle();
@@ -224,8 +205,7 @@ public sealed class ValidateCommandTests : IDisposable
             {
                 OverallStatus = ValidationStatus.Passed,
                 ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -289,8 +269,7 @@ public sealed class ValidateCommandTests : IDisposable
             {
                 OverallStatus = ValidationStatus.Passed,
                 ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
             });
 
         ExecutionPolicy? capturedExecutionPolicy = null;
@@ -361,8 +340,7 @@ public sealed class ValidateCommandTests : IDisposable
                     Status = TestStatus.Failed,
                     Message = "Operation timed out or was cancelled",
                     CriticalErrors = new List<string> { "Operation timed out or was cancelled" }
-                },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L2_Caution }
+                }
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -441,8 +419,7 @@ public sealed class ValidateCommandTests : IDisposable
                         RequestsPerSecond = 0
 
                     }
-                },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L2_Caution }
+                }
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -508,8 +485,7 @@ public sealed class ValidateCommandTests : IDisposable
                 StartTime = new DateTime(2026, 4, 21, 8, 35, 35, DateTimeKind.Utc),
                 OverallStatus = ValidationStatus.Passed,
                 ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -585,8 +561,7 @@ public sealed class ValidateCommandTests : IDisposable
                     {
                         new() { ToolName = "search_docs", Status = TestStatus.Passed }
                     }
-                },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted }
+                }
             });
 
         ClientProfileOptions? capturedOptions = null;
@@ -683,6 +658,38 @@ public sealed class ValidateCommandTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecuteAsync_ProviderDryRun_ShouldEmitPlanWithoutTrustInputsOrTargetContact()
+    {
+        var validatorService = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var command = new ValidateCommand(
+            validatorService.Object,
+            new Mock<IConsoleOutputService>(MockBehavior.Loose).Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            new Mock<IReportGenerator>(MockBehavior.Loose).Object,
+            new Mock<IValidationReportRenderer>(MockBehavior.Loose).Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            CreateSessionContext());
+
+        await command.ExecuteAsync(
+            server: "https://1.1.1.1/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            assuranceProfile: "provider",
+            dryRun: true);
+
+        Environment.ExitCode.Should().Be(0);
+        validatorService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
     public async Task ExecuteAsync_WithModelEvaluationEnabled_ShouldEmitSeparateCompanionArtifact()
     {
         var sessionContext = CreateSessionContext();
@@ -699,8 +706,6 @@ public sealed class ValidateCommandTests : IDisposable
                 OverallStatus = ValidationStatus.Passed,
                 ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
                 ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
-                TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted },
-                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted },
                 ToolValidation = new ToolTestResult
                 {
                     AiReadinessFindings =
@@ -807,8 +812,7 @@ public sealed class ValidateCommandTests : IDisposable
             {
                 OverallStatus = ValidationStatus.Passed,
                 ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() },
-                VerdictAssessment = new VerdictAssessment { BaselineVerdict = ValidationVerdict.Trusted }
+                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
             });
 
         var command = new ValidateCommand(
@@ -871,12 +875,6 @@ public sealed class ValidateCommandTests : IDisposable
                     {
                         ValidationId = "signed-validation",
                         OperationalMetrics = new ValidationOperationalMetrics { RunCorrelationId = "service-run" }
-                    },
-                    VerdictAssessment = new VerdictAssessment
-                    {
-                        BaselineVerdict = ValidationVerdict.Trusted,
-                        ProtocolVerdict = ValidationVerdict.Trusted,
-                        CoverageVerdict = ValidationVerdict.Trusted
                     }
                 });
             var reportGenerator = new Mock<IReportGenerator>();
@@ -931,6 +929,118 @@ public sealed class ValidateCommandTests : IDisposable
             Environment.SetEnvironmentVariable("MCPVAL_ATTESTATION_PRIVATE_KEY_PEM", previousKey);
         }
     }
+
+    [Fact]
+    public async Task ExecuteAsync_ProviderWithoutTrustInputs_ShouldFailBeforeTargetContact()
+    {
+        var validatorService = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var console = new Mock<IConsoleOutputService>(MockBehavior.Loose);
+        var command = new ValidateCommand(
+            validatorService.Object,
+            console.Object,
+            new Mock<IClientProfileEvaluator>(MockBehavior.Loose).Object,
+            new Mock<IReportGenerator>(MockBehavior.Loose).Object,
+            new Mock<IValidationReportRenderer>(MockBehavior.Loose).Object,
+            new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object,
+            new Mock<IMcpHttpClient>(MockBehavior.Loose).Object,
+            CreateSessionContext());
+
+        await command.ExecuteAsync(
+            server: "https://1.1.1.1/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: null,
+            verbose: false,
+            assuranceProfile: "provider");
+
+        Environment.ExitCode.Should().Be(64);
+        validatorService.VerifyNoOtherCalls();
+        console.Verify(output => output.WriteError(It.Is<string>(message => message.Contains("requires --sign-attestation", StringComparison.Ordinal))), Times.Once());
+    }
+
+    [Fact]
+    public void ComputeProviderExecutionPlanDigest_ShouldIgnoreSessionIdentityAndBindAuthority()
+    {
+        var first = CreateProviderPlan("session-a", ExecutionMode.Standard, 20);
+        var sameAuthority = CreateProviderPlan("session-b", ExecutionMode.Standard, 20);
+        var changedAuthority = CreateProviderPlan("session-a", ExecutionMode.Elevated, 21);
+
+        ValidateCommand.ComputeProviderExecutionPlanDigest(first)
+            .Should().Be(ValidateCommand.ComputeProviderExecutionPlanDigest(sameAuthority));
+        ValidateCommand.ComputeProviderExecutionPlanDigest(first)
+            .Should().NotBe(ValidateCommand.ComputeProviderExecutionPlanDigest(changedAuthority));
+    }
+
+    [Fact]
+    public void BuildCurrentProviderRunReceipt_ShouldBindIndependentAssessmentsAndClaims()
+    {
+        var result = new ValidationResult
+        {
+            ValidationId = "current-run",
+            StartTime = new DateTime(2026, 11, 5, 11, 59, 0, DateTimeKind.Utc),
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Provider,
+                Claims =
+                [
+                    new AssuranceClaim
+                    {
+                        ClaimId = "claim:review",
+                        Subject = "tool",
+                        Dimension = AssuranceDimension.Security,
+                        RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                        Authority = AssuranceAuthority.Heuristic,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.ReviewRequired,
+                        Summary = "Review."
+                    }
+                ],
+                Assessments = new AssuranceAssessmentSet
+                {
+                    CoreConformance = new CoreConformanceAssessment { Status = CoreConformanceStatus.Conformant },
+                    SecurityAssurance = new SecurityAssuranceAssessment { Status = SecurityAssuranceStatus.Verified },
+                    OperationalReadiness = new OperationalReadinessAssessment { Status = OperationalReadinessStatus.Ready }
+                },
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "provider",
+                    Status = CertificateEligibilityStatus.ReviewRequired
+                }
+            }
+        };
+
+        var receipt = ValidateCommand.BuildCurrentProviderRunReceipt(
+            result,
+            new string('e', 64),
+            new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero));
+
+        receipt.RunId.Should().Be("current-run");
+        receipt.ResultSha256.Should().MatchRegex("^[a-f0-9]{64}$");
+        receipt.NonSuccessClaimIds.Should().Equal("claim:review");
+        receipt.CoreConformance.Should().Be(CoreConformanceStatus.Conformant);
+    }
+
+    private static ExecutionPlan CreateProviderPlan(string sessionId, ExecutionMode mode, int maxRequests) => new()
+    {
+        SessionId = sessionId,
+        TargetDigest = new string('a', 64),
+        Transport = "http",
+        ResolvedSchemaVersion = "2026-07-28",
+        ProtocolEra = McpProtocolEra.Modern,
+        ExecutionMode = mode,
+        MaxRequests = maxRequests,
+        MaxConcurrency = 2,
+        TimeoutSeconds = 30,
+        MaxResponseBytes = 1024,
+        AllowedHosts = ["example.test"],
+        AllowedOrigins = ["https://example.test"],
+        PlannedChecks = ["security", "protocol"]
+    };
 
     private CliSessionContext CreateSessionContext()
     {

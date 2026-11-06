@@ -10,7 +10,6 @@ dotnet tool restore
 rm -rf "$output_dir"
 dotnet stryker \
   --project Mcp.Benchmark.Core.csproj \
-  --mutate '**/VerdictReducer.cs' \
   --mutate '**/AssuranceAssessmentEngine.cs' \
   --mutate '**/ProviderHarnessEvaluator.cs' \
   --mutate '**/RuleCalibrationEvaluator.cs' \

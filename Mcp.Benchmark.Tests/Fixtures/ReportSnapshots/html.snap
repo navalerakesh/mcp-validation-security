@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MCP Server Validation Report - Full</title>
+    <title>MCP Server Assurance Report - Full</title>
+    <link rel="icon" href="data:,">
     <style>
 :root {
     color-scheme: light;
@@ -20,7 +21,7 @@
     --text: #223042;
     --text-strong: #101827;
     --text-muted: #4f5e72;
-    --text-soft: #6a7789;
+    --text-soft: #526176;
     --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
     --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
     --radius-shell: 22px;
@@ -29,7 +30,7 @@
     --tone-success: #1f6a52;
     --tone-success-soft: #eef6f1;
     --tone-success-line: #8fbca5;
-    --tone-warning: #a85d19;
+    --tone-warning: #8a4713;
     --tone-warning-soft: #faf1e6;
     --tone-warning-line: #dbb085;
     --tone-danger: #a33446;
@@ -1862,7 +1863,7 @@ a:hover {
           <div class="hero-main">
             <div class="eyebrow">Model Context Protocol (MCP) Assurance Report</div>
             <h1 class="hero-title">Assurance Requirements Not Met</h1>
-            <p class="hero-subtitle">Core conformance is Nonconformant. Security assurance is Incomplete.</p>
+            <p class="hero-subtitle">Core conformance is Nonconformant. Security assurance is IssuesFound.</p>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1902,10 +1903,10 @@ a:hover {
     <div class="focus-value">Nonconformant</div>
     <div class="focus-label">Official specification and conformance claims</div>
 </div>
-<div class="panel status-panel panel--soft panel--tone-warning">
-    <span class="status-chip status-chip--warning">Security Assurance</span>
-    <div class="focus-value">Incomplete</div>
-    <div class="focus-label">Operational readiness: NotReady</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Security Assurance</span>
+    <div class="focus-value">IssuesFound</div>
+    <div class="focus-label">Operational readiness: Ready</div>
 </div>
           </div>
         </div>
@@ -1985,7 +1986,7 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Selected assurance profile is not satisfied</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Violated</div><div class="section-abstract__value">3</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Violated</div><div class="section-abstract__value">2</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profile</div><div class="section-abstract__value">provider</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Certificate</div><div class="section-abstract__value">Ineligible</div></div>
             </div>
@@ -2001,18 +2002,18 @@ a:hover {
             <div class="decision-brief decision-brief--tone-danger">
               <div class="section-kicker">Assurance Decision</div>
               <h3 class="decision-title">Selected assurance profile is not satisfied</h3>
-              <p class="decision-summary">Core conformance is Nonconformant. Security assurance is Incomplete. Operational readiness is NotReady.</p>
+              <p class="decision-summary">Core conformance is Nonconformant. Security assurance is IssuesFound. Evidence coverage 87.5% is below 90.0%.</p>
               <div class="summary-grid">
                 <div class="summary-card"><div class="summary-card__label">Certificate</div><div class="summary-card__value">Ineligible</div></div>
                 <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">provider</div></div>
                 <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">3</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">2</div></div>
               </div>
               <ul class="compact-list">
                 <li>Core conformance is Nonconformant.</li>
-                <li>Security assurance is Incomplete.</li>
-                <li>Operational readiness is NotReady.</li>
+                <li>Security assurance is IssuesFound.</li>
                 <li>Evidence coverage 87.5% is below 90.0%.</li>
+                <li>Verified official conformance evidence is required.</li>
               </ul>
             </div>
 
@@ -2023,7 +2024,7 @@ a:hover {
                 <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
                 <ul class="compact-list">
                   <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
-                  <li>[Guideline] 1 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                  <li>[Guideline] 2 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
                 </ul>
               </section>
@@ -2033,7 +2034,7 @@ a:hover {
                 <h3 class="report-note__title">Next Actions</h3>
                 <ul class="compact-list">
                   <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
-                  <li>[Guideline] McpGuideline: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+                  <li>[Provider Policy] CapabilityContract: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
                   <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
                 </ul>
               </section>
@@ -2041,10 +2042,10 @@ a:hover {
             </div>
           </div>
           <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">16</div></div>
-                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">9</div></div>
+                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">13</div></div>
+                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">6</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">3</div></div>
+                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">2</div></div>
           </div>
 
           </div>
@@ -2061,7 +2062,7 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Priority 1</div><div class="section-abstract__value">1</div></div>
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Priority 3</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Priority 4</div><div class="section-abstract__value">4</div></div>
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Priority 4</div><div class="section-abstract__value">2</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2100,9 +2101,9 @@ a:hover {
                 <p class="ledger-copy"><strong>Impact after fix:</strong> Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.</p>
                 <ul class="compact-list">
                   <li>
-                    <strong>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</strong>
+                    <strong>One tool response omitted the outer result object.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>delete_repo</code> · <strong>Evidence:</strong> [Guideline] <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code> · <strong>Severity:</strong> High</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>tools/call</code> · <strong>Evidence:</strong> [Spec] <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code> · <strong>Severity:</strong> Medium</div>
                   </li>
                 </ul>
               </div>
@@ -2111,30 +2112,20 @@ a:hover {
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 4</div>
                 <div class="ledger-title">AI Safety, Security, And Performance</div>
-                <span class="tone-chip tone-neutral">4 items</span>
+                <span class="tone-chip tone-neutral">2 items</span>
               </div>
               <div class="ledger-body">
                 <p class="ledger-copy"><strong>Impact after fix:</strong> After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.</p>
                 <ul class="compact-list">
-                  <li>
-                    <strong>Prompt output includes reflected untrusted content.</strong>
-                    <div class="ledger-links"><strong>Fix:</strong> Sanitize or clearly label untrusted data.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.AI.BOUNDARY.PromptInjection</code> · <strong>Severity:</strong> Critical</div>
-                  </li>
                   <li>
                     <strong>Server reflected untrusted prompt content without sanitization.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Sanitize and label untrusted content before returning it.</div>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.SECURITY.PROMPT_INJECTION</code> · <strong>Severity:</strong> Critical</div>
                   </li>
                   <li>
-                    <strong>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</strong>
+                    <strong>Tool &#39;delete_repo&#39; has parameters without descriptions.</strong>
                     <div class="ledger-links"><strong>Fix:</strong> Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>validation-run</code> · <strong>Evidence:</strong> [Operational] <code>Execution</code> · <strong>Severity:</strong> Critical</div>
-                  </li>
-                  <li>
-                    <strong>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</strong>
-                    <div class="ledger-links"><strong>Fix:</strong> Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope.</div>
-                    <div class="ledger-links"><strong>Component:</strong> <code>prompt-surface</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.COVERAGE.EVIDENCE_DEBT</code> · <strong>Severity:</strong> Medium</div>
+                    <div class="ledger-links"><strong>Component:</strong> <code>delete_repo</code> · <strong>Evidence:</strong> [Heuristic] <code>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</code> · <strong>Severity:</strong> Medium</div>
                   </li>
                 </ul>
               </div>
@@ -2145,7 +2136,7 @@ a:hover {
       </section>
 
       <section class="section">
-        <details class="section-card section-card--tone-danger">
+        <details class="section-card section-card--tone-warning">
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Decision Trace</div>
@@ -2154,8 +2145,8 @@ a:hover {
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Themes</div><div class="section-abstract__value">6</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Hotspots</div><div class="section-abstract__value">6</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Primary Gate</div><div class="section-abstract__value">Reject</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Hotspots</div><div class="section-abstract__value">5</div></div>
+              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Primary Gate</div><div class="section-abstract__value">ReviewRequired</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2170,144 +2161,158 @@ a:hover {
               <h3 class="minor-title">Decision Themes</h3>
               <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
               <div class="ledger-list">
+                <article class="ledger-entry ledger-entry--warning">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">MCP.TOOL.CALL.RESULT_OBJECT_MISSING</div>
+                    <div class="ledger-subtle">CoreProtocol</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-warning">ReviewRequired</span>
+                      <span class="tone-chip tone-info">OfficialSpecification</span>
+                      <span class="tag">CoreProtocol</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">One tool response omitted the outer result object.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> No evidence reference recorded</div>
+                    <div class="ledger-links"><strong>Components:</strong> tools/call</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">tools/call</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">High</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">Should</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">ruleId</div><div class="summary-card__value">MCP.TOOL.CALL.RESULT_OBJECT_MISSING</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">severity</div><div class="summary-card__value">Medium</div></div>
+                    </div>
+                  </div>
+                </article>
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
                     <div class="ledger-title">MCP.INIT.VERSION_NEGOTIATION</div>
-                    <div class="ledger-subtle">Initialization</div>
+                    <div class="ledger-subtle">CoreProtocol</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">spec</span>
-                      <span class="tag">Protocol interoperability</span>
-                      <span class="tag">Capability contract</span>
+                      <span class="tone-chip tone-danger">Violated</span>
+                      <span class="tone-chip tone-info">OfficialSpecification</span>
+                      <span class="tag">CoreProtocol</span>
                     </div>
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Server ignored the requested MCP protocol version.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; spec-linked &#183; 1 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> 1 evidence reference(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> Initialization</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.INIT.VERSION_NEGOTIATION</code></div>
                     <div class="ledger-links"><strong>Specification:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
                     <div class="summary-grid decision-fact-grid">
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">Initialization</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">High</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">Must</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">protocol/MCP.INIT.VERSION_NEGOTIATION</div></div>
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Echo the negotiated protocol version in initialize.result.</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--warning">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.TOOL.CALL.RESULT_OBJECT_MISSING</div>
-                    <div class="ledger-subtle">ProtocolCompliance</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-warning">Review Required</span>
-                      <span class="tone-chip tone-info">spec</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">One tool response omitted the outer result object.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> spec &#183; deterministic observation &#183; 1 evidence link(s)</div>
-                    <div class="ledger-links"><strong>Components:</strong> tools/call</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code></div>
-                    <div class="summary-grid decision-fact-grid">
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">tools/call</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</div></div>
-                    </div>
-                  </div>
-                </article>
-                <article class="ledger-entry ledger-entry--danger">
-                  <div class="ledger-rail">
-                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
-                    <div class="ledger-subtle">McpGuideline</div>
-                    <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Review Required</span>
-                      <span class="tone-chip tone-info">guideline</span>
-                      <span class="tag">Capability contract</span>
-                    </div>
-                  </div>
-                  <div class="ledger-body">
-                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> guideline &#183; heuristic inference &#183; 2 evidence link(s)</div>
-                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
-                    <div class="summary-grid decision-fact-grid">
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint, obs-tool-delete-repo</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">ruleId</div><div class="summary-card__value">MCP.INIT.VERSION_NEGOTIATION</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">severity</div><div class="summary-card__value">High</div></div>
                     </div>
                   </div>
                 </article>
                 <article class="ledger-entry ledger-entry--danger">
                   <div class="ledger-rail">
                     <div class="ledger-title">MCP.SECURITY.PROMPT_INJECTION</div>
-                    <div class="ledger-subtle">PromptInjection</div>
+                    <div class="ledger-subtle">Security</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Operational resilience</span>
+                      <span class="tone-chip tone-danger">Violated</span>
+                      <span class="tone-chip tone-info">DeterministicSecurity</span>
+                      <span class="tag">Security</span>
                     </div>
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Server reflected untrusted prompt content without sanitization.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; deterministic observation &#183; 2 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> 1 evidence reference(s)</div>
                     <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>MCP.SECURITY.PROMPT_INJECTION</code></div>
                     <div class="summary-grid decision-fact-grid">
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization, probe:probe-prompt-get-reflection-200</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Prompt response reflected untrusted content.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">High</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">SecurityControl</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">probe-prompt-get-reflection-200</div></div>
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize and label untrusted content before returning it.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">ruleId</div><div class="summary-card__value">MCP.SECURITY.PROMPT_INJECTION</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">severity</div><div class="summary-card__value">Critical</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">exploitable</div><div class="summary-card__value">True</div></div>
                     </div>
                   </div>
                 </article>
-                <article class="ledger-entry ledger-entry--danger">
+                <article class="ledger-entry ledger-entry--warning">
                   <div class="ledger-rail">
-                    <div class="ledger-title">MCP.AI.BOUNDARY.PromptInjection</div>
-                    <div class="ledger-subtle">PromptInjection</div>
+                    <div class="ledger-title">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div>
+                    <div class="ledger-subtle">CapabilityContract</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-danger">Reject</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Unsafe autonomy</span>
-                      <span class="tag">Output integrity</span>
+                      <span class="tone-chip tone-warning">ReviewRequired</span>
+                      <span class="tone-chip tone-info">ProviderPolicy</span>
+                      <span class="tag">CapabilityContract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
-                    <p class="ledger-copy">Prompt output includes reflected untrusted content.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 1 evidence link(s)</div>
-                    <div class="ledger-links"><strong>Components:</strong> prompt:get</div>
-                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.AI.BOUNDARY.PromptInjection</code></div>
+                    <p class="ledger-copy">Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> No evidence reference recorded</div>
+                    <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code></div>
                     <div class="summary-grid decision-fact-grid">
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompt:get</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Remediation</div><div class="summary-card__value">Sanitize or clearly label untrusted data.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">Medium</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">Policy</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">ruleId</div><div class="summary-card__value">MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">severity</div><div class="summary-card__value">High</div></div>
+                    </div>
+                  </div>
+                </article>
+                <article class="ledger-entry ledger-entry--warning">
+                  <div class="ledger-rail">
+                    <div class="ledger-title">coverage:prompt-surface:prompts-list</div>
+                    <div class="ledger-subtle">CoreProtocol</div>
+                    <div class="ledger-chip-row">
+                      <span class="tone-chip tone-warning">Incomplete</span>
+                      <span class="tone-chip tone-info">ProviderPolicy</span>
+                      <span class="tag">CoreProtocol</span>
+                    </div>
+                  </div>
+                  <div class="ledger-body">
+                    <p class="ledger-copy">Server does not advertise prompts capability.</p>
+                    <div class="ledger-links"><strong>Evidence:</strong> 1 evidence reference(s)</div>
+                    <div class="ledger-links"><strong>Components:</strong> prompts/list</div>
+                    <div class="ledger-links"><strong>Rule:</strong> <code>coverage:prompt-surface:prompts-list</code></div>
+                    <div class="summary-grid decision-fact-grid">
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">prompts/list</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">None</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">Policy</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">coverage:prompt-surface:prompts-list:Skipped</div></div>
                     </div>
                   </div>
                 </article>
                 <article class="ledger-entry ledger-entry--warning">
                   <div class="ledger-rail">
                     <div class="ledger-title">AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</div>
-                    <div class="ledger-subtle">AiReadiness</div>
+                    <div class="ledger-subtle">CapabilityContract</div>
                     <div class="ledger-chip-row">
-                      <span class="tone-chip tone-warning">Review Required</span>
-                      <span class="tone-chip tone-info">heuristic</span>
-                      <span class="tag">Capability contract</span>
+                      <span class="tone-chip tone-warning">ReviewRequired</span>
+                      <span class="tone-chip tone-info">Heuristic</span>
+                      <span class="tag">CapabilityContract</span>
                     </div>
                   </div>
                   <div class="ledger-body">
                     <p class="ledger-copy">Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
-                    <div class="ledger-links"><strong>Evidence:</strong> heuristic &#183; heuristic inference &#183; 2 evidence link(s)</div>
+                    <div class="ledger-links"><strong>Evidence:</strong> No evidence reference recorded</div>
                     <div class="ledger-links"><strong>Components:</strong> delete_repo</div>
                     <div class="ledger-links"><strong>Rule:</strong> <code>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</code></div>
                     <div class="summary-grid decision-fact-grid">
                 <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Affected Components</div><div class="summary-card__value">delete_repo</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Decision Count</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Evidence IDs</div><div class="summary-card__value">structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions, obs-tool-delete-repo</div></div>
-                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Payload Preview</div><div class="summary-card__value">Tool metadata missing annotations.destructiveHint.</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Claim Count</div><div class="summary-card__value">1</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Confidence</div><div class="summary-card__value">Medium</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">Requirement</div><div class="summary-card__value">Policy</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">ruleId</div><div class="summary-card__value">AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</div></div>
+                <div class="summary-card summary-card--decision-fact"><div class="summary-card__label">severity</div><div class="summary-card__value">Medium</div></div>
                     </div>
                   </div>
                 </article>
@@ -2317,40 +2322,34 @@ a:hover {
             <aside class="decision-hotspots">
               <h3 class="minor-title">Affected Hotspots</h3>
               <div class="ledger-list">
-                <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">AI Safety</div>
-                  <h3 class="report-note__title">prompt:get</h3>
-                  <p class="report-note__empty">2 escalated decisions. Representative issue: Server reflected untrusted prompt content without sanitization.</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 2</div>
-                </article>
-                <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">Protocol</div>
+                <article class="report-note report-note--warning">
+                  <div class="report-note__eyebrow">CapabilityContract</div>
                   <h3 class="report-note__title">delete_repo</h3>
-                  <p class="report-note__empty">2 escalated decisions. Representative issue: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
+                  <p class="report-note__empty">2 non-success claims. Representative issue: Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 2</div>
                 </article>
+                <article class="report-note report-note--warning">
+                  <div class="report-note__eyebrow">CoreProtocol</div>
+                  <h3 class="report-note__title">tools/call</h3>
+                  <p class="report-note__empty">One tool response omitted the outer result object.</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
+                </article>
+                <article class="report-note report-note--warning">
+                  <div class="report-note__eyebrow">CoreProtocol</div>
+                  <h3 class="report-note__title">prompts/list</h3>
+                  <p class="report-note__empty">Server does not advertise prompts capability.</p>
+                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
+                </article>
                 <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">Protocol</div>
+                  <div class="report-note__eyebrow">CoreProtocol</div>
                   <h3 class="report-note__title">Initialization</h3>
                   <p class="report-note__empty">Server ignored the requested MCP protocol version.</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
                 <article class="report-note report-note--danger">
-                  <div class="report-note__eyebrow">Operations</div>
-                  <h3 class="report-note__title">validation-run</h3>
-                  <p class="report-note__empty">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
-                </article>
-                <article class="report-note report-note--warning">
-                  <div class="report-note__eyebrow">Protocol</div>
-                  <h3 class="report-note__title">tools/call</h3>
-                  <p class="report-note__empty">One tool response omitted the outer result object.</p>
-                  <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
-                </article>
-                <article class="report-note report-note--info">
-                  <div class="report-note__eyebrow">Coverage</div>
-                  <h3 class="report-note__title">prompt-surface</h3>
-                  <p class="report-note__empty">Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</p>
+                  <div class="report-note__eyebrow">Security</div>
+                  <h3 class="report-note__title">prompt:get</h3>
+                  <p class="report-note__empty">Server reflected untrusted prompt content without sanitization.</p>
                   <div class="ledger-links"><strong>Escalated Signals:</strong> 1</div>
                 </article>
               </div>
@@ -2371,8 +2370,8 @@ a:hover {
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Eligibility</div><div class="section-abstract__value">Ineligible</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Conformance</div><div class="section-abstract__value">Nonconformant</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Incomplete</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Readiness</div><div class="section-abstract__value">NotReady</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">IssuesFound</div></div>
+              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Readiness</div><div class="section-abstract__value">Ready</div></div>
             </div>
             <div class="section-card__toggle-row">
               <span class="section-card__toggle-icon" aria-hidden="true"></span>
@@ -2416,14 +2415,14 @@ a:hover {
               <div class="score-pill__value">Nonconformant</div>
               <div class="score-pill__meta">0/1 required claims satisfied</div>
             </div>
-            <div class="score-pill score-pill--warning">
-              <div class="score-pill__eyebrow">Assurance</div>
-              <div class="score-pill__value">Incomplete</div>
-              <div class="score-pill__meta">0 deterministic control claim(s)</div>
-            </div>
             <div class="score-pill score-pill--danger">
+              <div class="score-pill__eyebrow">Assurance</div>
+              <div class="score-pill__value">IssuesFound</div>
+              <div class="score-pill__meta">1 deterministic control claim(s)</div>
+            </div>
+            <div class="score-pill score-pill--success">
               <div class="score-pill__eyebrow">Readiness</div>
-              <div class="score-pill__value">NotReady</div>
+              <div class="score-pill__value">Ready</div>
               <div class="score-pill__meta">2 objective claim(s)</div>
             </div>
             <div class="score-pill score-pill--info">
@@ -2439,22 +2438,22 @@ a:hover {
               <tbody>
                 <tr>
                   <td><div class="cell-title">Violated</div></td>
-                  <td><span class="tone-chip tone-danger">3</span></td>
+                  <td><span class="tone-chip tone-danger">2</span></td>
                   <td>Deterministic claim failures</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Review Required</div></td>
-                  <td><span class="tone-chip tone-warning">4</span></td>
+                  <td><span class="tone-chip tone-warning">3</span></td>
                   <td>Claims requiring human review</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Incomplete</div></td>
-                  <td><span class="tone-chip tone-warning">2</span></td>
+                  <td><span class="tone-chip tone-warning">1</span></td>
                   <td>Applicable claims lacking evidence</td>
                 </tr>
                 <tr>
                   <td><div class="cell-title">Total</div></td>
-                  <td><span class="tone-chip tone-info">16</span></td>
+                  <td><span class="tone-chip tone-info">13</span></td>
                   <td>All projected assurance claims</td>
                 </tr>
               </tbody>
@@ -2469,25 +2468,25 @@ a:hover {
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Core Conformance</div></td>
                   <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">Nonconformant</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">2 non-success claim(s)</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">6 applicable/projected claim(s)</div></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">3 non-success claim(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">7 applicable/projected claim(s)</div></td>
                   <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server does not advertise prompts capability.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Preserve evidence and monitor for drift.</div></td>
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Security Assurance</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Incomplete</span></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">IssuesFound</span></td>
                   <td data-label="Signals"><div class="cell-copy cell-copy--compact">1 non-success claim(s)</div></td>
                   <td data-label="Evidence"><div class="cell-copy">2 applicable/projected claim(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Prompt output includes reflected untrusted content.</div></td>
-                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize or clearly label untrusted data.</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Server reflected untrusted prompt content without sanitization.</div></td>
+                  <td data-label="Next Action"><div class="cell-copy cell-copy--action">Sanitize and label untrusted content before returning it.</div></td>
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Operational Readiness</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-danger">NotReady</span></td>
-                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">2 non-success claim(s)</div></td>
-                  <td data-label="Evidence"><div class="cell-copy">4 applicable/projected claim(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Critical execution error recorded: Prompt validation hit an unsafe reflection path.</div></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-success">Ready</span></td>
+                  <td data-label="Signals"><div class="cell-copy cell-copy--compact">0 non-success claim(s)</div></td>
+                  <td data-label="Evidence"><div class="cell-copy">2 applicable/projected claim(s)</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">No non-success claims were projected for this dimension.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Preserve evidence and monitor for drift.</div></td>
                 </tr>
                 <tr>
@@ -2500,10 +2499,10 @@ a:hover {
                 </tr>
                 <tr>
                   <td data-label="Domain"><div class="cell-title">Coverage</div></td>
-                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Review Required</span></td>
+                  <td data-label="Status" class="table-cell--status"><span class="tone-chip tone-warning">Incomplete</span></td>
                   <td data-label="Signals"><div class="cell-copy cell-copy--compact">7 covered scope(s)</div></td>
                   <td data-label="Evidence"><div class="cell-copy">7 covered &#183; 1 skipped &#183; 0 blocked declaration(s)</div></td>
-                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</div></td>
+                  <td data-label="Interpretation"><div class="cell-copy cell-copy--interpretation">1 applicable coverage declaration(s) remain incomplete.</div></td>
                   <td data-label="Next Action"><div class="cell-copy cell-copy--action">Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.</div></td>
                 </tr>
               </tbody>
@@ -3232,7 +3231,7 @@ a:hover {
 
 <div class="producer-signature">
   <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>
-  <span class="producer-signature__divider">·</span>
+  <span class="producer-signature__divider" aria-hidden="true">·</span>
   <a href="https://www.nuget.org/packages/McpVal#versions-body-tab">McpVal on NuGet</a>
 </div>
       <div class="footer">Generated by MCP Validator · Full report · print-ready HTML for PDF export</div>

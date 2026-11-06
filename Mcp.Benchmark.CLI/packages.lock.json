@@ -482,7 +482,7 @@
       "mcp.benchmark.clientprofiles": {
         "type": "Project",
         "dependencies": {
-          "Mcp.Benchmark.Core": "[1.1.33, )"
+          "Mcp.Benchmark.Core": "[2.0.0, )"
         }
       },
       "mcp.benchmark.core": {
@@ -500,8 +500,8 @@
         "dependencies": {
           "AngleSharp": "[1.9.1, )",
           "JsonSchema.Net": "[9.2.1, )",
-          "Mcp.Benchmark.Core": "[1.1.33, )",
-          "Mcp.Compliance.Spec": "[1.1.33, )",
+          "Mcp.Benchmark.Core": "[2.0.0, )",
+          "Mcp.Compliance.Spec": "[2.0.0, )",
           "Microsoft.Extensions.Configuration": "[10.0.10, )",
           "Microsoft.Extensions.DependencyInjection": "[10.0.10, )",
           "Microsoft.Extensions.Logging": "[10.0.10, )",

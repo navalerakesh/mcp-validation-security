@@ -19,7 +19,8 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("<head>");
         sb.AppendLine("    <meta charset=\"UTF-8\">");
         sb.AppendLine("    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">");
-        sb.AppendLine($"    <title>MCP Server Validation Report - {Encode(document.DetailLabel)}</title>");
+        sb.AppendLine($"    <title>MCP Server Assurance Report - {Encode(document.DetailLabel)}</title>");
+        sb.AppendLine("    <link rel=\"icon\" href=\"data:,\">");
         sb.AppendLine("    <style>");
         sb.AppendLine(ValidationHtmlReportTheme.BuildCss());
         sb.AppendLine("    </style>");
@@ -160,7 +161,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("          <div class=\"hero-side\">");
         sb.AppendLine(RenderStatusPanel("Certificate Eligibility", hero.StatusLabel, hero.StatusTone, document.GeneratedAtLabel));
         sb.AppendLine(RenderStatusPanel("Core Conformance", hero.VerdictLabel, hero.VerdictTone, "Official specification and conformance claims"));
-        sb.AppendLine(RenderStatusPanel("Security Assurance", hero.TrustLevelLabel, hero.TrustLevelTone, hero.TrustLevelDetail));
+        sb.AppendLine(RenderStatusPanel("Security Assurance", hero.SecurityStatusLabel, hero.SecurityStatusTone, hero.SecurityStatusDetail));
         sb.AppendLine("          </div>");
         sb.AppendLine("        </div>");
         sb.AppendLine("      </section>");
@@ -2337,7 +2338,7 @@ internal sealed class ValidationHtmlReportComposer
         return $"""
               <div class="producer-signature">
                 <span>Produced with {RenderSafeLink(producer.RepositoryUrl, producer.Name)}</span>
-                <span class="producer-signature__divider">·</span>
+                <span class="producer-signature__divider" aria-hidden="true">·</span>
                 {RenderSafeLink(producer.PackageUrl, $"{producer.PackageId} on NuGet")}
               </div>
               """;

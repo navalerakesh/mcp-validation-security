@@ -1,5 +1,5 @@
 {
-  "version": "1.1.0",
+  "version": "2.0.0",
   "cases": [
     {
       "id": "compliant",
@@ -7,9 +7,6 @@
       "coverageStatus": "Covered",
       "findingSeverity": null,
       "findingGate": null,
-      "expectedBaseline": "Trusted",
-      "expectedProtocol": "Trusted",
-      "expectedCoverage": "Trusted",
       "expectedScore": 100
     },
     {
@@ -18,9 +15,6 @@
       "coverageStatus": "Covered",
       "findingSeverity": "Critical",
       "findingGate": "Reject",
-      "expectedBaseline": "Reject",
-      "expectedProtocol": "Reject",
-      "expectedCoverage": "Trusted",
       "expectedScore": 25
     },
     {
@@ -28,36 +22,24 @@
       "kind": "malformed",
       "coverageStatus": "Covered",
       "protocolViolationSeverity": "High",
-      "expectedBaseline": "Reject",
-      "expectedProtocol": "Reject",
-      "expectedCoverage": "Trusted",
       "expectedScore": 30
     },
     {
       "id": "unavailable",
       "kind": "unavailable",
       "coverageStatus": "Unavailable",
-      "expectedBaseline": "ReviewRequired",
-      "expectedProtocol": "Unknown",
-      "expectedCoverage": "ReviewRequired",
       "expectedScore": 0
     },
     {
       "id": "throttled",
       "kind": "throttled",
       "coverageStatus": "Inconclusive",
-      "expectedBaseline": "ReviewRequired",
-      "expectedProtocol": "Unknown",
-      "expectedCoverage": "ReviewRequired",
       "expectedScore": 60
     },
     {
       "id": "auth-protected",
       "kind": "auth-protected",
       "coverageStatus": "AuthRequired",
-      "expectedBaseline": "ReviewRequired",
-      "expectedProtocol": "ReviewRequired",
-      "expectedCoverage": "ReviewRequired",
       "expectedScore": 60
     }
   ]

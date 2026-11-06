@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
@@ -117,7 +118,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         {
             runStopwatch.Stop();
             result.Run.OperationalMetrics = runTelemetry.Complete(runStopwatch.Elapsed.TotalMilliseconds);
-            result.Run.OperationalMetrics.EvidenceCoverageRatio = result.VerdictAssessment?.EvidenceSummary.EvidenceCoverageRatio
+            result.Run.OperationalMetrics.EvidenceCoverageRatio = result.Assurance?.EvidenceSummary.EvidenceCoverageRatio
                 ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage).EvidenceCoverageRatio;
             return result;
         }
@@ -363,17 +364,6 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 CalculateOverallResults(result);
             }
 
-            // Calculate MCP Trust Assessment (multi-dimensional AI safety evaluation)
-            using (ValidationObservability.MeasureStage("validation.trust"))
-            {
-                result.TrustAssessment = Scoring.McpTrustCalculator.Calculate(result);
-            }
-            using (ValidationObservability.MeasureStage("validation.verdict"))
-            {
-                result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
-            }
-            Scoring.McpTrustCalculator.ApplyAuthoritativeVerdictCap(result.TrustAssessment, result.VerdictAssessment);
-            result.OverallStatus = ValidationVerdictEngine.DetermineValidationStatus(result.VerdictAssessment);
             result.Assurance = AssuranceAssessmentEngine.Evaluate(
                 result,
                 AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
@@ -381,6 +371,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 {
                     ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe
                 });
+            result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(
+                result.Assurance,
+                result.CriticalErrors.Count > 0);
 
             // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
             // protocol version actually negotiated, when that version has an embedded
@@ -404,13 +397,19 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             }
 
             result.EndTime = DateTime.UtcNow;
-            _logger.LogInformation("Validation completed with status: {Status}, Score: {Score:F1}%",
-                result.OverallStatus, result.ComplianceScore);
+            _logger.LogInformation(
+                "Validation completed with status {Status}; core {Core}; security {Security}; operations {Operations}",
+                result.OverallStatus,
+                result.Assurance.Assessments.CoreConformance.Status,
+                result.Assurance.Assessments.SecurityAssurance.Status,
+                result.Assurance.Assessments.OperationalReadiness.Status);
 
             _telemetryService.TrackEvent("ValidationCompleted", new Dictionary<string, string>
             {
                 { "Status", result.OverallStatus.ToString() },
-                { "Score", result.ComplianceScore.ToString("F1") }
+                { "CoreConformance", result.Assurance.Assessments.CoreConformance.Status.ToString() },
+                { "SecurityAssurance", result.Assurance.Assessments.SecurityAssurance.Status.ToString() },
+                { "OperationalReadiness", result.Assurance.Assessments.OperationalReadiness.Status.ToString() }
             });
 
             return CompleteRun();
@@ -846,15 +845,10 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                         Description = discovery.Instructions ?? "Discovered through modern server/discover."
                     },
                     SupportedTransports = [serverConfig.Transport ?? "http"],
-                    SupportedTools = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Tools, StringComparer.OrdinalIgnoreCase)
-                        ? [new ToolCapability { Name = "tools-validated", Description = $"Tool validation completed with score: {modernCapabilityPayload?.Score ?? 0:F1}%" }]
-                        : [],
-                    SupportedResources = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Resources, StringComparer.OrdinalIgnoreCase)
-                        ? [new ResourceCapability { UriPattern = "*", Description = "Resources advertised by modern discovery." }]
-                        : [],
-                    SupportedPrompts = discovery.CapabilityNames.Contains(McpSpecConstants.Capabilities.Prompts, StringComparer.OrdinalIgnoreCase)
-                        ? [new PromptCapability { Name = "prompts-advertised", Description = "Prompts advertised by modern discovery." }]
-                        : []
+                    SupportedTools = ExtractObservedTools(modernCapabilityPayload?.ToolListResponse),
+                    SupportedResources = ExtractObservedResources(modernCapabilityPayload?.ResourceListResponse),
+                    SupportedPrompts = ExtractObservedPrompts(modernCapabilityPayload?.PromptListResponse),
+                    AdditionalCapabilities = BuildDiscoveryMetadata(discovery.CapabilityNames, modernCapabilityPayload)
                 };
             }
 
@@ -872,8 +866,6 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             // REAL capability validation
             var capabilityResult = await _httpClient.ValidateCapabilitiesAsync(serverConfig.Endpoint, cancellationToken);
             var capabilityPayload = capabilityResult.Payload;
-            var capabilityScore = capabilityPayload?.Score ?? 0;
-            var toolValidationStatus = capabilityPayload?.ToolListingSucceeded == true ? "Successfully" : "Failed";
 
             var capabilities = new ServerCapabilities
             {
@@ -885,25 +877,19 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     Description = "Discovered via REAL MCP protocol communication"
                 },
                 SupportedTransports = new List<string> { serverConfig.Transport ?? "http" },
-                SupportedTools = new List<ToolCapability>
-                {
-                    // Basic tool capability based on validation results
-                    new() { Name = "tools-validated", Description = $"Tool validation completed with score: {capabilityScore:F1}%" }
-                },
-                SupportedResources = new List<ResourceCapability>
-                {
-                    // Basic resource capability
-                    new() { UriPattern = "http://*", Description = "HTTP-based resources discovered via MCP validation" }
-                },
-                SupportedPrompts = new List<PromptCapability>
-                {
-                    // Basic prompt capability
-                    new() { Name = "validation-prompt", Description = "Prompt capabilities validated via MCP protocol" }
-                }
+                SupportedTools = ExtractObservedTools(capabilityPayload?.ToolListResponse),
+                SupportedResources = ExtractObservedResources(capabilityPayload?.ResourceListResponse),
+                SupportedPrompts = ExtractObservedPrompts(capabilityPayload?.PromptListResponse),
+                AdditionalCapabilities = BuildDiscoveryMetadata(
+                    capabilityPayload?.AdvertisedCapabilities ?? [],
+                    capabilityPayload)
             };
 
-            _logger.LogInformation("REAL capability discovery completed: {ToolValidated} tools validated, score: {Score:F1}%",
-                toolValidationStatus, capabilityScore);
+            _logger.LogInformation(
+                "Capability discovery completed with {Tools} tools, {Resources} resources, and {Prompts} prompts observed",
+                capabilities.SupportedTools.Count,
+                capabilities.SupportedResources.Count,
+                capabilities.SupportedPrompts.Count);
 
             return capabilities;
         }
@@ -930,17 +916,104 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 Description = "Discovered through negotiated legacy initialize and list capabilities."
             },
             SupportedTransports = [serverConfig.Transport ?? "http"],
-            SupportedTools = capabilityPayload?.ToolListingSucceeded == true
-                ? [new ToolCapability { Name = "tools-validated", Description = $"Tool validation completed with score: {capabilityPayload.Score:F1}%" }]
-                : [],
-            SupportedResources = capabilityPayload?.ResourceListingSucceeded == true
-                ? [new ResourceCapability { UriPattern = "*", Description = "Resources validated through MCP list capabilities." }]
-                : [],
-            SupportedPrompts = capabilityPayload?.PromptListingSucceeded == true
-                ? [new PromptCapability { Name = "prompts-validated", Description = "Prompts validated through MCP list capabilities." }]
-                : []
+            SupportedTools = ExtractObservedTools(capabilityPayload?.ToolListResponse),
+            SupportedResources = ExtractObservedResources(capabilityPayload?.ResourceListResponse),
+            SupportedPrompts = ExtractObservedPrompts(capabilityPayload?.PromptListResponse),
+            AdditionalCapabilities = BuildDiscoveryMetadata(
+                capabilityPayload?.AdvertisedCapabilities ?? [],
+                capabilityPayload)
         };
     }
+
+    private static List<ToolCapability> ExtractObservedTools(JsonRpcResponse? response) =>
+        ExtractObservedItems(response, "tools", "name")
+            .Select(item => new ToolCapability
+            {
+                Name = item.Identity,
+                Description = item.Description
+            })
+            .ToList();
+
+    private static List<ResourceCapability> ExtractObservedResources(JsonRpcResponse? response) =>
+        ExtractObservedItems(response, "resources", "uri")
+            .Select(item => new ResourceCapability
+            {
+                UriPattern = item.Identity,
+                Description = item.Description,
+                SupportedMimeTypes = item.MimeType == null ? [] : [item.MimeType]
+            })
+            .ToList();
+
+    private static List<PromptCapability> ExtractObservedPrompts(JsonRpcResponse? response) =>
+        ExtractObservedItems(response, "prompts", "name")
+            .Select(item => new PromptCapability
+            {
+                Name = item.Identity,
+                Description = item.Description
+            })
+            .ToList();
+
+    private static IReadOnlyList<ObservedDiscoveryItem> ExtractObservedItems(
+        JsonRpcResponse? response,
+        string collectionName,
+        string identityProperty)
+    {
+        if (string.IsNullOrWhiteSpace(response?.RawJson)) return [];
+        try
+        {
+            using var document = JsonDocument.Parse(response.RawJson, new JsonDocumentOptions
+            {
+                MaxDepth = 64,
+                CommentHandling = JsonCommentHandling.Disallow,
+                AllowTrailingCommas = false
+            });
+            if (!document.RootElement.TryGetProperty("result", out var result) ||
+                result.ValueKind != JsonValueKind.Object ||
+                !result.TryGetProperty(collectionName, out var collection) ||
+                collection.ValueKind != JsonValueKind.Array)
+                return [];
+            return collection.EnumerateArray()
+                .Where(item => item.ValueKind == JsonValueKind.Object &&
+                    item.TryGetProperty(identityProperty, out var identity) &&
+                    identity.ValueKind == JsonValueKind.String &&
+                    !string.IsNullOrWhiteSpace(identity.GetString()))
+                .Select(item => new ObservedDiscoveryItem(
+                    item.GetProperty(identityProperty).GetString()!,
+                    item.TryGetProperty("description", out var description) && description.ValueKind == JsonValueKind.String
+                        ? description.GetString()
+                        : null,
+                    item.TryGetProperty("mimeType", out var mimeType) && mimeType.ValueKind == JsonValueKind.String
+                        ? mimeType.GetString()
+                        : null))
+                .GroupBy(item => item.Identity, StringComparer.Ordinal)
+                .Select(group => group.First())
+                .OrderBy(item => item.Identity, StringComparer.Ordinal)
+                .ToArray();
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+    }
+
+    private static Dictionary<string, object> BuildDiscoveryMetadata(
+        IEnumerable<string> advertisedCapabilities,
+        CapabilitySummary? summary)
+    {
+        var advertised = advertisedCapabilities.Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray();
+        return new Dictionary<string, object>(StringComparer.Ordinal)
+        {
+            ["advertisedCapabilities"] = advertised,
+            ["toolListingSucceeded"] = summary?.ToolListingSucceeded == true,
+            ["resourceListingSucceeded"] = summary?.ResourceListingSucceeded == true,
+            ["promptListingSucceeded"] = summary?.PromptListingSucceeded == true,
+            ["observedToolCount"] = summary?.DiscoveredToolsCount ?? 0,
+            ["observedResourceCount"] = summary?.DiscoveredResourcesCount ?? 0,
+            ["observedPromptCount"] = summary?.DiscoveredPromptsCount ?? 0
+        };
+    }
+
+    private sealed record ObservedDiscoveryItem(string Identity, string? Description, string? MimeType);
 
     /// <summary>
     /// Validates specific aspects of the MCP server based on the provided test categories.

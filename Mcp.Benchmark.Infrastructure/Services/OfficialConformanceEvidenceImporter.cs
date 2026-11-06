@@ -69,7 +69,9 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
                 RunState = document.Run.State,
                 Passed = checks.Count(check => check.Status == OfficialConformanceCheckStatus.Success),
                 CreditedPassed = creditEligible
-                    ? checks.Count(check => check.Status == OfficialConformanceCheckStatus.Success)
+                    ? scenarios
+                        .Where(scenario => scenario.ScoringDisposition == OfficialConformanceScoringDisposition.Required)
+                        .Sum(scenario => scenario.Passed)
                     : 0,
                 Failed = checks.Count(check => check.Status == OfficialConformanceCheckStatus.Failure),
                 Warnings = checks.Count(check => check.Status == OfficialConformanceCheckStatus.Warning),
@@ -161,6 +163,7 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
             throw Invalid("Official conformance evidence contains too many scenarios.");
         }
 
+        var totalChecksBytes = 0;
         var scenarioIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var scenario in document.Scenarios)
         {
@@ -170,11 +173,6 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
                 throw Invalid("Official conformance evidence contains duplicate scenario IDs.");
             }
 
-            if (scenario.Checks.Count > OfficialConformanceContract.MaximumChecksPerScenario)
-            {
-                throw Invalid("Official conformance evidence contains too many checks in a scenario.");
-            }
-
             if (scenario.ScoringDisposition == OfficialConformanceScoringDisposition.NotScored &&
                 string.IsNullOrWhiteSpace(scenario.NotScoredReason))
             {
@@ -182,12 +180,51 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
             }
 
             RequireSha256(scenario.ChecksSha256, "scenario checks digest");
-            if (!string.Equals(
-                    scenario.ChecksSha256,
-                    OfficialConformanceContract.ComputeChecksSha256(scenario.Checks),
-                    StringComparison.Ordinal))
+            byte[] checksJson;
+            try
+            {
+                checksJson = Convert.FromBase64String(scenario.ChecksBase64);
+            }
+            catch (FormatException exception)
+            {
+                throw Invalid("Official conformance scenario checks are not valid base64.", exception);
+            }
+
+            if (!string.Equals(Convert.ToBase64String(checksJson), scenario.ChecksBase64, StringComparison.Ordinal))
+            {
+                throw Invalid("Official conformance scenario checks are not canonically encoded.");
+            }
+
+            totalChecksBytes = checked(totalChecksBytes + checksJson.Length);
+            if (totalChecksBytes > OfficialConformanceContract.MaximumEvidenceBytes)
+            {
+                throw Invalid("Official conformance scenario checks exceed the supported size limit.");
+            }
+
+            if (!string.Equals(scenario.ChecksSha256, CanonicalJsonDigest.ComputeBytes(checksJson), StringComparison.Ordinal))
             {
                 throw Invalid("Official conformance scenario checks do not match their recorded digest.");
+            }
+
+            try
+            {
+                scenario.Checks = JsonSerializer.Deserialize<List<OfficialConformanceCheckRecord>>(
+                    checksJson,
+                    OfficialConformanceContract.CreateJsonOptions())
+                    ?? throw Invalid("Official conformance scenario checks are empty.");
+            }
+            catch (OfficialConformanceEvidenceException)
+            {
+                throw;
+            }
+            catch (JsonException exception)
+            {
+                throw Invalid("Official conformance scenario checks are not valid JSON.", exception);
+            }
+
+            if (scenario.Checks.Count > OfficialConformanceContract.MaximumChecksPerScenario)
+            {
+                throw Invalid("Official conformance evidence contains too many checks in a scenario.");
             }
 
             var checkIds = new HashSet<string>(StringComparer.Ordinal);
@@ -215,6 +252,69 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
                     }
                 }
             }
+        }
+
+        if (OfficialConformanceContract.IsPinnedRequirementSet(document.RequirementSet))
+        {
+            ValidatePinnedServerScenarios(document, scenarioIds);
+        }
+    }
+
+    private static void ValidatePinnedServerScenarios(
+        OfficialConformanceEvidenceDocument document,
+        IReadOnlySet<string> scenarioIds)
+    {
+        if (!string.Equals(document.Invocation.Mode, "server", StringComparison.Ordinal))
+        {
+            throw Invalid("Pinned official conformance evidence must use the server requirement-set invocation.");
+        }
+
+        var required = OfficialConformanceContract.RequiredServerScenarios.ToHashSet(StringComparer.Ordinal);
+        var notScored = OfficialConformanceContract.NotScoredServerScenarios
+            .ToDictionary(scenario => scenario.ScenarioId, StringComparer.Ordinal);
+        foreach (var scenario in document.Scenarios)
+        {
+            if (required.Contains(scenario.ScenarioId))
+            {
+                if (scenario.ScoringDisposition != OfficialConformanceScoringDisposition.Required ||
+                    !string.IsNullOrWhiteSpace(scenario.NotScoredReason) ||
+                    !string.IsNullOrWhiteSpace(scenario.ExtensionId))
+                {
+                    throw Invalid("Official conformance evidence misclassifies a required scenario.");
+                }
+
+                continue;
+            }
+
+            if (!notScored.TryGetValue(scenario.ScenarioId, out var pinned))
+            {
+                throw Invalid("Official conformance evidence contains a scenario outside the pinned requirement set.");
+            }
+
+            if (scenario.ScoringDisposition != OfficialConformanceScoringDisposition.NotScored ||
+                !string.Equals(scenario.NotScoredReason, pinned.Reason, StringComparison.Ordinal) ||
+                !string.Equals(scenario.ExtensionId, pinned.ExtensionId, StringComparison.Ordinal))
+            {
+                throw Invalid("Official conformance evidence misclassifies a not-scored scenario.");
+            }
+        }
+
+        if (document.Run.State != OfficialConformanceRunState.Completed)
+        {
+            return;
+        }
+
+        var missing = required.Concat(notScored.Keys)
+            .Where(scenarioId => !scenarioIds.Contains(scenarioId))
+            .ToArray();
+        if (missing.Length > 0)
+        {
+            throw Invalid("Completed official conformance evidence is missing pinned scenarios.");
+        }
+
+        if (document.Scenarios.Any(scenario => scenario.Checks.Count == 0))
+        {
+            throw Invalid("Completed official conformance evidence contains a scenario without check evidence.");
         }
     }
 

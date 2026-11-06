@@ -10,21 +10,22 @@ public sealed class OfficialConformanceReconcilerTests
     public void Reconcile_ContradictoryStableIdentity_ShouldRequireReviewInExternalLane()
     {
         var assessment = CreateAssessment(OfficialConformanceCheckStatus.Success);
-        var native = new VerdictAssessment();
-        native.TriggeredDecisions.Add(new DecisionRecord
+        var native = new List<AssuranceClaim>
         {
-            DecisionId = "baseline:native-failure",
-            RelatedEvidenceIds = ["native/evidence"],
-            RuleId = "MCP-REQUIRED-1",
-            Lane = EvaluationLane.Baseline,
-            Authority = ValidationRuleSource.Spec,
-            Origin = EvidenceOrigin.DeterministicObservation,
-            Gate = GateOutcome.Reject,
-            Severity = ValidationFindingSeverity.High,
-            Category = "Protocol",
-            Component = "initialize",
-            Summary = "Native validation failed."
-        });
+            new()
+            {
+                ClaimId = "protocol:mcp-required-1",
+                Subject = "initialize",
+                Dimension = AssuranceDimension.CoreProtocol,
+                RequirementLevel = AssuranceRequirementLevel.Must,
+                Authority = AssuranceAuthority.OfficialSpecification,
+                Source = new AssuranceSourceReference { Revision = "2026-07-28" },
+                Outcome = AssuranceClaimOutcome.Violated,
+                EvidenceIds = ["native/evidence"],
+                Summary = "Native validation failed.",
+                Metadata = new Dictionary<string, string> { ["ruleId"] = "MCP-REQUIRED-1" }
+            }
+        };
 
         var result = OfficialConformanceReconciler.Reconcile(assessment, native);
 
@@ -40,20 +41,21 @@ public sealed class OfficialConformanceReconcilerTests
     public void Reconcile_AgreementOrUnrelatedIdentity_ShouldNotInventConflict()
     {
         var assessment = CreateAssessment(OfficialConformanceCheckStatus.Failure);
-        var native = new VerdictAssessment();
-        native.TriggeredDecisions.Add(new DecisionRecord
+        var native = new List<AssuranceClaim>
         {
-            DecisionId = "baseline:other",
-            RuleId = "OTHER-RULE",
-            Lane = EvaluationLane.Baseline,
-            Authority = ValidationRuleSource.Spec,
-            Origin = EvidenceOrigin.DeterministicObservation,
-            Gate = GateOutcome.Reject,
-            Severity = ValidationFindingSeverity.High,
-            Category = "Protocol",
-            Component = "initialize",
-            Summary = "Other failure."
-        });
+            new()
+            {
+                ClaimId = "protocol:other-rule",
+                Subject = "initialize",
+                Dimension = AssuranceDimension.CoreProtocol,
+                RequirementLevel = AssuranceRequirementLevel.Must,
+                Authority = AssuranceAuthority.OfficialSpecification,
+                Source = new AssuranceSourceReference { Revision = "2026-07-28" },
+                Outcome = AssuranceClaimOutcome.Violated,
+                Summary = "Other failure.",
+                Metadata = new Dictionary<string, string> { ["ruleId"] = "OTHER-RULE" }
+            }
+        };
 
         OfficialConformanceReconciler.Reconcile(assessment, native).Conflicts.Should().BeEmpty();
     }

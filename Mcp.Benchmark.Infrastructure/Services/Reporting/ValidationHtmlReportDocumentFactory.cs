@@ -82,9 +82,9 @@ internal sealed class ValidationHtmlReportDocumentFactory
             StatusTone = releaseTone,
             VerdictLabel = result.Assurance.Assessments.CoreConformance.Status.ToString(),
             VerdictTone = MapCoreTone(result.Assurance.Assessments.CoreConformance.Status),
-            TrustLevelLabel = result.Assurance.Assessments.SecurityAssurance.Status.ToString(),
-            TrustLevelDetail = $"Operational readiness: {result.Assurance.Assessments.OperationalReadiness.Status}",
-            TrustLevelTone = MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status),
+            SecurityStatusLabel = result.Assurance.Assessments.SecurityAssurance.Status.ToString(),
+            SecurityStatusDetail = $"Operational readiness: {result.Assurance.Assessments.OperationalReadiness.Status}",
+            SecurityStatusTone = MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
                 new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
@@ -95,49 +95,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 new() { Label = "Protocol Version", Value = protocolVersion }
             }
         };
-    }
-
-    private static string BuildHeroVerdictLabel(ValidationResult result)
-    {
-        return result.VerdictAssessment == null
-            ? "Not evaluated"
-            : BuildVerdictCompositeLabel(result);
-    }
-
-    private static string BuildTrustLevelValue(McpTrustAssessment? assessment)
-    {
-        if (assessment == null)
-        {
-            return "Not available";
-        }
-
-        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
-        var shortLabel = separatorIndex > 0
-            ? assessment.TrustLabel[..separatorIndex]
-            : assessment.TrustLevel.ToString().Split('_', 2)[0];
-        return $"Level {(int)assessment.TrustLevel} ({shortLabel})";
-    }
-
-    private static string BuildTrustLevelDetail(McpTrustAssessment? assessment)
-    {
-        if (assessment == null)
-        {
-            return "Trust assessment unavailable";
-        }
-
-        var separatorIndex = assessment.TrustLabel.IndexOf(':', StringComparison.Ordinal);
-        var detail = separatorIndex >= 0
-            ? assessment.TrustLabel[(separatorIndex + 1)..].Trim()
-            : assessment.TrustLabel;
-        if (!assessment.LimitedByIncompleteEvidence)
-        {
-            return detail;
-        }
-
-        var missing = assessment.UnevaluatedDimensions.Count > 0
-            ? $" Missing: {string.Join(", ", assessment.UnevaluatedDimensions)}."
-            : string.Empty;
-        return $"Limited by incomplete evidence.{missing} {detail}".Trim();
     }
 
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(ValidationResult result)
@@ -258,9 +215,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
     {
-        return result.VerdictAssessment?.EvidenceSummary
-               ?? result.ScoringDetails?.EvidenceSummary
-               ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+        return result.Assurance.EvidenceSummary;
     }
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildRiskMetrics(ValidationResult result)
@@ -336,137 +291,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
-    private static ValidationHtmlDomainSummary BuildProtocolDomainSummary(ValidationResult result)
-    {
-        var allSignals = GetDomainDecisions(result, "Protocol", blockingOnly: false);
-        var blockingSignals = GetDomainDecisions(result, "Protocol", blockingOnly: true);
-        var violations = result.ProtocolCompliance?.Violations.Count ?? 0;
-        var errorScenarioCount = result.ErrorHandling?.ErrorScenariosTestCount ?? 0;
-        var handledCorrectly = result.ErrorHandling?.ErrorScenariosHandledCorrectly ?? 0;
-        var verdict = result.VerdictAssessment?.ProtocolVerdict ?? ValidationVerdict.Unknown;
-        var protocolStatus = result.ProtocolCompliance?.Status;
-        var tone = verdict != ValidationVerdict.Unknown
-            ? MapVerdictTone(verdict)
-            : blockingSignals.Count > 0
-                ? HtmlReportTone.Danger
-                : MapScoreTone(result.ProtocolCompliance?.ComplianceScore ?? 0);
-        var summary = protocolStatus == TestStatus.Inconclusive
-            ? "Protocol evidence is inconclusive because active conformance probes were not run or did not produce authoritative evidence."
-            : protocolStatus is TestStatus.Skipped or TestStatus.NotRun
-                ? "Protocol validation was not executed for this run."
-                : blockingSignals.FirstOrDefault()?.Summary
-            ?? (violations > 0
-                ? $"{violations} protocol violation(s) were recorded even though none escalated to the release gate."
-                : "Protocol checks completed without blocking findings.");
-        var action = result.ProtocolCompliance?.Violations.FirstOrDefault(violation => !string.IsNullOrWhiteSpace(violation.Recommendation))?.Recommendation
-            ?? "Fix protocol negotiation, JSON-RPC error semantics, and contract shape before broader rollout.";
-
-        return new ValidationHtmlDomainSummary
-        {
-            Domain = "Protocol",
-            StatusLabel = verdict != ValidationVerdict.Unknown ? FormatVerdictLabel(verdict) : $"{result.ProtocolCompliance?.ComplianceScore ?? 0:F0}%",
-            SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
-            EvidenceLabel = $"{violations} protocol violation(s) · {handledCorrectly}/{errorScenarioCount} error scenarios handled correctly",
-            Summary = summary,
-            ActionLabel = action,
-            Tone = tone
-        };
-    }
-
-    private static ValidationHtmlDomainSummary BuildSecurityDomainSummary(ValidationResult result)
-    {
-        var allSignals = GetDomainDecisions(result, "Security", blockingOnly: false);
-        var blockingSignals = GetDomainDecisions(result, "Security", blockingOnly: true);
-        var vulnerabilities = result.SecurityTesting?.Vulnerabilities.Count ?? 0;
-        var attackSimulations = result.SecurityTesting?.AttackSimulations.Count ?? 0;
-        var score = result.SecurityTesting?.SecurityScore ?? result.TrustAssessment?.SecurityPosture ?? 0;
-        var securityStatus = result.SecurityTesting?.Status;
-        var summary = securityStatus is null or TestStatus.Skipped or TestStatus.NotRun
-            ? "Security validation was not executed; absence of findings is not evidence of a secure target."
-            : securityStatus == TestStatus.Inconclusive
-                ? "Security validation was inconclusive and requires additional evidence."
-                : blockingSignals.FirstOrDefault()?.Summary
-            ?? (vulnerabilities > 0
-                ? $"{vulnerabilities} security vulnerability finding(s) require remediation."
-                : "Security boundary and attack simulations completed without blocking findings.");
-        var action = result.SecurityTesting?.Vulnerabilities.FirstOrDefault(vulnerability => !string.IsNullOrWhiteSpace(vulnerability.Remediation))?.Remediation
-            ?? "Review authentication boundary behavior, exploit resistance, and reflected server responses.";
-
-        return new ValidationHtmlDomainSummary
-        {
-            Domain = "Security",
-            StatusLabel = securityStatus is null or TestStatus.Skipped or TestStatus.NotRun ? "Not evaluated" : securityStatus == TestStatus.Inconclusive ? "Inconclusive" : $"{score:F0}%",
-            SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
-            EvidenceLabel = $"{vulnerabilities} vulnerability finding(s) · {attackSimulations} attack simulation(s)",
-            Summary = summary,
-            ActionLabel = action,
-            Tone = blockingSignals.Count > 0 ? HtmlReportTone.Danger : securityStatus is null or TestStatus.Skipped or TestStatus.NotRun or TestStatus.Inconclusive ? HtmlReportTone.Warning : MapScoreTone(score)
-        };
-    }
-
-    private static ValidationHtmlDomainSummary BuildAiSafetyDomainSummary(ValidationResult result)
-    {
-        var allSignals = GetDomainDecisions(result, "AI Safety", blockingOnly: false);
-        var blockingSignals = GetDomainDecisions(result, "AI Safety", blockingOnly: true);
-        var aiReadinessFindings = result.ToolValidation?.AiReadinessFindings.Count ?? 0;
-        var boundaryFindings = result.TrustAssessment?.BoundaryFindings.Count ?? 0;
-        var contentSafetyFindings = (result.ToolValidation?.ContentSafetyFindings.Count ?? 0)
-            + (result.ResourceTesting?.ContentSafetyFindings.Count ?? 0)
-            + (result.PromptTesting?.ContentSafetyFindings.Count ?? 0);
-        var score = result.TrustAssessment?.AiSafety ?? result.ToolValidation?.AiReadinessScore ?? 0;
-        var summary = blockingSignals.FirstOrDefault()?.Summary
-            ?? ((aiReadinessFindings + boundaryFindings + contentSafetyFindings) > 0
-                ? $"AI-facing contract and content guidance issues were recorded across the advertised surfaces."
-                : "Schema clarity, content handling, and autonomy boundaries did not surface blocking issues.");
-        var action = result.TrustAssessment?.BoundaryFindings.FirstOrDefault(finding => !string.IsNullOrWhiteSpace(finding.Mitigation))?.Mitigation
-            ?? "Tighten tool schemas, approval metadata, and agent-facing error quality for safer autonomous use.";
-
-        return new ValidationHtmlDomainSummary
-        {
-            Domain = "AI Safety",
-            StatusLabel = score >= 0 ? $"{score:F0}%" : "Not available",
-            SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
-            EvidenceLabel = $"{aiReadinessFindings} schema finding(s) · {boundaryFindings} boundary finding(s) · {contentSafetyFindings} content-safety finding(s)",
-            Summary = summary,
-            ActionLabel = action,
-            Tone = blockingSignals.Count > 0 ? HtmlReportTone.Danger : MapScoreTone(score)
-        };
-    }
-
-    private static ValidationHtmlDomainSummary BuildOperationsDomainSummary(ValidationResult result)
-    {
-        var allSignals = GetDomainDecisions(result, "Operations", blockingOnly: false);
-        var blockingSignals = GetDomainDecisions(result, "Operations", blockingOnly: true);
-        var performance = result.PerformanceTesting;
-        var measurementsCaptured = performance != null && PerformanceMeasurementEvaluator.HasObservedMetrics(performance);
-        var score = result.TrustAssessment?.OperationalReadiness ?? (performance?.Score ?? 0);
-        var evidenceLabel = performance == null
-            ? "No performance probe recorded"
-            : measurementsCaptured
-                ? $"Average {performance.LoadTesting.AverageResponseTimeMs:F1} ms · 95th percentile {performance.LoadTesting.P95ResponseTimeMs:F1} ms · {performance.LoadTesting.ErrorRate:F2}% errors"
-                : $"Measurements unavailable · {PerformanceMeasurementEvaluator.GetUnavailableReason(performance, "Performance measurements were not captured before the run ended.")}";
-        var summary = performance?.Status is null or TestStatus.Skipped or TestStatus.NotRun
-            ? "Performance validation was not executed; no runtime readiness claim can be made."
-            : blockingSignals.FirstOrDefault()?.Summary
-            ?? (measurementsCaptured
-                ? "Runtime probe completed with measured latency, throughput, and failure-rate data."
-                : "Operational posture is constrained by incomplete runtime measurements or failed recovery probes.");
-        var action = performance?.PerformanceBottlenecks.FirstOrDefault()
-            ?? result.ErrorHandling?.CriticalErrors.FirstOrDefault()
-            ?? "Stabilize timeout recovery, connection interruption handling, and repeat the runtime probe with captured measurements.";
-
-        return new ValidationHtmlDomainSummary
-        {
-            Domain = "Operations",
-            StatusLabel = measurementsCaptured ? $"{score:F0}%" : "Measured with gaps",
-            SignalLabel = BuildSignalLabel(blockingSignals.Count, allSignals.Count),
-            EvidenceLabel = evidenceLabel,
-            Summary = summary,
-            ActionLabel = action,
-            Tone = blockingSignals.Count > 0 ? HtmlReportTone.Danger : measurementsCaptured ? MapScoreTone(score) : HtmlReportTone.Warning
-        };
-    }
-
     private static ValidationHtmlDomainSummary BuildCompatibilityDomainSummary(ValidationResult result)
     {
         var compatibility = result.ClientCompatibility;
@@ -517,123 +341,86 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var blockedCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Blocked);
         var skippedCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Skipped);
         var coveredCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Covered);
-        var coverageVerdict = result.VerdictAssessment?.CoverageVerdict ?? ValidationVerdict.Unknown;
-        var coverageDecision = result.VerdictAssessment?.CoverageDecisions.FirstOrDefault();
+        var incompleteCount = coverageDeclarations.Count(ValidationEvidenceSummarizer.IsEvidenceDebt);
 
         return new ValidationHtmlDomainSummary
         {
             Domain = "Coverage",
-            StatusLabel = coverageVerdict != ValidationVerdict.Unknown ? FormatVerdictLabel(coverageVerdict) : "Unknown",
+            StatusLabel = incompleteCount == 0 ? "Complete" : "Incomplete",
             SignalLabel = blockedCount > 0 ? $"{blockedCount} blocked scope(s)" : $"{coveredCount} covered scope(s)",
             EvidenceLabel = $"{coveredCount} covered · {skippedCount} skipped · {blockedCount} blocked declaration(s)",
-            Summary = coverageDecision?.Summary ?? "Coverage declarations explain what ran, what was skipped, and where the result may be incomplete.",
+            Summary = incompleteCount == 0
+                ? "All applicable baseline coverage declarations produced evidence."
+                : $"{incompleteCount} applicable coverage declaration(s) remain incomplete.",
             ActionLabel = blockedCount > 0
                 ? "Resolve blocked scopes or document why the affected evidence cannot be collected safely."
                 : "Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.",
-            Tone = coverageVerdict != ValidationVerdict.Unknown ? MapVerdictTone(coverageVerdict) : HtmlReportTone.Info
+            Tone = incompleteCount == 0 ? HtmlReportTone.Success : HtmlReportTone.Warning
         };
     }
 
     private static IReadOnlyList<ValidationHtmlDecisionTraceItem> BuildDecisionTrace(ValidationResult result)
     {
-        var sourceDecisions = result.VerdictAssessment?.BlockingDecisions is { Count: > 0 }
-            ? result.VerdictAssessment.BlockingDecisions
-            : result.VerdictAssessment?.TriggeredDecisions ?? new List<DecisionRecord>();
-
-        return sourceDecisions
-            .Where(decision => !string.IsNullOrWhiteSpace(decision.Summary))
-            .GroupBy(BuildDecisionThemeKey, StringComparer.OrdinalIgnoreCase)
-            .OrderBy(group => group.Min(item => ValidationAuthorityHierarchy.GetSortOrder(item.Authority)))
-            .ThenByDescending(group => group.Max(item => item.Gate))
+        return result.Assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable) &&
+                !string.IsNullOrWhiteSpace(claim.Summary))
+            .GroupBy(claim => $"{claim.Authority}|{claim.Metadata.GetValueOrDefault("ruleId") ?? claim.ClaimId}", StringComparer.OrdinalIgnoreCase)
+            .OrderBy(group => group.Min(item => item.Authority))
+            .ThenByDescending(group => group.Max(item => item.Outcome))
             .ThenByDescending(group => group.Count())
-            .ThenByDescending(group => group.Max(item => item.Severity))
+            .ThenByDescending(group => group.Max(item => item.Confidence))
             .Take(MaxDecisionTraceItems)
-            .Select(BuildDecisionTraceItem)
+            .Select(group =>
+            {
+                var representative = group.First();
+                var affectedComponents = group.Select(item => item.Subject)
+                    .Where(component => !string.IsNullOrWhiteSpace(component))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var facts = new List<ValidationHtmlMetaItem>
+                {
+                    new() { Label = "Affected Components", Value = FormatComponentSet(affectedComponents) },
+                    new() { Label = "Claim Count", Value = group.Count().ToString() },
+                    new() { Label = "Confidence", Value = representative.Confidence.ToString() },
+                    new() { Label = "Requirement", Value = representative.RequirementLevel.ToString() }
+                };
+                var evidenceIds = group.SelectMany(item => item.EvidenceIds).Distinct(StringComparer.Ordinal).Take(6).ToArray();
+                if (evidenceIds.Length > 0)
+                    facts.Add(new ValidationHtmlMetaItem { Label = "Evidence IDs", Value = string.Join(", ", evidenceIds) });
+                if (!string.IsNullOrWhiteSpace(representative.Remediation))
+                    facts.Add(new ValidationHtmlMetaItem { Label = "Remediation", Value = representative.Remediation! });
+                foreach (var pair in representative.Metadata.Take(3))
+                    facts.Add(new ValidationHtmlMetaItem { Label = pair.Key, Value = pair.Value });
+                var ruleId = representative.Metadata.GetValueOrDefault("ruleId") ?? representative.ClaimId;
+                return new ValidationHtmlDecisionTraceItem
+                {
+                    Title = ruleId,
+                    Summary = group.Count() == 1
+                        ? representative.Summary
+                        : $"{group.Count()} related claims. Representative issue: {representative.Summary}",
+                    Category = representative.Dimension.ToString(),
+                    ComponentLabel = FormatComponentSet(affectedComponents),
+                    GateLabel = representative.Outcome.ToString(),
+                    AuthorityLabel = representative.Authority.ToString(),
+                    EvidenceLabel = evidenceIds.Length == 0 ? "No evidence reference recorded" : $"{evidenceIds.Length} evidence reference(s)",
+                    RuleId = ruleId,
+                    SpecReference = representative.Source.Uri,
+                    Tone = MapClaimTone(representative.Outcome),
+                    ImpactAreas = [representative.Dimension.ToString()],
+                    Facts = facts
+                };
+            })
             .ToList();
-    }
-
-    private static ValidationHtmlDecisionTraceItem BuildDecisionTraceItem(IGrouping<string, DecisionRecord> group)
-    {
-        var representative = group.First();
-        var affectedComponents = group
-            .Select(item => item.Component)
-            .Where(component => !string.IsNullOrWhiteSpace(component))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-        var impactAreas = group
-            .SelectMany(item => item.ImpactAreas)
-            .Distinct()
-            .Select(FormatImpactArea)
-            .Take(3)
-            .ToList();
-        var facts = new List<ValidationHtmlMetaItem>
-        {
-            new() { Label = "Affected Components", Value = FormatComponentSet(affectedComponents) },
-            new() { Label = "Decision Count", Value = group.Count().ToString() }
-        };
-
-        var evidenceIds = group
-            .SelectMany(item => item.RelatedEvidenceIds)
-            .Where(id => !string.IsNullOrWhiteSpace(id))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(6)
-            .ToList();
-        if (evidenceIds.Count > 0)
-        {
-            facts.Add(new ValidationHtmlMetaItem { Label = "Evidence IDs", Value = string.Join(", ", evidenceIds) });
-        }
-
-        var payloadPreview = group
-            .SelectMany(item => item.EvidenceReferences)
-            .Select(reference => reference.RedactedPayloadPreview)
-            .FirstOrDefault(preview => !string.IsNullOrWhiteSpace(preview));
-        if (!string.IsNullOrWhiteSpace(payloadPreview))
-        {
-            facts.Add(new ValidationHtmlMetaItem { Label = "Payload Preview", Value = payloadPreview });
-        }
-
-        var remediation = group
-            .SelectMany(item => item.EvidenceReferences)
-            .Select(reference => reference.Remediation)
-            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        if (!string.IsNullOrWhiteSpace(remediation))
-        {
-            facts.Add(new ValidationHtmlMetaItem { Label = "Remediation", Value = remediation });
-        }
-
-        foreach (var pair in representative.Metadata.Take(3))
-        {
-            facts.Add(new ValidationHtmlMetaItem { Label = pair.Key, Value = pair.Value });
-        }
-
-        return new ValidationHtmlDecisionTraceItem
-        {
-            Title = !string.IsNullOrWhiteSpace(representative.RuleId) ? representative.RuleId! : representative.Category,
-            Summary = BuildDecisionTraceSummary(group, representative, affectedComponents),
-            Category = representative.Category,
-            ComponentLabel = FormatComponentSet(affectedComponents),
-            GateLabel = FormatGateLabel(representative.Gate),
-            AuthorityLabel = ValidationRuleSourceClassifier.GetLabel(representative.Authority),
-            EvidenceLabel = BuildDecisionEvidenceLabel(representative),
-            RuleId = representative.RuleId,
-            SpecReference = representative.SpecReference,
-            Tone = MapDecisionTone(representative.Gate, representative.Severity),
-            ImpactAreas = impactAreas,
-            Facts = facts
-        };
     }
 
     private static IReadOnlyList<ValidationHtmlHotspot> BuildHotspots(ValidationResult result)
     {
-        var sourceDecisions = result.VerdictAssessment?.BlockingDecisions is { Count: > 0 }
-            ? result.VerdictAssessment.BlockingDecisions
-            : result.VerdictAssessment?.TriggeredDecisions ?? new List<DecisionRecord>();
-
-        return sourceDecisions
-            .Where(decision => !string.IsNullOrWhiteSpace(decision.Component))
-            .GroupBy(decision => decision.Component, StringComparer.OrdinalIgnoreCase)
+        return result.Assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable) &&
+                !string.IsNullOrWhiteSpace(claim.Subject))
+            .GroupBy(claim => claim.Subject, StringComparer.OrdinalIgnoreCase)
             .OrderByDescending(group => group.Count())
-            .ThenByDescending(group => group.Max(item => item.Gate))
+            .ThenByDescending(group => group.Max(item => item.Outcome))
             .Take(MaxHotspots)
             .Select(group =>
             {
@@ -641,16 +428,23 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 return new ValidationHtmlHotspot
                 {
                     Component = group.Key,
-                    Domain = MapDecisionToDomain(representative),
+                    Domain = representative.Dimension.ToString(),
                     SignalCount = group.Count(),
                     Summary = group.Count() == 1
                         ? representative.Summary
-                        : $"{group.Count()} escalated decisions. Representative issue: {representative.Summary}",
-                    Tone = MapDecisionTone(representative.Gate, representative.Severity)
+                        : $"{group.Count()} non-success claims. Representative issue: {representative.Summary}",
+                    Tone = MapClaimTone(representative.Outcome)
                 };
             })
             .ToList();
     }
+
+    private static HtmlReportTone MapClaimTone(AssuranceClaimOutcome outcome) => outcome switch
+    {
+        AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => HtmlReportTone.Danger,
+        AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired => HtmlReportTone.Warning,
+        _ => HtmlReportTone.Info
+    };
 
     private static IReadOnlyList<ValidationHtmlCompatibilityTheme> BuildCompatibilityThemes(ValidationResult result)
     {
@@ -688,30 +482,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 };
             })
             .ToList();
-    }
-
-    private static ValidationHtmlMetricCard CreateRiskCard(string label, double score, string supportingText)
-    {
-        return new ValidationHtmlMetricCard
-        {
-            Eyebrow = "Risk Snapshot",
-            Value = $"{score:F0}%",
-            Label = label,
-            SupportingText = supportingText,
-            Tone = MapScoreTone(score)
-        };
-    }
-
-    private static ValidationHtmlMetricCard CreateVerdictCard(string label, ValidationVerdict verdict, string supportingText)
-    {
-        return new ValidationHtmlMetricCard
-        {
-            Eyebrow = "Verdict",
-            Value = FormatVerdictLabel(verdict),
-            Label = label,
-            SupportingText = supportingText,
-            Tone = MapVerdictTone(verdict)
-        };
     }
 
     private static ValidationHtmlBootstrapSummary? BuildBootstrapSummary(ValidationResult result, HealthCheckResult? bootstrapHealth)
@@ -793,93 +563,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
-    private static List<DecisionRecord> GetDomainDecisions(ValidationResult result, string domain, bool blockingOnly)
-    {
-        var source = blockingOnly
-            ? result.VerdictAssessment?.BlockingDecisions
-            : result.VerdictAssessment?.TriggeredDecisions;
-
-        return source?
-            .Where(decision => string.Equals(MapDecisionToDomain(decision), domain, StringComparison.OrdinalIgnoreCase))
-            .ToList()
-            ?? new List<DecisionRecord>();
-    }
-
-    private static string MapDecisionToDomain(DecisionRecord decision)
-    {
-        var category = decision.Category ?? string.Empty;
-        var ruleId = decision.RuleId ?? string.Empty;
-
-        if (ruleId.Contains("AUTH", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("auth", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("exfil", StringComparison.OrdinalIgnoreCase)
-            || decision.ImpactAreas.Any(area => area is ImpactArea.AuthenticationBoundary or ImpactArea.DataExposure))
-        {
-            return "Security";
-        }
-
-        if (ruleId.StartsWith("AI.", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("aireadiness", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("contentsafety", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("promptinjection", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("destructive", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("llm", StringComparison.OrdinalIgnoreCase)
-            || decision.ImpactAreas.Any(area => area is ImpactArea.UnsafeAutonomy or ImpactArea.OutputIntegrity))
-        {
-            return "AI Safety";
-        }
-
-        if (category.Contains("error", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("performance", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("execution", StringComparison.OrdinalIgnoreCase)
-            || category.Contains("recovery", StringComparison.OrdinalIgnoreCase)
-            || decision.ImpactAreas.Any(area => area is ImpactArea.RecoveryIntegrity or ImpactArea.OperationalResilience))
-        {
-            return "Operations";
-        }
-
-        if (category.Contains("coverage", StringComparison.OrdinalIgnoreCase)
-            || decision.ImpactAreas.Any(area => area == ImpactArea.CoverageIntegrity))
-        {
-            return "Coverage";
-        }
-
-        if (category.Contains("compat", StringComparison.OrdinalIgnoreCase))
-        {
-            return "Compatibility";
-        }
-
-        if (decision.ImpactAreas.Any(area => area is ImpactArea.ProtocolInteroperability or ImpactArea.CapabilityContract))
-        {
-            return "Protocol";
-        }
-
-        return "Protocol";
-    }
-
-    private static string BuildDecisionThemeKey(DecisionRecord decision)
-    {
-        if (!string.IsNullOrWhiteSpace(decision.RuleId))
-        {
-            return $"rule:{decision.RuleId}";
-        }
-
-        return $"category:{decision.Category}:gate:{decision.Gate}";
-    }
-
-    private static string BuildDecisionTraceSummary(
-        IGrouping<string, DecisionRecord> group,
-        DecisionRecord representative,
-        IReadOnlyCollection<string> affectedComponents)
-    {
-        if (group.Count() == 1)
-        {
-            return representative.Summary;
-        }
-
-        return $"{group.Count()} related decision(s) across {affectedComponents.Count} component(s). Representative issue: {representative.Summary}";
-    }
-
     private static IReadOnlyList<string> BuildReleaseHighlights(
         ValidationResult result,
         IReadOnlyList<string> priorityFindings,
@@ -956,26 +639,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         _ => HtmlReportTone.Warning
     };
 
-    private static string BuildEvidencePostureLabel(ValidationResult result)
-    {
-        if (result.VerdictAssessment != null)
-        {
-            return $"Baseline {FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)} · Coverage {FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}";
-        }
-
-        return result.TrustAssessment?.TrustLabel ?? "Trust model unavailable";
-    }
-
-    private static string BuildVerdictCompositeLabel(ValidationResult result)
-    {
-        if (result.VerdictAssessment == null)
-        {
-            return result.TrustAssessment?.TrustLabel ?? "No deterministic verdict";
-        }
-
-        return $"Baseline {FormatVerdictLabel(result.VerdictAssessment.BaselineVerdict)} · Protocol {FormatVerdictLabel(result.VerdictAssessment.ProtocolVerdict)} · Coverage {FormatVerdictLabel(result.VerdictAssessment.CoverageVerdict)}";
-    }
-
     private static string BuildSignalLabel(int blockingCount, int totalCount)
     {
         if (totalCount == 0)
@@ -984,29 +647,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return $"{blockingCount} blocking / {totalCount} total";
-    }
-
-    private static string BuildDecisionEvidenceLabel(DecisionRecord representative)
-    {
-        var evidenceOrigin = representative.Origin switch
-        {
-            EvidenceOrigin.DeterministicObservation => "deterministic observation",
-            EvidenceOrigin.DeterministicAggregation => "deterministic aggregation",
-            EvidenceOrigin.HeuristicInference => "heuristic inference",
-            EvidenceOrigin.ModelAssistance => "model assistance",
-            _ => "recorded evidence"
-        };
-
-        return !string.IsNullOrWhiteSpace(representative.SpecReference)
-            ? AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin} · spec-linked", representative)
-            : AppendEvidenceCount($"{ValidationRuleSourceClassifier.GetLabel(representative.Authority)} · {evidenceOrigin}", representative);
-    }
-
-    private static string AppendEvidenceCount(string label, DecisionRecord representative)
-    {
-        return representative.RelatedEvidenceIds.Count == 0
-            ? label
-            : $"{label} · {representative.RelatedEvidenceIds.Count} evidence link(s)";
     }
 
     private static string FormatComponentSet(IReadOnlyList<string> components)
@@ -1029,7 +669,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var policyOutcome = result.PolicyOutcome;
         if (policyOutcome == null)
         {
-            return result.VerdictAssessment?.BlockingDecisions.Count ?? 0;
+            return 0;
         }
 
         if (policyOutcome.BlockingSignalCount > 0)
@@ -1051,7 +691,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var policyOutcome = result.PolicyOutcome;
         if (policyOutcome == null)
         {
-            return result.VerdictAssessment?.TriggeredDecisions.Count(decision => decision.Gate != GateOutcome.Note) ?? 0;
+            return 0;
         }
 
         if (policyOutcome.UnsuppressedSignalCount > 0)
@@ -1073,7 +713,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var policyOutcome = result.PolicyOutcome;
         if (policyOutcome == null)
         {
-            return result.VerdictAssessment?.TriggeredDecisions.Count(decision => decision.Gate != GateOutcome.Note) ?? 0;
+            return 0;
         }
 
         if (policyOutcome.TotalSignalCount > 0)
@@ -1098,45 +738,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return int.TryParse(match.Groups[1].Value, out var parsedCount) ? parsedCount : null;
-    }
-
-    private static string FormatGateLabel(GateOutcome gate)
-    {
-        return gate switch
-        {
-            GateOutcome.Reject => "Reject",
-            GateOutcome.ReviewRequired => "Review Required",
-            GateOutcome.CoverageDebt => "Coverage Debt",
-            _ => "Note"
-        };
-    }
-
-    private static HtmlReportTone MapDecisionTone(GateOutcome gate, ValidationFindingSeverity severity)
-    {
-        return gate switch
-        {
-            GateOutcome.Reject => HtmlReportTone.Danger,
-            GateOutcome.ReviewRequired => severity >= ValidationFindingSeverity.High ? HtmlReportTone.Danger : HtmlReportTone.Warning,
-            GateOutcome.CoverageDebt => HtmlReportTone.Info,
-            _ => HtmlReportTone.Neutral
-        };
-    }
-
-    private static string FormatImpactArea(ImpactArea impactArea)
-    {
-        return impactArea switch
-        {
-            ImpactArea.ProtocolInteroperability => "Protocol interoperability",
-            ImpactArea.CapabilityContract => "Capability contract",
-            ImpactArea.AuthenticationBoundary => "Authentication boundary",
-            ImpactArea.UnsafeAutonomy => "Unsafe autonomy",
-            ImpactArea.OutputIntegrity => "Output integrity",
-            ImpactArea.DataExposure => "Data exposure",
-            ImpactArea.RecoveryIntegrity => "Recovery integrity",
-            ImpactArea.OperationalResilience => "Operational resilience",
-            ImpactArea.CoverageIntegrity => "Coverage integrity",
-            _ => impactArea.ToString()
-        };
     }
 
     private static string FormatModeLabel(string? mode)
@@ -1167,68 +768,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return HtmlReportTone.Danger;
-    }
-
-    private static string GetScoreNarrative(double score)
-    {
-        if (score >= 88)
-        {
-            return "Healthy evidence profile";
-        }
-
-        if (score >= 70)
-        {
-            return "Strong with targeted follow-up";
-        }
-
-        if (score >= 50)
-        {
-            return "Usable, but review blockers remain";
-        }
-
-        return "High review pressure";
-    }
-
-    private static HtmlReportTone MapTrustTone(McpTrustLevel? trustLevel)
-    {
-        return trustLevel switch
-        {
-            McpTrustLevel.L5_CertifiedSecure => HtmlReportTone.Success,
-            McpTrustLevel.L4_Trusted => HtmlReportTone.Success,
-            McpTrustLevel.L3_Acceptable => HtmlReportTone.Info,
-            McpTrustLevel.L2_Caution => HtmlReportTone.Warning,
-            McpTrustLevel.L1_Untrusted => HtmlReportTone.Danger,
-            _ => HtmlReportTone.Neutral
-        };
-    }
-
-    private static HtmlReportTone ResolveTrustTone(McpTrustAssessment? assessment) =>
-        assessment?.LimitedByIncompleteEvidence == true
-            ? HtmlReportTone.Warning
-            : MapTrustTone(assessment?.TrustLevel);
-
-    private static HtmlReportTone MapVerdictTone(ValidationVerdict verdict)
-    {
-        return verdict switch
-        {
-            ValidationVerdict.Trusted => HtmlReportTone.Success,
-            ValidationVerdict.ConditionallyAcceptable => HtmlReportTone.Info,
-            ValidationVerdict.ReviewRequired => HtmlReportTone.Warning,
-            ValidationVerdict.Reject => HtmlReportTone.Danger,
-            _ => HtmlReportTone.Neutral
-        };
-    }
-
-    private static string FormatVerdictLabel(ValidationVerdict verdict)
-    {
-        return verdict switch
-        {
-            ValidationVerdict.Trusted => "Trusted",
-            ValidationVerdict.ConditionallyAcceptable => "Conditional",
-            ValidationVerdict.ReviewRequired => "Review Required",
-            ValidationVerdict.Reject => "Reject",
-            _ => "Unknown"
-        };
     }
 
     private static HtmlReportTone MapBootstrapTone(HealthCheckDisposition disposition)

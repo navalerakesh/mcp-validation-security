@@ -147,6 +147,73 @@ public sealed class OperationalReadinessAssessment
     public IReadOnlyList<string> IncompleteClaimIds { get; init; } = Array.Empty<string>();
 }
 
+public enum ExtensionReadinessStatus
+{
+    Ready,
+    IssuesFound,
+    Incomplete
+}
+
+public sealed class ExtensionAssuranceAssessment
+{
+    public required string ExtensionId { get; init; }
+
+    public ExtensionLifecycleStage Stage { get; init; }
+
+    public required string SpecificationRevision { get; init; }
+
+    public required string SpecificationSha256 { get; init; }
+
+    public ExtensionReadinessStatus Status { get; init; } = ExtensionReadinessStatus.Incomplete;
+
+    public IReadOnlyList<string> NonSuccessClaimIds { get; init; } = Array.Empty<string>();
+}
+
+public enum ClientCompatibilityVerification
+{
+    Interpreted,
+    Verified
+}
+
+public sealed class ClientCompatibilityAssuranceAssessment
+{
+    public required string ProfileId { get; init; }
+
+    public required string Revision { get; init; }
+
+    public ClientProfileCompatibilityStatus Status { get; init; }
+
+    public ClientCompatibilityVerification Verification { get; init; } = ClientCompatibilityVerification.Interpreted;
+
+    public required string Summary { get; init; }
+}
+
+public enum ExternalConformanceStatus
+{
+    NotProvided,
+    Verified,
+    Nonconformant,
+    Incomplete,
+    Conflict
+}
+
+public sealed class ExternalConformanceAssuranceAssessment
+{
+    public ExternalConformanceStatus Status { get; init; } = ExternalConformanceStatus.NotProvided;
+
+    public string? RequirementSetRevision { get; init; }
+
+    public string? RequirementSetSha256 { get; init; }
+
+    public int CreditedPassed { get; init; }
+
+    public int Failed { get; init; }
+
+    public int Skipped { get; init; }
+
+    public int ConflictCount { get; init; }
+}
+
 public enum CertificateEligibilityStatus
 {
     Eligible,
@@ -174,6 +241,12 @@ public sealed class AssuranceAssessmentSet
     public SecurityAssuranceAssessment SecurityAssurance { get; init; } = new();
 
     public OperationalReadinessAssessment OperationalReadiness { get; init; } = new();
+
+    public IReadOnlyList<ExtensionAssuranceAssessment> ExtensionReadiness { get; init; } = Array.Empty<ExtensionAssuranceAssessment>();
+
+    public IReadOnlyList<ClientCompatibilityAssuranceAssessment> ClientCompatibility { get; init; } = Array.Empty<ClientCompatibilityAssuranceAssessment>();
+
+    public ExternalConformanceAssuranceAssessment ExternalConformance { get; init; } = new();
 }
 
 public sealed class AssuranceProfileManifest
@@ -208,6 +281,12 @@ public sealed class AssuranceEvaluationContext
     public double? RepeatedRunConsistency { get; init; }
 
     public ProviderHarnessAssessment? ProviderHarness { get; init; }
+
+    public IReadOnlyList<string> RequiredExtensionIds { get; init; } = Array.Empty<string>();
+
+    public int ActiveWaiverCount { get; init; }
+
+    public int InvalidWaiverCount { get; init; }
 }
 
 public sealed class AssuranceEvaluation

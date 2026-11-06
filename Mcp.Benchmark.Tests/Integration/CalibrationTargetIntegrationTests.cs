@@ -82,14 +82,16 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
             var observation = await ObserveTargetAsync(targetKind, serverConfig.Endpoint!);
             var result = BuildValidationResult(targetKind, observation, protocolResult, securityResult);
             var expected = ReadExpected(targetKind);
-            var verdict = ValidationVerdictEngine.Calculate(result);
+            var assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
             var score = new SecurityFocusedScoringStrategy().CalculateScore(result);
 
-            var evidence = string.Join(" | ", verdict.TriggeredDecisions.Select(decision => $"{decision.RuleId}:{decision.Summary}"));
-            verdict.BaselineVerdict.Should().Be(expected.Baseline,
-                $"{targetKind}; security={securityResult.Status}/{securityResult.SecurityScore}; vulnerabilities={securityResult.Vulnerabilities.Count}; decisions={evidence}");
-            verdict.ProtocolVerdict.Should().Be(expected.Protocol, $"{targetKind}; decisions={evidence}");
-            verdict.CoverageVerdict.Should().Be(expected.Coverage, targetKind);
+            var evidence = string.Join(" | ", assurance.Claims.Select(claim => $"{claim.ClaimId}:{claim.Outcome}"));
+            if (targetKind == "malformed")
+                assurance.Assessments.CoreConformance.Status.Should().Be(CoreConformanceStatus.Nonconformant, evidence);
+            else
+                assurance.Assessments.CoreConformance.Status.Should().NotBe(CoreConformanceStatus.Nonconformant, evidence);
+            if (targetKind == "vulnerable")
+                assurance.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.IssuesFound, evidence);
             score.OverallScore.Should().Be(expected.Score, targetKind);
             observedScores[targetKind] = score.OverallScore;
         }
@@ -266,22 +268,14 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
 
     private static ExpectedCalibration ReadExpected(string targetKind)
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Calibration", "corpus-v1.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Calibration", "assurance-corpus-v2.json");
         using var document = JsonDocument.Parse(File.ReadAllText(path));
         var element = document.RootElement.GetProperty("cases").EnumerateArray()
             .Single(item => item.GetProperty("id").GetString() == targetKind);
-        return new ExpectedCalibration(
-            Enum.Parse<ValidationVerdict>(element.GetProperty("expectedBaseline").GetString()!),
-            Enum.Parse<ValidationVerdict>(element.GetProperty("expectedProtocol").GetString()!),
-            Enum.Parse<ValidationVerdict>(element.GetProperty("expectedCoverage").GetString()!),
-            element.GetProperty("expectedScore").GetDouble());
+        return new ExpectedCalibration(element.GetProperty("expectedScore").GetDouble());
     }
 
     private sealed record TargetObservation(JsonRpcResponse Baseline, JsonRpcResponse? CredentialVariant);
 
-    private sealed record ExpectedCalibration(
-        ValidationVerdict Baseline,
-        ValidationVerdict Protocol,
-        ValidationVerdict Coverage,
-        double Score);
+    private sealed record ExpectedCalibration(double Score);
 }

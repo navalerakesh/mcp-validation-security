@@ -14,7 +14,7 @@ internal static class RemediationOrderBuilder
         var candidates = new List<RemediationCandidate>();
         var protocolRuleIds = AddProtocolViolations(result, candidates);
         var vulnerabilityRuleIds = AddSecurityVulnerabilities(result, candidates);
-        AddDecisions(result, candidates, protocolRuleIds, vulnerabilityRuleIds);
+        AddClaims(result, candidates, protocolRuleIds, vulnerabilityRuleIds);
         AddPerformanceFindings(result, candidates);
 
         return candidates
@@ -90,32 +90,56 @@ internal static class RemediationOrderBuilder
         return ruleIds;
     }
 
-    private static void AddDecisions(
+    private static void AddClaims(
         ValidationResult result,
         List<RemediationCandidate> candidates,
         HashSet<string> protocolRuleIds,
         HashSet<string> vulnerabilityRuleIds)
     {
-        var decisions = (result.VerdictAssessment?.BlockingDecisions ?? Enumerable.Empty<DecisionRecord>())
-            .Concat(result.VerdictAssessment?.TriggeredDecisions ?? Enumerable.Empty<DecisionRecord>())
-            .Where(decision => decision.Gate >= GateOutcome.CoverageDebt)
-            .Where(decision => string.IsNullOrWhiteSpace(decision.RuleId) ||
-                (!protocolRuleIds.Contains(decision.RuleId) && !vulnerabilityRuleIds.Contains(decision.RuleId)));
+        var claims = result.Assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+            .Where(claim => !claim.Metadata.TryGetValue("ruleId", out var ruleId) ||
+                (!protocolRuleIds.Contains(ruleId) && !vulnerabilityRuleIds.Contains(ruleId)));
 
-        foreach (var decision in decisions)
+        foreach (var claim in claims)
         {
+            claim.Metadata.TryGetValue("ruleId", out var ruleId);
             candidates.Add(new RemediationCandidate(
-                Issue: decision.Summary,
-                Remediation: ResolveDecisionRemediation(decision),
-                Category: decision.Category,
-                Component: decision.Component,
-                RuleId: decision.RuleId,
-                SpecReference: decision.SpecReference,
-                Severity: decision.Severity,
-                Gate: decision.Gate,
-                Authority: decision.Authority,
-                ImpactAreas: decision.ImpactAreas));
+                Issue: claim.Summary,
+                Remediation: claim.Remediation,
+                Category: claim.Dimension.ToString(),
+                Component: claim.Subject,
+                RuleId: ruleId ?? claim.ClaimId,
+                SpecReference: claim.Source.Uri,
+                Severity: claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error
+                    ? ValidationFindingSeverity.High
+                    : ValidationFindingSeverity.Medium,
+                Gate: claim.Outcome switch
+                {
+                    AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => GateOutcome.Reject,
+                    AssuranceClaimOutcome.Incomplete => GateOutcome.CoverageDebt,
+                    _ => GateOutcome.ReviewRequired
+                },
+                Authority: claim.Authority == AssuranceAuthority.OfficialSpecification
+                    ? ValidationRuleSource.Spec
+                    : claim.Authority == AssuranceAuthority.Heuristic
+                        ? ValidationRuleSource.Heuristic
+                        : ValidationRuleSource.Guideline,
+                ImpactAreas: ResolveClaimImpactAreas(claim)));
         }
+    }
+
+    private static IReadOnlyList<ImpactArea> ResolveClaimImpactAreas(AssuranceClaim claim)
+    {
+        if (claim.Dimension == AssuranceDimension.CoreProtocol) return [ImpactArea.ProtocolInteroperability];
+        if (claim.Dimension == AssuranceDimension.CapabilityContract) return [ImpactArea.CapabilityContract];
+        if (claim.Dimension == AssuranceDimension.Operations) return [ImpactArea.OperationalResilience];
+        if (claim.Dimension == AssuranceDimension.Security &&
+            (claim.Subject.Contains("auth", StringComparison.OrdinalIgnoreCase) ||
+             claim.Subject.Contains("oauth", StringComparison.OrdinalIgnoreCase)))
+            return [ImpactArea.AuthenticationBoundary];
+        if (claim.Dimension == AssuranceDimension.Security) return [ImpactArea.UnsafeAutonomy];
+        return [ImpactArea.CoverageIntegrity];
     }
 
     private static void AddPerformanceFindings(ValidationResult result, List<RemediationCandidate> candidates)

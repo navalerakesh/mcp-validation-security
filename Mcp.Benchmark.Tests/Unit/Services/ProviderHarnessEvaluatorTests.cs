@@ -19,6 +19,28 @@ public sealed class ProviderHarnessEvaluatorTests
         emptyTarget.Should().Throw<ArgumentException>();
     }
 
+    [Theory]
+    [InlineData("", "grant", "owner", "Provider harness provider identity is required.")]
+    [InlineData("provider", "", "owner", "Provider authorization grant identity and authority are required.")]
+    [InlineData("provider", "grant", "", "Provider authorization grant identity and authority are required.")]
+    public void Evaluate_EmptyProviderOrGrantIdentity_ShouldInvalidate(
+        string providerId,
+        string grantId,
+        string authority,
+        string expectedReason)
+    {
+        var manifest = CreateManifest(
+            [CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")],
+            providerId: providerId,
+            grantId: grantId,
+            grantAuthority: authority);
+
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain(expectedReason);
+    }
+
     [Fact]
     public void Evaluate_VerifiedAuthorizationAndStableRuns_ShouldVerifyHarness()
     {
@@ -36,12 +58,20 @@ public sealed class ProviderHarnessEvaluatorTests
     [Fact]
     public void Evaluate_UnverifiedAuthorization_ShouldRemainIncomplete()
     {
-        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")], ProviderAuthorizationVerificationStatus.Unverified);
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
 
-        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest, ProviderAuthorizationVerificationStatus.Unverified),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            expectedExecutionPlanSha256: null,
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Incomplete);
-        assessment.Reasons.Should().Contain(reason => reason.Contains("not verified", StringComparison.Ordinal));
+        assessment.Reasons.Should().Contain("Provider authorization grant was not verified by a trusted host adapter.");
     }
 
     [Fact]
@@ -52,7 +82,7 @@ public sealed class ProviderHarnessEvaluatorTests
         var assessment = ProviderHarnessEvaluator.Evaluate(manifest, new string('b', 64), ExecutionMode.Standard, Now);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
-        assessment.Reasons.Should().Contain(reason => reason.Contains("target identity", StringComparison.Ordinal));
+        assessment.Reasons.Should().Contain("Provider harness target identity does not match the admitted execution target.");
     }
 
     [Fact]
@@ -65,6 +95,7 @@ public sealed class ProviderHarnessEvaluatorTests
             Now);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider harness target identity does not match the admitted execution target.");
     }
 
     [Theory]
@@ -76,8 +107,10 @@ public sealed class ProviderHarnessEvaluatorTests
             [CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")],
             manifestTargetDigest: manifestDigest);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(ProviderHarnessStatus.Invalid);
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider harness target identity does not match the admitted execution target.");
     }
 
     [Theory]
@@ -89,8 +122,10 @@ public sealed class ProviderHarnessEvaluatorTests
             [CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")],
             grantDigest: grantDigest);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(ProviderHarnessStatus.Invalid);
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider authorization grant digest is invalid.");
     }
 
     [Fact]
@@ -129,9 +164,17 @@ public sealed class ProviderHarnessEvaluatorTests
         ProviderAuthorizationVerificationStatus verificationStatus,
         ProviderHarnessStatus expected)
     {
-        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")], verificationStatus);
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now).Status.Should().Be(expected);
+        Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest, verificationStatus),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            expectedExecutionPlanSha256: null,
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses).Status.Should().Be(expected);
     }
 
     [Fact]
@@ -142,7 +185,28 @@ public sealed class ProviderHarnessEvaluatorTests
         var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Elevated, Now);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Incomplete);
-        assessment.Reasons.Should().Contain(reason => reason.Contains("does not allow", StringComparison.Ordinal));
+        assessment.Reasons.Should().Contain("Provider authorization does not allow execution mode Elevated.");
+    }
+
+    [Fact]
+    public void Evaluate_UnauthorizedPlannedProbeClass_ShouldInvalidateHarness()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            new string('e', 64),
+            ExecutionMode.Standard,
+            Now,
+            currentRun: null,
+            expectedProbeClasses: ["security-testing", "tool-validation"]);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().ContainSingle(reason =>
+            reason == "Provider authorization does not allow planned probe class(es): security-testing, tool-validation.");
     }
 
     [Fact]
@@ -155,7 +219,7 @@ public sealed class ProviderHarnessEvaluatorTests
         var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Incomplete);
-        assessment.Reasons.Should().Contain(reason => reason.Contains("probe-class", StringComparison.Ordinal));
+        assessment.Reasons.Should().Contain("Provider authorization must contain a bounded, non-empty probe-class allowlist.");
     }
 
     [Theory]
@@ -168,8 +232,11 @@ public sealed class ProviderHarnessEvaluatorTests
             [CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")],
             probeClasses: probes);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(expected);
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(expected);
+        if (count > 64)
+            assessment.Reasons.Should().Contain("Provider authorization must contain a bounded, non-empty probe-class allowlist.");
     }
 
     [Theory]
@@ -179,8 +246,10 @@ public sealed class ProviderHarnessEvaluatorTests
     {
         var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")], requiredRunCount: requiredRunCount);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(ProviderHarnessStatus.Invalid);
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider repeated-run count must be between 3 and 20.");
     }
 
     [Theory]
@@ -190,8 +259,10 @@ public sealed class ProviderHarnessEvaluatorTests
     {
         var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")], minimumConsistency: minimumConsistency);
 
-        ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(ProviderHarnessStatus.Invalid);
+        var assessment = ProviderHarnessEvaluator.Evaluate(manifest, TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider minimum consistency must be between 0.99 and 1.0.");
     }
 
     [Fact]
@@ -212,8 +283,10 @@ public sealed class ProviderHarnessEvaluatorTests
     {
         var runs = Enumerable.Range(0, 21).Select(index => CreateRun($"run-{index}")).ToArray();
 
-        ProviderHarnessEvaluator.Evaluate(CreateManifest(runs), TargetDigest, ExecutionMode.Standard, Now)
-            .Status.Should().Be(ProviderHarnessStatus.Invalid);
+        var assessment = ProviderHarnessEvaluator.Evaluate(CreateManifest(runs), TargetDigest, ExecutionMode.Standard, Now);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider repeated-run count must be between 3 and 20.");
     }
 
     [Fact]
@@ -234,7 +307,106 @@ public sealed class ProviderHarnessEvaluatorTests
         var assessment = ProviderHarnessEvaluator.Evaluate(CreateManifest(runs), TargetDigest, ExecutionMode.Standard, Now);
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
-        assessment.Reasons.Should().Contain(reason => reason.Contains("execution-plan", StringComparison.Ordinal));
+        assessment.Reasons.Should().Contain("Provider repeated runs must use one execution-plan digest.");
+    }
+
+    [Fact]
+    public void Evaluate_ProtocolRevisionMismatch_ShouldInvalidate()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            "2025-11-25",
+            new string('e', 64),
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider harness protocol revision does not match the admitted execution plan.");
+    }
+
+    [Fact]
+    public void Evaluate_CurrentExecutionPlanMismatch_ShouldInvalidate()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            new string('f', 64),
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+        assessment.Reasons.Should().Contain("Provider run receipts do not match the admitted execution-plan digest.");
+    }
+
+    [Fact]
+    public void Evaluate_CurrentProtocolAndPlanMatch_ShouldVerify()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            new string('e', 64),
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Verified);
+    }
+
+    [Fact]
+    public void Evaluate_CurrentRun_ShouldCompleteRequiredRunCount()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2")]);
+        var current = CreateRun("current");
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            new string('e', 64),
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses,
+            current);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Verified);
+        assessment.AcceptedRunCount.Should().Be(3);
+        assessment.Reasons.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Evaluate_DivergentCurrentRun_ShouldRemainIncomplete()
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2")]);
+        var current = CreateRun("current", SecurityAssuranceStatus.IssuesFound);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest,
+            Verification(manifest),
+            TargetDigest,
+            manifest.ProtocolRevision,
+            new string('e', 64),
+            ExecutionMode.Standard,
+            Now,
+            manifest.Authorization.AllowedProbeClasses,
+            current);
+
+        assessment.Status.Should().Be(ProviderHarnessStatus.Incomplete);
+        assessment.RepeatedRunConsistency.Should().BeApproximately(2d / 3d, 0.0001);
     }
 
     [Fact]
@@ -247,6 +419,8 @@ public sealed class ProviderHarnessEvaluatorTests
 
         assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
         assessment.AcceptedRunCount.Should().Be(2);
+        assessment.Reasons.Should().Contain("Provider run receipt 'run-1' is malformed or duplicated.");
+        assessment.Reasons.Should().Contain("Provider harness has 2 accepted run(s); 3 are required.");
     }
 
     [Fact]
@@ -361,32 +535,38 @@ public sealed class ProviderHarnessEvaluatorTests
 
     private static ProviderHarnessManifest CreateManifest(
         IReadOnlyList<ProviderHarnessRunReceipt> runs,
-        ProviderAuthorizationVerificationStatus verificationStatus = ProviderAuthorizationVerificationStatus.Verified,
         DateTimeOffset? expiresAt = null,
         int requiredRunCount = 3,
         double minimumConsistency = 0.99,
         DateTimeOffset? validFrom = null,
         IReadOnlyList<string>? probeClasses = null,
         string? manifestTargetDigest = null,
-        string? grantDigest = null)
+        string? grantDigest = null,
+        string providerId = "provider-test",
+        string grantId = "grant-1",
+        string grantAuthority = "provider-security-owner")
     {
         return new ProviderHarnessManifest
         {
-            ProviderId = "provider-test",
+            ProviderId = providerId,
             TargetIdentitySha256 = manifestTargetDigest ?? TargetDigest,
             ProtocolRevision = "2026-07-28",
             Authorization = new ProviderAuthorizationGrant
             {
-                GrantId = "grant-1",
-                Authority = "provider-security-owner",
+                GrantId = grantId,
+                Authority = grantAuthority,
                 TargetIdentitySha256 = TargetDigest,
                 ValidFromUtc = validFrom ?? Now.AddHours(-1),
                 ExpiresAtUtc = expiresAt ?? Now.AddHours(1),
                 AllowedExecutionModes = [ExecutionMode.Standard],
                 AllowedProbeClasses = probeClasses ?? ["protocol-active", "security-non-destructive", "operations-bounded"],
                 GrantDocumentSha256 = grantDigest ?? new string('c', 64),
-                VerificationStatus = verificationStatus
+                SigningKeyId = new string('d', 64),
+                SignatureBase64 = "dGVzdA=="
             },
+            SigningKeyId = new string('d', 64),
+            ManifestDocumentSha256 = new string('e', 64),
+            SignatureBase64 = Convert.ToBase64String(new byte[64]),
             RequiredRunCount = requiredRunCount,
             MinimumConsistency = minimumConsistency,
             Runs = runs
@@ -413,5 +593,39 @@ public sealed class ProviderHarnessEvaluatorTests
             OperationalReadiness = OperationalReadinessStatus.Ready,
             NonSuccessClaimIds = claimIds ?? []
         };
+    }
+
+    private static ProviderAuthorizationVerification Verification(
+        ProviderHarnessManifest manifest,
+        ProviderAuthorizationVerificationStatus status = ProviderAuthorizationVerificationStatus.Verified) => new()
+    {
+        Status = status,
+        GrantId = manifest.Authorization.GrantId,
+        VerifiedKeyId = status == ProviderAuthorizationVerificationStatus.Verified
+            ? manifest.Authorization.SigningKeyId
+            : null
+    };
+
+    private static class ProviderHarnessEvaluator
+    {
+        public static ProviderHarnessAssessment Evaluate(
+            ProviderHarnessManifest manifest,
+            string expectedTargetIdentitySha256,
+            ExecutionMode executionMode,
+            DateTimeOffset now)
+        {
+            var verification = manifest == null
+                ? new ProviderAuthorizationVerification { GrantId = string.Empty }
+                : Verification(manifest);
+            return Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+                manifest!,
+                verification,
+                expectedTargetIdentitySha256,
+                manifest?.ProtocolRevision ?? string.Empty,
+                expectedExecutionPlanSha256: null,
+                executionMode,
+                now,
+                manifest?.Authorization.AllowedProbeClasses ?? []);
+        }
     }
 }

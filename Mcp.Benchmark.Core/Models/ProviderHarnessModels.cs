@@ -32,7 +32,22 @@ public sealed class ProviderAuthorizationGrant
 
     public required string GrantDocumentSha256 { get; init; }
 
-    public ProviderAuthorizationVerificationStatus VerificationStatus { get; init; }
+    public string SignatureAlgorithm { get; init; } = "ECDSA_P256_SHA256_P1363";
+
+    public required string SigningKeyId { get; init; }
+
+    public required string SignatureBase64 { get; init; }
+}
+
+public sealed class ProviderAuthorizationVerification
+{
+    public ProviderAuthorizationVerificationStatus Status { get; init; } = ProviderAuthorizationVerificationStatus.Unverified;
+
+    public required string GrantId { get; init; }
+
+    public string? VerifiedKeyId { get; init; }
+
+    public IReadOnlyList<string> Reasons { get; init; } = Array.Empty<string>();
 }
 
 public sealed class ProviderHarnessRunReceipt
@@ -75,6 +90,14 @@ public sealed class ProviderHarnessManifest
     public double MinimumConsistency { get; init; } = 0.99;
 
     public IReadOnlyList<ProviderHarnessRunReceipt> Runs { get; init; } = Array.Empty<ProviderHarnessRunReceipt>();
+
+    public string SignatureAlgorithm { get; init; } = "ECDSA_P256_SHA256_P1363";
+
+    public required string SigningKeyId { get; init; }
+
+    public required string ManifestDocumentSha256 { get; init; }
+
+    public required string SignatureBase64 { get; init; }
 }
 
 public sealed class ProviderHarnessAssessment

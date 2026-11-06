@@ -11,6 +11,42 @@ internal static class BoundedArtifactReader
 {
     internal const int MaximumValidationResultBytes = 16 * 1024 * 1024;
     internal const int MaximumConfigurationBytes = 1024 * 1024;
+    internal const int MaximumProviderHarnessBytes = 4 * 1024 * 1024;
+    internal const int MaximumPublicKeyBytes = 64 * 1024;
+
+    internal static async Task<ProviderHarnessManifest> ReadProviderHarnessAsync(
+        FileInfo file,
+        CancellationToken cancellationToken = default)
+    {
+        var json = await ReadTextAsync(file, MaximumProviderHarnessBytes, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions
+            {
+                MaxDepth = 64,
+                CommentHandling = JsonCommentHandling.Disallow,
+                AllowTrailingCommas = false
+            });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("documentType", out var documentType) ||
+                !root.TryGetProperty("documentSchemaVersion", out var schemaVersion) ||
+                !string.Equals(documentType.GetString(), ArtifactContracts.ProviderHarnessDocumentType, StringComparison.Ordinal) ||
+                !ArtifactContracts.IsCompatible(ArtifactContracts.ProviderHarnessDocumentType, schemaVersion.GetString() ?? string.Empty))
+            {
+                throw new CliUsageException("Provider harness artifact has an incompatible document type or schema version.");
+            }
+
+            return JsonSerializer.Deserialize<ProviderHarnessManifest>(
+                json,
+                ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
+                ?? throw new CliUsageException("Provider harness artifact was empty.");
+        }
+        catch (JsonException exception)
+        {
+            throw new CliUsageException("Provider harness artifact is not valid JSON for the supported contract.", exception);
+        }
+    }
 
     internal static async Task<ValidationResult> ReadValidationResultAsync(
         FileInfo file,

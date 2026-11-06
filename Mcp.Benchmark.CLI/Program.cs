@@ -198,6 +198,8 @@ internal class Program
         validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: inventory, ci, provider" });
         validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
         validate.Options.Add(new Option<string>("--conformance-results") { Description = "Pinned official conformance evidence wrapper JSON" });
+        validate.Options.Add(new Option<string>("--provider-harness") { Description = "Signed provider harness manifest JSON" });
+        validate.Options.Add(new Option<string>("--provider-authorization-key") { Description = "Operator-trusted provider authorization public key PEM" });
         var extensionOption = new Option<string[]>("--extension") { Description = "MCP extension ID to assess. Repeat to select more than one extension." };
         extensionOption.AllowMultipleArgumentsPerToken = true;
         validate.Options.Add(extensionOption);
@@ -700,6 +702,16 @@ internal class Program
             Description = "Pinned official conformance evidence wrapper JSON"
         };
 
+        var providerHarnessOption = new Option<FileInfo?>("--provider-harness")
+        {
+            Description = "Signed provider harness manifest JSON"
+        };
+
+        var providerAuthorizationKeyOption = new Option<FileInfo?>("--provider-authorization-key")
+        {
+            Description = "Operator-trusted provider authorization public key PEM"
+        };
+
         var extensionOption = new Option<string[]>("--extension")
         {
             Description = "MCP extension ID to assess. Repeat to select more than one extension."
@@ -765,6 +777,8 @@ internal class Program
         validateCommand.Options.Add(assuranceProfileOption);
         validateCommand.Options.Add(baselineOption);
         validateCommand.Options.Add(conformanceResultsOption);
+        validateCommand.Options.Add(providerHarnessOption);
+        validateCommand.Options.Add(providerAuthorizationKeyOption);
         validateCommand.Options.Add(extensionOption);
         validateCommand.Options.Add(regressionOnlyOption);
         validateCommand.Options.Add(outputFormatOption);
@@ -801,6 +815,8 @@ internal class Program
             var assuranceProfile = parseResult.GetValue(assuranceProfileOption);
             var baseline = parseResult.GetValue(baselineOption);
             var conformanceResults = parseResult.GetValue(conformanceResultsOption);
+            var providerHarness = parseResult.GetValue(providerHarnessOption);
+            var providerAuthorizationKey = parseResult.GetValue(providerAuthorizationKeyOption);
             var extensions = parseResult.GetValue(extensionOption);
             var regressionOnly = GetOptionalBoolean(parseResult, regressionOnlyOption);
             var outputFormat = parseResult.GetValue(outputFormatOption);
@@ -810,7 +826,7 @@ internal class Program
 
             await using var commandScope = serviceProvider.CreateAsyncScope();
             var command = commandScope.ServiceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, cancellationToken);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, providerHarness, providerAuthorizationKey, cancellationToken);
             return Environment.ExitCode;
         });
 

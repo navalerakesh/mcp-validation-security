@@ -7,6 +7,8 @@ namespace Mcp.Benchmark.Core.Constants;
 
 public static class OfficialConformanceContract
 {
+    private static readonly OfficialConformancePin Pin = LoadPin();
+
     public const int MaximumEvidenceBytes = 16 * 1024 * 1024;
     public const int MaximumDocumentDepth = 64;
     public const int MaximumScenarios = 512;
@@ -14,13 +16,15 @@ public static class OfficialConformanceContract
     public const int MaximumTextLength = 4096;
     public const int MaximumErrorDetailLength = 64 * 1024;
 
-    public const string PackageName = "@modelcontextprotocol/conformance";
-    public const string PackageVersion = "0.2.0-alpha.12";
-    public const string SourceCommit = "f44482ba17df816d3176962a11cdf36aec9bda00";
-    public const string PackageSha256 = "6cd489231fe6a90de07ce940b1945ffef7d11063d17558b0a4c12a00f0e6f41f";
-    public const string PackageIntegrity = "sha512-eXtZFgmtZiU5SsvXty+RGXGnyIqEVm3GLU/HZmg1wMjtKOocPZZgD9HQKd30oJhio5UB0wFJmsc6r8u48Q+EYA==";
-    public const string RequirementSetRevision = "2026-07-28";
-    public const string RequirementSetSha256 = "ae2f4f6210fd729e2e318edd5bbfa31a43cee0bc608e48052fa26dbf1d939b57";
+    public static string PackageName => Pin.PackageName;
+    public static string PackageVersion => Pin.Version;
+    public static string SourceCommit => Pin.SourceCommit;
+    public static string PackageSha256 => Pin.PackageSha256;
+    public static string PackageIntegrity => Pin.PackageIntegrity;
+    public static string RequirementSetRevision => Pin.RequirementSet.Revision;
+    public static string RequirementSetSha256 => Pin.RequirementSet.Sha256;
+    public static IReadOnlyList<string> RequiredServerScenarios => Pin.RequirementSet.RequiredServerScenarios;
+    public static IReadOnlyList<OfficialConformancePinnedScenario> NotScoredServerScenarios => Pin.RequirementSet.NotScoredServerScenarios;
 
     public static JsonSerializerOptions CreateJsonOptions() => new()
     {
@@ -32,8 +36,11 @@ public static class OfficialConformanceContract
         Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: false) }
     };
 
-    public static string ComputeChecksSha256(IReadOnlyList<OfficialConformanceCheckRecord> checks) =>
-        CanonicalJsonDigest.ComputeObject(checks, CreateJsonOptions());
+    public static byte[] SerializeChecks(IReadOnlyList<OfficialConformanceCheckRecord> checks) =>
+        JsonSerializer.SerializeToUtf8Bytes(checks, CreateJsonOptions());
+
+    public static string ComputeChecksSha256(ReadOnlySpan<byte> checksJson) =>
+        CanonicalJsonDigest.ComputeBytes(checksJson);
 
     public static bool IsPinnedRunner(OfficialConformanceRunnerIdentity runner) =>
         string.Equals(runner.PackageName, PackageName, StringComparison.Ordinal) &&
@@ -45,4 +52,40 @@ public static class OfficialConformanceContract
     public static bool IsPinnedRequirementSet(OfficialConformanceRequirementSet requirementSet) =>
         string.Equals(requirementSet.Revision, RequirementSetRevision, StringComparison.Ordinal) &&
         string.Equals(requirementSet.Sha256, RequirementSetSha256, StringComparison.Ordinal);
+
+    private static OfficialConformancePin LoadPin()
+    {
+        const string resourceName = "Mcp.Benchmark.Core.Resources.official-conformance-pin.json";
+        using var stream = typeof(OfficialConformanceContract).Assembly.GetManifestResourceStream(resourceName)
+            ?? throw new InvalidOperationException($"Embedded conformance pin '{resourceName}' is unavailable.");
+        return JsonSerializer.Deserialize<OfficialConformancePin>(stream, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        }) ?? throw new InvalidOperationException("Embedded conformance pin is invalid.");
+    }
+
+    private sealed class OfficialConformancePin
+    {
+        public required string PackageName { get; init; }
+        public required string Version { get; init; }
+        public required string SourceCommit { get; init; }
+        public required string PackageSha256 { get; init; }
+        public required string PackageIntegrity { get; init; }
+        public required OfficialConformanceRequirementSetPin RequirementSet { get; init; }
+    }
+
+    private sealed class OfficialConformanceRequirementSetPin
+    {
+        public required string Revision { get; init; }
+        public required string Sha256 { get; init; }
+        public required IReadOnlyList<string> RequiredServerScenarios { get; init; }
+        public required IReadOnlyList<OfficialConformancePinnedScenario> NotScoredServerScenarios { get; init; }
+    }
+}
+
+public sealed class OfficialConformancePinnedScenario
+{
+    public required string ScenarioId { get; init; }
+    public required string Reason { get; init; }
+    public string? ExtensionId { get; init; }
 }

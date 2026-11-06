@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Models;
@@ -112,7 +113,10 @@ public sealed class OfficialConformanceScenarioRecord
 
     public required string ChecksSha256 { get; init; }
 
-    public IReadOnlyList<OfficialConformanceCheckRecord> Checks { get; init; } = Array.Empty<OfficialConformanceCheckRecord>();
+    public required string ChecksBase64 { get; init; }
+
+    [JsonIgnore]
+    public IReadOnlyList<OfficialConformanceCheckRecord> Checks { get; set; } = Array.Empty<OfficialConformanceCheckRecord>();
 }
 
 public sealed class OfficialConformanceCheckRecord

@@ -11,14 +11,27 @@ public static class ProviderHarnessEvaluator
 
     public static ProviderHarnessAssessment Evaluate(
         ProviderHarnessManifest manifest,
+        ProviderAuthorizationVerification authorizationVerification,
         string expectedTargetIdentitySha256,
+        string expectedProtocolRevision,
+        string? expectedExecutionPlanSha256,
         ExecutionMode executionMode,
-        DateTimeOffset now)
+        DateTimeOffset now,
+        IReadOnlyList<string> expectedProbeClasses,
+        ProviderHarnessRunReceipt? currentRun = null)
     {
         ArgumentNullException.ThrowIfNull(manifest);
+        ArgumentNullException.ThrowIfNull(authorizationVerification);
+        ArgumentNullException.ThrowIfNull(expectedProbeClasses);
         ArgumentException.ThrowIfNullOrWhiteSpace(expectedTargetIdentitySha256);
         var reasons = new List<string>();
         var invalid = false;
+
+        if (string.IsNullOrWhiteSpace(manifest.ProviderId))
+        {
+            reasons.Add("Provider harness provider identity is required.");
+            invalid = true;
+        }
 
         if (!IsSha256(expectedTargetIdentitySha256) ||
             !IsSha256(manifest.TargetIdentitySha256) ||
@@ -27,10 +40,27 @@ public static class ProviderHarnessEvaluator
             reasons.Add("Provider harness target identity does not match the admitted execution target.");
             invalid = true;
         }
+        if (string.IsNullOrWhiteSpace(expectedProtocolRevision) ||
+            !string.Equals(manifest.ProtocolRevision, expectedProtocolRevision, StringComparison.Ordinal))
+        {
+            reasons.Add("Provider harness protocol revision does not match the admitted execution plan.");
+            invalid = true;
+        }
+        if (expectedExecutionPlanSha256 != null && !IsSha256(expectedExecutionPlanSha256))
+        {
+            reasons.Add("Admitted provider execution-plan digest is invalid.");
+            invalid = true;
+        }
 
         var authorization = manifest.Authorization;
-        var authorizationVerified = authorization.VerificationStatus == ProviderAuthorizationVerificationStatus.Verified;
-        if (authorization.VerificationStatus == ProviderAuthorizationVerificationStatus.Invalid)
+        if (string.IsNullOrWhiteSpace(authorization.GrantId) || string.IsNullOrWhiteSpace(authorization.Authority))
+        {
+            reasons.Add("Provider authorization grant identity and authority are required.");
+            invalid = true;
+        }
+        var authorizationVerified = authorizationVerification.Status == ProviderAuthorizationVerificationStatus.Verified &&
+            string.Equals(authorizationVerification.GrantId, authorization.GrantId, StringComparison.Ordinal);
+        if (authorizationVerification.Status == ProviderAuthorizationVerificationStatus.Invalid)
         {
             invalid = true;
         }
@@ -38,6 +68,7 @@ public static class ProviderHarnessEvaluator
         {
             reasons.Add("Provider authorization grant was not verified by a trusted host adapter.");
         }
+        reasons.AddRange(authorizationVerification.Reasons);
         if (!string.Equals(authorization.TargetIdentitySha256, expectedTargetIdentitySha256, StringComparison.Ordinal))
         {
             reasons.Add("Provider authorization grant is bound to a different target identity.");
@@ -61,8 +92,19 @@ public static class ProviderHarnessEvaluator
             reasons.Add("Provider authorization must contain a bounded, non-empty probe-class allowlist.");
             invalid = authorization.AllowedProbeClasses.Count > MaximumProbeClasses;
         }
+        var unauthorizedProbeClasses = expectedProbeClasses
+            .Distinct(StringComparer.Ordinal)
+            .Where(probeClass => !authorization.AllowedProbeClasses.Contains(probeClass, StringComparer.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        if (unauthorizedProbeClasses.Length > 0)
+        {
+            reasons.Add($"Provider authorization does not allow planned probe class(es): {string.Join(", ", unauthorizedProbeClasses)}.");
+            invalid = true;
+        }
 
-        if (manifest.RequiredRunCount < 3 || manifest.RequiredRunCount > MaximumRuns || manifest.Runs.Count > MaximumRuns)
+        var totalRunCount = manifest.Runs.Count + (currentRun == null ? 0 : 1);
+        if (manifest.RequiredRunCount < 3 || manifest.RequiredRunCount > MaximumRuns || totalRunCount > MaximumRuns)
         {
             reasons.Add($"Provider repeated-run count must be between 3 and {MaximumRuns}.");
             invalid = true;
@@ -75,7 +117,7 @@ public static class ProviderHarnessEvaluator
 
         var acceptedRuns = new List<ProviderHarnessRunReceipt>();
         var runIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var run in manifest.Runs.Take(MaximumRuns))
+        foreach (var run in manifest.Runs.Append(currentRun).Where(run => run != null).Cast<ProviderHarnessRunReceipt>().Take(MaximumRuns))
         {
             if (string.IsNullOrWhiteSpace(run.RunId) || !runIds.Add(run.RunId) ||
                 !IsSha256(run.ResultSha256) || !IsSha256(run.ExecutionPlanSha256) ||
@@ -96,6 +138,12 @@ public static class ProviderHarnessEvaluator
             reasons.Add("Provider repeated runs must use one execution-plan digest.");
             invalid = true;
         }
+        if (expectedExecutionPlanSha256 != null &&
+            acceptedRuns.Any(run => !string.Equals(run.ExecutionPlanSha256, expectedExecutionPlanSha256, StringComparison.Ordinal)))
+        {
+            reasons.Add("Provider run receipts do not match the admitted execution-plan digest.");
+            invalid = true;
+        }
 
         if (acceptedRuns.Count < manifest.RequiredRunCount)
         {
@@ -112,6 +160,7 @@ public static class ProviderHarnessEvaluator
             authorization.ValidFromUtc <= now && authorization.ExpiresAtUtc > now &&
             authorization.AllowedExecutionModes.Contains(executionMode) &&
             authorization.AllowedProbeClasses.Count is > 0 and <= MaximumProbeClasses &&
+            unauthorizedProbeClasses.Length == 0 &&
             acceptedRuns.Count >= manifest.RequiredRunCount &&
             consistency >= manifest.MinimumConsistency;
         return new ProviderHarnessAssessment

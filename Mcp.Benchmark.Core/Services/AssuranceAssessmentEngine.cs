@@ -5,6 +5,23 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class AssuranceAssessmentEngine
 {
+    public static ValidationStatus DetermineValidationStatus(
+        AssuranceEvaluation evaluation,
+        bool hasCriticalErrors = false)
+    {
+        ArgumentNullException.ThrowIfNull(evaluation);
+        if (hasCriticalErrors) return ValidationStatus.Error;
+        if (evaluation.Assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant ||
+            evaluation.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound ||
+            evaluation.Assessments.OperationalReadiness.Status == OperationalReadinessStatus.NotReady)
+            return ValidationStatus.Failed;
+        if (evaluation.Assessments.CoreConformance.Status == CoreConformanceStatus.Incomplete ||
+            evaluation.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.Incomplete ||
+            evaluation.Assessments.OperationalReadiness.Status == OperationalReadinessStatus.Incomplete)
+            return ValidationStatus.PartiallyCompleted;
+        return ValidationStatus.Passed;
+    }
+
     public static AssuranceEvaluation Evaluate(
         ValidationResult result,
         AssuranceProfileManifest profile,
@@ -21,7 +38,10 @@ public static class AssuranceAssessmentEngine
         {
             CoreConformance = ReduceCore(claims),
             SecurityAssurance = ReduceSecurity(claims, result),
-            OperationalReadiness = ReduceOperations(claims, result)
+            OperationalReadiness = ReduceOperations(claims, result),
+            ExtensionReadiness = ReduceExtensions(claims, result),
+            ClientCompatibility = ReduceClientCompatibility(result),
+            ExternalConformance = ReduceExternalConformance(result)
         };
         return new AssuranceEvaluation
         {
@@ -60,7 +80,8 @@ public static class AssuranceAssessmentEngine
     private static SecurityAssuranceAssessment ReduceSecurity(IReadOnlyList<AssuranceClaim> claims, ValidationResult result)
     {
         var securityClaims = claims.Where(claim => claim.Dimension == AssuranceDimension.Security).ToArray();
-        var deterministic = securityClaims.Where(claim => claim.Authority == AssuranceAuthority.DeterministicSecurity).ToArray();
+        var deterministic = securityClaims.Where(claim =>
+            claim.Authority is AssuranceAuthority.OfficialSpecification or AssuranceAuthority.DeterministicSecurity).ToArray();
         var issues = deterministic.Where(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error).Select(claim => claim.ClaimId).ToArray();
         var incomplete = deterministic
             .Where(claim => claim.Outcome is AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired)
@@ -90,16 +111,10 @@ public static class AssuranceAssessmentEngine
             claim.Dimension == AssuranceDimension.Operations &&
             claim.RequirementLevel == AssuranceRequirementLevel.OperationalObjective).ToArray();
         var failed = objectives.Where(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error).Select(claim => claim.ClaimId).ToArray();
-        var incomplete = objectives.Where(claim => claim.Outcome is AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired).Select(claim => claim.ClaimId).ToList();
-        var operationsCoverageIncomplete = result.Evidence.Coverage
-            .Where(ValidationEvidenceLaneClassifier.IsBaseline)
-            .Any(coverage =>
-                (coverage.LayerId.Contains("performance", StringComparison.OrdinalIgnoreCase) || coverage.LayerId.Contains("error", StringComparison.OrdinalIgnoreCase)) &&
-                ValidationEvidenceSummarizer.IsEvidenceDebt(coverage));
-        if (operationsCoverageIncomplete && incomplete.Count == 0) incomplete.Add("coverage:operations");
+        var incomplete = objectives.Where(claim => claim.Outcome is AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired).Select(claim => claim.ClaimId).ToArray();
         var status = failed.Length > 0
             ? OperationalReadinessStatus.NotReady
-            : objectives.Length == 0 || incomplete.Count > 0
+            : objectives.Length == 0 || incomplete.Length > 0
                 ? OperationalReadinessStatus.Incomplete
                 : OperationalReadinessStatus.Ready;
         return new OperationalReadinessAssessment
@@ -108,6 +123,71 @@ public static class AssuranceAssessmentEngine
             ObjectiveClaims = objectives.Length,
             FailedClaimIds = failed,
             IncompleteClaimIds = incomplete
+        };
+    }
+
+    private static IReadOnlyList<ExtensionAssuranceAssessment> ReduceExtensions(
+        IReadOnlyList<AssuranceClaim> claims,
+        ValidationResult result) => result.Assessments.Extensions
+        .OrderBy(extension => extension.ExtensionId, StringComparer.Ordinal)
+        .Select(extension =>
+        {
+            var extensionClaims = claims.Where(claim =>
+                claim.Dimension == AssuranceDimension.Extension &&
+                string.Equals(claim.Subject, extension.ExtensionId, StringComparison.Ordinal)).ToArray();
+            var nonSuccess = extensionClaims.Where(claim =>
+                claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)).ToArray();
+            var status = nonSuccess.Any(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error)
+                ? ExtensionReadinessStatus.IssuesFound
+                : nonSuccess.Length > 0 || extensionClaims.Length == 0
+                    ? ExtensionReadinessStatus.Incomplete
+                    : ExtensionReadinessStatus.Ready;
+            return new ExtensionAssuranceAssessment
+            {
+                ExtensionId = extension.ExtensionId,
+                Stage = extension.Stage,
+                SpecificationRevision = extension.SpecificationRevision,
+                SpecificationSha256 = extension.SpecificationSha256,
+                Status = status,
+                NonSuccessClaimIds = nonSuccess.Select(claim => claim.ClaimId).Order(StringComparer.Ordinal).ToArray()
+            };
+        })
+        .ToArray();
+
+    private static IReadOnlyList<ClientCompatibilityAssuranceAssessment> ReduceClientCompatibility(ValidationResult result) =>
+        (result.ClientCompatibility?.Assessments ?? [])
+            .OrderBy(assessment => assessment.ProfileId, StringComparer.Ordinal)
+            .Select(assessment => new ClientCompatibilityAssuranceAssessment
+            {
+                ProfileId = assessment.ProfileId,
+                Revision = assessment.Revision,
+                Status = assessment.Status,
+                Verification = ClientCompatibilityVerification.Interpreted,
+                Summary = assessment.Summary
+            })
+            .ToArray();
+
+    private static ExternalConformanceAssuranceAssessment ReduceExternalConformance(ValidationResult result)
+    {
+        var assessment = result.Assessments.OfficialConformance;
+        if (assessment == null) return new ExternalConformanceAssuranceAssessment();
+        var status = assessment.VerificationStatus switch
+        {
+            OfficialConformanceVerificationStatus.Conflict => ExternalConformanceStatus.Conflict,
+            OfficialConformanceVerificationStatus.Incomplete or OfficialConformanceVerificationStatus.Unverified => ExternalConformanceStatus.Incomplete,
+            OfficialConformanceVerificationStatus.Verified when assessment.Failed > 0 => ExternalConformanceStatus.Nonconformant,
+            OfficialConformanceVerificationStatus.Verified => ExternalConformanceStatus.Verified,
+            _ => ExternalConformanceStatus.Incomplete
+        };
+        return new ExternalConformanceAssuranceAssessment
+        {
+            Status = status,
+            RequirementSetRevision = assessment.RequirementSet.Revision,
+            RequirementSetSha256 = assessment.RequirementSet.Sha256,
+            CreditedPassed = assessment.CreditedPassed,
+            Failed = assessment.Failed,
+            Skipped = assessment.Skipped,
+            ConflictCount = assessment.Conflicts.Count
         };
     }
 
@@ -128,7 +208,32 @@ public static class AssuranceAssessmentEngine
         if (evidenceSummary.EvidenceConfidenceRatio < profile.MinimumEvidenceConfidenceRatio) reasons.Add($"Evidence confidence {evidenceSummary.EvidenceConfidenceRatio:P1} is below {profile.MinimumEvidenceConfidenceRatio:P1}.");
         if (profile.RequiresOfficialConformance && result.Assessments.OfficialConformance?.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
             reasons.Add("Verified official conformance evidence is required.");
-        if (result.Assessments.OfficialConformance?.Conflicts.Count > 0) reasons.Add("Official and native evidence conflicts remain unresolved.");
+        if (result.Assessments.OfficialConformance?.VerificationStatus == OfficialConformanceVerificationStatus.Conflict ||
+            result.Assessments.OfficialConformance?.Conflicts.Count > 0)
+            reasons.Add("Official and native evidence conflicts remain unresolved.");
+        var requiredExtensionFailure = false;
+        foreach (var extensionId in context.RequiredExtensionIds.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+        {
+            var extension = assessments.ExtensionReadiness.FirstOrDefault(candidate =>
+                string.Equals(candidate.ExtensionId, extensionId, StringComparison.Ordinal));
+            if (extension == null)
+            {
+                reasons.Add($"Required extension '{extensionId}' was not assessed.");
+            }
+            else if (extension.Status == ExtensionReadinessStatus.IssuesFound)
+            {
+                reasons.Add($"Required extension '{extensionId}' was rejected.");
+                requiredExtensionFailure = true;
+            }
+            else if (extension.Status != ExtensionReadinessStatus.Ready)
+            {
+                reasons.Add($"Required extension '{extensionId}' is {extension.Status}.");
+            }
+        }
+        if (context.ActiveWaiverCount > 0)
+            reasons.Add($"Provider certification does not permit {context.ActiveWaiverCount} applied waiver(s).");
+        if (context.InvalidWaiverCount > 0)
+            reasons.Add($"Provider certification found {context.InvalidWaiverCount} expired or invalid waiver(s).");
         if (profile.RequiresSignedAttestation && !context.HasSignedAttestation) reasons.Add("A verified signed attestation is required.");
         if (profile.RequiresRepeatedRuns && context.ProviderHarness?.Status != ProviderHarnessStatus.Verified)
             reasons.Add("A verified provider harness receipt with target-bound authorization is required.");
@@ -138,10 +243,12 @@ public static class AssuranceAssessmentEngine
 
         var deterministicFailure = assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant ||
             assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound ||
-            assessments.OperationalReadiness.Status == OperationalReadinessStatus.NotReady;
+            assessments.OperationalReadiness.Status == OperationalReadinessStatus.NotReady ||
+            requiredExtensionFailure;
         var integrityFailure = result.Assessments.OfficialConformance?.VerificationStatus == OfficialConformanceVerificationStatus.Conflict ||
             result.Assessments.OfficialConformance?.Conflicts.Count > 0 ||
-            context.ProviderHarness?.Status == ProviderHarnessStatus.Invalid;
+            context.ProviderHarness?.Status == ProviderHarnessStatus.Invalid ||
+            context.InvalidWaiverCount > 0;
         var status = !profile.CertificateEligible || deterministicFailure || integrityFailure
             ? CertificateEligibilityStatus.Ineligible
             : reasons.Count > 0

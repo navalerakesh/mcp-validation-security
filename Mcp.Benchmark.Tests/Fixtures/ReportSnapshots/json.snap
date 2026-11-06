@@ -12,6 +12,10 @@
     "validationId": "validation-snapshot-001",
     "protocolVersion": "2025-11-25",
     "schemaVersion": null,
+    "targetIdentitySha256": null,
+    "executionPlanSha256": null,
+    "executionMode": "Safe",
+    "plannedChecks": [],
     "applicabilityContext": null,
     "initializationHandshake": {
       "isSuccessful": false,
@@ -1293,20 +1297,17 @@
     "mode": "strict",
     "passed": false,
     "recommendedExitCode": 1,
-    "summary": "Strict policy blocked the validation result with 9 blocking signal(s).",
-    "totalSignalCount": 9,
-    "unsuppressedSignalCount": 9,
-    "blockingSignalCount": 9,
+    "summary": "Strict policy blocked the validation result with 6 blocking signal(s).",
+    "totalSignalCount": 7,
+    "unsuppressedSignalCount": 7,
+    "blockingSignalCount": 6,
     "reasons": [
       "Critical error recorded: Prompt validation hit an unsafe reflection path.",
-      "Server ignored the requested MCP protocol version.",
-      "One tool response omitted the outer result object.",
+      "Server does not advertise prompts capability.",
       "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
-      "Server reflected untrusted prompt content without sanitization.",
-      "Prompt output includes reflected untrusted content.",
-      "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
-      "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
-      "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
+      "One tool response omitted the outer result object.",
+      "Server ignored the requested MCP protocol version.",
+      "Server reflected untrusted prompt content without sanitization."
     ],
     "suppressedSignalCount": 0,
     "appliedSuppressions": [],
@@ -1353,7 +1354,7 @@
         "claimId": "coverage:error-handling:error-handling",
         "subject": "error-handling",
         "dimension": 3,
-        "requirementLevel": 5,
+        "requirementLevel": 4,
         "authority": 4,
         "source": {
           "uri": null,
@@ -1375,7 +1376,7 @@
         "claimId": "coverage:error-handling:error-handling-matrix",
         "subject": "error-handling-matrix",
         "dimension": 3,
-        "requirementLevel": 5,
+        "requirementLevel": 4,
         "authority": 4,
         "source": {
           "uri": null,
@@ -1441,7 +1442,7 @@
         "claimId": "coverage:security-boundaries:security-authentication-challenge",
         "subject": "security-authentication-challenge",
         "dimension": 2,
-        "requirementLevel": 5,
+        "requirementLevel": 3,
         "authority": 4,
         "source": {
           "uri": null,
@@ -1504,51 +1505,7 @@
         "metadata": {}
       },
       {
-        "claimId": "decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content",
-        "subject": "prompt:get",
-        "dimension": 2,
-        "requirementLevel": 5,
-        "authority": 5,
-        "source": {
-          "uri": null,
-          "revision": "2026-08-19.2",
-          "sha256": null
-        },
-        "applicability": 0,
-        "applicabilityReason": null,
-        "outcome": 3,
-        "confidence": 2,
-        "evidenceIds": [
-          "boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content"
-        ],
-        "summary": "Prompt output includes reflected untrusted content.",
-        "remediation": "Sanitize or clearly label untrusted data.",
-        "metadata": {}
-      },
-      {
-        "claimId": "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-        "subject": "validation-run",
-        "dimension": 3,
-        "requirementLevel": 4,
-        "authority": 3,
-        "source": {
-          "uri": null,
-          "revision": "2026-08-19.2",
-          "sha256": null
-        },
-        "applicability": 0,
-        "applicabilityReason": null,
-        "outcome": 1,
-        "confidence": 3,
-        "evidenceIds": [
-          "execution-error:prompt-validation-hit-an-unsafe-reflection-path"
-        ],
-        "summary": "Critical execution error recorded: Prompt validation hit an unsafe reflection path.",
-        "remediation": null,
-        "metadata": {}
-      },
-      {
-        "claimId": "decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
+        "claimId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
         "subject": "delete_repo",
         "dimension": 1,
         "requirementLevel": 5,
@@ -1562,20 +1519,20 @@
         "applicabilityReason": null,
         "outcome": 3,
         "confidence": 2,
-        "evidenceIds": [
-          "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
-          "obs-tool-delete-repo"
-        ],
+        "evidenceIds": [],
         "summary": "Tool \u0027delete_repo\u0027 has parameters without descriptions.",
         "remediation": null,
-        "metadata": {}
+        "metadata": {
+          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+          "severity": "Medium"
+        }
       },
       {
-        "claimId": "decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
+        "claimId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
         "subject": "delete_repo",
         "dimension": 1,
         "requirementLevel": 5,
-        "authority": 5,
+        "authority": 4,
         "source": {
           "uri": null,
           "revision": "2026-11-04.1",
@@ -1585,18 +1542,18 @@
         "applicabilityReason": null,
         "outcome": 3,
         "confidence": 2,
-        "evidenceIds": [
-          "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-          "obs-tool-delete-repo"
-        ],
+        "evidenceIds": [],
         "summary": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint.",
         "remediation": null,
-        "metadata": {}
+        "metadata": {
+          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+          "severity": "High"
+        }
       },
       {
-        "claimId": "decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
+        "claimId": "finding:mcp-tool-call-result-object-missing:tools-call",
         "subject": "tools/call",
-        "dimension": 1,
+        "dimension": 0,
         "requirementLevel": 1,
         "authority": 0,
         "source": {
@@ -1608,22 +1565,23 @@
         "applicabilityReason": null,
         "outcome": 3,
         "confidence": 3,
-        "evidenceIds": [
-          "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object"
-        ],
+        "evidenceIds": [],
         "summary": "One tool response omitted the outer result object.",
         "remediation": null,
-        "metadata": {}
+        "metadata": {
+          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "severity": "Medium"
+        }
       },
       {
-        "claimId": "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
+        "claimId": "protocol:mcp-init-version-negotiation",
         "subject": "Initialization",
-        "dimension": 1,
+        "dimension": 0,
         "requirementLevel": 0,
         "authority": 0,
         "source": {
           "uri": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
-          "revision": "2026-04",
+          "revision": "2025-11-25",
           "sha256": null
         },
         "applicability": 0,
@@ -1631,21 +1589,24 @@
         "outcome": 1,
         "confidence": 3,
         "evidenceIds": [
-          "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+          "protocol/MCP.INIT.VERSION_NEGOTIATION"
         ],
         "summary": "Server ignored the requested MCP protocol version.",
         "remediation": "Echo the negotiated protocol version in initialize.result.",
-        "metadata": {}
+        "metadata": {
+          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+          "severity": "High"
+        }
       },
       {
-        "claimId": "decision:baseline:security:mcp-security-prompt-injection:prompt-get",
+        "claimId": "vulnerability:mcp-security-prompt-injection:prompt-get",
         "subject": "prompt:get",
-        "dimension": 3,
-        "requirementLevel": 4,
-        "authority": 3,
+        "dimension": 2,
+        "requirementLevel": 3,
+        "authority": 2,
         "source": {
           "uri": null,
-          "revision": "2026-08-19.2",
+          "revision": "2026-11-04.1",
           "sha256": null
         },
         "applicability": 0,
@@ -1653,34 +1614,15 @@
         "outcome": 1,
         "confidence": 3,
         "evidenceIds": [
-          "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
-          "probe:probe-prompt-get-reflection-200"
+          "probe-prompt-get-reflection-200"
         ],
         "summary": "Server reflected untrusted prompt content without sanitization.",
         "remediation": "Sanitize and label untrusted content before returning it.",
-        "metadata": {}
-      },
-      {
-        "claimId": "decision:coverage:prompt-surface:prompts-list:Skipped",
-        "subject": "prompt-surface",
-        "dimension": 0,
-        "requirementLevel": 5,
-        "authority": 4,
-        "source": {
-          "uri": null,
-          "revision": "2026-08-19.2",
-          "sha256": null
-        },
-        "applicability": 0,
-        "applicabilityReason": null,
-        "outcome": 2,
-        "confidence": 3,
-        "evidenceIds": [
-          "coverage:prompt-surface:prompts-list:Skipped"
-        ],
-        "summary": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.",
-        "remediation": null,
-        "metadata": {}
+        "metadata": {
+          "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+          "severity": "Critical",
+          "exploitable": "True"
+        }
       }
     ],
     "assessments": {
@@ -1689,25 +1631,35 @@
         "requiredClaims": 1,
         "satisfiedRequiredClaims": 0,
         "blockingClaimIds": [
-          "decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version"
+          "protocol:mcp-init-version-negotiation"
         ],
         "incompleteClaimIds": []
       },
       "securityAssurance": {
-        "status": 2,
-        "deterministicControlClaims": 0,
-        "reviewClaimCount": 1,
-        "issueClaimIds": [],
+        "status": 1,
+        "deterministicControlClaims": 1,
+        "reviewClaimCount": 0,
+        "issueClaimIds": [
+          "vulnerability:mcp-security-prompt-injection:prompt-get"
+        ],
         "incompleteClaimIds": []
       },
       "operationalReadiness": {
-        "status": 1,
+        "status": 0,
         "objectiveClaims": 2,
-        "failedClaimIds": [
-          "decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path",
-          "decision:baseline:security:mcp-security-prompt-injection:prompt-get"
-        ],
+        "failedClaimIds": [],
         "incompleteClaimIds": []
+      },
+      "extensionReadiness": [],
+      "clientCompatibility": [],
+      "externalConformance": {
+        "status": 0,
+        "requirementSetRevision": null,
+        "requirementSetSha256": null,
+        "creditedPassed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "conflictCount": 0
       }
     },
     "evidenceSummary": {
@@ -1815,8 +1767,7 @@
       "profileId": "provider",
       "reasons": [
         "Core conformance is Nonconformant.",
-        "Security assurance is Incomplete.",
-        "Operational readiness is NotReady.",
+        "Security assurance is IssuesFound.",
         "Evidence coverage 87.5% is below 90.0%.",
         "Verified official conformance evidence is required.",
         "A verified signed attestation is required.",

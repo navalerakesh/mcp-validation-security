@@ -169,7 +169,7 @@ On Windows, use the full path to `mcpval.exe`.
 - `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
 - Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
 - The wrapper uses the CLI's default safe mode. Safe mode performs discovery and static metadata/schema analysis and does not call target tools.
-- The wrapper intentionally does not expose the CLI's local `--conformance-results` file path to agent callers. Import official wrappers through the CLI or GitHub Action where the operator/workflow owns the file boundary.
+- The wrapper never accepts provider evidence paths from agent tool arguments. Operators may enable provider assurance for the process with `MCPVAL_PROVIDER_HARNESS`, `MCPVAL_PROVIDER_AUTHORIZATION_KEY`, `MCPVAL_OFFICIAL_CONFORMANCE_RESULTS`, and `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; all four are required and the wrapper fails closed when any is absent. Otherwise import official wrappers through the CLI or GitHub Action where the operator/workflow owns the file boundary.
 
 `discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints.
 

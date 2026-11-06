@@ -18,6 +18,9 @@ const packageVersion = (() => {
 
 const localExecutionEnvironmentVariable = "MCPVAL_ENABLE_LOCAL_EXECUTION";
 const localExecutionEnabled = process.env[localExecutionEnvironmentVariable]?.trim().toLowerCase() === "true";
+const providerHarnessPath = process.env.MCPVAL_PROVIDER_HARNESS?.trim();
+const providerAuthorizationKeyPath = process.env.MCPVAL_PROVIDER_AUTHORIZATION_KEY?.trim();
+const providerConformanceResultsPath = process.env.MCPVAL_OFFICIAL_CONFORMANCE_RESULTS?.trim();
 
 export const config = {
   /** CLI command name to invoke */
@@ -35,6 +38,18 @@ export const config = {
     enabled: localExecutionEnabled,
     disabledMessage:
       `Local MCP command execution is disabled. Validate a remote HTTPS endpoint, or set ${localExecutionEnvironmentVariable}=true when starting this wrapper in an isolated environment after reviewing the exact command.`,
+  },
+
+  /** Operator-owned provider assurance inputs. Paths are never accepted from agent tool arguments. */
+  providerAssurance: {
+    harnessPath: providerHarnessPath,
+    authorizationKeyPath: providerAuthorizationKeyPath,
+    conformanceResultsPath: providerConformanceResultsPath,
+    enabled: Boolean(
+      providerHarnessPath &&
+      providerAuthorizationKeyPath &&
+      providerConformanceResultsPath &&
+      process.env.MCPVAL_ATTESTATION_PRIVATE_KEY_PEM),
   },
 
   /** MCP server metadata */

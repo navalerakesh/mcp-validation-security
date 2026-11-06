@@ -153,6 +153,9 @@ if $run_dotnet; then
 fi
 
 if $run_node; then
+  echo "==> Testing repository Node companions"
+  node --test ./scripts/tests/*.test.mjs
+
   echo "==> Installing npm dependencies"
   pushd ./mcpval-mcp >/dev/null
   npm ci

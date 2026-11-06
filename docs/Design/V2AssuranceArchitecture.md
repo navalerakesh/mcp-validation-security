@@ -134,11 +134,13 @@ Eligibility is a deterministic contract, not a score. A provider certificate req
 - all required extensions meet their selected policy;
 - required official conformance evidence is verified and conflict-free;
 - applicable evidence coverage and confidence meet the profile thresholds;
-- repeated-run stability meets the profile threshold;
+- repeated-run stability meets the profile threshold and prior receipts are covered by a provider harness signature;
 - no expired or invalid waiver exists;
 - final artifacts are audit-bound and signed.
 
 Initial provider thresholds are 100% required MUST coverage, at least 90% total applicable coverage, at least 90% evidence confidence, and 99% repeated-run consistency. These values live in a versioned profile manifest, not renderer code.
+
+Provider authorization and prior-run provenance are separate signed payloads. The grant authorizes target identity, time window, execution modes, and probe classes; every check in the admitted execution plan must appear in that signed probe-class allowlist. The harness signature binds provider identity, protocol revision, grant digest/signature, required consistency, execution-plan/result digests, timestamps, independent assessment outcomes, and sorted non-success claim IDs for every prior receipt. Both use an operator-trusted P-256 key; signatures are fixed-width P1363. The current run is produced inside the admitted CLI execution, appended only after manifest verification, and represented in the final signed canonical result with the same target and plan bindings.
 
 ## Assurance And Execution Profiles
 
@@ -232,17 +234,16 @@ The corpus includes official SDKs, provider-shaped schemas, benign destructive t
 | Fleet | Host-neutral scheduling, quotas, leases, retention, and governance contracts |
 | Adapters | Canonical contract projection only; no forked semantics |
 
-## Delivery Order
+## Delivery Status
 
-1. Publish V2 contracts, schemas, exit policy, and breaking-change record.
-2. Add neutral claims while preserving existing probes.
-3. Implement independent reducers and certificate eligibility.
-4. Replace V1 canonical result and report projections.
-5. Add official conformance execution and provenance wrapper generation.
-6. Add provider harness manifests and controlled security/auth/operations certificates.
-7. Expand labeled calibration and publish accuracy metrics.
-8. Add executable client compatibility.
-9. Run full release, accessibility, package, live-safe, and controlled-provider gates.
+1. Delivered: V2 contracts, schemas, exit policy, and breaking-change record.
+2. Delivered: neutral claims over existing probes and independent reducers.
+3. Delivered: profile-bound certificate eligibility and signed provider harnesses.
+4. Delivered: V1 trust/verdict decision paths removed from code and reports.
+5. Delivered: isolated pinned official-conformance execution and exact-byte provenance wrapping.
+6. In progress: broader independently labeled calibration and published accuracy metrics.
+7. Planned: executable client compatibility; current client assessments remain explicitly `Interpreted`.
+8. Required for each release: full release, accessibility, package, live-safe, and controlled-provider gates.
 
 ## Definition Of Done
 

@@ -129,6 +129,6 @@ Execution plans persist the requested protocol profile, resolved embedded schema
 - Keep `Core` host-neutral.
 - Do not place client-specific compatibility rules inside neutral validators.
 - Do not overload rule authority, evaluation lane, and evidence origin into one shared enum.
-- Do not place execution governance types such as execution plans or audit manifests inside `ValidationResult` or trust assessment models.
+- Do not place execution governance types such as execution plans or audit manifests inside `ValidationResult` or assurance assessment models.
 - Do not bypass the schema registry with direct file-system reads in validators.
 - Keep reporting deterministic by rendering from saved results instead of re-contacting targets.

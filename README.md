@@ -90,8 +90,10 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | <code>--assurance &lt;inventory&#124;ci&#124;provider&gt;</code> | Selects V2 evidence requirements, independent assessments, and certificate eligibility. Inventory never issues a provider certificate. |
 | `--baseline <result.json>` | Compares this run with a compatible prior canonical result. |
 | `--conformance-results <wrapper.json>` | Imports a bounded, provenance-bearing wrapper for the pinned official conformance runner. External evidence remains separately attributable and affects only applicable claims. |
+| `--provider-harness <manifest.json>` | Supplies a signed set of prior repeated-run receipts bound to the target, protocol revision, and dry-run execution-plan digest. Provider assurance requires this input. |
+| `--provider-authorization-key <public-key.pem>` | Verifies both the authorization grant and harness manifest against an operator-trusted ECDSA P-256 public key. Signatures use SHA-256 with fixed-width P1363 encoding. |
 | `--extension <id>` | Explicitly selects an MCP extension. Repeat for more than one. Passive advertised-extension checks run automatically; active Skills content reads additionally require this option and standard/elevated mode. |
-| `--regression-only` | Blocks only new blockers, verdict degradation, or score regression relative to `--baseline`; execution failures still block. |
+| `--regression-only` | Blocks only new non-success claims or independent-assessment degradation relative to `--baseline`; execution failures still block. |
 | <code>--output-format &lt;human&#124;json&gt;</code> | Emits human output or one versioned JSON stdout envelope with typed JSON stderr errors. |
 | `--sign-attestation` | Signs the final canonical JSON bytes using the ECDSA P-256 key in `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; requires `--output`. |
 | `--client-profile <id>` | Narrows host-specific compatibility interpretation to profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. When omitted, `validate` evaluates every documented host profile by default. |

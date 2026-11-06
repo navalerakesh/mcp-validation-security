@@ -1737,16 +1737,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Transport: {validationResult.ServerConfig.Transport}"
         };
 
-        if (validationResult.VerdictAssessment != null)
-        {
-            details.Add($"Baseline Verdict: {validationResult.VerdictAssessment.BaselineVerdict}");
-            details.Add($"Protocol Verdict: {validationResult.VerdictAssessment.ProtocolVerdict}");
-            details.Add($"Coverage Verdict: {validationResult.VerdictAssessment.CoverageVerdict}");
-            details.Add($"Verdict Summary: {validationResult.VerdictAssessment.Summary}");
-            details.Add($"Evidence Coverage: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
-            details.Add($"Evidence Confidence: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.VerdictAssessment.EvidenceSummary.ConfidenceLevel})");
-            details.AddRange(validationResult.VerdictAssessment.CoverageDecisions.Select(decision => $"Coverage Decision: {decision.DecisionId} -> {decision.Summary}"));
-        }
+        details.Add($"Assurance Profile: {validationResult.Assurance.Profile.ProfileId}");
+        details.Add($"Certificate Eligibility: {validationResult.Assurance.CertificateEligibility.Status}");
+        details.Add($"Core Conformance: {validationResult.Assurance.Assessments.CoreConformance.Status}");
+        details.Add($"Security Assurance: {validationResult.Assurance.Assessments.SecurityAssurance.Status}");
+        details.Add($"Operational Readiness: {validationResult.Assurance.Assessments.OperationalReadiness.Status}");
+        details.Add($"Evidence Coverage: {FormatPercent(validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
+        details.Add($"Evidence Confidence: {FormatPercent(validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.Assurance.EvidenceSummary.ConfidenceLevel})");
 
         if (validationResult.CriticalErrors.Count > 0)
         {
@@ -1908,17 +1905,19 @@ public class ValidationReportRenderer : IValidationReportRenderer
             details.AddRange(policyOutcome.Reasons.Select(reason => $"Reason: {reason}"));
         }
 
-        if (validationResult.VerdictAssessment?.BlockingDecisions.Count > 0)
+        var blockingClaims = validationResult.Assurance.Claims
+            .Where(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error)
+            .Take(5)
+            .ToArray();
+        if (blockingClaims.Length > 0)
         {
-            details.AddRange(validationResult.VerdictAssessment.BlockingDecisions
-                .OrderByDescending(decision => ReportSeverityNormalizer.PriorityFrom(decision))
-                .ThenByDescending(decision => decision.Severity)
-                .Take(5)
-                .Select(decision => $"Blocking Decision Priority: {ReportSeverityNormalizer.ToMachineLabel(ReportSeverityNormalizer.PriorityFrom(decision))} - {decision.Category}/{decision.Component}: {decision.Summary}"));
-            var omitted = validationResult.VerdictAssessment.BlockingDecisions.Count - 5;
+            details.AddRange(blockingClaims.Select(claim =>
+                $"Blocking Claim: {claim.ClaimId} - {claim.Dimension}/{claim.Subject}: {claim.Summary}"));
+            var omitted = validationResult.Assurance.Claims.Count(claim =>
+                claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error) - blockingClaims.Length;
             if (omitted > 0)
             {
-                details.Add($"Additional Blocking Decisions: {omitted} retained in canonical JSON.");
+                details.Add($"Additional Blocking Claims: {omitted} retained in canonical JSON.");
             }
         }
 
@@ -1991,26 +1990,6 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ValidationStatus.Failed => TestStatus.Failed,
             _ => TestStatus.Error
         };
-    }
-
-    private static XElement BuildVerdictElement(ValidationResult validationResult)
-    {
-        if (validationResult.VerdictAssessment == null)
-        {
-            return new XElement("Verdicts",
-                new XElement("BaselineVerdict", "Unknown"),
-                new XElement("ProtocolVerdict", "Unknown"),
-                new XElement("CoverageVerdict", "Unknown"));
-        }
-
-        return new XElement("Verdicts",
-            new XElement("BaselineVerdict", validationResult.VerdictAssessment.BaselineVerdict.ToString()),
-            new XElement("ProtocolVerdict", validationResult.VerdictAssessment.ProtocolVerdict.ToString()),
-            new XElement("CoverageVerdict", validationResult.VerdictAssessment.CoverageVerdict.ToString()),
-            new XElement("Summary", validationResult.VerdictAssessment.Summary),
-            new XElement("BlockingDecisionCount", validationResult.VerdictAssessment.BlockingDecisions.Count),
-            BuildDecisionRecordsElement("BlockingDecisions", validationResult.VerdictAssessment.BlockingDecisions),
-            BuildDecisionRecordsElement("CoverageDecisions", validationResult.VerdictAssessment.CoverageDecisions));
     }
 
     private static XElement BuildDecisionRecordsElement(string name, IEnumerable<DecisionRecord> decisions)

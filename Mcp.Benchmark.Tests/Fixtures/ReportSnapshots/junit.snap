@@ -1,5 +1,5 @@
-<testsuites name="MCP Validator" tests="17" failures="4" errors="0" skipped="6" time="12.000">
-  <testsuite name="assurance-coreprotocol" tests="6" failures="0" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+<testsuites name="MCP Validator" tests="14" failures="3" errors="0" skipped="4" time="12.000">
+  <testsuite name="assurance-coreprotocol" tests="7" failures="1" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
@@ -7,8 +7,8 @@
       <property name="assuranceProfile" value="provider" />
       <property name="certificateEligibility" value="Ineligible" />
       <property name="coreConformance" value="Nonconformant" />
-      <property name="securityAssurance" value="Incomplete" />
-      <property name="operationalReadiness" value="NotReady" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
@@ -58,22 +58,36 @@ Outcome: Satisfied
 Confidence: None
 Evidence: coverage:tool-surface:tools-list:Covered</system-out>
     </testcase>
-    <testcase classname="assurance.coreprotocol" name="decision:coverage:prompt-surface:prompts-list:Skipped" time="0.000">
-      <skipped message="Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.">Subject: prompt-surface
-Authority: ProviderPolicy
-Requirement: Policy
-Outcome: Incomplete
+    <testcase classname="assurance.coreprotocol" name="finding:mcp-tool-call-result-object-missing:tools-call" time="0.000">
+      <skipped message="One tool response omitted the outer result object.">Subject: tools/call
+Authority: OfficialSpecification
+Requirement: Should
+Outcome: ReviewRequired
 Confidence: High
-Evidence: coverage:prompt-surface:prompts-list:Skipped</skipped>
-      <system-out>Subject: prompt-surface
-Authority: ProviderPolicy
-Requirement: Policy
-Outcome: Incomplete
+Evidence:</skipped>
+      <system-out>Subject: tools/call
+Authority: OfficialSpecification
+Requirement: Should
+Outcome: ReviewRequired
 Confidence: High
-Evidence: coverage:prompt-surface:prompts-list:Skipped</system-out>
+Evidence:</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="protocol:mcp-init-version-negotiation" time="0.000">
+      <failure message="Server ignored the requested MCP protocol version.">Subject: Initialization
+Authority: OfficialSpecification
+Requirement: Must
+Outcome: Violated
+Confidence: High
+Evidence: protocol/MCP.INIT.VERSION_NEGOTIATION</failure>
+      <system-out>Subject: Initialization
+Authority: OfficialSpecification
+Requirement: Must
+Outcome: Violated
+Confidence: High
+Evidence: protocol/MCP.INIT.VERSION_NEGOTIATION</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="assurance-operations" tests="4" failures="2" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-operations" tests="2" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
@@ -81,15 +95,15 @@ Evidence: coverage:prompt-surface:prompts-list:Skipped</system-out>
       <property name="assuranceProfile" value="provider" />
       <property name="certificateEligibility" value="Ineligible" />
       <property name="coreConformance" value="Nonconformant" />
-      <property name="securityAssurance" value="Incomplete" />
-      <property name="operationalReadiness" value="NotReady" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="assurance.operations" name="coverage:error-handling:error-handling" time="0.000">
       <system-out>Subject: error-handling
 Authority: ProviderPolicy
-Requirement: Policy
+Requirement: OperationalObjective
 Outcome: Satisfied
 Confidence: None
 Evidence: coverage:error-handling:error-handling:Covered</system-out>
@@ -97,41 +111,13 @@ Evidence: coverage:error-handling:error-handling:Covered</system-out>
     <testcase classname="assurance.operations" name="coverage:error-handling:error-handling-matrix" time="0.000">
       <system-out>Subject: error-handling-matrix
 Authority: ProviderPolicy
-Requirement: Policy
+Requirement: OperationalObjective
 Outcome: Satisfied
 Confidence: None
 Evidence: coverage:error-handling:error-handling-matrix:Covered</system-out>
     </testcase>
-    <testcase classname="assurance.operations" name="decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" time="0.000">
-      <failure message="Critical execution error recorded: Prompt validation hit an unsafe reflection path.">Subject: validation-run
-Authority: OperationalMeasurement
-Requirement: OperationalObjective
-Outcome: Violated
-Confidence: High
-Evidence: execution-error:prompt-validation-hit-an-unsafe-reflection-path</failure>
-      <system-out>Subject: validation-run
-Authority: OperationalMeasurement
-Requirement: OperationalObjective
-Outcome: Violated
-Confidence: High
-Evidence: execution-error:prompt-validation-hit-an-unsafe-reflection-path</system-out>
-    </testcase>
-    <testcase classname="assurance.operations" name="decision:baseline:security:mcp-security-prompt-injection:prompt-get" time="0.000">
-      <failure message="Server reflected untrusted prompt content without sanitization.">Subject: prompt:get
-Authority: OperationalMeasurement
-Requirement: OperationalObjective
-Outcome: Violated
-Confidence: High
-Evidence: security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization, probe:probe-prompt-get-reflection-200</failure>
-      <system-out>Subject: prompt:get
-Authority: OperationalMeasurement
-Requirement: OperationalObjective
-Outcome: Violated
-Confidence: High
-Evidence: security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization, probe:probe-prompt-get-reflection-200</system-out>
-    </testcase>
   </testsuite>
-  <testsuite name="assurance-security" tests="2" failures="0" errors="0" skipped="1" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-security" tests="2" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
@@ -139,35 +125,35 @@ Evidence: security-vulnerability:mcp-security-prompt-injection:prompt-get:server
       <property name="assuranceProfile" value="provider" />
       <property name="certificateEligibility" value="Ineligible" />
       <property name="coreConformance" value="Nonconformant" />
-      <property name="securityAssurance" value="Incomplete" />
-      <property name="operationalReadiness" value="NotReady" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="assurance.security" name="coverage:security-boundaries:security-authentication-challenge" time="0.000">
       <system-out>Subject: security-authentication-challenge
 Authority: ProviderPolicy
-Requirement: Policy
+Requirement: SecurityControl
 Outcome: Satisfied
 Confidence: None
 Evidence: coverage:security-boundaries:security-authentication-challenge:Covered</system-out>
     </testcase>
-    <testcase classname="assurance.security" name="decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" time="0.000">
-      <skipped message="Prompt output includes reflected untrusted content.">Subject: prompt:get
-Authority: Heuristic
-Requirement: Policy
-Outcome: ReviewRequired
-Confidence: Medium
-Evidence: boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</skipped>
+    <testcase classname="assurance.security" name="vulnerability:mcp-security-prompt-injection:prompt-get" time="0.000">
+      <failure message="Server reflected untrusted prompt content without sanitization.">Subject: prompt:get
+Authority: DeterministicSecurity
+Requirement: SecurityControl
+Outcome: Violated
+Confidence: High
+Evidence: probe-prompt-get-reflection-200</failure>
       <system-out>Subject: prompt:get
-Authority: Heuristic
-Requirement: Policy
-Outcome: ReviewRequired
-Confidence: Medium
-Evidence: boundary-finding:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content</system-out>
+Authority: DeterministicSecurity
+Requirement: SecurityControl
+Outcome: Violated
+Confidence: High
+Evidence: probe-prompt-get-reflection-200</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="assurance-capabilitycontract" tests="4" failures="1" errors="0" skipped="3" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-capabilitycontract" tests="2" failures="0" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
@@ -175,66 +161,38 @@ Evidence: boundary-finding:promptinjection:prompt-get:prompt-output-includes-ref
       <property name="assuranceProfile" value="provider" />
       <property name="certificateEligibility" value="Ineligible" />
       <property name="coreConformance" value="Nonconformant" />
-      <property name="securityAssurance" value="Incomplete" />
-      <property name="operationalReadiness" value="NotReady" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="assurance.capabilitycontract" name="decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" time="0.000">
+    <testcase classname="assurance.capabilitycontract" name="finding:ai-tool-schema-parameter-description-missing:delete-repo" time="0.000">
       <skipped message="Tool 'delete_repo' has parameters without descriptions.">Subject: delete_repo
 Authority: Heuristic
 Requirement: Policy
 Outcome: ReviewRequired
 Confidence: Medium
-Evidence: structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions, obs-tool-delete-repo</skipped>
+Evidence:</skipped>
       <system-out>Subject: delete_repo
 Authority: Heuristic
 Requirement: Policy
 Outcome: ReviewRequired
 Confidence: Medium
-Evidence: structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions, obs-tool-delete-repo</system-out>
+Evidence:</system-out>
     </testcase>
-    <testcase classname="assurance.capabilitycontract" name="decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" time="0.000">
+    <testcase classname="assurance.capabilitycontract" name="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" time="0.000">
       <skipped message="Tool 'delete_repo' does not declare annotations.destructiveHint.">Subject: delete_repo
-Authority: Heuristic
+Authority: ProviderPolicy
 Requirement: Policy
 Outcome: ReviewRequired
 Confidence: Medium
-Evidence: structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint, obs-tool-delete-repo</skipped>
+Evidence:</skipped>
       <system-out>Subject: delete_repo
-Authority: Heuristic
+Authority: ProviderPolicy
 Requirement: Policy
 Outcome: ReviewRequired
 Confidence: Medium
-Evidence: structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint, obs-tool-delete-repo</system-out>
-    </testcase>
-    <testcase classname="assurance.capabilitycontract" name="decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" time="0.000">
-      <skipped message="One tool response omitted the outer result object.">Subject: tools/call
-Authority: OfficialSpecification
-Requirement: Should
-Outcome: ReviewRequired
-Confidence: High
-Evidence: structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</skipped>
-      <system-out>Subject: tools/call
-Authority: OfficialSpecification
-Requirement: Should
-Outcome: ReviewRequired
-Confidence: High
-Evidence: structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object</system-out>
-    </testcase>
-    <testcase classname="assurance.capabilitycontract" name="decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" time="0.000">
-      <failure message="Server ignored the requested MCP protocol version.">Subject: Initialization
-Authority: OfficialSpecification
-Requirement: Must
-Outcome: Violated
-Confidence: High
-Evidence: protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</failure>
-      <system-out>Subject: Initialization
-Authority: OfficialSpecification
-Requirement: Must
-Outcome: Violated
-Confidence: High
-Evidence: protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version</system-out>
+Evidence:</system-out>
     </testcase>
   </testsuite>
   <testsuite name="assurance-certificate" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
@@ -245,23 +203,21 @@ Evidence: protocol-violation:mcp-init-version-negotiation:initialization:server-
       <property name="assuranceProfile" value="provider" />
       <property name="certificateEligibility" value="Ineligible" />
       <property name="coreConformance" value="Nonconformant" />
-      <property name="securityAssurance" value="Incomplete" />
-      <property name="operationalReadiness" value="NotReady" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
     <testcase classname="assurance.certificate" name="Certificate eligibility: provider" time="12.000">
       <failure message="Ineligible">Core conformance is Nonconformant.
-Security assurance is Incomplete.
-Operational readiness is NotReady.
+Security assurance is IssuesFound.
 Evidence coverage 87.5% is below 90.0%.
 Verified official conformance evidence is required.
 A verified signed attestation is required.
 A verified provider harness receipt with target-bound authorization is required.
 Repeated-run consistency of at least 99.0% is required.</failure>
       <system-out>Core conformance is Nonconformant.
-Security assurance is Incomplete.
-Operational readiness is NotReady.
+Security assurance is IssuesFound.
 Evidence coverage 87.5% is below 90.0%.
 Verified official conformance evidence is required.
 A verified signed attestation is required.

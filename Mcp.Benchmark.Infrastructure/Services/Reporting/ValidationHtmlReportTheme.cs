@@ -20,7 +20,7 @@ internal static class ValidationHtmlReportTheme
     --text: #223042;
     --text-strong: #101827;
     --text-muted: #4f5e72;
-    --text-soft: #6a7789;
+    --text-soft: #526176;
     --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
     --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
     --radius-shell: 22px;
@@ -29,7 +29,7 @@ internal static class ValidationHtmlReportTheme
     --tone-success: #1f6a52;
     --tone-success-soft: #eef6f1;
     --tone-success-line: #8fbca5;
-    --tone-warning: #a85d19;
+    --tone-warning: #8a4713;
     --tone-warning-soft: #faf1e6;
     --tone-warning-line: #dbb085;
     --tone-danger: #a33446;

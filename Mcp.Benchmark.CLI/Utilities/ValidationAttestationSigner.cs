@@ -30,6 +30,25 @@ internal static class ValidationAttestationSigner
         };
     }
 
+    public static void ValidatePrivateKey(string privateKeyPem)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(privateKeyPem);
+        try
+        {
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            key.ImportFromPem(privateKeyPem);
+            EnsureP256(key);
+            if (key.ExportParameters(includePrivateParameters: true).D is not { Length: > 0 })
+            {
+                throw new ArgumentException("Attestation key must include private key material.");
+            }
+        }
+        catch (CryptographicException exception)
+        {
+            throw new ArgumentException("Attestation key must be a valid NIST P-256 private key.", exception);
+        }
+    }
+
     public static bool Verify(ValidationAttestation attestation, ReadOnlySpan<byte> subjectBytes)
     {
         ArgumentNullException.ThrowIfNull(attestation);

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Scoring;
@@ -20,17 +21,17 @@ public sealed class CalibrationCorpusTests
     {
         var corpus = LoadCorpus();
 
-        corpus.Version.Should().Be("1.1.0");
+        corpus.Version.Should().Be("2.0.0");
         corpus.Cases.Select(testCase => testCase.Kind).Should().BeEquivalentTo(
             "compliant", "vulnerable", "malformed", "unavailable", "throttled", "auth-protected");
     }
 
     [Fact]
-    public void AddingBlockingEvidence_ShouldNeverImproveAnyVerdict()
+    public void AddingBlockingEvidence_ShouldNeverImproveAssuranceOrScore()
     {
         foreach (var testCase in LoadCorpus().Cases)
         {
-            var baseline = ValidationVerdictEngine.Calculate(BuildResult(testCase));
+            var baseline = AssuranceAssessmentEngine.Evaluate(BuildResult(testCase), AssuranceProfileCatalog.Inventory);
             var mutatedResult = BuildResult(testCase);
             mutatedResult.ToolValidation ??= new ToolTestResult();
             mutatedResult.ToolValidation.Findings.Add(new ValidationFinding
@@ -43,20 +44,20 @@ public sealed class CalibrationCorpusTests
                 Component = testCase.Id,
                 Summary = "Injected deterministic blocker."
             });
-            var mutated = ValidationVerdictEngine.Calculate(mutatedResult);
+            var mutated = AssuranceAssessmentEngine.Evaluate(mutatedResult, AssuranceProfileCatalog.Inventory);
             var baselineScore = new SecurityFocusedScoringStrategy().CalculateScore(BuildResult(testCase));
             var mutatedScore = new SecurityFocusedScoringStrategy().CalculateScore(mutatedResult);
 
-            Rank(mutated.BaselineVerdict).Should().BeLessThanOrEqualTo(Rank(baseline.BaselineVerdict), testCase.Id);
-            Rank(mutated.ProtocolVerdict).Should().BeLessThanOrEqualTo(Rank(baseline.ProtocolVerdict), testCase.Id);
-            Rank(mutated.CoverageVerdict).Should().BeLessThanOrEqualTo(Rank(baseline.CoverageVerdict), testCase.Id);
+            Rank(mutated.Assessments.CoreConformance.Status)
+                .Should().BeLessThanOrEqualTo(Rank(baseline.Assessments.CoreConformance.Status), testCase.Id);
+            mutated.Claims.Count(IsNonSuccess).Should().BeGreaterThanOrEqualTo(baseline.Claims.Count(IsNonSuccess), testCase.Id);
             mutatedScore.OverallScore.Should().BeLessThanOrEqualTo(baselineScore.OverallScore, testCase.Id);
         }
     }
 
     private static CalibrationCorpus LoadCorpus()
     {
-        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Calibration", "corpus-v1.json");
+        var path = Path.Combine(AppContext.BaseDirectory, "Fixtures", "Calibration", "assurance-corpus-v2.json");
         return JsonSerializer.Deserialize<CalibrationCorpus>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidDataException("Calibration corpus was empty.");
     }
@@ -156,15 +157,16 @@ public sealed class CalibrationCorpusTests
         return result;
     }
 
-    private static int Rank(ValidationVerdict verdict) => verdict switch
+    private static int Rank(CoreConformanceStatus status) => status switch
     {
-        ValidationVerdict.Reject => 0,
-        ValidationVerdict.Unknown => 1,
-        ValidationVerdict.ReviewRequired => 2,
-        ValidationVerdict.ConditionallyAcceptable => 3,
-        ValidationVerdict.Trusted => 4,
-        _ => throw new ArgumentOutOfRangeException(nameof(verdict), verdict, null)
+        CoreConformanceStatus.Nonconformant => 0,
+        CoreConformanceStatus.Incomplete => 1,
+        CoreConformanceStatus.Conformant => 2,
+        _ => throw new ArgumentOutOfRangeException(nameof(status), status, null)
     };
+
+    private static bool IsNonSuccess(AssuranceClaim claim) =>
+        claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable);
 
     private sealed class CalibrationCorpus
     {
@@ -180,9 +182,6 @@ public sealed class CalibrationCorpusTests
         public ValidationFindingSeverity? FindingSeverity { get; init; }
         public GateOutcome? FindingGate { get; init; }
         public ViolationSeverity? ProtocolViolationSeverity { get; init; }
-        public ValidationVerdict ExpectedBaseline { get; init; }
-        public ValidationVerdict ExpectedProtocol { get; init; }
-        public ValidationVerdict ExpectedCoverage { get; init; }
         public double ExpectedScore { get; init; }
     }
 

@@ -29,59 +29,6 @@ public sealed class ValidationOutcomeTaxonomyTests
     }
 
     [Fact]
-    public void CurrentDecisionPolicy_ShouldExposeEveryDecisionInputDeterministically()
-    {
-        var policy = DecisionPolicyManifest.CreateCurrent(
-            Array.Empty<DecisionRecord>(),
-            new[]
-            {
-                CreatePack("protocol-feature-pack"),
-                CreatePack("protocol-rule-pack"),
-                CreatePack("observed-surface-scenario-pack"),
-                CreatePack("built-in-client-profile-pack")
-            });
-
-        policy.Version.Should().Be(DecisionPolicyManifest.CurrentVersion);
-        policy.OutcomeTaxonomyVersion.Should().Be(ValidationOutcomeTaxonomy.Version);
-        policy.RuleCatalogVersion.Should().Be(ValidationFindingRuleIds.CatalogVersion);
-        policy.ScoringPolicyVersion.Should().Be(Mcp.Benchmark.Core.Constants.ScoringConstants.PolicyVersion);
-        policy.PackRevisions.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.RuleRevisions.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.RuleRevisions.Should().NotBeEmpty();
-        policy.RuleRevisions.Values.Should().OnlyContain(version =>
-            version == ValidationFindingRuleIds.CatalogVersion ||
-            version == ValidationOutcomeTaxonomy.Version ||
-            version == DecisionPolicyManifest.CurrentVersion);
-        policy.Weights.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.Thresholds.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.Caps.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.Parameters.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.PatternSets.Keys.Should().BeInAscendingOrder(StringComparer.Ordinal);
-        policy.PatternSets["promptInjection"].Should().NotBeEmpty();
-        policy.Parameters.Keys.Should().Contain(nameof(Mcp.Benchmark.Core.Constants.ScoringConstants.ExfiltrationPenaltyMax));
-        policy.Parameters.Keys.Should().Contain(nameof(Mcp.Benchmark.Core.Constants.ScoringConstants.CoverageConfidenceInconclusive));
-        policy.PackRevisions.Keys.Should().Contain(new[]
-        {
-            "protocol-feature-pack",
-            "protocol-rule-pack",
-            "observed-surface-scenario-pack",
-            "built-in-client-profile-pack",
-            "verdict-policy"
-        });
-        policy.Weights.Where(pair => pair.Key.StartsWith("trust.", StringComparison.Ordinal)).Sum(pair => pair.Value).Should().BeApproximately(1.0, 0.000001);
-        policy.Weights.Where(pair => pair.Key.StartsWith("aggregate.", StringComparison.Ordinal)).Sum(pair => pair.Value).Should().BeApproximately(1.0, 0.000001);
-    }
-
-    private static ValidationPackDescriptor CreatePack(string key) => new()
-    {
-        Key = new ValidationDescriptorKey(key),
-        Kind = ValidationPackKind.RulePack,
-        Revision = new ValidationRevision("2026-04"),
-        DisplayName = key,
-        Stability = ValidationStability.Stable
-    };
-
-    [Fact]
     public void StableFindingRules_ShouldEachHaveExactlyOneRevision()
     {
         var rules = ValidationFindingRuleIds.GetVersionedRules();

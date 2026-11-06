@@ -35,6 +35,10 @@
         "validationId": { "type": "string", "minLength": 1 },
         "protocolVersion": { "type": ["string", "null"] },
         "schemaVersion": { "type": ["string", "null"] },
+        "targetIdentitySha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "executionPlanSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "executionMode": { "enum": ["safe", "standard", "elevated"] },
+        "plannedChecks": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "operationalMetrics": {
           "oneOf": [
             { "type": "null" },
@@ -178,11 +182,14 @@
     },
     "assuranceAssessments": {
       "type": "object",
-      "required": ["coreConformance", "securityAssurance", "operationalReadiness"],
+      "required": ["coreConformance", "securityAssurance", "operationalReadiness", "extensionReadiness", "clientCompatibility", "externalConformance"],
       "properties": {
         "coreConformance": { "$ref": "#/$defs/coreConformanceAssessment" },
         "securityAssurance": { "$ref": "#/$defs/securityAssuranceAssessment" },
-        "operationalReadiness": { "$ref": "#/$defs/operationalReadinessAssessment" }
+        "operationalReadiness": { "$ref": "#/$defs/operationalReadinessAssessment" },
+        "extensionReadiness": { "type": "array", "items": { "$ref": "#/$defs/extensionAssuranceAssessment" } },
+        "clientCompatibility": { "type": "array", "items": { "$ref": "#/$defs/clientCompatibilityAssuranceAssessment" } },
+        "externalConformance": { "$ref": "#/$defs/externalConformanceAssuranceAssessment" }
       },
       "additionalProperties": false
     },
@@ -221,6 +228,45 @@
       },
       "additionalProperties": false
     },
+    "extensionAssuranceAssessment": {
+      "type": "object",
+      "required": ["extensionId", "stage", "specificationRevision", "specificationSha256", "status", "nonSuccessClaimIds"],
+      "properties": {
+        "extensionId": { "type": "string", "minLength": 1 },
+        "stage": { "enum": ["experimental", "beta", "stable", "core"] },
+        "specificationRevision": { "type": "string", "minLength": 1 },
+        "specificationSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "status": { "enum": ["ready", "issuesFound", "incomplete"] },
+        "nonSuccessClaimIds": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      },
+      "additionalProperties": false
+    },
+    "clientCompatibilityAssuranceAssessment": {
+      "type": "object",
+      "required": ["profileId", "revision", "status", "verification", "summary"],
+      "properties": {
+        "profileId": { "type": "string", "minLength": 1 },
+        "revision": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["compatible", "compatibleWithWarnings", "incompatible"] },
+        "verification": { "enum": ["interpreted", "verified"] },
+        "summary": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "externalConformanceAssuranceAssessment": {
+      "type": "object",
+      "required": ["status", "creditedPassed", "failed", "skipped", "conflictCount"],
+      "properties": {
+        "status": { "enum": ["notProvided", "verified", "nonconformant", "incomplete", "conflict"] },
+        "requirementSetRevision": { "type": ["string", "null"] },
+        "requirementSetSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
+        "creditedPassed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 },
+        "conflictCount": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
     "certificateEligibility": {
       "type": "object",
       "required": ["status", "profileId", "reasons", "evidenceCoverageRatio", "evidenceConfidenceRatio"],
@@ -234,23 +280,6 @@
       "additionalProperties": false
     },
     "verdict": { "enum": ["unknown", "reject", "reviewRequired", "conditionallyAcceptable", "trusted"] },
-    "verdictAssessment": {
-      "type": "object",
-      "required": ["rulesetVersion", "policy", "baselineVerdict", "protocolVerdict", "coverageVerdict", "summary", "evidenceSummary", "triggeredDecisions", "blockingDecisions", "coverageDecisions"],
-      "properties": {
-        "rulesetVersion": { "type": "string", "minLength": 1 },
-        "policy": { "type": "object" },
-        "baselineVerdict": { "$ref": "#/$defs/verdict" },
-        "protocolVerdict": { "$ref": "#/$defs/verdict" },
-        "coverageVerdict": { "$ref": "#/$defs/verdict" },
-        "summary": { "type": "string" },
-        "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
-        "triggeredDecisions": { "type": "array", "items": { "type": "object" } },
-        "blockingDecisions": { "type": "array", "items": { "type": "object" } },
-        "coverageDecisions": { "type": "array", "items": { "type": "object" } }
-      },
-      "additionalProperties": true
-    },
     "policyOutcome": {
       "type": "object",
       "required": ["mode", "passed", "recommendedExitCode", "summary", "totalSignalCount", "unsuppressedSignalCount", "blockingSignalCount", "reasons", "suppressedSignalCount", "appliedSuppressions", "ignoredSuppressions"],

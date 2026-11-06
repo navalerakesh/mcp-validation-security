@@ -6,6 +6,21 @@ MCP Validator treats official conformance, MCP core validation, and extension re
 
 Use `validate --conformance-results <wrapper.json>` with a document conforming to [`Schemas/mcpval-official-conformance-evidence.schema.json`](Schemas/mcpval-official-conformance-evidence.schema.json).
 
+Generate the wrapper with the isolated repository companion:
+
+```bash
+node scripts/run-official-conformance.mjs \
+  --url https://provider.example.com/mcp \
+  --output /secure/path/official-conformance.json \
+  --results-dir /secure/path/official-results
+
+dotnet run --project Mcp.Benchmark.CLI -- validate \
+  --server https://provider.example.com/mcp \
+  --conformance-results /secure/path/official-conformance.json
+```
+
+The companion is never invoked by `validate`. It downloads the exact pinned npm tarball into an isolated temporary directory, verifies the tarball and requirement-set SHA-256 values before execution, installs the exact committed transitive dependency lock with lifecycle scripts disabled, strips ambient credentials, bounds per-scenario and whole-run time, rejects stale result directories, and writes the wrapper atomically. Use it only against a target you own or are explicitly authorized to test.
+
 The current trusted pin is:
 
 | Input | Pinned value |
@@ -16,7 +31,7 @@ The current trusted pin is:
 | Requirement set | `2026-07-28` |
 | Requirement-set SHA-256 | `ae2f4f6210fd729e2e318edd5bbfa31a43cee0bc608e48052fa26dbf1d939b57` |
 
-The wrapper supplies provenance that the official per-scenario `checks.json` format does not carry itself. Every scenario records a canonical check-array SHA-256. The importer rejects malformed contracts, unsupported document majors, duplicate scenario/check IDs, invalid hashes, tampered check arrays, target mismatches, protocol mismatches, and configured bounds violations.
+The machine-readable pin is owned by `Mcp.Benchmark.Core/Resources/official-conformance-pin.json`; .NET verification and the companion consume that same manifest. The wrapper supplies provenance that the official per-scenario `checks.json` format does not carry itself. Every scenario embeds the exact bounded `checks.json` bytes as base64 and records their raw SHA-256. The importer verifies those bytes before parsing them and rejects malformed contracts, unsupported document majors, duplicate scenario/check IDs, invalid hashes, tampered payloads, target mismatches, protocol mismatches, configured bounds violations, and missing, unexpected, or misclassified frozen scenarios. A completed `2026-07-28` server run must contain all 37 required and 13 not-scored server scenarios.
 
 An unknown future runner or requirement-set pin remains `Unverified` and receives no pass credit. A non-completed run remains `Incomplete`. If an official success contradicts a native review/reject decision with the same stable rule/check ID, the report records category `EvidenceConflict` with gate `ReviewRequired`; neither source silently overrides the other.
 

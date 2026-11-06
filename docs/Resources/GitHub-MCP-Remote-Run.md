@@ -22,7 +22,7 @@ For every successful `validate --output <folder>` run, the CLI writes the follow
 | Artifact | Purpose |
 | --- | --- |
 | `mcp-validation-<timestamp>-report.md` | Human-readable Markdown report |
-| `mcp-validation-<timestamp>-report.html` | Shareable HTML report with Run Status, Deterministic Verdict, and Trust Level at the top |
+| `mcp-validation-<timestamp>-report.html` | Shareable HTML report with certificate eligibility and independent core, security, and operational assessments at the top |
 | `mcp-validation-<timestamp>-result.json` | Canonical machine-readable validation result |
 | `mcp-validation-<timestamp>-results.sarif.json` | SARIF findings feed for CI and code-scanning systems |
 | `mcp-validation-<timestamp>-audit.json` | Execution audit manifest for the run |

@@ -1,5 +1,7 @@
 # MCP Validator Enterprise Readiness Audit
 
+> Historical baseline: this 2026-08-18 audit is preserved as the source assessment for the renewal. The current V2 decision, executable evidence, and remaining limits are recorded in [Organization-Grade Confidence](docs/OrganizationGradeConfidence.md).
+
 **Assessment date:** 2026-08-18
 **Repository:** `navalerakesh/mcp-validation-security`
 **Assessment type:** source, architecture, security, test, distribution, and market review

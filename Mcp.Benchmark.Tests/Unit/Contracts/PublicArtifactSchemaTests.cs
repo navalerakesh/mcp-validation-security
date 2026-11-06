@@ -112,8 +112,12 @@ public sealed class PublicArtifactSchemaTests
                 AllowedExecutionModes = [ExecutionMode.Standard],
                 AllowedProbeClasses = ["protocol-active"],
                 GrantDocumentSha256 = new string('b', 64),
-                VerificationStatus = ProviderAuthorizationVerificationStatus.Verified
+                SigningKeyId = new string('c', 64),
+                SignatureBase64 = Convert.ToBase64String(new byte[64])
             },
+            SigningKeyId = new string('c', 64),
+            ManifestDocumentSha256 = new string('d', 64),
+            SignatureBase64 = Convert.ToBase64String(new byte[64]),
             Runs =
             [
                 new ProviderHarnessRunReceipt
@@ -223,6 +227,7 @@ public sealed class PublicArtifactSchemaTests
                 Timestamp = DateTimeOffset.Parse("2026-11-04T10:00:00Z")
             }
         };
+        var checksJson = OfficialConformanceContract.SerializeChecks(checks);
         var evidence = new OfficialConformanceEvidenceDocument
         {
             Runner = new OfficialConformanceRunnerIdentity
@@ -257,8 +262,8 @@ public sealed class PublicArtifactSchemaTests
                 new OfficialConformanceScenarioRecord
                 {
                     ScenarioId = "server-initialize",
-                    ChecksSha256 = OfficialConformanceContract.ComputeChecksSha256(checks),
-                    Checks = checks
+                    ChecksSha256 = OfficialConformanceContract.ComputeChecksSha256(checksJson),
+                    ChecksBase64 = Convert.ToBase64String(checksJson)
                 }
             ]
         };

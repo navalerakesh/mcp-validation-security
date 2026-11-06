@@ -67,39 +67,14 @@
   "$defs": {
     "scenario": {
       "type": "object",
-      "required": ["scenarioId", "scoringDisposition", "checksSha256", "checks"],
+      "required": ["scenarioId", "scoringDisposition", "checksSha256", "checksBase64"],
       "properties": {
         "scenarioId": { "type": "string", "minLength": 1, "maxLength": 4096 },
         "extensionId": { "type": ["string", "null"], "maxLength": 4096 },
         "scoringDisposition": { "enum": ["required", "notScored"] },
         "notScoredReason": { "type": ["string", "null"], "maxLength": 4096 },
         "checksSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
-        "checks": { "type": "array", "maxItems": 8192, "items": { "$ref": "#/$defs/check" } }
-      },
-      "additionalProperties": false
-    },
-    "check": {
-      "type": "object",
-      "required": ["id", "name", "description", "status", "timestamp", "specReferences"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "name": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "description": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "status": { "enum": ["success", "failure", "warning", "skipped", "info"] },
-        "timestamp": { "type": "string", "format": "date-time" },
-        "specReferences": { "type": "array", "items": { "$ref": "#/$defs/specReference" } },
-        "details": {},
-        "metadata": {},
-        "errorMessage": { "type": ["string", "null"], "maxLength": 65536 }
-      },
-      "additionalProperties": false
-    },
-    "specReference": {
-      "type": "object",
-      "required": ["id"],
-      "properties": {
-        "id": { "type": "string", "minLength": 1, "maxLength": 4096 },
-        "url": { "type": ["string", "null"], "maxLength": 4096 }
+        "checksBase64": { "type": "string", "contentEncoding": "base64", "maxLength": 22369624 }
       },
       "additionalProperties": false
     }

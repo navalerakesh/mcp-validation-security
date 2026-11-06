@@ -276,8 +276,11 @@ public class ConsoleOutputService : IConsoleOutputService
         WriteInfo($"Format: {format.ToUpper()}");
         WriteInfo($"Validation ID: {validationResult.ValidationId}");
         WriteInfo($"Server: {validationResult.ServerConfig.Endpoint}");
-        WriteInfo($"Overall Status: {validationResult.OverallStatus}");
-        WriteInfo($"Compliance Score: {validationResult.ComplianceScore:F1}%");
+        WriteInfo($"Certificate Eligibility: {validationResult.Assurance.CertificateEligibility.Status}");
+        WriteInfo($"Core Conformance: {validationResult.Assurance.Assessments.CoreConformance.Status}");
+        WriteInfo($"Security Assurance: {validationResult.Assurance.Assessments.SecurityAssurance.Status}");
+        WriteInfo($"Operational Readiness: {validationResult.Assurance.Assessments.OperationalReadiness.Status}");
+        WriteInfo($"Evidence: {validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio:P1} coverage / {validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio:P1} confidence");
         Console.WriteLine();
         Console.Write("Generating report... ");
     }

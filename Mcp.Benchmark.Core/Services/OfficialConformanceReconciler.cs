@@ -6,19 +6,20 @@ public static class OfficialConformanceReconciler
 {
     public static OfficialConformanceReconciliationResult Reconcile(
         OfficialConformanceAssessment assessment,
-        VerdictAssessment? nativeVerdict)
+        IReadOnlyList<AssuranceClaim>? nativeClaims)
     {
         ArgumentNullException.ThrowIfNull(assessment);
-        if (nativeVerdict == null)
+        if (nativeClaims == null)
         {
             return OfficialConformanceReconciliationResult.Empty;
         }
 
-        var nativeFailures = nativeVerdict.TriggeredDecisions
-            .Where(decision => decision.Gate is GateOutcome.ReviewRequired or GateOutcome.Reject)
-            .Where(decision => !string.IsNullOrWhiteSpace(decision.RuleId))
-            .GroupBy(decision => decision.RuleId!, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+        var nativeFailures = nativeClaims
+            .Where(claim => claim.Outcome is AssuranceClaimOutcome.ReviewRequired or AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error)
+            .Select(claim => (Claim: claim, RuleId: claim.Metadata.GetValueOrDefault("ruleId")))
+            .Where(item => !string.IsNullOrWhiteSpace(item.RuleId))
+            .GroupBy(item => item.RuleId!, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.First().Claim, StringComparer.Ordinal);
         var conflicts = new List<OfficialConformanceConflict>();
         var decisions = new List<DecisionRecord>();
 
@@ -33,7 +34,7 @@ public static class OfficialConformanceReconciler
 
                 var officialEvidenceId = $"official-conformance/{scenario.ScenarioId}/{check.Id}";
                 var conflictId = $"evidence-conflict/{scenario.ScenarioId}/{check.Id}";
-                var relatedEvidence = nativeFailure.RelatedEvidenceIds
+                var relatedEvidence = nativeFailure.EvidenceIds
                     .Append(officialEvidenceId)
                     .Distinct(StringComparer.Ordinal)
                     .OrderBy(value => value, StringComparer.Ordinal)
@@ -42,7 +43,7 @@ public static class OfficialConformanceReconciler
                 {
                     ConflictId = conflictId,
                     Component = scenario.ScenarioId,
-                    Summary = $"Official check '{check.Id}' succeeded while native rule '{nativeFailure.RuleId}' requires review or rejection.",
+                    Summary = $"Official check '{check.Id}' succeeded while native claim '{nativeFailure.ClaimId}' requires review or rejection.",
                     EvidenceIds = relatedEvidence
                 });
                 decisions.Add(new DecisionRecord
@@ -64,7 +65,7 @@ public static class OfficialConformanceReconciler
                     Metadata = new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         ["officialCheckId"] = check.Id,
-                        ["nativeDecisionId"] = nativeFailure.DecisionId
+                        ["nativeClaimId"] = nativeFailure.ClaimId
                     }
                 });
             }

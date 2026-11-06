@@ -70,6 +70,15 @@ inputs:
   conformance-results:
     description: Optional pinned official conformance evidence wrapper JSON.
     required: false
+  provider-harness:
+    description: Signed provider harness manifest JSON. Required for active provider assurance.
+    required: false
+  provider-authorization-key:
+    description: Operator-trusted provider authorization public key PEM. Required for active provider assurance.
+    required: false
+  attestation-private-key:
+    description: P-256 private key PEM used to sign the final assurance result. Store as a protected secret.
+    required: false
   extensions:
     description: Optional comma-separated MCP extension IDs to assess.
     required: false
@@ -165,6 +174,9 @@ runs:
         INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
         INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_CONFORMANCE_RESULTS: ${{ inputs.conformance-results }}
+        INPUT_PROVIDER_HARNESS: ${{ inputs.provider-harness }}
+        INPUT_PROVIDER_AUTHORIZATION_KEY: ${{ inputs.provider-authorization-key }}
+        MCPVAL_ATTESTATION_PRIVATE_KEY_PEM: ${{ inputs.attestation-private-key }}
         INPUT_EXTENSIONS: ${{ inputs.extensions }}
         INPUT_MODE: ${{ inputs.mode }}
         INPUT_CONFIRM_ELEVATED_RISK: ${{ inputs.confirm-elevated-risk }}
@@ -178,6 +190,9 @@ runs:
 
         if [[ -n "$MCPVAL_TOKEN" ]]; then
           echo "::add-mask::$MCPVAL_TOKEN"
+        fi
+        if [[ -n "$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" ]]; then
+          echo "::add-mask::$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM"
         fi
 
         if [[ -z "$INPUT_SERVER" && -z "$INPUT_CONFIG_FILE" ]]; then
@@ -225,6 +240,16 @@ runs:
 
         if [[ -n "$INPUT_CONFORMANCE_RESULTS" ]]; then
           cmd+=(--conformance-results "$INPUT_CONFORMANCE_RESULTS")
+        fi
+
+        if [[ "$INPUT_ASSURANCE" == "provider" && "$INPUT_DRY_RUN" != "true" ]]; then
+          if [[ -z "$INPUT_PROVIDER_HARNESS" || -z "$INPUT_PROVIDER_AUTHORIZATION_KEY" || -z "$INPUT_CONFORMANCE_RESULTS" || -z "$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" ]]; then
+            echo "Active provider assurance requires provider-harness, provider-authorization-key, conformance-results, and attestation-private-key." >&2
+            exit 1
+          fi
+          cmd+=(--provider-harness "$INPUT_PROVIDER_HARNESS")
+          cmd+=(--provider-authorization-key "$INPUT_PROVIDER_AUTHORIZATION_KEY")
+          cmd+=(--sign-attestation)
         fi
 
         if [[ "$INPUT_MODE" != "safe" && "$INPUT_MODE" != "standard" && "$INPUT_MODE" != "elevated" ]]; then

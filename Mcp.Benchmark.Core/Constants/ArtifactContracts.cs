@@ -7,7 +7,7 @@ public static class ArtifactContracts
     public const string AuditManifestSchemaVersion = "2.0.0";
     public const string ClientProfileSummarySchemaVersion = "2.0.0";
     public const string OfficialConformanceEvidenceSchemaVersion = "1.0.0";
-    public const string ProviderHarnessSchemaVersion = "1.0.0";
+    public const string ProviderHarnessSchemaVersion = "2.0.0";
     public const string ValidationResultDocumentType = "mcpval.assurance-result";
     public const string AuditManifestDocumentType = "mcpval.audit-manifest";
     public const string ClientProfileSummaryDocumentType = "mcpval.client-profile-summary";

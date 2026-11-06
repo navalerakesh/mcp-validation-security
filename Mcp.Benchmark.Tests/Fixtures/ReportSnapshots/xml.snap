@@ -12,8 +12,8 @@
     <Profile>provider</Profile>
     <CertificateEligibility>Ineligible</CertificateEligibility>
     <CoreConformance>Nonconformant</CoreConformance>
-    <SecurityAssurance>Incomplete</SecurityAssurance>
-    <OperationalReadiness>NotReady</OperationalReadiness>
+    <SecurityAssurance>IssuesFound</SecurityAssurance>
+    <OperationalReadiness>Ready</OperationalReadiness>
     <EvidenceCoverageRatio>0.8750</EvidenceCoverageRatio>
     <EvidenceConfidenceRatio>0.9188</EvidenceConfidenceRatio>
     <DurationSeconds>12.0</DurationSeconds>
@@ -21,8 +21,7 @@
     <EndTime>2026-04-20T10:00:12Z</EndTime>
     <EligibilityReasons>
       <Reason>Core conformance is Nonconformant.</Reason>
-      <Reason>Security assurance is Incomplete.</Reason>
-      <Reason>Operational readiness is NotReady.</Reason>
+      <Reason>Security assurance is IssuesFound.</Reason>
       <Reason>Evidence coverage 87.5% is below 90.0%.</Reason>
       <Reason>Verified official conformance evidence is required.</Reason>
       <Reason>A verified signed attestation is required.</Reason>
@@ -34,11 +33,11 @@
         <Subject>github-copilot-cli,github-copilot-cloud-agent</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
-      <Claim id="coverage:error-handling:error-handling" dimension="Operations" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:error-handling:error-handling" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None">
         <Subject>error-handling</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
-      <Claim id="coverage:error-handling:error-handling-matrix" dimension="Operations" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:error-handling:error-handling-matrix" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None">
         <Subject>error-handling-matrix</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
@@ -50,7 +49,7 @@
         <Subject>json-rpc</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
-      <Claim id="coverage:security-boundaries:security-authentication-challenge" dimension="Security" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:security-boundaries:security-authentication-challenge" dimension="Security" authority="ProviderPolicy" requirementLevel="SecurityControl" outcome="Satisfied" confidence="None">
         <Subject>security-authentication-challenge</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
@@ -62,40 +61,27 @@
         <Subject>tools/list</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
       </Claim>
-      <Claim id="decision:baseline:boundary:promptinjection:prompt-get:prompt-output-includes-reflected-untrusted-content" dimension="Security" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
-        <Subject>prompt:get</Subject>
-        <Summary>Prompt output includes reflected untrusted content.</Summary>
-        <Remediation>Sanitize or clearly label untrusted data.</Remediation>
-      </Claim>
-      <Claim id="decision:baseline:execution:prompt-validation-hit-an-unsafe-reflection-path" dimension="Operations" authority="OperationalMeasurement" requirementLevel="OperationalObjective" outcome="Violated" confidence="High">
-        <Subject>validation-run</Subject>
-        <Summary>Critical execution error recorded: Prompt validation hit an unsafe reflection path.</Summary>
-      </Claim>
-      <Claim id="decision:baseline:finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+      <Claim id="finding:ai-tool-schema-parameter-description-missing:delete-repo" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
         <Subject>delete_repo</Subject>
         <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
       </Claim>
-      <Claim id="decision:baseline:finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+      <Claim id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" dimension="CapabilityContract" authority="ProviderPolicy" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
         <Subject>delete_repo</Subject>
         <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
       </Claim>
-      <Claim id="decision:baseline:finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object" dimension="CapabilityContract" authority="OfficialSpecification" requirementLevel="Should" outcome="ReviewRequired" confidence="High">
+      <Claim id="finding:mcp-tool-call-result-object-missing:tools-call" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Should" outcome="ReviewRequired" confidence="High">
         <Subject>tools/call</Subject>
         <Summary>One tool response omitted the outer result object.</Summary>
       </Claim>
-      <Claim id="decision:baseline:protocol:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version" dimension="CapabilityContract" authority="OfficialSpecification" requirementLevel="Must" outcome="Violated" confidence="High">
+      <Claim id="protocol:mcp-init-version-negotiation" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Must" outcome="Violated" confidence="High">
         <Subject>Initialization</Subject>
         <Summary>Server ignored the requested MCP protocol version.</Summary>
         <Remediation>Echo the negotiated protocol version in initialize.result.</Remediation>
       </Claim>
-      <Claim id="decision:baseline:security:mcp-security-prompt-injection:prompt-get" dimension="Operations" authority="OperationalMeasurement" requirementLevel="OperationalObjective" outcome="Violated" confidence="High">
+      <Claim id="vulnerability:mcp-security-prompt-injection:prompt-get" dimension="Security" authority="DeterministicSecurity" requirementLevel="SecurityControl" outcome="Violated" confidence="High">
         <Subject>prompt:get</Subject>
         <Summary>Server reflected untrusted prompt content without sanitization.</Summary>
         <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
-      </Claim>
-      <Claim id="decision:coverage:prompt-surface:prompts-list:Skipped" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Incomplete" confidence="High">
-        <Subject>prompt-surface</Subject>
-        <Summary>Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.</Summary>
       </Claim>
     </Claims>
   </Assurance>

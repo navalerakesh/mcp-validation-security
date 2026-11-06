@@ -6,6 +6,7 @@ This directory contains the durable product, architecture, and contributor docum
 
 | Document | Purpose |
 | --- | --- |
+| [OrganizationGradeConfidence.md](OrganizationGradeConfidence.md) | Current organization-grade confidence scope, evidence chain, reproducible proof, and explicit limits |
 | [../README.md](../README.md) | Product overview, installation options, command summary, and package links |
 | [../QUICKSTART.md](../QUICKSTART.md) | Fast path from installation to the first validation run |
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
