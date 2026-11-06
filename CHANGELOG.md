@@ -53,6 +53,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Offline HTML rendering now displays the canonical persisted MCP schema version instead of a renderer-default profile.
 - The local MCP wrapper now preserves numeric V2 exits for CLI outcomes and maps wrapper launch failures and timeouts to stable runtime exits.
 - Canonical assurance threshold reasons now use culture-invariant percentage formatting so report snapshots remain byte-stable across operating systems and CI runners.
+- Local and GitHub build gates now share one benchmark-catalog contract using the V2 `AssuranceReduction` workload name.
 
 ## 1.1.33 - 2026-08-23
 

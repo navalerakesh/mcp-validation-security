@@ -146,6 +146,9 @@ if $run_dotnet; then
   echo "==> Running .NET tests ($configuration)"
   dotnet test ./mcp-benchmark-validation.sln --configuration "$configuration" --no-build
 
+  echo "==> Validating benchmark contracts"
+  scripts/validate-benchmark-contracts.sh
+
   if $run_audits; then
     echo "==> Running NuGet audit"
     run_nuget_audit
