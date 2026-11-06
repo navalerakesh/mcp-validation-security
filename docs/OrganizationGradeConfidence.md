@@ -76,15 +76,15 @@ Observed on macOS arm64 with .NET SDK `8.0.419`, .NET runtime `8.0.25`, Node.js 
 | Evidence | Observed result |
 | --- | --- |
 | Debug build | 0 warnings, 0 errors |
-| .NET suite | 1,036 passed, 0 failed, 0 skipped |
+| .NET suite | 1,037 passed, 0 failed, 0 skipped |
 | Companion Node tests | 3 passed, 0 failed |
 | npm wrapper tests | 18 passed, 0 failed |
 | Local MCP wrapper | Actual CLI safe self-validation: 3 tools, 1 resource, 1 prompt; 12 satisfied, 8 incomplete, 2 review-required, 0 violated claims; no tool metadata findings or persisted raw content |
 | Dependency audits | 0 npm vulnerabilities; no high/critical NuGet vulnerabilities |
-| Mutation | 92.90%, 432 killed, 30 survived, 3 no coverage, 0 timeouts; 90% break threshold passed |
+| Mutation | 92.95%, 435 killed, 30 survived, 3 no coverage, 0 timeouts; 90% break threshold passed |
 | Parallel/soak proof | 50 isolated parallel plans/reductions, 25 deterministic parallel renders, 1,000 harness reductions |
 | Browser/accessibility | 992 semantic text samples, 0 WCAG AA contrast violations, 0 console errors, 0 unsafe anchors/scripts/ARIA gaps, desktop/mobile overflow contained |
-| Markdown/docs | 43 files linted with 0 errors; 118 links checked, 108 OK, 5 excluded, 5 redirects, 0 errors |
+| Markdown/docs | 44 files linted with 0 errors; 122 links checked, 112 OK, 5 excluded, 5 redirects, 0 errors |
 | GitHub Action | Digest-pinned actionlint `1.7.7` passed |
 | npm package | Typecheck/build/audit passed; 26 files, 21.9 kB packed, 88.7 kB unpacked |
 | NuGet tool | `McpVal.2.0.0.nupkg`, 4,689,329 bytes; clean local-tool install and version smoke passed |

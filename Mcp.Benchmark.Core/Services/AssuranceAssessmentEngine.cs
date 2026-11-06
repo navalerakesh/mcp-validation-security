@@ -1,3 +1,4 @@
+using System.Globalization;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 
@@ -204,8 +205,8 @@ public static class AssuranceAssessmentEngine
         if (assessments.CoreConformance.Status != CoreConformanceStatus.Conformant) reasons.Add($"Core conformance is {assessments.CoreConformance.Status}.");
         if (assessments.SecurityAssurance.Status != SecurityAssuranceStatus.Verified) reasons.Add($"Security assurance is {assessments.SecurityAssurance.Status}.");
         if (assessments.OperationalReadiness.Status != OperationalReadinessStatus.Ready) reasons.Add($"Operational readiness is {assessments.OperationalReadiness.Status}.");
-        if (evidenceSummary.EvidenceCoverageRatio < profile.MinimumEvidenceCoverageRatio) reasons.Add($"Evidence coverage {evidenceSummary.EvidenceCoverageRatio:P1} is below {profile.MinimumEvidenceCoverageRatio:P1}.");
-        if (evidenceSummary.EvidenceConfidenceRatio < profile.MinimumEvidenceConfidenceRatio) reasons.Add($"Evidence confidence {evidenceSummary.EvidenceConfidenceRatio:P1} is below {profile.MinimumEvidenceConfidenceRatio:P1}.");
+        if (evidenceSummary.EvidenceCoverageRatio < profile.MinimumEvidenceCoverageRatio) reasons.Add($"Evidence coverage {FormatPercentage(evidenceSummary.EvidenceCoverageRatio)} is below {FormatPercentage(profile.MinimumEvidenceCoverageRatio)}.");
+        if (evidenceSummary.EvidenceConfidenceRatio < profile.MinimumEvidenceConfidenceRatio) reasons.Add($"Evidence confidence {FormatPercentage(evidenceSummary.EvidenceConfidenceRatio)} is below {FormatPercentage(profile.MinimumEvidenceConfidenceRatio)}.");
         if (profile.RequiresOfficialConformance && result.Assessments.OfficialConformance?.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
             reasons.Add("Verified official conformance evidence is required.");
         if (result.Assessments.OfficialConformance?.VerificationStatus == OfficialConformanceVerificationStatus.Conflict ||
@@ -239,7 +240,7 @@ public static class AssuranceAssessmentEngine
             reasons.Add("A verified provider harness receipt with target-bound authorization is required.");
         var repeatedRunConsistency = context.ProviderHarness?.RepeatedRunConsistency ?? context.RepeatedRunConsistency;
         if (profile.RequiresRepeatedRuns && (!repeatedRunConsistency.HasValue || repeatedRunConsistency < profile.MinimumRepeatedRunConsistency))
-            reasons.Add($"Repeated-run consistency of at least {profile.MinimumRepeatedRunConsistency:P1} is required.");
+            reasons.Add($"Repeated-run consistency of at least {FormatPercentage(profile.MinimumRepeatedRunConsistency)} is required.");
 
         var deterministicFailure = assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant ||
             assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound ||
@@ -263,4 +264,7 @@ public static class AssuranceAssessmentEngine
             EvidenceConfidenceRatio = evidenceSummary.EvidenceConfidenceRatio
         };
     }
+
+    private static string FormatPercentage(double value) =>
+        $"{(value * 100).ToString("F1", CultureInfo.InvariantCulture)}%";
 }

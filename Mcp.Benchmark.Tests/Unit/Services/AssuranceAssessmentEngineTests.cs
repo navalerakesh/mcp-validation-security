@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
@@ -500,6 +501,40 @@ public sealed class AssuranceAssessmentEngineTests
         evaluation.CertificateEligibility.Status.Should().Be(CertificateEligibilityStatus.ReviewRequired);
         evaluation.CertificateEligibility.Reasons.Should().Contain(reason => reason.StartsWith("Evidence coverage", StringComparison.Ordinal));
         evaluation.CertificateEligibility.Reasons.Should().Contain(reason => reason.StartsWith("Evidence confidence", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Evaluate_CertificateReasons_ShouldBeCultureInvariant()
+    {
+        var result = CreateCompleteResult();
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "resource-catalog",
+            Scope = "resources/list",
+            Status = ValidationCoverageStatus.Inconclusive,
+            ObservedOutcome = ValidationOutcome.Inconclusive,
+            Lane = EvaluationLane.Baseline,
+            Confidence = EvidenceConfidenceLevel.Low
+        });
+        var profile = CertificateProfile(minimumCoverage: 1, minimumConfidence: 1);
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("fr-FR");
+
+            var evaluation = AssuranceAssessmentEngine.Evaluate(result, profile, new AssuranceEvaluationContext
+            {
+                ExecutionMode = ExecutionMode.Standard
+            });
+
+            evaluation.CertificateEligibility.Reasons.Should().Contain("Evidence coverage 75.0% is below 100.0%.");
+            evaluation.CertificateEligibility.Reasons.Should().Contain("Evidence confidence 83.8% is below 100.0%.");
+            evaluation.CertificateEligibility.Reasons.Should().OnlyContain(reason => !reason.Contains(" %", StringComparison.Ordinal));
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
     }
 
     [Fact]
