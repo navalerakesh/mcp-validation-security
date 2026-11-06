@@ -16,6 +16,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 - Removed the dormant V1 trust calculator, verdict engine, duplicate decision manifest, policy branch, report fallbacks, and calibration corpus so V2 claims and independent assessments are the only decision pipeline.
 - Provider assurance, baselines, policy, console output, reports, audit identities, and exit codes now consume the final V2 assurance state after external evidence and current-run receipts are attached.
+- HTML reports now lead with tested scope and the assurance interpretation, use neutral surfaces with semantic status rails, keep run metadata secondary on mobile, and move terminology into a collapsed reference appendix.
 
 ### Fixed
 
@@ -25,6 +26,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Safe-mode reports now distinguish catalog validation from tool invocation, resource reads, and prompt execution; omitted tool annotations retain their MCP-defined defaults, and coverage exclusions remain provider-policy evidence rather than specification failures.
 - GitHub Copilot Cloud Agent compatibility now treats missing explicit destructive hints as an advisory because MCP defaults omitted write-tool hints to destructive and GitHub does not document explicit hints as an admission requirement.
 - AI-readiness enum and format advisories now derive schema intent from parameter names and titles instead of incidental words in free-form descriptions.
+- Offline HTML rendering now displays the canonical persisted MCP schema version instead of a renderer-default profile.
 
 ## 2.0.0 - 2026-11-05
 

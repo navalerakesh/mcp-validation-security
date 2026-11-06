@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 
@@ -59,9 +60,11 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static ValidationHtmlHero BuildHero(ValidationResult result, ReportingConfig reportConfig)
     {
         var releaseTone = ResolveReleaseTone(result);
+        var inventoryProfile = string.Equals(result.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
         var title = result.Assurance.CertificateEligibility.Status switch
         {
             CertificateEligibilityStatus.Eligible => "Provider Certificate Eligible",
+            CertificateEligibilityStatus.Ineligible when inventoryProfile => "Inventory Assessment Complete",
             CertificateEligibilityStatus.Ineligible => "Assurance Requirements Not Met",
             _ => "Assurance Review Required"
         };
@@ -72,6 +75,10 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var duration = result.Duration?.TotalSeconds > 0
             ? $"{result.Duration.Value.TotalSeconds:F1}s"
             : "Not available";
+        // Persisted run evidence is authoritative. The report option is only a fallback for legacy artifacts.
+        var schemaVersion = result.Run.SchemaVersion
+            ?? result.Run.ApplicabilityContext?.SchemaVersion
+            ?? (string.IsNullOrWhiteSpace(reportConfig.SpecProfile) ? "latest" : reportConfig.SpecProfile);
 
         return new ValidationHtmlHero
         {
@@ -90,7 +97,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
                 new() { Label = "Validation Identifier", Value = result.ValidationId },
                 new() { Label = "Duration", Value = duration },
-                new() { Label = "MCP Specification Profile", Value = string.IsNullOrWhiteSpace(reportConfig.SpecProfile) ? "latest" : reportConfig.SpecProfile },
+                new() { Label = "MCP Specification Profile", Value = schemaVersion },
                 new() { Label = "Server Profile", Value = $"{result.ServerProfile} ({result.ServerProfileSource})" },
                 new() { Label = "Protocol Version", Value = protocolVersion }
             }
@@ -102,6 +109,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var assurance = result.Assurance;
         var exitCode = AssuranceExitCodeMapper.Map(assurance, result.PolicyOutcome);
         var eligible = assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Eligible;
+        var inventoryProfile = string.Equals(assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
         var assuranceHighlights = assurance.CertificateEligibility.Reasons.Take(4).ToList();
         if (result.PolicyOutcome?.AppliedWaivers.Count > 0)
         {
@@ -110,7 +118,11 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return new ValidationHtmlReleaseDecision
         {
             Eyebrow = "Assurance Decision",
-            Title = eligible ? "Selected assurance profile satisfied" : "Selected assurance profile is not satisfied",
+            Title = eligible
+                ? "Selected assurance profile satisfied"
+                : inventoryProfile
+                    ? "Inventory completed with assurance evidence gaps"
+                    : "Selected assurance profile is not satisfied",
             Summary = assurance.CertificateEligibility.Reasons.Count == 0
                 ? "All requirements for the selected assurance profile are satisfied."
                 : string.Join(" ", assurance.CertificateEligibility.Reasons.Take(3)),
@@ -118,7 +130,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Highlights = assuranceHighlights,
             PolicyModeLabel = assurance.Profile.ProfileId,
             ExitCodeLabel = exitCode.ToString(),
-            VerdictLabel = assurance.CertificateEligibility.Status.ToString(),
+            VerdictLabel = inventoryProfile && !eligible ? "Not issued" : assurance.CertificateEligibility.Status.ToString(),
             TotalSignalCount = assurance.Claims.Count,
             UnsuppressedSignalCount = assurance.Claims.Count(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)),
             BlockingSignalCount = assurance.Claims.Count(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error),
@@ -129,13 +141,16 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildOverviewMetrics(ValidationResult result)
     {
         var assurance = result.Assurance;
+        var inventoryProfile = string.Equals(assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
         var cards = new List<ValidationHtmlMetricCard>
         {
             new()
             {
                 Eyebrow = "Certificate",
-                Value = assurance.CertificateEligibility.Status.ToString(),
-                Label = "Eligibility",
+                Value = inventoryProfile && assurance.CertificateEligibility.Status != CertificateEligibilityStatus.Eligible
+                    ? "Not issued"
+                    : assurance.CertificateEligibility.Status.ToString(),
+                Label = "Certificate Outcome",
                 SupportingText = $"Profile: {assurance.Profile.ProfileId}",
                 Tone = ResolveReleaseTone(result)
             },
@@ -605,11 +620,23 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static string ResolveReleaseStatusLabel(ValidationResult result)
     {
+        if (result.Assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Ineligible &&
+            string.Equals(result.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            return "Not issued by inventory profile";
+        }
+
         return result.Assurance.CertificateEligibility.Status.ToString();
     }
 
     private static HtmlReportTone ResolveReleaseTone(ValidationResult result)
     {
+        if (result.Assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Ineligible &&
+            string.Equals(result.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase))
+        {
+            return HtmlReportTone.Warning;
+        }
+
         return result.Assurance.CertificateEligibility.Status switch
         {
             CertificateEligibilityStatus.Eligible => HtmlReportTone.Success,

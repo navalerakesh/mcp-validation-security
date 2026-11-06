@@ -8,7 +8,7 @@
     <style>
 :root {
     color-scheme: light;
-    --report-bg: #dde4eb;
+    --report-bg: #eef1f4;
     --report-bg-glow-a: rgba(54, 95, 161, 0.08);
     --report-bg-glow-b: rgba(168, 93, 25, 0.08);
     --report-bg-glow-c: rgba(15, 23, 38, 0.05);
@@ -22,11 +22,11 @@
     --text-strong: #101827;
     --text-muted: #4f5e72;
     --text-soft: #526176;
-    --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
-    --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
-    --radius-shell: 22px;
-    --radius-panel: 16px;
-    --radius-card: 14px;
+    --shadow-soft: 0 4px 14px rgba(15, 23, 38, 0.05);
+    --shadow-panel: 0 12px 30px rgba(15, 23, 38, 0.07);
+    --radius-shell: 12px;
+    --radius-panel: 8px;
+    --radius-card: 8px;
     --tone-success: #1f6a52;
     --tone-success-soft: #eef6f1;
     --tone-success-line: #8fbca5;
@@ -47,11 +47,7 @@
 html, body { margin: 0; padding: 0; }
 body {
     font-family: "Aptos", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    background:
-        radial-gradient(circle at top left, var(--report-bg-glow-a), transparent 34%),
-        radial-gradient(circle at top right, var(--report-bg-glow-b), transparent 30%),
-        radial-gradient(circle at 50% 18%, var(--report-bg-glow-c), transparent 38%),
-        var(--report-bg);
+    background: var(--report-bg);
     color: var(--text);
     padding: 24px;
 }
@@ -69,9 +65,9 @@ body {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
-    height: 6px;
-    background: linear-gradient(90deg, var(--tone-danger), var(--tone-warning), var(--tone-info));
-    opacity: 0.2;
+    height: 3px;
+    background: var(--tone-info);
+    opacity: 0.55;
     pointer-events: none;
 }
 .report-content {
@@ -82,7 +78,7 @@ body {
 .hero {
     border-radius: calc(var(--radius-shell) - 4px);
     padding: 28px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+    background: var(--surface-strong);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-soft);
 }
@@ -92,8 +88,9 @@ body {
     gap: 20px;
     align-items: start;
 }
-.hero-main {
+.hero-heading {
     min-width: 0;
+    grid-column: 1;
 }
 .eyebrow {
     font-size: 0.74rem;
@@ -116,6 +113,51 @@ body {
     font-size: 1rem;
     line-height: 1.58;
 }
+.scope-rail {
+    margin-top: 18px;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+.scope-rail__title {
+    margin-bottom: 9px;
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.scope-rail__items {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 14px;
+}
+.scope-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2px 8px;
+    align-items: center;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.scope-item strong {
+    grid-column: 2;
+    color: var(--text-strong);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+.scope-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    grid-row: 1 / span 2;
+    background: var(--tone-neutral);
+}
+.scope-dot--success { background: var(--tone-success); }
+.scope-dot--warning { background: var(--tone-warning); }
+.scope-dot--danger { background: var(--tone-danger); }
+.scope-dot--info { background: var(--tone-info); }
 .hero-facts,
 .fact-grid {
     margin-top: 20px;
@@ -175,6 +217,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
 }
 .hero-side .status-panel {
     padding: 16px;
@@ -805,17 +849,17 @@ body {
     gap: 10px;
     justify-self: start;
     margin-top: 2px;
-    padding: 8px 12px;
-    border: 1px solid rgba(54, 95, 161, 0.22);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.92);
-    box-shadow: 0 6px 16px rgba(15, 23, 38, 0.08);
-    color: var(--text-strong);
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--tone-info);
 }
 .section-card__summary:hover .section-card__toggle-row,
 .section-card__summary:focus-visible .section-card__toggle-row {
-    border-color: rgba(54, 95, 161, 0.4);
-    background: rgba(255,255,255,0.98);
+    color: var(--text-strong);
+    background: transparent;
 }
 .section-card__toggle-label {
     font-size: 0.76rem;
@@ -1527,6 +1571,72 @@ a:hover {
     font-size: 0.84rem;
     text-align: center;
 }
+
+/* Keep report surfaces neutral; reserve semantic color for status chips, dots, and rails. */
+.panel--tone-success,
+.panel--tone-warning,
+.panel--tone-danger,
+.panel--tone-info,
+.panel--tone-neutral,
+.report-note--success,
+.report-note--warning,
+.report-note--danger,
+.report-note--info,
+.report-note--neutral,
+.status-callout--warning,
+.status-callout--info,
+.ledger-entry--success,
+.ledger-entry--warning,
+.ledger-entry--danger,
+.ledger-entry--info,
+.ledger-entry--neutral,
+.probe-row--success,
+.probe-row--warning,
+.probe-row--danger,
+.probe-row--info,
+.probe-row--neutral,
+.auth-scenario--success,
+.auth-scenario--warning,
+.auth-scenario--danger,
+.auth-scenario--info,
+.auth-scenario--neutral,
+.score-pill--success,
+.score-pill--warning,
+.score-pill--danger,
+.score-pill--info,
+.score-pill--neutral,
+.metric-card--success,
+.metric-card--warning,
+.metric-card--danger,
+.metric-card--info,
+.metric-card--neutral,
+.section-card--tone-success,
+.section-card--tone-warning,
+.section-card--tone-danger,
+.section-card--tone-info,
+.section-card--tone-neutral,
+.section-abstract--success,
+.section-abstract--warning,
+.section-abstract--danger,
+.section-abstract--info,
+.section-abstract--neutral,
+.distribution-card--success,
+.distribution-card--warning,
+.distribution-card--danger,
+.distribution-card--info,
+.distribution-card--neutral,
+.authority-card--success,
+.authority-card--warning,
+.authority-card--danger,
+.authority-card--info,
+.authority-card--neutral {
+    background: var(--surface-strong);
+}
+.panel--tone-success, .section-card--tone-success, .section-abstract--success { border-left: 4px solid var(--tone-success); }
+.panel--tone-warning, .section-card--tone-warning, .section-abstract--warning { border-left: 4px solid var(--tone-warning); }
+.panel--tone-danger, .section-card--tone-danger, .section-abstract--danger { border-left: 4px solid var(--tone-danger); }
+.panel--tone-info, .section-card--tone-info, .section-abstract--info { border-left: 4px solid var(--tone-info); }
+.panel--tone-neutral, .section-card--tone-neutral, .section-abstract--neutral { border-left: 4px solid var(--tone-neutral-line); }
 @media (max-width: 1100px) {
     body { padding: 18px; }
     .report-content { padding: 18px; }
@@ -1537,6 +1647,12 @@ a:hover {
     .brief-grid,
     .appendix-grid {
         grid-template-columns: 1fr;
+    }
+    .hero-heading,
+    .hero-side,
+    .hero-facts {
+        grid-column: 1;
+        grid-row: auto;
     }
     .stack-grid {
         align-items: start;
@@ -1625,7 +1741,7 @@ a:hover {
         line-height: 1.55;
     }
     .hero-grid,
-    .hero-main,
+    .hero-heading,
     .hero-side,
     .brief-grid,
     .dual-grid,
@@ -1637,6 +1753,9 @@ a:hover {
         width: 100%;
         max-width: 100%;
         min-width: 0;
+    }
+    .scope-rail__items {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .status-chip,
     .tone-chip {
@@ -1860,10 +1979,40 @@ a:hover {
     <div class="report-content">
       <section class="hero">
         <div class="hero-grid">
-          <div class="hero-main">
+          <div class="hero-heading">
             <div class="eyebrow">Model Context Protocol (MCP) Assurance Report</div>
             <h1 class="hero-title">Assurance Requirements Not Met</h1>
             <p class="hero-subtitle">Core conformance is Nonconformant. Security assurance is IssuesFound.</p>
+            <div class="scope-rail" aria-label="Tested scope">
+              <div class="scope-rail__title">Tested scope</div>
+              <div class="scope-rail__items">
+                <div class="scope-item"><span class="scope-dot scope-dot--info" aria-hidden="true"></span><span class="scope-item__label">Execution mode</span><strong>Safe</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Tool invocation</span><strong>Enabled</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Resource reads</span><strong>Enabled</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Prompt execution</span><strong>Enabled</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--danger" aria-hidden="true"></span><span class="scope-item__label">Security probes</span><strong>Failed</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--success" aria-hidden="true"></span><span class="scope-item__label">Load testing</span><strong>Passed</strong></div>
+              </div>
+            </div>
+
+          </div>
+          <div class="hero-side">
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Certificate Outcome</span>
+    <div class="focus-value">Ineligible</div>
+    <div class="focus-label">Generated on <normalized-timestamp></div>
+</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Core Conformance</span>
+    <div class="focus-value">Nonconformant</div>
+    <div class="focus-label">Official specification and conformance claims</div>
+</div>
+<div class="panel status-panel panel--soft panel--tone-danger">
+    <span class="status-chip status-chip--danger">Security Assurance</span>
+    <div class="focus-value">IssuesFound</div>
+    <div class="focus-label">Operational readiness: Ready</div>
+</div>
+          </div>
             <div class="hero-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Endpoint</div>
@@ -1891,98 +2040,16 @@ a:hover {
               </div>
             </div>
 
-          </div>
-          <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Certificate Eligibility</span>
-    <div class="focus-value">Ineligible</div>
-    <div class="focus-label">Generated on <normalized-timestamp></div>
-</div>
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Core Conformance</span>
-    <div class="focus-value">Nonconformant</div>
-    <div class="focus-label">Official specification and conformance claims</div>
-</div>
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Security Assurance</span>
-    <div class="focus-value">IssuesFound</div>
-    <div class="focus-label">Operational readiness: Ready</div>
-</div>
-          </div>
         </div>
       </section>
 
-      <section class="section section-shell reader-key">
-        <div class="section-kicker">Reader Reference</div>
-        <h2 class="section-title">Terms And Abbreviations</h2>
-        <p class="section-intro">Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>
-        <dl class="reader-key-grid">
-          <div class="reader-key-item">
-            <dt>MCP</dt>
-            <dd>Model Context Protocol, the communication protocol evaluated by this report.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>MCP specification profile</dt>
-            <dd>The dated MCP rules and schema version selected for validation.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Priority 1-4</dt>
-            <dd>Remediation dependency order: Priority 1 should be addressed first and Priority 4 later. Priority is not severity.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Certificate eligibility</dt>
-            <dd>A deterministic decision that states whether every requirement of the selected assurance profile is satisfied.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Typed claim</dt>
-            <dd>A conclusion bound to authority, requirement level, applicability, confidence, and immutable evidence references.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Independent assessments</dt>
-            <dd>Core conformance, security assurance, and operational readiness are reduced separately and never averaged into one score.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Authority labels</dt>
-            <dd>Specification means a protocol requirement; Guideline means recommended practice; Heuristic means deterministic advisory analysis; Operational means runtime or infrastructure evidence.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>JSON-RPC / HTTP</dt>
-            <dd>JSON-RPC is JavaScript Object Notation (JSON) for remote procedure call (RPC) messages used by MCP. HTTP is the Hypertext Transfer Protocol used to transport messages in this run.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>RFC 2119: MUST / SHOULD / MAY</dt>
-            <dd>Requirement strength: MUST is required, SHOULD is recommended unless a justified exception exists, and MAY is optional.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>P50 / P95 / P99</dt>
-            <dd>Latency percentiles: 50%, 95%, or 99% of measured requests completed at or below the reported value.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Units and time</dt>
-            <dd>ms means milliseconds, req/s means requests per second, and UTC means Coordinated Universal Time.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>AI / LLM / CLI / UX</dt>
-            <dd>Artificial intelligence; large language model; command-line interface; and user experience.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>VS Code</dt>
-            <dd>Visual Studio Code, a supported client profile named in compatibility results.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Identifiers: ID / UUID</dt>
-            <dd>ID means identifier. UUID means Universally Unique Identifier. Validation and rule identifiers are stable machine references, not scores.</dd>
-          </div>
-        </dl>
-      </section>
-
       <section class="section">
-        <details class="section-card section-card--tone-danger">
+        <details class="section-card section-card--tone-danger" open>
           <summary class="section-card__summary">
             <div class="section-card__summary-main">
               <div class="section-kicker">Executive Summary</div>
-              <h2 class="section-title section-title--card">Release Decision &amp; Reading Path</h2>
-              <p class="section-intro section-intro--card">This section is the authoritative decision surface. It explains whether release should proceed, why that decision was reached, and where to read next.</p>
+              <h2 class="section-title section-title--card">Assurance Decision &amp; Reading Path</h2>
+              <p class="section-intro section-intro--card">This is the authoritative interpretation surface. It explains what the evidence supports, why, and where to read next.</p>
             </div>
             <div class="section-card__abstract">
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Selected assurance profile is not satisfied</div></div>
@@ -2046,6 +2113,44 @@ a:hover {
                 <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">6</div></div>
                 <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
                 <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">2</div></div>
+          </div>
+
+          <div class="distribution-summary">
+            <div class="distribution-summary__title">Assurance claim outcomes</div>
+            <div class="distribution-summary__cards">
+              <div class="distribution-card distribution-card--success">
+                <div class="distribution-card__label">Satisfied</div>
+                <div class="distribution-card__value">7</div>
+                <div class="distribution-card__meta">54% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--warning">
+                <div class="distribution-card__label">Review required</div>
+                <div class="distribution-card__value">3</div>
+                <div class="distribution-card__meta">23% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--neutral">
+                <div class="distribution-card__label">Incomplete</div>
+                <div class="distribution-card__value">1</div>
+                <div class="distribution-card__meta">8% of observed outcomes</div>
+              </div>
+              <div class="distribution-card distribution-card--danger">
+                <div class="distribution-card__label">Violated</div>
+                <div class="distribution-card__value">2</div>
+                <div class="distribution-card__meta">15% of observed outcomes</div>
+              </div>
+            </div>
+            <div class="distribution-bar">
+              <span class="distribution-segment distribution-segment--success" style="flex:7;"></span>
+              <span class="distribution-segment distribution-segment--warning" style="flex:3;"></span>
+              <span class="distribution-segment distribution-segment--neutral" style="flex:1;"></span>
+              <span class="distribution-segment distribution-segment--danger" style="flex:2;"></span>
+            </div>
+            <div class="distribution-legend">
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Satisfied 7 (54%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Review required 3 (23%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--neutral"></span>Incomplete 1 (8%)</span>
+              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Violated 2 (15%)</span>
+            </div>
           </div>
 
           </div>
@@ -2368,7 +2473,7 @@ a:hover {
               <p class="section-intro section-intro--card">Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
             </div>
             <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Eligibility</div><div class="section-abstract__value">Ineligible</div></div>
+              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Certificate Outcome</div><div class="section-abstract__value">Ineligible</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Conformance</div><div class="section-abstract__value">Nonconformant</div></div>
               <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">IssuesFound</div></div>
               <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Readiness</div><div class="section-abstract__value">Ready</div></div>
@@ -2406,7 +2511,7 @@ a:hover {
 
           <div class="score-strip">
             <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Eligibility</div>
+              <div class="score-pill__eyebrow">Certificate Outcome</div>
               <div class="score-pill__value">Ineligible</div>
               <div class="score-pill__meta">Profile: provider</div>
             </div>
@@ -3228,6 +3333,87 @@ a:hover {
         </details>
       </section>
 
+
+      <section class="section">
+        <details class="section-card section-card--tone-neutral">
+          <summary class="section-card__summary">
+            <div class="section-card__summary-main">
+              <div class="section-kicker">Reference Appendix</div>
+              <h2 class="section-title section-title--card">Terms And Abbreviations</h2>
+              <p class="section-intro section-intro--card">Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>
+            </div>
+            <div class="section-card__abstract">
+              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Terms</div><div class="section-abstract__value">14</div></div>
+            </div>
+            <div class="section-card__toggle-row">
+              <span class="section-card__toggle-icon" aria-hidden="true"></span>
+              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
+              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
+            </div>
+          </summary>
+          <div class="section-card__content">
+
+        <dl class="reader-key-grid">
+          <div class="reader-key-item">
+            <dt>MCP</dt>
+            <dd>Model Context Protocol, the communication protocol evaluated by this report.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>MCP specification profile</dt>
+            <dd>The dated MCP rules and schema version selected for validation.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Priority 1-4</dt>
+            <dd>Remediation dependency order: Priority 1 should be addressed first and Priority 4 later. Priority is not severity.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Certificate eligibility</dt>
+            <dd>A deterministic decision that states whether every requirement of the selected assurance profile is satisfied.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Typed claim</dt>
+            <dd>A conclusion bound to authority, requirement level, applicability, confidence, and immutable evidence references.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Independent assessments</dt>
+            <dd>Core conformance, security assurance, and operational readiness are reduced separately and never averaged into one score.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Authority labels</dt>
+            <dd>Specification means a protocol requirement; Guideline means recommended practice; Heuristic means deterministic advisory analysis; Operational means runtime or infrastructure evidence.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>JSON-RPC / HTTP</dt>
+            <dd>JSON-RPC is JavaScript Object Notation (JSON) for remote procedure call (RPC) messages used by MCP. HTTP is the Hypertext Transfer Protocol used to transport messages in this run.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>RFC 2119: MUST / SHOULD / MAY</dt>
+            <dd>Requirement strength: MUST is required, SHOULD is recommended unless a justified exception exists, and MAY is optional.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>P50 / P95 / P99</dt>
+            <dd>Latency percentiles: 50%, 95%, or 99% of measured requests completed at or below the reported value.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Units and time</dt>
+            <dd>ms means milliseconds, req/s means requests per second, and UTC means Coordinated Universal Time.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>AI / LLM / CLI / UX</dt>
+            <dd>Artificial intelligence; large language model; command-line interface; and user experience.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>VS Code</dt>
+            <dd>Visual Studio Code, a supported client profile named in compatibility results.</dd>
+          </div>
+          <div class="reader-key-item">
+            <dt>Identifiers: ID / UUID</dt>
+            <dd>ID means identifier. UUID means Universally Unique Identifier. Validation and rule identifiers are stable machine references, not scores.</dd>
+          </div>
+        </dl>
+          </div>
+        </details>
+      </section>
 
 <div class="producer-signature">
   <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>

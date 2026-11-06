@@ -75,7 +75,7 @@ Observed on macOS arm64 with .NET SDK `8.0.419`, .NET runtime `8.0.25`, Node.js 
 | Evidence | Observed result |
 | --- | --- |
 | Debug build | 0 warnings, 0 errors |
-| .NET suite | 1,033 passed, 0 failed, 0 skipped |
+| .NET suite | 1,036 passed, 0 failed, 0 skipped |
 | Companion Node tests | 3 passed, 0 failed |
 | npm wrapper tests | 15 passed, 0 failed |
 | Dependency audits | 0 npm vulnerabilities; no high/critical NuGet vulnerabilities |

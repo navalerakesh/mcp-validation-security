@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Tests.Fixtures;
@@ -525,11 +526,73 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain(">Certificate Eligibility</span>");
+        html.Should().Contain(">Certificate Outcome</span>");
         html.Should().Contain(">Core Conformance</span>");
         html.Should().Contain(">Security Assurance</span>");
+        html.Should().Contain("aria-label=\"Tested scope\"");
         html.Should().Contain(result.Assurance.CertificateEligibility.Status.ToString());
         html.Should().NotContain(">Trust Level</span>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithInventoryProfile_ShouldFrameAssessmentWithoutCertificationFailure()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestToolExecution = false;
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestParameterValidation = false;
+        result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading = false;
+        result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution = false;
+        result.SecurityTesting = new SecurityTestResult { Status = TestStatus.Skipped };
+        result.PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Skipped };
+        result.Run.SchemaVersion = "2025-06-18";
+        result.ValidationConfig.Reporting.SpecProfile = "latest";
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            AssuranceProfileCatalog.Inventory,
+            new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Safe });
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Inventory Assessment Complete");
+        html.Should().Contain("Not issued by inventory profile");
+        html.Should().Contain("Inventory completed with assurance evidence gaps");
+        html.Should().Contain("<div class=\"fact-item__value\">2025-06-18</div>");
+        html.Should().NotContain("Assurance Requirements Not Met");
+        html.Should().NotContain("Selected assurance profile is not satisfied");
+        html.Should().Contain("<span class=\"scope-item__label\">Tool invocation</span><strong>Not attempted</strong>");
+        html.Should().Contain("<span class=\"scope-item__label\">Security probes</span><strong>Skipped</strong>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithRunSchemaVersion_ShouldIgnoreRendererProfile()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Run.SchemaVersion = "2025-06-18";
+        var rendererConfig = new ReportingConfig { SpecProfile = "2026-07-28" };
+
+        var html = _renderer.GenerateHtmlReport(result, rendererConfig, verbose: true);
+
+        Regex.IsMatch(
+            html,
+            @"MCP Specification Profile</div>\s*<div class=""fact-item__value"">2025-06-18</div>")
+            .Should().BeTrue();
+        html.Should().NotContain("<div class=\"fact-item__value\">2026-07-28</div>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithoutCanonicalSchemaVersion_ShouldUseRendererProfileFallback()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Run.SchemaVersion = null;
+        result.Run.ApplicabilityContext = null;
+        var rendererConfig = new ReportingConfig { SpecProfile = "2025-11-25" };
+
+        var html = _renderer.GenerateHtmlReport(result, rendererConfig, verbose: true);
+
+        Regex.IsMatch(
+            html,
+            @"MCP Specification Profile</div>\s*<div class=""fact-item__value"">2025-11-25</div>")
+            .Should().BeTrue();
     }
 
     [Fact]
@@ -583,13 +646,15 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
-    public void GenerateHtmlReport_ShouldRenderSectionCardsCollapsedByDefaultWithVisibleToggleAffordance()
+    public void GenerateHtmlReport_ShouldOpenExecutiveDecisionAndKeepReferenceMaterialLast()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(0);
+        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(1);
+        html.IndexOf("Release Decision &amp; Reading Path", StringComparison.Ordinal)
+            .Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
         html.Should().Contain("section-card__toggle-label section-card__toggle-label--collapsed\">Expand details</span>");
         html.Should().Contain("section-card__toggle-label section-card__toggle-label--expanded\">Collapse details</span>");
     }
