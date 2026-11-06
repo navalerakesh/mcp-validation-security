@@ -46,6 +46,7 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
       );
     }
     args.push(
+      "--mode", config.providerAssurance.executionMode,
       "--provider-harness", config.providerAssurance.harnessPath!,
       "--provider-authorization-key", config.providerAssurance.authorizationKeyPath!,
       "--conformance-results", config.providerAssurance.conformanceResultsPath!,
@@ -285,8 +286,14 @@ function formatValidationResult(json: Record<string, unknown>): string {
   const summary = json.summary as Record<string, unknown> | undefined;
 
   if (assurance) {
+    const profileId = profile?.profileId;
+    const certificateStatus = certificate?.status;
     lines.push(`Assurance Profile: ${profile?.profileId ?? "unknown"}`);
-    lines.push(`Certificate Eligibility: ${certificate?.status ?? "unknown"}`);
+    lines.push(
+      profileId === "inventory" && certificateStatus === "ineligible"
+        ? "Certificate Outcome: not issued by inventory profile"
+        : `Certificate Eligibility: ${certificateStatus ?? "unknown"}`,
+    );
     lines.push(`Core Conformance: ${core?.status ?? "unknown"}`);
     lines.push(`Security Assurance: ${security?.status ?? "unknown"}`);
     lines.push(`Operational Readiness: ${operations?.status ?? "unknown"}`);

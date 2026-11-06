@@ -81,7 +81,7 @@ export const ValidateInputSchema = z.object({
   assurance: z.enum(["inventory", "ci", "provider"]).optional().describe("Assurance profile used for independent assessments and certificate eligibility. Defaults to inventory."),
   clientProfile: z.array(ClientProfileSchema).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
   extension: z.array(ExtensionIdSchema).max(16).optional().describe("Optional MCP extension IDs to assess. Active probes remain constrained by the wrapper's safe execution mode."),
-  reportDetail: z.enum(["full", "minimal"]).optional().describe("Human report detail level."),
+  reportDetail: z.enum(["full", "minimal"]).optional().describe("Detail level for temporary CLI human artifacts. The wrapper returns canonical JSON evidence rather than embedding large HTML reports in model context."),
   verbose: z.boolean().default(false).describe("Include detailed output"),
 });
 

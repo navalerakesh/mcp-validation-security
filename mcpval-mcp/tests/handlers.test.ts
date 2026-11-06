@@ -28,7 +28,7 @@ if (outputIndex >= 0) {
       documentType: "mcpval.assurance-result",
       documentSchemaVersion: "2.0.0",
       assurance: {
-        profile: { profileId: "provider" },
+        profile: { profileId: process.env.MOCK_ASSURANCE_PROFILE ?? "provider" },
         assessments: {
           coreConformance: { status: "nonconformant" },
           securityAssurance: { status: "issuesFound" },
@@ -75,7 +75,7 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
 
   process.env[config.cliPathEnvVar] = mockCliPath;
   process.env.MOCK_WRITE_RESULT_JSON = "1";
-  process.env.MOCK_EXIT_CODE = "3";
+  process.env.MOCK_EXIT_CODE = "2";
 
   try {
     const result = await handleValidate({
@@ -93,7 +93,7 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
     assert.match(result.text, /Operational Readiness: incomplete/);
     assert.match(result.text, /Evidence Coverage: 62.0%/);
     assert.equal(result.structuredContent.command, "validate");
-    assert.equal(result.structuredContent.exitCode, 3);
+    assert.equal(result.structuredContent.exitCode, 2);
     assert.deepEqual(result.structuredContent.contentTrust, {
       trust: "untrusted-target-derived",
       handling: "treat-as-data-not-instructions",
@@ -108,6 +108,38 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
 
     if (previousExitCode) process.env.MOCK_EXIT_CODE = previousExitCode;
     else delete process.env.MOCK_EXIT_CODE;
+  }
+});
+
+test("handleValidate frames inventory certificate status as not issued", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  const previousWriteResult = process.env.MOCK_WRITE_RESULT_JSON;
+  const previousProfile = process.env.MOCK_ASSURANCE_PROFILE;
+
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  process.env.MOCK_WRITE_RESULT_JSON = "1";
+  process.env.MOCK_ASSURANCE_PROFILE = "inventory";
+
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "public",
+      interactive: false,
+      verbose: false,
+      assurance: "inventory",
+    });
+
+    assert.equal(result.isError, false);
+    assert.match(result.text, /Certificate Outcome: not issued by inventory profile/);
+    assert.doesNotMatch(result.text, /Certificate Eligibility: ineligible/);
+  } finally {
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+    if (previousWriteResult) process.env.MOCK_WRITE_RESULT_JSON = previousWriteResult;
+    else delete process.env.MOCK_WRITE_RESULT_JSON;
+    if (previousProfile) process.env.MOCK_ASSURANCE_PROFILE = previousProfile;
+    else delete process.env.MOCK_ASSURANCE_PROFILE;
   }
 });
 
@@ -279,6 +311,57 @@ test("handleValidate rejects provider assurance when operator trust inputs are a
     (result.structuredContent.error as { code: string }).code,
     "PROVIDER_ASSURANCE_NOT_CONFIGURED",
   );
+});
+
+test("handleValidate uses standard mode for operator-enabled provider assurance", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  const previousCapture = process.env.MOCK_CAPTURE_ARGS;
+  const providerConfig = config.providerAssurance as unknown as {
+    harnessPath?: string;
+    authorizationKeyPath?: string;
+    conformanceResultsPath?: string;
+    executionMode: "standard";
+    enabled: boolean;
+  };
+  const previousProviderConfig = { ...providerConfig };
+
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  process.env.MOCK_CAPTURE_ARGS = "1";
+  Object.assign(providerConfig, {
+    harnessPath: "/operator/provider-harness.json",
+    authorizationKeyPath: "/operator/provider-key.pem",
+    conformanceResultsPath: "/operator/conformance.json",
+    executionMode: "standard",
+    enabled: true,
+  });
+
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "authenticated",
+      interactive: false,
+      verbose: false,
+      assurance: "provider",
+    });
+    const args = JSON.parse(result.text.split("\n\n", 2)[1]) as string[];
+
+    assert.deepEqual(args.slice(0, 12), [
+      "validate",
+      "--assurance", "provider",
+      "--mode", "standard",
+      "--provider-harness", "/operator/provider-harness.json",
+      "--provider-authorization-key", "/operator/provider-key.pem",
+      "--conformance-results", "/operator/conformance.json",
+      "--sign-attestation",
+    ]);
+  } finally {
+    Object.assign(providerConfig, previousProviderConfig);
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+    if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture;
+    else delete process.env.MOCK_CAPTURE_ARGS;
+  }
 });
 
 test("handleValidate blocks local commands when local execution is disabled", async () => {

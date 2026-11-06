@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import test, { after } from "node:test";
 import fc from "fast-check";
 import { config } from "../src/config.js";
-import { runCli } from "../src/cli-runner.js";
+import { normalizeCliExitCode, runCli } from "../src/cli-runner.js";
 
 const temporaryRoots: string[] = [];
 after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive: true, force: true }))));
@@ -185,10 +185,10 @@ test("runCli preserves result artifacts on non-zero validate exit", async () => 
         },
         captureResultJson: true,
       },
-      { MOCK_EXIT_CODE: "3" },
+      { MOCK_EXIT_CODE: "2" },
     );
 
-    assert.equal(result.exitCode, 3);
+    assert.equal(result.exitCode, 2);
     assert.deepEqual(result.resultJson, { overallStatus: "NeedsReview", complianceScore: 62 });
   } finally {
     if (previousCliPath) {
@@ -197,4 +197,11 @@ test("runCli preserves result artifacts on non-zero validate exit", async () => 
       delete process.env[config.cliPathEnvVar];
     }
   }
+});
+
+test("normalizeCliExitCode preserves stable numeric exits and maps wrapper failures", () => {
+  assert.equal(normalizeCliExitCode({ code: 75 }), 75);
+  assert.equal(normalizeCliExitCode({ killed: true }), 124);
+  assert.equal(normalizeCliExitCode({ code: "ENOENT" }), 70);
+  assert.equal(normalizeCliExitCode({}), 70);
 });

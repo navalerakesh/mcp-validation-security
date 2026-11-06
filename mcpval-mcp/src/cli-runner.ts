@@ -111,13 +111,13 @@ export async function runCli(invocation: CliInvocation, extraEnv?: Record<string
 
     return { exitCode: 0, stdout, stderr, resultJson };
   } catch (error: unknown) {
-    const err = error as { code?: number; stdout?: string; stderr?: string; message?: string };
+    const err = error as { code?: unknown; killed?: boolean; stdout?: string; stderr?: string; message?: string };
     const resultJson = invocation.captureResultJson ? await loadResultJson(outputDir) : undefined;
 
     // Log to stderr for debugging (STDIO safe)
     console.error(`mcpval CLI execution failed: ${err.message ?? "unknown error"}`);
     return {
-      exitCode: err.code ?? 1,
+      exitCode: normalizeCliExitCode(err),
       stdout: err.stdout ?? "",
       stderr: err.stderr ?? (err.message ?? "CLI execution failed"),
       resultJson,
@@ -125,6 +125,13 @@ export async function runCli(invocation: CliInvocation, extraEnv?: Record<string
   } finally {
     await rm(tempRoot, { recursive: true, force: true });
   }
+}
+
+export function normalizeCliExitCode(error: { code?: unknown; killed?: boolean }): number {
+  if (error.killed) return 124;
+  return typeof error.code === "number" && Number.isInteger(error.code)
+    ? error.code
+    : 70;
 }
 
 async function loadResultJson(dir: string): Promise<Record<string, unknown> | undefined> {
