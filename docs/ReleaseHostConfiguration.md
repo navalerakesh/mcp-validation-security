@@ -6,9 +6,9 @@ Owner: `@navalerakesh`
 
 Repository: `navalerakesh/mcp-validation-security`
 
-## Verified State (2026-08-20)
+## Required State (2026-11-06)
 
-An owner-authorized configuration update followed by a read-only GitHub API audit confirmed:
+Before production publication, verify:
 
 - Actions are enabled for SHA-pinned actions, and the workflows use full commit references;
 - `main` enforces rules for administrators, blocks force pushes and deletion, and requires `Build & Test`, both in-workflow CodeQL matrix checks, and `Dependency Review`;
@@ -16,8 +16,8 @@ An owner-authorized configuration update followed by a read-only GitHub API audi
 - `NuGet`, `Npm`, and `Ghcr` require owner approval and protected-branch deployment;
 - dependency review, Dependabot security updates, private vulnerability reporting, secret scanning, and push protection are enabled;
 - the repository has zero open secret-scanning alerts; non-provider-pattern scanning and validity checks remain unavailable or disabled;
-- release `1.1.25` is absent from NuGet, npm, GHCR, GitHub Releases, and Git tags;
-- the latest visible CodeQL analysis is dated 2026-05-25 and must be replaced by successful results for the release-candidate pull request.
+- the target release version is greater than every immutable version already reserved or published;
+- the release-candidate pull request and main-push release workflow have successful current CodeQL results.
 
 The current index contains no forbidden path or sensitive-content match. The 156-path legacy history is locked to a reviewed 181-object digest baseline; any inventory drift fails CI. Full history removal remains tracked in `docs/OpenSourceHistoryRemediation.md`.
 
@@ -60,6 +60,14 @@ Each environment must:
 - prevent untrusted pull-request code from receiving credentials;
 - retain deployment history.
 
+Registry publication is keyless:
+
+- NuGet.org Trusted Publishing policy: user `navalerakesh`, repository owner `navalerakesh`, repository `mcp-validation-security`, workflow file `ci.yml`, environment `NuGet`, package scope `McpVal`;
+- npm trusted publisher: package `mcpval-localmcp`, repository `navalerakesh/mcp-validation-security`, workflow `ci.yml`, environment `Npm`;
+- GHCR uses the run-scoped `GITHUB_TOKEN` with package write permission.
+
+The `NuGet` and `Npm` environments do not require long-lived registry token secrets. NuGet obtains a one-hour, single-exchange API key through GitHub OIDC immediately before publication; npm exchanges GitHub OIDC directly through trusted publishing.
+
 The `Ghcr` environment must exist explicitly. Referencing a missing environment is not evidence of protection.
 
 ## Repository Security Features
@@ -81,7 +89,7 @@ Before the owner freezes a release commit:
 2. Capture a secret-free export or screenshot of branch, tag, and environment rules under an ignored/private evidence directory.
 3. Run the full Release test, npm, typecheck, audit, mutation, package, container, and distribution gates.
 4. Confirm the full-version tag does not exist, or points to the exact retry commit with byte-identical release subjects.
-5. Confirm NuGet/npm/GHCR mutable aliases pass monotonic version checks.
+5. Confirm NuGet/npm trusted-publisher policies match `ci.yml` and their protected environments, then confirm registry/GHCR mutable aliases pass monotonic version checks.
 6. Publish only from the protected workflow; do not publish from a workstation.
 
 If any setting cannot be verified, publication is blocked.

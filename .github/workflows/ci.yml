@@ -989,11 +989,17 @@ jobs:
           name: mcpval-nuget-package-artifacts
           path: artifacts/nuget
 
+      - name: Acquire short-lived NuGet API key
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: navalerakesh
+
       - name: Publish or Verify Existing NuGet Package
         id: publish-nuget
         shell: bash
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           version="${{ needs.build-and-test.outputs.version }}"
           package=$(find artifacts/nuget -maxdepth 1 -name '*.nupkg' ! -name '*.symbols.nupkg' -print -quit)
@@ -1033,7 +1039,7 @@ jobs:
 
   npm-publish:
     name: "Publish npm (v${{ needs.build-and-test.outputs.version }})"
-    needs: [build-and-test, release-reservation, npm-package, nuget-publish]
+    needs: [build-and-test, release-reservation, npm-package, package-install-smoke, package-attest]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     environment: Npm

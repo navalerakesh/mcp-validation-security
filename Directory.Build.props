@@ -13,7 +13,7 @@
     <RuntimeIdentifiers>$(McpValSupportedRuntimeIdentifiers)</RuntimeIdentifiers>
 
     <!-- Exact release version shared by builds, packages, tags, and the composite Action. -->
-    <VersionPrefix>2.0.0</VersionPrefix>
+    <VersionPrefix>2.0.1</VersionPrefix>
 
     <!-- Metadata -->
     <Authors>Rakesh Navale</Authors>

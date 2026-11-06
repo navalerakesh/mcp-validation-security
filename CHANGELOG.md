@@ -6,7 +6,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
-## 2.0.0 - 2026-11-06
+## 2.0.1 - 2026-11-06
 
 ### Added
 
@@ -34,6 +34,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 ### Security
 
 - Updated the local MCP wrapper to patched MCP SDK and Zod releases and refreshed transitive dependencies so the production npm audit reports zero vulnerabilities.
+- Replaced the expired long-lived NuGet API key with NuGet.org Trusted Publishing and a short-lived GitHub OIDC credential.
 
 ### Fixed
 
@@ -54,6 +55,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - The local MCP wrapper now preserves numeric V2 exits for CLI outcomes and maps wrapper launch failures and timeouts to stable runtime exits.
 - Canonical assurance threshold reasons now use culture-invariant percentage formatting so report snapshots remain byte-stable across operating systems and CI runners.
 - Local and GitHub build gates now share one benchmark-catalog contract using the V2 `AssuranceReduction` workload name.
+- NuGet and npm publication now run as independent protected lanes so one registry outage cannot suppress verification of the other; the GitHub release still waits for both.
 
 ## 1.1.33 - 2026-08-23
 
