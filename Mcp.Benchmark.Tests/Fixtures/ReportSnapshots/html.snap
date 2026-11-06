@@ -2944,17 +2944,17 @@ a:hover {
               <div class="evidence-card__header">
                 <div>
                   <div class="evidence-card__title">Tool Metadata Completeness</div>
-                  <div class="evidence-card__subtle">Coverage across titles, descriptions, and behavioral annotations.</div>
+                  <div class="evidence-card__subtle">Explicit metadata coverage; protocol defaults apply when optional behavioral annotations are omitted.</div>
                 </div>
                 <span class="tone-chip tone-info">2 tools</span>
               </div>
               <div class="inline-list">
 <span class="tag">title 2/2</span>
 <span class="tag">description 0/2</span>
-<span class="tag">readOnlyHint 0/2</span>
-<span class="tag">destructiveHint 0/2</span>
-<span class="tag">openWorldHint 0/2</span>
-<span class="tag">idempotentHint 0/2</span>
+<span class="tag">readOnlyHint explicit 0/2</span>
+<span class="tag">destructiveHint explicit 0/2</span>
+<span class="tag">openWorldHint explicit 0/2</span>
+<span class="tag">idempotentHint explicit 0/2</span>
               </div>
             </div>
 
@@ -3066,7 +3066,7 @@ a:hover {
                 <thead><tr><th>Control</th><th>Declared</th><th>Missing</th><th>Not Observable</th><th>Not Applicable</th><th>Representative Note</th></tr></thead><tbody>
                 <tr><td>User confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.</td></tr>
                 <tr><td>Audit trail</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Audit trail behavior is not observable from tool metadata for this potentially destructive tool.</td></tr>
-                <tr><td>Data-sharing disclosure</td><td>0</td><td>2</td><td>0</td><td>0</td><td>Tool metadata does not declare open-world/data-sharing behavior.</td></tr>
+                <tr><td>Data-sharing disclosure</td><td>0</td><td>2</td><td>0</td><td>0</td><td>Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.</td></tr>
                 <tr><td>Destructive-action confirmation</td><td>0</td><td>1</td><td>0</td><td>1</td><td>Destructive action confirmation guidance is missing from tool metadata.</td></tr>
                 <tr><td>Host/server responsibility split</td><td>0</td><td>0</td><td>2</td><td>0</td><td>Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.</td></tr>
                 </tbody></table>

@@ -430,10 +430,10 @@ public class ClientProfileEvaluatorTests
     }
 
     [Fact]
-    public void Evaluate_GitHubCopilotCloudAgent_ShouldFailWhenWriteToolMissesDestructiveHint()
+    public void Evaluate_GitHubCopilotCloudAgent_ShouldWarnWhenWriteToolMissesDestructiveHint()
     {
-        // Cloud Agent calls tools autonomously without per-call approval; missing
-        // destructiveHint on a write-capable tool is a Required-tier failure here.
+        // Cloud Agent calls tools autonomously without per-call approval, but GitHub
+        // documents tool allowlisting rather than an explicit destructiveHint requirement.
         var result = CreateToolOnlyValidationResult();
         var t = result.ToolValidation!.ToolResults[0];
         t.ToolName = "delete_branch";
@@ -446,10 +446,11 @@ public class ClientProfileEvaluatorTests
         });
 
         var assessment = compatibility!.Assessments.Should().ContainSingle().Subject;
-        assessment.Status.Should().Be(ClientProfileCompatibilityStatus.Incompatible);
+        assessment.Status.Should().Be(ClientProfileCompatibilityStatus.CompatibleWithWarnings);
         assessment.Requirements.Should().Contain(requirement =>
             requirement.RequirementId == "tool-destructive-hint" &&
-            requirement.Outcome == ClientProfileRequirementOutcome.Failed);
+            requirement.Outcome == ClientProfileRequirementOutcome.Warning &&
+            requirement.Level == ClientProfileRequirementLevel.Recommended);
     }
 
     [Fact]

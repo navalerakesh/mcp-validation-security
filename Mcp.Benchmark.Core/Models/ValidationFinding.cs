@@ -80,6 +80,7 @@ public static class ValidationFindingRuleIds
     public const string PerformancePublicRemoteTimeoutAdvisory = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY";
     public const string PerformancePublicRemoteRampUp = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP";
     public const string PerformancePressureSignalsObserved = "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED";
+    public const string ProtocolActiveProbesNotRun = "MCP.GUIDELINE.COVERAGE.PROTOCOL_ACTIVE_PROBES_NOT_RUN";
 
     public const string AuthWwwAuthenticateMissing = "MCP.AUTH.WWW_AUTHENTICATE_MISSING";
     public const string AuthProtectedResourceMetadataMissing = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_MISSING";

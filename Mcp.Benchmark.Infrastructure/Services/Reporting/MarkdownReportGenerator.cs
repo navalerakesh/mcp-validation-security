@@ -386,11 +386,16 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"## {sectionNumber++}. Resource Capabilities");
             sb.AppendLine();
             sb.AppendLine($"**Resources Discovered:** {result.ResourceTesting.ResourcesDiscovered}");
+            if (!result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading)
+            {
+                sb.AppendLine("**Execution Scope:** Catalog metadata and schema validation only; resource reads were not attempted under the active execution policy.");
+            }
             sb.AppendLine();
 
             if (result.ResourceTesting.ResourceResults?.Any() == true)
             {
-                sb.AppendLine("| Resource Name | URI | MIME Type | Size | Status |");
+                var resourceStatusHeading = result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading ? "Status" : "Catalog Status";
+                sb.AppendLine($"| Resource Name | URI | MIME Type | Size | {resourceStatusHeading} |");
                 sb.AppendLine("| :--- | :--- | :--- | :--- | :---: |");
                 foreach (var res in result.ResourceTesting.ResourceResults)
                 {
@@ -411,11 +416,16 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"## {sectionNumber++}. Prompt Capabilities");
             sb.AppendLine();
             sb.AppendLine($"**Prompts Discovered:** {result.PromptTesting.PromptsDiscovered}");
+            if (!result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution)
+            {
+                sb.AppendLine("**Execution Scope:** Catalog metadata and schema validation only; prompt execution was not attempted under the active execution policy.");
+            }
             sb.AppendLine();
 
             if (result.PromptTesting.PromptResults?.Any() == true)
             {
-                sb.AppendLine("| Prompt Name | Status | Issues |");
+                var promptStatusHeading = result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution ? "Status" : "Catalog Status";
+                sb.AppendLine($"| Prompt Name | {promptStatusHeading} | Issues |");
                 sb.AppendLine("| :--- | :---: | :--- |");
                 foreach (var prompt in result.PromptTesting.PromptResults)
                 {
@@ -1556,7 +1566,7 @@ public class MarkdownReportGenerator : IReportGenerator
     {
         sb.AppendLine("### Tool Metadata Completeness");
         sb.AppendLine();
-        sb.AppendLine("Annotation coverage across the discovered tool catalog. Missing annotations reduce AI agent safety and UX quality.");
+        sb.AppendLine("Explicit annotation coverage across the discovered tool catalog. MCP protocol defaults still apply when optional behavioral annotations are omitted.");
         sb.AppendLine();
         sb.AppendLine("| Tool | title | description | readOnlyHint | destructiveHint | openWorldHint | idempotentHint |");
         sb.AppendLine("| :--- | :---: | :---: | :---: | :---: | :---: | :---: |");

@@ -171,9 +171,12 @@
               "summary": "Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.",
               "recommendation": "Document the expected confirmation/approval flow and ensure the host can deny the invocation before execution.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -185,9 +188,12 @@
               "summary": "Destructive action confirmation guidance is missing from tool metadata.",
               "recommendation": "Add explicit confirmation, approval, warning, or consent language for destructive operations.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -196,12 +202,15 @@
               "controlKind": 2,
               "status": 2,
               "authority": 2,
-              "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
-              "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+              "summary": "Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.",
+              "recommendation": "Declare annotations.openWorldHint explicitly when hosts need auditable server intent beyond the protocol default.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -213,9 +222,12 @@
               "summary": "Audit trail behavior is not observable from tool metadata for this potentially destructive tool.",
               "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -227,9 +239,12 @@
               "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
               "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             }
           ]
@@ -266,9 +281,12 @@
               "summary": "No destructive tool behavior was declared or inferred from tool metadata.",
               "recommendation": null,
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -280,9 +298,12 @@
               "summary": "Tool is not declared or inferred as destructive.",
               "recommendation": null,
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -291,12 +312,15 @@
               "controlKind": 2,
               "status": 2,
               "authority": 2,
-              "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
-              "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+              "summary": "Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.",
+              "recommendation": "Declare annotations.openWorldHint explicitly when hosts need auditable server intent beyond the protocol default.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -308,9 +332,12 @@
               "summary": "Audit trail behavior is not observable from tool metadata.",
               "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             },
             {
@@ -322,9 +349,12 @@
               "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
               "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
               "metadata": {
-                "readOnlyHint": "unknown",
-                "destructiveHint": "unknown",
-                "openWorldHint": "unknown"
+                "readOnlyHint": "notDeclared",
+                "effectiveReadOnlyHint": "False",
+                "destructiveHint": "notDeclared",
+                "effectiveDestructiveHint": "True",
+                "openWorldHint": "notDeclared",
+                "effectiveOpenWorldHint": "True"
               }
             }
           ]
@@ -380,9 +410,12 @@
           "summary": "Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action.",
           "recommendation": "Document the expected confirmation/approval flow and ensure the host can deny the invocation before execution.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -394,9 +427,12 @@
           "summary": "Destructive action confirmation guidance is missing from tool metadata.",
           "recommendation": "Add explicit confirmation, approval, warning, or consent language for destructive operations.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -405,12 +441,15 @@
           "controlKind": 2,
           "status": 2,
           "authority": 2,
-          "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
-          "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+          "summary": "Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.",
+          "recommendation": "Declare annotations.openWorldHint explicitly when hosts need auditable server intent beyond the protocol default.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -422,9 +461,12 @@
           "summary": "Audit trail behavior is not observable from tool metadata for this potentially destructive tool.",
           "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -436,9 +478,12 @@
           "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
           "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -450,9 +495,12 @@
           "summary": "No destructive tool behavior was declared or inferred from tool metadata.",
           "recommendation": null,
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -464,9 +512,12 @@
           "summary": "Tool is not declared or inferred as destructive.",
           "recommendation": null,
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -475,12 +526,15 @@
           "controlKind": 2,
           "status": 2,
           "authority": 2,
-          "summary": "Tool metadata does not declare open-world/data-sharing behavior.",
-          "recommendation": "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+          "summary": "Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.",
+          "recommendation": "Declare annotations.openWorldHint explicitly when hosts need auditable server intent beyond the protocol default.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -492,9 +546,12 @@
           "summary": "Audit trail behavior is not observable from tool metadata.",
           "recommendation": "Confirm that the deployment logs tool invocations, approvals, denials, and actor identity where appropriate.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         },
         {
@@ -506,9 +563,12 @@
           "summary": "Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone.",
           "recommendation": "Document which controls are enforced by the MCP host and which are declared or enforced by the server.",
           "metadata": {
-            "readOnlyHint": "unknown",
-            "destructiveHint": "unknown",
-            "openWorldHint": "unknown"
+            "readOnlyHint": "notDeclared",
+            "effectiveReadOnlyHint": "False",
+            "destructiveHint": "notDeclared",
+            "effectiveDestructiveHint": "True",
+            "openWorldHint": "notDeclared",
+            "effectiveOpenWorldHint": "True"
           }
         }
       ],

@@ -851,9 +851,12 @@ internal sealed class ValidationHtmlReportComposer
 
             if (!string.IsNullOrWhiteSpace(toolName))
             {
-                noteParts.Add(invocationSucceeded == true
-                    ? $"Primary tool {toolName} responded successfully."
-                    : $"Primary tool {toolName} could not be invoked.");
+                noteParts.Add(invocationSucceeded switch
+                {
+                    true => $"Primary tool {toolName} responded successfully.",
+                    false => $"Primary tool {toolName} invocation failed.",
+                    null => $"Primary tool {toolName} was discovered; invocation was not attempted."
+                });
             }
 
             var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "Not available";
@@ -1053,9 +1056,12 @@ internal sealed class ValidationHtmlReportComposer
 
         if (!string.IsNullOrWhiteSpace(toolName))
         {
-            footnote = invocationSucceeded == true
-                ? $"Primary tool <code>{Encode(toolName)}</code> responded successfully."
-                : $"Primary tool <code>{Encode(toolName)}</code> could not be invoked.";
+            footnote = invocationSucceeded switch
+            {
+                true => $"Primary tool <code>{Encode(toolName)}</code> responded successfully.",
+                false => $"Primary tool <code>{Encode(toolName)}</code> invocation failed.",
+                null => $"Primary tool <code>{Encode(toolName)}</code> was discovered; invocation was not attempted."
+            };
         }
 
         var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "Not available";
@@ -1443,19 +1449,23 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         var tools = result.ToolValidation;
+        var toolCallsEnabled = result.ValidationConfig.Validation.Categories.ToolTesting.TestToolExecution ||
+            result.ValidationConfig.Validation.Categories.ToolTesting.TestParameterValidation;
         var abstractItems = new (string Label, string Value, HtmlReportTone Tone)[]
         {
             ("Discovered", tools.ToolsDiscovered.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
-            ("Passed", tools.ToolsTestPassed.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
+            (toolCallsEnabled ? "Passed" : "Catalog valid", tools.ToolsTestPassed.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
             ("Failed", tools.ToolsTestFailed.ToString(CultureInfo.InvariantCulture), tools.ToolsTestFailed > 0 ? HtmlReportTone.Danger : HtmlReportTone.Success),
             ("AI Findings", (tools.AiReadinessFindings?.Count ?? 0).ToString(CultureInfo.InvariantCulture), (tools.AiReadinessFindings?.Count ?? 0) > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success)
         };
         var sb = new StringBuilder();
         sb.AppendLine(RenderSectionCardOpen(
             "Tool Surface",
-            "Tool Validation Details",
+            toolCallsEnabled ? "Tool Validation Details" : "Tool Catalog Validation Details",
             tools.ToolResults.Any()
-                ? $"Tools discovered {tools.ToolsDiscovered}; passed {tools.ToolsTestPassed}; failed {tools.ToolsTestFailed}."
+                ? toolCallsEnabled
+                    ? $"Tools discovered {tools.ToolsDiscovered}; passed {tools.ToolsTestPassed}; failed {tools.ToolsTestFailed}."
+                    : $"Tools discovered {tools.ToolsDiscovered}; catalog-valid {tools.ToolsTestPassed}; catalog-invalid {tools.ToolsTestFailed}. Tool invocation was not attempted under the active execution policy."
                 : BuildToolCatalogApplicabilityNote(tools),
             abstractItems,
             MapScoreTone(tools.Score),
@@ -1482,7 +1492,9 @@ internal sealed class ValidationHtmlReportComposer
 
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
-        sb.AppendLine("              <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>");
+        sb.AppendLine(toolCallsEnabled
+            ? "              <thead><tr><th>Tool</th><th>Status</th><th>Execution Time</th><th>Annotations</th></tr></thead><tbody>"
+            : "              <thead><tr><th>Tool</th><th>Catalog Status</th><th>Discovery / Metadata Time</th><th>Annotations</th></tr></thead><tbody>");
         foreach (var tool in tools.ToolResults)
         {
             var annotations = BuildAnnotationSummary(tool);
@@ -1621,17 +1633,17 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              <div class=\"evidence-card__header\">");
         sb.AppendLine("                <div>");
         sb.AppendLine("                  <div class=\"evidence-card__title\">Tool Metadata Completeness</div>");
-        sb.AppendLine("                  <div class=\"evidence-card__subtle\">Coverage across titles, descriptions, and behavioral annotations.</div>");
+        sb.AppendLine("                  <div class=\"evidence-card__subtle\">Explicit metadata coverage; protocol defaults apply when optional behavioral annotations are omitted.</div>");
         sb.AppendLine("                </div>");
         sb.AppendLine($"                {RenderToneChip($"{total} tools", HtmlReportTone.Info)}");
         sb.AppendLine("              </div>");
         sb.AppendLine("              <div class=\"inline-list\">");
         sb.AppendLine(RenderTag($"title {titleCount}/{total}"));
         sb.AppendLine(RenderTag($"description {descCount}/{total}"));
-        sb.AppendLine(RenderTag($"readOnlyHint {readOnlyCount}/{total}"));
-        sb.AppendLine(RenderTag($"destructiveHint {destructiveCount}/{total}"));
-        sb.AppendLine(RenderTag($"openWorldHint {openWorldCount}/{total}"));
-        sb.AppendLine(RenderTag($"idempotentHint {idempotentCount}/{total}"));
+        sb.AppendLine(RenderTag($"readOnlyHint explicit {readOnlyCount}/{total}"));
+        sb.AppendLine(RenderTag($"destructiveHint explicit {destructiveCount}/{total}"));
+        sb.AppendLine(RenderTag($"openWorldHint explicit {openWorldCount}/{total}"));
+        sb.AppendLine(RenderTag($"idempotentHint explicit {idempotentCount}/{total}"));
         sb.AppendLine("              </div>");
         sb.AppendLine("            </div>");
         return sb.ToString();
@@ -1709,18 +1721,22 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         var resources = result.ResourceTesting;
+        var resourceReadsEnabled = result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading;
+        var catalogValidCount = resources.ResourceResults.Count(resource => resource.Status == TestStatus.Passed);
         var abstractItems = new (string Label, string Value, HtmlReportTone Tone)[]
         {
             ("Discovered", resources.ResourcesDiscovered.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
-            ("Accessible", resources.ResourcesAccessible.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
+            (resourceReadsEnabled ? "Accessible" : "Catalog valid", (resourceReadsEnabled ? resources.ResourcesAccessible : catalogValidCount).ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
             ("Failed", resources.ResourcesTestFailed.ToString(CultureInfo.InvariantCulture), resources.ResourcesTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success)
         };
         var sb = new StringBuilder();
         sb.AppendLine(RenderSectionCardOpen(
             "Resource Surface",
-            "Resource Capabilities",
+            resourceReadsEnabled ? "Resource Capabilities" : "Resource Catalog Validation Details",
             resources.ResourceResults.Any()
-                ? $"Resources discovered {resources.ResourcesDiscovered}; accessible {resources.ResourcesAccessible}."
+                ? resourceReadsEnabled
+                    ? $"Resources discovered {resources.ResourcesDiscovered}; accessible {resources.ResourcesAccessible}."
+                    : $"Resources discovered {resources.ResourcesDiscovered}; catalog-valid {catalogValidCount}. Resource reads were not attempted under the active execution policy."
                 : BuildResourceCatalogApplicabilityNote(resources),
             abstractItems,
             resources.ResourcesTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success,
@@ -1735,7 +1751,9 @@ internal sealed class ValidationHtmlReportComposer
 
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
-        sb.AppendLine("              <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Status</th></tr></thead><tbody>");
+        sb.AppendLine(resourceReadsEnabled
+            ? "              <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Status</th></tr></thead><tbody>"
+            : "              <thead><tr><th>Name</th><th>URI</th><th>MIME Type</th><th>Size</th><th>Catalog Status</th></tr></thead><tbody>");
         foreach (var resource in resources.ResourceResults)
         {
             sb.AppendLine($"                <tr><td>{Encode(resource.ResourceName)}</td><td><code>{Encode(resource.ResourceUri)}</code></td><td>{Encode(resource.MimeType ?? "—")}</td><td>{Encode(resource.ContentSize?.ToString() ?? "—")}</td><td>{RenderToneChip(resource.Status.ToString(), MapTestTone(resource.Status))}</td></tr>");
@@ -1809,18 +1827,21 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         var prompts = result.PromptTesting;
+        var promptExecutionEnabled = result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution;
         var abstractItems = new (string Label, string Value, HtmlReportTone Tone)[]
         {
             ("Discovered", prompts.PromptsDiscovered.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
-            ("Passed", prompts.PromptsTestPassed.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
+            (promptExecutionEnabled ? "Passed" : "Catalog valid", prompts.PromptsTestPassed.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
             ("Failed", prompts.PromptsTestFailed.ToString(CultureInfo.InvariantCulture), prompts.PromptsTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success)
         };
         var sb = new StringBuilder();
         sb.AppendLine(RenderSectionCardOpen(
             "Prompt Surface",
-            "Prompt Capabilities",
+            promptExecutionEnabled ? "Prompt Capabilities" : "Prompt Catalog Validation Details",
             prompts.PromptResults.Any()
-                ? $"Prompts discovered {prompts.PromptsDiscovered}; passed {prompts.PromptsTestPassed}; failed {prompts.PromptsTestFailed}."
+                ? promptExecutionEnabled
+                    ? $"Prompts discovered {prompts.PromptsDiscovered}; passed {prompts.PromptsTestPassed}; failed {prompts.PromptsTestFailed}."
+                    : $"Prompts discovered {prompts.PromptsDiscovered}; catalog-valid {prompts.PromptsTestPassed}; catalog-invalid {prompts.PromptsTestFailed}. Prompt execution was not attempted under the active execution policy."
                 : BuildPromptCatalogApplicabilityNote(prompts),
             abstractItems,
             prompts.PromptsTestFailed > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success,
@@ -1835,7 +1856,9 @@ internal sealed class ValidationHtmlReportComposer
 
         sb.AppendLine("          <div class=\"table-shell\">");
         sb.AppendLine("            <table class=\"data-table\">");
-        sb.AppendLine("              <thead><tr><th>Name</th><th>Status</th><th>Arguments</th><th>Execution Time</th><th>Issues</th></tr></thead><tbody>");
+        sb.AppendLine(promptExecutionEnabled
+            ? "              <thead><tr><th>Name</th><th>Status</th><th>Arguments</th><th>Execution Time</th><th>Issues</th></tr></thead><tbody>"
+            : "              <thead><tr><th>Name</th><th>Catalog Status</th><th>Arguments</th><th>Discovery / Metadata Time</th><th>Issues</th></tr></thead><tbody>");
         foreach (var prompt in prompts.PromptResults)
         {
             var issues = prompt.Issues.Count > 0 ? string.Join("; ", prompt.Issues) : "—";

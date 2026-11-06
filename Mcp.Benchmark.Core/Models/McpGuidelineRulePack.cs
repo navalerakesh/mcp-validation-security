@@ -51,16 +51,16 @@ public static class McpGuidelineRulePack
         yield return Rule(
             ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
             "tool",
-            "Missing destructive hint",
-            "Tools should declare destructive behavior so clients can request confirmation before execution.",
-            "Declare annotations.destructiveHint based on whether the tool can delete, overwrite, or mutate state.");
+            "Missing explicit destructive hint",
+            "Write-capable tools should explicitly declare destructive behavior for auditable client policy; MCP defaults an omitted destructiveHint to true.",
+            "Declare annotations.destructiveHint for write-capable tools based on whether they can delete, overwrite, or mutate state.");
 
         yield return Rule(
             ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing,
             "tool",
-            "Missing open-world hint",
-            "Tools should declare whether they can affect unknown external systems so agents can plan safely.",
-            "Declare annotations.openWorldHint for tools that can touch systems outside the local request boundary.");
+            "Missing explicit open-world hint",
+            "Tools should explicitly declare open-world behavior for auditable server intent; MCP defaults an omitted openWorldHint to true.",
+            "Declare annotations.openWorldHint explicitly when the server should communicate intent beyond the protocol default.");
 
         yield return Rule(
             ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing,

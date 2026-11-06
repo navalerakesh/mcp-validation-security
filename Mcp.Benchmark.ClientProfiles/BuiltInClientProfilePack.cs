@@ -220,7 +220,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 RequireToolContract("tools-contract", githubCopilotCloudAgent.DocumentationUrl!),
                 WarnExtraPromptAndResourceSurfaces("tools-only-surface", githubCopilotCloudAgent.DocumentationUrl!),
                 RequireRemoteOAuthCompatibility("remote-auth", githubCopilotCloudAgent.DocumentationUrl!),
-                RequireDestructiveHintForWriteToolsAutonomous("destructive-hint", CopilotCloudAgentIntroDocsUrl),
+                RecommendDestructiveHintForWriteToolsAutonomous("destructive-hint", CopilotCloudAgentIntroDocsUrl),
                 RecommendToolDescriptions("tool-descriptions", CopilotCloudAgentIntroDocsUrl, "Copilot Cloud Agent invokes tools autonomously; clear descriptions reduce wrong-tool risk."),
                 RecommendToolDisplayTitles("tool-titles", CopilotCloudAgentIntroDocsUrl, "Cloud agent run logs use tool titles in human-readable summaries."),
                 RecommendServerIdentity("server-identity", githubCopilotCloudAgent.DocumentationUrl!, "GitHub Copilot Cloud Agent")),
@@ -535,15 +535,15 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
     /// GitHub Copilot Cloud Agent calls tools autonomously with no per-call human approval
     /// ("Once you've configured an MCP server, Copilot will be able to use the tools provided
     /// by the server autonomously, and will not ask for your approval before using them.").
-    /// Missing destructiveHint on a write tool is therefore a stronger signal here than for
-    /// IDE clients with interactive approval — promoted to a Required check.
+    /// Missing destructiveHint on a write tool is therefore a stronger warning here than for
+    /// IDE clients with interactive approval, but GitHub does not document it as an admission requirement.
     /// </summary>
-    private static ClientProfileRuleDefinition RequireDestructiveHintForWriteToolsAutonomous(string suffix, string documentationUrl)
+    private static ClientProfileRuleDefinition RecommendDestructiveHintForWriteToolsAutonomous(string suffix, string documentationUrl)
     {
         return new ClientProfileRuleDefinition(
             $"tool-{suffix}",
-            "Write-capable tools declare destructiveHint (autonomous-execution safety)",
-            ClientProfileRequirementLevel.Required,
+            "Write-capable tools explicitly declare destructiveHint for autonomous-execution review",
+            ClientProfileRequirementLevel.Recommended,
             ClientProfileEvidenceBasis.Documented,
             documentationUrl,
             context =>
@@ -555,12 +555,12 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 var missing = context.GetWriteCapableToolsWithoutDestructiveHint();
                 if (missing.Count == 0)
                 {
-                    return ClientProfileRuleObservation.Satisfied("Every non-read-only tool declares an explicit destructiveHint, satisfying Cloud Agent's autonomous-execution safety contract.");
+                    return ClientProfileRuleObservation.Satisfied("Every non-read-only tool declares an explicit destructiveHint for autonomous-execution review.");
                 }
-                return ClientProfileRuleObservation.Failed(
-                    $"{missing.Count}/{context.ToolCount} write-capable tool(s) do not declare destructiveHint. GitHub Copilot Cloud Agent invokes tools autonomously without per-call approval, so omitted destructive hints can result in irreversible actions running unannotated.",
+                return ClientProfileRuleObservation.Warning(
+                    $"{missing.Count}/{context.ToolCount} write-capable tool(s) rely on the MCP destructiveHint default instead of declaring it explicitly. GitHub Copilot Cloud Agent invokes enabled tools autonomously without per-call approval, so explicit metadata improves configuration review.",
                     exampleComponents: missing.Take(5).ToList(),
-                    recommendation: "Set `annotations.destructiveHint: true` on every tool that mutates external state, OR mark the tool `readOnlyHint: true` if it is read-only. Cloud Agent administrators typically allowlist tools by destructiveness; missing hints prevent that policy.");
+                    recommendation: "Set `annotations.destructiveHint` explicitly for write-capable tools, or mark read-only tools with `readOnlyHint: true`. GitHub recommends allowlisting specific read-only tools for autonomous use.");
             });
     }
 

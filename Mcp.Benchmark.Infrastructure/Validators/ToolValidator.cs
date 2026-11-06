@@ -1708,11 +1708,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         AddGuidelineFindingIfMissing(
             aggregateResult,
             toolResult,
-            !tool.DestructiveHint.HasValue,
+            tool.ReadOnlyHint != true && !tool.DestructiveHint.HasValue,
             ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing,
             ValidationFindingSeverity.Low,
-            $"Tool '{tool.Name}' does not declare annotations.destructiveHint.",
-            "Declare destructiveHint so agents know when human confirmation is appropriate.");
+            $"Write-capable tool '{tool.Name}' does not explicitly declare annotations.destructiveHint; MCP defaults it to true.",
+            "Declare destructiveHint explicitly for write-capable tools when auditable intent is preferred; omission is interpreted as true by MCP.");
 
         AddGuidelineFindingIfMissing(
             aggregateResult,
@@ -1720,13 +1720,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             !tool.OpenWorldHint.HasValue,
             ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing,
             ValidationFindingSeverity.Low,
-            $"Tool '{tool.Name}' does not declare annotations.openWorldHint.",
-            "Declare openWorldHint so agents can reason about whether execution can affect unknown external systems.");
+            $"Tool '{tool.Name}' does not explicitly declare annotations.openWorldHint; MCP defaults it to true.",
+            "Declare openWorldHint explicitly when auditable server intent is preferred; omission is interpreted as true by MCP.");
 
         AddGuidelineFindingIfMissing(
             aggregateResult,
             toolResult,
-            !tool.IdempotentHint.HasValue,
+            tool.ReadOnlyHint != true && !tool.IdempotentHint.HasValue,
             ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing,
             ValidationFindingSeverity.Low,
             $"Tool '{tool.Name}' does not declare annotations.idempotentHint.",

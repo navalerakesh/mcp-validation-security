@@ -463,6 +463,62 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithDiscoveryOnlyPolicy_ShouldNotImplyToolInvocation()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestToolExecution = false;
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestParameterValidation = false;
+        result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading = false;
+        result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution = false;
+        result.ResourceTesting = new ResourceTestResult
+        {
+            Status = TestStatus.Passed,
+            ResourcesDiscovered = 1,
+            ResourceResults = new List<IndividualResourceResult>
+            {
+                new() { ResourceName = "README", ResourceUri = "file:///README.md", Status = TestStatus.Passed }
+            }
+        };
+        result.PromptTesting = new PromptTestResult
+        {
+            Status = TestStatus.Passed,
+            PromptsDiscovered = 1,
+            PromptsTestPassed = 1,
+            PromptResults = new List<IndividualPromptResult>
+            {
+                new() { PromptName = "summarize", Status = TestStatus.Passed }
+            }
+        };
+        result.CapabilitySnapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                ToolListingSucceeded = true,
+                ResourceListingSucceeded = true,
+                PromptListingSucceeded = true,
+                DiscoveredToolsCount = 2,
+                FirstToolName = "delete_repo",
+                ToolInvocationAttempted = false
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Tool Catalog Validation Details");
+        html.Should().Contain("Tool invocation was not attempted under the active execution policy.");
+        html.Should().Contain("was discovered; invocation was not attempted.");
+        html.Should().Contain("Catalog Status");
+        html.Should().Contain("Discovery / Metadata Time");
+        html.Should().Contain("Resource Catalog Validation Details");
+        html.Should().Contain("Resource reads were not attempted under the active execution policy.");
+        html.Should().Contain("Prompt Catalog Validation Details");
+        html.Should().Contain("Prompt execution was not attempted under the active execution policy.");
+        html.Should().NotContain("could not be invoked");
+        html.Should().NotContain("Tools discovered 2; passed 2; failed 0.");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_ShouldExposeHeroDecisionSignals()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();

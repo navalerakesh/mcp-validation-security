@@ -75,7 +75,7 @@ Observed on macOS arm64 with .NET SDK `8.0.419`, .NET runtime `8.0.25`, Node.js 
 | Evidence | Observed result |
 | --- | --- |
 | Debug build | 0 warnings, 0 errors |
-| .NET suite | 1,026 passed, 0 failed, 0 skipped |
+| .NET suite | 1,030 passed, 0 failed, 0 skipped |
 | Companion Node tests | 3 passed, 0 failed |
 | npm wrapper tests | 15 passed, 0 failed |
 | Dependency audits | 0 npm vulnerabilities; no high/critical NuGet vulnerabilities |
@@ -107,16 +107,16 @@ The mutation row records the last isolated frozen-source receipt with zero timeo
 
 ## Safe Live Interoperability
 
-Fresh safe-mode inventory runs from local commit `a58df09` were executed on 2026-11-06. These are interoperability observations, not active security or provider certificates. No tools were invoked, resources read, attacks sent, or load generated.
+Fresh safe-mode inventory runs from this change set were executed on 2026-11-06. These are interoperability observations, not active security or provider certificates. No tools were invoked, resources read, prompts executed, attacks sent, or load generated.
 
 | Target | Observed result |
 | --- | --- |
-| Microsoft Learn MCP | Public endpoint; server `Microsoft Learn MCP Server` `1.0.0`; protocol/schema `2025-06-18`; 3 tools (`microsoft_docs_search`, `microsoft_code_sample_search`, `microsoft_docs_fetch`), 0 resources, 0 prompts; 3 passed and 1 inconclusive category; 13 satisfied, 8 incomplete, 5 review-required claims; inventory certificate ineligible; advisory policy passed; exit `0` |
-| GitHub Copilot MCP | Authenticated endpoint; `GitHub MCP Server`; protocol/schema `2025-06-18`; 46 tools, 4 resources, 2 prompts; 46 passed and 1 inconclusive category; 8 satisfied, 8 incomplete, 110 review-required, 2 client-compatibility policy violations; inventory certificate ineligible; advisory policy passed; exit `0` |
+| Microsoft Learn MCP | Public endpoint; server `Microsoft Learn MCP Server` `1.0.0`; protocol/schema `2025-06-18`; 3 tools (`microsoft_docs_search`, `microsoft_code_sample_search`, `microsoft_docs_fetch`), 0 resources, 0 prompts; catalog validation passed and protocol coverage remained inconclusive; 13 satisfied, 8 incomplete, 5 review-required claims; inventory certificate ineligible; advisory policy passed; exit `0` |
+| GitHub Copilot MCP | Authenticated endpoint; `GitHub MCP Server`; protocol/schema `2025-06-18`; 46 tools, 4 resources, 2 prompts; catalog validation passed and protocol coverage remained inconclusive; 9 satisfied, 8 incomplete, 83 review-required, 0 violated claims; inventory certificate ineligible; advisory policy passed; exit `0` |
 
-The GitHub compatibility lane marked `github-copilot-cloud-agent` as interpreted/incompatible because 17 of 46 write-capable tools did not declare `destructiveHint`. GitHub Copilot CLI was interpreted/compatible; Claude Code, VS Code Copilot Agent, and Visual Studio Copilot were interpreted/compatible-with-warnings. Client interpretations did not alter neutral core, security, or operational assessments.
+The GitHub compatibility lane marked GitHub Copilot CLI interpreted/compatible and Claude Code, VS Code Copilot Agent, GitHub Copilot Cloud Agent, and Visual Studio Copilot interpreted/compatible-with-warnings. Seventeen write-capable tools relied on MCP's default `destructiveHint=true`; this is an explicitness advisory, not a documented GitHub incompatibility. Client interpretations did not alter neutral core, security, or operational assessments.
 
-Both runs emitted canonical JSON, Markdown, HTML, SARIF, JUnit, audit, and profile-summary artifacts under an operating-system temporary directory. HTML browser checks found one H1, no scripts, no unsafe links, no document overflow, and zero console errors. Artifact scans found no GitHub token bytes or generic bearer/token/password/secret patterns; all persisted `rawContent` fields were null. Live artifacts remain uncommitted and disposable.
+Both runs emitted canonical JSON, Markdown, HTML, SARIF, JUnit, audit, and profile-summary artifacts under an operating-system temporary directory. An independent official TypeScript MCP SDK probe matched every tool, resource, and prompt name and every tool annotation value for both targets. HTML browser checks at 1440-pixel desktop and 390-pixel mobile widths found one H1, no scripts, no unsafe links, no uncontained overflow, and zero page-console errors. Safe-mode HTML labels catalog validation separately from tool invocation, resource reads, and prompt execution. Artifact scans found no generic bearer/token/password/secret patterns; all persisted `rawContent` fields were null. Live artifacts remain uncommitted and disposable.
 
 ## Reproduction
 

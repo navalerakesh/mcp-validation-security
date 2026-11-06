@@ -834,11 +834,11 @@ public class MarkdownReportGeneratorTests
             {
                 new ValidationFinding
                 {
-                    RuleId = "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN",
+                    RuleId = ValidationFindingRuleIds.ProtocolActiveProbesNotRun,
                     Category = "Coverage",
                     Component = "protocol-active-probes",
                     Severity = ValidationFindingSeverity.Info,
-                    Source = ValidationRuleSource.Spec,
+                    Source = ValidationRuleSource.Guideline,
                     Summary = "Active protocol conformance probes were not run under the safe execution policy.",
                     Recommendation = "Use standard mode against an authorized non-production target when active malformed-message and error-handling evidence is required."
                 }
@@ -848,10 +848,9 @@ public class MarkdownReportGeneratorTests
 
         var report = _generator.GenerateReport(result);
 
-        var protocolPriority = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
         var recommendation = report.IndexOf("Use standard mode against an authorized non-production target", StringComparison.Ordinal);
-        protocolPriority.Should().BeGreaterThanOrEqualTo(0);
-        recommendation.Should().BeGreaterThan(protocolPriority);
+        recommendation.Should().BeGreaterThanOrEqualTo(0);
+        report.Should().NotContain("Priority 1: Bootstrap & Protocol Version");
         report.Should().NotContain("Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `protocol-active-probes`");
     }
 

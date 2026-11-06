@@ -262,7 +262,7 @@ For public or remote SaaS endpoints, partial failures under synthetic pressure a
 
 ### Tool Metadata Completeness
 
-Annotation coverage across the discovered tool catalog. Missing annotations reduce AI agent safety and UX quality.
+Explicit annotation coverage across the discovered tool catalog. MCP protocol defaults still apply when optional behavioral annotations are omitted.
 
 | Tool | title | description | readOnlyHint | destructiveHint | openWorldHint | idempotentHint |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -278,7 +278,7 @@ This table separates server-declared tool metadata from host-side controls that 
 | :--- | ---: | ---: | ---: | ---: | :--- |
 | User confirmation | 0 | 1 | 0 | 1 | Tool metadata does not declare human confirmation or consent guidance for a potentially destructive action. |
 | Audit trail | 0 | 0 | 2 | 0 | Audit trail behavior is not observable from tool metadata for this potentially destructive tool. |
-| Data-sharing disclosure | 0 | 2 | 0 | 0 | Tool metadata does not declare open-world/data-sharing behavior. |
+| Data-sharing disclosure | 0 | 2 | 0 | 0 | Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default. |
 | Destructive-action confirmation | 0 | 1 | 0 | 1 | Destructive action confirmation guidance is missing from tool metadata. |
 | Host/server responsibility split | 0 | 0 | 2 | 0 | Host-side consent, denial, and disclosure UX cannot be proven from server tool metadata alone. |
 

@@ -22,6 +22,8 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 - Official conformance import now fails closed on missing, unexpected, empty, or misclassified frozen scenarios and verifies the exact bounded `checks.json` bytes before parsing.
 - Normative security violations now contribute to deterministic security assurance instead of remaining outside the security reducer.
 - HTML reports now use assurance terminology, provide console-clean offline icons, meet WCAG AA text contrast, and retain bounded mobile table scrolling.
+- Safe-mode reports now distinguish catalog validation from tool invocation, resource reads, and prompt execution; omitted tool annotations retain their MCP-defined defaults, and coverage exclusions remain provider-policy evidence rather than specification failures.
+- GitHub Copilot Cloud Agent compatibility now treats missing explicit destructive hints as an advisory because MCP defaults omitted write-tool hints to destructive and GitHub does not document explicit hints as an admission requirement.
 
 ## 2.0.0 - 2026-11-05
 
