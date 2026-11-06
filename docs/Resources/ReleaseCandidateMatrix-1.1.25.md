@@ -1,5 +1,7 @@
 # MCP Validator 1.1.25 Release-Candidate Validation Matrix
 
+> **Historical V1 evidence:** This matrix preserves the retired 1.1.25 score/trust/verdict results for audit history. Do not compare its L1-L5 labels with MCP Validator 2.x assurance outcomes. See [Organization-Grade Confidence](../OrganizationGradeConfidence.md).
+
 Date: 2026-08-19 local / 2026-08-20 UTC
 
 Validator: `mcpval 1.1.25`

@@ -32,6 +32,29 @@ public sealed class ValidationAttestationSignerTests : IDisposable
         action.Should().Throw<ArgumentException>().WithMessage("*P-256*");
     }
 
+    [Fact]
+    public void ValidatePrivateKey_WithP256PrivateKey_ShouldSucceed()
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+
+        var validate = () => ValidationAttestationSigner.ValidatePrivateKey(key.ExportECPrivateKeyPem());
+
+        validate.Should().NotThrow();
+    }
+
+    [Fact]
+    public void ValidatePrivateKey_WithPublicOnlyOrWrongCurve_ShouldReject()
+    {
+        using var p256 = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        using var p384 = ECDsa.Create(ECCurve.NamedCurves.nistP384);
+
+        var publicOnly = () => ValidationAttestationSigner.ValidatePrivateKey(p256.ExportSubjectPublicKeyInfoPem());
+        var wrongCurve = () => ValidationAttestationSigner.ValidatePrivateKey(p384.ExportECPrivateKeyPem());
+
+        publicOnly.Should().Throw<ArgumentException>();
+        wrongCurve.Should().Throw<ArgumentException>();
+    }
+
     public void Dispose()
     {
         if (File.Exists(_path))

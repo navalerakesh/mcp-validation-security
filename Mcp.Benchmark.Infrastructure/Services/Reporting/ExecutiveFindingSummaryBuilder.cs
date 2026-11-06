@@ -57,26 +57,26 @@ internal static class ExecutiveFindingSummaryBuilder
             return $"[Spec] {specViolations.Count} protocol violation(s), led by {representative.CheckId}: {representative.Description}";
         }
 
-        var specDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Spec, blockingOnly: false);
-        if (specDecisions.Count == 0)
+        var specClaims = GetRepresentativeClaims(result, AssuranceAuthority.OfficialSpecification);
+        if (specClaims.Count == 0)
         {
             return null;
         }
 
-        var decision = specDecisions[0];
-        return $"[Spec] {specDecisions.Count} spec signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
+        var claim = specClaims[0];
+        return $"[Spec] {specClaims.Count} spec signal(s), led by {FormatClaimIdentity(claim)}: {claim.Summary}";
     }
 
     private static string? BuildGuidelineSummary(ValidationResult result)
     {
-        var guidelineDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Guideline, blockingOnly: false);
-        if (guidelineDecisions.Count == 0)
+        var guidelineClaims = GetRepresentativeClaims(result, AssuranceAuthority.ProviderPolicy);
+        if (guidelineClaims.Count == 0)
         {
             return null;
         }
 
-        var decision = guidelineDecisions[0];
-        return $"[Guideline] {guidelineDecisions.Count} guidance signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
+        var claim = guidelineClaims[0];
+        return $"[Guideline] {guidelineClaims.Count} guidance signal(s), led by {FormatClaimIdentity(claim)}: {claim.Summary}";
     }
 
     private static string? BuildGuidelineSkipSummary(ValidationResult result)
@@ -117,14 +117,14 @@ internal static class ExecutiveFindingSummaryBuilder
             return $"[Heuristic] {aiReadinessFindings.Count} deterministic AI-readiness advisory signal(s), led by {representative.RuleId}: {representative.Summary}";
         }
 
-        var heuristicDecisions = GetRepresentativeDecisions(result, ValidationRuleSource.Heuristic, blockingOnly: false);
-        if (heuristicDecisions.Count == 0)
+        var heuristicClaims = GetRepresentativeClaims(result, AssuranceAuthority.Heuristic);
+        if (heuristicClaims.Count == 0)
         {
             return null;
         }
 
-        var decision = heuristicDecisions[0];
-        return $"[Heuristic] {heuristicDecisions.Count} non-spec signal(s), led by {FormatDecisionIdentity(decision)}: {decision.Summary}";
+        var claim = heuristicClaims[0];
+        return $"[Heuristic] {heuristicClaims.Count} non-spec signal(s), led by {FormatClaimIdentity(claim)}: {claim.Summary}";
     }
 
     private static string? BuildCompatibilitySummary(ValidationResult result)
@@ -152,31 +152,22 @@ internal static class ExecutiveFindingSummaryBuilder
         return $"[Operational] {result.CriticalErrors.Count} critical execution error(s), led by: {result.CriticalErrors[0]}";
     }
 
-    private static List<DecisionRecord> GetRepresentativeDecisions(ValidationResult result, ValidationRuleSource authority, bool blockingOnly)
+    private static List<AssuranceClaim> GetRepresentativeClaims(ValidationResult result, AssuranceAuthority authority)
     {
-        var source = blockingOnly
-            ? result.VerdictAssessment?.BlockingDecisions
-            : result.VerdictAssessment?.BlockingDecisions?.Concat(result.VerdictAssessment.TriggeredDecisions)
-                ?? result.VerdictAssessment?.TriggeredDecisions;
-
-        return source?
-            .Where(item => item.Authority == authority && !string.IsNullOrWhiteSpace(item.Summary))
-            .OrderByDescending(item => item.Gate)
-            .ThenByDescending(item => item.Severity)
-            .GroupBy(item => item.RuleId ?? item.Category, StringComparer.OrdinalIgnoreCase)
+        return result.Assurance.Claims
+            .Where(item => item.Authority == authority &&
+                item.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable) &&
+                !string.IsNullOrWhiteSpace(item.Summary))
+            .OrderByDescending(item => item.Outcome)
+            .ThenByDescending(item => item.Confidence)
+            .GroupBy(FormatClaimIdentity, StringComparer.OrdinalIgnoreCase)
             .Select(group => group.First())
-            .ToList()
-            ?? new List<DecisionRecord>();
+            .ToList();
     }
 
-    private static string FormatDecisionIdentity(DecisionRecord decision)
+    private static string FormatClaimIdentity(AssuranceClaim claim)
     {
-        if (!string.IsNullOrWhiteSpace(decision.RuleId))
-        {
-            return decision.RuleId!;
-        }
-
-        return decision.Category;
+        return claim.Metadata.GetValueOrDefault("ruleId") ?? claim.ClaimId;
     }
 
     private static string FormatScopeLabel(ValidationCoverageDeclaration declaration)

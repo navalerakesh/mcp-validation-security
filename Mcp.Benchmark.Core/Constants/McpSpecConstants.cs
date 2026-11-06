@@ -79,6 +79,18 @@ public static class McpSpecConstants
     }
 
     /// <summary>
+    /// Effective values when optional tool annotations are omitted.
+    /// Reference: https://modelcontextprotocol.io/specification/2025-06-18/schema#toolannotations
+    /// </summary>
+    public static class ToolAnnotationDefaults
+    {
+        public const bool ReadOnlyHint = false;
+        public const bool DestructiveHint = true;
+        public const bool IdempotentHint = false;
+        public const bool OpenWorldHint = true;
+    }
+
+    /// <summary>
     /// Standard MCP method names for resource operations.
     /// Reference: https://modelcontextprotocol.io/specification/server/resources
     /// </summary>
@@ -113,6 +125,13 @@ public static class McpSpecConstants
     public static class CompletionMethods
     {
         public const string Complete = "completion/complete";
+    }
+
+    public static class ExtensionMethods
+    {
+        public const string SkillsList = "skills/list";
+        public const string SkillsGet = "skills/get";
+        public const string ResourcesDirectoryRead = "resources/directory/read";
     }
 
     /// <summary>

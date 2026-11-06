@@ -1,5 +1,7 @@
 # MCP Validator Enterprise Readiness Audit
 
+> Historical baseline: this 2026-08-18 audit is preserved as the source assessment for the renewal. The current V2 decision, executable evidence, and remaining limits are recorded in [Organization-Grade Confidence](docs/OrganizationGradeConfidence.md).
+
 **Assessment date:** 2026-08-18
 **Repository:** `navalerakesh/mcp-validation-security`
 **Assessment type:** source, architecture, security, test, distribution, and market review
@@ -80,7 +82,7 @@ These are audit judgments, not MCP Validator's own scores.
 
 ### Product purpose
 
-`mcpval` actively connects to an MCP server, captures protocol and operational evidence, evaluates security and AI-facing risk, derives a deterministic verdict and weighted L1-L5 posture, and emits reports for developers, CI systems, and governance workflows.
+`mcpval` actively connects to an MCP server, captures protocol and operational evidence, evaluates security and AI-facing risk, projects typed claims into independent assessments and certificate eligibility, and emits reports for developers, CI systems, and governance workflows.
 
 ### Component map
 

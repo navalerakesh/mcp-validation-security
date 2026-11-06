@@ -7,7 +7,7 @@ internal static class ValidationHtmlReportTheme
     return """
 :root {
     color-scheme: light;
-    --report-bg: #dde4eb;
+    --report-bg: #eef1f4;
     --report-bg-glow-a: rgba(54, 95, 161, 0.08);
     --report-bg-glow-b: rgba(168, 93, 25, 0.08);
     --report-bg-glow-c: rgba(15, 23, 38, 0.05);
@@ -20,16 +20,16 @@ internal static class ValidationHtmlReportTheme
     --text: #223042;
     --text-strong: #101827;
     --text-muted: #4f5e72;
-    --text-soft: #6a7789;
-    --shadow-soft: 0 12px 30px rgba(15, 23, 38, 0.06);
-    --shadow-panel: 0 18px 42px rgba(15, 23, 38, 0.08);
-    --radius-shell: 22px;
-    --radius-panel: 16px;
-    --radius-card: 14px;
+    --text-soft: #526176;
+    --shadow-soft: 0 4px 14px rgba(15, 23, 38, 0.05);
+    --shadow-panel: 0 12px 30px rgba(15, 23, 38, 0.07);
+    --radius-shell: 12px;
+    --radius-panel: 8px;
+    --radius-card: 8px;
     --tone-success: #1f6a52;
     --tone-success-soft: #eef6f1;
     --tone-success-line: #8fbca5;
-    --tone-warning: #a85d19;
+    --tone-warning: #8a4713;
     --tone-warning-soft: #faf1e6;
     --tone-warning-line: #dbb085;
     --tone-danger: #a33446;
@@ -46,11 +46,7 @@ internal static class ValidationHtmlReportTheme
 html, body { margin: 0; padding: 0; }
 body {
     font-family: "Aptos", "Segoe UI Variable", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    background:
-        radial-gradient(circle at top left, var(--report-bg-glow-a), transparent 34%),
-        radial-gradient(circle at top right, var(--report-bg-glow-b), transparent 30%),
-        radial-gradient(circle at 50% 18%, var(--report-bg-glow-c), transparent 38%),
-        var(--report-bg);
+    background: var(--report-bg);
     color: var(--text);
     padding: 24px;
 }
@@ -68,9 +64,9 @@ body {
     content: "";
     position: absolute;
     inset: 0 0 auto 0;
-    height: 6px;
-    background: linear-gradient(90deg, var(--tone-danger), var(--tone-warning), var(--tone-info));
-    opacity: 0.2;
+    height: 3px;
+    background: var(--tone-info);
+    opacity: 0.55;
     pointer-events: none;
 }
 .report-content {
@@ -81,7 +77,7 @@ body {
 .hero {
     border-radius: calc(var(--radius-shell) - 4px);
     padding: 28px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(246,248,251,0.98));
+    background: var(--surface-strong);
     border: 1px solid var(--line);
     box-shadow: var(--shadow-soft);
 }
@@ -91,8 +87,9 @@ body {
     gap: 20px;
     align-items: start;
 }
-.hero-main {
+.hero-heading {
     min-width: 0;
+    grid-column: 1;
 }
 .eyebrow {
     font-size: 0.74rem;
@@ -115,6 +112,51 @@ body {
     font-size: 1rem;
     line-height: 1.58;
 }
+.scope-rail {
+    margin-top: 18px;
+    padding: 14px 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+}
+.scope-rail__title {
+    margin-bottom: 9px;
+    color: var(--text-soft);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+.scope-rail__items {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px 14px;
+}
+.scope-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 2px 8px;
+    align-items: center;
+    min-width: 0;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.scope-item strong {
+    grid-column: 2;
+    color: var(--text-strong);
+    font-size: 0.82rem;
+    overflow-wrap: anywhere;
+}
+.scope-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    grid-row: 1 / span 2;
+    background: var(--tone-neutral);
+}
+.scope-dot--success { background: var(--tone-success); }
+.scope-dot--warning { background: var(--tone-warning); }
+.scope-dot--danger { background: var(--tone-danger); }
+.scope-dot--info { background: var(--tone-info); }
 .hero-facts,
 .fact-grid {
     margin-top: 20px;
@@ -174,6 +216,8 @@ body {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    grid-column: 2;
+    grid-row: 1 / span 2;
 }
 .hero-side .status-panel {
     padding: 16px;
@@ -804,17 +848,17 @@ body {
     gap: 10px;
     justify-self: start;
     margin-top: 2px;
-    padding: 8px 12px;
-    border: 1px solid rgba(54, 95, 161, 0.22);
-    border-radius: 999px;
-    background: rgba(255,255,255,0.92);
-    box-shadow: 0 6px 16px rgba(15, 23, 38, 0.08);
-    color: var(--text-strong);
+    padding: 4px 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    color: var(--tone-info);
 }
 .section-card__summary:hover .section-card__toggle-row,
 .section-card__summary:focus-visible .section-card__toggle-row {
-    border-color: rgba(54, 95, 161, 0.4);
-    background: rgba(255,255,255,0.98);
+    color: var(--text-strong);
+    background: transparent;
 }
 .section-card__toggle-label {
     font-size: 0.76rem;
@@ -1526,6 +1570,72 @@ a:hover {
     font-size: 0.84rem;
     text-align: center;
 }
+
+/* Keep report surfaces neutral; reserve semantic color for status chips, dots, and rails. */
+.panel--tone-success,
+.panel--tone-warning,
+.panel--tone-danger,
+.panel--tone-info,
+.panel--tone-neutral,
+.report-note--success,
+.report-note--warning,
+.report-note--danger,
+.report-note--info,
+.report-note--neutral,
+.status-callout--warning,
+.status-callout--info,
+.ledger-entry--success,
+.ledger-entry--warning,
+.ledger-entry--danger,
+.ledger-entry--info,
+.ledger-entry--neutral,
+.probe-row--success,
+.probe-row--warning,
+.probe-row--danger,
+.probe-row--info,
+.probe-row--neutral,
+.auth-scenario--success,
+.auth-scenario--warning,
+.auth-scenario--danger,
+.auth-scenario--info,
+.auth-scenario--neutral,
+.score-pill--success,
+.score-pill--warning,
+.score-pill--danger,
+.score-pill--info,
+.score-pill--neutral,
+.metric-card--success,
+.metric-card--warning,
+.metric-card--danger,
+.metric-card--info,
+.metric-card--neutral,
+.section-card--tone-success,
+.section-card--tone-warning,
+.section-card--tone-danger,
+.section-card--tone-info,
+.section-card--tone-neutral,
+.section-abstract--success,
+.section-abstract--warning,
+.section-abstract--danger,
+.section-abstract--info,
+.section-abstract--neutral,
+.distribution-card--success,
+.distribution-card--warning,
+.distribution-card--danger,
+.distribution-card--info,
+.distribution-card--neutral,
+.authority-card--success,
+.authority-card--warning,
+.authority-card--danger,
+.authority-card--info,
+.authority-card--neutral {
+    background: var(--surface-strong);
+}
+.panel--tone-success, .section-card--tone-success, .section-abstract--success { border-left: 4px solid var(--tone-success); }
+.panel--tone-warning, .section-card--tone-warning, .section-abstract--warning { border-left: 4px solid var(--tone-warning); }
+.panel--tone-danger, .section-card--tone-danger, .section-abstract--danger { border-left: 4px solid var(--tone-danger); }
+.panel--tone-info, .section-card--tone-info, .section-abstract--info { border-left: 4px solid var(--tone-info); }
+.panel--tone-neutral, .section-card--tone-neutral, .section-abstract--neutral { border-left: 4px solid var(--tone-neutral-line); }
 @media (max-width: 1100px) {
     body { padding: 18px; }
     .report-content { padding: 18px; }
@@ -1536,6 +1646,12 @@ a:hover {
     .brief-grid,
     .appendix-grid {
         grid-template-columns: 1fr;
+    }
+    .hero-heading,
+    .hero-side,
+    .hero-facts {
+        grid-column: 1;
+        grid-row: auto;
     }
     .stack-grid {
         align-items: start;
@@ -1624,7 +1740,7 @@ a:hover {
         line-height: 1.55;
     }
     .hero-grid,
-    .hero-main,
+    .hero-heading,
     .hero-side,
     .brief-grid,
     .dual-grid,
@@ -1636,6 +1752,9 @@ a:hover {
         width: 100%;
         max-width: 100%;
         min-width: 0;
+    }
+    .scope-rail__items {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
     .status-chip,
     .tone-chip {

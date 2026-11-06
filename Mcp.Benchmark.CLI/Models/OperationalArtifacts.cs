@@ -65,6 +65,8 @@ public sealed class ExecutionPlan
 
     public string TargetDigest { get; init; } = string.Empty;
 
+    public string ProviderExecutionPlanSha256 { get; set; } = string.Empty;
+
     public string CommandName { get; init; } = "validate";
 
     public string SessionId { get; init; } = string.Empty;
@@ -194,17 +196,16 @@ public sealed class AuditManifest
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public EvidenceCoverageSummary? EvidenceCompleteness { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationStatus? OverallStatus { get; init; }
+    public string AssuranceProfile { get; init; } = "inventory";
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationVerdict? BaselineVerdict { get; init; }
+    public CoreConformanceStatus CoreConformance { get; init; } = CoreConformanceStatus.Incomplete;
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationVerdict? ProtocolVerdict { get; init; }
+    public SecurityAssuranceStatus SecurityAssurance { get; init; } = SecurityAssuranceStatus.Incomplete;
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationVerdict? CoverageVerdict { get; init; }
+    public OperationalReadinessStatus OperationalReadiness { get; init; } = OperationalReadinessStatus.Incomplete;
+
+    public CertificateEligibilityStatus CertificateEligibility { get; init; } = CertificateEligibilityStatus.Ineligible;
+
 }
 
 public sealed class AuditDigestSet
@@ -218,6 +219,8 @@ public sealed class AuditDigestSet
     public string ConfigSha256 { get; init; } = string.Empty;
 
     public string TargetIdentitySha256 { get; init; } = string.Empty;
+
+    public IReadOnlyDictionary<string, string> ExternalEvidenceSha256 { get; init; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
 
     public IReadOnlyDictionary<string, string> ArtifactsSha256 { get; init; } = new SortedDictionary<string, string>(StringComparer.Ordinal);
 }
@@ -254,8 +257,15 @@ public sealed class ModelEvaluationArtifact
 
     public string Summary { get; init; } = string.Empty;
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationVerdict? BaselineVerdict { get; init; }
+    public string AssuranceProfile { get; init; } = "inventory";
+
+    public CoreConformanceStatus CoreConformance { get; init; } = CoreConformanceStatus.Incomplete;
+
+    public SecurityAssuranceStatus SecurityAssurance { get; init; } = SecurityAssuranceStatus.Incomplete;
+
+    public OperationalReadinessStatus OperationalReadiness { get; init; } = OperationalReadinessStatus.Incomplete;
+
+    public CertificateEligibilityStatus CertificateEligibility { get; init; } = CertificateEligibilityStatus.Ineligible;
 
     public IReadOnlyList<string> AdvisoryNotes { get; init; } = Array.Empty<string>();
 
@@ -283,22 +293,29 @@ public sealed class ModelEvaluationInput
 {
     public string ValidationId { get; init; } = string.Empty;
 
-    public ValidationVerdict BaselineVerdict { get; init; } = ValidationVerdict.Unknown;
+    public string AssuranceProfile { get; init; } = "inventory";
 
-    public IReadOnlyList<ModelEvaluationDecisionInput> BlockingDecisions { get; init; } = Array.Empty<ModelEvaluationDecisionInput>();
+    public CoreConformanceStatus CoreConformance { get; init; } = CoreConformanceStatus.Incomplete;
+
+    public SecurityAssuranceStatus SecurityAssurance { get; init; } = SecurityAssuranceStatus.Incomplete;
+
+    public OperationalReadinessStatus OperationalReadiness { get; init; } = OperationalReadinessStatus.Incomplete;
+
+    public CertificateEligibilityStatus CertificateEligibility { get; init; } = CertificateEligibilityStatus.Ineligible;
+
+    public IReadOnlyList<ModelEvaluationClaimInput> NonSuccessClaims { get; init; } = Array.Empty<ModelEvaluationClaimInput>();
 
     public IReadOnlyList<ModelEvaluationClientInput> ClientProfiles { get; init; } = Array.Empty<ModelEvaluationClientInput>();
 
     public IReadOnlyList<ModelEvaluationFindingInput> AiFindings { get; init; } = Array.Empty<ModelEvaluationFindingInput>();
 }
 
-public sealed record ModelEvaluationDecisionInput(
-    string DecisionId,
-    string? RuleId,
-    GateOutcome Gate,
-    ValidationFindingSeverity Severity,
-    string Category,
-    string Component);
+public sealed record ModelEvaluationClaimInput(
+    string ClaimId,
+    AssuranceDimension Dimension,
+    AssuranceAuthority Authority,
+    AssuranceClaimOutcome Outcome,
+    string Subject);
 
 public sealed record ModelEvaluationClientInput(string ProfileId, ClientProfileCompatibilityStatus Status);
 

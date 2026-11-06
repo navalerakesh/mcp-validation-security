@@ -2,7 +2,9 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Tests.Fixtures;
 using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using Xunit;
@@ -22,7 +24,6 @@ public class ValidationReportRendererTests
             OverallStatus = ValidationStatus.Passed,
             ServerConfig = new McpServerConfig { Endpoint = "https://example.test/<script>alert(1)</script>", Transport = "http" },
             ValidationConfig = new McpValidatorConfiguration(),
-            BaselineComparison = new ValidationBaselineComparison { BaselineValidationId = "baseline", IsRegression = true, ScoreDelta = -5 },
             PolicyOutcome = new ValidationPolicyOutcome
             {
                 Passed = true,
@@ -53,7 +54,7 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Baseline regression: yes");
+        html.Should().NotContain("Baseline regression:");
         html.Should().Contain("1 governed waiver(s) applied");
         html.Should().Contain("Run Overhead");
         html.Should().Contain("Target 95th-Percentile Latency");
@@ -93,37 +94,29 @@ public class ValidationReportRendererTests
                         Severity = ViolationSeverity.High,
                         SpecReference = "javascript:alert(2)"
                     }
-                ]
-            },
-            VerdictAssessment = new VerdictAssessment
-            {
-                BaselineVerdict = ValidationVerdict.Reject,
-                ProtocolVerdict = ValidationVerdict.Reject,
-                CoverageVerdict = ValidationVerdict.Trusted,
-                TriggeredDecisions =
+                ],
+                Findings =
                 [
-                    new DecisionRecord
+                    new ValidationFinding
                     {
-                        DecisionId = "decision:unsafe-link",
-                        RuleId = "TEST.URI",
-                        Lane = EvaluationLane.Baseline,
-                        Authority = ValidationRuleSource.Spec,
-                        Origin = EvidenceOrigin.DeterministicObservation,
-                        Gate = GateOutcome.Reject,
-                        Severity = ValidationFindingSeverity.High,
-                        Category = "Protocol",
+                        RuleId = "TEST.URI.CLAIM",
+                        Source = ValidationRuleSource.Spec,
                         Component = "response",
+                        Severity = ValidationFindingSeverity.High,
                         Summary = "Unsafe decision spec reference.",
                         SpecReference = "javascript:alert(3)"
                     }
                 ]
             }
         };
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().NotContain("href=\"javascript:");
-        html.Should().NotContain("href=\"data:");
+        html.Should().NotContain("<a href=\"data:");
         html.Should().Contain("Unsafe producer");
         html.Should().Contain("javascript:alert(2)");
         html.Should().Contain("javascript:alert(3)");
@@ -213,6 +206,10 @@ public class ValidationReportRendererTests
                 }
             }
         };
+        result.Assurance = CreateAssurance(
+            CreateClaim(ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing, "fetch_document", AssuranceDimension.CapabilityContract, AssuranceAuthority.Heuristic, AssuranceClaimOutcome.ReviewRequired),
+            CreateClaim("MCP.INIT.VERSION_NEGOTIATION", "initialize", AssuranceDimension.CoreProtocol, AssuranceAuthority.OfficialSpecification, AssuranceClaimOutcome.Violated, "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle"),
+            CreateClaim("MCP.SECURITY.PROMPT_INJECTION", "prompt:get", AssuranceDimension.Security, AssuranceAuthority.DeterministicSecurity, AssuranceClaimOutcome.Violated));
 
         var sarif = _renderer.GenerateSarifReport(result);
 
@@ -251,47 +248,14 @@ public class ValidationReportRendererTests
 
         rules.EnumerateArray()
             .Single(rule => rule.GetProperty("id").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
-            .GetProperty("properties").GetProperty("source").GetString().Should().Be("guideline");
+            .GetProperty("properties").GetProperty("source").GetString().Should().Be("Heuristic");
 
         results.EnumerateArray()
             .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
-            .GetProperty("properties").GetProperty("authority").GetString().Should().Be("heuristic");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
-            .GetProperty("properties").GetProperty("authorityPriority").GetInt32().Should().Be(0);
-
-        var violationContext = results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
-            .GetProperty("properties")
-            .GetProperty("context");
-        violationContext.GetProperty("requestedProtocolVersion").GetString().Should().Be("2025-11-25");
-        violationContext.GetProperty("serverProtocolVersion").GetString().Should().Be("2025-03-26");
-        violationContext.GetProperty("statusCode").GetString().Should().Be("200");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
-            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("high");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.INIT.VERSION_NEGOTIATION")
-            .GetProperty("properties").GetProperty("ruleIdSource").GetString().Should().Be("explicit");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
-            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("low");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
-            .GetProperty("properties").GetProperty("normalizedSeverity").GetString().Should().Be("critical");
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing)
-            .GetProperty("properties").GetProperty("authorityPriority").GetInt32().Should().Be(1);
-
-        results.EnumerateArray()
-            .Single(resultElement => resultElement.GetProperty("ruleId").GetString() == "MCP.SECURITY.PROMPT_INJECTION")
-            .GetProperty("properties").GetProperty("authorityLegend").GetString().Should().Contain("Authority order");
+            .GetProperty("properties").GetProperty("authority").GetString().Should().Be("DeterministicSecurity");
+        results.EnumerateArray().All(resultElement =>
+            resultElement.GetProperty("properties").TryGetProperty("claimId", out _) &&
+            resultElement.GetProperty("properties").TryGetProperty("outcome", out _)).Should().BeTrue();
     }
 
     [Fact]
@@ -342,19 +306,16 @@ public class ValidationReportRendererTests
                 }
             }
         };
+        result.Assurance = CreateAssurance(
+            CreateClaim("security:prompt-reflection", "prompt:get", AssuranceDimension.Security, AssuranceAuthority.DeterministicSecurity, AssuranceClaimOutcome.Violated));
 
         var sarif = _renderer.GenerateSarifReport(result);
 
         using var document = JsonDocument.Parse(sarif);
         var results = document.RootElement.GetProperty("runs")[0].GetProperty("results");
-        var fallbackResults = results.EnumerateArray()
-            .Where(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdSource").GetString() == "fallback")
-            .ToList();
-
-        fallbackResults.Should().HaveCount(3);
-        fallbackResults.Should().OnlyContain(resultElement => !string.IsNullOrWhiteSpace(resultElement.GetProperty("ruleId").GetString()));
-        fallbackResults.Should().OnlyContain(resultElement => resultElement.GetProperty("properties").GetProperty("missingExplicitRuleId").GetBoolean());
-        fallbackResults.Should().OnlyContain(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdPolicy").GetString()!.Contains("High and critical SARIF entries"));
+        results.GetArrayLength().Should().Be(1);
+        results[0].GetProperty("ruleId").GetString().Should().Be("security:prompt-reflection");
+        results[0].GetProperty("properties").TryGetProperty("ruleIdSource", out _).Should().BeFalse();
     }
 
     [Fact]
@@ -366,12 +327,9 @@ public class ValidationReportRendererTests
 
         using var document = JsonDocument.Parse(sarif);
         var results = document.RootElement.GetProperty("runs")[0].GetProperty("results");
-        var ruleIdSources = results.EnumerateArray()
-            .Select(resultElement => resultElement.GetProperty("properties").GetProperty("ruleIdSource").GetString())
-            .ToList();
-
-        ruleIdSources.Should().NotContain("fallback");
-        ruleIdSources.Should().Contain("derived-coverage");
+        results.EnumerateArray().All(resultElement =>
+            resultElement.GetProperty("properties").TryGetProperty("claimId", out _) &&
+            resultElement.GetProperty("properties").TryGetProperty("authority", out _)).Should().BeTrue();
     }
 
     [Fact]
@@ -413,6 +371,8 @@ public class ValidationReportRendererTests
                 }
             }
         };
+        var duplicateClaim = CreateClaim("guideline:display-title", "search_docs", AssuranceDimension.CapabilityContract, AssuranceAuthority.Heuristic, AssuranceClaimOutcome.ReviewRequired);
+        result.Assurance = CreateAssurance(duplicateClaim, duplicateClaim);
 
         var sarif = _renderer.GenerateSarifReport(result);
 
@@ -422,7 +382,7 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
-    public void GenerateJunitReport_ShouldIncludeOverallPolicyAndCategorySuites()
+    public void GenerateJunitReport_ShouldIncludeAssuranceClaimAndCertificateSuites()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
 
@@ -432,27 +392,13 @@ public class ValidationReportRendererTests
         var root = document.Root;
         root.Should().NotBeNull();
         root!.Name.LocalName.Should().Be("testsuites");
-        root.Attribute("tests")!.Value.Should().Be("17");
-
-        var policySuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "host-policy");
-        policySuite.Attribute("failures")!.Value.Should().Be("1");
-
-        var policyCase = policySuite.Elements("testcase").Single();
-        policyCase.Attribute("name")!.Value.Should().Be("Policy Gate (strict)");
-        policyCase.Element("failure")!.Value.Should().Contain("Strict policy blocked the validation result");
-        policyCase.Element("failure")!.Value.Should().Contain("Blocking Decision Priority: critical");
-
-        var promptSuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "prompt-testing");
-        promptSuite.Attribute("skipped")!.Value.Should().Be("1");
-
-        var coverageSuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "evidence-coverage");
-        coverageSuite.Attribute("tests")!.Value.Should().Be("8");
-        coverageSuite.Attribute("skipped")!.Value.Should().Be("1");
-        var promptCoverageCase = coverageSuite.Elements("testcase").Single(testCase => testCase.Attribute("name")!.Value == "Coverage: prompt-surface/prompts/list");
-        promptCoverageCase.Element("skipped")!.Value.Should().Contain("EvidenceId: coverage:prompt-surface:prompts-list:Skipped");
-
-        var securitySuite = root.Elements("testsuite").Single(suite => suite.Attribute("name")!.Value == "security-testing");
-        securitySuite.Elements("testcase").Single().Element("failure")!.Value.Should().Contain("MCP.SECURITY.PROMPT_INJECTION");
+        root.Attribute("tests")!.Value.Should().Be((result.Assurance.Claims.Count + 1).ToString());
+        root.Elements("testsuite").Should().Contain(suite => suite.Attribute("name")!.Value == "assurance-certificate");
+        var incompleteCases = root.Descendants("testcase")
+            .Where(testCase => result.Assurance.Claims.Any(claim =>
+                claim.ClaimId == testCase.Attribute("name")!.Value && claim.Outcome == AssuranceClaimOutcome.Incomplete))
+            .ToList();
+        incompleteCases.Should().OnlyContain(testCase => testCase.Element("skipped") != null);
     }
 
     [Fact]
@@ -501,9 +447,8 @@ public class ValidationReportRendererTests
         html.Should().NotContain("Resources discovered 0; accessible 0.");
         html.Should().NotContain("Prompts discovered 0; passed 0; failed 0.");
 
-        junit.Should().Contain("Catalog Applicability: Tools capability was not advertised during initialize; tools/list and tools/call probes were skipped; no tool executions were required.");
-        junit.Should().Contain("Catalog Applicability: Resources capability was not advertised during initialize; resources/list and resources/read probes were skipped; no resource reads were required.");
-        junit.Should().Contain("Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.");
+        junit.Should().Contain("assurance-certificate");
+        junit.Should().NotContain("Catalog Applicability:");
     }
 
     [Fact]
@@ -519,17 +464,135 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
+    public void GenerateHtmlReport_WithDiscoveryOnlyPolicy_ShouldNotImplyToolInvocation()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestToolExecution = false;
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestParameterValidation = false;
+        result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading = false;
+        result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution = false;
+        result.ResourceTesting = new ResourceTestResult
+        {
+            Status = TestStatus.Passed,
+            ResourcesDiscovered = 1,
+            ResourceResults = new List<IndividualResourceResult>
+            {
+                new() { ResourceName = "README", ResourceUri = "file:///README.md", Status = TestStatus.Passed }
+            }
+        };
+        result.PromptTesting = new PromptTestResult
+        {
+            Status = TestStatus.Passed,
+            PromptsDiscovered = 1,
+            PromptsTestPassed = 1,
+            PromptResults = new List<IndividualPromptResult>
+            {
+                new() { PromptName = "summarize", Status = TestStatus.Passed }
+            }
+        };
+        result.CapabilitySnapshot = new TransportResult<CapabilitySummary>
+        {
+            IsSuccessful = true,
+            Payload = new CapabilitySummary
+            {
+                ToolListingSucceeded = true,
+                ResourceListingSucceeded = true,
+                PromptListingSucceeded = true,
+                DiscoveredToolsCount = 2,
+                FirstToolName = "delete_repo",
+                ToolInvocationAttempted = false
+            }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Tool Catalog Validation Details");
+        html.Should().Contain("Tool invocation was not attempted under the active execution policy.");
+        html.Should().Contain("was discovered; invocation was not attempted.");
+        html.Should().Contain("Catalog Status");
+        html.Should().Contain("Discovery / Metadata Time");
+        html.Should().Contain("Resource Catalog Validation Details");
+        html.Should().Contain("Resource reads were not attempted under the active execution policy.");
+        html.Should().Contain("Prompt Catalog Validation Details");
+        html.Should().Contain("Prompt execution was not attempted under the active execution policy.");
+        html.Should().NotContain("could not be invoked");
+        html.Should().NotContain("Tools discovered 2; passed 2; failed 0.");
+    }
+
+    [Fact]
     public void GenerateHtmlReport_ShouldExposeHeroDecisionSignals()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("<span class=\"status-chip status-chip--danger\">Run Status</span>");
-        html.Should().Contain("<span class=\"status-chip status-chip--danger\">Deterministic Verdict</span>");
-        html.Should().Contain("<span class=\"status-chip status-chip--info\">Trust Level</span>");
-        html.Should().Contain("<div class=\"focus-value\">Level 3 (L3)</div>");
-        html.Should().Contain("<div class=\"focus-label\">Acceptable");
+        html.Should().Contain(">Certificate Outcome</span>");
+        html.Should().Contain(">Core Conformance</span>");
+        html.Should().Contain(">Security Assurance</span>");
+        html.Should().Contain("aria-label=\"Tested scope\"");
+        html.Should().Contain(result.Assurance.CertificateEligibility.Status.ToString());
+        html.Should().NotContain(">Trust Level</span>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithInventoryProfile_ShouldFrameAssessmentWithoutCertificationFailure()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestToolExecution = false;
+        result.ValidationConfig.Validation.Categories.ToolTesting.TestParameterValidation = false;
+        result.ValidationConfig.Validation.Categories.ResourceTesting.TestResourceReading = false;
+        result.ValidationConfig.Validation.Categories.PromptTesting.TestPromptExecution = false;
+        result.SecurityTesting = new SecurityTestResult { Status = TestStatus.Skipped };
+        result.PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Skipped };
+        result.Run.SchemaVersion = "2025-06-18";
+        result.ValidationConfig.Reporting.SpecProfile = "latest";
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            AssuranceProfileCatalog.Inventory,
+            new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Safe });
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+
+        html.Should().Contain("Inventory Assessment Complete");
+        html.Should().Contain("Not issued by inventory profile");
+        html.Should().Contain("Inventory completed with assurance evidence gaps");
+        html.Should().Contain("<div class=\"fact-item__value\">2025-06-18</div>");
+        html.Should().NotContain("Assurance Requirements Not Met");
+        html.Should().NotContain("Selected assurance profile is not satisfied");
+        html.Should().Contain("<span class=\"scope-item__label\">Tool invocation</span><strong>Not attempted</strong>");
+        html.Should().Contain("<span class=\"scope-item__label\">Security probes</span><strong>Skipped</strong>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithRunSchemaVersion_ShouldIgnoreRendererProfile()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Run.SchemaVersion = "2025-06-18";
+        var rendererConfig = new ReportingConfig { SpecProfile = "2026-07-28" };
+
+        var html = _renderer.GenerateHtmlReport(result, rendererConfig, verbose: true);
+
+        Regex.IsMatch(
+            html,
+            @"MCP Specification Profile</div>\s*<div class=""fact-item__value"">2025-06-18</div>")
+            .Should().BeTrue();
+        html.Should().NotContain("<div class=\"fact-item__value\">2026-07-28</div>");
+    }
+
+    [Fact]
+    public void GenerateHtmlReport_WithoutCanonicalSchemaVersion_ShouldUseRendererProfileFallback()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Run.SchemaVersion = null;
+        result.Run.ApplicabilityContext = null;
+        var rendererConfig = new ReportingConfig { SpecProfile = "2025-11-25" };
+
+        var html = _renderer.GenerateHtmlReport(result, rendererConfig, verbose: true);
+
+        Regex.IsMatch(
+            html,
+            @"MCP Specification Profile</div>\s*<div class=""fact-item__value"">2025-11-25</div>")
+            .Should().BeTrue();
     }
 
     [Fact]
@@ -542,7 +605,8 @@ public class ValidationReportRendererTests
         html.Should().Contain("Terms And Abbreviations");
         html.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
         html.Should().Contain("Priority is not severity.");
-        html.Should().Contain("Trust levels L1-L5");
+        html.Should().Contain("Certificate eligibility");
+        html.Should().Contain("Typed claim");
         html.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
         html.Should().Contain("P50 / P95 / P99");
         html.Should().Contain("section-abstract__label\">Priority 1</div>");
@@ -582,13 +646,15 @@ public class ValidationReportRendererTests
     }
 
     [Fact]
-    public void GenerateHtmlReport_ShouldRenderSectionCardsCollapsedByDefaultWithVisibleToggleAffordance()
+    public void GenerateHtmlReport_ShouldOpenExecutiveDecisionAndKeepReferenceMaterialLast()
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(0);
+        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(1);
+        html.IndexOf("Release Decision &amp; Reading Path", StringComparison.Ordinal)
+            .Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
         html.Should().Contain("section-card__toggle-label section-card__toggle-label--collapsed\">Expand details</span>");
         html.Should().Contain("section-card__toggle-label section-card__toggle-label--expanded\">Collapse details</span>");
     }
@@ -918,14 +984,8 @@ public class ValidationReportRendererTests
         var junit = _renderer.GenerateJunitReport(result);
 
         var document = XDocument.Parse(junit);
-        var performanceCase = document.Root!
-            .Elements("testsuite")
-            .Single(suite => suite.Attribute("name")!.Value == "performance-testing")
-            .Elements("testcase")
-            .Single();
-
-        performanceCase.Element("skipped")!.Value.Should().Contain("Calibration Override [MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_ADVISORY]");
-        performanceCase.Element("skipped")!.Value.Should().Contain("deterministic verdict changed: False");
+        document.Root!.Elements("testsuite").Should().NotContain(suite => suite.Attribute("name")!.Value == "performance-testing");
+        document.Root.Elements("testsuite").Should().Contain(suite => suite.Attribute("name")!.Value == "assurance-certificate");
     }
 
     private static PerformanceTestResult CreatePerformanceResultWithCalibrationOverride()
@@ -966,6 +1026,46 @@ public class ValidationReportRendererTests
                     ChangedDeterministicVerdict = false
                 }
             ]
+        };
+    }
+
+    private static AssuranceEvaluation CreateAssurance(params AssuranceClaim[] claims)
+    {
+        return new AssuranceEvaluation
+        {
+            Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Provider,
+            Claims = claims,
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = "provider",
+                Status = CertificateEligibilityStatus.Ineligible,
+                Reasons = ["Test assurance evidence is intentionally incomplete."]
+            }
+        };
+    }
+
+    private static AssuranceClaim CreateClaim(
+        string id,
+        string subject,
+        AssuranceDimension dimension,
+        AssuranceAuthority authority,
+        AssuranceClaimOutcome outcome,
+        string? sourceUri = null)
+    {
+        return new AssuranceClaim
+        {
+            ClaimId = id,
+            Subject = subject,
+            Dimension = dimension,
+            RequirementLevel = authority == AssuranceAuthority.OfficialSpecification
+                ? AssuranceRequirementLevel.Must
+                : AssuranceRequirementLevel.SecurityControl,
+            Authority = authority,
+            Source = new AssuranceSourceReference { Uri = sourceUri, Revision = "test" },
+            Outcome = outcome,
+            Confidence = EvidenceConfidenceLevel.High,
+            EvidenceIds = [$"evidence:{id}"],
+            Summary = $"Assurance claim {id} requires attention."
         };
     }
 }

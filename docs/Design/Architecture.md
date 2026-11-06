@@ -6,7 +6,7 @@ This document describes the stable architectural shape of MCP Validator: project
 
 - Keep validation evidence neutral and reusable across hosts.
 - Separate host-specific compatibility interpretation from protocol and security evidence.
-- Keep execution governance separate from validation evidence and trust assessments.
+- Keep execution governance separate from validation evidence and assurance assessments.
 - Support remote HTTP targets and local STDIO targets without duplicating validator logic.
 - Produce deterministic human-readable and machine-readable artifacts that can be archived or re-rendered offline.
 
@@ -48,11 +48,11 @@ flowchart LR
     Service --> Validators[Protocol, tools, prompts, resources, security, error-handling, and performance validators]
     Validators --> Evidence[Assessment layers, coverage, observations, and applied packs]
     Evidence --> Result[Redacted ValidationResult]
-    Result --> Verdicts[Trust, verdict, and policy evaluation]
+    Result --> Assurance[Claims, independent assessments, certificate, and policy]
     Result --> Profiles[Client profile compatibility]
     Result -. optional companion .-> ModelArtifacts[Experimental model evaluation]
     Result --> Artifacts[Markdown, HTML, JSON, SARIF, and audit artifacts]
-    Verdicts --> Artifacts
+    Assurance --> Artifacts
     Profiles --> Artifacts
     ModelArtifacts --> Artifacts
     OpsArtifacts --> Artifacts
@@ -75,7 +75,7 @@ stateDiagram-v2
     SessionBootstrap --> BootstrapFailed: bootstrap health or session setup fails
     SessionBootstrap --> SnapshotReady: initialize and capability snapshot captured
     SnapshotReady --> ValidationRunning: validators and scenario packs execute
-    ValidationRunning --> AssessmentsReady: scoring, trust, verdict, and coverage populated
+    ValidationRunning --> AssessmentsReady: claims, independent assessments, and coverage populated
     AssessmentsReady --> CompatibilityReady: policy and client profiles evaluated
     CompatibilityReady --> ModelAdvisory: model eval enabled
     CompatibilityReady --> Persisted: model eval disabled
@@ -93,16 +93,16 @@ stateDiagram-v2
 3. Session bootstrap resolves transport, applies outbound target policy, selects modern or legacy protocol behavior, and captures the capability snapshot shared by downstream validators.
 4. Applicability resolution selects the effective schema version plus the active protocol feature packs, rule packs, and scenario packs for the run.
 5. Validators collect neutral evidence across the enabled categories, with performance running after the functional probes so load generation cannot distort protocol or auth findings.
-6. The validator service assembles assessment layers, coverage declarations, observations, scoring, trust, and verdict documents from the collected evidence.
-7. The CLI applies policy evaluation, client-profile interpretation, and optional model evaluation without mutating the deterministic evidence envelope.
-8. The CLI writes explicit output artifacts, emits host summaries, and returns an exit code aligned with the selected policy mode.
+6. The validator service projects typed claims and reduces independent core, security, and operations assessments from collected evidence.
+7. The CLI attaches external conformance, applies certificate eligibility and policy, and computes client-profile interpretation without mutating neutral claims.
+8. The CLI writes explicit output artifacts, emits host summaries, and returns the V2 satisfied/failed/incomplete exit contract.
 
 ## Artifact Model
 
 `validate --output <folder>` writes the standard explicit-output artifact set:
 
 - Markdown report for human review
-- HTML report for sharing, with Run Status, Deterministic Verdict, and Trust Level surfaced as the top decision cards
+- HTML report for sharing, with Certificate Eligibility, Core Conformance, and Security Assurance surfaced as the top decision cards
 - JSON result as the canonical machine-readable record
 - SARIF for CI and code-scanning pipelines
 - Audit manifest describing the execution plan, saved artifacts, and persistence context

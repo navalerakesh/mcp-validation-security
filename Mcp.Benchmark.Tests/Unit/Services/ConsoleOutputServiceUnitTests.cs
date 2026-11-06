@@ -118,6 +118,11 @@ public class ConsoleOutputServiceUnitTests : IDisposable
                 "Great job! Server is fully compliant."
             }
         };
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Conformant,
+            SecurityAssuranceStatus.Verified,
+            OperationalReadinessStatus.Ready,
+            CertificateEligibilityStatus.Eligible);
 
         // Act
         _outputService.DisplayValidationResults(result);
@@ -125,8 +130,8 @@ public class ConsoleOutputServiceUnitTests : IDisposable
         // Assert
         var output = _stringWriter.ToString();
         output.Should().Contain("MCP SERVER VALIDATION RESULTS");
-        output.Should().Contain("Status: PASSED");
-        output.Should().Contain("Score:  95.5%");
+        output.Should().Contain("Certificate: ELIGIBLE");
+        output.Should().Contain("Core            Conformant");
         output.Should().Contain("https://test-server.com/mcp");
     }
 
@@ -157,14 +162,19 @@ public class ConsoleOutputServiceUnitTests : IDisposable
                 "Implement proper authentication"
             }
         };
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Nonconformant,
+            SecurityAssuranceStatus.IssuesFound,
+            OperationalReadinessStatus.NotReady,
+            CertificateEligibilityStatus.Ineligible);
 
         // Act
         _outputService.DisplayValidationResults(result);
 
         // Assert
         var output = _stringWriter.ToString();
-        output.Should().Contain("Status: FAILED");
-        output.Should().Contain("Score:  65.0%");
+        output.Should().Contain("Certificate: INELIGIBLE");
+        output.Should().Contain("Security        IssuesFound");
         output.Should().Contain("CRITICAL ISSUES");
         output.Should().Contain("JSON-RPC format violations detected");
         output.Should().Contain("RECOMMENDATIONS");
@@ -235,6 +245,29 @@ public class ConsoleOutputServiceUnitTests : IDisposable
         
         var output = _stringWriter.ToString();
         output.Should().Contain("MCP SERVER VALIDATION RESULTS");
+    }
+
+    private static AssuranceEvaluation CreateAssurance(
+        CoreConformanceStatus core,
+        SecurityAssuranceStatus security,
+        OperationalReadinessStatus operations,
+        CertificateEligibilityStatus certificate)
+    {
+        return new AssuranceEvaluation
+        {
+            Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Provider,
+            Assessments = new AssuranceAssessmentSet
+            {
+                CoreConformance = new CoreConformanceAssessment { Status = core },
+                SecurityAssurance = new SecurityAssuranceAssessment { Status = security },
+                OperationalReadiness = new OperationalReadinessAssessment { Status = operations }
+            },
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = "provider",
+                Status = certificate
+            }
+        };
     }
 
     public void Dispose()

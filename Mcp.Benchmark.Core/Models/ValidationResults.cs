@@ -23,6 +23,7 @@ public class ValidationResult
 
     public ValidationRunDocument Run { get; set; } = new();
 
+    [JsonPropertyName("measurements")]
     public ValidationAssessmentDocument Assessments { get; set; } = new();
 
     public ValidationEvidenceDocument Evidence { get; set; } = new();
@@ -57,22 +58,26 @@ public class ValidationResult
     /// <summary>
     /// Gets or sets the overall validation status.
     /// </summary>
+    [JsonIgnore]
     public ValidationStatus OverallStatus { get; set; } = ValidationStatus.InProgress;
 
     /// <summary>
     /// Gets or sets the overall compliance score (0-100).
     /// </summary>
+    [JsonIgnore]
     public double ComplianceScore { get; set; } = 0.0;
 
     /// <summary>
     /// Gets or sets transparent notes explaining how the aggregate score and status were derived.
     /// </summary>
+    [JsonIgnore]
     public List<string> ScoringNotes { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the canonical aggregate scoring contract for this validation run.
     /// This is the preferred machine-readable score object for CI/CD consumers.
     /// </summary>
+    [JsonIgnore]
     public ScoringResult? ScoringDetails { get; set; }
 
     /// <summary>
@@ -103,13 +108,6 @@ public class ValidationResult
     {
         get => Assessments.ProtocolCompliance;
         set => Assessments.ProtocolCompliance = value;
-    }
-
-    [JsonIgnore]
-    public VerdictAssessment? VerdictAssessment
-    {
-        get => Assessments.VerdictAssessment;
-        set => Assessments.VerdictAssessment = value;
     }
 
     /// <summary>
@@ -246,19 +244,27 @@ public class ValidationResult
     }
 
     /// <summary>
-    /// Gets or sets the MCP Trust Assessment — a multi-dimensional evaluation
-    /// of how trustworthy this MCP server is for AI agent consumption.
-    /// Computed after all validators complete.
-    /// </summary>
-    public McpTrustAssessment? TrustAssessment { get; set; }
-
-    /// <summary>
     /// Gets or sets the host-level policy decision derived from the validation result.
     /// </summary>
+    [JsonPropertyName("policyDecision")]
     public ValidationPolicyOutcome? PolicyOutcome { get; set; }
 
+    /// <summary>
+    /// Gets or sets the V2 claims, independent assessments, and certificate eligibility decision.
+    /// </summary>
+    public AssuranceEvaluation Assurance { get; set; } = new()
+    {
+        Profile = AssuranceProfileCatalog.Inventory,
+        CertificateEligibility = new CertificateEligibilityAssessment
+        {
+            ProfileId = AssuranceProfileCatalog.Inventory.ProfileId,
+            Status = CertificateEligibilityStatus.Ineligible,
+            Reasons = ["Assurance evaluation has not completed."]
+        }
+    };
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
-    public ValidationBaselineComparison? BaselineComparison { get; set; }
+    public AssuranceBaselineComparison? BaselineComparison { get; set; }
 
     /// <summary>
     /// Gets or sets the optional host-side client compatibility interpretation derived from the validation result.
@@ -287,6 +293,10 @@ public class ValidationResult
                 ValidationId = ValidationId,
                 ProtocolVersion = ProtocolVersion,
                 SchemaVersion = Run.SchemaVersion,
+                TargetIdentitySha256 = Run.TargetIdentitySha256,
+                ExecutionPlanSha256 = Run.ExecutionPlanSha256,
+                ExecutionMode = Run.ExecutionMode,
+                PlannedChecks = Run.PlannedChecks.ToArray(),
                 ApplicabilityContext = Run.ApplicabilityContext,
                 InitializationHandshake = SanitizeInitializationHandshake(InitializationHandshake),
                 CapabilitySnapshot = SanitizeCapabilitySnapshot(CapabilitySnapshot),
@@ -319,8 +329,8 @@ public class ValidationResult
             CriticalErrors = CriticalErrors.Select(_ => "Validation framework error details were redacted from the canonical artifact.").ToList(),
             Recommendations = Recommendations.ToList(),
             Summary = DeepCloneRequired(Summary),
-            TrustAssessment = DeepClone(TrustAssessment),
             PolicyOutcome = DeepClone(PolicyOutcome),
+            Assurance = DeepCloneRequired(Assurance),
             BaselineComparison = DeepClone(BaselineComparison)
         };
     }
@@ -353,6 +363,8 @@ public class ValidationResult
                 Component = observation.Component,
                 ObservationKind = observation.ObservationKind,
                 ScenarioId = observation.ScenarioId,
+                Lane = observation.Lane,
+                Origin = observation.Origin,
                 RedactedPayloadPreview = string.IsNullOrWhiteSpace(observation.RedactedPayloadPreview)
                     ? null
                     : "Redacted typed observation available.",
@@ -476,7 +488,7 @@ public class ValidationResult
             {
                 CapabilityDeclarationsAvailable = payload.CapabilityDeclarationsAvailable,
                 AdvertisedCapabilities = payload.AdvertisedCapabilities.ToArray(),
-                Tools = payload.Tools.ToArray(),
+                Tools = Array.Empty<ModelContextProtocol.Client.McpClientTool>(),
                 ToolListingSucceeded = payload.ToolListingSucceeded,
                 ToolInvocationAttempted = payload.ToolInvocationAttempted,
                 ToolInvocationSucceeded = payload.ToolInvocationSucceeded,
@@ -512,6 +524,10 @@ public class ValidationResult
                 SupportedVersions = payload.SupportedVersions.ToArray(),
                 CapabilityNames = payload.CapabilityNames.ToArray(),
                 ExtensionIds = payload.ExtensionIds.ToArray(),
+                ExtensionAdvertisements = payload.ExtensionAdvertisements.ToDictionary(
+                    pair => pair.Key,
+                    pair => pair.Value,
+                    StringComparer.Ordinal),
                 ResultType = payload.ResultType,
                 CacheScope = payload.CacheScope,
                 TtlMs = payload.TtlMs,

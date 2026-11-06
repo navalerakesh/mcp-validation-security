@@ -21,7 +21,6 @@ public class MarkdownReportGeneratorTests
             ValidationId = "validation-1",
             OverallStatus = ValidationStatus.Passed,
             ServerConfig = new McpServerConfig { Endpoint = "https://example.test/<script>alert(1)</script>|`\r\n| injected | row |", Transport = "http" },
-            BaselineComparison = new ValidationBaselineComparison { BaselineValidationId = "baseline", IsRegression = true, ScoreDelta = -5 },
             PolicyOutcome = new ValidationPolicyOutcome
             {
                 Passed = true,
@@ -52,7 +51,7 @@ public class MarkdownReportGeneratorTests
 
         var report = new MarkdownReportGenerator().GenerateReport(result);
 
-        report.Should().Contain("Baseline Regression");
+        report.Should().NotContain("Baseline Regression");
         report.Should().Contain("Applied Waivers");
         report.Should().Contain("Validator Overhead");
         report.Should().Contain("Target Latency (50th / 95th / 99th Percentile)");
@@ -76,7 +75,8 @@ public class MarkdownReportGeneratorTests
         var report = _generator.GenerateReport(result);
 
         report.Should().Contain("Executive Summary");
-        report.Should().Contain("Compliance Score");
+        report.Should().Contain("Assurance Profile");
+        report.Should().Contain("Certificate Eligibility");
         report.Should().Contain("test-endpoint");
     }
 
@@ -88,116 +88,88 @@ public class MarkdownReportGeneratorTests
         report.Should().Contain("Reader Key: Terms And Abbreviations");
         report.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
         report.Should().Contain("Priority is not severity.");
-        report.Should().Contain("Trust levels L1-L5");
+        report.Should().Contain("Certificate eligibility");
+        report.Should().Contain("Typed claim");
         report.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
         report.Should().Contain("P50 / P95 / P99");
         report.Should().Contain("UUID means Universally Unique Identifier");
     }
 
     [Fact]
-    public void GenerateReport_WithTrustAssessment_ShouldIncludeTrustLevel()
+    public void GenerateReport_WithAssuranceAssessment_ShouldIncludeIndependentStatuses()
     {
         var result = BuildMinimalResult();
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L4_Trusted,
-            ProtocolCompliance = 100,
-            SecurityPosture = 100,
-            AiSafety = 85,
-            OperationalReadiness = 90
-        };
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Conformant,
+            SecurityAssuranceStatus.Verified,
+            OperationalReadinessStatus.Ready,
+            CertificateEligibilityStatus.Eligible);
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("Benchmark Trust Level");
-        report.Should().Contain("L4");
-        report.Should().Contain("Benchmark Trust Profile");
-        report.Should().Contain("Protocol Compliance");
-        report.Should().Contain("AI Safety");
+        report.Should().Contain("Core Conformance");
+        report.Should().Contain("Conformant");
+        report.Should().Contain("Security Assurance");
+        report.Should().Contain("Verified");
+        report.Should().Contain("Operational Readiness");
+        report.Should().Contain("Ready");
+        report.Should().NotContain("Benchmark Trust Level");
     }
 
     [Fact]
-    public void GenerateReport_WithIncompleteTrustEvidence_ShouldLabelUnevaluatedDimensions()
+    public void GenerateReport_WithIncompleteAssurance_ShouldExplainCertificateGap()
     {
         var result = BuildMinimalResult();
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L3_Acceptable,
-            ProtocolCompliance = 100,
-            SecurityPosture = 0,
-            AiSafety = 85,
-            OperationalReadiness = 70,
-            LimitedByIncompleteEvidence = true,
-            UnevaluatedDimensions = ["protocol", "security", "operations"]
-        };
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Incomplete,
+            SecurityAssuranceStatus.Incomplete,
+            OperationalReadinessStatus.Incomplete,
+            CertificateEligibilityStatus.Ineligible,
+            "Required active security evidence is missing.");
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("evidence-limited; unevaluated: protocol, security, operations");
-        report.Should().Contain("| **Protocol Compliance** | Not evaluated |");
-        report.Should().Contain("| **Security Posture** | Not evaluated |");
-        report.Should().Contain("| **Operational Readiness** | Not evaluated |");
-        report.Should().Contain("| **AI Safety** | 85% |");
+        report.Should().Contain("Required active security evidence is missing.");
+        report.Should().Contain("Evidence Coverage");
+        report.Should().Contain("Evidence Confidence");
     }
 
     [Fact]
-    public void GenerateReport_WithBoundaryFindings_ShouldIncludeBoundaryTable()
+    public void GenerateReport_WithReviewClaim_ShouldIncludeAuthorityAndOutcome()
     {
         var result = BuildMinimalResult();
-        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
-        result.TrustAssessment = new McpTrustAssessment
+        result.Assurance = CreateAssurance(
+            CoreConformanceStatus.Incomplete,
+            SecurityAssuranceStatus.Incomplete,
+            OperationalReadinessStatus.Incomplete,
+            CertificateEligibilityStatus.Ineligible);
+        result.Assurance = new AssuranceEvaluation
         {
-            TrustLevel = McpTrustLevel.L3_Acceptable,
-            BoundaryFindings = new List<AiBoundaryFinding>
-            {
-                new AiBoundaryFinding
+            Profile = result.Assurance.Profile,
+            Assessments = result.Assurance.Assessments,
+            CertificateEligibility = result.Assurance.CertificateEligibility,
+            Claims =
+            [
+                new AssuranceClaim
                 {
-                    Category = "Destructive",
-                    Component = "delete_tool",
-                    Severity = "High",
-                    Description = "Tool appears destructive"
+                    ClaimId = "security:tool:delete",
+                    Subject = "delete_tool",
+                    Dimension = AssuranceDimension.Security,
+                    RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                    Authority = AssuranceAuthority.Heuristic,
+                    Source = new AssuranceSourceReference { Revision = "test" },
+                    Outcome = AssuranceClaimOutcome.ReviewRequired,
+                    Confidence = EvidenceConfidenceLevel.Medium,
+                    Summary = "Tool requires human review."
                 }
-            }
+            ]
         };
 
         var report = _generator.GenerateReport(result);
 
-        report.Should().Contain("AI Boundary Findings");
-        report.Should().Contain("Destructive");
-        report.Should().Contain("delete_tool");
-    }
-
-    [Fact]
-    public void GenerateReport_WithComplianceTiers_ShouldIncludeMustShouldMay()
-    {
-        var result = BuildMinimalResult();
-        result.ValidationConfig.Reporting.IncludeDetailedLogs = true;
-        result.TrustAssessment = new McpTrustAssessment
-        {
-            TrustLevel = McpTrustLevel.L4_Trusted,
-            MustPassCount = 6,
-            MustFailCount = 0,
-            MustTotalCount = 6,
-            ShouldPassCount = 5,
-            ShouldFailCount = 2,
-            ShouldTotalCount = 7,
-            MaySupported = 3,
-            MayTotal = 5,
-            TierChecks = new List<ComplianceTierCheck>
-            {
-                new ComplianceTierCheck { Tier = "MUST", Requirement = "Test req", Passed = true, Component = "init" },
-                new ComplianceTierCheck { Tier = "SHOULD", Requirement = "Test should", Passed = false, Component = "tools" },
-                new ComplianceTierCheck { Tier = "MAY", Requirement = "Test may", Passed = true, Component = "caps" }
-            }
-        };
-
-        var report = _generator.GenerateReport(result);
-
-        report.Should().Contain("RFC 2119 Tiers");
-        report.Should().Contain("MUST");
-        report.Should().Contain("SHOULD");
-        report.Should().Contain("MAY");
-        report.Should().Contain("Fully compliant");
+        report.Should().Contain("security:tool:delete");
+        report.Should().Contain("Heuristic");
+        report.Should().Contain("ReviewRequired");
     }
 
     [Fact]
@@ -364,7 +336,7 @@ public class MarkdownReportGeneratorTests
                 }
             }
         };
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -455,46 +427,37 @@ public class MarkdownReportGeneratorTests
                 }
             }
         };
-        result.VerdictAssessment = new VerdictAssessment
+        result.SecurityTesting.Findings.Add(new ValidationFinding
         {
-            BlockingDecisions =
-            {
-                new()
+            RuleId = "MCP.AUTH.AUDIENCE",
+            Source = ValidationRuleSource.Spec,
+            GateOverride = GateOutcome.ReviewRequired,
+            Severity = ValidationFindingSeverity.High,
+            Category = "Authentication",
+            Component = "oauth",
+            Summary = "Bearer token audience was not enforced.",
+            Recommendation = "Reject bearer tokens with the wrong resource audience.",
+            ImpactAreas = [ImpactArea.AuthenticationBoundary]
+        });
+        result.ToolValidation = new ToolTestResult
+        {
+            Findings =
+            [
+                new ValidationFinding
                 {
-                    DecisionId = "auth-boundary",
-                    Lane = EvaluationLane.Baseline,
-                    Authority = ValidationRuleSource.Spec,
-                    Origin = EvidenceOrigin.DeterministicObservation,
-                    Gate = GateOutcome.ReviewRequired,
-                    Severity = ValidationFindingSeverity.High,
-                    Category = "Authentication",
-                    Component = "oauth",
-                    Summary = "Bearer token audience was not enforced.",
-                    ImpactAreas = [ImpactArea.AuthenticationBoundary],
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["recommendation"] = "Reject bearer tokens with the wrong resource audience."
-                    }
-                },
-                new()
-                {
-                    DecisionId = "capability-contract",
-                    Lane = EvaluationLane.Baseline,
-                    Authority = ValidationRuleSource.Spec,
-                    Origin = EvidenceOrigin.DeterministicObservation,
-                    Gate = GateOutcome.ReviewRequired,
+                    RuleId = "MCP.CAPABILITY.TOOLS",
+                    Source = ValidationRuleSource.Spec,
+                    GateOverride = GateOutcome.ReviewRequired,
                     Severity = ValidationFindingSeverity.High,
                     Category = "CapabilityCoverage",
                     Component = "tools/call",
                     Summary = "tools/call was exercised even though tools were not advertised.",
-                    ImpactAreas = [ImpactArea.CapabilityContract],
-                    Metadata = new Dictionary<string, string>
-                    {
-                        ["recommendation"] = "Align initialize capabilities with implemented tool support."
-                    }
+                    Recommendation = "Align initialize capabilities with implemented tool support.",
+                    ImpactAreas = [ImpactArea.CapabilityContract]
                 }
-            }
+            ]
         };
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -831,6 +794,9 @@ public class MarkdownReportGeneratorTests
             Confidence = EvidenceConfidenceLevel.Low,
             Reason = "Protected surface required credentials."
         });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result,
+            Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
@@ -868,24 +834,23 @@ public class MarkdownReportGeneratorTests
             {
                 new ValidationFinding
                 {
-                    RuleId = "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN",
+                    RuleId = ValidationFindingRuleIds.ProtocolActiveProbesNotRun,
                     Category = "Coverage",
                     Component = "protocol-active-probes",
                     Severity = ValidationFindingSeverity.Info,
-                    Source = ValidationRuleSource.Spec,
+                    Source = ValidationRuleSource.Guideline,
                     Summary = "Active protocol conformance probes were not run under the safe execution policy.",
                     Recommendation = "Use standard mode against an authorized non-production target when active malformed-message and error-handling evidence is required."
                 }
             }
         };
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory);
 
         var report = _generator.GenerateReport(result);
 
-        var protocolPriority = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
         var recommendation = report.IndexOf("Use standard mode against an authorized non-production target", StringComparison.Ordinal);
-        protocolPriority.Should().BeGreaterThanOrEqualTo(0);
-        recommendation.Should().BeGreaterThan(protocolPriority);
+        recommendation.Should().BeGreaterThanOrEqualTo(0);
+        report.Should().NotContain("Priority 1: Bootstrap & Protocol Version");
         report.Should().NotContain("Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `protocol-active-probes`");
     }
 
@@ -1004,6 +969,40 @@ public class MarkdownReportGeneratorTests
             ResourceTesting = new ResourceTestResult { Status = TestStatus.Passed, Score = 100 },
             PromptTesting = new PromptTestResult { Status = TestStatus.Passed, Score = 100 },
             PerformanceTesting = new PerformanceTestResult { Status = TestStatus.Passed, Score = 100, LoadTesting = new LoadTestResult() }
+        };
+    }
+
+    private static AssuranceEvaluation CreateAssurance(
+        CoreConformanceStatus core,
+        SecurityAssuranceStatus security,
+        OperationalReadinessStatus operations,
+        CertificateEligibilityStatus certificate,
+        params string[] reasons)
+    {
+        return new AssuranceEvaluation
+        {
+            Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Provider,
+            Assessments = new AssuranceAssessmentSet
+            {
+                CoreConformance = new CoreConformanceAssessment { Status = core },
+                SecurityAssurance = new SecurityAssuranceAssessment { Status = security },
+                OperationalReadiness = new OperationalReadinessAssessment { Status = operations }
+            },
+            EvidenceSummary = new EvidenceCoverageSummary
+            {
+                TotalDeclarations = 2,
+                ApplicableDeclarations = 2,
+                Covered = 1,
+                EvidenceCoverageRatio = 0.5,
+                EvidenceConfidenceRatio = 0.75,
+                ConfidenceLevel = EvidenceConfidenceLevel.Medium
+            },
+            CertificateEligibility = new CertificateEligibilityAssessment
+            {
+                ProfileId = "provider",
+                Status = certificate,
+                Reasons = reasons
+            }
         };
     }
 }

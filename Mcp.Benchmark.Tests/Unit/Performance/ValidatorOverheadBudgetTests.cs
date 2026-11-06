@@ -1,6 +1,6 @@
-using System.Diagnostics;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Scoring;
@@ -10,10 +10,8 @@ namespace Mcp.Benchmark.Tests.Unit.Performance;
 
 public sealed class ValidatorOverheadBudgetTests
 {
-    private const double RegressionMultiplier = 10;
-
     [Fact]
-    public void ProductionHostStartupAndPlanning_ShouldRemainWithinGenerousCiBudgets()
+    public void ProductionHostStartupAndPlanning_ShouldRemainWithinAllocationBudgets()
     {
         var session = new CliSessionContext("performance-budget");
         var governance = new ExecutionGovernanceService();
@@ -27,54 +25,47 @@ public sealed class ValidatorOverheadBudgetTests
         }
         governance.BuildValidationPlan(session, configuration, outputDirectory: null);
 
-        var startup = Stopwatch.StartNew();
-        for (var index = 0; index < 5; index++)
+        var startupBytes = AverageAllocatedBytes(5, () =>
         {
             using var host = McpvalCliHostFactory.Create(Array.Empty<string>(), session).Build();
-        }
-        startup.Stop();
+        });
 
-        var planning = Stopwatch.StartNew();
-        for (var index = 0; index < 100; index++)
-        {
-            governance.BuildValidationPlan(session, configuration, outputDirectory: null);
-        }
-        planning.Stop();
+        var planningBytes = AverageAllocatedBytes(
+            100,
+            () => governance.BuildValidationPlan(session, configuration, outputDirectory: null));
 
-        AverageMilliseconds(startup, 5).Should().BeLessThan(66.488 * RegressionMultiplier);
-        AverageMilliseconds(planning, 100).Should().BeLessThan(1.198 * RegressionMultiplier);
+        startupBytes.Should().BeLessThan(512 * 1024);
+        planningBytes.Should().BeLessThan(2 * 1024 * 1024);
     }
 
     [Fact]
-    public void PureReductionScoringAndRendering_ShouldRemainWithinGenerousCiBudgets()
+    public void PureReductionScoringAndRendering_ShouldRemainWithinAllocationBudgets()
     {
         var result = CreateResult();
         var scoring = new SecurityFocusedScoringStrategy();
         var renderer = new MarkdownReportGenerator();
 
-        ValidationVerdictEngine.Calculate(result);
+        AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
         scoring.CalculateScore(result);
         renderer.GenerateReport(result);
 
-        var reduction = Stopwatch.StartNew();
-        for (var index = 0; index < 2_000; index++) ValidationVerdictEngine.Calculate(result);
-        reduction.Stop();
+        var reductionBytes = AverageAllocatedBytes(
+            2_000,
+            () => AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory));
+        var scoringBytes = AverageAllocatedBytes(50_000, () => scoring.CalculateScore(result));
+        var renderingBytes = AverageAllocatedBytes(20_000, () => renderer.GenerateReport(result));
 
-        var score = Stopwatch.StartNew();
-        for (var index = 0; index < 50_000; index++) scoring.CalculateScore(result);
-        score.Stop();
-
-        var rendering = Stopwatch.StartNew();
-        for (var index = 0; index < 20_000; index++) renderer.GenerateReport(result);
-        rendering.Stop();
-
-        AverageMilliseconds(reduction, 2_000).Should().BeLessThan(0.137047 * RegressionMultiplier);
-        AverageMilliseconds(score, 50_000).Should().BeLessThan(0.001248 * RegressionMultiplier);
-        AverageMilliseconds(rendering, 20_000).Should().BeLessThan(0.004412 * RegressionMultiplier);
+        reductionBytes.Should().BeLessThan(16 * 1024);
+        scoringBytes.Should().BeLessThan(16 * 1024);
+        renderingBytes.Should().BeLessThan(64 * 1024);
     }
 
-    private static double AverageMilliseconds(Stopwatch stopwatch, int operationCount) =>
-        stopwatch.Elapsed.TotalMilliseconds / operationCount;
+    private static double AverageAllocatedBytes(int operationCount, Action operation)
+    {
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        for (var index = 0; index < operationCount; index++) operation();
+        return (GC.GetAllocatedBytesForCurrentThread() - before) / (double)operationCount;
+    }
 
     private static ValidationResult CreateResult()
     {
@@ -93,7 +84,7 @@ public sealed class ValidatorOverheadBudgetTests
             "protocol-core",
             "json-rpc",
             ValidationOutcome.Succeeded));
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
         return result;
     }
 }

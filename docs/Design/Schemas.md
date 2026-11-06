@@ -96,6 +96,7 @@ Machine-readable outputs declare both `documentType` and `documentSchemaVersion`
 - `mcpval-audit-manifest.schema.json`
 - `mcpval-client-profile-summary.schema.json`
 - `mcpval-model-evaluation.schema.json`
+- `mcpval-official-conformance-evidence.schema.json`
 
 Compatibility rules:
 

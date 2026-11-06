@@ -32,6 +32,10 @@ This matrix describes executable MCP Validator coverage. `Validated` means deter
 | Subscription acknowledgment | Legacy methods where advertised | Validated | Validated | First SSE event and process-backed STDIO tests |
 | Subscription cancellation/close | Legacy unsubscribe where advertised | Stream close bounded by HTTP probe | Validated | Correlated STDIO close result |
 | Extension IDs | N/A | Validated | Validated | Typed discovery evidence |
+| Extension settings | N/A | Validated | Validated | Typed Apps MIME types and Skills directory-read setting; arbitrary settings are not persisted |
+| MCP Apps Stable | N/A | Validated | Validated | Safe linkage/settings checks; standard bounded UI reads and HTML/CSP/permission analysis |
+| MCP Skills Beta Preview | N/A | Validated | Validated | Catalog/manifest security plus explicitly authorized bounded content verification; non-blocking extension verdict |
+| Official conformance | Imported | Imported | Imported | Pinned wrapper provenance, target/revision binding, no duplicated wire scenarios |
 | Tasks extension | Legacy task capabilities where declared | Validated negotiation | Validated negotiation | Dedicated stable finding; no invented RPC surface |
 | Tool input/output schemas | Validated | Validated | Validated | Draft 2020-12 definition/runtime tests |
 | Resource catalog processing | Validated | Validated | Validated | Configuration-owned bound and truncation evidence |
@@ -41,5 +45,7 @@ This matrix describes executable MCP Validator coverage. `Validated` means deter
 
 - Hosted operation still requires network-enforced egress and disposable worker isolation; application controls are not a hosted sandbox.
 - HTTP subscription validation proves first-event acknowledgment on a bounded stream. It does not wait indefinitely for target-generated change events.
-- Extension-specific behavior beyond schemas and declared negotiation requires an extension-owned versioned pack. Tasks is not treated as a core RPC namespace unless an extension contract defines one.
+- Tasks is not treated as a core RPC namespace unless promoted into the selected dated core revision. Official Tasks evidence can be imported, but native lifecycle duplication remains intentionally deferred.
+- Apps analysis proves server-delivered metadata/content properties only. It does not claim host sandbox, CSP header, permission-policy, postMessage, approval, or teardown enforcement.
+- Skills Preview proves server catalog/content consistency and detects advisory content risk. It does not prove host approval, activation, cache isolation, origin tagging, or digest enforcement.
 - Live provider certificates remain separate from deterministic CI and use temporary, deleted artifacts.

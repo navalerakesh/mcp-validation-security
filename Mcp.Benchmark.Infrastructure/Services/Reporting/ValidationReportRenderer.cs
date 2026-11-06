@@ -45,7 +45,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         using var culture = InvariantCultureScope.Enter();
         var reportElement = new XElement("ValidationReport",
             new XElement("Report",
-                new XElement("Title", "MCP Server Validation Report"),
+                new XElement("Title", "MCP Server Assurance Report"),
                 new XElement("GeneratedAt", ResolveArtifactTime(validationResult).ToString("yyyy-MM-ddTHH:mm:ssZ")),
                 new XElement("ValidationId", validationResult.ValidationId)
             ),
@@ -53,14 +53,32 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 new XElement("Endpoint", validationResult.ServerConfig.Endpoint),
                 new XElement("Transport", validationResult.ServerConfig.Transport)
             ),
-            new XElement("Results",
-                new XElement("OverallStatus", validationResult.OverallStatus.ToString()),
-                new XElement("ComplianceScore", validationResult.ComplianceScore.ToString("F1")),
+            new XElement("Assurance",
+                new XElement("Profile", validationResult.Assurance.Profile.ProfileId),
+                new XElement("CertificateEligibility", validationResult.Assurance.CertificateEligibility.Status.ToString()),
+                new XElement("CoreConformance", validationResult.Assurance.Assessments.CoreConformance.Status.ToString()),
+                new XElement("SecurityAssurance", validationResult.Assurance.Assessments.SecurityAssurance.Status.ToString()),
+                new XElement("OperationalReadiness", validationResult.Assurance.Assessments.OperationalReadiness.Status.ToString()),
+                new XElement("EvidenceCoverageRatio", validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio.ToString("F4")),
+                new XElement("EvidenceConfidenceRatio", validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio.ToString("F4")),
                 new XElement("DurationSeconds", (validationResult.Duration?.TotalSeconds ?? 0).ToString("F1")),
                 new XElement("StartTime", validationResult.StartTime.ToString("yyyy-MM-ddTHH:mm:ssZ")),
-                new XElement("EndTime", validationResult.EndTime?.ToString("yyyy-MM-ddTHH:mm:ssZ"))
+                new XElement("EndTime", validationResult.EndTime?.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                new XElement("EligibilityReasons",
+                    validationResult.Assurance.CertificateEligibility.Reasons.Select(reason => new XElement("Reason", reason))),
+                new XElement("Claims",
+                    validationResult.Assurance.Claims.Select(claim =>
+                        new XElement("Claim",
+                            new XAttribute("id", claim.ClaimId),
+                            new XAttribute("dimension", claim.Dimension),
+                            new XAttribute("authority", claim.Authority),
+                            new XAttribute("requirementLevel", claim.RequirementLevel),
+                            new XAttribute("outcome", claim.Outcome),
+                            new XAttribute("confidence", claim.Confidence),
+                            new XElement("Subject", claim.Subject),
+                            new XElement("Summary", claim.Summary),
+                            claim.Remediation == null ? null : new XElement("Remediation", claim.Remediation))))
             ),
-            BuildVerdictElement(validationResult),
             new XElement("Summary",
                 new XElement("TotalTests", validationResult.Summary.TotalTests),
                 new XElement("PassedTests", validationResult.Summary.PassedTests),
@@ -104,6 +122,18 @@ public class ValidationReportRenderer : IValidationReportRenderer
         if (clientCompatibilityElement != null)
         {
             reportElement.Add(clientCompatibilityElement);
+        }
+
+        var officialConformanceElement = BuildOfficialConformanceElement(validationResult);
+        if (officialConformanceElement != null)
+        {
+            reportElement.Add(officialConformanceElement);
+        }
+
+        var extensionReadinessElement = BuildExtensionReadinessElement(validationResult);
+        if (extensionReadinessElement != null)
+        {
+            reportElement.Add(extensionReadinessElement);
         }
 
         var validationEnvelopeElement = BuildValidationEnvelopeElement(validationResult);
@@ -482,7 +512,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
         using var culture = InvariantCultureScope.Enter();
         ArgumentNullException.ThrowIfNull(validationResult);
 
-        var entries = BuildSarifEntries(validationResult)
+        var entries = BuildAssuranceSarifEntries(validationResult)
             .GroupBy(entry => entry.Fingerprint, StringComparer.Ordinal)
             .Select(group => group.First())
             .ToList();
@@ -535,7 +565,7 @@ public class ValidationReportRenderer : IValidationReportRenderer
             {
                 new
                 {
-                    executionSuccessful = validationResult.PolicyOutcome?.Passed ?? validationResult.OverallStatus == ValidationStatus.Passed,
+                    executionSuccessful = AssuranceExitCodeMapper.Map(validationResult.Assurance, validationResult.PolicyOutcome) == AssuranceExitCodeMapper.Satisfied,
                     startTimeUtc = validationResult.StartTime.ToUniversalTime().ToString("O"),
                     endTimeUtc = validationResult.EndTime?.ToUniversalTime().ToString("O"),
                     properties = new
@@ -543,14 +573,15 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         validationId = validationResult.ValidationId,
                         endpoint = validationResult.ServerConfig.Endpoint,
                         transport = validationResult.ServerConfig.Transport,
-                        overallStatus = validationResult.OverallStatus.ToString(),
-                        baselineVerdict = validationResult.VerdictAssessment?.BaselineVerdict.ToString(),
-                        protocolVerdict = validationResult.VerdictAssessment?.ProtocolVerdict.ToString(),
-                        coverageVerdict = validationResult.VerdictAssessment?.CoverageVerdict.ToString(),
+                        assuranceProfile = validationResult.Assurance.Profile.ProfileId,
+                        certificateEligibility = validationResult.Assurance.CertificateEligibility.Status.ToString(),
+                        coreConformance = validationResult.Assurance.Assessments.CoreConformance.Status.ToString(),
+                        securityAssurance = validationResult.Assurance.Assessments.SecurityAssurance.Status.ToString(),
+                        operationalReadiness = validationResult.Assurance.Assessments.OperationalReadiness.Status.ToString(),
                         policyPassed = validationResult.PolicyOutcome?.Passed,
                         policySummary = validationResult.PolicyOutcome?.Summary,
-                        evidenceCoverageRatio = validationResult.VerdictAssessment?.EvidenceSummary.EvidenceCoverageRatio,
-                        evidenceConfidenceRatio = validationResult.VerdictAssessment?.EvidenceSummary.EvidenceConfidenceRatio,
+                        evidenceCoverageRatio = validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio,
+                        evidenceConfidenceRatio = validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio,
                         serverProfile = validationResult.ServerProfile.ToString(),
                         specProfile = validationResult.ValidationConfig.Reporting.SpecProfile
                     }
@@ -628,7 +659,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     new XElement("property", new XAttribute("name", "validationId"), new XAttribute("value", validationResult.ValidationId)),
                     new XElement("property", new XAttribute("name", "endpoint"), new XAttribute("value", validationResult.ServerConfig.Endpoint ?? string.Empty)),
                     new XElement("property", new XAttribute("name", "transport"), new XAttribute("value", validationResult.ServerConfig.Transport ?? string.Empty)),
-                    new XElement("property", new XAttribute("name", "overallStatus"), new XAttribute("value", validationResult.OverallStatus.ToString())),
+                    new XElement("property", new XAttribute("name", "assuranceProfile"), new XAttribute("value", validationResult.Assurance.Profile.ProfileId)),
+                    new XElement("property", new XAttribute("name", "certificateEligibility"), new XAttribute("value", validationResult.Assurance.CertificateEligibility.Status.ToString())),
+                    new XElement("property", new XAttribute("name", "coreConformance"), new XAttribute("value", validationResult.Assurance.Assessments.CoreConformance.Status.ToString())),
+                    new XElement("property", new XAttribute("name", "securityAssurance"), new XAttribute("value", validationResult.Assurance.Assessments.SecurityAssurance.Status.ToString())),
+                    new XElement("property", new XAttribute("name", "operationalReadiness"), new XAttribute("value", validationResult.Assurance.Assessments.OperationalReadiness.Status.ToString())),
                     new XElement("property", new XAttribute("name", "policyMode"), new XAttribute("value", validationResult.PolicyOutcome?.Mode ?? string.Empty)),
                     new XElement("property", new XAttribute("name", "specProfile"), new XAttribute("value", validationResult.ValidationConfig?.Reporting?.SpecProfile ?? "latest"))));
 
@@ -692,6 +727,79 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     private static DateTime ResolveArtifactTime(ValidationResult result) =>
         (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
+
+    private static XElement? BuildOfficialConformanceElement(ValidationResult validationResult)
+    {
+        var assessment = validationResult.Assessments.OfficialConformance;
+        if (assessment == null)
+        {
+            return null;
+        }
+
+        return new XElement("OfficialConformance",
+            new XAttribute("verificationStatus", assessment.VerificationStatus),
+            new XAttribute("runState", assessment.RunState),
+            new XAttribute("sourceEvidenceSha256", assessment.SourceEvidenceSha256),
+            new XElement("Runner",
+                new XAttribute("package", assessment.Runner.PackageName),
+                new XAttribute("version", assessment.Runner.Version),
+                new XAttribute("sourceCommit", assessment.Runner.SourceCommit),
+                new XAttribute("packageSha256", assessment.Runner.PackageSha256)),
+            new XElement("RequirementSet",
+                new XAttribute("revision", assessment.RequirementSet.Revision),
+                new XAttribute("sha256", assessment.RequirementSet.Sha256)),
+            new XElement("Summary",
+                new XAttribute("passed", assessment.Passed),
+                new XAttribute("creditedPassed", assessment.CreditedPassed),
+                new XAttribute("failed", assessment.Failed),
+                new XAttribute("warnings", assessment.Warnings),
+                new XAttribute("skipped", assessment.Skipped),
+                new XAttribute("informational", assessment.Informational),
+                new XAttribute("evidenceCoverageRatio", assessment.EvidenceSummary.EvidenceCoverageRatio.ToString("F4", CultureInfo.InvariantCulture))),
+            new XElement("Conflicts",
+                assessment.Conflicts.Select(conflict => new XElement("Conflict",
+                    new XAttribute("id", conflict.ConflictId),
+                    new XAttribute("component", conflict.Component),
+                    new XElement("Summary", conflict.Summary),
+                    new XElement("EvidenceIds", conflict.EvidenceIds.Select(evidenceId => new XElement("EvidenceId", evidenceId)))))),
+            BuildDecisionRecordsElement("Decisions", assessment.Decisions),
+            new XElement("Scenarios",
+                assessment.Scenarios.Select(scenario => new XElement("Scenario",
+                    new XAttribute("id", scenario.ScenarioId),
+                    new XAttribute("scoringDisposition", scenario.ScoringDisposition),
+                    scenario.ExtensionId == null ? null : new XAttribute("extensionId", scenario.ExtensionId),
+                    scenario.NotScoredReason == null ? null : new XAttribute("notScoredReason", scenario.NotScoredReason),
+                    new XAttribute("passed", scenario.Passed),
+                    new XAttribute("failed", scenario.Failed),
+                    new XAttribute("warnings", scenario.Warnings),
+                    new XAttribute("skipped", scenario.Skipped),
+                    new XElement("Checks",
+                        scenario.Checks.Select(check => new XElement("Check",
+                            new XAttribute("id", check.Id),
+                            new XAttribute("status", check.Status),
+                            new XAttribute("hasErrorDetail", check.HasErrorDetail),
+                            new XElement("Name", check.Name),
+                            new XElement("Description", check.Description))))))));
+    }
+
+    private static XElement? BuildExtensionReadinessElement(ValidationResult validationResult)
+    {
+        if (validationResult.Assessments.Extensions.Count == 0)
+        {
+            return null;
+        }
+
+        return new XElement("ExtensionReadiness",
+            validationResult.Assessments.Extensions
+                .OrderBy(extension => extension.ExtensionId, StringComparer.Ordinal)
+                .Select(extension => new XElement("Extension",
+                    new XAttribute("id", extension.ExtensionId),
+                    new XAttribute("stage", extension.Stage),
+                    new XAttribute("specificationRevision", extension.SpecificationRevision),
+                    new XAttribute("specificationSha256", extension.SpecificationSha256),
+                    new XAttribute("verdict", extension.Verdict),
+                    new XAttribute("evidenceCoverageRatio", extension.EvidenceSummary.EvidenceCoverageRatio.ToString("F4", CultureInfo.InvariantCulture)))));
+    }
 
     private static XElement? BuildBootstrapHealthElement(ValidationResult validationResult)
     {
@@ -1053,6 +1161,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
         AddFindingRange(entries, validationResult.SecurityTesting?.Findings, "security");
         AddFindingRange(entries, validationResult.PerformanceTesting?.Findings, "performance");
         AddFindingRange(entries, validationResult.ErrorHandling?.Findings, "error-handling");
+        foreach (var extension in validationResult.Assessments.Extensions)
+        {
+            AddFindingRange(entries, extension.Findings, extension.ExtensionId);
+        }
 
         if (validationResult.ToolValidation?.AuthenticationSecurity?.StructuredFindings is { Count: > 0 } authFindings)
         {
@@ -1094,10 +1206,137 @@ public class ValidationReportRenderer : IValidationReportRenderer
         }
 
         entries.AddRange(validationResult.Evidence.Coverage
+            .Where(coverage => coverage.Lane != EvaluationLane.ExternalConformance)
             .Where(ValidationEvidenceSummarizer.IsEvidenceDebt)
             .Select(CreateCoverageSarifEntry));
 
+        if (validationResult.Assessments.OfficialConformance is { } officialConformance)
+        {
+            entries.AddRange(officialConformance.Scenarios
+                .SelectMany(scenario => scenario.Checks.Select(check => (scenario, check)))
+                .Where(item => item.check.Status == OfficialConformanceCheckStatus.Failure)
+                .Select(item => CreateOfficialConformanceSarifEntry(item.scenario, item.check, officialConformance)));
+            entries.AddRange(officialConformance.Decisions.Select(CreateOfficialConformanceDecisionSarifEntry));
+        }
+
         return entries;
+    }
+
+    private static IReadOnlyList<SarifEntry> BuildAssuranceSarifEntries(ValidationResult validationResult)
+    {
+        return validationResult.Assurance.Claims
+            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+            .Select(claim =>
+            {
+                var level = claim.Outcome switch
+                {
+                    AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => "error",
+                    AssuranceClaimOutcome.ReviewRequired => "warning",
+                    _ => "note"
+                };
+                var properties = new Dictionary<string, object?>
+                {
+                    ["claimId"] = claim.ClaimId,
+                    ["dimension"] = claim.Dimension.ToString(),
+                    ["authority"] = claim.Authority.ToString(),
+                    ["requirementLevel"] = claim.RequirementLevel.ToString(),
+                    ["outcome"] = claim.Outcome.ToString(),
+                    ["confidence"] = claim.Confidence.ToString(),
+                    ["sourceRevision"] = claim.Source.Revision,
+                    ["sourceSha256"] = claim.Source.Sha256,
+                    ["evidenceIds"] = claim.EvidenceIds,
+                    ["claimMetadata"] = claim.Metadata
+                };
+                return new SarifEntry(
+                    RuleId: claim.ClaimId,
+                    Component: claim.Subject,
+                    Level: level,
+                    Message: claim.Summary,
+                    ShortDescription: claim.Summary,
+                    FullDescription: claim.Summary,
+                    Recommendation: claim.Remediation,
+                    HelpUri: claim.Source.Uri,
+                    Properties: properties,
+                    Source: claim.Authority.ToString(),
+                    Category: claim.Dimension.ToString(),
+                    Fingerprint: claim.ClaimId);
+            })
+            .ToArray();
+    }
+
+    private static SarifEntry CreateOfficialConformanceSarifEntry(
+        OfficialConformanceScenarioAssessment scenario,
+        OfficialConformanceCheckAssessment check,
+        OfficialConformanceAssessment assessment)
+    {
+        var severity = ReportSeverity.Medium;
+        var ruleId = ResolveSarifRuleId(
+            check.Id,
+            severity,
+            "MCP.OFFICIAL.CONFORMANCE",
+            "official-conformance",
+            scenario.ScenarioId,
+            check.Description);
+        var properties = new Dictionary<string, object?>
+        {
+            ["source"] = "official-conformance",
+            ["category"] = "official-conformance",
+            ["component"] = scenario.ScenarioId,
+            ["verificationStatus"] = assessment.VerificationStatus.ToString(),
+            ["requirementSetRevision"] = assessment.RequirementSet.Revision,
+            ["externalLane"] = true
+        };
+        AddRuleIdProvenance(properties, ruleId);
+
+        return new SarifEntry(
+            RuleId: ruleId.Value,
+            Category: "official-conformance",
+            Component: scenario.ScenarioId,
+            Level: ReportSeverityNormalizer.ToSarifLevel(severity),
+            Message: check.Description,
+            ShortDescription: check.Name,
+            FullDescription: check.Description,
+            Recommendation: "Review the official conformance scenario and correct the failing protocol behavior.",
+            HelpUri: check.SpecReferences.Select(reference => reference.Url).FirstOrDefault(url => !string.IsNullOrWhiteSpace(url)),
+            Properties: properties,
+            Source: "official-conformance",
+            Fingerprint: $"official-conformance|{scenario.ScenarioId}|{check.Id}");
+    }
+
+    private static SarifEntry CreateOfficialConformanceDecisionSarifEntry(DecisionRecord decision)
+    {
+        var severity = ReportSeverityNormalizer.From(decision.Severity);
+        var ruleId = ResolveSarifRuleId(
+            decision.RuleId,
+            severity,
+            "MCP.OFFICIAL.CONFORMANCE.CONFLICT",
+            decision.Category,
+            decision.Component,
+            decision.Summary);
+        var properties = new Dictionary<string, object?>
+        {
+            ["source"] = "official-conformance",
+            ["category"] = decision.Category,
+            ["component"] = decision.Component,
+            ["gate"] = decision.Gate.ToString(),
+            ["lane"] = decision.Lane.ToString(),
+            ["externalLane"] = true,
+            ["evidenceIds"] = decision.RelatedEvidenceIds
+        };
+        AddRuleIdProvenance(properties, ruleId);
+        return new SarifEntry(
+            RuleId: ruleId.Value,
+            Category: decision.Category,
+            Component: decision.Component,
+            Level: ReportSeverityNormalizer.ToSarifLevel(severity),
+            Message: decision.Summary,
+            ShortDescription: decision.Summary,
+            FullDescription: decision.Summary,
+            Recommendation: "Review the contradictory official and native evidence before making a release decision.",
+            HelpUri: decision.SpecReference,
+            Properties: properties,
+            Source: "official-conformance",
+            Fingerprint: $"official-conformance-decision|{decision.DecisionId}");
     }
 
     private static void AddFindingRange(List<SarifEntry> entries, IEnumerable<ValidationFinding>? findings, string defaultComponent)
@@ -1456,24 +1695,34 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
     private static IReadOnlyList<JunitTestCase> BuildJunitTestCases(ValidationResult validationResult)
     {
-        var testCases = new List<JunitTestCase>
-        {
-            CreateOverallJunitTestCase(validationResult)
-        };
-
-        if (validationResult.PolicyOutcome != null)
-        {
-            testCases.Add(CreatePolicyJunitTestCase(validationResult.PolicyOutcome, validationResult));
-        }
-
-        AddCategoryJunitTestCase(testCases, "protocol-compliance", "Protocol Compliance", validationResult.ProtocolCompliance, BuildProtocolDetails(validationResult.ProtocolCompliance));
-        AddCategoryJunitTestCase(testCases, "tool-validation", "Tool Validation", validationResult.ToolValidation, BuildToolDetails(validationResult.ToolValidation));
-        AddCategoryJunitTestCase(testCases, "resource-testing", "Resource Testing", validationResult.ResourceTesting, BuildResourceDetails(validationResult.ResourceTesting));
-        AddCategoryJunitTestCase(testCases, "prompt-testing", "Prompt Testing", validationResult.PromptTesting, BuildPromptDetails(validationResult.PromptTesting));
-        AddCategoryJunitTestCase(testCases, "security-testing", "Security Testing", validationResult.SecurityTesting, BuildSecurityDetails(validationResult.SecurityTesting));
-        AddCategoryJunitTestCase(testCases, "performance-testing", "Performance Testing", validationResult.PerformanceTesting, BuildPerformanceDetails(validationResult.PerformanceTesting));
-        AddCategoryJunitTestCase(testCases, "error-handling", "Error Handling", validationResult.ErrorHandling, BuildErrorHandlingDetails(validationResult.ErrorHandling));
-        AddCoverageJunitTestCases(testCases, validationResult);
+        var testCases = validationResult.Assurance.Claims.Select(claim => CreateJunitTestCase(
+            suiteName: $"assurance-{claim.Dimension.ToString().ToLowerInvariant()}",
+            className: $"assurance.{claim.Dimension.ToString().ToLowerInvariant()}",
+            name: claim.ClaimId,
+            status: claim.Outcome switch
+            {
+                AssuranceClaimOutcome.Satisfied => TestStatus.Passed,
+                AssuranceClaimOutcome.Violated => TestStatus.Failed,
+                AssuranceClaimOutcome.Error => TestStatus.Error,
+                _ => TestStatus.Inconclusive
+            },
+            duration: TimeSpan.Zero,
+            message: claim.Summary,
+            details: $"Subject: {claim.Subject}{Environment.NewLine}Authority: {claim.Authority}{Environment.NewLine}Requirement: {claim.RequirementLevel}{Environment.NewLine}Outcome: {claim.Outcome}{Environment.NewLine}Confidence: {claim.Confidence}{Environment.NewLine}Evidence: {string.Join(", ", claim.EvidenceIds)}"))
+            .ToList();
+        testCases.Add(CreateJunitTestCase(
+            suiteName: "assurance-certificate",
+            className: "assurance.certificate",
+            name: $"Certificate eligibility: {validationResult.Assurance.Profile.ProfileId}",
+            status: validationResult.Assurance.CertificateEligibility.Status switch
+            {
+                CertificateEligibilityStatus.Eligible => TestStatus.Passed,
+                CertificateEligibilityStatus.Ineligible => TestStatus.Failed,
+                _ => TestStatus.Inconclusive
+            },
+            duration: validationResult.Duration ?? TimeSpan.Zero,
+            message: validationResult.Assurance.CertificateEligibility.Status.ToString(),
+            details: string.Join(Environment.NewLine, validationResult.Assurance.CertificateEligibility.Reasons)));
 
         return testCases;
     }
@@ -1488,16 +1737,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
             $"Transport: {validationResult.ServerConfig.Transport}"
         };
 
-        if (validationResult.VerdictAssessment != null)
-        {
-            details.Add($"Baseline Verdict: {validationResult.VerdictAssessment.BaselineVerdict}");
-            details.Add($"Protocol Verdict: {validationResult.VerdictAssessment.ProtocolVerdict}");
-            details.Add($"Coverage Verdict: {validationResult.VerdictAssessment.CoverageVerdict}");
-            details.Add($"Verdict Summary: {validationResult.VerdictAssessment.Summary}");
-            details.Add($"Evidence Coverage: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
-            details.Add($"Evidence Confidence: {FormatPercent(validationResult.VerdictAssessment.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.VerdictAssessment.EvidenceSummary.ConfidenceLevel})");
-            details.AddRange(validationResult.VerdictAssessment.CoverageDecisions.Select(decision => $"Coverage Decision: {decision.DecisionId} -> {decision.Summary}"));
-        }
+        details.Add($"Assurance Profile: {validationResult.Assurance.Profile.ProfileId}");
+        details.Add($"Certificate Eligibility: {validationResult.Assurance.CertificateEligibility.Status}");
+        details.Add($"Core Conformance: {validationResult.Assurance.Assessments.CoreConformance.Status}");
+        details.Add($"Security Assurance: {validationResult.Assurance.Assessments.SecurityAssurance.Status}");
+        details.Add($"Operational Readiness: {validationResult.Assurance.Assessments.OperationalReadiness.Status}");
+        details.Add($"Evidence Coverage: {FormatPercent(validationResult.Assurance.EvidenceSummary.EvidenceCoverageRatio, "F1")}");
+        details.Add($"Evidence Confidence: {FormatPercent(validationResult.Assurance.EvidenceSummary.EvidenceConfidenceRatio, "F1")} ({validationResult.Assurance.EvidenceSummary.ConfidenceLevel})");
 
         if (validationResult.CriticalErrors.Count > 0)
         {
@@ -1523,6 +1769,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
     {
         foreach (var coverage in validationResult.Evidence.Coverage)
         {
+            if (coverage.Lane == EvaluationLane.ExternalConformance)
+            {
+                continue;
+            }
+
             testCases.Add(CreateJunitTestCase(
                 suiteName: "evidence-coverage",
                 className: "validation.evidence.coverage",
@@ -1531,6 +1782,74 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 duration: TimeSpan.Zero,
                 message: BuildCoverageSummary(coverage),
                 details: BuildCoverageDetails(coverage)));
+        }
+    }
+
+    private static void AddOfficialConformanceJunitTestCases(
+        ICollection<JunitTestCase> testCases,
+        ValidationResult validationResult)
+    {
+        var assessment = validationResult.Assessments.OfficialConformance;
+        if (assessment == null)
+        {
+            return;
+        }
+
+        foreach (var scenario in assessment.Scenarios)
+        {
+            foreach (var check in scenario.Checks)
+            {
+                var status = assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified
+                    ? TestStatus.Inconclusive
+                    : check.Status switch
+                    {
+                        OfficialConformanceCheckStatus.Success => TestStatus.Passed,
+                        OfficialConformanceCheckStatus.Failure => TestStatus.Failed,
+                        _ => TestStatus.Inconclusive
+                    };
+                testCases.Add(CreateJunitTestCase(
+                    suiteName: "official-conformance",
+                    className: $"official-conformance.{scenario.ScenarioId}",
+                    name: check.Name,
+                    status: status,
+                    duration: TimeSpan.Zero,
+                    message: check.Description,
+                    details: $"Verification: {assessment.VerificationStatus}; status: {check.Status}; requirement set: {assessment.RequirementSet.Revision}"));
+            }
+        }
+        foreach (var decision in assessment.Decisions)
+        {
+            testCases.Add(CreateJunitTestCase(
+                suiteName: "official-conformance",
+                className: "official-conformance.evidence-conflict",
+                name: decision.DecisionId,
+                status: TestStatus.Inconclusive,
+                duration: TimeSpan.Zero,
+                message: decision.Summary,
+                details: $"Category: {decision.Category}; gate: {decision.Gate}; evidence: {string.Join(", ", decision.RelatedEvidenceIds)}"));
+        }
+    }
+
+    private static void AddExtensionReadinessJunitTestCases(
+        ICollection<JunitTestCase> testCases,
+        ValidationResult validationResult)
+    {
+        foreach (var extension in validationResult.Assessments.Extensions)
+        {
+            var status = extension.Verdict switch
+            {
+                ValidationVerdict.Trusted => TestStatus.Passed,
+                ValidationVerdict.Reject => TestStatus.Failed,
+                _ => TestStatus.Inconclusive
+            };
+            testCases.Add(CreateJunitTestCase(
+                suiteName: "extension-readiness",
+                className: "validation.extension-readiness",
+                name: extension.ExtensionId,
+                status: status,
+                duration: TimeSpan.Zero,
+                message: $"Extension verdict: {extension.Verdict}",
+                details: $"Stage: {extension.Stage}; revision: {extension.SpecificationRevision}; evidence coverage: {extension.EvidenceSummary.EvidenceCoverageRatio:P1}"));
         }
     }
 
@@ -1586,17 +1905,19 @@ public class ValidationReportRenderer : IValidationReportRenderer
             details.AddRange(policyOutcome.Reasons.Select(reason => $"Reason: {reason}"));
         }
 
-        if (validationResult.VerdictAssessment?.BlockingDecisions.Count > 0)
+        var blockingClaims = validationResult.Assurance.Claims
+            .Where(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error)
+            .Take(5)
+            .ToArray();
+        if (blockingClaims.Length > 0)
         {
-            details.AddRange(validationResult.VerdictAssessment.BlockingDecisions
-                .OrderByDescending(decision => ReportSeverityNormalizer.PriorityFrom(decision))
-                .ThenByDescending(decision => decision.Severity)
-                .Take(5)
-                .Select(decision => $"Blocking Decision Priority: {ReportSeverityNormalizer.ToMachineLabel(ReportSeverityNormalizer.PriorityFrom(decision))} - {decision.Category}/{decision.Component}: {decision.Summary}"));
-            var omitted = validationResult.VerdictAssessment.BlockingDecisions.Count - 5;
+            details.AddRange(blockingClaims.Select(claim =>
+                $"Blocking Claim: {claim.ClaimId} - {claim.Dimension}/{claim.Subject}: {claim.Summary}"));
+            var omitted = validationResult.Assurance.Claims.Count(claim =>
+                claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error) - blockingClaims.Length;
             if (omitted > 0)
             {
-                details.Add($"Additional Blocking Decisions: {omitted} retained in canonical JSON.");
+                details.Add($"Additional Blocking Claims: {omitted} retained in canonical JSON.");
             }
         }
 
@@ -1669,26 +1990,6 @@ public class ValidationReportRenderer : IValidationReportRenderer
             ValidationStatus.Failed => TestStatus.Failed,
             _ => TestStatus.Error
         };
-    }
-
-    private static XElement BuildVerdictElement(ValidationResult validationResult)
-    {
-        if (validationResult.VerdictAssessment == null)
-        {
-            return new XElement("Verdicts",
-                new XElement("BaselineVerdict", "Unknown"),
-                new XElement("ProtocolVerdict", "Unknown"),
-                new XElement("CoverageVerdict", "Unknown"));
-        }
-
-        return new XElement("Verdicts",
-            new XElement("BaselineVerdict", validationResult.VerdictAssessment.BaselineVerdict.ToString()),
-            new XElement("ProtocolVerdict", validationResult.VerdictAssessment.ProtocolVerdict.ToString()),
-            new XElement("CoverageVerdict", validationResult.VerdictAssessment.CoverageVerdict.ToString()),
-            new XElement("Summary", validationResult.VerdictAssessment.Summary),
-            new XElement("BlockingDecisionCount", validationResult.VerdictAssessment.BlockingDecisions.Count),
-            BuildDecisionRecordsElement("BlockingDecisions", validationResult.VerdictAssessment.BlockingDecisions),
-            BuildDecisionRecordsElement("CoverageDecisions", validationResult.VerdictAssessment.CoverageDecisions));
     }
 
     private static XElement BuildDecisionRecordsElement(string name, IEnumerable<DecisionRecord> decisions)

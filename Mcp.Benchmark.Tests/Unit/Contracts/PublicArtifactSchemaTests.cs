@@ -18,7 +18,34 @@ public sealed class PublicArtifactSchemaTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.PartiallyCompleted,
-            ComplianceScore = 85
+            ComplianceScore = 85,
+            BaselineComparison = new AssuranceBaselineComparison
+            {
+                BaselineValidationId = "baseline-validation",
+                BaselineDocumentSchemaVersion = ArtifactContracts.ValidationResultSchemaVersion,
+                ProfileId = "provider",
+                ProfileRevision = AssuranceProfileCatalog.Revision,
+                CoreConformanceBefore = CoreConformanceStatus.Conformant,
+                CoreConformanceAfter = CoreConformanceStatus.Nonconformant,
+                SecurityAssuranceBefore = SecurityAssuranceStatus.Verified,
+                SecurityAssuranceAfter = SecurityAssuranceStatus.IssuesFound,
+                OperationalReadinessBefore = OperationalReadinessStatus.Ready,
+                OperationalReadinessAfter = OperationalReadinessStatus.Incomplete,
+                CertificateEligibilityBefore = CertificateEligibilityStatus.Eligible,
+                CertificateEligibilityAfter = CertificateEligibilityStatus.Ineligible,
+                EvidenceCoverageDelta = -0.1,
+                EvidenceConfidenceDelta = -0.05,
+                IsRegression = true,
+                NewNonSuccessClaims =
+                [
+                    new BaselineClaimChange(
+                        "security:new-issue",
+                        AssuranceDimension.Security,
+                        AssuranceAuthority.DeterministicSecurity,
+                        AssuranceClaimOutcome.Violated,
+                        "target")
+                ]
+            }
         };
         result.Run.OperationalMetrics = new ValidationOperationalMetrics
         {
@@ -67,6 +94,50 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
+    public void ProviderHarness_PublicJson_ConformsToPublishedSchema()
+    {
+        var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
+        var manifest = new ProviderHarnessManifest
+        {
+            ProviderId = "provider-test",
+            TargetIdentitySha256 = new string('a', 64),
+            ProtocolRevision = "2026-07-28",
+            Authorization = new ProviderAuthorizationGrant
+            {
+                GrantId = "grant-1",
+                Authority = "provider-security-owner",
+                TargetIdentitySha256 = new string('a', 64),
+                ValidFromUtc = now.AddHours(-1),
+                ExpiresAtUtc = now.AddHours(1),
+                AllowedExecutionModes = [ExecutionMode.Standard],
+                AllowedProbeClasses = ["protocol-active"],
+                GrantDocumentSha256 = new string('b', 64),
+                SigningKeyId = new string('c', 64),
+                SignatureBase64 = Convert.ToBase64String(new byte[64])
+            },
+            SigningKeyId = new string('c', 64),
+            ManifestDocumentSha256 = new string('d', 64),
+            SignatureBase64 = Convert.ToBase64String(new byte[64]),
+            Runs =
+            [
+                new ProviderHarnessRunReceipt
+                {
+                    RunId = "run-1",
+                    ResultSha256 = new string('c', 64),
+                    ExecutionPlanSha256 = new string('d', 64),
+                    StartedAtUtc = now.AddMinutes(-2),
+                    EndedAtUtc = now.AddMinutes(-1),
+                    CoreConformance = CoreConformanceStatus.Conformant,
+                    SecurityAssurance = SecurityAssuranceStatus.Verified,
+                    OperationalReadiness = OperationalReadinessStatus.Ready
+                }
+            ]
+        };
+
+        AssertConforms("mcpval-provider-harness.schema.json", Serialize(manifest));
+    }
+
+    [Fact]
     public void ClientProfileSummary_PublicShape_ConformsToPublishedSchema()
     {
         var summary = new JsonObject
@@ -77,14 +148,11 @@ public sealed class PublicArtifactSchemaTests
             ["validationId"] = "validation-test",
             ["validatorVersion"] = "1.1.25",
             ["serverEndpoint"] = "https://example.test/mcp",
-            ["complianceScore"] = 90,
-            ["trustLevel"] = "L3: Acceptable",
-            ["trustLimitedByIncompleteEvidence"] = true,
-            ["unevaluatedDimensions"] = new JsonArray("security", "operations"),
-            ["overallStatus"] = "ReviewRequired",
-            ["baselineVerdict"] = "ReviewRequired",
-            ["protocolVerdict"] = "ReviewRequired",
-            ["coverageVerdict"] = "ReviewRequired",
+            ["assuranceProfile"] = "provider",
+            ["certificateEligibility"] = "ineligible",
+            ["coreConformance"] = "incomplete",
+            ["securityAssurance"] = "incomplete",
+            ["operationalReadiness"] = "incomplete",
             ["policyPassed"] = false,
             ["policySummary"] = "Review required.",
             ["evidenceSummary"] = new JsonObject(),
@@ -119,7 +187,11 @@ public sealed class PublicArtifactSchemaTests
             PromptSet = "builtin-default",
             Status = ModelEvaluationArtifactStatus.Completed,
             Summary = "Evaluation completed.",
-            BaselineVerdict = ValidationVerdict.Trusted
+            AssuranceProfile = "provider",
+            CoreConformance = CoreConformanceStatus.Conformant,
+            SecurityAssurance = SecurityAssuranceStatus.Verified,
+            OperationalReadiness = OperationalReadinessStatus.Ready,
+            CertificateEligibility = CertificateEligibilityStatus.Eligible
         };
 
         AssertConforms("mcpval-model-evaluation.schema.json", Serialize(artifact));
@@ -139,6 +211,66 @@ public sealed class PublicArtifactSchemaTests
         };
 
         AssertConforms("mcpval-validation-attestation.schema.json", Serialize(attestation));
+    }
+
+    [Fact]
+    public void OfficialConformanceEvidence_PublicJson_ConformsToPublishedSchema()
+    {
+        var checks = new[]
+        {
+            new OfficialConformanceCheckRecord
+            {
+                Id = "initialize-version",
+                Name = "Initialize version",
+                Description = "Negotiated version is valid.",
+                Status = OfficialConformanceCheckStatus.Success,
+                Timestamp = DateTimeOffset.Parse("2026-11-04T10:00:00Z")
+            }
+        };
+        var checksJson = OfficialConformanceContract.SerializeChecks(checks);
+        var evidence = new OfficialConformanceEvidenceDocument
+        {
+            Runner = new OfficialConformanceRunnerIdentity
+            {
+                PackageName = OfficialConformanceContract.PackageName,
+                Version = OfficialConformanceContract.PackageVersion,
+                SourceCommit = OfficialConformanceContract.SourceCommit,
+                PackageSha256 = OfficialConformanceContract.PackageSha256,
+                PackageIntegrity = OfficialConformanceContract.PackageIntegrity
+            },
+            RequirementSet = new OfficialConformanceRequirementSet
+            {
+                Revision = OfficialConformanceContract.RequirementSetRevision,
+                Sha256 = OfficialConformanceContract.RequirementSetSha256
+            },
+            Target = new OfficialConformanceTargetIdentity
+            {
+                IdentitySha256 = new string('0', 64),
+                Transport = "http",
+                ProtocolVersion = "2026-07-28"
+            },
+            Invocation = new OfficialConformanceInvocation { Mode = "server" },
+            Run = new OfficialConformanceRunRecord
+            {
+                StartedAtUtc = DateTimeOffset.Parse("2026-11-04T10:00:00Z"),
+                EndedAtUtc = DateTimeOffset.Parse("2026-11-04T10:00:01Z"),
+                ExitCode = 0,
+                State = OfficialConformanceRunState.Completed
+            },
+            Scenarios =
+            [
+                new OfficialConformanceScenarioRecord
+                {
+                    ScenarioId = "server-initialize",
+                    ChecksSha256 = OfficialConformanceContract.ComputeChecksSha256(checksJson),
+                    ChecksBase64 = Convert.ToBase64String(checksJson)
+                }
+            ]
+        };
+
+        AssertConforms(
+            "mcpval-official-conformance-evidence.schema.json",
+            JsonNode.Parse(JsonSerializer.Serialize(evidence, OfficialConformanceContract.CreateJsonOptions()))!);
     }
 
     [Fact]
@@ -166,7 +298,7 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
-    public void ValidationResult_MalformedPolicyAndBaselineShapes_DoNotConformToPublishedSchema()
+    public void ValidationResult_MalformedPolicyAndAssuranceShapes_DoNotConformToPublishedSchema()
     {
         var result = new ValidationResult
         {
@@ -175,16 +307,11 @@ public sealed class PublicArtifactSchemaTests
                 Mode = ValidationPolicyModes.Strict,
                 Passed = false,
                 Summary = "Blocked"
-            },
-            BaselineComparison = new ValidationBaselineComparison
-            {
-                BaselineValidationId = "baseline",
-                BaselineDocumentSchemaVersion = "1.0.0"
             }
         };
         var instance = Serialize(result);
-        instance["policyOutcome"]!["passed"] = "false";
-        instance["baselineComparison"]!["baselineScore"] = 101;
+        instance["policyDecision"]!["passed"] = "false";
+        instance["assurance"]!["certificateEligibility"]!["evidenceCoverageRatio"] = 2;
 
         AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
     }
@@ -230,10 +357,11 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Theory]
-    [InlineData(ArtifactContracts.ValidationResultDocumentType, "1.0.0", true)]
-    [InlineData(ArtifactContracts.ValidationResultDocumentType, "1.99.0", true)]
-    [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "1.0.0", true)]
-    [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "2.0.0", false)]
+    [InlineData(ArtifactContracts.ValidationResultDocumentType, "2.0.0", true)]
+    [InlineData(ArtifactContracts.ValidationResultDocumentType, "2.99.0", true)]
+    [InlineData(ArtifactContracts.ValidationResultDocumentType, "1.99.0", false)]
+    [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "1.0.0", false)]
+    [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "2.0.0", true)]
     [InlineData("mcpval.unknown", "1.0.0", false)]
     [InlineData(ArtifactContracts.AuditManifestDocumentType, "invalid", false)]
     [InlineData(ArtifactContracts.AuditManifestDocumentType, "1.-1.0", false)]
@@ -248,7 +376,7 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
-    public void ValidationResult_V1FixtureWithUnknownMinorFields_ShouldRemainConsumable()
+    public void ValidationResult_V1Fixture_ShouldBeRejectedByV2Contract()
     {
         var fixturePath = Path.Combine(GetRepositoryRoot(), "Mcp.Benchmark.Tests", "Fixtures", "Contracts", "validation-result-v1.0.json");
         var json = File.ReadAllText(fixturePath);
@@ -261,8 +389,8 @@ public sealed class PublicArtifactSchemaTests
 
         result.Should().NotBeNull();
         result!.ValidationId.Should().Be("backward-fixture-v1");
-        ArtifactContracts.IsCompatible(result.DocumentType, result.DocumentSchemaVersion).Should().BeTrue();
-        AssertConforms("mcpval-validation-result.schema.json", JsonNode.Parse(json)!);
+        ArtifactContracts.IsCompatible(result.DocumentType, result.DocumentSchemaVersion).Should().BeFalse();
+        AssertDoesNotConform("mcpval-validation-result.schema.json", JsonNode.Parse(json)!);
     }
 
     private void AssertConforms(string schemaName, JsonNode instance)

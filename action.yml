@@ -35,6 +35,10 @@ inputs:
     description: Validation policy mode.
     required: false
     default: balanced
+  assurance:
+    description: Assurance profile (inventory, ci, provider).
+    required: false
+    default: inventory
   max-concurrency:
     description: Optional max in-flight request count.
     required: false
@@ -63,6 +67,29 @@ inputs:
   baseline:
     description: Optional approved canonical result used for regression comparison.
     required: false
+  conformance-results:
+    description: Optional pinned official conformance evidence wrapper JSON.
+    required: false
+  provider-harness:
+    description: Signed provider harness manifest JSON. Required for active provider assurance.
+    required: false
+  provider-authorization-key:
+    description: Operator-trusted provider authorization public key PEM. Required for active provider assurance.
+    required: false
+  attestation-private-key:
+    description: P-256 private key PEM used to sign the final assurance result. Store as a protected secret.
+    required: false
+  extensions:
+    description: Optional comma-separated MCP extension IDs to assess.
+    required: false
+  mode:
+    description: Execution mode passed to mcpval (safe, standard, elevated).
+    required: false
+    default: safe
+  confirm-elevated-risk:
+    description: Required acknowledgement when mode is elevated.
+    required: false
+    default: "false"
   regression-only:
     description: Block only regressions relative to the explicit baseline.
     required: false
@@ -143,8 +170,16 @@ runs:
         INPUT_OUTPUT_DIR: ${{ inputs.output-dir }}
         INPUT_MCPSPEC: ${{ inputs.mcpspec }}
         INPUT_POLICY: ${{ inputs.policy }}
+        INPUT_ASSURANCE: ${{ inputs.assurance }}
         INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
         INPUT_BASELINE: ${{ inputs.baseline }}
+        INPUT_CONFORMANCE_RESULTS: ${{ inputs.conformance-results }}
+        INPUT_PROVIDER_HARNESS: ${{ inputs.provider-harness }}
+        INPUT_PROVIDER_AUTHORIZATION_KEY: ${{ inputs.provider-authorization-key }}
+        MCPVAL_ATTESTATION_PRIVATE_KEY_PEM: ${{ inputs.attestation-private-key }}
+        INPUT_EXTENSIONS: ${{ inputs.extensions }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_CONFIRM_ELEVATED_RISK: ${{ inputs.confirm-elevated-risk }}
         INPUT_REGRESSION_ONLY: ${{ inputs.regression-only }}
         INPUT_DRY_RUN: ${{ inputs.dry-run }}
         INPUT_OUTPUT_FORMAT: ${{ inputs.output-format }}
@@ -156,6 +191,9 @@ runs:
         if [[ -n "$MCPVAL_TOKEN" ]]; then
           echo "::add-mask::$MCPVAL_TOKEN"
         fi
+        if [[ -n "$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" ]]; then
+          echo "::add-mask::$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM"
+        fi
 
         if [[ -z "$INPUT_SERVER" && -z "$INPUT_CONFIG_FILE" ]]; then
           echo "Either 'server' or 'config-file' must be provided." >&2
@@ -165,6 +203,12 @@ runs:
         mkdir -p "$INPUT_OUTPUT_DIR"
 
         cmd=(mcpval validate --output "$INPUT_OUTPUT_DIR" --policy "$INPUT_POLICY")
+
+        if [[ "$INPUT_ASSURANCE" != "inventory" && "$INPUT_ASSURANCE" != "ci" && "$INPUT_ASSURANCE" != "provider" ]]; then
+          echo "'assurance' must be 'inventory', 'ci', or 'provider'." >&2
+          exit 1
+        fi
+        cmd+=(--assurance "$INPUT_ASSURANCE")
 
         if [[ -n "$INPUT_SERVER" ]]; then
           cmd+=(--server "$INPUT_SERVER")
@@ -192,6 +236,49 @@ runs:
 
         if [[ -n "$INPUT_BASELINE" ]]; then
           cmd+=(--baseline "$INPUT_BASELINE")
+        fi
+
+        if [[ -n "$INPUT_CONFORMANCE_RESULTS" ]]; then
+          cmd+=(--conformance-results "$INPUT_CONFORMANCE_RESULTS")
+        fi
+
+        if [[ "$INPUT_ASSURANCE" == "provider" && "$INPUT_DRY_RUN" != "true" ]]; then
+          if [[ -z "$INPUT_PROVIDER_HARNESS" || -z "$INPUT_PROVIDER_AUTHORIZATION_KEY" || -z "$INPUT_CONFORMANCE_RESULTS" || -z "$MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" ]]; then
+            echo "Active provider assurance requires provider-harness, provider-authorization-key, conformance-results, and attestation-private-key." >&2
+            exit 1
+          fi
+          cmd+=(--provider-harness "$INPUT_PROVIDER_HARNESS")
+          cmd+=(--provider-authorization-key "$INPUT_PROVIDER_AUTHORIZATION_KEY")
+          cmd+=(--sign-attestation)
+        fi
+
+        if [[ "$INPUT_MODE" != "safe" && "$INPUT_MODE" != "standard" && "$INPUT_MODE" != "elevated" ]]; then
+          echo "'mode' must be 'safe', 'standard', or 'elevated'." >&2
+          exit 1
+        fi
+        cmd+=(--mode "$INPUT_MODE")
+
+        if [[ "$INPUT_CONFIRM_ELEVATED_RISK" == "true" ]]; then
+          cmd+=(--confirm-elevated-risk)
+        elif [[ "$INPUT_CONFIRM_ELEVATED_RISK" != "false" ]]; then
+          echo "'confirm-elevated-risk' must be 'true' or 'false'." >&2
+          exit 1
+        elif [[ "$INPUT_MODE" == "elevated" ]]; then
+          echo "'mode: elevated' requires 'confirm-elevated-risk: true'." >&2
+          exit 1
+        fi
+
+        if [[ -n "$INPUT_EXTENSIONS" ]]; then
+          IFS=',' read -r -a extension_values <<< "$INPUT_EXTENSIONS"
+          for extension_value in "${extension_values[@]}"; do
+            extension_value="${extension_value#"${extension_value%%[![:space:]]*}"}"
+            extension_value="${extension_value%"${extension_value##*[![:space:]]}"}"
+            if [[ -z "$extension_value" || ! "$extension_value" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+              echo "'extensions' contains an invalid MCP extension ID." >&2
+              exit 1
+            fi
+            cmd+=(--extension "$extension_value")
+          done
         fi
 
         if [[ "$INPUT_REGRESSION_ONLY" == "true" ]]; then

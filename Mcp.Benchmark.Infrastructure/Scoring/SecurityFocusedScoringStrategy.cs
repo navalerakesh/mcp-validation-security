@@ -90,7 +90,7 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         // Performance data is still collected and reported in the Trust Assessment.
         // Uses the nuanced score from PerformanceScoringStrategy (latency/error
         // penalties) so the category score in JSON matches human-readable reports
-        // and TrustAssessment.OperationalReadiness.
+        // and the independent operational readiness assessment.
         new(
             "Performance",
             ScoringConstants.WeightPerformance,
@@ -195,7 +195,8 @@ public class SecurityFocusedScoringStrategy : IAggregateScoringStrategy
         var scoringResult = new ScoringResult();
         var notes = new List<string>();
         var categoryScores = new Dictionary<string, double>();
-        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage);
+        var evidenceSummary = ValidationEvidenceSummarizer.Summarize(
+            ValidationEvidenceLaneClassifier.BaselineOnly(result.Evidence.Coverage));
 
         // 1. Calculate Component Scores (0-100) and capture coverage metadata
         var evaluations = CategoryDefinitions

@@ -7,34 +7,34 @@
         "driver": {
           "name": "MCP Benchmark",
           "fullName": "MCP Benchmark Validation Suite",
-          "semanticVersion": "1.1.33",
+          "semanticVersion": "2.0.0",
           "informationUri": "https://github.com/navalerakesh/mcp-validation-security",
           "rules": [
             {
-              "id": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
-              "name": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+              "id": "coverage:prompt-surface:prompts-list",
+              "name": "coverage:prompt-surface:prompts-list",
               "shortDescription": {
-                "text": "One tool response omitted the outer result object."
+                "text": "Server does not advertise prompts capability."
               },
               "fullDescription": {
-                "text": "One tool response omitted the outer result object."
+                "text": "Server does not advertise prompts capability."
               },
               "help": null,
               "helpUri": null,
               "properties": {
-                "source": "spec",
-                "category": "ProtocolCompliance",
-                "ruleIdSource": "explicit",
+                "source": "ProviderPolicy",
+                "category": "CoreProtocol",
+                "ruleIdSource": null,
                 "tags": [
-                  "spec",
-                  "ProtocolCompliance",
-                  "tools/call"
+                  "ProviderPolicy",
+                  "CoreProtocol",
+                  "prompts/list"
                 ]
               }
             },
             {
-              "id": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
-              "name": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+              "id": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
+              "name": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
               "shortDescription": {
                 "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
               },
@@ -44,21 +44,65 @@
               "help": null,
               "helpUri": null,
               "properties": {
-                "source": "heuristic",
-                "category": "AiReadiness",
-                "ruleIdSource": "explicit",
+                "source": "Heuristic",
+                "category": "CapabilityContract",
+                "ruleIdSource": null,
                 "tags": [
-                  "heuristic",
-                  "AiReadiness",
+                  "Heuristic",
+                  "CapabilityContract",
                   "delete_repo"
                 ]
               }
             },
             {
-              "id": "MCP.INIT.VERSION_NEGOTIATION",
-              "name": "MCP.INIT.VERSION_NEGOTIATION",
+              "id": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
+              "name": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
               "shortDescription": {
-                "text": "initialize.result.protocolVersion must reflect negotiation."
+                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+              },
+              "fullDescription": {
+                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+              },
+              "help": null,
+              "helpUri": null,
+              "properties": {
+                "source": "ProviderPolicy",
+                "category": "CapabilityContract",
+                "ruleIdSource": null,
+                "tags": [
+                  "ProviderPolicy",
+                  "CapabilityContract",
+                  "delete_repo"
+                ]
+              }
+            },
+            {
+              "id": "finding:mcp-tool-call-result-object-missing:tools-call",
+              "name": "finding:mcp-tool-call-result-object-missing:tools-call",
+              "shortDescription": {
+                "text": "One tool response omitted the outer result object."
+              },
+              "fullDescription": {
+                "text": "One tool response omitted the outer result object."
+              },
+              "help": null,
+              "helpUri": null,
+              "properties": {
+                "source": "OfficialSpecification",
+                "category": "CoreProtocol",
+                "ruleIdSource": null,
+                "tags": [
+                  "OfficialSpecification",
+                  "CoreProtocol",
+                  "tools/call"
+                ]
+              }
+            },
+            {
+              "id": "protocol:mcp-init-version-negotiation",
+              "name": "protocol:mcp-init-version-negotiation",
+              "shortDescription": {
+                "text": "Server ignored the requested MCP protocol version."
               },
               "fullDescription": {
                 "text": "Server ignored the requested MCP protocol version."
@@ -68,42 +112,21 @@
               },
               "helpUri": "https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle",
               "properties": {
-                "source": "spec",
-                "category": "Initialization",
-                "ruleIdSource": "explicit",
+                "source": "OfficialSpecification",
+                "category": "CoreProtocol",
+                "ruleIdSource": null,
                 "tags": [
-                  "spec",
+                  "OfficialSpecification",
+                  "CoreProtocol",
                   "Initialization"
                 ]
               }
             },
             {
-              "id": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
-              "name": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "id": "vulnerability:mcp-security-prompt-injection:prompt-get",
+              "name": "vulnerability:mcp-security-prompt-injection:prompt-get",
               "shortDescription": {
-                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
-              },
-              "fullDescription": {
-                "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
-              },
-              "help": null,
-              "helpUri": null,
-              "properties": {
-                "source": "guideline",
-                "category": "McpGuideline",
-                "ruleIdSource": "explicit",
-                "tags": [
-                  "guideline",
-                  "McpGuideline",
-                  "delete_repo"
-                ]
-              }
-            },
-            {
-              "id": "MCP.SECURITY.PROMPT_INJECTION",
-              "name": "MCP.SECURITY.PROMPT_INJECTION",
-              "shortDescription": {
-                "text": "Prompt injection reflection"
+                "text": "Server reflected untrusted prompt content without sanitization."
               },
               "fullDescription": {
                 "text": "Server reflected untrusted prompt content without sanitization."
@@ -113,36 +136,13 @@
               },
               "helpUri": null,
               "properties": {
-                "source": "heuristic",
-                "category": "PromptInjection",
-                "ruleIdSource": "explicit",
+                "source": "DeterministicSecurity",
+                "category": "Security",
+                "ruleIdSource": null,
                 "tags": [
-                  "heuristic",
-                  "PromptInjection",
+                  "DeterministicSecurity",
+                  "Security",
                   "prompt:get"
-                ]
-              }
-            },
-            {
-              "id": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
-              "name": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
-              "shortDescription": {
-                "text": "Coverage Skipped: prompt-surface/prompts/list"
-              },
-              "fullDescription": {
-                "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
-              },
-              "help": {
-                "text": "Collect the missing evidence or document why this validation surface cannot be safely assessed."
-              },
-              "helpUri": null,
-              "properties": {
-                "source": "coverage",
-                "category": "Coverage",
-                "ruleIdSource": "derived-coverage",
-                "tags": [
-                  "coverage",
-                  "prompt-surface"
                 ]
               }
             }
@@ -164,12 +164,13 @@
             "validationId": "validation-snapshot-001",
             "endpoint": "https://snapshot.example.test/mcp",
             "transport": "http",
-            "overallStatus": "Failed",
-            "baselineVerdict": "Reject",
-            "protocolVerdict": "Reject",
-            "coverageVerdict": "ReviewRequired",
+            "assuranceProfile": "provider",
+            "certificateEligibility": "Ineligible",
+            "coreConformance": "Nonconformant",
+            "securityAssurance": "IssuesFound",
+            "operationalReadiness": "Ready",
             "policyPassed": false,
-            "policySummary": "Strict policy blocked the validation result with 9 blocking signal(s).",
+            "policySummary": "Strict policy blocked the validation result with 6 blocking signal(s).",
             "evidenceCoverageRatio": 0.875,
             "evidenceConfidenceRatio": 0.9188,
             "serverProfile": "Authenticated",
@@ -179,14 +180,121 @@
       ],
       "results": [
         {
-          "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+          "ruleId": "coverage:prompt-surface:prompts-list",
+          "level": "note",
+          "kind": "informational",
+          "message": {
+            "text": "Server does not advertise prompts capability."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "coverage:prompt-surface:prompts-list"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "prompts/list"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "claimId": "coverage:prompt-surface:prompts-list",
+            "dimension": "CoreProtocol",
+            "authority": "ProviderPolicy",
+            "requirementLevel": "Policy",
+            "outcome": "Incomplete",
+            "confidence": "None",
+            "sourceRevision": "2026-11-05.1",
+            "sourceSha256": null,
+            "evidenceIds": [
+              "coverage:prompt-surface:prompts-list:Skipped"
+            ],
+            "claimMetadata": {}
+          }
+        },
+        {
+          "ruleId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding:ai-tool-schema-parameter-description-missing:delete-repo"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "delete_repo"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "claimId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
+            "dimension": "CapabilityContract",
+            "authority": "Heuristic",
+            "requirementLevel": "Policy",
+            "outcome": "ReviewRequired",
+            "confidence": "Medium",
+            "sourceRevision": "2026-11-06.1",
+            "sourceSha256": null,
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
+              "severity": "Medium"
+            }
+          }
+        },
+        {
+          "ruleId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
+          "level": "warning",
+          "kind": "fail",
+          "message": {
+            "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
+          },
+          "partialFingerprints": {
+            "logicalIdentity": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo"
+          },
+          "locations": [
+            {
+              "logicalLocations": [
+                {
+                  "kind": "component",
+                  "name": "delete_repo"
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "claimId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
+            "dimension": "CapabilityContract",
+            "authority": "ProviderPolicy",
+            "requirementLevel": "Policy",
+            "outcome": "ReviewRequired",
+            "confidence": "Medium",
+            "sourceRevision": "2026-11-06.1",
+            "sourceSha256": null,
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
+              "severity": "High"
+            }
+          }
+        },
+        {
+          "ruleId": "finding:mcp-tool-call-result-object-missing:tools-call",
           "level": "warning",
           "kind": "fail",
           "message": {
             "text": "One tool response omitted the outer result object."
           },
           "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.TOOL.CALL.RESULT_OBJECT_MISSING|tools/call|One tool response omitted the outer result object."
+            "logicalIdentity": "finding:mcp-tool-call-result-object-missing:tools-call"
           },
           "locations": [
             {
@@ -199,62 +307,30 @@
             }
           ],
           "properties": {
-            "source": "structured-finding",
-            "evidenceId": "structured-finding:mcp-tool-call-result-object-missing:tools-call:one-tool-response-omitted-the-outer-result-object",
-            "authority": "spec",
-            "authorityPriority": 0,
-            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "ProtocolCompliance",
-            "component": "tools/call",
-            "severity": "Medium",
-            "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2,
-            "ruleIdSource": "explicit"
-          }
-        },
-        {
-          "ruleId": "AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING",
-          "level": "warning",
-          "kind": "fail",
-          "message": {
-            "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "finding|AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING|delete_repo|Tool \u0027delete_repo\u0027 has parameters without descriptions."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "delete_repo"
-                }
-              ]
+            "claimId": "finding:mcp-tool-call-result-object-missing:tools-call",
+            "dimension": "CoreProtocol",
+            "authority": "OfficialSpecification",
+            "requirementLevel": "Should",
+            "outcome": "ReviewRequired",
+            "confidence": "High",
+            "sourceRevision": "2026-11-06.1",
+            "sourceSha256": null,
+            "evidenceIds": [],
+            "claimMetadata": {
+              "ruleId": "MCP.TOOL.CALL.RESULT_OBJECT_MISSING",
+              "severity": "Medium"
             }
-          ],
-          "properties": {
-            "source": "structured-finding",
-            "evidenceId": "structured-finding:ai-tool-schema-parameter-description-missing:delete-repo:tool--delete-repo--has-parameters-without-descriptions",
-            "authority": "heuristic",
-            "authorityPriority": 2,
-            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "AiReadiness",
-            "component": "delete_repo",
-            "severity": "Medium",
-            "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2,
-            "ruleIdSource": "explicit"
           }
         },
         {
-          "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+          "ruleId": "protocol:mcp-init-version-negotiation",
           "level": "error",
           "kind": "fail",
           "message": {
             "text": "Server ignored the requested MCP protocol version."
           },
           "partialFingerprints": {
-            "logicalIdentity": "protocol|MCP.INIT.VERSION_NEGOTIATION|Initialization|Server ignored the requested MCP protocol version."
+            "logicalIdentity": "protocol:mcp-init-version-negotiation"
           },
           "locations": [
             {
@@ -267,64 +343,32 @@
             }
           ],
           "properties": {
-            "source": "protocol-violation",
-            "evidenceId": "protocol-violation:mcp-init-version-negotiation:initialization:server-ignored-the-requested-mcp-protocol-version",
-            "authority": "spec",
-            "authorityPriority": 0,
-            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "Initialization",
-            "component": "Initialization",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
-            "rule": "initialize.result.protocolVersion must reflect negotiation.",
-            "ruleIdSource": "explicit",
-            "recommendation": "Echo the negotiated protocol version in initialize.result."
-          }
-        },
-        {
-          "ruleId": "MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING",
-          "level": "error",
-          "kind": "fail",
-          "message": {
-            "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "finding|MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING|delete_repo|Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "delete_repo"
-                }
-              ]
+            "claimId": "protocol:mcp-init-version-negotiation",
+            "dimension": "CoreProtocol",
+            "authority": "OfficialSpecification",
+            "requirementLevel": "Must",
+            "outcome": "Violated",
+            "confidence": "High",
+            "sourceRevision": "2025-11-25",
+            "sourceSha256": null,
+            "evidenceIds": [
+              "protocol/MCP.INIT.VERSION_NEGOTIATION"
+            ],
+            "claimMetadata": {
+              "ruleId": "MCP.INIT.VERSION_NEGOTIATION",
+              "severity": "High"
             }
-          ],
-          "properties": {
-            "source": "structured-finding",
-            "evidenceId": "structured-finding:mcp-guideline-tool-destructive-hint-missing:delete-repo:tool--delete-repo--does-not-declare-annotations-destructivehint",
-            "authority": "guideline",
-            "authorityPriority": 1,
-            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "McpGuideline",
-            "component": "delete_repo",
-            "severity": "High",
-            "normalizedSeverity": "high",
-            "normalizedSeverityRank": 3,
-            "ruleIdSource": "explicit"
           }
         },
         {
-          "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+          "ruleId": "vulnerability:mcp-security-prompt-injection:prompt-get",
           "level": "error",
           "kind": "fail",
           "message": {
             "text": "Server reflected untrusted prompt content without sanitization."
           },
           "partialFingerprints": {
-            "logicalIdentity": "vuln|MCP.SECURITY.PROMPT_INJECTION|prompt:get|Server reflected untrusted prompt content without sanitization."
+            "logicalIdentity": "vulnerability:mcp-security-prompt-injection:prompt-get"
           },
           "locations": [
             {
@@ -337,73 +381,22 @@
             }
           ],
           "properties": {
-            "source": "security-vulnerability",
-            "evidenceId": "security-vulnerability:mcp-security-prompt-injection:prompt-get:server-reflected-untrusted-prompt-content-without-sanitization",
-            "authority": "heuristic",
-            "authorityPriority": 2,
-            "authorityLegend": "Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.",
-            "category": "PromptInjection",
-            "component": "prompt:get",
-            "severity": "Critical",
-            "normalizedSeverity": "critical",
-            "normalizedSeverityRank": 4,
-            "isExploitable": true,
-            "ruleIdSource": "explicit",
-            "cvssScore": 9.1,
-            "recommendation": "Sanitize and label untrusted content before returning it.",
-            "probeContexts": [
-              {
-                "probeId": "probe-prompt-get-reflection-200",
-                "requestId": null,
-                "method": "prompts/get",
-                "transport": "http",
-                "protocolVersion": "2025-11-25",
-                "authApplied": true,
-                "authScheme": null,
-                "authStatus": "Applied",
-                "responseClassification": "Success",
-                "confidence": "High",
-                "statusCode": 200,
-                "reason": "Prompt response reflected untrusted content."
-              }
-            ]
-          }
-        },
-        {
-          "ruleId": "MCP.COVERAGE.PROMPT_SURFACE.PROMPTS_LIST.SKIPPED",
-          "level": "warning",
-          "kind": "review",
-          "message": {
-            "text": "Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability."
-          },
-          "partialFingerprints": {
-            "logicalIdentity": "coverage|coverage:prompt-surface:prompts-list:Skipped"
-          },
-          "locations": [
-            {
-              "logicalLocations": [
-                {
-                  "kind": "component",
-                  "name": "prompt-surface"
-                }
-              ]
+            "claimId": "vulnerability:mcp-security-prompt-injection:prompt-get",
+            "dimension": "Security",
+            "authority": "DeterministicSecurity",
+            "requirementLevel": "SecurityControl",
+            "outcome": "Violated",
+            "confidence": "High",
+            "sourceRevision": "2026-11-06.1",
+            "sourceSha256": null,
+            "evidenceIds": [
+              "probe-prompt-get-reflection-200"
+            ],
+            "claimMetadata": {
+              "ruleId": "MCP.SECURITY.PROMPT_INJECTION",
+              "severity": "Critical",
+              "exploitable": "True"
             }
-          ],
-          "properties": {
-            "source": "coverage-declaration",
-            "evidenceId": "coverage:prompt-surface:prompts-list:Skipped",
-            "authority": "coverage",
-            "category": "Coverage",
-            "component": "prompt-surface",
-            "layerId": "prompt-surface",
-            "scope": "prompts/list",
-            "coverageStatus": "Skipped",
-            "blocker": "None",
-            "confidence": "None",
-            "reason": "Server does not advertise prompts capability.",
-            "normalizedSeverity": "medium",
-            "normalizedSeverityRank": 2,
-            "ruleIdSource": "derived-coverage"
           }
         }
       ]

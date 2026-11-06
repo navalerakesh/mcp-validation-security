@@ -82,6 +82,91 @@ public class ToolAiReadinessAnalyzerTests
     }
 
     [Fact]
+    public void AnalyzeCatalog_WithConstraintWordsOnlyInDescriptions_ShouldNotInferSchemaIntent()
+    {
+        var analysis = _analyzer.AnalyzeCatalog(
+        [
+            new ToolAiReadinessTarget
+            {
+                Name = "search-records",
+                InputSchema = ParseJsonElement("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "owner": {
+                      "type": "string",
+                      "description": "Returns org-level fields for the account owner."
+                    },
+                    "query": {
+                      "type": "string",
+                      "description": "Scope by type, author email, or commit date in the query language."
+                    }
+                  }
+                }
+                """)
+            }
+        ],
+        rawJson: null);
+
+        analysis.Findings.Should().NotContain(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing ||
+            finding.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing);
+    }
+
+    [Fact]
+    public void AnalyzeCatalog_WithMethodParameter_ShouldRecommendExplicitChoices()
+    {
+        var analysis = _analyzer.AnalyzeCatalog(
+        [
+            new ToolAiReadinessTarget
+            {
+                Name = "change-record",
+                InputSchema = ParseJsonElement("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "method": {
+                      "type": "string",
+                      "description": "Operation to perform."
+                    }
+                  }
+                }
+                """)
+            }
+        ],
+        rawJson: null);
+
+        analysis.Findings.Should().ContainSingle(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiReadinessEnumCoverageMissing);
+    }
+
+    [Fact]
+    public void AnalyzeCatalog_WithSinceAndUntilParameters_ShouldRecommendFormatHints()
+    {
+        var analysis = _analyzer.AnalyzeCatalog(
+        [
+            new ToolAiReadinessTarget
+            {
+                Name = "list-records",
+                InputSchema = ParseJsonElement("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "since": { "type": "string", "description": "Lower timestamp bound." },
+                    "until": { "type": "string", "description": "Upper timestamp bound." }
+                  }
+                }
+                """)
+            }
+        ],
+        rawJson: null);
+
+        analysis.Findings.Should().ContainSingle(finding =>
+            finding.RuleId == ValidationFindingRuleIds.AiReadinessFormatHintMissing &&
+            finding.Summary.Contains("2/2", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AnalyzeErrorResponse_WithStructuredHelpfulError_ShouldGradeAsProLlm()
     {
         var assessment = _analyzer.AnalyzeErrorResponse(

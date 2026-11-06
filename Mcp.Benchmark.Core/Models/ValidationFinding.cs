@@ -58,7 +58,7 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
-    public const string CatalogVersion = "2026-08-19.1";
+    public const string CatalogVersion = "2026-11-06.1";
 
     private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
 
@@ -80,6 +80,7 @@ public static class ValidationFindingRuleIds
     public const string PerformancePublicRemoteTimeoutAdvisory = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_TIMEOUT_ADVISORY";
     public const string PerformancePublicRemoteRampUp = "MCP.GUIDELINE.PERFORMANCE.PUBLIC_REMOTE_RAMP_UP";
     public const string PerformancePressureSignalsObserved = "MCP.GUIDELINE.PERFORMANCE.PRESSURE_SIGNALS_OBSERVED";
+    public const string ProtocolActiveProbesNotRun = "MCP.GUIDELINE.COVERAGE.PROTOCOL_ACTIVE_PROBES_NOT_RUN";
 
     public const string AuthWwwAuthenticateMissing = "MCP.AUTH.WWW_AUTHENTICATE_MISSING";
     public const string AuthProtectedResourceMetadataMissing = "MCP.AUTH.PROTECTED_RESOURCE_METADATA_MISSING";
@@ -124,6 +125,34 @@ public static class ValidationFindingRuleIds
     public const string AiTaskSupportWithoutCapability = "MCP.AI.TASKS.TOOL_SUPPORT_WITHOUT_CAPABILITY";
     public const string ModernExtensionNegotiated = "MCP.MODERN.EXTENSION.NEGOTIATED";
     public const string ModernTasksExtensionNegotiated = "MCP.MODERN.EXTENSION.TASKS_NEGOTIATED";
+    public const string AppsToolMetadataMalformed = "MCP.APPS.TOOL.METADATA_MALFORMED";
+    public const string AppsResourceUriInvalid = "MCP.APPS.TOOL.RESOURCE_URI_INVALID";
+    public const string AppsVisibilityInvalid = "MCP.APPS.TOOL.VISIBILITY_INVALID";
+    public const string AppsDeprecatedResourceUri = "MCP.APPS.TOOL.DEPRECATED_RESOURCE_URI";
+    public const string AppsFallbackDescriptionMissing = "MCP.APPS.TOOL.FALLBACK_DESCRIPTION_MISSING";
+    public const string AppsResourceMimeTypeInvalid = "MCP.APPS.RESOURCE.MIME_TYPE_INVALID";
+    public const string AppsCapabilitySettingsInvalid = "MCP.APPS.CAPABILITY.SETTINGS_INVALID";
+    public const string AppsResourceReadInvalid = "MCP.APPS.RESOURCE.READ_INVALID";
+    public const string AppsCspOriginInvalid = "MCP.APPS.RESOURCE.CSP_ORIGIN_INVALID";
+    public const string AppsCspUndeclaredOrigin = "MCP.APPS.RESOURCE.CSP_ORIGIN_UNDECLARED";
+    public const string AppsDangerousHtmlContent = "MCP.APPS.RESOURCE.DANGEROUS_HTML_CONTENT";
+    public const string AppsPermissionRisk = "MCP.APPS.RESOURCE.PERMISSION_RISK";
+    public const string SkillsListResultInvalid = "MCP.SKILLS.LIST.RESULT_INVALID";
+    public const string SkillsCacheMetadataMissing = "MCP.SKILLS.LIST.CACHE_METADATA_MISSING";
+    public const string SkillsUriInvalid = "MCP.SKILLS.ENTRY.URI_INVALID";
+    public const string SkillsFrontmatterInvalid = "MCP.SKILLS.ENTRY.FRONTMATTER_INVALID";
+    public const string SkillsNameUriMismatch = "MCP.SKILLS.ENTRY.NAME_URI_MISMATCH";
+    public const string SkillsManifestInvalid = "MCP.SKILLS.ENTRY.MANIFEST_INVALID";
+    public const string SkillsManifestLimitExceeded = "MCP.SKILLS.ENTRY.MANIFEST_LIMIT_EXCEEDED";
+    public const string SkillsDynamicManifestRisk = "MCP.SKILLS.ENTRY.DYNAMIC_MANIFEST_RISK";
+    public const string SkillsRiskBearingFrontmatter = "MCP.SKILLS.ENTRY.RISK_BEARING_FRONTMATTER";
+    public const string SkillsNameCollision = "MCP.SKILLS.CATALOG.NAME_COLLISION";
+    public const string SkillsCapabilitySettingsInvalid = "MCP.SKILLS.CAPABILITY.SETTINGS_INVALID";
+    public const string SkillsContentIntegrityMismatch = "MCP.SKILLS.CONTENT.INTEGRITY_MISMATCH";
+    public const string SkillsFrontmatterMismatch = "MCP.SKILLS.CONTENT.FRONTMATTER_MISMATCH";
+    public const string SkillsPromptInjectionRisk = "MCP.SKILLS.CONTENT.PROMPT_INJECTION_RISK";
+    public const string SkillsSecretRequestRisk = "MCP.SKILLS.CONTENT.SECRET_REQUEST_RISK";
+    public const string SkillsCodeExecutionRisk = "MCP.SKILLS.CONTENT.CODE_EXECUTION_RISK";
     public const string ProtocolFeatureDeprecated = "MCP.PROTOCOL.FEATURE.DEPRECATED";
     public const string ProtocolFeatureRemoved = "MCP.PROTOCOL.FEATURE.REMOVED";
 

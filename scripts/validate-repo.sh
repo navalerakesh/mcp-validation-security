@@ -146,6 +146,9 @@ if $run_dotnet; then
   echo "==> Running .NET tests ($configuration)"
   dotnet test ./mcp-benchmark-validation.sln --configuration "$configuration" --no-build
 
+  echo "==> Validating benchmark contracts"
+  scripts/validate-benchmark-contracts.sh
+
   if $run_audits; then
     echo "==> Running NuGet audit"
     run_nuget_audit
@@ -153,6 +156,9 @@ if $run_dotnet; then
 fi
 
 if $run_node; then
+  echo "==> Testing repository Node companions"
+  node --test ./scripts/tests/*.test.mjs
+
   echo "==> Installing npm dependencies"
   pushd ./mcpval-mcp >/dev/null
   npm ci

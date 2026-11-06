@@ -60,10 +60,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 };
                 result.Findings.Add(new ValidationFinding
                 {
-                    RuleId = "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN",
+                    RuleId = ValidationFindingRuleIds.ProtocolActiveProbesNotRun,
                     Category = "Coverage",
                     Component = "protocol-active-probes",
                     Severity = ValidationFindingSeverity.Info,
+                    Source = ValidationRuleSource.Guideline,
                     Summary = "Active protocol conformance probes were not run under the safe execution policy.",
                     Recommendation = "Use standard mode against an authorized non-production target when active malformed-message and error-handling evidence is required."
                 });

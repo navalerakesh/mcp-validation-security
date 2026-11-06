@@ -12,10 +12,6 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Failed,
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L2_Caution
-            },
             ToolValidation = new ToolTestResult
             {
                 ToolResults = new List<IndividualToolResult>
@@ -53,10 +49,28 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.PartiallyCompleted,
-            TrustAssessment = new McpTrustAssessment
+            Assurance = new AssuranceEvaluation
             {
-                TrustLevel = McpTrustLevel.L3_Acceptable,
-                LimitedByIncompleteEvidence = true
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory,
+                Claims =
+                [
+                    new AssuranceClaim
+                    {
+                        ClaimId = "coverage:protocol-core:json-rpc",
+                        Subject = "json-rpc",
+                        Dimension = AssuranceDimension.CoreProtocol,
+                        RequirementLevel = AssuranceRequirementLevel.Policy,
+                        Authority = AssuranceAuthority.ProviderPolicy,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.Incomplete,
+                        Summary = "Active probes were not run in safe mode."
+                    }
+                ],
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory",
+                    Status = CertificateEligibilityStatus.ReviewRequired
+                }
             }
         };
         result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
@@ -67,8 +81,6 @@ public class ValidationPolicyEvaluatorTests
             ObservedOutcome = ValidationOutcome.Inconclusive,
             Reason = "Active probes were not run in safe mode."
         });
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
-
         var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Advisory);
 
         outcome.Passed.Should().BeTrue();
@@ -96,19 +108,27 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            TrustAssessment = new McpTrustAssessment
+            Assurance = new AssuranceEvaluation
             {
-                TrustLevel = McpTrustLevel.L4_Trusted,
-                TierChecks = new List<ComplianceTierCheck>
-                {
-                    new()
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Ci,
+                Claims =
+                [
+                    new AssuranceClaim
                     {
-                        Tier = "SHOULD",
-                        Requirement = "Tool descriptions should be clear.",
-                        Passed = false,
-                        Component = "tools/list",
-                        Detail = "description missing"
+                        ClaimId = "claim:should-description",
+                        Subject = "tools/list",
+                        Dimension = AssuranceDimension.CapabilityContract,
+                        RequirementLevel = AssuranceRequirementLevel.Should,
+                        Authority = AssuranceAuthority.OfficialSpecification,
+                        Source = new AssuranceSourceReference { Revision = "2026-07-28" },
+                        Outcome = AssuranceClaimOutcome.Violated,
+                        Summary = "SHOULD requirement failed: Tool descriptions should be clear."
                     }
+                ],
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "ci",
+                    Status = CertificateEligibilityStatus.Ineligible
                 }
             }
         };
@@ -125,79 +145,75 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            ProtocolCompliance = new ComplianceTestResult(),
-            TrustAssessment = new McpTrustAssessment
+            Assurance = new AssuranceEvaluation
             {
-                TrustLevel = McpTrustLevel.L5_CertifiedSecure,
-                TierChecks = new List<ComplianceTierCheck>
-                {
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory,
+                Claims =
+                [
                     new()
                     {
-                        Tier = "MAY",
-                        Requirement = "MAY: Server supports logging/setLevel",
-                        Passed = false,
-                        Component = "capabilities"
-                    },
-                    new()
-                    {
-                        Tier = "MAY",
-                        Requirement = "MAY: Server supports roots/list",
-                        Passed = false,
-                        Component = "capabilities"
+                        ClaimId = "optional:logging",
+                        Subject = "capabilities",
+                        Dimension = AssuranceDimension.CapabilityContract,
+                        RequirementLevel = AssuranceRequirementLevel.May,
+                        Authority = AssuranceAuthority.Heuristic,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.ReviewRequired,
+                        Summary = "Optional logging capability was not observed."
                     }
+                ],
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory",
+                    Status = CertificateEligibilityStatus.ReviewRequired
                 }
             }
         };
-        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
-        {
-            LayerId = "protocol",
-            Scope = "full",
-            Status = ValidationCoverageStatus.Covered,
-            ObservedOutcome = ValidationOutcome.Succeeded
-        });
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
 
         var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Balanced);
 
         outcome.Passed.Should().BeTrue();
         outcome.BlockingSignalCount.Should().Be(0);
-        result.VerdictAssessment!.BlockingDecisions.Should().BeEmpty();
-        result.VerdictAssessment.TriggeredDecisions.Should().Contain(decision =>
-            decision.Gate == GateOutcome.Note
-            && decision.Summary.Contains("MAY requirement failed", StringComparison.Ordinal));
-        ValidationVerdictEngine.IsPassing(result.VerdictAssessment).Should().BeTrue();
+        result.Assurance.Claims.Should().ContainSingle(claim => claim.RequirementLevel == AssuranceRequirementLevel.May);
     }
 
     [Fact]
-    public void Evaluate_BalancedMode_WithLowConfidenceCoveredEvidence_ShouldFailAsCoverageDebt()
+    public void Evaluate_BalancedMode_WithLowConfidenceCoveredEvidence_ShouldLeaveDebtToAssuranceExit()
     {
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            ProtocolCompliance = new ComplianceTestResult { Status = TestStatus.Passed },
-            TrustAssessment = new McpTrustAssessment
+            Assurance = new AssuranceEvaluation
             {
-                TrustLevel = McpTrustLevel.L5_CertifiedSecure,
-                TierChecks = new List<ComplianceTierCheck>()
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Inventory,
+                Claims =
+                [
+                    new AssuranceClaim
+                    {
+                        ClaimId = "coverage:tool-surface:tools-list",
+                        Subject = "tools/list",
+                        Dimension = AssuranceDimension.CapabilityContract,
+                        RequirementLevel = AssuranceRequirementLevel.Policy,
+                        Authority = AssuranceAuthority.ProviderPolicy,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.Incomplete,
+                        Confidence = EvidenceConfidenceLevel.Low,
+                        Summary = "Only a parser-boundary response was available."
+                    }
+                ],
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory",
+                    Status = CertificateEligibilityStatus.ReviewRequired
+                }
             }
         };
-        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
-        {
-            LayerId = "tool-surface",
-            Scope = "tools/list",
-            Status = ValidationCoverageStatus.Covered,
-            ObservedOutcome = ValidationOutcome.Succeeded,
-            Confidence = EvidenceConfidenceLevel.Low,
-            Reason = "Only a parser-boundary response was available."
-        });
-        result.VerdictAssessment = ValidationVerdictEngine.Calculate(result);
 
         var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Balanced);
 
-        result.VerdictAssessment.CoverageVerdict.Should().Be(ValidationVerdict.ReviewRequired);
-        ValidationVerdictEngine.IsPassing(result.VerdictAssessment).Should().BeFalse();
-        outcome.Passed.Should().BeFalse();
-        outcome.Reasons.Should().Contain(reason => reason.Contains("Coverage confidence is Low for tool-surface/tools/list", StringComparison.Ordinal));
+        result.Assurance.Claims.Should().ContainSingle(claim => claim.Outcome == AssuranceClaimOutcome.Incomplete);
+        outcome.Passed.Should().BeTrue();
+        outcome.BlockingSignalCount.Should().Be(0);
     }
 
     [Fact]
@@ -206,11 +222,7 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L4_Trusted,
-                TierChecks = new List<ComplianceTierCheck>()
-            }
+            Assurance = CreateSuccessfulAssurance()
         };
 
         var outcome = ValidationPolicyEvaluator.Evaluate(result, ValidationPolicyModes.Strict);
@@ -308,15 +320,52 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
+    public void AssessSuppressions_ShouldSeparateActiveExpiredAndMalformedEntries()
+    {
+        var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
+        var policy = new ValidationPolicyConfig
+        {
+            Suppressions =
+            [
+                new ValidationPolicySuppression
+                {
+                    Id = "active",
+                    Owner = "security",
+                    Reason = "Temporary exception.",
+                    ExpiresOn = now.AddHours(1),
+                    RuleId = "RULE.ACTIVE"
+                },
+                new ValidationPolicySuppression
+                {
+                    Id = "expired",
+                    Owner = "security",
+                    Reason = "Expired exception.",
+                    ExpiresOn = now,
+                    RuleId = "RULE.EXPIRED"
+                },
+                new ValidationPolicySuppression
+                {
+                    Id = "missing-owner",
+                    Reason = "Invalid.",
+                    ExpiresOn = now.AddHours(1),
+                    RuleId = "RULE.INVALID"
+                }
+            ]
+        };
+
+        var assessment = ValidationPolicyEvaluator.AssessSuppressions(policy, now);
+
+        assessment.ActiveCount.Should().Be(1);
+        assessment.InvalidSuppressions.Should().HaveCount(2);
+        assessment.InvalidSuppressions.Select(item => item.Id).Should().BeEquivalentTo("expired", "missing-owner");
+    }
+
+    [Fact]
     public void Evaluate_AdvisoryMode_WithExecutionIntegrityFailure_ShouldNotAllowSuppression()
     {
         var result = new ValidationResult
         {
-            OverallStatus = ValidationStatus.Error,
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.Unknown
-            }
+            OverallStatus = ValidationStatus.Error
         };
         var policy = new ValidationPolicyConfig
         {
@@ -347,31 +396,28 @@ public class ValidationPolicyEvaluatorTests
         var result = new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            ToolValidation = new ToolTestResult
+            Assurance = new AssuranceEvaluation
             {
-                ToolsDiscovered = 5,
-                ToolResults = Enumerable.Range(1, 5)
-                    .Select(index => new IndividualToolResult
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Ci,
+                Claims =
+                [
+                    new AssuranceClaim
                     {
-                        ToolName = $"delete_repo_{index}",
-                        Findings = new List<ValidationFinding>
-                        {
-                            new()
-                            {
-                                RuleId = ValidationFindingRuleIds.ToolGuidelineHintConflict,
-                                Category = "McpGuideline",
-                                Component = $"delete_repo_{index}",
-                                Severity = ValidationFindingSeverity.High,
-                                Summary = $"Tool 'delete_repo_{index}' declares conflicting annotations: readOnlyHint=true and destructiveHint=true."
-                            }
-                        }
-                    })
-                    .ToList()
-            },
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L4_Trusted,
-                TierChecks = new List<ComplianceTierCheck>()
+                        ClaimId = "claim:tool-hint-conflict",
+                        Subject = "tools",
+                        Dimension = AssuranceDimension.CapabilityContract,
+                        RequirementLevel = AssuranceRequirementLevel.Should,
+                        Authority = AssuranceAuthority.ProviderPolicy,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.ReviewRequired,
+                        Summary = "MCP.GUIDELINE.TOOL.HINT_CONFLICT: affected 5/5 component(s) (100%)."
+                    }
+                ],
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "ci",
+                    Status = CertificateEligibilityStatus.Ineligible
+                }
             }
         };
 
@@ -399,9 +445,11 @@ public class ValidationPolicyEvaluatorTests
     public void RegressionOnlyPolicy_WithoutNewBlockers_ShouldPass()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
+            ProfileId = "provider",
+            ProfileRevision = "test",
             IsRegression = false
         };
 
@@ -412,17 +460,16 @@ public class ValidationPolicyEvaluatorTests
     }
 
     [Fact]
-    public void RegressionOnlyPolicy_WithVerdictDegradationAndStableScore_ShouldBlock()
+    public void RegressionOnlyPolicy_WithAssessmentDegradation_ShouldBlock()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
-            BaselineScore = 80,
-            CurrentScore = 80,
-            ScoreDelta = 0,
-            BaselineVerdictBefore = ValidationVerdict.Trusted,
-            BaselineVerdictAfter = ValidationVerdict.ReviewRequired,
+            ProfileId = "provider",
+            ProfileRevision = "test",
+            CoreConformanceBefore = CoreConformanceStatus.Conformant,
+            CoreConformanceAfter = CoreConformanceStatus.Incomplete,
             IsRegression = true
         };
 
@@ -432,20 +479,22 @@ public class ValidationPolicyEvaluatorTests
         });
 
         outcome.Passed.Should().BeFalse();
-        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("verdict degraded", StringComparison.OrdinalIgnoreCase));
+        outcome.Reasons.Should().ContainSingle(reason => reason.Contains("assessments degraded", StringComparison.OrdinalIgnoreCase));
     }
 
     [Fact]
     public void RegressionOnlyPolicy_WithGovernedWaiver_ShouldSuppressMatchingNewBlocker()
     {
         var result = CreateResultWithCriticalFinding();
-        result.BaselineComparison = new ValidationBaselineComparison
+        result.BaselineComparison = new AssuranceBaselineComparison
         {
             BaselineValidationId = "baseline",
+            ProfileId = "provider",
+            ProfileRevision = "test",
             IsRegression = true,
-            NewBlockingDecisions =
+            NewNonSuccessClaims =
             [
-                new BaselineDecisionChange("decision:new", "TEST.CRITICAL", "Security", "delete_repo", GateOutcome.Reject)
+                new BaselineClaimChange("TEST.CRITICAL", AssuranceDimension.Security, AssuranceAuthority.DeterministicSecurity, AssuranceClaimOutcome.Violated, "delete_repo")
             ]
         };
         var policy = new ValidationPolicyConfig
@@ -476,32 +525,53 @@ public class ValidationPolicyEvaluatorTests
         return new ValidationResult
         {
             OverallStatus = ValidationStatus.Passed,
-            ToolValidation = new ToolTestResult
+            Assurance = new AssuranceEvaluation
             {
-                ToolResults = new List<IndividualToolResult>
-                {
-                    new()
+                Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Ci,
+                Claims =
+                [
+                    new AssuranceClaim
                     {
-                        ToolName = "delete_repo",
-                        Findings = new List<ValidationFinding>
-                        {
-                            new()
-                            {
-                                RuleId = "TEST.CRITICAL",
-                                Category = "Security",
-                                Component = "delete_repo",
-                                Severity = ValidationFindingSeverity.Critical,
-                                Summary = "Critical destructive issue detected."
-                            }
-                        }
+                        ClaimId = "claim:critical",
+                        Subject = "delete_repo",
+                        Dimension = AssuranceDimension.Security,
+                        RequirementLevel = AssuranceRequirementLevel.SecurityControl,
+                        Authority = AssuranceAuthority.DeterministicSecurity,
+                        Source = new AssuranceSourceReference { Revision = "test" },
+                        Outcome = AssuranceClaimOutcome.Violated,
+                        Confidence = EvidenceConfidenceLevel.High,
+                        Summary = "Critical destructive issue detected.",
+                        Metadata = new Dictionary<string, string> { ["ruleId"] = "TEST.CRITICAL" }
                     }
+                ],
+                Assessments = new AssuranceAssessmentSet
+                {
+                    CoreConformance = new CoreConformanceAssessment { Status = CoreConformanceStatus.Conformant },
+                    SecurityAssurance = new SecurityAssuranceAssessment { Status = SecurityAssuranceStatus.IssuesFound },
+                    OperationalReadiness = new OperationalReadinessAssessment { Status = OperationalReadinessStatus.Ready }
+                },
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "ci",
+                    Status = CertificateEligibilityStatus.Ineligible
                 }
-            },
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L3_Acceptable,
-                TierChecks = new List<ComplianceTierCheck>()
             }
         };
     }
+
+    private static AssuranceEvaluation CreateSuccessfulAssurance() => new()
+    {
+        Profile = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Ci,
+        Assessments = new AssuranceAssessmentSet
+        {
+            CoreConformance = new CoreConformanceAssessment { Status = CoreConformanceStatus.Conformant },
+            SecurityAssurance = new SecurityAssuranceAssessment { Status = SecurityAssuranceStatus.Verified },
+            OperationalReadiness = new OperationalReadinessAssessment { Status = OperationalReadinessStatus.Ready }
+        },
+        CertificateEligibility = new CertificateEligibilityAssessment
+        {
+            ProfileId = "ci",
+            Status = CertificateEligibilityStatus.Ineligible
+        }
+    };
 }

@@ -195,7 +195,14 @@ internal class Program
         validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
         validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
         validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
+        validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: inventory, ci, provider" });
         validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
+        validate.Options.Add(new Option<string>("--conformance-results") { Description = "Pinned official conformance evidence wrapper JSON" });
+        validate.Options.Add(new Option<string>("--provider-harness") { Description = "Signed provider harness manifest JSON" });
+        validate.Options.Add(new Option<string>("--provider-authorization-key") { Description = "Operator-trusted provider authorization public key PEM" });
+        var extensionOption = new Option<string[]>("--extension") { Description = "MCP extension ID to assess. Repeat to select more than one extension." };
+        extensionOption.AllowMultipleArgumentsPerToken = true;
+        validate.Options.Add(extensionOption);
         validate.Options.Add(new Option<bool>("--regression-only") { Description = "Block only regressions relative to --baseline" });
         validate.Options.Add(new Option<string>("--output-format") { Description = "Console output format: human, json" });
         validate.Options.Add(new Option<bool>("--sign-attestation") { Description = "Sign canonical JSON using MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" });
@@ -394,9 +401,12 @@ internal class Program
                 services.AddSingleton<IToolAiReadinessAnalyzer, ToolAiReadinessAnalyzer>();
                 services.AddSingleton<IAggregateScoringStrategy, SecurityFocusedScoringStrategy>();
                 services.AddSingleton<IValidationApplicabilityResolver, ValidationApplicabilityResolver>();
-                services.AddSingleton(typeof(IValidationPackRegistry<>), typeof(ValidationPackRegistry<>));
+                services.AddSingleton<IOfficialConformanceEvidenceImporter, OfficialConformanceEvidenceImporter>();
+                services.AddScoped(typeof(IValidationPackRegistry<>), typeof(ValidationPackRegistry<>));
                 services.AddSingleton<IProtocolFeaturePack, BuiltInProtocolFeaturePack>();
                 services.AddSingleton<IValidationScenarioPack, BuiltInObservedSurfaceScenarioPack>();
+                services.AddScoped<IValidationScenarioPack, McpAppsSecurityScenarioPack>();
+                services.AddScoped<IValidationScenarioPack, McpSkillsPreviewScenarioPack>();
                 services.AddSingleton<IProtocolFeatureResolver, ProtocolFeatureResolver>();
                 services.AddSingleton<IValidationRulePack<ProtocolValidationContext>, BuiltInProtocolRulePack>();
                 services.AddSingleton<IProtocolRuleRegistry, ProtocolRuleRegistry>();
@@ -675,10 +685,38 @@ internal class Program
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Balanced,
             Mcp.Benchmark.Core.Models.ValidationPolicyModes.Strict);
 
+        var assuranceProfileOption = new Option<string?>("--assurance")
+        {
+            Description = "Assurance profile (inventory, ci, provider)",
+            DefaultValueFactory = _ => "inventory"
+        };
+        assuranceProfileOption.AcceptOnlyFromAmong("inventory", "ci", "provider");
+
         var baselineOption = new Option<FileInfo?>("--baseline")
         {
             Description = "Prior canonical result JSON used for regression comparison"
         };
+
+        var conformanceResultsOption = new Option<FileInfo?>("--conformance-results")
+        {
+            Description = "Pinned official conformance evidence wrapper JSON"
+        };
+
+        var providerHarnessOption = new Option<FileInfo?>("--provider-harness")
+        {
+            Description = "Signed provider harness manifest JSON"
+        };
+
+        var providerAuthorizationKeyOption = new Option<FileInfo?>("--provider-authorization-key")
+        {
+            Description = "Operator-trusted provider authorization public key PEM"
+        };
+
+        var extensionOption = new Option<string[]>("--extension")
+        {
+            Description = "MCP extension ID to assess. Repeat to select more than one extension."
+        };
+        extensionOption.AllowMultipleArgumentsPerToken = true;
 
         var regressionOnlyOption = new Option<bool>("--regression-only")
         {
@@ -736,7 +774,12 @@ internal class Program
         validateCommand.Options.Add(confirmElevatedRiskOption);
         validateCommand.Options.Add(enableModelEvalOption);
         validateCommand.Options.Add(policyModeOption);
+        validateCommand.Options.Add(assuranceProfileOption);
         validateCommand.Options.Add(baselineOption);
+        validateCommand.Options.Add(conformanceResultsOption);
+        validateCommand.Options.Add(providerHarnessOption);
+        validateCommand.Options.Add(providerAuthorizationKeyOption);
+        validateCommand.Options.Add(extensionOption);
         validateCommand.Options.Add(regressionOnlyOption);
         validateCommand.Options.Add(outputFormatOption);
         validateCommand.Options.Add(signAttestationOption);
@@ -769,7 +812,12 @@ internal class Program
             var confirmElevatedRisk = GetOptionalBoolean(parseResult, confirmElevatedRiskOption);
             var enableModelEval = GetOptionalBoolean(parseResult, enableModelEvalOption);
             var policyMode = parseResult.GetValue(policyModeOption);
+            var assuranceProfile = parseResult.GetValue(assuranceProfileOption);
             var baseline = parseResult.GetValue(baselineOption);
+            var conformanceResults = parseResult.GetValue(conformanceResultsOption);
+            var providerHarness = parseResult.GetValue(providerHarnessOption);
+            var providerAuthorizationKey = parseResult.GetValue(providerAuthorizationKeyOption);
+            var extensions = parseResult.GetValue(extensionOption);
             var regressionOnly = GetOptionalBoolean(parseResult, regressionOnlyOption);
             var outputFormat = parseResult.GetValue(outputFormatOption);
             var signAttestation = GetOptionalBoolean(parseResult, signAttestationOption);
@@ -778,7 +826,7 @@ internal class Program
 
             await using var commandScope = serviceProvider.CreateAsyncScope();
             var command = commandScope.ServiceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, cancellationToken);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, providerHarness, providerAuthorizationKey, cancellationToken);
             return Environment.ExitCode;
         });
 

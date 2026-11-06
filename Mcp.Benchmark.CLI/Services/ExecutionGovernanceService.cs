@@ -138,11 +138,12 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             ExecutedChecks = result == null ? Array.Empty<string>() : CollectExecutedChecks(result),
             ArtifactPaths = artifactPaths.Select(Path.GetFileName).Where(path => !string.IsNullOrWhiteSpace(path)).Cast<string>().ToArray(),
             Digests = BuildDigests(plan, result, artifactPaths),
-            EvidenceCompleteness = result?.VerdictAssessment?.EvidenceSummary,
-            OverallStatus = result?.OverallStatus,
-            BaselineVerdict = result?.VerdictAssessment?.BaselineVerdict,
-            ProtocolVerdict = result?.VerdictAssessment?.ProtocolVerdict,
-            CoverageVerdict = result?.VerdictAssessment?.CoverageVerdict
+            EvidenceCompleteness = result?.Assurance.EvidenceSummary,
+            AssuranceProfile = result?.Assurance.Profile.ProfileId ?? "inventory",
+            CoreConformance = result?.Assurance.Assessments.CoreConformance.Status ?? CoreConformanceStatus.Incomplete,
+            SecurityAssurance = result?.Assurance.Assessments.SecurityAssurance.Status ?? SecurityAssuranceStatus.Incomplete,
+            OperationalReadiness = result?.Assurance.Assessments.OperationalReadiness.Status ?? OperationalReadinessStatus.Incomplete,
+            CertificateEligibility = result?.Assurance.CertificateEligibility.Status ?? CertificateEligibilityStatus.Ineligible
         };
     }
 
@@ -188,11 +189,14 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         }
 
         var safeTarget = serverConfig.CloneWithoutSecrets().Endpoint ?? string.Empty;
+        var targetIdentity = string.Equals(serverConfig.Transport, "stdio", StringComparison.OrdinalIgnoreCase)
+            ? serverConfig.Endpoint ?? string.Empty
+            : safeTarget;
         return new ExecutionPlan
         {
             ValidatorDigest = GetValidatorDigest(),
             ConfigDigest = configDigest,
-            TargetDigest = ArtifactDigestUtility.ComputeText(safeTarget),
+            TargetDigest = ArtifactDigestUtility.ComputeText(targetIdentity),
             CommandName = commandName,
             SessionId = sessionContext.SessionId,
             Target = safeTarget,
@@ -240,10 +244,11 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         ValidationResult? result,
         IEnumerable<string> artifactPaths)
     {
-        var ruleCatalog = result?.VerdictAssessment?.Policy.RuleRevisions
+        var ruleCatalog = ValidationFindingRuleIds.GetVersionedRules()
             .Select(pair => $"{pair.Key}={pair.Value}")
-            .OrderBy(value => value, StringComparer.Ordinal)
-            ?? Enumerable.Empty<string>();
+            .Append($"assurance-profile={AssuranceProfileCatalog.Revision}")
+            .Append($"calibration-policy={RuleCalibrationPolicy.Revision}")
+            .OrderBy(value => value, StringComparer.Ordinal);
         var profileCatalog = (result?.Evidence.AppliedPacks
             .Where(pack => pack.Key.Value.Contains("client-profile", StringComparison.OrdinalIgnoreCase))
             .Select(pack => $"{pack.Key.Value}={pack.Revision.Value}")
@@ -259,6 +264,11 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
                 path => Path.GetFileName(path),
                 ArtifactDigestUtility.ComputeFile,
                 StringComparer.Ordinal);
+        var externalEvidenceDigests = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        if (result?.Assessments.OfficialConformance is { SourceEvidenceSha256.Length: 64 } officialConformance)
+        {
+            externalEvidenceDigests["official-conformance"] = officialConformance.SourceEvidenceSha256;
+        }
 
         return new AuditDigestSet
         {
@@ -267,6 +277,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             ProfileCatalogSha256 = ArtifactDigestUtility.ComputeText(string.Join("\n", profileCatalog)),
             ConfigSha256 = plan.ConfigDigest,
             TargetIdentitySha256 = plan.TargetDigest,
+            ExternalEvidenceSha256 = externalEvidenceDigests,
             ArtifactsSha256 = new SortedDictionary<string, string>(artifactDigests, StringComparer.Ordinal)
         };
     }

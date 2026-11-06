@@ -6,16 +6,54 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 2.0.0 - 2026-11-06
+
+### Added
+
+- Added bounded import of pinned official MCP conformance evidence with runner, package, requirement-set, scenario, target, and wrapper digest verification; contradictory native evidence produces a separate `EvidenceConflict` review decision.
+- Added extension-aware applicability and provenance, automatic passive discovery, repeatable `--extension`, and separate extension assessments that do not inflate core score or trust.
+- Added the Stable MCP Apps server-security pack for tool/UI linkage, extension settings, UI resource MIME/content, HTML5, CSP origin, permission, and executable-content analysis without rendering server HTML.
+- Added the Beta MCP Skills security Preview for bounded catalog/manifest analysis and explicitly authorized SKILL.md digest, size, YAML frontmatter, prompt-injection, secret-request, and code-execution risk analysis without executing instructions or scripts.
+- Added Official Conformance and Extension Readiness projections across Markdown, HTML, XML, SARIF, JUnit, canonical JSON, and audit manifests.
+- Added signed ECDSA P-256 provider authorization grants and signed prior-run harness manifests, target/protocol/execution-plan/current-run binding, repeated-run admission, and a controlled end-to-end provider certificate proof.
+- Added an isolated official-conformance companion with exact runner, requirement-set, frozen-scenario, raw-result, and transitive npm dependency locks.
+- Added deterministic 50-run parallel isolation, 25-render concurrency, 1,000-evaluation soak, structural HTML accessibility, WCAG AA token, and browser desktop/mobile/keyboard proofs.
+- Added a repository PR/merge/release readiness skill that audits documentation and STDIO-wrapper drift, composes existing local gates, and verifies protected checks plus NuGet/npm publication.
+
+### Changed
+
+- **Breaking:** replaced the V1 global score, L1-L5 trust, baseline verdict, and generic overall gate with V2 typed claims, independent core/security/operations assessments, assurance profiles, explicit certificate eligibility, and stable incomplete-evidence exit semantics.
+- **Breaking:** canonical validation artifacts now use document type `mcpval.assurance-result` and schema version `2.0.0`; V1 artifacts are not accepted as V2 baselines or offline report inputs.
+- Added `--assurance inventory|ci|provider` consistently across the CLI, GitHub Action, and local MCP wrapper.
+- Reports and automation now consume the canonical V2 assurance object; SARIF emits actionable non-success claims and JUnit groups claims by assurance dimension.
+- Removed the dormant V1 trust calculator, verdict engine, duplicate decision manifest, policy branch, report fallbacks, and calibration corpus so V2 claims and independent assessments are the only decision pipeline.
+- Provider assurance, baselines, policy, console output, reports, audit identities, and exit codes now consume the final V2 assurance state after external evidence and current-run receipts are attached.
+- HTML reports now lead with tested scope and the assurance interpretation, use neutral surfaces with semantic status rails, keep run metadata secondary on mobile, and move terminology into a collapsed reference appendix.
+- The local MCP STDIO wrapper now describes safe-mode evidence limits explicitly, declares trust metadata in tool output schemas, and selects standard mode only for operator-configured provider assurance.
+
 ### Security
 
 - Updated the local MCP wrapper to patched MCP SDK and Zod releases and refreshed transitive dependencies so the production npm audit reports zero vulnerabilities.
 
 ### Fixed
 
+- Canonical results no longer persist SDK runtime tool handles, and offline reporting tolerates older `1.x` artifacts that contain them.
+- Draft 2020-12 tool schemas now accept unknown extension keywords such as GitHub MCP's `x-mcp-header` as annotations while continuing to validate known constraints.
+- Client-profile compatibility coverage now remains in its own lane and cannot alter the neutral core score, evidence summary, or deterministic verdict.
 - Advisory policy now returns a successful exit for expected coverage-limited safe-mode results while execution errors, cancellation, and incomplete execution remain blocking.
 - Modern stateless bootstrap evidence now records healthy disposition and discovery duration, and reports no longer describe `server/discover` as an initialize handshake.
 - Remediation reports preserve finding-specific recommendations and classify missing active protocol evidence with protocol work instead of advertised-capability fixes.
 - AI-readiness schema markers now match semantic tokens instead of substrings, avoiding false enum recommendations for prose such as `scoped` and `TypeScript`.
+- Official conformance import now fails closed on missing, unexpected, empty, or misclassified frozen scenarios and verifies the exact bounded `checks.json` bytes before parsing.
+- Normative security violations now contribute to deterministic security assurance instead of remaining outside the security reducer.
+- HTML reports now use assurance terminology, provide console-clean offline icons, meet WCAG AA text contrast, and retain bounded mobile table scrolling.
+- Safe-mode reports now distinguish catalog validation from tool invocation, resource reads, and prompt execution; omitted tool annotations retain their MCP-defined defaults, and coverage exclusions remain provider-policy evidence rather than specification failures.
+- GitHub Copilot Cloud Agent compatibility now treats missing explicit destructive hints as an advisory because MCP defaults omitted write-tool hints to destructive and GitHub does not document explicit hints as an admission requirement.
+- AI-readiness enum and format advisories now derive schema intent from parameter names and titles instead of incidental words in free-form descriptions.
+- Offline HTML rendering now displays the canonical persisted MCP schema version instead of a renderer-default profile.
+- The local MCP wrapper now preserves numeric V2 exits for CLI outcomes and maps wrapper launch failures and timeouts to stable runtime exits.
+- Canonical assurance threshold reasons now use culture-invariant percentage formatting so report snapshots remain byte-stable across operating systems and CI runners.
+- Local and GitHub build gates now share one benchmark-catalog contract using the V2 `AssuranceReduction` workload name.
 
 ## 1.1.33 - 2026-08-23
 

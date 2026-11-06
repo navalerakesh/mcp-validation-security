@@ -3,17 +3,21 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class ArtifactContracts
 {
     public const string SchemaVersion = "1.0.0";
-    public const string ValidationResultSchemaVersion = "1.1.0";
-    public const string AuditManifestSchemaVersion = "1.1.0";
-    public const string ClientProfileSummarySchemaVersion = "1.1.0";
-    public const string ValidationResultDocumentType = "mcpval.validation-result";
+    public const string ValidationResultSchemaVersion = "2.0.0";
+    public const string AuditManifestSchemaVersion = "2.0.0";
+    public const string ClientProfileSummarySchemaVersion = "2.0.0";
+    public const string OfficialConformanceEvidenceSchemaVersion = "1.0.0";
+    public const string ProviderHarnessSchemaVersion = "2.0.0";
+    public const string ValidationResultDocumentType = "mcpval.assurance-result";
     public const string AuditManifestDocumentType = "mcpval.audit-manifest";
     public const string ClientProfileSummaryDocumentType = "mcpval.client-profile-summary";
+    public const string OfficialConformanceEvidenceDocumentType = "mcpval.official-conformance-evidence";
+    public const string ProviderHarnessDocumentType = "mcpval.provider-harness";
     public const string ModelEvaluationDocumentType = "mcpval.model-evaluation";
     public const string CliResultDocumentType = "mcpval.cli-result";
     public const string CliErrorDocumentType = "mcpval.cli-error";
     public const string ValidationAttestationDocumentType = "mcpval.validation-attestation";
-    public const string ModelEvaluationSchemaVersion = "1.1.0";
+    public const string ModelEvaluationSchemaVersion = "2.0.0";
 
     public static bool IsCompatible(string documentType, string schemaVersion)
     {
@@ -27,6 +31,8 @@ public static class ArtifactContracts
             ValidationResultDocumentType => ValidationResultSchemaVersion,
             AuditManifestDocumentType => AuditManifestSchemaVersion,
             ClientProfileSummaryDocumentType => ClientProfileSummarySchemaVersion,
+            OfficialConformanceEvidenceDocumentType => OfficialConformanceEvidenceSchemaVersion,
+            ProviderHarnessDocumentType => ProviderHarnessSchemaVersion,
             ModelEvaluationDocumentType => ModelEvaluationSchemaVersion,
             CliResultDocumentType or CliErrorDocumentType or ValidationAttestationDocumentType => SchemaVersion,
             _ => null

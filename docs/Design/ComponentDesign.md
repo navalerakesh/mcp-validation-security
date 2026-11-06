@@ -77,7 +77,7 @@ flowchart LR
 | `ValidationSessionBuilder` | Transport detection, bootstrap state, initialize handshake capture, auth preparation, capability snapshot | Report rendering, CLI formatting |
 | `McpValidatorService` | Validator orchestration, applicability resolution, result assembly, layer and coverage population, scenario-pack execution | Argument parsing, host-specific presentation |
 | Validators | Category-specific evidence collection and rule evaluation | Policy thresholds, client-specific compatibility mapping |
-| Trust, verdict, and policy layers | Convert neutral evidence into trust level, release posture, and exit behavior | Raw evidence collection |
+| Assurance reducers, certificate, and policy layers | Convert neutral claims into independent assessments, certificate eligibility, and exit behavior | Raw evidence collection |
 | Client profile evaluator | Interpret completed evidence against documented host expectations | Network calls or validator execution |
 | Report renderers | Produce Markdown, HTML, XML, SARIF, and JUnit from saved results | Live validation or transport activity |
 

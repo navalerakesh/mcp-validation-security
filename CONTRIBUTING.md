@@ -39,6 +39,8 @@ On Windows PowerShell:
 ./scripts/validate-repo.ps1
 ```
 
+When using GitHub Copilot agents, run the workspace `repo-precommit-review` skill before committing, followed by `repo-build-release-gate`. The first performs repository-contextual semantic review; the second runs mandatory and change-specific executable gates. See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the governing agent workflow. These local skills supplement rather than replace required GitHub checks.
+
 ## Pull Requests
 
 1. Create a branch from `main`.

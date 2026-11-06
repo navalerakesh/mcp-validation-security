@@ -23,10 +23,10 @@ internal static partial class ReportActionHintBuilder
             }
         }
 
-        var guidelineDecision = SelectActionableDecision(result, ValidationRuleSource.Guideline);
-        if (guidelineDecision != null)
+        var guidelineClaim = SelectActionableClaim(result, AssuranceAuthority.ProviderPolicy);
+        if (guidelineClaim != null)
         {
-            hints.Add(Compact($"{ValidationAuthorityHierarchy.FormatTag(guidelineDecision.Authority)} {guidelineDecision.Category}: {guidelineDecision.Summary}"));
+            hints.Add(Compact($"[Provider Policy] {guidelineClaim.Dimension}: {guidelineClaim.Remediation ?? guidelineClaim.Summary}"));
         }
 
         var guidelineSkipHint = ExecutiveFindingSummaryBuilder.BuildGuidelineSkipHint(result);
@@ -47,15 +47,15 @@ internal static partial class ReportActionHintBuilder
 
         if (hints.Count == 0 && result.PolicyOutcome is { Passed: false })
         {
-            foreach (var decision in result.VerdictAssessment?.BlockingDecisions
-                         .OrderBy(item => ValidationAuthorityHierarchy.GetSortOrder(item.Authority))
-                         .ThenByDescending(item => item.Gate)
-                         .ThenByDescending(item => item.Severity)
+            foreach (var claim in result.Assurance.Claims
+                         .Where(item => item.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+                         .OrderBy(item => item.Authority)
+                         .ThenByDescending(item => item.Outcome)
                          .Where(item => !string.IsNullOrWhiteSpace(item.Summary))
                          .Take(2)
-                         ?? Enumerable.Empty<DecisionRecord>())
+                    )
             {
-                hints.Add(Compact($"{ValidationAuthorityHierarchy.FormatTag(decision.Authority)} {decision.Category}: {decision.Summary}"));
+                hints.Add(Compact($"[{claim.Authority}] {claim.Dimension}: {claim.Remediation ?? claim.Summary}"));
             }
         }
 
@@ -86,13 +86,14 @@ internal static partial class ReportActionHintBuilder
             .ToList();
     }
 
-    private static DecisionRecord? SelectActionableDecision(ValidationResult result, ValidationRuleSource authority)
+    private static AssuranceClaim? SelectActionableClaim(ValidationResult result, AssuranceAuthority authority)
     {
-        return (result.VerdictAssessment?.BlockingDecisions ?? Enumerable.Empty<DecisionRecord>())
-            .Concat(result.VerdictAssessment?.TriggeredDecisions ?? Enumerable.Empty<DecisionRecord>())
-            .Where(item => item.Authority == authority && !string.IsNullOrWhiteSpace(item.Summary))
-            .OrderByDescending(item => item.Gate)
-            .ThenByDescending(item => item.Severity)
+        return result.Assurance.Claims
+            .Where(item => item.Authority == authority &&
+                item.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable) &&
+                !string.IsNullOrWhiteSpace(item.Summary))
+            .OrderByDescending(item => item.Outcome)
+            .ThenByDescending(item => item.Confidence)
             .FirstOrDefault();
     }
 

@@ -150,13 +150,13 @@ On Windows, use the full path to `mcpval.exe`.
 
 | Tool | Description |
 | --- | --- |
-| `validate` | Validate an MCP server for compliance, security, AI safety, and trust level (L1-L5) |
+| `validate` | Evaluate typed claims, independent assurance assessments, and certificate eligibility for an MCP server |
 | `health_check` | Quick connectivity check — verifies initialize handshake |
 | `discover` | List tools, resources, and prompts exposed by a remote MCP server |
 
 ### Input Highlights
 
-- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `clientProfile`, `reportDetail`, and `verbose`.
+- `validate`: supports `server`, `access`, `token`, `interactive`, `mcpspec`, `protocolEra`, `policy`, `assurance`, `clientProfile`, bounded repeatable `extension` IDs, `reportDetail`, and `verbose`.
 - `health_check`: supports `server`, `access`, `token`, `interactive`, and `protocolEra`.
 - `discover`: supports `server`, `access`, `token`, `interactive`, `protocolEra`, and `format` (`json`, `yaml`, or `table`).
 
@@ -167,8 +167,11 @@ On Windows, use the full path to `mcpval.exe`.
 - Authentication tokens are passed to the CLI through `MCPVAL_TOKEN`; temporary config contains only an environment `tokenRef`, never the token value or a command-line argument.
 - Temporary config and artifact directories are removed after each tool execution.
 - `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
+- `structuredContent.exitCode` preserves the CLI's stable V2 exit contract (`0`, `1`, `2`, `64`, `70`, `75`, or `124`) and includes explicit untrusted-content metadata for target-derived evidence.
 - Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
 - The wrapper uses the CLI's default safe mode. Safe mode performs discovery and static metadata/schema analysis and does not call target tools.
+- The wrapper never accepts provider evidence paths from agent tool arguments. Operators may enable provider assurance for the process with `MCPVAL_PROVIDER_HARNESS`, `MCPVAL_PROVIDER_AUTHORIZATION_KEY`, `MCPVAL_OFFICIAL_CONFORMANCE_RESULTS`, and `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; all four are required. Provider assurance then selects standard mode, where the CLI verifies signed authorization and the admitted plan before target contact. The wrapper fails closed when any trust input is absent.
+- The MCP tool returns canonical JSON evidence, not generated HTML or Markdown bytes. `reportDetail` controls temporary CLI report generation only; use the CLI `report` command outside the wrapper when a durable human report is required.
 
 `discover` follows the upstream CLI behavior and is currently intended for remote HTTP MCP endpoints.
 

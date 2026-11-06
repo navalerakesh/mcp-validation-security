@@ -87,8 +87,13 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest`, `2026-07-28`, or a supported historical revision. `latest` resolves visibly in the execution plan. |
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
+| <code>--assurance &lt;inventory&#124;ci&#124;provider&gt;</code> | Selects V2 evidence requirements, independent assessments, and certificate eligibility. Inventory never issues a provider certificate. |
 | `--baseline <result.json>` | Compares this run with a compatible prior canonical result. |
-| `--regression-only` | Blocks only new blockers, verdict degradation, or score regression relative to `--baseline`; execution failures still block. |
+| `--conformance-results <wrapper.json>` | Imports a bounded, provenance-bearing wrapper for the pinned official conformance runner. External evidence remains separately attributable and affects only applicable claims. |
+| `--provider-harness <manifest.json>` | Supplies a signed set of prior repeated-run receipts bound to the target, protocol revision, and dry-run execution-plan digest. Provider assurance requires this input. |
+| `--provider-authorization-key <public-key.pem>` | Verifies both the authorization grant and harness manifest against an operator-trusted ECDSA P-256 public key. Signatures use SHA-256 with fixed-width P1363 encoding. |
+| `--extension <id>` | Explicitly selects an MCP extension. Repeat for more than one. Passive advertised-extension checks run automatically; active Skills content reads additionally require this option and standard/elevated mode. |
+| `--regression-only` | Blocks only new non-success claims or independent-assessment degradation relative to `--baseline`; execution failures still block. |
 | <code>--output-format &lt;human&#124;json&gt;</code> | Emits human output or one versioned JSON stdout envelope with typed JSON stderr errors. |
 | `--sign-attestation` | Signs the final canonical JSON bytes using the ECDSA P-256 key in `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; requires `--output`. |
 | `--client-profile <id>` | Narrows host-specific compatibility interpretation to profiles such as `claude-code`, `vscode-copilot-agent`, `github-copilot-cli`, `github-copilot-cloud-agent`, `visual-studio-copilot`, or `all`. When omitted, `validate` evaluates every documented host profile by default. |
@@ -108,15 +113,18 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `-t, --token <value>` | Supplies a bearer token for secured endpoints. |
 | `-i, --interactive` | Starts an interactive authentication flow when a strategy supports it. |
 
-Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with compatibility rules in [`docs/SchemaCompatibility.md`](docs/SchemaCompatibility.md). Audit manifests include SHA-256 digests for the validator, redacted config, target identity, rule/profile catalogs, and final bytes of every listed subject artifact; the manifest intentionally excludes itself from that non-recursive list.
 | `--max-concurrency <n>` | Caps concurrent activity to avoid rate limits or server overload. Remote functional probes may still self-calibrate below this cap so transient throttling does not become a false protocol or tool failure. |
 | `-c, --config <file>` | Loads a JSON `McpValidatorConfiguration` for advanced scenarios. |
 | <code>--report-detail &lt;full&#124;minimal&gt;</code> | Controls human report depth. `full` is the default and includes all sections with compact summaries; `minimal` keeps the executive view. |
 | `-v, --verbose` | Increases console and diagnostic logging detail. |
 
+Public artifact schemas are published under [`docs/Schemas`](docs/Schemas), with compatibility rules in [`docs/SchemaCompatibility.md`](docs/SchemaCompatibility.md). Audit manifests include SHA-256 digests for the validator, redacted config, target identity, rule/profile catalogs, imported external evidence, and final bytes of every listed subject artifact; the manifest intentionally excludes itself from that non-recursive list. See [`docs/OfficialConformanceAndExtensions.md`](docs/OfficialConformanceAndExtensions.md) for the wrapper contract and extension execution boundaries.
+
 For automation, prefer the `MCPVAL_TOKEN` environment variable over `--token` so the credential does not appear in process arguments. An explicit `--token` value takes precedence. The GitHub Action uses the masked environment-variable path.
 
-`safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports explicitly identify unevaluated security/operations dimensions and cap trust at L3. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
+`safe` mode is discovery and static analysis only. It lists capabilities, tools, resources, and prompts, but does not invoke tools, read resources, render prompts with arguments, send malformed protocol messages, run attack simulations, or generate load. Reports preserve those unperformed dimensions as incomplete evidence, and the inventory profile never issues a provider certificate. Use `standard` only against an authorized test target when active conformance evidence is required; use `elevated` only with explicit risk acknowledgement.
+
+Modern `server/discover` runs automatically inspect advertised Apps and Skills settings. Apps passive linkage checks run in safe mode; linked UI resource reads and bounded HTML/CSP analysis require standard/elevated mode. Skills catalog analysis remains Preview; SKILL.md reads require both standard/elevated mode and `--extension io.modelcontextprotocol/skills`. The validator never renders Apps HTML or executes skill instructions/scripts.
 
 Client profile evaluation is a host-side interpretation layer. It consumes the neutral validation evidence from the run without changing the underlying findings. `validate` includes that interpretation by default; use `--client-profile` only when you want a smaller subset of host profiles.
 
@@ -130,14 +138,12 @@ The standard artifact set is:
 - `mcp-validation-<timestamp>-report.html` - full HTML report for sharing
 - `mcp-validation-<timestamp>-result.json` - canonical machine-readable validation object
 - `mcp-validation-<timestamp>-results.sarif.json` - SARIF findings feed for CI and code scanning
-- `mcp-validation-<timestamp>-results.junit.xml` - JUnit XML policy, category, and evidence projection
+- `mcp-validation-<timestamp>-results.junit.xml` - JUnit suites by assurance dimension; incomplete evidence is skipped, never passed
 - `mcp-validation-<timestamp>-audit.json` - execution audit manifest for the run
 
 When client profile evaluation is enabled, `validate` also writes `mcp-validation-<timestamp>-profile-summary.json` with per-profile compatible, warning, and incompatible counts.
 
-The HTML report opens on the decision surface: **Run Status**, **Deterministic Verdict**, and **Trust Level**. The deterministic verdict drives release gating, while the trust level remains the weighted L1-L5 posture for human review and trend tracking.
-
-Trust calculations normalize over evaluated dimensions. Missing evidence is never scored as zero or as a pass: it lowers evidence completeness, names unevaluated dimensions, and prevents an incomplete assessment from reaching L4/L5.
+The HTML report opens with profile-aware assessment framing, the exact tested scope, and independent core, security, and operational outcomes. Inventory is presented as a completed assessment with no certificate issued, not as a failed provider certification. Semantic color is limited to status chips and rails; the executive decision is expanded first, while detailed evidence and terminology use accessible progressive disclosure. Missing evidence produces an explicit incomplete assessment and never earns pass credit. See [docs/Reporting.md](docs/Reporting.md).
 
 When experimental model evaluation is enabled, `validate` writes `mcp-validation-<timestamp>-model-evaluation.json` as a separate companion artifact. The canonical `*-result.json` file remains deterministic and does not embed experimental model output. `--enable-model-eval` now fails fast when no provider is configured; this build currently includes the deterministic companion provider `builtin-rubric`.
 
@@ -179,12 +185,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Validate MCP server
-        uses: navalerakesh/mcp-validation-security@v1
+        uses: navalerakesh/mcp-validation-security@v2
         with:
           server: https://example.test/mcp
           access: authenticated
           token: ${{ secrets.MCP_TOKEN }}
           policy: strict
+          assurance: ci
           output-dir: ./mcp-validation-results
 ```
 
@@ -194,28 +201,17 @@ Once a tagged release is published, the same root action can be listed in GitHub
 
 ## Why Teams Use MCP Validator
 
-- Weighted trust assessment with hard caps for critical blockers such as confirmed security failures or MCP MUST failures
-- RFC 2119 compliance tiers that distinguish MUST, SHOULD, and MAY semantics
+- Independent core conformance, security assurance, and operational readiness assessments
+- Explicit provider certificate eligibility that fails closed on missing evidence
+- Typed RFC 2119 claims that distinguish MUST, SHOULD, and MAY authority
 - AI safety analysis covering schema quality, destructive actions, exfiltration risk, and error quality for self-correcting agents
-- Real auth and security testing against the target surface instead of purely static metadata review
+- Governed active auth and security testing in authorized standard/provider runs; safe inventory reports active coverage as incomplete
 - Structured findings with stable rule IDs, remediation guidance, and machine-readable outputs for CI workflows
 - Shared evidence model that can be interpreted against documented client profiles without forking validator logic
 
-## MCP Trust Levels
+## Assurance Model
 
-Every validation run scores four dimensions: Protocol Compliance, Security Posture, AI Safety, and Operational Readiness.
-
-Trust level is determined by a weighted multi-dimensional score and then capped by confirmed blockers such as critical security failures or MCP MUST failures.
-
-Trust level is intentionally separate from the deterministic verdict. Use the deterministic verdict and policy outcome for release gating; use the L1-L5 trust level to summarize overall protocol, security, AI-safety, and operational posture.
-
-| Level | Label | Meaning |
-| --- | --- | --- |
-| `L5` | High Assurance | Weighted trust score is at least 90 with no blocking caps; this is descriptive, not certification |
-| `L4` | Trusted | Weighted trust score is at least 75 with no blocking caps |
-| `L3` | Acceptable | Weighted trust score is at least 50 after applying caps |
-| `L2` | Caution | Weighted trust score is at least 25 or the result is capped by protocol or security blockers |
-| `L1` | Untrusted | Critical blockers are present or the score falls below the L2 threshold |
+Every V2 run projects typed claims into independent core conformance, security assurance, operational readiness, extension readiness, and client compatibility assessments. Automation uses the selected policy and certificate eligibility, never a weighted global score. See [docs/Design/V2AssuranceArchitecture.md](docs/Design/V2AssuranceArchitecture.md) and [docs/V2BreakingChanges.md](docs/V2BreakingChanges.md).
 
 ## Architecture
 

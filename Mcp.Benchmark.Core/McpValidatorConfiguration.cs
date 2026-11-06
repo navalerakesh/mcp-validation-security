@@ -34,6 +34,12 @@ public class McpValidatorConfiguration
     public ValidationPolicyConfig Policy { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the V2 assurance profile used to reduce collected evidence.
+    /// </summary>
+    [JsonPropertyName("assurance")]
+    public AssurancePolicyConfig Assurance { get; set; } = new();
+
+    /// <summary>
     /// Gets or sets the execution governance policy for the run.
     /// </summary>
     [JsonPropertyName("execution")]
@@ -72,6 +78,7 @@ public class McpValidatorConfiguration
             Validation = Validation,
             Reporting = Reporting,
             Policy = Policy,
+            Assurance = Assurance,
             Execution = Execution?.Clone(),
             TestExecution = TestExecution,
             ClientProfiles = ClientProfiles,
@@ -93,6 +100,12 @@ public class McpValidatorConfiguration
         clone.Reporting.OutputDirectory = null;
         return clone;
     }
+}
+
+public sealed class AssurancePolicyConfig
+{
+    [JsonPropertyName("profile")]
+    public string Profile { get; set; } = "inventory";
 }
 
 /// <summary>
@@ -587,4 +600,7 @@ public class ValidationConfig
     /// </summary>
     [JsonPropertyName("categories")]
     public ValidationScenarios Categories { get; set; } = new();
+
+    [JsonPropertyName("extensions")]
+    public List<string> Extensions { get; set; } = new();
 }

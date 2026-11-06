@@ -12,7 +12,7 @@ MCP Validator separates target measurements from validator overhead.
 - validator queue p95, retry count/delay, throughput, and error rate;
 - response bodies rejected by configured size limits.
 
-Target latency measures each HTTP/STDIO request/response-header cycle and excludes validator queueing and retry backoff. Total run duration is wall time; validator overhead sums deterministic local scenario, scoring, trust, and verdict stages, so target waiting and exporter work are not mislabeled as validator processing. Performance-test metrics remain a separate controlled load-probe result.
+Target latency measures each HTTP/STDIO request/response-header cycle and excludes validator queueing and retry backoff. Total run duration is wall time; validator overhead sums deterministic local scenario, claim projection, assessment, scoring, and policy stages, so target waiting and exporter work are not mislabeled as validator processing. Performance-test metrics remain a separate controlled load-probe result.
 
 Operational request failure means a transport exception, missing response, non-success HTTP status, or policy rejection. A received JSON-RPC error envelope is a completed transport exchange and remains protocol evidence; it does not by itself increase the operational error rate.
 

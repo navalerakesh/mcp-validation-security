@@ -6,11 +6,14 @@ This directory contains the durable product, architecture, and contributor docum
 
 | Document | Purpose |
 | --- | --- |
+| [OrganizationGradeConfidence.md](OrganizationGradeConfidence.md) | Current organization-grade confidence scope, evidence chain, reproducible proof, and explicit limits |
 | [../README.md](../README.md) | Product overview, installation options, command summary, and package links |
 | [../QUICKSTART.md](../QUICKSTART.md) | Fast path from installation to the first validation run |
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
 | [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
+| [Reporting.md](Reporting.md) | Canonical artifacts, HTML reading order, outcome semantics, offline rendering, and safe sharing |
 | [ProtocolCoverageMatrix.md](ProtocolCoverageMatrix.md) | Exact revision/transport/feature behavioral coverage and known limits |
+| [OfficialConformanceAndExtensions.md](OfficialConformanceAndExtensions.md) | Official conformance wrapper contract plus Apps/Skills execution and evidence boundaries |
 | [AuthenticationCoverage.md](AuthenticationCoverage.md) | Credential acquisition, registration, conformance evidence, and explicit authentication limits |
 | [CalibrationMethodology.md](CalibrationMethodology.md) | Versioned scoring policy, calibration corpus, mutation threshold, and false-positive/negative limits |
 | [../CHANGELOG.md](../CHANGELOG.md) | Release-facing history for behavior, packaging, and reporting changes |
@@ -20,7 +23,7 @@ This directory contains the durable product, architecture, and contributor docum
 | Document | Purpose |
 | --- | --- |
 | [Resources/GitHub-MCP-Remote-Run.md](Resources/GitHub-MCP-Remote-Run.md) | Representative remote validation run and artifact walkthrough |
-| [Resources/LiveCertificate-1.1.25-MicrosoftLearn.md](Resources/LiveCertificate-1.1.25-MicrosoftLearn.md) | Fresh public Microsoft Learn MCP health, discovery, safe-validation, redaction, and artifact-integrity certificate |
+| [Resources/LiveCertificate-1.1.25-MicrosoftLearn.md](Resources/LiveCertificate-1.1.25-MicrosoftLearn.md) | Historical V1 Microsoft Learn interoperability and artifact-integrity evidence |
 | [../SECURITY.md](../SECURITY.md) | Vulnerability reporting process and safe usage guidance |
 | [../mcpval-mcp/README.md](../mcpval-mcp/README.md) | Local STDIO wrapper package for MCP-compatible desktop tooling |
 
@@ -32,8 +35,12 @@ This directory contains the durable product, architecture, and contributor docum
 | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
+| [Design/ExtensionIntegrationProposal.md](Design/ExtensionIntegrationProposal.md) | Official-source assessment and gated roadmap for conformance, Apps, Skills, and Tasks integration |
+| [Design/V2AssuranceArchitecture.md](Design/V2AssuranceArchitecture.md) | Governing breaking V2 design for claims, independent assessments, certificate eligibility, and provider dependency |
+| [Design/V2DependencyStrategy.md](Design/V2DependencyStrategy.md) | V2 package admission, official MCP reuse, cryptography, and supply-chain decisions |
 | [Design/Schemas.md](Design/Schemas.md) | Schema registry design, supported versions, and version-management rules |
 | [Schemas/](Schemas/) | Versioned JSON Schema contracts for canonical machine artifacts |
+| [V2BreakingChanges.md](V2BreakingChanges.md) | Internal migration record for intentionally removed V1 semantics and V2 replacements |
 | [Design/EnterpriseRenewalExecutionPlan.md](Design/EnterpriseRenewalExecutionPlan.md) | Active renewal milestones, ownership, scale invariants, and evidence gates |
 | [../Mcp.Compliance.Spec/schema/README.md](../Mcp.Compliance.Spec/schema/README.md) | Embedded schema folder layout used by the spec project |
 

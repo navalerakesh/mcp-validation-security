@@ -47,7 +47,7 @@ For every modern list surface advertised by `server/discover`, the validator req
 
 Modern subscription checks require `notifications/subscriptions/acknowledged` as the first subscription message with a matching subscription ID. STDIO validation then cancels the long-lived request and requires a correlated complete close result; HTTP validates the first SSE event and closes the bounded probe stream.
 
-Modern discovery records extension identifiers as typed evidence. The tasks extension (`io.modelcontextprotocol/tasks`) receives a dedicated stable finding; the validator does not invent task RPCs because the embedded protocol schema defines tasks as negotiated extension metadata.
+Modern discovery records extension identifiers and bounded known settings as typed evidence. Apps (`io.modelcontextprotocol/ui`) receives a Stable server-security pack. Skills (`io.modelcontextprotocol/skills`) receives a non-blocking Beta Preview. Tasks evidence is imported from the pinned official suite; the validator does not duplicate its evolving Beta-to-Core lifecycle RPC scenarios.
 
 Tool input/output schemas and returned `structuredContent` are evaluated with JSON Schema Draft 2020-12 semantics, including `unevaluatedProperties` and `prefixItems`. Resource catalogs have a configuration-owned processing limit; exceeding it produces explicit truncation evidence and an inconclusive result rather than silently scoring an incomplete catalog.
 
@@ -59,10 +59,13 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | Tools | `tools/list`, `tools/call`, pagination, annotations, destructive-action signaling, and AI-readiness schema checks |
 | Prompts | `prompts/list` and `prompts/get` structure, metadata quality, argument guidance, and prompt-safety checks |
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
+| Official conformance | Isolated pinned companion, exact transitive dependency lock, runner/requirement/raw-scenario digest verification, frozen scenario completeness, target binding, separate evidence coverage, and explicit evidence-conflict review decisions |
+| MCP Apps | Stable passive tool/UI linkage and settings checks; standard-mode bounded `resources/read` plus HTML5, CSP origin, permission, and executable-content analysis |
+| MCP Skills | Beta Preview catalog, manifest, URI, collision, digest/size, and risk-bearing frontmatter checks; explicitly authorized bounded SKILL.md integrity/frontmatter/content analysis |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
-| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, audit manifests, and optional client-profile summary/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML reports open with Run Status, Deterministic Verdict, and Trust Level decision cards. |
-| CI gating | Advisory, balanced, and strict policy modes with structured policy outcomes |
+| Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, JUnit, audit manifests, and optional client-profile/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML opens with profile-aware framing, tested scope, independent assessments, and an accessible claim distribution. |
+| CI gating | Inventory, CI, and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`) |
 
 ## Execution Modes
 
@@ -72,7 +75,9 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | `standard` | Configured active functional and conformance probes | Authorized non-production targets |
 | `elevated` | Broadest configured active surface with explicit acknowledgement | Isolated environments with reviewed target ownership |
 
-Incomplete safe-mode evidence produces a partial/review disposition and an L3 maximum, not a fabricated failure or enterprise-trusted rating.
+Incomplete safe-mode evidence produces explicit incomplete claims and a partial/review disposition, not a fabricated failure or provider certificate.
+
+Apps linked-resource reads require standard/elevated mode. Skills content reads require standard/elevated mode plus explicit `--extension io.modelcontextprotocol/skills`; passive Skills catalog analysis remains Preview. Apps HTML is parsed but never rendered, and Skills scripts/instructions are analyzed but never executed.
 
 HTTP response bodies are bounded by `execution.maxResponseBytes` (1 MiB by default, 16 MiB maximum). The normalized value is captured in immutable operation policy state and emitted in the audit manifest; oversized bodies produce explicit failed transport evidence rather than silent truncation or an empty response.
 
@@ -88,7 +93,7 @@ Subprocess stdout/stderr is byte-bounded while streaming. Authentication CLI ove
 | Rule-source labeling | Findings distinguish `spec`, `guideline`, and `heuristic` origins |
 | Remediation guidance | Findings include remediation text suitable for reports and CI output |
 | Structured evidence | Capability checks and interpretation layers attach explicit evidence instead of only free-form text |
-| Canonical result object | `ValidationResult` preserves run, assessment, evidence, and compatibility documents plus trust assessment and policy outcome |
+| Canonical result object | `ValidationResult` preserves run, assessment, evidence, compatibility, V2 assurance, certificate eligibility, and policy documents without a parallel trust/verdict pipeline |
 | Offline report replay | `report` can start from the canonical JSON result or from the Markdown report path that resolves to the sibling JSON snapshot |
 | Transient probe calibration | Retryable protocol and tool probe responses are preserved as inconclusive operational evidence instead of being overstated as hard spec failures |
 
@@ -104,6 +109,8 @@ Subprocess stdout/stderr is byte-bounded while streaming. Authentication CLI ove
 - `all`
 
 These profiles do not mutate the underlying findings. They provide an additional host-specific interpretation layer on top of the same raw evidence set.
+
+Current built-in client profiles are documentation-derived and are explicitly labeled `Interpreted`; executable client verification remains planned and cannot be inferred from these assessments.
 
 When profile evaluation is enabled, `validate` also emits `*-profile-summary.json` for dashboards and CI systems that only need the compatibility rollup.
 

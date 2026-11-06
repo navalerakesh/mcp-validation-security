@@ -168,26 +168,21 @@ public static class ValidationFormatter
 
     private static void DisplayOverallResults(ValidationResult result, bool useColors)
     {
-        var statusColor = result.OverallStatus switch
+        var assurance = result.Assurance;
+        var certificateColor = assurance.CertificateEligibility.Status switch
         {
-            ValidationStatus.Passed => ConsoleColor.Green,
-            ValidationStatus.Failed => ConsoleColor.Red,
-            ValidationStatus.PartiallyCompleted => ConsoleColor.Yellow,
-            _ => ConsoleColor.White
+            CertificateEligibilityStatus.Eligible => ConsoleColor.Green,
+            CertificateEligibilityStatus.Ineligible => ConsoleColor.Red,
+            _ => ConsoleColor.Yellow
         };
 
-        FormatterUtils.WriteWithColor("Status: ", ConsoleColor.Gray, useColors);
-        FormatterUtils.WriteLineWithColor(result.OverallStatus.ToString().ToUpper(), statusColor, useColors);
-
-        FormatterUtils.WriteWithColor("Score:  ", ConsoleColor.Gray, useColors);
-        FormatterUtils.WriteLineWithColor($"{result.ComplianceScore:F1}%", FormatterUtils.GetScoreColor(result.ComplianceScore), useColors);
-
-        if (result.VerdictAssessment != null)
-        {
-            WriteKeyValue("Baseline", FormatVerdict(result.VerdictAssessment.BaselineVerdict), useColors);
-            WriteKeyValue("Protocol", FormatVerdict(result.VerdictAssessment.ProtocolVerdict), useColors);
-            WriteKeyValue("Coverage", FormatVerdict(result.VerdictAssessment.CoverageVerdict), useColors);
-        }
+        FormatterUtils.WriteWithColor("Certificate: ", ConsoleColor.Gray, useColors);
+        FormatterUtils.WriteLineWithColor(assurance.CertificateEligibility.Status.ToString().ToUpperInvariant(), certificateColor, useColors);
+        WriteKeyValue("Profile", assurance.Profile.ProfileId, useColors);
+        WriteKeyValue("Core", assurance.Assessments.CoreConformance.Status.ToString(), useColors);
+        WriteKeyValue("Security", assurance.Assessments.SecurityAssurance.Status.ToString(), useColors);
+        WriteKeyValue("Operations", assurance.Assessments.OperationalReadiness.Status.ToString(), useColors);
+        WriteKeyValue("Evidence", $"{assurance.EvidenceSummary.EvidenceCoverageRatio:P1} coverage / {assurance.EvidenceSummary.EvidenceConfidenceRatio:P1} confidence", useColors);
 
         Console.WriteLine();
     }
@@ -406,43 +401,18 @@ public static class ValidationFormatter
 
     private static void DisplayExpertAssessmentInsights(ValidationResult result, bool useColors)
     {
-        if (result.VerdictAssessment != null)
+        var certificate = result.Assurance.CertificateEligibility.Status;
+        var color = certificate switch
         {
-            var verdict = result.VerdictAssessment.BaselineVerdict;
-            var text = verdict switch
-            {
-                ValidationVerdict.Trusted => "VERDICT: TRUSTED",
-                ValidationVerdict.ConditionallyAcceptable => "VERDICT: CONDITIONAL ACCEPTANCE",
-                ValidationVerdict.ReviewRequired => "VERDICT: REVIEW REQUIRED",
-                ValidationVerdict.Reject => "VERDICT: REJECT",
-                _ => "VERDICT: UNKNOWN"
-            };
-
-            var color = verdict switch
-            {
-                ValidationVerdict.Trusted => ConsoleColor.Green,
-                ValidationVerdict.ConditionallyAcceptable => ConsoleColor.Cyan,
-                ValidationVerdict.ReviewRequired => ConsoleColor.Yellow,
-                ValidationVerdict.Reject => ConsoleColor.Red,
-                _ => ConsoleColor.White
-            };
-
-            FormatterUtils.WriteLineWithColor(text, color, useColors);
-            return;
-        }
-
-        if (result.ComplianceScore >= 95)
-        {
-            FormatterUtils.WriteLineWithColor("VERDICT: EXEMPLARY IMPLEMENTATION", ConsoleColor.Green, useColors);
-        }
-        else if (result.ComplianceScore >= 80)
-        {
-            FormatterUtils.WriteLineWithColor("VERDICT: PRODUCTION READY", ConsoleColor.Green, useColors);
-        }
-        else
-        {
-            FormatterUtils.WriteLineWithColor("VERDICT: IMPROVEMENTS REQUIRED", ConsoleColor.Yellow, useColors);
-        }
+            CertificateEligibilityStatus.Eligible => ConsoleColor.Green,
+            CertificateEligibilityStatus.Ineligible => ConsoleColor.Red,
+            _ => ConsoleColor.Yellow
+        };
+        FormatterUtils.WriteLineWithColor($"CERTIFICATE: {certificate.ToString().ToUpperInvariant()}", color, useColors);
+        FormatterUtils.WriteLineWithColor(
+            $"CORE: {result.Assurance.Assessments.CoreConformance.Status} | SECURITY: {result.Assurance.Assessments.SecurityAssurance.Status} | OPERATIONS: {result.Assurance.Assessments.OperationalReadiness.Status}",
+            ConsoleColor.White,
+            useColors);
     }
 
     private static string FormatVerdict(ValidationVerdict verdict)

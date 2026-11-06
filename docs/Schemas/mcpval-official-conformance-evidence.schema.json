@@ -1,0 +1,83 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/navalerakesh/mcp-validation-security/blob/main/docs/Schemas/mcpval-official-conformance-evidence.schema.json",
+  "title": "MCP Validator Official Conformance Evidence Wrapper",
+  "type": "object",
+  "required": ["documentType", "documentSchemaVersion", "runner", "requirementSet", "target", "invocation", "run", "scenarios"],
+  "properties": {
+    "documentType": { "const": "mcpval.official-conformance-evidence" },
+    "documentSchemaVersion": { "type": "string", "pattern": "^1\\.[0-9]+\\.[0-9]+$" },
+    "runner": {
+      "type": "object",
+      "required": ["packageName", "version", "sourceCommit", "packageSha256"],
+      "properties": {
+        "packageName": { "const": "@modelcontextprotocol/conformance" },
+        "version": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "packageSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "packageIntegrity": { "type": ["string", "null"], "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "requirementSet": {
+      "type": "object",
+      "required": ["revision", "sha256"],
+      "properties": {
+        "revision": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "target": {
+      "type": "object",
+      "required": ["identitySha256", "transport", "protocolVersion"],
+      "properties": {
+        "identitySha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "transport": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "protocolVersion": { "type": "string", "minLength": 1, "maxLength": 4096 }
+      },
+      "additionalProperties": false
+    },
+    "invocation": {
+      "type": "object",
+      "required": ["mode", "sanitizedArguments"],
+      "properties": {
+        "mode": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "sanitizedArguments": { "type": "array", "maxItems": 128, "items": { "type": "string", "maxLength": 4096 } }
+      },
+      "additionalProperties": false
+    },
+    "run": {
+      "type": "object",
+      "required": ["startedAtUtc", "endedAtUtc", "exitCode", "state"],
+      "properties": {
+        "startedAtUtc": { "type": "string", "format": "date-time" },
+        "endedAtUtc": { "type": "string", "format": "date-time" },
+        "exitCode": { "type": "integer" },
+        "state": { "enum": ["completed", "failed", "timedOut", "cancelled"] }
+      },
+      "additionalProperties": false
+    },
+    "scenarios": {
+      "type": "array",
+      "maxItems": 512,
+      "items": { "$ref": "#/$defs/scenario" }
+    }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "required": ["scenarioId", "scoringDisposition", "checksSha256", "checksBase64"],
+      "properties": {
+        "scenarioId": { "type": "string", "minLength": 1, "maxLength": 4096 },
+        "extensionId": { "type": ["string", "null"], "maxLength": 4096 },
+        "scoringDisposition": { "enum": ["required", "notScored"] },
+        "notScoredReason": { "type": ["string", "null"], "maxLength": 4096 },
+        "checksSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "checksBase64": { "type": "string", "contentEncoding": "base64", "maxLength": 22369624 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

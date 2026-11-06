@@ -19,7 +19,7 @@ This document is the detailed companion to [Architecture.md](Architecture.md) an
 3. Session bootstrap resolves the target type, validates target address policy, selects the protocol era, captures the capability snapshot, and establishes authentication context when needed.
 4. Applicability resolution determines the effective schema version and the active protocol feature, rule, and scenario packs for the run.
 5. Validators execute against a shared session context and collect neutral evidence for each category, with performance testing running after the functional probes.
-6. Deterministic scoring, trust, verdict, coverage, and policy services interpret the completed evidence into the final run posture.
+6. Claim projection and independent assurance reducers interpret completed evidence into core, security, operations, and certificate posture.
 7. Optional client profile evaluation interprets the completed result for specific hosts without mutating the raw findings.
 8. Optional model evaluation emits separate experimental companion artifacts and never mutates the deterministic result.
 9. Report generators render the chosen output formats and the CLI emits the final summary, host annotations, and exit code.
@@ -41,7 +41,7 @@ stateDiagram-v2
     SessionBootstrap --> BootstrapFailed: session bootstrap fails
     SessionBootstrap --> SnapshotReady: initialize and capability snapshot available
     SnapshotReady --> ValidationRunning: validators and scenario packs execute
-    ValidationRunning --> AssessmentsReady: scoring, trust, verdict, and coverage populated
+    ValidationRunning --> AssessmentsReady: claims, independent assessments, and coverage populated
     AssessmentsReady --> CompatibilityReady: policy and client profiles evaluated
     CompatibilityReady --> ModelAdvisory: model eval enabled
     CompatibilityReady --> Persisted: model eval disabled
@@ -60,7 +60,7 @@ stateDiagram-v2
 | `Assessments` | Category test results plus layer and scenario rollups |
 | `Evidence` | Coverage declarations, observations, and applied validation-pack descriptors |
 | `Compatibility` | Client-profile compatibility rollups derived from the completed deterministic result |
-| Top-level derived fields | Compliance score, scoring details, trust assessment, policy outcome, summary, and execution logs |
+| Top-level derived fields | V2 assurance claims, independent assessments, certificate eligibility, policy decision, baseline comparison, and execution logs |
 
 ## Command And Transport Behavior
 
@@ -129,6 +129,6 @@ Execution plans persist the requested protocol profile, resolved embedded schema
 - Keep `Core` host-neutral.
 - Do not place client-specific compatibility rules inside neutral validators.
 - Do not overload rule authority, evaluation lane, and evidence origin into one shared enum.
-- Do not place execution governance types such as execution plans or audit manifests inside `ValidationResult` or trust assessment models.
+- Do not place execution governance types such as execution plans or audit manifests inside `ValidationResult` or assurance assessment models.
 - Do not bypass the schema registry with direct file-system reads in validators.
 - Keep reporting deterministic by rendering from saved results instead of re-contacting targets.

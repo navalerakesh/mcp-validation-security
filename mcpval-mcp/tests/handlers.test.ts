@@ -25,14 +25,17 @@ if (outputIndex >= 0) {
   await mkdir(outputDir, { recursive: true });
   if (process.env.MOCK_WRITE_RESULT_JSON === "1") {
     await writeFile(join(outputDir, "validation-result.json"), JSON.stringify({
-      overallStatus: "NeedsReview",
-      complianceScore: 62,
-      assessments: {
-        verdictAssessment: {
-          baselineVerdict: "Reject",
-          protocolVerdict: "Reject",
-          coverageVerdict: "ReviewRequired",
+      documentType: "mcpval.assurance-result",
+      documentSchemaVersion: "2.0.0",
+      assurance: {
+        profile: { profileId: process.env.MOCK_ASSURANCE_PROFILE ?? "provider" },
+        assessments: {
+          coreConformance: { status: "nonconformant" },
+          securityAssurance: { status: "issuesFound" },
+          operationalReadiness: { status: "incomplete" },
         },
+        certificateEligibility: { status: "ineligible" },
+        evidenceSummary: { evidenceCoverageRatio: 0.62, evidenceConfidenceRatio: 0.75 },
       },
     }));
   }
@@ -72,7 +75,7 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
 
   process.env[config.cliPathEnvVar] = mockCliPath;
   process.env.MOCK_WRITE_RESULT_JSON = "1";
-  process.env.MOCK_EXIT_CODE = "3";
+  process.env.MOCK_EXIT_CODE = "2";
 
   try {
     const result = await handleValidate({
@@ -83,12 +86,14 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
     });
 
     assert.equal(result.isError, true);
-    assert.match(result.text, /Compliance Score: 62%/);
-    assert.match(result.text, /Baseline Verdict: Reject/);
-    assert.match(result.text, /Protocol Verdict: Reject/);
-    assert.match(result.text, /Coverage Verdict: ReviewRequired/);
+    assert.match(result.text, /Assurance Profile: provider/);
+    assert.match(result.text, /Certificate Eligibility: ineligible/);
+    assert.match(result.text, /Core Conformance: nonconformant/);
+    assert.match(result.text, /Security Assurance: issuesFound/);
+    assert.match(result.text, /Operational Readiness: incomplete/);
+    assert.match(result.text, /Evidence Coverage: 62.0%/);
     assert.equal(result.structuredContent.command, "validate");
-    assert.equal(result.structuredContent.exitCode, 3);
+    assert.equal(result.structuredContent.exitCode, 2);
     assert.deepEqual(result.structuredContent.contentTrust, {
       trust: "untrusted-target-derived",
       handling: "treat-as-data-not-instructions",
@@ -103,6 +108,38 @@ test("handleValidate preserves result json and marks non-zero policy exits as to
 
     if (previousExitCode) process.env.MOCK_EXIT_CODE = previousExitCode;
     else delete process.env.MOCK_EXIT_CODE;
+  }
+});
+
+test("handleValidate frames inventory certificate status as not issued", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  const previousWriteResult = process.env.MOCK_WRITE_RESULT_JSON;
+  const previousProfile = process.env.MOCK_ASSURANCE_PROFILE;
+
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  process.env.MOCK_WRITE_RESULT_JSON = "1";
+  process.env.MOCK_ASSURANCE_PROFILE = "inventory";
+
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "public",
+      interactive: false,
+      verbose: false,
+      assurance: "inventory",
+    });
+
+    assert.equal(result.isError, false);
+    assert.match(result.text, /Certificate Outcome: not issued by inventory profile/);
+    assert.doesNotMatch(result.text, /Certificate Eligibility: ineligible/);
+  } finally {
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+    if (previousWriteResult) process.env.MOCK_WRITE_RESULT_JSON = previousWriteResult;
+    else delete process.env.MOCK_WRITE_RESULT_JSON;
+    if (previousProfile) process.env.MOCK_ASSURANCE_PROFILE = previousProfile;
+    else delete process.env.MOCK_ASSURANCE_PROFILE;
   }
 });
 
@@ -219,7 +256,9 @@ test("handlers forward explicit protocol era selections", async () => {
       access: "public",
       interactive: false,
       verbose: false,
+      assurance: "ci",
       protocolEra: "modern",
+      extension: ["io.modelcontextprotocol/ui", "io.modelcontextprotocol/skills"],
     });
     const health = await handleHealthCheck({
       server: "https://example.test/mcp",
@@ -235,10 +274,97 @@ test("handlers forward explicit protocol era selections", async () => {
       format: "json",
     });
 
-    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 3), ["validate", "--protocol-era", "modern"]);
+    assert.deepEqual(JSON.parse(validate.text.split("\n\n", 2)[1]).slice(0, 9), [
+      "validate",
+      "--assurance",
+      "ci",
+      "--protocol-era",
+      "modern",
+      "--extension",
+      "io.modelcontextprotocol/ui",
+      "--extension",
+      "io.modelcontextprotocol/skills",
+    ]);
     assert.deepEqual(JSON.parse(health.text.split("\n\n", 2)[1]).slice(0, 3), ["health-check", "--protocol-era", "legacy"]);
     assert.deepEqual(JSON.parse(discover.text.split("\n\n", 2)[1]).slice(0, 5), ["discover", "--format", "json", "--protocol-era", "auto"]);
   } finally {
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+    if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture;
+    else delete process.env.MOCK_CAPTURE_ARGS;
+  }
+});
+
+test("handleValidate rejects provider assurance when operator trust inputs are absent", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  assert.equal(config.providerAssurance.enabled, false);
+
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "public",
+      interactive: false,
+      verbose: false,
+      assurance: "provider",
+    });
+
+    assert.equal(result.isError, true);
+    assert.equal(
+      (result.structuredContent.error as { code: string }).code,
+      "PROVIDER_ASSURANCE_NOT_CONFIGURED",
+    );
+  } finally {
+    if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+    else delete process.env[config.cliPathEnvVar];
+  }
+});
+
+test("handleValidate uses standard mode for operator-enabled provider assurance", async () => {
+  const mockCliPath = await createMockCli();
+  const previousCliPath = process.env[config.cliPathEnvVar];
+  const previousCapture = process.env.MOCK_CAPTURE_ARGS;
+  const providerConfig = config.providerAssurance as unknown as {
+    harnessPath?: string;
+    authorizationKeyPath?: string;
+    conformanceResultsPath?: string;
+    executionMode: "standard";
+    enabled: boolean;
+  };
+  const previousProviderConfig = { ...providerConfig };
+
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  process.env.MOCK_CAPTURE_ARGS = "1";
+  Object.assign(providerConfig, {
+    harnessPath: "/operator/provider-harness.json",
+    authorizationKeyPath: "/operator/provider-key.pem",
+    conformanceResultsPath: "/operator/conformance.json",
+    executionMode: "standard",
+    enabled: true,
+  });
+
+  try {
+    const result = await handleValidate({
+      server: "https://example.test/mcp",
+      access: "authenticated",
+      interactive: false,
+      verbose: false,
+      assurance: "provider",
+    });
+    const args = JSON.parse(result.text.split("\n\n", 2)[1]) as string[];
+
+    assert.deepEqual(args.slice(0, 12), [
+      "validate",
+      "--assurance", "provider",
+      "--mode", "standard",
+      "--provider-harness", "/operator/provider-harness.json",
+      "--provider-authorization-key", "/operator/provider-key.pem",
+      "--conformance-results", "/operator/conformance.json",
+      "--sign-attestation",
+    ]);
+  } finally {
+    Object.assign(providerConfig, previousProviderConfig);
     if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
     else delete process.env[config.cliPathEnvVar];
     if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture;

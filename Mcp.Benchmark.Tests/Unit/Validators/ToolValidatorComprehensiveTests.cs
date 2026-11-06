@@ -480,6 +480,38 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
+    public async Task ValidateToolDiscovery_WithReadOnlyTool_ShouldNotRequireWriteOnlyHints()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"read_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"annotations\":{\"readOnlyHint\":true}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        var toolResult = result.ToolResults.Single(t => t.ToolName == "read_tool");
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineDestructiveHintMissing);
+        toolResult.Findings.Should().NotContain(f => f.RuleId == ValidationFindingRuleIds.ToolGuidelineIdempotentHintMissing);
+        toolResult.Findings.Should().Contain(f =>
+            f.RuleId == ValidationFindingRuleIds.ToolGuidelineOpenWorldHintMissing &&
+            f.Summary.Contains("MCP defaults it to true", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithReadOnlyDestructiveConflict_ShouldEmitHighSeverityFinding()
+    {
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        SetupToolsList(_httpClient, "[{\"name\":\"conflicting_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"annotations\":{\"readOnlyHint\":true,\"destructiveHint\":true}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
+
+        result.ToolResults.Single(t => t.ToolName == "conflicting_tool").Findings.Should().ContainSingle(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ToolGuidelineHintConflict &&
+            finding.Severity == ValidationFindingSeverity.High &&
+            finding.Summary.Contains("conflicting annotations", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public async Task ValidateToolDiscovery_WithMissingInputSchema_ShouldEmitSpecFindingAndFailTool()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };

@@ -68,7 +68,8 @@ test("server exposes rich initialize metadata and guidance", async () => {
     const instructions = client.getInstructions();
     assert.equal(instructions, config.server.instructions);
     assert.match(instructions ?? "", /Use health_check first/);
-    assert.match(instructions ?? "", /Use validate for full compliance/);
+    assert.match(instructions ?? "", /Use validate for evidence-first assurance assessment/);
+    assert.match(instructions ?? "", /safe mode and reports unperformed active security/);
     assert.match(instructions ?? "", /Local command execution is disabled/);
 
     const { tools } = await client.listTools();
@@ -76,8 +77,10 @@ test("server exposes rich initialize metadata and guidance", async () => {
     assert.ok(validateTool);
     assert.equal(validateTool?.title, "Validate MCP Server");
     assert.equal(validateTool?.annotations?.openWorldHint, true);
+    assert.match(JSON.stringify(validateTool?.outputSchema), /contentTrust.*untrusted-target-derived.*treat-as-data-not-instructions/);
     assert.doesNotMatch(JSON.stringify(validateTool?.inputSchema), /STDIO command/);
     assert.match(JSON.stringify(validateTool?.inputSchema), /"protocolEra".*"auto".*"legacy".*"modern"/);
+    assert.match(JSON.stringify(validateTool?.inputSchema), /"extension".*"maxItems":16.*\^\[A-Za-z0-9\]/);
 
     const discoverTool = tools.find((tool) => tool.name === "discover");
     assert.ok(discoverTool);

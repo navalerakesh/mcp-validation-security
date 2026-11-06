@@ -83,4 +83,50 @@ public class JsonSchemaValidatorTests
         // Should not crash
         isValid.Should().BeTrue(); // Simple objects are valid schemas
     }
+
+    [Fact]
+    public void IsValidSchemaDefinition_WithExtensionAnnotationKeyword_ShouldReturnTrue()
+    {
+        var schema = System.Text.Json.Nodes.JsonNode.Parse("""
+            {
+              "type": "object",
+              "x-mcp-header": "X-GitHub-Toolset",
+              "properties": { "owner": { "type": "string", "x-display-name": "Owner" } }
+            }
+            """);
+
+        var isValid = _validator.IsValidSchemaDefinition(schema!, out var errors);
+
+        isValid.Should().BeTrue();
+        errors.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Validate_WithExtensionAnnotationKeyword_ShouldStillEnforceKnownConstraints()
+    {
+        var schema = System.Text.Json.Nodes.JsonNode.Parse("""
+            {
+              "type": "object",
+              "x-mcp-header": "X-GitHub-Toolset",
+              "properties": { "owner": { "type": "string" } },
+              "required": ["owner"]
+            }
+            """);
+        var valid = System.Text.Json.Nodes.JsonNode.Parse("{" + "\"owner\":\"navalerakesh\"}");
+        var invalid = System.Text.Json.Nodes.JsonNode.Parse("{" + "\"owner\":42}");
+
+        _validator.Validate(valid!, schema!).IsValid.Should().BeTrue();
+        _validator.Validate(invalid!, schema!).IsValid.Should().BeFalse();
+    }
+
+    [Fact]
+    public void IsValidSchemaDefinition_WithMalformedKnownKeyword_ShouldReturnFalse()
+    {
+        var schema = System.Text.Json.Nodes.JsonNode.Parse("{\"type\":42,\"x-mcp-header\":true}");
+
+        var isValid = _validator.IsValidSchemaDefinition(schema!, out var errors);
+
+        isValid.Should().BeFalse();
+        errors.Should().NotBeEmpty();
+    }
 }

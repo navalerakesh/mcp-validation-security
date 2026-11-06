@@ -6,13 +6,6 @@ public static class ValidationEvidenceIdBuilder
 {
     public static string ForExecutionError(string? message) => $"execution-error:{NormalizeToken(message)}";
 
-    public static string ForTierCheck(ComplianceTierCheck check)
-    {
-        ArgumentNullException.ThrowIfNull(check);
-
-        return $"tier-check:{NormalizeToken(check.Tier)}:{NormalizeToken(check.Component)}:{NormalizeToken(check.Requirement)}";
-    }
-
     public static string ForComplianceViolation(ComplianceViolation violation)
     {
         ArgumentNullException.ThrowIfNull(violation);
@@ -32,13 +25,6 @@ public static class ValidationEvidenceIdBuilder
         ArgumentNullException.ThrowIfNull(attack);
 
         return $"attack-simulation:{NormalizeToken(attack.AttackVector)}:{NormalizeToken(attack.Description)}";
-    }
-
-    public static string ForBoundaryFinding(AiBoundaryFinding finding)
-    {
-        ArgumentNullException.ThrowIfNull(finding);
-
-        return $"boundary-finding:{NormalizeToken(finding.Category)}:{NormalizeToken(finding.Component)}:{NormalizeToken(finding.Description)}";
     }
 
     public static string ForFinding(ValidationFinding finding)

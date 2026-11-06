@@ -21,7 +21,8 @@ public class GitHubActionsReporterTests
 
         summary.Should().Contain("## MCP Validator");
         summary.Should().Contain("strict blocked");
-        summary.Should().Contain("L3: Acceptable");
+        summary.Should().Contain("Assurance Profile");
+        summary.Should().Contain("Certificate Eligibility");
         summary.Should().Contain("Blocking Reasons");
         summary.Should().Contain("Top Findings");
         summary.Should().Contain("Client Profiles");
@@ -110,10 +111,6 @@ public class GitHubActionsReporterTests
                     }
                 }
             },
-            TrustAssessment = new McpTrustAssessment
-            {
-                TrustLevel = McpTrustLevel.L3_Acceptable
-            },
             PolicyOutcome = new ValidationPolicyOutcome
             {
                 Mode = ValidationPolicyModes.Strict,
@@ -121,7 +118,7 @@ public class GitHubActionsReporterTests
                 Summary = "Strict policy blocked the validation result with 2 unsuppressed signal(s).",
                 Reasons = new List<string>
                 {
-                    "Trust level L3_Acceptable is below the strict minimum of L4_Trusted.",
+                    "Security assurance requirements are not satisfied.",
                     "Tool 'delete_repo' does not declare annotations.destructiveHint."
                 }
             },

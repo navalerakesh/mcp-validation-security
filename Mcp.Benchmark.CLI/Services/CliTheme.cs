@@ -61,7 +61,7 @@ public static class CliTheme
         WriteTreeItem("├", Protocol, "Protocol", "JSON-RPC 2.0 compliance, response structure validation");
         WriteTreeItem("├", Security, "Security", "Injection testing, auth enforcement, attack simulation");
         WriteTreeItem("├", AiSafety, "AI Safety", "LLM-friendliness grading, hallucination risk, schema quality");
-        WriteTreeItem("└", Trust, "Trust", "L1-L5 trust levels (MUST/SHOULD/MAY per RFC 2119)");
+        WriteTreeItem("└", Trust, "Assurance", "Independent assessments and certificate eligibility");
         Console.WriteLine();
 
         // Quick start

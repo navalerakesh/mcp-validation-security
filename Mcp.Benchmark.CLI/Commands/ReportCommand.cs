@@ -4,6 +4,7 @@ using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
 
 namespace Mcp.Benchmark.CLI;
@@ -118,7 +119,7 @@ public class ReportCommand(
                         "Example: mcpval report --input <folder>/mcp-validation-*-result.json --format html"
                     });
             }
-            Environment.ExitCode = 1;
+            Environment.ExitCode = AssuranceExitCodeMapper.RuntimeIntegrityFailure;
         }
         finally
         {

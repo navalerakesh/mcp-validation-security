@@ -1,7 +1,6 @@
 using ModelContextProtocol.Protocol;
 using Mcp.Benchmark.Core.Constants;
 
-using System.Collections.Immutable;
 using System.Text.Json.Serialization;
 
 namespace Mcp.Benchmark.Core.Models;
@@ -45,6 +44,16 @@ public sealed class ValidationPackDescriptor
     public required ValidationStability Stability { get; init; }
 
     public string? DocumentationUrl { get; init; }
+
+    public string? ExtensionId { get; init; }
+
+    public ExtensionLifecycleStage? ExtensionStage { get; init; }
+
+    public string? SpecificationRevision { get; init; }
+
+    public string? SpecificationSha256 { get; init; }
+
+    public ExtensionPolicyBehavior ExtensionPolicyBehavior { get; init; } = ExtensionPolicyBehavior.Core;
 }
 
 public sealed class ValidationApplicability
@@ -60,6 +69,8 @@ public sealed class ValidationApplicability
     public IReadOnlyList<string> RequiredCapabilities { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<string> RequiredSurfaces { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyList<string> RequiredExtensionIds { get; init; } = Array.Empty<string>();
 
     public IReadOnlyList<string> ClientProfiles { get; init; } = Array.Empty<string>();
 
@@ -110,6 +121,13 @@ public sealed class ValidationApplicabilityContext
 
     public IReadOnlyList<string> AdvertisedSurfaces { get; init; } = Array.Empty<string>();
 
+    public IReadOnlyList<string> AdvertisedExtensionIds { get; init; } = Array.Empty<string>();
+
+    public IReadOnlyDictionary<string, ModernExtensionAdvertisement> AdvertisedExtensions { get; init; }
+        = new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal);
+
+    public IReadOnlyList<string> SelectedExtensionIds { get; init; } = Array.Empty<string>();
+
     public IReadOnlyList<string> SelectedClientProfiles { get; init; } = Array.Empty<string>();
 
     public IReadOnlyDictionary<string, string> EnvironmentHints { get; init; }
@@ -135,6 +153,22 @@ public enum ProtocolFeatureLifecycle
     Active,
     Deprecated,
     Removed
+}
+
+public enum ExtensionLifecycleStage
+{
+    Experimental,
+    Beta,
+    Stable,
+    Core
+}
+
+public enum ExtensionPolicyBehavior
+{
+    ObservationOnly,
+    Preview,
+    ExplicitExtensionGate,
+    Core
 }
 
 public sealed class ProtocolFeatureSet
@@ -185,6 +219,14 @@ public sealed class ValidationRunDocument
 
     public string? SchemaVersion { get; set; }
 
+    public string? TargetIdentitySha256 { get; set; }
+
+    public string? ExecutionPlanSha256 { get; set; }
+
+    public ExecutionMode ExecutionMode { get; set; } = ExecutionMode.Safe;
+
+    public IReadOnlyList<string> PlannedChecks { get; set; } = Array.Empty<string>();
+
     public ValidationApplicabilityContext? ApplicabilityContext { get; set; }
 
     public TransportResult<InitializeResult>? InitializationHandshake { get; set; }
@@ -209,6 +251,9 @@ public sealed class ModernDiscoveryEvidence
 
     public IReadOnlyList<string> ExtensionIds { get; init; } = Array.Empty<string>();
 
+    public IReadOnlyDictionary<string, ModernExtensionAdvertisement> ExtensionAdvertisements { get; init; }
+        = new Dictionary<string, ModernExtensionAdvertisement>(StringComparer.Ordinal);
+
     public string? ResultType { get; init; }
 
     public string? CacheScope { get; init; }
@@ -220,11 +265,22 @@ public sealed class ModernDiscoveryEvidence
     public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
 }
 
+public sealed class ModernExtensionAdvertisement
+{
+    public required string ExtensionId { get; init; }
+
+    public bool IsValid { get; init; }
+
+    public IReadOnlyList<string> MimeTypes { get; init; } = Array.Empty<string>();
+
+    public bool? DirectoryRead { get; init; }
+
+    public IReadOnlyList<string> Errors { get; init; } = Array.Empty<string>();
+}
+
 public sealed class ValidationAssessmentDocument
 {
     public ComplianceTestResult? ProtocolCompliance { get; set; }
-
-    public VerdictAssessment? VerdictAssessment { get; set; }
 
     public ToolTestResult? ToolValidation { get; set; }
 
@@ -237,6 +293,10 @@ public sealed class ValidationAssessmentDocument
     public PerformanceTestResult? PerformanceTesting { get; set; }
 
     public ErrorHandlingTestResult? ErrorHandling { get; set; }
+
+    public OfficialConformanceAssessment? OfficialConformance { get; set; }
+
+    public List<ExtensionAssessment> Extensions { get; set; } = new();
 
     public List<ValidationLayerResult> Layers { get; init; } = new();
 
@@ -314,6 +374,12 @@ public sealed class ValidationObservation
     public required string ObservationKind { get; init; }
 
     public string? ScenarioId { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvidenceOrigin? Origin { get; init; }
 
     public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -419,6 +485,12 @@ public sealed class ValidationCoverageDeclaration
     public required ValidationCoverageStatus Status { get; init; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvidenceOrigin? Origin { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ValidationOutcome? ObservedOutcome { get; init; }
 
     public ValidationOutcome Outcome => Status switch
@@ -519,6 +591,8 @@ public sealed class EvidenceCoverageCategory
 public enum EvaluationLane
 {
     Baseline,
+    ExternalConformance,
+    ExtensionReadiness,
     ClientCompatibility,
     ModelAdvisory
 }
@@ -527,6 +601,7 @@ public enum EvidenceOrigin
 {
     DeterministicObservation,
     DeterministicAggregation,
+    ExternalConformanceCheck,
     HeuristicInference,
     ModelAssistance
 }
@@ -571,7 +646,7 @@ public sealed class DecisionRecord
 
     public string? RuleId { get; init; }
 
-    public string RuleRevision { get; init; } = DecisionPolicyManifest.CurrentVersion;
+    public string RuleRevision { get; init; } = ValidationFindingRuleIds.CatalogVersion;
 
     public required EvaluationLane Lane { get; init; }
 
@@ -611,206 +686,4 @@ public sealed class DecisionEvidenceReference
     public string? RedactedPayloadPreview { get; init; }
 
     public Dictionary<string, string> Metadata { get; init; } = new(StringComparer.OrdinalIgnoreCase);
-}
-
-public sealed class VerdictAssessment
-{
-    public string RulesetVersion { get; set; } = DecisionPolicyManifest.CurrentVersion;
-
-    public DecisionPolicyManifest Policy { get; set; } = DecisionPolicyManifest.CreateCurrent();
-
-    public ValidationVerdict BaselineVerdict { get; set; } = ValidationVerdict.Unknown;
-
-    public ValidationVerdict ProtocolVerdict { get; set; } = ValidationVerdict.Unknown;
-
-    public ValidationVerdict CoverageVerdict { get; set; } = ValidationVerdict.Unknown;
-
-    public string Summary { get; set; } = string.Empty;
-
-    public EvidenceCoverageSummary EvidenceSummary { get; set; } = new();
-
-    public List<DecisionRecord> TriggeredDecisions { get; init; } = new();
-
-    public List<DecisionRecord> BlockingDecisions { get; init; } = new();
-
-    public List<DecisionRecord> CoverageDecisions { get; init; } = new();
-}
-
-public sealed class DecisionPolicyManifest
-{
-    public const string CurrentVersion = "2026-08-19.2";
-
-    public string Version { get; init; } = CurrentVersion;
-
-    public string OutcomeTaxonomyVersion { get; init; } = ValidationOutcomeTaxonomy.Version;
-
-    public string RuleCatalogVersion { get; init; } = ValidationFindingRuleIds.CatalogVersion;
-
-    public string ScoringPolicyVersion { get; init; } = ScoringConstants.PolicyVersion;
-
-    public ImmutableSortedDictionary<string, string> PackRevisions { get; init; } = ImmutableSortedDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, string> RuleRevisions { get; init; } = ImmutableSortedDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, double> Weights { get; init; } = ImmutableSortedDictionary<string, double>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, double> Thresholds { get; init; } = ImmutableSortedDictionary<string, double>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, double> Caps { get; init; } = ImmutableSortedDictionary<string, double>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, double> Parameters { get; init; } = ImmutableSortedDictionary<string, double>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public ImmutableSortedDictionary<string, ImmutableArray<string>> PatternSets { get; init; } = ImmutableSortedDictionary<string, ImmutableArray<string>>.Empty.WithComparers(StringComparer.Ordinal);
-
-    public static DecisionPolicyManifest CreateCurrent() => CreateCurrent(Array.Empty<DecisionRecord>(), Array.Empty<ValidationPackDescriptor>());
-
-    public static DecisionPolicyManifest CreateCurrent(
-        IEnumerable<DecisionRecord> decisions,
-        IEnumerable<ValidationPackDescriptor> appliedPacks)
-    {
-        var packRevisions = new SortedDictionary<string, string>(StringComparer.Ordinal)
-        {
-            ["verdict-policy"] = CurrentVersion
-        };
-        foreach (var pack in appliedPacks.OrderBy(pack => pack.Key.Value, StringComparer.Ordinal))
-        {
-            packRevisions[pack.Key.Value] = pack.Revision.Value;
-        }
-
-        var rules = GetRuleRevisions().ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-        foreach (var decision in decisions.Where(decision => !string.IsNullOrWhiteSpace(decision.RuleId)))
-        {
-            rules[decision.RuleId!] = decision.RuleRevision;
-        }
-
-        return new DecisionPolicyManifest
-        {
-        PackRevisions = packRevisions.ToImmutableSortedDictionary(StringComparer.Ordinal),
-        RuleRevisions = rules.ToImmutableSortedDictionary(StringComparer.Ordinal),
-        Weights = new Dictionary<string, double>(StringComparer.Ordinal)
-        {
-            ["aggregate.errorHandling"] = ScoringConstants.WeightErrorHandling,
-            ["aggregate.performance"] = ScoringConstants.WeightPerformance,
-            ["aggregate.prompts"] = ScoringConstants.WeightPrompts,
-            ["aggregate.protocol"] = ScoringConstants.WeightProtocol,
-            ["aggregate.resources"] = ScoringConstants.WeightResources,
-            ["aggregate.security"] = ScoringConstants.WeightSecurity,
-            ["aggregate.tools"] = ScoringConstants.WeightTools,
-            ["trust.aiSafety"] = ScoringConstants.TrustWeightAiSafety,
-            ["trust.operations"] = ScoringConstants.TrustWeightOperations,
-            ["trust.protocol"] = ScoringConstants.TrustWeightProtocol,
-            ["trust.security"] = ScoringConstants.TrustWeightSecurity
-        }.ToImmutableSortedDictionary(StringComparer.Ordinal),
-        Thresholds = new Dictionary<string, double>(StringComparer.Ordinal)
-        {
-            ["coverage.minimum"] = ScoringConstants.MinCoverageRatio,
-            ["score.excellent"] = ScoringConstants.ExcellentThreshold,
-            ["score.pass"] = ScoringConstants.PassThreshold,
-            ["trust.l2"] = ScoringConstants.TrustL2Threshold,
-            ["trust.l3"] = ScoringConstants.TrustL3Threshold,
-            ["trust.l4"] = ScoringConstants.TrustL4Threshold,
-            ["trust.l5"] = ScoringConstants.TrustL5Threshold
-        }.ToImmutableSortedDictionary(StringComparer.Ordinal),
-        Caps = new Dictionary<string, double>(StringComparer.Ordinal)
-        {
-            ["coverage.lowScore"] = ScoringConstants.LowCoverageScoreCap,
-            ["security.authProtocolPenalty"] = ScoringConstants.MaxAuthProtocolPenalty,
-            ["trust.incompleteEvidenceMaxLevel"] = (double)McpTrustLevel.L3_Acceptable,
-            ["trust.mustFailureMaxLevel"] = (double)McpTrustLevel.L2_Caution
-        }.ToImmutableSortedDictionary(StringComparer.Ordinal),
-        Parameters = GetNumericScoringParameters(),
-        PatternSets = GetScoringPatternSets()
-        };
-    }
-
-    private static ImmutableSortedDictionary<string, double> GetNumericScoringParameters()
-    {
-        var parameters = typeof(ScoringConstants)
-            .GetFields(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static)
-            .Where(field => field.IsLiteral && !field.IsInitOnly && field.Name != nameof(ScoringConstants.PolicyVersion))
-            .Select(field => (field.Name, Value: field.GetRawConstantValue()))
-            .Where(pair => pair.Value is byte or short or int or long or float or double or decimal)
-            .ToDictionary(
-                pair => pair.Name,
-                pair => Convert.ToDouble(pair.Value, System.Globalization.CultureInfo.InvariantCulture),
-                StringComparer.Ordinal);
-        return parameters.ToImmutableSortedDictionary(StringComparer.Ordinal);
-    }
-
-    private static IReadOnlyDictionary<string, string> GetRuleRevisions()
-    {
-        var rules = ValidationFindingRuleIds.GetVersionedRules()
-            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
-        rules["MCP.OUTCOME.DETERMINISTIC_FAILURE"] = ValidationOutcomeTaxonomy.Version;
-        rules["MCP.COVERAGE.EVIDENCE_DEBT"] = CurrentVersion;
-        rules["MCP.COVERAGE.LOW_CONFIDENCE"] = CurrentVersion;
-        rules["MCP.ATTACK.UNKNOWN"] = CurrentVersion;
-        rules["MCP.TIER.*"] = CurrentVersion;
-        foreach (var rule in new[]
-                 {
-                     "SCORING.AGGREGATE.BLOCKING_AUTHENTICATION_EXPOSURE",
-                     "SCORING.AGGREGATE.CRITICAL_VULNERABILITIES",
-                     "SCORING.AGGREGATE.SEVERE_SECURITY_DEGRADATION",
-                     "SCORING.AGGREGATE.AUTH_GUIDANCE_GAP",
-                     "SCORING.AGGREGATE.CRITICAL_PROTOCOL_VIOLATION",
-                     "SCORING.AGGREGATE.JSON_RPC_FORMAT",
-                     "SCORING.TRUST.INCOMPLETE_EVIDENCE_CAP",
-                     "SCORING.TRUST.MUST_FAILURE_CAP",
-                     "SCORING.TRUST.EXFILTRATION_EXPOSURE",
-                     "SCORING.TRUST.PROMPT_INJECTION_EXPOSURE",
-                     "SCORING.TRUST.INJECTION_REFLECTION",
-                     "SCORING.TRUST.LLM_FRIENDLINESS",
-                     "SCORING.PERFORMANCE.FAILURES",
-                     "SCORING.PERFORMANCE.LATENCY",
-                     "SCORING.AI_READINESS.SCHEMA",
-                     "SCORING.AI_READINESS.TOKEN_BUDGET",
-                     "SCORING.CONTENT_SAFETY.KEYWORDS"
-                 })
-        {
-            rules[rule] = ScoringConstants.PolicyVersion;
-        }
-        foreach (var kind in Enum.GetValues<AiBoundaryKind>())
-        {
-            rules[$"MCP.AI.BOUNDARY.{kind}"] = CurrentVersion;
-        }
-        foreach (var axis in Enum.GetValues<ContentRiskAxis>())
-        {
-            rules[$"MCP.CONTENT.{axis}"] = CurrentVersion;
-        }
-        foreach (var attackId in new[]
-                 {
-                     "MCP-AI-001",
-                     "MCP-SEC-001",
-                     "MCP-SEC-002",
-                     "MCP-SEC-003",
-                     ValidationConstants.AttackVectors.InputValidation1,
-                     ValidationConstants.AttackVectors.InputValidation2,
-                     ValidationConstants.AttackVectors.InputValidation3
-                 })
-        {
-            rules[attackId] = CurrentVersion;
-        }
-
-        return new SortedDictionary<string, string>(rules, StringComparer.Ordinal);
-    }
-
-    private static ImmutableSortedDictionary<string, ImmutableArray<string>> GetScoringPatternSets() =>
-        new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal)
-        {
-            ["exfiltration.behavior"] = ScoringConstants.ExfiltrationBehaviorPatterns.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["exfiltration.targetParameter"] = ScoringConstants.ExfiltrationTargetParameterPatterns.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["promptInjection"] = ScoringConstants.PromptInjectionPatterns.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["promptInjection.sentenceLeading"] = ScoringConstants.SentenceLeadingPromptInjectionPatterns.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["tool.destructiveName"] = ScoringConstants.DestructiveToolNamePatterns.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.systemImpact.high"] = ScoringConstants.ContentSafetySystemImpactHighKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.systemImpact.medium"] = ScoringConstants.ContentSafetySystemImpactMediumKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.dataExfiltration.high"] = ScoringConstants.ContentSafetyDataExfiltrationHighKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.dataExfiltration.medium"] = ScoringConstants.ContentSafetyDataExfiltrationMediumKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.abuse.high"] = ScoringConstants.ContentSafetyAbuseHighKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["contentSafety.abuse.medium"] = ScoringConstants.ContentSafetyAbuseMediumKeywords.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["aiReadiness.enumeratedChoice"] = ScoringConstants.AiEnumeratedChoiceMarkers.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["aiReadiness.structuredFormat"] = ScoringConstants.AiStructuredFormatMarkers.OrderBy(value => value, StringComparer.Ordinal).ToImmutableArray(),
-            ["toolError.upstreamHttpStatusRegex"] = [ScoringConstants.UpstreamHttpStatusPattern],
-            ["toolError.upstreamMethodUrlRegex"] = [ScoringConstants.UpstreamMethodUrlPattern]
-        }.ToImmutableSortedDictionary(StringComparer.Ordinal);
 }

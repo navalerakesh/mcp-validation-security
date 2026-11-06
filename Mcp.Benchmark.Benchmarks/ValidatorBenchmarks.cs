@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using Mcp.Benchmark.CLI.Services;
 using Mcp.Benchmark.CLI.Utilities;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Scoring;
@@ -45,7 +46,10 @@ public class ValidatorBenchmarks
             "protocol-core",
             "json-rpc",
             ValidationOutcome.Succeeded));
-        _result.VerdictAssessment = ValidationVerdictEngine.Calculate(_result);
+        _result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            _result,
+            AssuranceProfileCatalog.Inventory,
+            new AssuranceEvaluationContext());
     }
 
     [Benchmark(Baseline = true)]
@@ -63,8 +67,11 @@ public class ValidatorBenchmarks
         _governance.BuildValidationPlan(_session, _configuration.CloneWithoutSecrets(), outputDirectory: null);
 
     [Benchmark]
-    public VerdictAssessment VerdictReduction() =>
-        ValidationVerdictEngine.Calculate(_result);
+    public AssuranceEvaluation AssuranceReduction() =>
+        AssuranceAssessmentEngine.Evaluate(
+            _result,
+            AssuranceProfileCatalog.Inventory,
+            new AssuranceEvaluationContext());
 
     [Benchmark]
     public ScoringResult Scoring() =>

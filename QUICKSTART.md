@@ -93,13 +93,14 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 
 The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
-Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Run Status, Deterministic Verdict, and Trust Level cards so the gating decision and L1-L5 posture are visible immediately. Use `--report-detail minimal` when you want the executive-only view.
+Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Certificate Eligibility, Core Conformance, and Security Assurance, with operational readiness and evidence completeness visible immediately. Use `--report-detail minimal` when you want the executive-only view.
 
 For regression-only CI gating:
 
 ```bash
 mcpval validate \
   --server https://example.com/mcp \
+  --assurance ci \
   --baseline ./approved-result.json \
   --regression-only \
   --output-format json \
@@ -107,6 +108,27 @@ mcpval validate \
 ```
 
 Structured mode writes one versioned result envelope to stdout and typed failures to stderr. To emit a signed attestation, set `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM` in the process environment and add `--sign-attestation`; the private key is never persisted.
+
+To combine a run with pinned official conformance evidence, supply a wrapper that conforms to `docs/Schemas/mcpval-official-conformance-evidence.schema.json`:
+
+```bash
+mcpval validate \
+  --server https://example.com/mcp \
+  --conformance-results ./official-conformance-wrapper.json \
+  --output ./mcp-reports
+```
+
+The wrapper target digest and protocol version must match the validation run. Official checks retain their own authority and affect only applicable conformance claims; extensions remain separate. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit.
+
+Advertised Apps and Skills extensions are detected automatically. Explicitly authorize Skills content reads only on a reviewed target:
+
+```bash
+mcpval validate \
+  --server https://example.com/mcp \
+  --mode standard \
+  --extension io.modelcontextprotocol/skills \
+  --output ./mcp-reports
+```
 
 ## 6. Render Additional Offline Formats
 
@@ -125,9 +147,9 @@ Supported offline formats are `html`, `xml`, `sarif`, and `junit`.
 
 | Policy | Intended use |
 | --- | --- |
-| `advisory` | Always complete the run and keep exit code `0` unless execution itself fails |
-| `balanced` | Default mode for most teams; fail on non-passing results, MUST failures, low trust, or critical findings |
-| `strict` | Enterprise gate; includes balanced conditions plus SHOULD failures, trust below `L4`, and high-severity findings |
+| `advisory` | Preserve findings without blocking on assurance debt; execution-integrity and required-baseline failures still block |
+| `balanced` | Default gate; blocks rejected assurance assessments and critical policy signals |
+| `strict` | Enterprise gate; also blocks review-required assessments, incomplete coverage, and high-severity policy signals |
 
 ## 8. Use The Other Commands
 

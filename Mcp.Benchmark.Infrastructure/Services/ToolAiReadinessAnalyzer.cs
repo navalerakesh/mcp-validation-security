@@ -533,14 +533,12 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
     private static bool LooksLikeEnumeratedChoice(string propertyName, JsonElement propertySchema)
     {
         return HasSemanticMarker(propertyName, ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: true) ||
-               HasSemanticMarker(GetSchemaText(propertySchema, "description"), ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: false) ||
                HasSemanticMarker(GetSchemaText(propertySchema, "title"), ScoringConstants.AiEnumeratedChoiceMarkers, splitCamelCase: false);
     }
 
     private static bool LooksLikeStructuredFormatValue(string propertyName, JsonElement propertySchema)
     {
         return HasSemanticMarker(propertyName, ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: true) ||
-               HasSemanticMarker(GetSchemaText(propertySchema, "description"), ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: false) ||
                HasSemanticMarker(GetSchemaText(propertySchema, "title"), ScoringConstants.AiStructuredFormatMarkers, splitCamelCase: false);
     }
 

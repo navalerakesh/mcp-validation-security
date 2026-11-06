@@ -55,7 +55,9 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Status.Should().Be(TestStatus.Inconclusive);
         result.JsonRpcCompliance.Should().NotBeNull();
         result.JsonRpcCompliance!.ErrorHandlingEvaluated.Should().BeFalse();
-        result.Findings.Should().ContainSingle(finding => finding.RuleId == "MCP.COVERAGE.PROTOCOL.ACTIVE_PROBES_NOT_RUN");
+        result.Findings.Should().ContainSingle(finding =>
+            finding.RuleId == ValidationFindingRuleIds.ProtocolActiveProbesNotRun &&
+            finding.EffectiveSource == ValidationRuleSource.Guideline);
         _mcpHttpClientMock.Verify(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         _mcpHttpClientMock.Verify(client => client.CallAsync(
             It.IsAny<string>(),

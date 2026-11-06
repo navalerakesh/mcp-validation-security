@@ -30,18 +30,26 @@ public class CoreModelTests
     }
 
     [Fact]
-    public void ValidationResult_CloneWithoutSecrets_ShouldPreserveTrustAssessment()
+    public void ValidationResult_CloneWithoutSecrets_ShouldPreserveAssurance()
     {
         var result = new ValidationResult
         {
-            TrustAssessment = new McpTrustAssessment { TrustLevel = McpTrustLevel.L4_Trusted },
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Ci,
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = AssuranceProfileCatalog.Ci.ProfileId,
+                    Status = CertificateEligibilityStatus.Eligible
+                }
+            },
             ServerConfig = new McpServerConfig { Endpoint = "test", Authentication = new AuthenticationConfig { Token = "secret" } }
         };
 
         var clone = result.CloneWithoutSecrets();
 
-        clone.TrustAssessment.Should().NotBeNull();
-        clone.TrustAssessment!.TrustLevel.Should().Be(McpTrustLevel.L4_Trusted);
+        clone.Assurance.Profile.ProfileId.Should().Be(AssuranceProfileCatalog.Ci.ProfileId);
+        clone.Assurance.CertificateEligibility.Status.Should().Be(CertificateEligibilityStatus.Eligible);
         clone.ServerConfig.Authentication!.Token.Should().NotBe("secret");
     }
 
@@ -445,19 +453,6 @@ public class CoreModelTests
         clone.TokenRef.Name.Should().Be("MCPVAL_TOKEN");
     }
 
-    // ─── McpTrustAssessment ──────────────────────────────────────
-    [Theory]
-    [InlineData(McpTrustLevel.L5_CertifiedSecure, "High Assurance")]
-    [InlineData(McpTrustLevel.L4_Trusted, "Strong")]
-    [InlineData(McpTrustLevel.L3_Acceptable, "Acceptable")]
-    [InlineData(McpTrustLevel.L2_Caution, "Caution")]
-    [InlineData(McpTrustLevel.L1_Untrusted, "Untrusted")]
-    [InlineData(McpTrustLevel.Unknown, "Unknown")]
-    public void McpTrustAssessment_TrustLabel_ShouldMatchLevel(McpTrustLevel level, string expectedContains)
-    {
-        new McpTrustAssessment { TrustLevel = level }.TrustLabel.Should().Contain(expectedContains);
-    }
-
     // ─── LoadTestResult ──────────────────────────────────────────
     [Fact]
     public void LoadTestResult_ErrorRate_ShouldCalculateCorrectly()
@@ -493,14 +488,6 @@ public class CoreModelTests
     }
 
     [Fact]
-    public void ScoringConstants_ThresholdsShouldBeOrdered()
-    {
-        ScoringConstants.TrustL5Threshold.Should().BeGreaterThan(ScoringConstants.TrustL4Threshold);
-        ScoringConstants.TrustL4Threshold.Should().BeGreaterThan(ScoringConstants.TrustL3Threshold);
-        ScoringConstants.TrustL3Threshold.Should().BeGreaterThan(ScoringConstants.TrustL2Threshold);
-    }
-
-    [Fact]
     public void ScoringConstants_VulnPenalties_ShouldDescendBySeverity()
     {
         ScoringConstants.VulnPenaltyCritical.Should().BeGreaterThan(ScoringConstants.VulnPenaltyHigh);
@@ -509,47 +496,4 @@ public class CoreModelTests
         ScoringConstants.VulnPenaltyLow.Should().BeGreaterThan(ScoringConstants.VulnPenaltyInfo);
     }
 
-    // ─── McpComplianceTiers ──────────────────────────────────────
-    [Fact]
-    public void McpComplianceTiers_MustConstants_ShouldStartWithMUST()
-    {
-        McpComplianceTiers.Must.InitializeResponse.Should().StartWith("MUST:");
-        McpComplianceTiers.Must.ServerInfoPresent.Should().StartWith("MUST:");
-        McpComplianceTiers.Must.ToolHasName.Should().StartWith("MUST:");
-        McpComplianceTiers.Must.StandardErrorCodes.Should().StartWith("MUST:");
-    }
-
-    [Fact]
-    public void McpComplianceTiers_ShouldConstants_ShouldStartWithSHOULD()
-    {
-        McpComplianceTiers.Should.ToolHasDescription.Should().StartWith("SHOULD:");
-        McpComplianceTiers.Should.SanitizeToolOutputs.Should().StartWith("SHOULD:");
-    }
-
-    [Fact]
-    public void McpComplianceTiers_MayConstants_ShouldStartWithMAY()
-    {
-        McpComplianceTiers.May.InstructionsField.Should().StartWith("MAY:");
-        McpComplianceTiers.May.ToolAnnotations.Should().StartWith("MAY:");
-        McpComplianceTiers.May.Logging.Should().StartWith("MAY:");
-    }
-
-    // ─── ComplianceTierCheck ─────────────────────────────────────
-    [Fact]
-    public void ComplianceTierCheck_ShouldHaveDefaultValues()
-    {
-        var check = new ComplianceTierCheck();
-        check.Tier.Should().Be("MUST");
-        check.Passed.Should().BeFalse();
-        check.Component.Should().BeEmpty();
-    }
-
-    // ─── AiBoundaryFinding ───────────────────────────────────────
-    [Fact]
-    public void AiBoundaryFinding_ShouldHaveDefaultSeverity()
-    {
-        var finding = new AiBoundaryFinding();
-        finding.Severity.Should().Be("Medium");
-        finding.Category.Should().BeEmpty();
-    }
 }

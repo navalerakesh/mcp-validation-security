@@ -87,3 +87,10 @@ public class IgnoredPolicySuppression
 
     public string Reason { get; set; } = string.Empty;
 }
+
+public sealed class PolicySuppressionAssessment
+{
+    public int ActiveCount { get; init; }
+
+    public IReadOnlyList<IgnoredPolicySuppression> InvalidSuppressions { get; init; } = Array.Empty<IgnoredPolicySuppression>();
+}

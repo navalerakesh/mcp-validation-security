@@ -1,3 +1,4 @@
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 
 namespace Mcp.Benchmark.Core.Services;
@@ -170,8 +171,8 @@ public static class AiSafetyControlAnalyzer
         }
 
         return Create(target, AiSafetyControlKind.DataSharingDisclosure, AiSafetyControlStatus.Missing,
-            "Tool metadata does not declare open-world/data-sharing behavior.",
-            "Declare annotations.openWorldHint so hosts can explain data-sharing boundaries to users.",
+            "Tool metadata does not explicitly declare open-world behavior; MCP applies the openWorldHint=true default.",
+            "Declare annotations.openWorldHint explicitly when hosts need auditable server intent beyond the protocol default.",
             ValidationRuleSource.Guideline);
     }
 
@@ -219,9 +220,12 @@ public static class AiSafetyControlAnalyzer
             Authority = authority,
             Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
-                ["readOnlyHint"] = target.ReadOnlyHint?.ToString() ?? "unknown",
-                ["destructiveHint"] = target.DestructiveHint?.ToString() ?? "unknown",
-                ["openWorldHint"] = target.OpenWorldHint?.ToString() ?? "unknown"
+                ["readOnlyHint"] = target.ReadOnlyHint?.ToString() ?? "notDeclared",
+                ["effectiveReadOnlyHint"] = (target.ReadOnlyHint ?? McpSpecConstants.ToolAnnotationDefaults.ReadOnlyHint).ToString(),
+                ["destructiveHint"] = target.DestructiveHint?.ToString() ?? "notDeclared",
+                ["effectiveDestructiveHint"] = (target.DestructiveHint ?? McpSpecConstants.ToolAnnotationDefaults.DestructiveHint).ToString(),
+                ["openWorldHint"] = target.OpenWorldHint?.ToString() ?? "notDeclared",
+                ["effectiveOpenWorldHint"] = (target.OpenWorldHint ?? McpSpecConstants.ToolAnnotationDefaults.OpenWorldHint).ToString()
             }
         };
     }

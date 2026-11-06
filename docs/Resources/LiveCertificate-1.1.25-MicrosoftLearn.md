@@ -1,5 +1,7 @@
 # MCP Validator 1.1.25 Microsoft Learn Live Certificate
 
+> **Historical V1 evidence:** This document records the retired 1.1.25 score/trust/verdict contract and is not current certification guidance. MCP Validator 2.x uses typed claims, independent assessments, and explicit certificate eligibility. See [Organization-Grade Confidence](../OrganizationGradeConfidence.md).
+
 Date: 2026-08-19 (local), 2026-08-20 UTC
 
 Validator: `mcpval 1.1.25`

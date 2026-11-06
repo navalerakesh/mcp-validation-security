@@ -153,15 +153,7 @@ jobs:
         run: dotnet test --no-build --configuration Debug --filter 'FullyQualifiedName!~ValidatorOverheadBudgetTests' --verbosity normal --logger "trx;LogFileName=test-results.trx"
 
       - name: Validate Benchmark Project
-        run: |
-          dotnet build Mcp.Benchmark.Benchmarks/Mcp.Benchmark.Benchmarks.csproj --no-restore --configuration Release
-          benchmarks=$(dotnet run --project Mcp.Benchmark.Benchmarks/Mcp.Benchmark.Benchmarks.csproj --configuration Release --no-build -- --list flat)
-          grep -q 'ConfigurationCapture' <<< "$benchmarks"
-          grep -q 'HostStartup' <<< "$benchmarks"
-          grep -q 'Planning' <<< "$benchmarks"
-          grep -q 'VerdictReduction' <<< "$benchmarks"
-          grep -q 'Scoring' <<< "$benchmarks"
-          grep -q 'MarkdownRendering' <<< "$benchmarks"
+        run: scripts/validate-benchmark-contracts.sh
 
       - name: Performance regression budgets (Release)
         run: dotnet test Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj --configuration Release --filter 'FullyQualifiedName~ValidatorOverheadBudgetTests' --verbosity minimal

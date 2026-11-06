@@ -223,7 +223,7 @@ public class HealthCheckCommand(
             {
                 _nextStepAdvisor.SuggestAuthenticationFlow("health-check", targetEndpoint);
             }
-            Environment.ExitCode = 1;
+            Environment.ExitCode = AssuranceExitCodeMapper.RuntimeIntegrityFailure;
         }
         finally
         {
@@ -494,7 +494,7 @@ public class DiscoverCommand
             {
                 _nextStepAdvisor.SuggestAuthenticationFlow("discover", targetEndpoint);
             }
-            Environment.ExitCode = 1;
+            Environment.ExitCode = AssuranceExitCodeMapper.RuntimeIntegrityFailure;
         }
         finally
         {

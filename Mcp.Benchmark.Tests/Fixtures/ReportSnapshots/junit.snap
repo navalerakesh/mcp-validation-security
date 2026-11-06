@@ -1,312 +1,228 @@
-<testsuites name="MCP Validator" tests="17" failures="4" errors="0" skipped="2" time="21.700">
-  <testsuite name="overall-validation" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
+<testsuites name="MCP Validator" tests="14" failures="3" errors="0" skipped="4" time="12.000">
+  <testsuite name="assurance-coreprotocol" tests="7" failures="1" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.overall" name="Overall Validation Run" time="12.000">
-      <failure message="Overall status: Failed">Compliance Score: 81.4%
-Summary: total=7, passed=4, failed=2, skipped=1, authRequired=0, inconclusive=0
-Endpoint: https://snapshot.example.test/mcp
-Transport: http
-Baseline Verdict: Reject
-Protocol Verdict: Reject
-Coverage Verdict: ReviewRequired
-Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.
-Evidence Coverage: 87.5%
-Evidence Confidence: 91.9% (High)
-Coverage Decision: coverage:prompt-surface:prompts-list:Skipped -&gt; Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
-Critical Error: Prompt validation hit an unsafe reflection path.
-Recommendation: Add destructive hints to write-capable tools.
-Recommendation: Return the negotiated protocol version explicitly during initialize.</failure>
-      <system-out>Compliance Score: 81.4%
-Summary: total=7, passed=4, failed=2, skipped=1, authRequired=0, inconclusive=0
-Endpoint: https://snapshot.example.test/mcp
-Transport: http
-Baseline Verdict: Reject
-Protocol Verdict: Reject
-Coverage Verdict: ReviewRequired
-Verdict Summary: Baseline=Reject; Protocol=Reject; Coverage=ReviewRequired; EvidenceConfidence=High (92%); BlockingDecisions=8.
-Evidence Coverage: 87.5%
-Evidence Confidence: 91.9% (High)
-Coverage Decision: coverage:prompt-surface:prompts-list:Skipped -&gt; Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
-Critical Error: Prompt validation hit an unsafe reflection path.
-Recommendation: Add destructive hints to write-capable tools.
-Recommendation: Return the negotiated protocol version explicitly during initialize.</system-out>
+    <testcase classname="assurance.coreprotocol" name="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent" time="0.000">
+      <system-out>Subject: github-copilot-cli,github-copilot-cloud-agent
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="coverage:prompt-surface:prompts-list" time="0.000">
+      <skipped message="Server does not advertise prompts capability.">Subject: prompts/list
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Incomplete
+Confidence: None
+Evidence: coverage:prompt-surface:prompts-list:Skipped</skipped>
+      <system-out>Subject: prompts/list
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Incomplete
+Confidence: None
+Evidence: coverage:prompt-surface:prompts-list:Skipped</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="coverage:protocol-core:json-rpc" time="0.000">
+      <system-out>Subject: json-rpc
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:protocol-core:json-rpc:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="coverage:tool-surface:tool-catalog-smoke" time="0.000">
+      <system-out>Subject: tool-catalog-smoke
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:tool-surface:tool-catalog-smoke:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="coverage:tool-surface:tools-list" time="0.000">
+      <system-out>Subject: tools/list
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:tool-surface:tools-list:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="finding:mcp-tool-call-result-object-missing:tools-call" time="0.000">
+      <skipped message="One tool response omitted the outer result object.">Subject: tools/call
+Authority: OfficialSpecification
+Requirement: Should
+Outcome: ReviewRequired
+Confidence: High
+Evidence:</skipped>
+      <system-out>Subject: tools/call
+Authority: OfficialSpecification
+Requirement: Should
+Outcome: ReviewRequired
+Confidence: High
+Evidence:</system-out>
+    </testcase>
+    <testcase classname="assurance.coreprotocol" name="protocol:mcp-init-version-negotiation" time="0.000">
+      <failure message="Server ignored the requested MCP protocol version.">Subject: Initialization
+Authority: OfficialSpecification
+Requirement: Must
+Outcome: Violated
+Confidence: High
+Evidence: protocol/MCP.INIT.VERSION_NEGOTIATION</failure>
+      <system-out>Subject: Initialization
+Authority: OfficialSpecification
+Requirement: Must
+Outcome: Violated
+Confidence: High
+Evidence: protocol/MCP.INIT.VERSION_NEGOTIATION</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="host-policy" tests="1" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-operations" tests="2" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.policy" name="Policy Gate (strict)" time="0.000">
-      <failure message="Strict policy blocked the validation result with 9 blocking signal(s).">Strict policy blocked the validation result with 9 blocking signal(s).
-Recommended Exit Code: 1
-Suppressed Signals: 0
-Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Server ignored the requested MCP protocol version.
-Reason: One tool response omitted the outer result object.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
-Reason: Server reflected untrusted prompt content without sanitization.
-Reason: Prompt output includes reflected untrusted content.
-Reason: Tool 'delete_repo' has parameters without descriptions.
-Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
-Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
-Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
-Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
-Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.
-Additional Blocking Decisions: 3 retained in canonical JSON.</failure>
-      <system-out>Strict policy blocked the validation result with 9 blocking signal(s).
-Recommended Exit Code: 1
-Suppressed Signals: 0
-Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Server ignored the requested MCP protocol version.
-Reason: One tool response omitted the outer result object.
-Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
-Reason: Server reflected untrusted prompt content without sanitization.
-Reason: Prompt output includes reflected untrusted content.
-Reason: Tool 'delete_repo' has parameters without descriptions.
-Reason: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Reason: Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.
-Blocking Decision Priority: critical - PromptInjection/prompt:get: Server reflected untrusted prompt content without sanitization.
-Blocking Decision Priority: critical - PromptInjection/prompt:get: Prompt output includes reflected untrusted content.
-Blocking Decision Priority: critical - Execution/validation-run: Critical execution error recorded: Prompt validation hit an unsafe reflection path.
-Blocking Decision Priority: critical - Initialization/Initialization: Server ignored the requested MCP protocol version.
-Blocking Decision Priority: high - McpGuideline/delete_repo: Tool 'delete_repo' does not declare annotations.destructiveHint.
-Additional Blocking Decisions: 3 retained in canonical JSON.</system-out>
+    <testcase classname="assurance.operations" name="coverage:error-handling:error-handling" time="0.000">
+      <system-out>Subject: error-handling
+Authority: ProviderPolicy
+Requirement: OperationalObjective
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:error-handling:error-handling:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.operations" name="coverage:error-handling:error-handling-matrix" time="0.000">
+      <system-out>Subject: error-handling-matrix
+Authority: ProviderPolicy
+Requirement: OperationalObjective
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:error-handling:error-handling-matrix:Covered</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="protocol-compliance" tests="1" failures="1" errors="0" skipped="0" time="2.100" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-security" tests="2" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.protocol.compliance" name="Protocol Compliance" time="2.100">
-      <failure message="Protocol negotiation had one blocking violation.">Message: Protocol negotiation had one blocking violation.
-Compliance Score: 84.0%
-Finding [spec/Medium] MCP.TOOL.CALL.RESULT_OBJECT_MISSING: One tool response omitted the outer result object.
-Violation [High] MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</failure>
-      <system-out>Message: Protocol negotiation had one blocking violation.
-Compliance Score: 84.0%
-Finding [spec/Medium] MCP.TOOL.CALL.RESULT_OBJECT_MISSING: One tool response omitted the outer result object.
-Violation [High] MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</system-out>
+    <testcase classname="assurance.security" name="coverage:security-boundaries:security-authentication-challenge" time="0.000">
+      <system-out>Subject: security-authentication-challenge
+Authority: ProviderPolicy
+Requirement: SecurityControl
+Outcome: Satisfied
+Confidence: None
+Evidence: coverage:security-boundaries:security-authentication-challenge:Covered</system-out>
+    </testcase>
+    <testcase classname="assurance.security" name="vulnerability:mcp-security-prompt-injection:prompt-get" time="0.000">
+      <failure message="Server reflected untrusted prompt content without sanitization.">Subject: prompt:get
+Authority: DeterministicSecurity
+Requirement: SecurityControl
+Outcome: Violated
+Confidence: High
+Evidence: probe-prompt-get-reflection-200</failure>
+      <system-out>Subject: prompt:get
+Authority: DeterministicSecurity
+Requirement: SecurityControl
+Outcome: Violated
+Confidence: High
+Evidence: probe-prompt-get-reflection-200</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="tool-validation" tests="1" failures="0" errors="0" skipped="0" time="1.800" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-capabilitycontract" tests="2" failures="0" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.tool.validation" name="Tool Validation" time="1.800">
-      <system-out>Message: Tool catalog loaded and executed.
-Score: 91.0%
-Tools Discovered: 2
-Tool Pass Count: 2
-Tool Fail Count: 0
-Tool delete_repo: Passed
-Tool list_repos: Passed</system-out>
+    <testcase classname="assurance.capabilitycontract" name="finding:ai-tool-schema-parameter-description-missing:delete-repo" time="0.000">
+      <skipped message="Tool 'delete_repo' has parameters without descriptions.">Subject: delete_repo
+Authority: Heuristic
+Requirement: Policy
+Outcome: ReviewRequired
+Confidence: Medium
+Evidence:</skipped>
+      <system-out>Subject: delete_repo
+Authority: Heuristic
+Requirement: Policy
+Outcome: ReviewRequired
+Confidence: Medium
+Evidence:</system-out>
+    </testcase>
+    <testcase classname="assurance.capabilitycontract" name="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" time="0.000">
+      <skipped message="Tool 'delete_repo' does not declare annotations.destructiveHint.">Subject: delete_repo
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: ReviewRequired
+Confidence: Medium
+Evidence:</skipped>
+      <system-out>Subject: delete_repo
+Authority: ProviderPolicy
+Requirement: Policy
+Outcome: ReviewRequired
+Confidence: Medium
+Evidence:</system-out>
     </testcase>
   </testsuite>
-  <testsuite name="resource-testing" tests="1" failures="0" errors="0" skipped="0" time="0.900" timestamp="2026-04-20T10:00:00.0000000Z">
+  <testsuite name="assurance-certificate" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
       <property name="policyMode" value="strict" />
       <property name="specProfile" value="2025-11-25" />
     </properties>
-    <testcase classname="validation.resource.testing" name="Resource Testing" time="0.900">
-      <system-out>Message: Resource access passed.
-Resources Discovered: 1
-Resources Accessible: 1
-Resources Failed: 0
-Resource repo://snapshot/README.md: Passed</system-out>
-    </testcase>
-  </testsuite>
-  <testsuite name="prompt-testing" tests="1" failures="0" errors="0" skipped="1" time="0.400" timestamp="2026-04-20T10:00:00.0000000Z">
-    <properties>
-      <property name="validationId" value="validation-snapshot-001" />
-      <property name="endpoint" value="https://snapshot.example.test/mcp" />
-      <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
-      <property name="policyMode" value="strict" />
-      <property name="specProfile" value="2025-11-25" />
-    </properties>
-    <testcase classname="validation.prompt.testing" name="Prompt Testing" time="0.400">
-      <skipped message="Server does not advertise prompts capability.">Message: Server does not advertise prompts capability.
-Prompts Discovered: 0
-Prompts Passed: 0
-Prompts Failed: 0
-Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</skipped>
-      <system-out>Message: Server does not advertise prompts capability.
-Prompts Discovered: 0
-Prompts Passed: 0
-Prompts Failed: 0
-Catalog Applicability: Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</system-out>
-    </testcase>
-  </testsuite>
-  <testsuite name="security-testing" tests="1" failures="1" errors="0" skipped="0" time="2.600" timestamp="2026-04-20T10:00:00.0000000Z">
-    <properties>
-      <property name="validationId" value="validation-snapshot-001" />
-      <property name="endpoint" value="https://snapshot.example.test/mcp" />
-      <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
-      <property name="policyMode" value="strict" />
-      <property name="specProfile" value="2025-11-25" />
-    </properties>
-    <testcase classname="validation.security.testing" name="Security Testing" time="2.600">
-      <failure message="Security testing found one exploitable prompt reflection.">Message: Security testing found one exploitable prompt reflection.
-Security Score: 69.0%
-Vulnerability [Critical] MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
-Recommendation: Label or sanitize untrusted prompt content before returning it.</failure>
-      <system-out>Message: Security testing found one exploitable prompt reflection.
-Security Score: 69.0%
-Vulnerability [Critical] MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.
-Recommendation: Label or sanitize untrusted prompt content before returning it.</system-out>
-    </testcase>
-  </testsuite>
-  <testsuite name="performance-testing" tests="1" failures="0" errors="0" skipped="0" time="1.200" timestamp="2026-04-20T10:00:00.0000000Z">
-    <properties>
-      <property name="validationId" value="validation-snapshot-001" />
-      <property name="endpoint" value="https://snapshot.example.test/mcp" />
-      <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
-      <property name="policyMode" value="strict" />
-      <property name="specProfile" value="2025-11-25" />
-    </properties>
-    <testcase classname="validation.performance.testing" name="Performance Testing" time="1.200">
-      <system-out>Message: Performance is acceptable under moderate load.
-Average Latency Ms: 120.50
-P95 Latency Ms: 210.40
-Requests Per Second: 18.20
-Error Rate: 0.00</system-out>
-    </testcase>
-  </testsuite>
-  <testsuite name="error-handling" tests="1" failures="0" errors="0" skipped="0" time="0.700" timestamp="2026-04-20T10:00:00.0000000Z">
-    <properties>
-      <property name="validationId" value="validation-snapshot-001" />
-      <property name="endpoint" value="https://snapshot.example.test/mcp" />
-      <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
-      <property name="policyMode" value="strict" />
-      <property name="specProfile" value="2025-11-25" />
-    </properties>
-    <testcase classname="validation.error.handling" name="Error Handling" time="0.700">
-      <system-out>Message: Validated 3 error scenario(s); 3 handled correctly.
-Error Scenarios Tested: 3
-Error Scenarios Handled Correctly: 3
-Scenario Invalid Method Call: Handled correctly
-Scenario Malformed JSON Payload: Handled correctly
-Scenario Graceful Degradation On Invalid Request: Handled correctly</system-out>
-    </testcase>
-  </testsuite>
-  <testsuite name="evidence-coverage" tests="8" failures="0" errors="0" skipped="1" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
-    <properties>
-      <property name="validationId" value="validation-snapshot-001" />
-      <property name="endpoint" value="https://snapshot.example.test/mcp" />
-      <property name="transport" value="http" />
-      <property name="overallStatus" value="Failed" />
-      <property name="policyMode" value="strict" />
-      <property name="specProfile" value="2025-11-25" />
-    </properties>
-    <testcase classname="validation.evidence.coverage" name="Coverage: protocol-core/json-rpc" time="0.000">
-      <system-out>EvidenceId: coverage:protocol-core:json-rpc:Covered
-Layer: protocol-core
-Scope: json-rpc
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: tool-surface/tools/list" time="0.000">
-      <system-out>EvidenceId: coverage:tool-surface:tools-list:Covered
-Layer: tool-surface
-Scope: tools/list
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: prompt-surface/prompts/list" time="0.000">
-      <skipped message="Coverage is Skipped for prompt-surface/prompts/list. Server does not advertise prompts capability.">EvidenceId: coverage:prompt-surface:prompts-list:Skipped
-Layer: prompt-surface
-Scope: prompts/list
-Status: Skipped
-Blocker: None
-Confidence: None
-Reason: Server does not advertise prompts capability.</skipped>
-      <system-out>EvidenceId: coverage:prompt-surface:prompts-list:Skipped
-Layer: prompt-surface
-Scope: prompts/list
-Status: Skipped
-Blocker: None
-Confidence: None
-Reason: Server does not advertise prompts capability.</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: client-profiles/github-copilot-cli,github-copilot-cloud-agent" time="0.000">
-      <system-out>EvidenceId: coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered
-Layer: client-profiles
-Scope: github-copilot-cli,github-copilot-cloud-agent
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: tool-surface/tool-catalog-smoke" time="0.000">
-      <system-out>EvidenceId: coverage:tool-surface:tool-catalog-smoke:Covered
-Layer: tool-surface
-Scope: tool-catalog-smoke
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: security-boundaries/security-authentication-challenge" time="0.000">
-      <system-out>EvidenceId: coverage:security-boundaries:security-authentication-challenge:Covered
-Layer: security-boundaries
-Scope: security-authentication-challenge
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: error-handling/error-handling" time="0.000">
-      <system-out>EvidenceId: coverage:error-handling:error-handling:Covered
-Layer: error-handling
-Scope: error-handling
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
-    </testcase>
-    <testcase classname="validation.evidence.coverage" name="Coverage: error-handling/error-handling-matrix" time="0.000">
-      <system-out>EvidenceId: coverage:error-handling:error-handling-matrix:Covered
-Layer: error-handling
-Scope: error-handling-matrix
-Status: Covered
-Blocker: None
-Confidence: None
-Reason: -</system-out>
+    <testcase classname="assurance.certificate" name="Certificate eligibility: provider" time="12.000">
+      <failure message="Ineligible">Core conformance is Nonconformant.
+Security assurance is IssuesFound.
+Evidence coverage 87.5% is below 90.0%.
+Verified official conformance evidence is required.
+A verified signed attestation is required.
+A verified provider harness receipt with target-bound authorization is required.
+Repeated-run consistency of at least 99.0% is required.</failure>
+      <system-out>Core conformance is Nonconformant.
+Security assurance is IssuesFound.
+Evidence coverage 87.5% is below 90.0%.
+Verified official conformance evidence is required.
+A verified signed attestation is required.
+A verified provider harness receipt with target-bound authorization is required.
+Repeated-run consistency of at least 99.0% is required.</system-out>
     </testcase>
   </testsuite>
 </testsuites>

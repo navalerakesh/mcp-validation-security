@@ -55,4 +55,22 @@ public class AiSafetyControlAnalyzerTests
             evidence.ControlKind == AiSafetyControlKind.HostServerResponsibilitySplit
             && evidence.Status == AiSafetyControlStatus.NotObservable);
     }
+
+    [Fact]
+    public void AnalyzeTool_WithoutOpenWorldHint_ShouldRecordExplicitAbsenceAndEffectiveDefault()
+    {
+        var analysis = AiSafetyControlAnalyzer.AnalyzeTool(new AiSafetyControlTarget
+        {
+            Name = "search_docs",
+            Description = "Searches documentation.",
+            ReadOnlyHint = true
+        });
+
+        var evidence = analysis.Evidence.Should().ContainSingle(item =>
+            item.ControlKind == AiSafetyControlKind.DataSharingDisclosure).Subject;
+        evidence.Status.Should().Be(AiSafetyControlStatus.Missing);
+        evidence.Summary.Should().Contain("MCP applies the openWorldHint=true default");
+        evidence.Metadata["openWorldHint"].Should().Be("notDeclared");
+        evidence.Metadata["effectiveOpenWorldHint"].Should().Be("True");
+    }
 }
