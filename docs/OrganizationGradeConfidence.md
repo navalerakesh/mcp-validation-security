@@ -97,13 +97,26 @@ The mutation row records the last isolated frozen-source receipt with zero timeo
 
 | Exit | Meaning |
 | ---: | --- |
-| `0` | Selected assurance and policy requirements satisfied |
-| `1` | Deterministic assurance or policy failure |
-| `2` | Incomplete evidence or review required |
+| `0` | Selected profile gate and policy satisfied. Inventory/advisory may return `0` while still reporting incomplete independent assessments. |
+| `1` | CI deterministic/policy failure or provider certificate ineligible |
+| `2` | CI incomplete evidence or provider certificate review required |
 | `64` | Usage or configuration error |
 | `70` | Runtime or artifact integrity failure |
 | `75` | Target unavailable |
 | `124` | Timeout or cancellation |
+
+## Safe Live Interoperability
+
+Fresh safe-mode inventory runs from local commit `a58df09` were executed on 2026-11-06. These are interoperability observations, not active security or provider certificates. No tools were invoked, resources read, attacks sent, or load generated.
+
+| Target | Observed result |
+| --- | --- |
+| Microsoft Learn MCP | Public endpoint; server `Microsoft Learn MCP Server` `1.0.0`; protocol/schema `2025-06-18`; 3 tools (`microsoft_docs_search`, `microsoft_code_sample_search`, `microsoft_docs_fetch`), 0 resources, 0 prompts; 3 passed and 1 inconclusive category; 13 satisfied, 8 incomplete, 5 review-required claims; inventory certificate ineligible; advisory policy passed; exit `0` |
+| GitHub Copilot MCP | Authenticated endpoint; `GitHub MCP Server`; protocol/schema `2025-06-18`; 46 tools, 4 resources, 2 prompts; 46 passed and 1 inconclusive category; 8 satisfied, 8 incomplete, 110 review-required, 2 client-compatibility policy violations; inventory certificate ineligible; advisory policy passed; exit `0` |
+
+The GitHub compatibility lane marked `github-copilot-cloud-agent` as interpreted/incompatible because 17 of 46 write-capable tools did not declare `destructiveHint`. GitHub Copilot CLI was interpreted/compatible; Claude Code, VS Code Copilot Agent, and Visual Studio Copilot were interpreted/compatible-with-warnings. Client interpretations did not alter neutral core, security, or operational assessments.
+
+Both runs emitted canonical JSON, Markdown, HTML, SARIF, JUnit, audit, and profile-summary artifacts under an operating-system temporary directory. HTML browser checks found one H1, no scripts, no unsafe links, no document overflow, and zero console errors. Artifact scans found no GitHub token bytes or generic bearer/token/password/secret patterns; all persisted `rawContent` fields were null. Live artifacts remain uncommitted and disposable.
 
 ## Reproduction
 
