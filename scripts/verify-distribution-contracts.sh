@@ -151,6 +151,28 @@ grep -Fq 'package-attest' <<< "$nuget_publish_job" || {
   echo "NuGet publication must wait for the main-only package attestation job." >&2
   exit 1
 }
+grep -Fq 'package-attest' <<< "$npm_publish_job" || {
+  echo "npm publication must wait for the main-only package attestation job." >&2
+  exit 1
+}
+grep -Fq 'uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0' <<< "$nuget_publish_job" || {
+  echo "NuGet publication must use the reviewed immutable OIDC login action." >&2
+  exit 1
+}
+# Match the literal GitHub expression that exposes the short-lived login output.
+# shellcheck disable=SC2016
+grep -Fq 'NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}' <<< "$nuget_publish_job" || {
+  echo "NuGet publication must use the short-lived trusted-publishing key." >&2
+  exit 1
+}
+if grep -Fq 'secrets.NUGET_API_KEY' <<< "$nuget_publish_job"; then
+  echo "NuGet trusted publishing must not depend on a long-lived API key secret." >&2
+  exit 1
+fi
+if grep -Fq 'nuget-publish' <<< "$(grep -F 'needs:' <<< "$npm_publish_job" | head -1)"; then
+  echo "npm publication must remain independent from NuGet registry availability." >&2
+  exit 1
+fi
 grep -Fq 'for attempt in {1..60}' .github/workflows/ci.yml || {
   echo "Registry publication must allow bounded propagation before verification." >&2
   exit 1
