@@ -564,10 +564,9 @@ internal static class CommandConnectionHelper
     {
         McpValidatorConfiguration configuration;
 
-        if (configFile?.Exists == true)
+        if (configFile is not null)
         {
-            var configJson = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
-            configuration = JsonSerializer.Deserialize<McpValidatorConfiguration>(configJson) ?? new McpValidatorConfiguration();
+            configuration = await BoundedArtifactReader.ReadConfigurationAsync(configFile).ConfigureAwait(false);
         }
         else
         {

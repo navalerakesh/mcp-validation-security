@@ -6,6 +6,8 @@ using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Benchmark.Infrastructure.Services;
+using Mcp.Benchmark.Infrastructure.Services.Reporting;
+using System.Text.Json;
 using Mcp.Benchmark.Infrastructure.Rules.Protocol;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -147,7 +149,11 @@ public class McpValidatorServiceUnitTests
                 EnvironmentHints = new Dictionary<string, string>()
             });
 
-        _validatorService = new McpValidatorService(
+        _validatorService = CreateService(_scenarioPackRegistry);
+    }
+
+    private McpValidatorService CreateService(IValidationPackRegistry<IValidationScenarioPack> scenarioRegistry) =>
+        new McpValidatorService(
             _protocolValidatorMock.Object,
             _toolValidatorMock.Object,
             _resourceValidatorMock.Object,
@@ -158,13 +164,193 @@ public class McpValidatorServiceUnitTests
             _sessionBuilderMock.Object,
             _applicabilityResolverMock.Object,
             _protocolFeaturePackRegistry,
-            _scenarioPackRegistry,
+            scenarioRegistry,
             _protocolRuleRegistry,
             _httpClientMock.Object,
             _scoringStrategyMock.Object,
             _healthCheckServiceMock.Object,
             _telemetryServiceMock.Object,
             _loggerMock.Object);
+
+    [Fact]
+    public async Task ValidateServerAsync_InterruptedExtensionPack_ShouldRetainCompletedViolation()
+    {
+        var first = new Mock<IValidationScenario>();
+        var second = new Mock<IValidationScenario>();
+        foreach (var scenario in new[] { first, second })
+            scenario.SetupGet(value => value.Descriptor).Returns(new ValidationScenarioDescriptor
+            {
+                Key = new ValidationDescriptorKey(scenario == first ? "completed" : "interrupted"),
+                Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture", LayerKey = "fixture-extension", Stability = ValidationStability.Stable
+            });
+        first.Setup(scenario => scenario.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationScenarioExecutionResult
+            {
+                Scenario = new ValidationScenarioResult
+                {
+                    ScenarioId = "completed", Status = TestStatus.Failed,
+                    Findings = [new ValidationFinding { RuleId = "FIXTURE.EXT.FAILURE", Source = ValidationRuleSource.Spec,
+                        Severity = ValidationFindingSeverity.High, Summary = "retained-extension-violation", Component = "completed" }]
+                },
+                Coverage = [ValidationCoverageFactory.FromTestStatus("fixture-extension", "completed", TestStatus.Failed)]
+            });
+        second.Setup(scenario => scenario.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+        var pack = new Mock<IValidationScenarioPack>();
+        pack.SetupGet(value => value.Descriptor).Returns(new ValidationPackDescriptor
+        {
+            Key = new ValidationDescriptorKey("fixture-pack"), Kind = ValidationPackKind.ScenarioPack,
+            Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture", Stability = ValidationStability.Stable,
+            ExtensionId = "fixture.extension", ExtensionStage = ExtensionLifecycleStage.Stable,
+            SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64)
+        });
+        pack.Setup(value => value.GetScenarios()).Returns(new[] { first.Object, second.Object });
+        var registry = new Mock<IValidationPackRegistry<IValidationScenarioPack>>();
+        registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(new[] { pack.Object });
+        var configuration = new McpValidatorConfiguration { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
+
+        var result = await CreateService(registry.Object).ValidateServerAsync(configuration);
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.Assessments.Extensions.Should().ContainSingle().Which.Findings.Should().Contain(finding => finding.RuleId == "FIXTURE.EXT.FAILURE");
+        result.Assurance.Claims.Should().Contain(claim => claim.Summary == "retained-extension-violation" && claim.Outcome == AssuranceClaimOutcome.Violated);
+        new ValidationReportRenderer().GenerateSarifReport(result).Should().Contain("retained-extension-violation");
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_WithCancelledSibling_ShouldRetainCompletedCategory()
+    {
+        foreach (var parallel in new[] { false, true })
+        foreach (var callerCancellation in new[] { false, true })
+        {
+            using var cancellation = new CancellationTokenSource();
+            var completed = new ComplianceTestResult { Status = TestStatus.Failed, Message = "retained protocol evidence" };
+            completed.Violations.Add(new ComplianceViolation
+            {
+                CheckId = "AR07.RETAINED", Description = "retained-protocol-violation", Category = "protocol"
+            });
+            _protocolValidatorMock.Setup(validator => validator.ValidateJsonRpcComplianceAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(completed);
+            _toolValidatorMock.Setup(validator => validator.ValidateToolDiscoveryAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    if (callerCancellation) cancellation.Cancel();
+                    return Task.FromException<ToolTestResult>(new OperationCanceledException(cancellation.Token));
+                });
+            var configuration = new McpValidatorConfiguration
+            {
+                Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
+            };
+            configuration.TestExecution.EnableParallelExecution = parallel;
+            configuration.Validation.Categories.ProtocolCompliance.TestJsonRpcCompliance = true;
+            configuration.Validation.Categories.ToolTesting.TestToolDiscovery = true;
+            configuration.Validation.Categories.ResourceTesting.TestResourceDiscovery = false;
+            configuration.Validation.Categories.PromptTesting.TestPromptDiscovery = false;
+            configuration.Validation.Categories.SecurityTesting.TestInputValidation = false;
+
+            var result = await _validatorService.ValidateServerAsync(configuration, cancellation.Token);
+
+            result.ProtocolCompliance.Should().BeSameAs(completed);
+            result.OverallStatus.Should().Be(callerCancellation ? ValidationStatus.Cancelled : ValidationStatus.Error);
+            result.Assessments.Layers.Should().Contain(layer => layer.LayerId == "protocol-core" && layer.Status == TestStatus.Failed);
+            result.Evidence.Coverage.Should().Contain(coverage => coverage.Scope == "json-rpc" && coverage.ObservedOutcome == ValidationOutcome.Failed);
+            result.Evidence.Coverage.Should().Contain(coverage => coverage.Scope == "tools/list" &&
+                coverage.ObservedOutcome == (callerCancellation ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable));
+            result.Assurance.Claims.Should().Contain(claim => claim.Summary == "retained-protocol-violation" && claim.Outcome == AssuranceClaimOutcome.Violated);
+            result.Summary.FailedTests.Should().Be(1);
+            result.Summary.TotalTests.Should().BeGreaterThanOrEqualTo(1);
+            var renderer = new ValidationReportRenderer();
+            var reports = new[]
+            {
+                JsonSerializer.Serialize(result.CloneWithoutSecrets()),
+                new MarkdownReportGenerator().GenerateReport(result),
+                renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true),
+                renderer.GenerateXmlReport(result, verbose: true),
+                renderer.GenerateSarifReport(result),
+                renderer.GenerateJunitReport(result)
+            };
+            reports.Should().OnlyContain(report => report.Contains("retained-protocol-violation", StringComparison.Ordinal));
+        }
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_ApplicabilityFailure_ShouldRetainBootstrapAndFinalizeSafely()
+    {
+        _applicabilityResolverMock.Setup(resolver => resolver.Build(It.IsAny<ValidationSessionContext>(),
+                It.IsAny<McpValidatorConfiguration>(), It.IsAny<IReadOnlyList<string>>()))
+            .Throws(new InvalidOperationException("synthetic-applicability-secret"));
+
+        var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
+        });
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.CapabilitySnapshot.Should().NotBeNull();
+        result.Evidence.Coverage.Should().NotBeEmpty();
+        JsonSerializer.Serialize(result).Should().NotContain("synthetic-applicability-secret");
+        _protocolValidatorMock.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_BootstrapFrameworkFailure_ShouldFinalizeWithoutLeakingExceptionPayload()
+    {
+        _sessionBuilderMock.Setup(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("synthetic-bootstrap-secret"));
+
+        var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
+        {
+            Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
+        });
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.Evidence.Coverage.Should().NotBeEmpty();
+        result.Assurance.Should().NotBeNull();
+        result.CriticalErrors.Should().NotBeEmpty();
+        JsonSerializer.Serialize(result).Should().NotContain("synthetic-bootstrap-secret");
+        _protocolValidatorMock.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_PartialSemantics_ShouldNotDependOnParallelCompletionOrder()
+    {
+        string? expected = null;
+        foreach (var cancelFirst in new[] { false, true })
+        {
+            var protocol = new TaskCompletionSource<ComplianceTestResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var tools = new TaskCompletionSource<ToolTestResult>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var bothStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var starts = 0;
+            _protocolValidatorMock.Setup(validator => validator.ValidateJsonRpcComplianceAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+                .Returns(() => { if (Interlocked.Increment(ref starts) == 2) bothStarted.SetResult(); return protocol.Task; });
+            _toolValidatorMock.Setup(validator => validator.ValidateToolDiscoveryAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>()))
+                .Returns(() => { if (Interlocked.Increment(ref starts) == 2) bothStarted.SetResult(); return tools.Task; });
+            var configuration = new McpValidatorConfiguration
+            {
+                Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
+            };
+            configuration.TestExecution.EnableParallelExecution = true;
+            configuration.Validation.Categories.ProtocolCompliance.TestJsonRpcCompliance = true;
+            configuration.Validation.Categories.ToolTesting.TestToolDiscovery = true;
+            configuration.Validation.Categories.ResourceTesting.TestResourceDiscovery = false;
+            configuration.Validation.Categories.PromptTesting.TestPromptDiscovery = false;
+            configuration.Validation.Categories.SecurityTesting.TestInputValidation = false;
+            var run = _validatorService.ValidateServerAsync(configuration);
+            await bothStarted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var completed = new ComplianceTestResult { Status = TestStatus.Failed };
+            completed.Violations.Add(new ComplianceViolation { CheckId = "AR07.ORDER", Description = "stable-order-violation", Category = "protocol" });
+            if (cancelFirst) tools.SetException(new OperationCanceledException());
+            protocol.SetResult(completed);
+            if (!cancelFirst) tools.SetException(new OperationCanceledException());
+            var result = await run.WaitAsync(TimeSpan.FromSeconds(10));
+            var semantic = JsonSerializer.Serialize(new { result.OverallStatus, result.Assessments.Layers, result.Evidence.Coverage, result.Assurance.Claims });
+            if (expected is null) expected = semantic;
+            else semantic.Should().Be(expected);
+        }
     }
 
     [Fact]

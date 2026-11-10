@@ -48,6 +48,8 @@ internal class Program
     /// <returns>Exit code indicating success (0) or failure (non-zero).</returns>
     public static async Task<int> Main(string[] args)
     {
+        if (args.Length == 1 && args[0] == Mcp.Benchmark.CLI.Models.WindowsSupervisorProtocol.Command)
+            return await WindowsSupervisorHost.RunSelfAsync();
         try
         {
             // Initialize terminal capabilities for optimal display including emoji support

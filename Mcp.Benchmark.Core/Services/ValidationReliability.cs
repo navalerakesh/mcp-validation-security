@@ -1,4 +1,5 @@
 using System.Net;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using ModelContextProtocol.Protocol;
 using ValidatorJsonRpcResponse = Mcp.Benchmark.Core.Models.JsonRpcResponse;
@@ -13,6 +14,13 @@ public static class ValidationReliability
 {
     public const int DefaultRpcMaxAttempts = 4;
     public const int DefaultPerformanceCalibrationAttempts = 3;
+
+    public static bool CanAutomaticallyRetryRpcMethod(string? method) => method is
+        ValidationConstants.Methods.ServerDiscover or
+        ValidationConstants.Methods.ToolsList or
+        ValidationConstants.Methods.ResourcesList or
+        ValidationConstants.Methods.ResourcesTemplatesList or
+        ValidationConstants.Methods.PromptsList;
 
     public static bool IsAuthenticationStatusCode(int statusCode)
     {

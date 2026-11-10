@@ -26,7 +26,7 @@ import { z } from "zod";
 import { config } from "./config.js";
 import { ValidateInputSchema, HealthCheckInputSchema, DiscoverInputSchema } from "./tools.js";
 import { handleValidate, handleHealthCheck, handleDiscover } from "./handlers.js";
-import { getCliVersion } from "./cli-runner.js";
+import { getCliVersion, shutdownCliProcesses } from "./cli-runner.js";
 import { StrictStdioServerTransport } from "./strict-stdio-server-transport.js";
 
 const validateAnnotations: ToolAnnotations = {
@@ -57,6 +57,23 @@ const toolOutputSchema = {
 };
 
 async function main(): Promise<void> {
+  let connectedServer: McpServer | undefined;
+  let shutdown: Promise<void> | undefined;
+  let terminationRequested = false;
+  const stop = () => shutdown ??= (async () => {
+    await shutdownCliProcesses();
+    await connectedServer?.close();
+  })();
+  const terminate = () => {
+    if (terminationRequested) return;
+    terminationRequested = true;
+    void stop().then(() => process.exit(0), () => {
+      console.error("Wrapper shutdown could not confirm owned-process cleanup.");
+      process.exit(70);
+    });
+  };
+  process.on("SIGINT", terminate);
+  process.on("SIGTERM", terminate);
   const cliVersion = await getCliVersion();
 
   const server = new McpServer(
@@ -86,7 +103,7 @@ async function main(): Promise<void> {
       outputSchema: toolOutputSchema,
       annotations: validateAnnotations,
     },
-    async ({ server: endpoint, access, token, interactive, mcpspec, policy, assurance, clientProfile, extension, reportDetail, verbose }) => {
+    async ({ server: endpoint, access, token, interactive, mcpspec, protocolEra, policy, assurance, clientProfile, extension, reportDetail, verbose }, extra) => {
       try {
         const result = await handleValidate({
           server: endpoint,
@@ -94,17 +111,18 @@ async function main(): Promise<void> {
           token,
           interactive,
           mcpspec,
+          protocolEra,
           policy,
           assurance,
           clientProfile,
           extension,
           reportDetail,
           verbose,
-        });
+        }, extra.signal);
         return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        const message = `Validation failed: ${(err as Error).message}`;
-        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "validate", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
+        const message = "Validation could not complete due to a wrapper runtime error.";
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "validate", exitCode: 70, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );
@@ -118,13 +136,13 @@ async function main(): Promise<void> {
       outputSchema: toolOutputSchema,
       annotations: { ...inspectionAnnotations, title: "Health Check MCP Server" },
     },
-    async ({ server: endpoint, access, token, interactive }) => {
+    async ({ server: endpoint, access, token, interactive, protocolEra }, extra) => {
       try {
-        const result = await handleHealthCheck({ server: endpoint, access, token, interactive });
+        const result = await handleHealthCheck({ server: endpoint, access, token, interactive, protocolEra }, extra.signal);
         return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        const message = `Health check failed: ${(err as Error).message}`;
-        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "health-check", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
+        const message = "Health check could not complete due to a wrapper runtime error.";
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "health-check", exitCode: 70, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );
@@ -138,13 +156,13 @@ async function main(): Promise<void> {
       outputSchema: toolOutputSchema,
       annotations: { ...inspectionAnnotations, title: "Discover MCP Server Capabilities" },
     },
-    async ({ server: endpoint, access, token, interactive, format }) => {
+    async ({ server: endpoint, access, token, interactive, format, protocolEra }, extra) => {
       try {
-        const result = await handleDiscover({ server: endpoint, access, token, interactive, format });
+        const result = await handleDiscover({ server: endpoint, access, token, interactive, format, protocolEra }, extra.signal);
         return { content: [{ type: "text" as const, text: result.text }], structuredContent: result.structuredContent, isError: result.isError };
       } catch (err) {
-        const message = `Discovery failed: ${(err as Error).message}`;
-        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "discover", exitCode: 1, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
+        const message = "Discovery could not complete due to a wrapper runtime error.";
+        return { content: [{ type: "text" as const, text: message }], structuredContent: { command: "discover", exitCode: 70, error: { code: "UNEXPECTED_ERROR", message } }, isError: true };
       }
     },
   );
@@ -219,7 +237,16 @@ async function main(): Promise<void> {
   // ─── Connect Transport ───────────────────────────────────────
 
   const transport = new StrictStdioServerTransport();
+  connectedServer = server;
   await server.connect(transport);
+  const onTransportClose = transport.onclose;
+  transport.onclose = () => {
+    onTransportClose?.();
+    void stop().catch(() => {
+      console.error("Wrapper transport cleanup failed.");
+      process.exitCode = 70;
+    });
+  };
 
   // Log to stderr (STDIO servers must not write to stdout)
   console.error(`mcpval-localmcp started (CLI: ${cliVersion})`);

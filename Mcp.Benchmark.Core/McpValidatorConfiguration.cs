@@ -366,6 +366,10 @@ public class McpServerConfig
         var lower = key.ToLowerInvariant();
 
         return lower.Contains("authorization") ||
+             lower.Contains("session") ||
+             lower.Contains("cookie") ||
+             lower.Contains("password") ||
+             lower.Contains("credential") ||
                lower.Contains("auth") ||
                lower.Contains("token") ||
                lower.Contains("secret") ||

@@ -244,6 +244,31 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_CancelledTransportSuite_ShouldRetainEarlierViolation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        _mcpHttpClientMock.Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .Returns((HttpTransportProbeRequest request, CancellationToken token) =>
+            {
+                if (request.Method == "GET")
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<HttpTransportProbeResponse>(cancellation.Token);
+                }
+                return Task.FromResult(CreateTransportProbeResponse(request, 200, """{"jsonrpc":"2.0","id":1,"result":{}}"""));
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" }, cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.StreamableHttpTransport.Should().NotBeNull();
+        result.StreamableHttpTransport!.Probes.Should().Contain(probe => probe.CheckId == ValidationConstants.CheckIds.HttpNotificationStatus && probe.Passed == false);
+        result.Violations.Should().Contain(violation => violation.CheckId == ValidationConstants.CheckIds.HttpNotificationStatus);
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_With2025_11_25TransportFailures_ShouldReportStreamableHttpViolations()
     {
         _mcpHttpClientMock

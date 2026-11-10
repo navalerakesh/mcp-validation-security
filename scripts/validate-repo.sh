@@ -169,6 +169,15 @@ if $run_node; then
   echo "==> Building npm package"
   npm run build
 
+  if $run_dotnet; then
+    echo "==> Testing SDK wrapper with the actual CLI and owned STDIO fixture"
+    integration_cli="$repo_root/Mcp.Benchmark.CLI/bin/$configuration/net8.0/mcpval"
+    if [[ -f "${integration_cli}.exe" ]]; then integration_cli="${integration_cli}.exe"; fi
+    MCPVAL_INTEGRATION_CLI="$integration_cli" npm run test:integration
+  else
+    echo "Actual CLI integration not run: --skip-dotnet selected."
+  fi
+
   if $run_audits; then
     echo "==> Running npm audit"
     npm audit --audit-level=high

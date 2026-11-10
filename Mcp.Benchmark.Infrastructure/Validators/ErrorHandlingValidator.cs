@@ -22,10 +22,15 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
 
     public async Task<ErrorHandlingTestResult> ValidateErrorHandlingAsync(McpServerConfig serverConfig, ErrorHandlingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Error Handling Validation", async ct =>
+        return await ExecuteValidationAsync<ErrorHandlingTestResult>(serverConfig, "Error Handling Validation", async (result, ct) =>
         {
-            var result = new ErrorHandlingTestResult();
-            var errorCodeValidation = await _httpClient.ValidateErrorCodesAsync(serverConfig.Endpoint!, ct);
+            var selection = JsonRpcErrorProbeSelection.None;
+            if (config.TestInvalidMethods) selection |= JsonRpcErrorProbeSelection.MethodNotFound;
+            if (config.TestMalformedJson) selection |= JsonRpcErrorProbeSelection.ParseError;
+            if (config.TestGracefulDegradation) selection |= JsonRpcErrorProbeSelection.InvalidRequest;
+            var errorCodeValidation = selection != JsonRpcErrorProbeSelection.None
+                ? await _httpClient.ValidateErrorCodesAsync(serverConfig.Endpoint!, selection, ct)
+                : new JsonRpcErrorValidationResult();
             var unsupportedProbeCount = 0;
 
             if (config.TestInvalidMethods)
@@ -124,7 +129,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
 
             if (result.ErrorScenariosTestCount == 0)
             {
-                result.Status = TestStatus.Skipped;
+                result.Status = result.Status == TestStatus.Inconclusive ? TestStatus.Inconclusive : TestStatus.Skipped;
                 result.Score = 0;
                 result.Message = unsupportedProbeCount > 0
                     ? "Error-handling validation was configured, but none of the requested probes are executable with the current transport abstraction."
@@ -134,7 +139,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
 
             result.Score = Math.Round(result.ErrorScenariosHandledCorrectly / (double)result.ErrorScenariosTestCount * 100.0, 2);
             result.Status = result.ErrorScenariosHandledCorrectly == result.ErrorScenariosTestCount
-                ? TestStatus.Passed
+                ? result.Status == TestStatus.Inconclusive ? TestStatus.Inconclusive : TestStatus.Passed
                 : TestStatus.Failed;
 
             result.Message = BuildResultMessage(result, unsupportedProbeCount);
@@ -155,6 +160,13 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         if (errorTest == null)
         {
             result.Findings.Add(CreateUnsupportedProbeFinding(errorType, unsupportedMessage));
+            return;
+        }
+        if (errorTest.ActualResponse is null || errorTest.ActualResponse.StatusCode <= 0)
+        {
+            result.Status = TestStatus.Inconclusive;
+            result.Findings.Add(CreateUnsupportedProbeFinding(errorType,
+                "No target response was observed for this error probe; target error-handling compliance remains unverified."));
             return;
         }
 

@@ -7,6 +7,7 @@ MCP Validator V2 separates deterministic observations, typed claims, evidence de
 Heuristic rules are review-only unless a versioned labeled corpus demonstrates all default-blocking thresholds:
 
 - at least 100 labeled samples;
+- both expected-positive and expected-negative samples, with non-empty, unique sample IDs within each rule;
 - precision of at least 95%;
 - recall of at least 90%;
 - false-positive rate of at most 5%;
@@ -15,6 +16,10 @@ Heuristic rules are review-only unless a versioned labeled corpus demonstrates a
 `RuleCalibrationEvaluator` calculates the confusion matrix and metrics from individual labeled samples. Empty, undersized, or one-class corpora fail closed. Official specification failures and directly demonstrated deterministic security control failures are authority-based evidence and do not become heuristics merely because they are not statistically calibrated.
 
 The initial `rule-quality-v2.json` corpus documents known behavior of `MCP.CONTENT.SystemImpact`, including benign destructive names and dangerous operations missed by name matching. It intentionally does not meet the minimum sample count, so the rule remains review-only.
+
+Calibration policy revision `2026-11-09.1` explicitly enforces class support and sample identity. Earlier revision `2026-11-05.1` could accept a positive-only corpus despite the previous one-class fail-closed documentation. Unique IDs do not prove independent observations or scenario diversity; those still require corpus review. Undefined numeric rates retain their legacy zero representation and must not be interpreted as measured accuracy without the corresponding class counts.
+
+Eligibility compares unrounded ratios; serialized metrics remain rounded to four decimal places for compatibility. A displayed threshold value does not override an underlying just-outside result. Failure reasons retain the exact numerator/denominator and use culture-invariant formatting. Undefined precision/recall are described by missing-evidence reasons rather than numeric threshold claims. Equivalent input permutations select stable transport labels before case-insensitive deduplication.
 
 ## Versioned Decision Inputs
 
@@ -72,7 +77,7 @@ The targets are deterministic local fixtures. Live endpoints are unsuitable as g
 
 - Golden tests assert exact typed claims and independent assessment outcomes for V2 fixtures.
 - Production differential tests compare compliant/vulnerable/malformed/unavailable/throttled/auth-protected claims and evidence outcomes.
-- Rule-quality tests assert confusion matrices, threshold boundaries, and fail-closed empty/undersized corpora.
+- Rule-quality tests assert confusion matrices, threshold boundaries, and fail-closed empty/undersized/one-class corpora and repeated or missing sample IDs.
 - Focused authority-lane tests verify specification, guideline, heuristic, and model decisions remain separate.
 - Synthetic metamorphic tests prove adding blocking evidence cannot improve an assurance assessment; they are not golden calibration evidence.
 - Stryker.NET 4.16.0 mutates the production `AssuranceAssessmentEngine`; CI enforces a 90% break threshold. The current score is recorded by the local readiness receipt rather than hard-coded in this document.

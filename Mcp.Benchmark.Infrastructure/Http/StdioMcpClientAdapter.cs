@@ -297,12 +297,17 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         return result;
     }
 
-    public async Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default)
+    public Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default)
+        => ValidateErrorCodesAsync(endpoint, JsonRpcErrorProbeSelection.All, cancellationToken);
+
+    public async Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, JsonRpcErrorProbeSelection selection, CancellationToken cancellationToken = default)
     {
+        if ((selection & ~JsonRpcErrorProbeSelection.All) != 0) throw new ArgumentOutOfRangeException(nameof(selection));
         var results = new List<JsonRpcErrorTest>();
 
-        var parseErrorResponse = await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken);
-        results.Add(new JsonRpcErrorTest
+        var parseErrorResponse = selection.HasFlag(JsonRpcErrorProbeSelection.ParseError)
+            ? await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken) : null;
+        if (parseErrorResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Parse Error",
             Payload = "{ invalid json",
@@ -311,10 +316,10 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             IsValid = CheckErrorCode(parseErrorResponse, -32700)
         });
 
-        var invalidRequestResponse = await SendRawJsonAsync(endpoint,
+        var invalidRequestResponse = selection.HasFlag(JsonRpcErrorProbeSelection.InvalidRequest) ? await SendRawJsonAsync(endpoint,
             "{\"method\":\"test\",\"id\":1,\"params\":{}}",
-            cancellationToken);
-        results.Add(new JsonRpcErrorTest
+            cancellationToken) : null;
+        if (invalidRequestResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Request - Missing jsonrpc",
             Payload = "{\"method\":\"test\",\"id\":1,\"params\":{}}",
@@ -323,8 +328,9 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             IsValid = CheckErrorCode(invalidRequestResponse, -32600)
         });
 
-        var methodNotFoundResponse = await CallAsync(endpoint, "rpc.invalid.method", null, cancellationToken);
-        results.Add(new JsonRpcErrorTest
+        var methodNotFoundResponse = selection.HasFlag(JsonRpcErrorProbeSelection.MethodNotFound)
+            ? await CallAsync(endpoint, "rpc.invalid.method", null, cancellationToken) : null;
+        if (methodNotFoundResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Method",
             ExpectedErrorCode = -32601,
@@ -332,11 +338,11 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             IsValid = CheckErrorCode(methodNotFoundResponse, -32601)
         });
 
-        var invalidParamsResponse = await SendRawJsonAsync(
+        var invalidParamsResponse = selection.HasFlag(JsonRpcErrorProbeSelection.InvalidParams) ? await SendRawJsonAsync(
             endpoint,
             "{\"jsonrpc\":\"2.0\",\"id\":\"invalid-params\",\"method\":\"tools/call\",\"params\":\"invalid_params_string\"}",
-            cancellationToken);
-        results.Add(new JsonRpcErrorTest
+            cancellationToken) : null;
+        if (invalidParamsResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Params",
             ExpectedErrorCode = -32602,
@@ -347,8 +353,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         return new JsonRpcErrorValidationResult
         {
             Tests = results,
-            OverallScore = results.Count(test => test.IsValid) / (double)results.Count * 100,
-            IsCompliant = results.All(test => test.IsValid)
+            OverallScore = results.Count == 0 ? 0 : results.Count(test => test.IsValid) / (double)results.Count * 100,
+            IsCompliant = results.Count > 0 && results.All(test => test.IsValid)
         };
     }
 

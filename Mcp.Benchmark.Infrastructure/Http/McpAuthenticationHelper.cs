@@ -10,6 +10,24 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 /// </summary>
 internal static class McpAuthenticationHelper
 {
+    public static void ApplyCustomHeaders(HttpRequestHeaders headers, AuthenticationConfig? authentication)
+    {
+        if (authentication is null) return;
+        foreach (var header in authentication.CustomHeaders)
+        {
+            if (string.IsNullOrWhiteSpace(header.Key) || header.Value is null) continue;
+            try
+            {
+                headers.Remove(header.Key);
+                headers.Add(header.Key, header.Value);
+            }
+            catch (Exception exception) when (exception is FormatException or ArgumentException or InvalidOperationException)
+            {
+                throw new InvalidOperationException("Configured request header has an invalid name or value.");
+            }
+        }
+    }
+
     /// <summary>
     /// Builds an Authorization header value (e.g. "Bearer &lt;token&gt;") based on the authentication config.
     /// </summary>

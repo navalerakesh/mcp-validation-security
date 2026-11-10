@@ -35,9 +35,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> PerformLoadTestingAsync(McpServerConfig serverConfig, PerformanceTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Load Testing", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Load Testing", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
             var targetConcurrency = Math.Clamp(config.MaxConcurrentConnections, 1, 512);
             var concurrentConnections = ValidationCalibration.GetInitialPerformanceProbeConcurrency(serverConfig, targetConcurrency);
             var probeRoundCount = 0;
@@ -429,9 +428,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> BenchmarkResponseTimesAsync(McpServerConfig serverConfig, IEnumerable<string> operations, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Response Time Benchmarking", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Response Time Benchmarking", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
             var operationBenchmarks = new Dictionary<string, OperationBenchmark>();
             var failedOperations = 0;
 
@@ -480,9 +478,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> TestResourceExhaustionAsync(McpServerConfig serverConfig, IEnumerable<string> resourceTypes, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Resource Exhaustion", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Resource Exhaustion", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
             var exhaustionEvents = new List<string>();
 
             foreach (var resourceType in resourceTypes)

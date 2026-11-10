@@ -32,9 +32,8 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
     public async Task<ResourceTestResult> ValidateResourceDiscoveryAsync(McpServerConfig serverConfig, ResourceTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Resource Discovery", async (ct) =>
+        return await ExecuteValidationAsync<ResourceTestResult>(serverConfig, "Resource Discovery", async (result, ct) =>
         {
-            var result = new ResourceTestResult();
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.ResourceListResponse);
             var templateSpecFailure = false;

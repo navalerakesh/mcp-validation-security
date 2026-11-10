@@ -28,25 +28,33 @@ public static class RuleCalibrationEvaluator
             FalsePositive = falsePositive,
             TrueNegative = trueNegative,
             FalseNegative = falseNegative,
-            Precision = precision,
-            Recall = recall,
-            FalsePositiveRate = falsePositiveRate,
-            FalseNegativeRate = falseNegativeRate,
+            Precision = Math.Round(precision, 4),
+            Recall = Math.Round(recall, 4),
+            FalsePositiveRate = Math.Round(falsePositiveRate, 4),
+            FalseNegativeRate = Math.Round(falseNegativeRate, 4),
             ProtocolRevisions = labeled.Select(sample => sample.ProtocolRevision).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
-            Transports = labeled.Select(sample => sample.Transport).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray()
+            Transports = labeled.Select(sample => sample.Transport).Order(StringComparer.Ordinal).Distinct(StringComparer.OrdinalIgnoreCase).Order(StringComparer.OrdinalIgnoreCase).ToArray()
         };
 
         var reasons = new List<string>();
+        if (truePositive + falseNegative == 0)
+            reasons.Add("Calibration requires expected-positive samples.");
+        if (trueNegative + falsePositive == 0)
+            reasons.Add("Calibration requires expected-negative samples.");
+        if (labeled.Any(sample => string.IsNullOrWhiteSpace(sample.SampleId)))
+            reasons.Add("Calibration requires non-empty sample identities.");
+        if (labeled.Select(sample => sample.SampleId).Distinct(StringComparer.Ordinal).Count() != labeled.Length)
+            reasons.Add("Calibration requires unique sample identities within each rule.");
         if (metrics.LabeledSampleCount < RuleCalibrationPolicy.MinimumLabeledSamples)
-            reasons.Add($"Labeled sample count {metrics.LabeledSampleCount} is below {RuleCalibrationPolicy.MinimumLabeledSamples}.");
-        if (metrics.Precision < RuleCalibrationPolicy.MinimumPrecision)
-            reasons.Add($"Precision {metrics.Precision:P1} is below {RuleCalibrationPolicy.MinimumPrecision:P1}.");
-        if (metrics.Recall < RuleCalibrationPolicy.MinimumRecall)
-            reasons.Add($"Recall {metrics.Recall:P1} is below {RuleCalibrationPolicy.MinimumRecall:P1}.");
-        if (metrics.FalsePositiveRate > RuleCalibrationPolicy.MaximumFalsePositiveRate)
-            reasons.Add($"False-positive rate {metrics.FalsePositiveRate:P1} exceeds {RuleCalibrationPolicy.MaximumFalsePositiveRate:P1}.");
-        if (metrics.FalseNegativeRate > RuleCalibrationPolicy.MaximumFalseNegativeRate)
-            reasons.Add($"False-negative rate {metrics.FalseNegativeRate:P1} exceeds {RuleCalibrationPolicy.MaximumFalseNegativeRate:P1}.");
+            reasons.Add(FormattableString.Invariant($"Labeled sample count {metrics.LabeledSampleCount} is below {RuleCalibrationPolicy.MinimumLabeledSamples}."));
+        if (truePositive + falsePositive > 0 && precision < RuleCalibrationPolicy.MinimumPrecision)
+            reasons.Add(FormattableString.Invariant($"Precision {truePositive}/{truePositive + falsePositive} is below {RuleCalibrationPolicy.MinimumPrecision:P1}."));
+        if (truePositive + falseNegative > 0 && recall < RuleCalibrationPolicy.MinimumRecall)
+            reasons.Add(FormattableString.Invariant($"Recall {truePositive}/{truePositive + falseNegative} is below {RuleCalibrationPolicy.MinimumRecall:P1}."));
+        if (falsePositiveRate > RuleCalibrationPolicy.MaximumFalsePositiveRate)
+            reasons.Add(FormattableString.Invariant($"False-positive rate {falsePositive}/{falsePositive + trueNegative} exceeds {RuleCalibrationPolicy.MaximumFalsePositiveRate:P1}."));
+        if (falseNegativeRate > RuleCalibrationPolicy.MaximumFalseNegativeRate)
+            reasons.Add(FormattableString.Invariant($"False-negative rate {falseNegative}/{truePositive + falseNegative} exceeds {RuleCalibrationPolicy.MaximumFalseNegativeRate:P1}."));
 
         return new RuleCalibrationDecision
         {
@@ -57,5 +65,5 @@ public static class RuleCalibrationEvaluator
     }
 
     private static double Ratio(int numerator, int denominator) =>
-        denominator == 0 ? 0 : Math.Round(numerator / (double)denominator, 4);
+        denominator == 0 ? 0 : numerator / (double)denominator;
 }

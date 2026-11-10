@@ -6,6 +6,27 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Fixed
+
+- Explicit missing configuration files now fail before validation. CLI commands share bounded strict JSON loading, reject unknown/duplicate fields and invalid nulls, and support configuration field casing aliases without changing environment-variable key case.
+- Validator callbacks now retain their shared result accumulator on late failures, timeout and cancellation. Completed category evidence survives sibling cancellation in sequential and parallel orchestration.
+- Tool catalog parsing recovers valid neighbors around malformed metadata, reports rejected entries instead of an empty successful list, and retains earlier-page inventory when pagination is cancelled.
+- AI-readiness inspection handles union types and boolean property schemas, matches required names case-sensitively, and no longer requires `minItems` merely because an array property is required. Finding catalog revision is now `2026-11-09.1`.
+- Calibration policy `2026-11-09.1` rejects one-class corpora and missing or duplicate sample IDs before default-blocking eligibility.
+- Raw RPC, POST and transport-probe requests now apply the selected authentication custom headers without mutating HttpClient defaults or restoring default credentials in explicit no-auth probes. Malformed-header diagnostics do not echo header values; captured request headers use canonical credential redaction, including cookies, passwords and credential-named headers.
+- Disabled or custom-only error-handling configurations no longer trigger an implicit raw error-code probe; unsupported custom scenarios remain visible without target contact.
+- Selected error-code checks now dispatch only their admitted payloads through HTTP and STDIO; local dispatch rejection remains inconclusive rather than target noncompliance.
+- Cancelled, unavailable and ambiguous HTTP tool outcomes no longer earn execution-pass credit. Partial category, scenario-pack and nested transport evidence survives interruption into canonical claims and reports, with consistent terminal summaries.
+- Runtime protocol/session/method headers cannot be overridden by auth headers; ambient runtime identity headers are rejected before contact. Raw JSON authentication evidence reflects the constructed request, and failed request construction disposes owned content.
+- Session comparisons use transient request snapshots; raw session IDs are excluded from canonical serialization. Controlled positive, negative and concurrent-session fixtures qualify propagation independently of redaction.
+- Raw RPC automatic retries are restricted to explicit discovery methods; initialization, tool calls and unknown methods are not replayed after uncertain timeout/503 outcomes.
+- Calibration eligibility compares unrounded rates, with deterministic culture/order-independent reasons and separately rounded display metrics.
+- The MCP wrapper now forwards protocol-era selections at the actual server boundary and propagates SDK cancellation into bounded CLI process ownership. Graceful shutdown waits for owned process/artifact cleanup; configuration failures clean temporary files without echoing exception payloads.
+- Local and CI validation now exercise the SDK-to-wrapper-to-actual-CLI path against an owned STDIO fixture with receiver-side Safe-method auditing and cancellation/shutdown PID checks.
+- Added an internal, versioned Windows Job Object supervision channel with atomic suspended assignment, explicit inherited-handle limits, overlapped control/output pipes, ready/resume admission and zero-active-process cleanup receipts. The wrapper rejects incompatible CLIs and has no taskkill/signal fallback. Native Windows qualification is a required release dependency and remains unobserved locally on macOS.
+
+These are foundation repairs, not completion of the enterprise recovery program. See [implementation status](docs/EnterpriseRecoveryProgress.md) for open requirements and qualification limits.
+
 ## 2.0.1 - 2026-11-06
 
 ### Added

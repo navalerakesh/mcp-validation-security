@@ -173,7 +173,7 @@ public class McpHttpClientInitializeTests
     }
 
     [Fact]
-    public async Task CallAsync_ShouldRetryTransient503AndSucceed()
+    public async Task CallAsync_ShouldNotReplayInitializeAfter503()
     {
         using var telemetry = ValidationObservability.BeginRun("retry-503", 10);
         var attempts = 0;
@@ -200,18 +200,19 @@ public class McpHttpClientInitializeTests
 
         var response = await client.CallAsync("https://example.test/mcp", "initialize", new { }, CancellationToken.None);
 
-        response.IsSuccess.Should().BeTrue();
-        attempts.Should().Be(2);
+        response.IsSuccess.Should().BeFalse();
+        response.StatusCode.Should().Be(503);
+        attempts.Should().Be(1);
         var metrics = telemetry.Complete(1000);
-        metrics.RequestsStarted.Should().Be(2);
-        metrics.RequestsCompleted.Should().Be(2);
+        metrics.RequestsStarted.Should().Be(1);
+        metrics.RequestsCompleted.Should().Be(1);
         metrics.RequestsFailed.Should().Be(1);
-        metrics.RetryCount.Should().Be(1);
-        metrics.RetryDelayMs.Should().BeGreaterThan(0);
+        metrics.RetryCount.Should().Be(0);
+        metrics.RetryDelayMs.Should().Be(0);
     }
 
     [Fact]
-    public async Task CallAsync_ShouldRetryTransientCancellationAndSucceed()
+    public async Task CallAsync_ShouldNotReplayInitializeAfterUncertainTimeout()
     {
         var attempts = 0;
         using var httpClient = new HttpClient(new CapturingHandler(_ =>
@@ -234,8 +235,9 @@ public class McpHttpClientInitializeTests
 
         var response = await client.CallAsync("https://example.test/mcp", "initialize", new { }, CancellationToken.None);
 
-        response.IsSuccess.Should().BeTrue();
-        attempts.Should().Be(2);
+        response.IsSuccess.Should().BeFalse();
+        response.StatusCode.Should().Be(-1);
+        attempts.Should().Be(1);
     }
 
     private sealed class CapturingHandler : HttpMessageHandler

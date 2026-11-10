@@ -20,10 +20,18 @@ public abstract class BaseValidator<T> where T : class
     /// <summary>
     /// Executes a validation operation with standard logging, timing, and error handling.
     /// </summary>
-    protected async Task<TResult> ExecuteValidationAsync<TResult>(
+    protected Task<TResult> ExecuteValidationAsync<TResult>(
         McpServerConfig serverConfig,
         string operationName,
         Func<CancellationToken, Task<TResult>> validationLogic,
+        CancellationToken cancellationToken)
+        where TResult : TestResultBase, new()
+        => ExecuteValidationAsync<TResult>(serverConfig, operationName, (_, token) => validationLogic(token), cancellationToken);
+
+    protected async Task<TResult> ExecuteValidationAsync<TResult>(
+        McpServerConfig serverConfig,
+        string operationName,
+        Func<TResult, CancellationToken, Task<TResult>> validationLogic,
         CancellationToken cancellationToken)
         where TResult : TestResultBase, new()
     {
@@ -56,7 +64,7 @@ public abstract class BaseValidator<T> where T : class
             var effectiveToken = timeoutTokenSource?.Token ?? cancellationToken;
 
             // 3. Execute Logic
-            result = await validationLogic(effectiveToken);
+            result = await validationLogic(result, effectiveToken);
 
             // Ensure duration is set if not already
             if (result.Duration == TimeSpan.Zero)

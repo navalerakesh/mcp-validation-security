@@ -9,6 +9,34 @@ public class ToolAiReadinessAnalyzerTests
 {
     private readonly ToolAiReadinessAnalyzer _analyzer = new();
 
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    [InlineData("{}")]
+    [InlineData("{\"type\":[\"string\",\"null\"]}")]
+    [InlineData("{\"type\":[\"array\",\"null\"],\"items\":true}")]
+    [InlineData("{\"type\":\"array\",\"items\":false}")]
+    [InlineData("{\"type\":\"array\",\"items\":{\"type\":\"string\"}}")]
+    public void AnalyzeCatalog_WithValidSchemaAlternatives_ShouldNotThrowOrRequireMinimumItems(string propertySchema)
+    {
+      var schema = ParseJsonElement("{\"type\":\"object\",\"properties\":{\"value\":" + propertySchema + "},\"required\":[\"value\"]}");
+      var analysis = _analyzer.AnalyzeCatalog([new ToolAiReadinessTarget { Name = "fixture", InputSchema = schema }], null);
+
+      analysis.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema);
+    }
+
+    [Theory]
+    [InlineData("value", true)]
+    [InlineData("Value", false)]
+    public void AnalyzeCatalog_ShouldMatchRequiredNamesExactly(string requiredName, bool expectsArrayAdvice)
+    {
+      var schema = ParseJsonElement("{\"properties\":{\"value\":{\"type\":\"array\"}},\"required\":[\"" + requiredName + "\"]}");
+      var analysis = _analyzer.AnalyzeCatalog([new ToolAiReadinessTarget { Name = "fixture", InputSchema = schema }], null);
+
+      analysis.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.AiReadinessRequiredArraySchema)
+        .Should().Be(expectsArrayAdvice);
+    }
+
     [Fact]
     public void AnalyzeCatalog_WithUnderspecifiedSchema_ShouldEmitReadinessFindings()
     {

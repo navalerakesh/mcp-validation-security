@@ -48,13 +48,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolDiscoveryAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Tool Discovery", async (ct) =>
+        return await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Discovery", async (result, ct) =>
         {
-            var result = new ToolTestResult
-            {
-                ToolResults = new List<IndividualToolResult>()
-            };
-
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedToolsListResponse = CreateResponseFromSnapshot(capabilitySnapshot);
             var snapshotTools = BuildToolListFromSnapshot(capabilitySnapshot?.Payload);
@@ -322,11 +317,18 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             // Treat the cached tools/list payload as the authoritative first page, then
             // continue paginated discovery so capability snapshots do not truncate catalogs.
-            var toolsList = ParseTools(toolsListResponse.RawJson);
-            var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
-            toolsList = paginationFetch.Tools;
+            var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse,
+                (tools, rejections) =>
+                {
+                    result.ToolsDiscovered = tools.Count;
+                    result.DiscoveredToolNames = tools.Select(tool => tool.Name).ToList();
+                    result.ToolsTestFailed = rejections.Count;
+                    result.Issues.AddRange(rejections.Except(result.Issues, StringComparer.Ordinal));
+                }, () => RecordMalformedCatalogItem(result), ct);
+            var toolsList = paginationFetch.Tools;
             toolsListPayloadChars = paginationFetch.TotalPayloadChars;
-            result.Issues.AddRange(paginationFetch.Issues);
+            result.Issues.AddRange(paginationFetch.Issues.Except(result.Issues, StringComparer.Ordinal));
+            result.ToolsTestFailed = paginationFetch.RejectedItems;
             ApplyPaginationFindings(result, paginationFetch, toolsList, toolsListPayloadChars / 4);
 
             if (toolsList.Count == 0 && snapshotTools != null && snapshotTools.Count > 0)
@@ -376,7 +378,18 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             if (toolsList.Count == 0)
             {
-                result.Status = TestStatus.Passed;
+                result.Status = result.ToolsTestFailed > 0 ? TestStatus.Failed : TestStatus.Passed;
+                if (result.ToolsTestFailed > 0)
+                {
+                    result.Message = "Tool catalog could not be fully recovered; malformed entries were rejected.";
+                    return result;
+                }
+                if (!paginationFetch.IsComplete)
+                {
+                    result.Status = TestStatus.Inconclusive;
+                    result.Message = "Tool catalog enumeration did not complete; an empty catalog has not been established.";
+                    return result;
+                }
                 result.ToolsTestPassed++;
                 result.Issues.Add(CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools)
                     ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
@@ -398,6 +411,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             foreach (var tool in toolsList)
             {
                 var toolResult = await ValidateIndividualToolAsync(serverConfig, tool, config, ct);
+                result.ToolResults.Add(toolResult);
+                ct.ThrowIfCancellationRequested();
                 ApplyGuidelineFindings(result, tool, toolResult, config.CapabilitySnapshot);
                 result.AiSafetyControlEvidence.AddRange(toolResult.AiSafetyControlEvidence);
 
@@ -409,8 +424,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     toolResult.ContentSafetyFindings.AddRange(safetyFindings);
                     result.ContentSafetyFindings.AddRange(safetyFindings);
                 }
-
-                result.ToolResults.Add(toolResult);
 
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
                 else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
@@ -432,6 +445,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             }
 
             result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
+            if (!paginationFetch.IsComplete && result.Status == TestStatus.Passed)
+            {
+                result.Status = TestStatus.Inconclusive;
+                result.Message = "Tool catalog enumeration did not complete; retained tool results cover only the observed portion.";
+            }
 
             // AI Readiness Analysis
             ApplyAiReadinessAnalysis(result, toolsList, toolsListResponse.RawJson, toolsListPayloadChars);
@@ -559,20 +577,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     }
                 }
             }
-            else if (toolCallResponse.StatusCode == 400)
+            else if (toolCallResponse.StatusCode is 400 or 404)
             {
-                // HTTP 400 = server validated input and rejected it.
-                // This is CORRECT behavior when we send dummy arguments.
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add("✅ Server correctly rejected invalid parameters (HTTP 400)");
-            }
-            else if (toolCallResponse.StatusCode == 404)
-            {
-                // 404 may indicate the tool doesn't accept the request path — still responsive
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add($"ℹ️ Server returned 404 — tool may require specific request routing");
+                result.Status = TestStatus.Inconclusive;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add($"Tool invocation returned HTTP {toolCallResponse.StatusCode}; routing or argument rejection does not establish successful execution.");
             }
             else if (toolCallResponse.StatusCode == 500)
             {
@@ -581,14 +590,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.ExecutionSuccessful = false;
                 result.Issues.Add("❌ Server crashed (500 Internal Server Error) on tool call with test parameters");
             }
-            else if (toolCallResponse.StatusCode < 0)
+            else if (toolCallResponse.StatusCode <= 0)
             {
-                // Negative status = network/timeout error.
-                // This is NOT a server compliance failure — it's a connectivity issue.
-                // We should NOT fail the tool for this.
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add($"⚠️ Network/timeout issue (HTTP {toolCallResponse.StatusCode}). Tool may require longer timeout or specific network access. Not a compliance failure.");
+                result.Status = TestStatus.Inconclusive;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool invocation did not produce an HTTP response; execution remains unverified.");
             }
             else
             {
@@ -600,10 +606,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
         catch (OperationCanceledException)
         {
-            // Timeout — not a compliance failure, it's an infrastructure issue
-            result.Status = TestStatus.Passed;
-            result.ExecutionSuccessful = true;
-            result.Issues.Add("⚠️ Tool call timed out. Tool may require longer timeout. Not a compliance failure.");
+            result.Status = ct.IsCancellationRequested ? TestStatus.Cancelled : TestStatus.Inconclusive;
+            result.ExecutionSuccessful = false;
+            result.Issues.Add("Tool invocation was cancelled or timed out; execution remains unverified.");
         }
         catch (Exception ex)
         {
@@ -1281,10 +1286,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolExecutionAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Tool Execution", async (ct) =>
+        return await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Execution", async (result, ct) =>
         {
-            var result = new ToolTestResult { ToolResults = new List<IndividualToolResult>() };
-
             // Discover tools first
             var listResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
@@ -1302,23 +1305,30 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 return result;
             }
 
-            var tools = ParseTools(listResponse.RawJson);
+            var parseIssues = new List<string>();
+            var tools = ParseTools(listResponse.RawJson, parseIssues, () => RecordMalformedCatalogItem(result));
+            result.ToolsDiscovered = tools.Count;
+            result.DiscoveredToolNames = tools.Select(tool => tool.Name).ToList();
+            result.ToolsTestFailed = parseIssues.Count;
+            result.Issues.AddRange(parseIssues.Distinct(StringComparer.Ordinal));
             if (tools.Count == 0)
             {
-                result.Status = TestStatus.Passed;
-                result.Message = "No tools to execute.";
+                result.Status = parseIssues.Count > 0 ? TestStatus.Failed : TestStatus.Passed;
+                result.Message = parseIssues.Count > 0 ? "Tool catalog could not be recovered." : "No tools to execute.";
                 return result;
             }
 
             // Execute each tool with schema-aware safe payloads
             foreach (var tool in tools)
             {
+                ct.ThrowIfCancellationRequested();
                 var toolResult = new IndividualToolResult
                 {
                     ToolName = tool.Name,
                     DiscoveredCorrectly = true,
                     MetadataValid = true
                 };
+                result.ToolResults.Add(toolResult);
 
                 try
                 {
@@ -1344,7 +1354,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         toolResult.ExecutionSuccessful = false;
                         toolResult.Issues.Add($"tools/call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(callResponse)})");
                     }
-                    else if (callResponse.IsSuccess || callResponse.StatusCode == 400)
+                    else if (callResponse.StatusCode <= 0 || callResponse.StatusCode is 400 or 404)
+                    {
+                        toolResult.Status = TestStatus.Inconclusive;
+                        toolResult.ExecutionSuccessful = false;
+                        toolResult.Issues.Add("Tool invocation did not establish the expected response; execution remains unverified.");
+                    }
+                    else if (callResponse.IsSuccess)
                     {
                         toolResult.Status = TestStatus.Passed;
                         toolResult.ExecutionSuccessful = true;
@@ -1356,14 +1372,21 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         toolResult.Issues.Add($"tools/call failed: HTTP {callResponse.StatusCode}");
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    toolResult.Status = ct.IsCancellationRequested ? TestStatus.Cancelled : TestStatus.Inconclusive;
+                    toolResult.ExecutionSuccessful = false;
+                    toolResult.Issues.Add("Tool invocation was cancelled or timed out; execution remains unverified.");
+                    ct.ThrowIfCancellationRequested();
+                }
                 catch (Exception ex)
                 {
-                    toolResult.Status = TestStatus.Failed;
+                    toolResult.Status = TestStatus.Error;
                     toolResult.ExecutionSuccessful = false;
-                    toolResult.Issues.Add($"tools/call exception: {ex.Message}");
+                    toolResult.Issues.Add("Tool invocation ended with a validator or transport error.");
+                    Logger.LogError("Tool invocation failed with {ExceptionType}", ex.GetType().Name);
                 }
 
-                result.ToolResults.Add(toolResult);
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
                 else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
             }
@@ -1378,6 +1401,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     private static TestStatus DetermineAggregateToolStatus(IEnumerable<IndividualToolResult> toolResults, int failedCount)
     {
         var materialized = toolResults.ToList();
+        if (materialized.Any(result => result.Status == TestStatus.Error)) return TestStatus.Error;
+        if (materialized.Any(result => result.Status == TestStatus.Cancelled)) return TestStatus.Cancelled;
         if (failedCount > 0)
         {
             return TestStatus.Failed;
@@ -1398,30 +1423,57 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateParameterValidationAsync(McpServerConfig serverConfig, string toolName, IEnumerable<ToolTestScenario> testScenarios, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, $"Parameter Validation: {toolName}", async (ct) =>
+        return await ExecuteValidationAsync<ToolTestResult>(serverConfig, $"Parameter Validation: {toolName}", async (result, ct) =>
         {
             await Task.CompletedTask;
-            var result = new ToolTestResult();
             result.Status = TestStatus.Skipped;
             result.Message = "Parameter validation not yet fully implemented";
             return result;
         }, cancellationToken);
     }
 
-    private List<ToolInfo> ParseTools(string? json)
+    private static void RecordMalformedCatalogItem(ToolTestResult result)
+    {
+        if (result.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.ToolListItemInvalid)) return;
+        result.Findings.Add(new ValidationFinding
+        {
+            RuleId = ValidationFindingRuleIds.ToolListItemInvalid,
+            Source = ValidationRuleSource.Spec,
+            Severity = ValidationFindingSeverity.High,
+            Category = "ToolDiscovery",
+            Component = "tools/list",
+            Summary = "A tool catalog item had an invalid object, name, description, title or annotation shape.",
+            Recommendation = "Return tool objects with string names, string titles/descriptions and correctly typed annotations."
+        });
+    }
+
+    private List<ToolInfo> ParseTools(string? json, List<string>? parseIssues = null, Action? reportMalformedItem = null)
     {
         var tools = new List<ToolInfo>();
-        if (string.IsNullOrEmpty(json)) return tools;
+        if (string.IsNullOrEmpty(json))
+        {
+            parseIssues?.Add("Tool catalog page rejected: missing JSON payload.");
+            return tools;
+        }
 
         try
         {
             using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("result", out var result) &&
+            if (doc.RootElement.ValueKind == JsonValueKind.Object &&
+                doc.RootElement.TryGetProperty("result", out var result) && result.ValueKind == JsonValueKind.Object &&
                 result.TryGetProperty("tools", out var toolsArray) &&
                 toolsArray.ValueKind == JsonValueKind.Array)
             {
                 foreach (var tool in toolsArray.EnumerateArray())
                 {
+                    if (tool.ValueKind != JsonValueKind.Object || !tool.TryGetProperty("name", out var toolName) ||
+                        toolName.ValueKind != JsonValueKind.String ||
+                        HasMalformedToolMetadata(tool))
+                    {
+                        parseIssues?.Add("Tool catalog item rejected: invalid name, description, title or annotation shape.");
+                        reportMalformedItem?.Invoke();
+                        continue;
+                    }
                     if (tool.TryGetProperty("name", out var name))
                     {
                         var info = new ToolInfo
@@ -1497,21 +1549,46 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     }
                 }
             }
+            else
+            {
+                parseIssues?.Add("Tool catalog page rejected: expected a result object containing a tools array.");
+            }
         }
-        catch (Exception ex)
+        catch (JsonException)
         {
-            Logger.LogError(ex, "Failed to parse tools list");
+            parseIssues?.Add("Tool catalog page rejected: invalid JSON.");
         }
         return tools;
+    }
+
+    private static bool HasMalformedToolMetadata(JsonElement tool)
+    {
+        foreach (var property in tool.EnumerateObject())
+        {
+            if (property.Name is "title" or "description" && property.Value.ValueKind != JsonValueKind.String)
+                return true;
+            if (property.Name != "annotations") continue;
+            if (property.Value.ValueKind != JsonValueKind.Object) return true;
+            foreach (var annotation in property.Value.EnumerateObject())
+            {
+                if (annotation.Name == "title" && annotation.Value.ValueKind != JsonValueKind.String) return true;
+                if (annotation.Name is "readOnlyHint" or "destructiveHint" or "openWorldHint" or "idempotentHint" &&
+                    annotation.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>
     /// Fetches all tools with pagination support (handles nextCursor per MCP spec).
     /// </summary>
     private async Task<ToolPaginationFetchResult> FetchAllToolsWithPaginationAsync(
-        string endpoint, AuthenticationConfig? auth, JsonRpcResponse initialResponse, CancellationToken ct)
+        string endpoint, AuthenticationConfig? auth, JsonRpcResponse initialResponse, Action<List<ToolInfo>, List<string>> retainInventory,
+        Action reportMalformedItem, CancellationToken ct)
     {
-        var allTools = ParseTools(initialResponse.RawJson);
+        var parseIssues = new List<string>();
+        var allTools = ParseTools(initialResponse.RawJson, parseIssues, reportMalformedItem);
+        retainInventory(allTools, parseIssues);
         var issues = new List<string>();
         var seenCursors = new HashSet<string>(StringComparer.Ordinal);
         var totalPayloadChars = initialResponse.RawJson?.Length ?? 0;
@@ -1545,16 +1622,18 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 break;
             }
 
-            var tools = ParseTools(response.RawJson);
+            var tools = ParseTools(response.RawJson, parseIssues, reportMalformedItem);
             allTools.AddRange(tools);
+            retainInventory(allTools, parseIssues);
             totalPayloadChars += response.RawJson?.Length ?? 0;
 
             cursor = ExtractNextCursor(response.RawJson);
         }
 
+        var isComplete = string.IsNullOrWhiteSpace(cursor) && parseIssues.Count == 0;
         if (pageCount > 1)
         {
-            issues.Add($"✅ Pagination: Fetched {allTools.Count} tools across {pageCount} pages");
+            issues.Add($"Pagination: retained {allTools.Count} tools after {pageCount} page attempts; enumeration {(isComplete ? "complete" : "incomplete")}.");
         }
 
         if (!string.IsNullOrWhiteSpace(cursor) && pageCount >= maxPages)
@@ -1562,13 +1641,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             issues.Add($"⚠️ Pagination warning: tools/list exceeded the validator safety limit of {maxPages} pages");
         }
 
+        issues.AddRange(parseIssues.Distinct(StringComparer.Ordinal));
         return new ToolPaginationFetchResult(
             allTools,
             issues,
             pageCount,
             paginationDetected,
             cursorLoopDetected,
-            totalPayloadChars);
+            totalPayloadChars,
+            parseIssues.Count,
+            isComplete);
     }
 
     private static string? ExtractNextCursor(string? rawJson)
@@ -1987,7 +2069,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         int PageCount,
         bool PaginationDetected,
         bool CursorLoopDetected,
-        long TotalPayloadChars);
+        long TotalPayloadChars,
+        int RejectedItems,
+        bool IsComplete);
 
     private static JsonRpcResponse? CreateResponseFromSnapshot(TransportResult<CapabilitySummary>? snapshot)
     {

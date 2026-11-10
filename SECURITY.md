@@ -53,6 +53,9 @@ When using MCP Validator against third-party or production-adjacent systems:
 - Use `--token` or `--interactive` only when the target is expected to require authentication.
 - In automation, prefer `MCPVAL_TOKEN` over `--token` so the credential is not exposed in process arguments. Never persist the variable or generated reports outside the intended secret/artifact boundary.
 - Configuration supports `authentication.tokenRef` with the `environment` provider. The local MCP adapter writes only this reference to temporary configuration and passes the value through the child environment; direct `token` remains a redacted 1.x compatibility input.
+- Runtime protocol/session/method identity must use the governed transport configuration, not ambient `HttpClient` default headers. Such defaults are rejected before dispatch; deliberate malformed headers belong only to explicitly admitted probe inputs.
+- Session propagation is compared transiently against the request's captured session. Raw session IDs are not serialized into canonical transport results.
+- Raw RPC retries are limited to explicit discovery methods. Tool calls, initialization and unknown operations are not automatically replayed after an uncertain timeout or retryable status. This is not a guarantee of exactly-once effects at the target.
 - Treat STDIO targets as arbitrary local executables. Run them only in a disposable environment without ambient credentials when the command is not fully trusted.
 - STDIO inherits only a minimal platform environment plus explicitly configured target variables. Protocol output and stderr are byte-bounded, and persisted stderr evidence is metadata-only. These controls are process hygiene, not a sandbox claim.
 - Set `--max-concurrency` conservatively for shared or rate-limited services.

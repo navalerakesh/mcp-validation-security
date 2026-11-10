@@ -58,7 +58,7 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
-    public const string CatalogVersion = "2026-11-06.1";
+    public const string CatalogVersion = "2026-11-09.1";
 
     private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
 
@@ -166,6 +166,7 @@ public static class ValidationFindingRuleIds
     public const string ToolListCursorLoopDetected = "AI.TOOL.PAGINATION.CURSOR_LOOP_DETECTED";
     public const string ToolDestructiveConfirmationGuidanceMissing = "AI.TOOL.SAFETY.CONFIRMATION_GUIDANCE_MISSING";
     public const string ToolNameInvalid = "MCP.TOOL.LIST.NAME_INVALID";
+    public const string ToolListItemInvalid = "MCP.TOOL.LIST.ITEM_INVALID";
     // Format constraints from MCP spec §5.1.1 are SHOULDs (1-128 chars, A-Z/a-z/0-9/_-./, etc.),
     // not MUSTs. Use this rule for whitespace/control-character/format issues; reserve
     // ToolNameInvalid for the schema-required missing/empty case.
@@ -281,6 +282,7 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing] = HeuristicRule(ValidationFindingRuleIds.ToolDestructiveConfirmationGuidanceMissing);
 
         descriptors[ValidationFindingRuleIds.ToolNameInvalid] = SpecRule(ValidationFindingRuleIds.ToolNameInvalid);
+        descriptors[ValidationFindingRuleIds.ToolListItemInvalid] = SpecRule(ValidationFindingRuleIds.ToolListItemInvalid);
         descriptors[ValidationFindingRuleIds.ToolNameFormatGuideline] = GuidelineRule(ValidationFindingRuleIds.ToolNameFormatGuideline);
         descriptors[ValidationFindingRuleIds.ToolInputSchemaMissing] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaMissing);
         descriptors[ValidationFindingRuleIds.ToolInputSchemaInvalid] = SpecRule(ValidationFindingRuleIds.ToolInputSchemaInvalid);

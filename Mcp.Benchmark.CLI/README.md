@@ -86,6 +86,24 @@ dotnet run --project Mcp.Benchmark.CLI -- discover \
   --allow-host example.test
 ```
 
+## Configuration Files
+
+An explicitly supplied configuration file must exist, be a regular non-symlink file, and fit the 1 MiB input limit. Configuration JSON must be an object with at most 64 levels of nesting. Malformed JSON, unknown fields, duplicate fields (including casing aliases), and null required sections fail before target contact; omitting the file still uses defaults.
+
+Configuration field names accept casing aliases, including `server`/`Server` and `headers`/`Headers`. This does not lowercase dictionary keys: environment variables and arbitrary parameter names retain their case. Duplicate HTTP header names are rejected case-insensitively. Nullable settings remain nullable; non-nullable settings and string dictionary values must not explicitly be null.
+
+This is stricter than 2.0.1, which could silently ignore unknown fields or a missing file. Remove misspelled or duplicated fields instead of relying on last-value-wins behavior. The same reader is used by validation, health/discovery configuration and offline report configuration. Diagnostics do not include configuration values or unrecognized key text.
+
+These checks do not yet add a versioned configuration schema, per-setting provenance, or a full migration command. See the [implementation status](../docs/EnterpriseRecoveryProgress.md) for the remaining work.
+
+## Internal Windows Supervision
+
+The local MCP adapter uses a versioned internal CLI channel on Windows to own CLI workers and their descendants in an unnamed Job Object. It is not a user-facing command. The worker is created suspended with creation-time job assignment and an explicit three-handle stdio inheritance list; the job handle is not inherited. Parent control and bounded output use owned overlapped pipes.
+
+The protocol requires compatible capability negotiation and a post-creation ready/resume exchange. Deadlines include creation and admission. Cancellation, parent loss, output failure or worker exit trigger job cleanup; only observed zero active job processes and drained output can produce a confirmed terminal receipt. Kill-on-close is a safety mechanism, not completion evidence. Windows 10 / Server 2016 or later is required; nested-job restrictions fail closed without breakaway flags.
+
+Native Windows CI is a release dependency and rejects missing, failed or skipped native evidence. Portable compilation and mock tests do not establish Windows acceptance. Job Objects are not a sandbox; externally brokered processes are outside the containment claim. See [implementation status](../docs/EnterpriseRecoveryProgress.md).
+
 ## Design Guardrails
 
 - Keep this project thin. Command handlers should translate CLI input into configuration and delegate real work to shared services.

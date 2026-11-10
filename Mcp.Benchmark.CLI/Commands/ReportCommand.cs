@@ -203,12 +203,11 @@ public class ReportCommand(
     /// <returns>Report configuration or default configuration if no file provided.</returns>
     private async Task<ReportingConfig> LoadReportConfigurationAsync(FileInfo? configFile)
     {
-        if (configFile?.Exists == true)
+        if (configFile is not null)
         {
             _logger.LogDebug("Loading report configuration from: {ConfigFile}", configFile.FullName);
-            var json = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
-            var fullConfig = JsonSerializer.Deserialize<McpValidatorConfiguration>(json);
-            return fullConfig?.Reporting ?? new ReportingConfig();
+            var fullConfig = await BoundedArtifactReader.ReadConfigurationAsync(configFile).ConfigureAwait(false);
+            return fullConfig.Reporting;
         }
 
         return new ReportingConfig();

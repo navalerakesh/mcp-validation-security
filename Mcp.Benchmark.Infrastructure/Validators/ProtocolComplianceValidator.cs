@@ -42,9 +42,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     public async Task<ComplianceTestResult> ValidateJsonRpcComplianceAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "JSON-RPC Compliance", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "JSON-RPC Compliance", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
             var ruleContext = new ProtocolValidationContext(_httpClient, serverConfig.Endpoint!);
 
             if (!config.TestMessageFormat && !config.TestNotifications)
@@ -161,20 +160,38 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             }
 
             var streamableHttpTransport = ShouldValidateStreamableHttpTransport(serverConfig, protocolFeatures.NegotiatedProtocolVersion)
-                ? protocolFeatures.Era == McpProtocolEra.Modern
-                    ? await ValidateModernHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, config.ModernDiscovery, ct)
-                    : await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
+                ? new StreamableHttpTransportTestResult()
                 : null;
             result.StreamableHttpTransport = streamableHttpTransport;
 
             var stdioTransport = ShouldValidateStdioTransport(serverConfig)
-                ? protocolFeatures.Era == McpProtocolEra.Modern
-                    ? await ValidateModernStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
-                    : await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, ct)
+                ? new StdioTransportTestResult()
                 : null;
             result.StdioTransport = stdioTransport;
+            try
+            {
+                if (streamableHttpTransport is not null)
+                {
+                    if (protocolFeatures.Era == McpProtocolEra.Modern)
+                        await ValidateModernHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, config.ModernDiscovery, streamableHttpTransport, ct);
+                    else
+                        await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, streamableHttpTransport, ct);
+                }
+                if (stdioTransport is not null)
+                {
+                    if (protocolFeatures.Era == McpProtocolEra.Modern)
+                        await ValidateModernStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, stdioTransport, ct);
+                    else
+                        await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, stdioTransport, ct);
+                }
+            }
+            finally
+            {
+                if (streamableHttpTransport is not null) ApplyStreamableHttpTransportFindings(result, result.Violations, streamableHttpTransport);
+                if (stdioTransport is not null) ApplyStdioTransportFindings(result, result.Violations, stdioTransport);
+            }
 
-            var violations = new List<ComplianceViolation>();
+            var violations = result.Violations;
 
             // Calculate score early to determine violation severity
             var preliminaryScores = new[] {
@@ -315,16 +332,6 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     isHighCompliance ? ViolationSeverity.Low : ViolationSeverity.High,
                     ValidationConstants.Categories.JsonRpcCompliance,
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
-            }
-
-            if (streamableHttpTransport is not null)
-            {
-                ApplyStreamableHttpTransportFindings(result, violations, streamableHttpTransport);
-            }
-
-            if (stdioTransport is not null)
-            {
-                ApplyStdioTransportFindings(result, violations, stdioTransport);
             }
 
             var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
@@ -482,14 +489,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         McpServerConfig serverConfig,
         string protocolVersion,
         IReadOnlyCollection<JsonRpcErrorTest> skippedRawStdioErrorTests,
+        StdioTransportTestResult result,
         CancellationToken ct)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StdioTransportTestResult
-        {
-            ProtocolVersion = normalizedVersion
-        };
+        result.ProtocolVersion = normalizedVersion;
 
         var messageResponse = await _httpClient.SendStdioTransportProbeAsync(
             new StdioTransportProbeRequest
@@ -577,12 +582,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     private async Task<StdioTransportTestResult> ValidateModernStdioTransportAsync(
         McpServerConfig serverConfig,
         string protocolVersion,
+        StdioTransportTestResult result,
         CancellationToken cancellationToken)
     {
         const string subscriptionId = "mcpval-subscription-stdio";
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StdioTransportTestResult { ProtocolVersion = normalizedVersion };
+        result.ProtocolVersion = normalizedVersion;
         var request = CreateModernSubscriptionEnvelope(normalizedVersion, subscriptionId);
         var acknowledgment = await _httpClient.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
         {
@@ -635,14 +641,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return result;
     }
 
-    private async Task<StreamableHttpTransportTestResult> ValidateStreamableHttpTransportAsync(McpServerConfig serverConfig, string protocolVersion, CancellationToken ct)
+    private async Task<StreamableHttpTransportTestResult> ValidateStreamableHttpTransportAsync(McpServerConfig serverConfig, string protocolVersion, StreamableHttpTransportTestResult result, CancellationToken ct)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StreamableHttpTransportTestResult
-        {
-            ProtocolVersion = normalizedVersion
-        };
+        result.ProtocolVersion = normalizedVersion;
 
         var initializeResponse = await _httpClient.SendHttpTransportProbeAsync(
             CreateTransportProbeRequest(
@@ -693,8 +696,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
         if (!string.IsNullOrWhiteSpace(result.SessionId) && result.SessionIdVisibleAscii == true)
         {
-            var propagated = notificationResponse.RequestHeaders.TryGetValue("MCP-Session-Id", out var propagatedSessionId) &&
-                             string.Equals(propagatedSessionId, result.SessionId, StringComparison.Ordinal);
+            var propagated = notificationResponse.RequestSessionIdMatchesSession;
             result.Probes.Add(CreateTransportProbe(
                 "session-id-propagated",
                 ValidationConstants.CheckIds.HttpSessionPropagation,
@@ -703,7 +705,9 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 "After initialization returns MCP-Session-Id, subsequent requests in the same logical session must carry that session id.",
                 "The follow-up notification request includes the same MCP-Session-Id value.",
                 notificationResponse,
-                propagated ? "Session id was propagated." : "Follow-up request did not include the initialized MCP-Session-Id value.",
+                propagated == true ? "Session id was propagated." : propagated == false
+                    ? "Follow-up request did not include the initialized MCP-Session-Id value."
+                    : "Session propagation evidence was unavailable from the transport.",
                 ViolationSeverity.High));
 
             var missingSessionResponse = await _httpClient.SendHttpTransportProbeAsync(
@@ -803,11 +807,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         McpServerConfig serverConfig,
         string protocolVersion,
         ModernDiscoveryEvidence? modernDiscovery,
+        StreamableHttpTransportTestResult result,
         CancellationToken cancellationToken)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StreamableHttpTransportTestResult { ProtocolVersion = normalizedVersion };
+        result.ProtocolVersion = normalizedVersion;
 
         var matchingResponse = await _httpClient.SendHttpTransportProbeAsync(
             CreateTransportProbeRequest(
@@ -2073,10 +2078,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     public async Task<ComplianceTestResult> ValidateInitializationAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Initialization Compliance", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "Initialization Compliance", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
-
             // Per MCP spec: client sends initialize with its preferred protocolVersion.
             // Server responds with the version it supports (may differ).
             // We test version negotiation by requesting the latest spec version,
@@ -2228,9 +2231,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     public async Task<ComplianceTestResult> ValidateNotificationHandlingAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Notification Handling", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "Notification Handling", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
             var probe = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
 
             if (probe.IsCompliant == null)

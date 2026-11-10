@@ -806,10 +806,9 @@ public class ValidateCommand
     {
         McpValidatorConfiguration configuration;
 
-        if (configFile?.Exists == true)
+        if (configFile is not null)
         {
-            var json = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
-            configuration = JsonSerializer.Deserialize<McpValidatorConfiguration>(json) ?? new McpValidatorConfiguration();
+            configuration = await BoundedArtifactReader.ReadConfigurationAsync(configFile).ConfigureAwait(false);
         }
         else
         {

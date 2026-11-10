@@ -28,7 +28,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
             var schema = tool.InputSchema;
             var requiredProperties = GetRequiredPropertyNames(schema);
 
-            if (schema.ValueKind == JsonValueKind.Undefined ||
+            if (schema.ValueKind != JsonValueKind.Object ||
                 !schema.TryGetProperty("properties", out var properties) ||
                 properties.ValueKind != JsonValueKind.Object ||
                 properties.EnumerateObject().Count() == 0)
@@ -50,12 +50,18 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 paramCount++;
                 var isRequired = requiredProperties.Contains(property.Name);
 
+                if (property.Value.ValueKind != JsonValueKind.Object)
+                {
+                    undescribedParams++;
+                    continue;
+                }
+
                 if (!property.Value.TryGetProperty("description", out _))
                 {
                     undescribedParams++;
                 }
 
-                if (property.Value.TryGetProperty("type", out var type) && type.GetString() == "string")
+                if (HasType(property.Value, "string"))
                 {
                     var looksEnumerated = LooksLikeEnumeratedChoice(property.Name, property.Value);
                     var looksStructured = LooksLikeStructuredFormatValue(property.Name, property.Value);
@@ -80,7 +86,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                     }
                 }
 
-                if (isRequired && IsArrayType(property.Value) && MissingRequiredArrayShape(property.Value))
+                if (isRequired && HasType(property.Value, "array") && MissingRequiredArrayShape(property.Value))
                 {
                     requiredArrayParamsMissingShape++;
                 }
@@ -119,8 +125,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 ValidationFindingRuleIds.AiReadinessRequiredArraySchema,
                 ValidationFindingSeverity.Medium,
                 tool.Name,
-                $"Tool '{tool.Name}': {requiredArrayParamsMissingShape}/{paramCount} required array parameters lack item schemas or minItems guidance",
-                "Required array parameters should declare items schemas and minItems when empty arrays are not meaningful.");
+                $"Tool '{tool.Name}': {requiredArrayParamsMissingShape}/{paramCount} required array parameters lack item schema guidance",
+                "Consider item schemas when array contents have a defined shape. Empty arrays remain valid unless the schema constrains their length.");
 
             AddFindingIfAny(
                 findings,
@@ -397,47 +403,34 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
     private static HashSet<string> GetRequiredPropertyNames(JsonElement schema)
     {
-        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        try
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        if (schema.ValueKind == JsonValueKind.Object &&
+            schema.TryGetProperty("required", out var required) &&
+            required.ValueKind == JsonValueKind.Array)
         {
-            if (schema.ValueKind != JsonValueKind.Undefined &&
-                schema.TryGetProperty("required", out var required) &&
-                required.ValueKind == JsonValueKind.Array)
+            foreach (var entry in required.EnumerateArray())
             {
-                foreach (var entry in required.EnumerateArray())
-                {
-                    if (entry.ValueKind == JsonValueKind.String)
-                    {
-                        var name = entry.GetString();
-                        if (!string.IsNullOrWhiteSpace(name))
-                        {
-                            names.Add(name);
-                        }
-                    }
-                }
+                if (entry.ValueKind == JsonValueKind.String)
+                    names.Add(entry.GetString()!);
             }
-        }
-        catch
-        {
         }
 
         return names;
     }
 
-    private static bool IsArrayType(JsonElement propertySchema)
+    private static bool HasType(JsonElement propertySchema, string expectedType)
     {
-        return propertySchema.TryGetProperty("type", out var type) && type.GetString() == "array";
+        if (propertySchema.ValueKind != JsonValueKind.Object || !propertySchema.TryGetProperty("type", out var type))
+            return false;
+        return type.ValueKind == JsonValueKind.String ? type.ValueEquals(expectedType) :
+            type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Any(candidate =>
+                candidate.ValueKind == JsonValueKind.String && candidate.ValueEquals(expectedType));
     }
 
     private static bool MissingRequiredArrayShape(JsonElement propertySchema)
     {
-        var hasItems = propertySchema.TryGetProperty("items", out var items) && items.ValueKind is JsonValueKind.Object or JsonValueKind.Array;
-        var hasMinItems = propertySchema.TryGetProperty("minItems", out var minItems) &&
-            minItems.ValueKind == JsonValueKind.Number &&
-            minItems.TryGetInt32(out _);
-
-        return !hasItems || !hasMinItems;
+        return !propertySchema.TryGetProperty("items", out var items) ||
+            items.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array or JsonValueKind.True or JsonValueKind.False);
     }
 
     private static bool HasEnumLikeConstraint(JsonElement propertySchema)

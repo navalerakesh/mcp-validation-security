@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test, { after } from "node:test";
@@ -129,7 +129,7 @@ test("runCli keeps generated bearer tokens out of argv", async () => {
         assert.equal(existsSync(invocation.configPath), false);
         assert.equal(existsSync(dirname(invocation.configPath)), false);
       }),
-      { numRuns: 25 },
+      { numRuns: 25, seed: 5063504 },
     );
   } finally {
     if (previousCliPath) {
@@ -196,6 +196,50 @@ test("runCli preserves result artifacts on non-zero validate exit", async () => 
     } else {
       delete process.env[config.cliPathEnvVar];
     }
+  }
+});
+
+test("pre-launch cancellation and configuration failure leave no temporary artifacts", async () => {
+  const mockCliPath = await createMockCli();
+  const root = await mkdtemp(join(tmpdir(), "mcpval-runner-isolation-"));
+  temporaryRoots.push(root);
+  const keys = [config.cliPathEnvVar, "TMPDIR", "TMP", "TEMP"];
+  const previous = new Map(keys.map(key => [key, process.env[key]]));
+  process.env[config.cliPathEnvVar] = mockCliPath;
+  for (const key of ["TMPDIR", "TMP", "TEMP"]) process.env[key] = root;
+  try {
+    const cancellation = new AbortController();
+    cancellation.abort();
+    const cancelled = await runCli({ command: "validate", signal: cancellation.signal });
+    assert.equal(cancelled.exitCode, 124);
+    assert.equal(cancelled.stdout, "");
+    assert.deepEqual(await readdir(root), []);
+    const invalid = await runCli({ command: "validate", configJson: { toJSON() { throw new Error("synthetic-config-canary"); } } });
+    assert.equal(invalid.exitCode, 70);
+    assert.ok(!invalid.stderr.includes("synthetic-config-canary"));
+    assert.deepEqual(await readdir(root), []);
+  } finally {
+    for (const [key, value] of previous) {
+      if (value === undefined) delete process.env[key]; else process.env[key] = value;
+    }
+  }
+});
+
+test("CLI output budget terminates the owned process and retains bounded output", { timeout: 15_000 }, async () => {
+  const root = await mkdtemp(join(tmpdir(), "mcpval-output-bound-"));
+  temporaryRoots.push(root);
+  const script = join(root, "flood.mjs");
+  await writeFile(script, `#!/usr/bin/env node\nprocess.stdout.write("x".repeat(${config.maximumCliOutputBytes + 65536})); setInterval(() => {}, 1000);\n`);
+  await chmod(script, 0o755);
+  const previous = process.env[config.cliPathEnvVar];
+  process.env[config.cliPathEnvVar] = script;
+  try {
+    const result = await runCli({ command: "validate" });
+    assert.equal(result.exitCode, 70);
+    assert.ok(Buffer.byteLength(result.stdout) <= config.maximumCliOutputBytes);
+    assert.match(result.stderr, /output exceeded/);
+  } finally {
+    if (previous === undefined) delete process.env[config.cliPathEnvVar]; else process.env[config.cliPathEnvVar] = previous;
   }
 });
 

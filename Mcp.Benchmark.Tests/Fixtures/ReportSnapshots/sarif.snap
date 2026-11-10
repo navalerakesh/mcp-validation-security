@@ -241,7 +241,7 @@
             "requirementLevel": "Policy",
             "outcome": "ReviewRequired",
             "confidence": "Medium",
-            "sourceRevision": "2026-11-06.1",
+            "sourceRevision": "2026-11-09.1",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -277,7 +277,7 @@
             "requirementLevel": "Policy",
             "outcome": "ReviewRequired",
             "confidence": "Medium",
-            "sourceRevision": "2026-11-06.1",
+            "sourceRevision": "2026-11-09.1",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -313,7 +313,7 @@
             "requirementLevel": "Should",
             "outcome": "ReviewRequired",
             "confidence": "High",
-            "sourceRevision": "2026-11-06.1",
+            "sourceRevision": "2026-11-09.1",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -387,7 +387,7 @@
             "requirementLevel": "SecurityControl",
             "outcome": "Violated",
             "confidence": "High",
-            "sourceRevision": "2026-11-06.1",
+            "sourceRevision": "2026-11-09.1",
             "sourceSha256": null,
             "evidenceIds": [
               "probe-prompt-get-reflection-200"

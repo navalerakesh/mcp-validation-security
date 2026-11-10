@@ -31,6 +31,11 @@ export const config = {
 
   /** Default timeout for CLI execution in milliseconds */
   defaultTimeoutMs: 120_000,
+  cliVersionTimeoutMs: 10_000,
+  maximumCliOutputBytes: 1024 * 1024,
+  processTerminationGraceMs: 2_000,
+  processCleanupTimeoutMs: 7_500,
+  processExitPollMs: 25,
 
   /** Explicit authority for the wrapper to launch user-supplied local MCP commands. */
   localExecution: {

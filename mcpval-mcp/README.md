@@ -166,6 +166,7 @@ On Windows, use the full path to `mcpval.exe`.
 
 - Authentication tokens are passed to the CLI through `MCPVAL_TOKEN`; temporary config contains only an environment `tokenRef`, never the token value or a command-line argument.
 - Temporary config and artifact directories are removed after each tool execution.
+- SDK cancellation propagates to the owned CLI process. CLI output is bounded; graceful wrapper shutdown waits for active CLI cleanup. POSIX runs require observed process-group exit. Windows uses the matching CLI's internal Job Object supervisor with creation-time ownership and explicit resume admission; incompatible CLIs fail with upgrade guidance rather than falling back to taskkill or signals. Cleanup requires a zero-active-process receipt and supervisor exit. These mechanisms are process hygiene, not a sandbox. Windows-native acceptance remains pending the dedicated CI gate.
 - `validate` keeps structured result output when the underlying CLI exits non-zero but still emits validation artifacts, so agents can still inspect the real findings.
 - `structuredContent.exitCode` preserves the CLI's stable V2 exit contract (`0`, `1`, `2`, `64`, `70`, `75`, or `124`) and includes explicit untrusted-content metadata for target-derived evidence.
 - Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
@@ -184,6 +185,18 @@ Once configured, ask your AI agent:
 - "Validate the MCP server at <https://my-server.com/mcp>"
 - "Check if <https://api.example.com/mcp> is healthy"
 - "What tools does this MCP server expose?"
+
+## Local Integration Gate
+
+The full repository validation script and Build & Test CI job build the CLI and wrapper, then run the SDK-to-wrapper-to-CLI integration test against the repository's controlled STDIO fixture. It checks canonical inventory output, actual target-side discovery/non-execution, numeric exits, protocol-era forwarding, request cancellation, graceful host shutdown and temporary-artifact cleanup with an isolated home and minimal environment. PID observations must confirm owned CLI/fixture termination before cleanup is accepted.
+
+To run it separately from the repository root after building both projects:
+
+```bash
+MCPVAL_INTEGRATION_CLI="$PWD/Mcp.Benchmark.CLI/bin/Debug/net8.0/mcpval" npm --prefix mcpval-mcp run test:integration
+```
+
+Use the `.exe` apphost on Windows. The gate fails rather than skips when its CLI prerequisite is missing. `MCPVAL_INTEGRATION_SERVER` can select an installed package's server entry point for packed-package qualification. This local synthetic test is not certification of external servers or proof of cross-platform behavior.
 
 ## Links
 

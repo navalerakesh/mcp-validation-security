@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test tests/cli-runner.test.ts tests/handlers.test.ts tests/server-surface.test.ts tests/strict-stdio-server-transport.test.ts",
+    "test": "tsx --test tests/cli-runner.test.ts tests/cli-lifecycle.test.ts tests/windows-supervisor.test.ts tests/handlers.test.ts tests/server-surface.test.ts tests/strict-stdio-server-transport.test.ts",
+    "test:integration": "tsx --test tests/cli-integration.test.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",

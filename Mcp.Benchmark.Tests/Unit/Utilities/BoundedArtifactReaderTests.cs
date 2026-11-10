@@ -10,6 +10,64 @@ public sealed class BoundedArtifactReaderTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"mcpval-artifact-reader-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData("null")]
+    [InlineData("[]")]
+    [InlineData("{\"unknown-secret-name\":\"secret-value\"}")]
+    [InlineData("{\"server\":null}")]
+    [InlineData("{\"validation\":{\"categories\":null}}")]
+    [InlineData("{\"server\":{\"endpoint\":\"first\",\"Endpoint\":\"second\"}}")]
+    [InlineData("{\"server\":{\"Headers\":{},\"headers\":{}}}")]
+    [InlineData("{\"server\":{\"headers\":{\"X-Route\":\"first\",\"x-route\":\"second\"}}}")]
+    [InlineData("{\"server\":{\"headers\":{\"X-Route\":null}}}")]
+    [InlineData("{\"policy\":{\"suppressions\":[null]}}")]
+    [InlineData("{\"server\":{\"timeoutMs\":\"secret-value\"}}")]
+    [InlineData("{\"server\":{\"unknown-secret-name\":true}}")]
+    [InlineData("{\"server\":{\"transport\":null}}")]
+    [InlineData("{\"server\":{\"endpoint\":\"secret-value\"},}")]
+    public async Task ReadConfigurationAsync_ShouldRejectAmbiguousOrMalformedInputWithoutEchoingValues(string json)
+    {
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "configuration.json"));
+        await File.WriteAllTextAsync(file.FullName, json);
+
+        var read = () => BoundedArtifactReader.ReadConfigurationAsync(file);
+
+        var failure = await read.Should().ThrowAsync<CliUsageException>();
+        failure.Which.ToString().Should().NotContain("secret-value").And.NotContain("unknown-secret-name");
+    }
+
+    [Theory]
+    [InlineData("server", "headers")]
+    [InlineData("Server", "Headers")]
+    public async Task ReadConfigurationAsync_ShouldAcceptFieldAliasesAndPreserveDictionaryKeyCase(string serverKey, string headersKey)
+    {
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "configuration.json"));
+        await File.WriteAllTextAsync(file.FullName, $$$$"""
+            {"{{{{serverKey}}}}":{"endpoint":"https://example.invalid/mcp","{{{{headersKey}}}}":{"X-Route":"route"},"Environment":{"KEY":"upper","key":"lower"}}}
+            """);
+
+        var result = await BoundedArtifactReader.ReadConfigurationAsync(file);
+
+        result.Server.Endpoint.Should().Be("https://example.invalid/mcp");
+        result.Server.Headers.Should().ContainKey("X-Route").WhoseValue.Should().Be("route");
+        result.Server.Environment.Should().HaveCount(2).And.ContainKey("KEY").And.ContainKey("key");
+    }
+
+    [Fact]
+    public async Task ReadConfigurationAsync_ShouldAcceptSerializedDefaults()
+    {
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "configuration.json"));
+        await File.WriteAllTextAsync(file.FullName, JsonSerializer.Serialize(new McpValidatorConfiguration()));
+
+        var result = await BoundedArtifactReader.ReadConfigurationAsync(file);
+
+        result.Server.Should().NotBeNull();
+        result.Validation.Categories.Should().NotBeNull();
+    }
+
     [Fact]
     public async Task ReadValidationResultAsync_ShouldRequireExplicitCompatibleContract()
     {

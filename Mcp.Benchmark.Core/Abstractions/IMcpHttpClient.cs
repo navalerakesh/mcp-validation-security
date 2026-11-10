@@ -59,6 +59,9 @@ public interface IMcpHttpClient
     /// </summary>
     Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default);
 
+    Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, JsonRpcErrorProbeSelection selection, CancellationToken cancellationToken = default)
+        => throw new NotSupportedException("This transport does not implement selective error probing.");
+
     /// <summary>
     /// Forces a client-observed timeout during an MCP request and verifies the endpoint remains responsive afterwards.
     /// </summary>

@@ -10,12 +10,71 @@ namespace Mcp.Benchmark.Tests.Unit;
 
 public class ErrorHandlingValidatorUnitTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ValidateErrorHandlingAsync_MixedUnavailableAndObservedResponse_ShouldPreserveBothMeanings(bool observedValid)
+    {
+        var client = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        client.Setup(http => http.ValidateErrorCodesAsync(It.IsAny<string>(),
+                JsonRpcErrorProbeSelection.ParseError | JsonRpcErrorProbeSelection.MethodNotFound, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcErrorValidationResult
+            {
+                Tests =
+                [
+                    new JsonRpcErrorTest { ExpectedErrorCode = -32700, ActualResponse = new JsonRpcResponse { StatusCode = -1 } },
+                    CreateErrorTest("method", -32601, observedValid, 200, observedValid
+                        ? """{"jsonrpc":"2.0","id":1,"error":{"code":-32601,"message":"Method not found"}}"""
+                        : """{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Server error"}}""")
+                ]
+            });
+        var validator = new ErrorHandlingValidator(Mock.Of<ILogger<ErrorHandlingValidator>>(), client.Object);
+
+        var result = await validator.ValidateErrorHandlingAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ErrorHandlingConfig { TestInvalidMethods = true, TestMalformedJson = true, TestGracefulDegradation = false,
+                TestTimeoutHandling = false, TestConnectionInterruption = false });
+
+        result.Status.Should().Be(observedValid ? TestStatus.Inconclusive : TestStatus.Failed);
+        result.ErrorScenariosTestCount.Should().Be(1);
+        result.ErrorScenariosHandledCorrectly.Should().Be(observedValid ? 1 : 0);
+        result.Findings.Count(finding => finding.EffectiveSource == ValidationRuleSource.Spec).Should().Be(observedValid ? 0 : 1);
+        result.Findings.Should().Contain(finding => finding.RuleId == "MCP.GUIDELINE.ERROR_HANDLING.PROBE_NOT_EXECUTED");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateErrorHandlingAsync_WithNoExecutableProbes_ShouldNotContactTarget(bool customScenario)
+    {
+        var httpClient = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var validator = new ErrorHandlingValidator(Mock.Of<ILogger<ErrorHandlingValidator>>(), httpClient.Object);
+        var configuration = new ErrorHandlingConfig
+        {
+            TestInvalidMethods = false,
+            TestMalformedJson = false,
+            TestGracefulDegradation = false,
+            TestTimeoutHandling = false,
+            TestConnectionInterruption = false
+        };
+        if (customScenario) configuration.CustomErrorScenarios.Add(new());
+
+        var result = await validator.ValidateErrorHandlingAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }, configuration);
+
+        httpClient.Invocations.Should().BeEmpty();
+        result.Status.Should().Be(TestStatus.Skipped);
+        result.ErrorScenariosTestCount.Should().Be(0);
+        if (customScenario)
+            result.Findings.Should().Contain(finding => finding.RuleId == "MCP.GUIDELINE.ERROR_HANDLING.CUSTOM_SCENARIOS_NOT_EXECUTED");
+    }
+
     [Fact]
     public async Task ValidateErrorHandlingAsync_WithSupportedProbeResults_ShouldPassAllConfiguredScenarios()
     {
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
             {
                 Tests = new List<JsonRpcErrorTest>
@@ -53,7 +112,7 @@ public class ErrorHandlingValidatorUnitTests
     {
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
             {
                 Tests = new List<JsonRpcErrorTest>
@@ -91,7 +150,7 @@ public class ErrorHandlingValidatorUnitTests
     {
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
             {
                 Tests = new List<JsonRpcErrorTest>
@@ -131,7 +190,7 @@ public class ErrorHandlingValidatorUnitTests
         // surfaced as a Spec/High protocol violation.
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
             {
                 Tests = new List<JsonRpcErrorTest>
@@ -168,7 +227,7 @@ public class ErrorHandlingValidatorUnitTests
     {
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
             {
                 Tests = new List<JsonRpcErrorTest>
@@ -231,7 +290,7 @@ public class ErrorHandlingValidatorUnitTests
     {
         var httpClient = new Mock<IMcpHttpClient>();
         httpClient
-            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<JsonRpcErrorProbeSelection>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult());
         httpClient
             .Setup(client => client.ProbeTimeoutRecoveryAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))

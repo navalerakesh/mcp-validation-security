@@ -116,9 +116,8 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
 
     public async Task<PromptTestResult> ValidatePromptDiscoveryAsync(McpServerConfig serverConfig, PromptTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Prompt Discovery", async (ct) =>
+        return await ExecuteValidationAsync<PromptTestResult>(serverConfig, "Prompt Discovery", async (result, ct) =>
         {
-            var result = new PromptTestResult();
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.PromptListResponse);
 

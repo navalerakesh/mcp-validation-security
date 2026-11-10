@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Globalization;
 using FluentAssertions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
@@ -8,6 +9,43 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class RuleCalibrationEvaluatorTests
 {
+    [Theory]
+    [InlineData(1899, 100, 1900, 0)]
+    [InlineData(8999, 0, 10000, 1000)]
+    [InlineData(10000, 100, 1899, 0)]
+    public void Evaluate_JustOutsideThreshold_ShouldNotQualifyAfterDisplayRounding(int truePositive, int falsePositive, int trueNegative, int falseNegative)
+    {
+        var decision = RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", BuildSamples(truePositive, falsePositive, trueNegative, falseNegative));
+
+        decision.DefaultBlockingEligible.Should().BeFalse();
+        decision.Reasons.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Evaluate_ShouldBeInvariantUnderCultureAndSampleOrder()
+    {
+        var samples = BuildSamples(20, 30, 40, 10).Concat(
+        [
+            Sample("upper", "RULE.BOUNDARY", false, false, "2025-11-25", "HTTP"),
+            Sample("lower", "RULE.BOUNDARY", false, false, "2025-11-25", "http")
+        ]).ToArray();
+        var originalCulture = CultureInfo.CurrentCulture;
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var expected = JsonSerializer.Serialize(RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", samples));
+            foreach (var culture in new[] { "en-US", "fr-FR", "tr-TR" })
+            {
+                CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(culture);
+                JsonSerializer.Serialize(RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", samples.Reverse())).Should().Be(expected);
+            }
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+        }
+    }
+
     [Fact]
     public void Evaluate_InvalidArguments_ShouldThrow()
     {
@@ -15,7 +53,7 @@ public sealed class RuleCalibrationEvaluatorTests
         var nullSamples = () => RuleCalibrationEvaluator.Evaluate("RULE", null!);
 
         emptyRule.Should().Throw<ArgumentException>();
-        nullSamples.Should().Throw<ArgumentNullException>();
+        nullSamples.Should().Throw<ArgumentNullException>().Which.ParamName.Should().Be("samples");
     }
 
     [Fact]
@@ -33,6 +71,10 @@ public sealed class RuleCalibrationEvaluatorTests
         decision.Metrics.FalsePositive.Should().Be(2);
         decision.Metrics.TrueNegative.Should().Be(4);
         decision.Metrics.FalseNegative.Should().Be(1);
+        decision.Metrics.Precision.Should().Be(0.7143);
+        decision.Metrics.Recall.Should().Be(0.8333);
+        decision.Metrics.FalsePositiveRate.Should().Be(0.3333);
+        decision.Metrics.FalseNegativeRate.Should().Be(0.1667);
         decision.Reasons.Should().Contain(reason => reason.Contains("sample count", StringComparison.OrdinalIgnoreCase));
     }
 
@@ -89,6 +131,81 @@ public sealed class RuleCalibrationEvaluatorTests
     }
 
     [Fact]
+    public void Evaluate_OneClassCorpora_ShouldNeverBeEligible()
+    {
+        var positiveOnly = RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", BuildSamples(100, 0, 0, 0));
+        var negativeOnly = RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", BuildSamples(0, 0, 100, 0));
+
+        positiveOnly.DefaultBlockingEligible.Should().BeFalse();
+        positiveOnly.Reasons.Should().Contain("Calibration requires expected-negative samples.");
+        negativeOnly.DefaultBlockingEligible.Should().BeFalse();
+        negativeOnly.Reasons.Should().Contain("Calibration requires expected-positive samples.");
+    }
+
+    [Theory]
+    [InlineData(20, 30, 40, 10, 50, 30, 70)]
+    [InlineData(0, 30, 40, 30, 30, 30, 70)]
+    public void Evaluate_FailedRates_ShouldReportObservedNumeratorsAndDenominators(
+        int truePositive, int falsePositive, int trueNegative, int falseNegative,
+        int predictedPositiveCount, int expectedPositiveCount, int expectedNegativeCount)
+    {
+        var decision = RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY",
+            BuildSamples(truePositive, falsePositive, trueNegative, falseNegative));
+
+        decision.DefaultBlockingEligible.Should().BeFalse();
+        decision.Reasons.Should().HaveCount(4);
+        decision.Reasons.Should().Contain(reason => reason.StartsWith(
+            $"Precision {truePositive}/{predictedPositiveCount} is below ", StringComparison.Ordinal));
+        decision.Reasons.Should().Contain(reason => reason.StartsWith(
+            $"Recall {truePositive}/{expectedPositiveCount} is below ", StringComparison.Ordinal));
+        decision.Reasons.Should().Contain(reason => reason.StartsWith(
+            $"False-positive rate {falsePositive}/{expectedNegativeCount} exceeds ", StringComparison.Ordinal));
+        decision.Reasons.Should().Contain(reason => reason.StartsWith(
+            $"False-negative rate {falseNegative}/{expectedPositiveCount} exceeds ", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("duplicate")]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Evaluate_InvalidSampleIdentities_ShouldNotQualifyByRepeatingEvidence(string identity)
+    {
+        var samples = Enumerable.Range(0, 100).Select(index => Sample(identity, "RULE.TARGET",
+            index < 50, index < 50, "2025-11-25", "http"));
+
+        var decision = RuleCalibrationEvaluator.Evaluate("RULE.TARGET", samples);
+
+        decision.DefaultBlockingEligible.Should().BeFalse();
+        decision.Reasons.Should().Contain(reason => reason.Contains("sample identities", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Evaluate_BothClassesWithEqualCorrectAndIncorrectLabels_ShouldNotReportMissingClasses()
+    {
+        var decision = RuleCalibrationEvaluator.Evaluate("RULE.BOUNDARY", BuildSamples(50, 50, 50, 50));
+
+        decision.DefaultBlockingEligible.Should().BeFalse();
+        decision.Reasons.Should().NotContain("Calibration requires expected-positive samples.");
+        decision.Reasons.Should().NotContain("Calibration requires expected-negative samples.");
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public void Evaluate_OneMissingIdentityAmongUniqueSamples_ShouldFailClosed(string? identity)
+    {
+        var samples = Enumerable.Range(0, 100).Select(index => Sample(index == 0 ? identity! : $"sample-{index}",
+            "RULE.TARGET", index < 50, index < 50, "2025-11-25", "http"));
+
+        var decision = RuleCalibrationEvaluator.Evaluate("RULE.TARGET", samples);
+
+        decision.DefaultBlockingEligible.Should().BeFalse();
+        decision.Reasons.Should().Contain("Calibration requires non-empty sample identities.");
+        decision.Reasons.Should().NotContain("Calibration requires unique sample identities within each rule.");
+    }
+
+    [Fact]
     public void Evaluate_NoSamples_ShouldFailClosed()
     {
         var decision = RuleCalibrationEvaluator.Evaluate("RULE.UNKNOWN", []);
@@ -96,6 +213,8 @@ public sealed class RuleCalibrationEvaluatorTests
         decision.DefaultBlockingEligible.Should().BeFalse();
         decision.Metrics.Precision.Should().Be(0);
         decision.Metrics.Recall.Should().Be(0);
+        decision.Reasons.Should().NotContain(reason => reason.StartsWith("Precision", StringComparison.Ordinal) ||
+            reason.StartsWith("Recall", StringComparison.Ordinal));
     }
 
     [Fact]

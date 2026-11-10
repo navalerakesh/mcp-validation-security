@@ -21,6 +21,52 @@ public sealed class ValidateCommandTests : IDisposable
     private readonly List<string> _tempFiles = new();
     private readonly int _originalExitCode = Environment.ExitCode;
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    [InlineData("{\"server\":null}")]
+    [InlineData("{\"server\":{\"heders\":{\"X-Route\":\"route\"}}}")]
+    [InlineData("{\"server\":{\"endpoint\":\"first\",\"Endpoint\":\"second\"}}")]
+    public async Task ExecuteAsync_WithInvalidExplicitConfiguration_ShouldRejectBeforeValidation(string? json)
+    {
+        var configPath = Path.Combine(Path.GetTempPath(), $"invalid-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(configPath);
+        if (json is not null) await File.WriteAllTextAsync(configPath, json);
+        var consoleOutput = new Mock<IConsoleOutputService>();
+        var validatorService = new Mock<IMcpValidatorService>();
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>().Object,
+            new Mock<IReportGenerator>().Object,
+            new Mock<IValidationReportRenderer>().Object,
+            new Mock<IGitHubActionsReporter>().Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>().Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>().Object,
+            new Mock<IMcpHttpClient>().Object,
+            CreateSessionContext());
+
+        await command.ExecuteAsync(
+            server: "https://1.1.1.1/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: new FileInfo(configPath),
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null);
+
+        Environment.ExitCode.Should().NotBe(0);
+        validatorService.Invocations.Should().BeEmpty();
+        var expectedDiagnostic = json is null ? "not found" : "Configuration";
+        consoleOutput.Verify(output => output.WriteError(It.Is<string>(message =>
+            message.Contains(expectedDiagnostic, StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
+    }
+
     [Fact]
     public async Task ExecuteAsync_WithAdvisoryPolicy_ShouldReturnExitCodeZeroForValidationFailures()
     {

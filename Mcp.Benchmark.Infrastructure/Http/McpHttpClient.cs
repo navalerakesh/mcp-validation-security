@@ -204,7 +204,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
 
     private async Task<ValidatorJsonRpcResponse> ExecuteWithRetryAsync(string endpoint, string jsonPayload, AuthenticationConfig? authentication, string? method, string? requestId, CancellationToken cancellationToken)
     {
-        var maxAttempts = ValidationReliability.DefaultRpcMaxAttempts;
+        var maxAttempts = ValidationReliability.CanAutomaticallyRetryRpcMethod(method)
+            ? ValidationReliability.DefaultRpcMaxAttempts : 1;
         var attempt = 0;
         double? lastAttemptElapsedMs = null;
         var authApplied = false;
@@ -244,6 +245,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
                 requestMessage.Headers.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("text/event-stream"));
 
+                ApplyAuthenticationCustomHeaders(requestMessage, authentication ?? _defaultAuthentication);
                 ApplyProtocolVersionHeader(requestMessage);
                 ApplyMethodHeader(requestMessage, method);
                 ApplySessionIdHeader(requestMessage, ShouldIncludeSessionHeader(method));
@@ -291,6 +293,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 // latency metrics. This intentionally excludes validator
                 // backoff delays between retries and any external
                 // scheduling overhead.
+                authApplied = requestMessage.Headers.Authorization is not null;
+                authScheme = requestMessage.Headers.Authorization?.Scheme;
                 HttpResponseMessage httpResponse;
                 try
                 {
@@ -421,13 +425,18 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     /// <summary>
     /// Tests if server returns proper JSON-RPC error codes.
     /// </summary>
-    public async Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default)
+    public Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, CancellationToken cancellationToken = default)
+        => ValidateErrorCodesAsync(endpoint, JsonRpcErrorProbeSelection.All, cancellationToken);
+
+    public async Task<JsonRpcErrorValidationResult> ValidateErrorCodesAsync(string endpoint, JsonRpcErrorProbeSelection selection, CancellationToken cancellationToken = default)
     {
+        if ((selection & ~JsonRpcErrorProbeSelection.All) != 0) throw new ArgumentOutOfRangeException(nameof(selection));
         var results = new List<JsonRpcErrorTest>();
 
         // Test Parse Error (-32700) - Invalid JSON
-        var parseErrorResponse = await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken);
-        results.Add(new JsonRpcErrorTest
+        var parseErrorResponse = selection.HasFlag(JsonRpcErrorProbeSelection.ParseError)
+            ? await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken) : null;
+        if (parseErrorResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Parse Error",
             Payload = "{ invalid json",
@@ -437,9 +446,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         });
 
         // Test Invalid Request (-32600) - Missing jsonrpc field
-        var invalidRequestResponse = await SendRawJsonAsync(endpoint,
-            "{\"method\":\"test\",\"id\":1,\"params\":{}}", cancellationToken);
-        results.Add(new JsonRpcErrorTest
+        var invalidRequestResponse = selection.HasFlag(JsonRpcErrorProbeSelection.InvalidRequest) ? await SendRawJsonAsync(endpoint,
+            "{\"method\":\"test\",\"id\":1,\"params\":{}}", cancellationToken) : null;
+        if (invalidRequestResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Request - Missing jsonrpc",
             Payload = "{\"method\":\"test\",\"id\":1,\"params\":{}}",
@@ -449,8 +458,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         });
 
         // Test Method Not Found (-32601)
-        var methodNotFoundResponse = await CallAsync(endpoint, "nonexistent_method_12345", null, cancellationToken);
-        results.Add(new JsonRpcErrorTest
+        var methodNotFoundResponse = selection.HasFlag(JsonRpcErrorProbeSelection.MethodNotFound)
+            ? await CallAsync(endpoint, "nonexistent_method_12345", null, cancellationToken) : null;
+        if (methodNotFoundResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Method Not Found",
             ExpectedErrorCode = -32601,
@@ -461,11 +471,11 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         // Test Invalid Params (-32602)
         // Sending a string as params is technically an Invalid Request (-32600) per spec because params must be Array/Object.
         // However, some servers might return -32602. We accept either for this test case to be robust.
-        var invalidParamsResponse = await SendRawJsonAsync(
+        var invalidParamsResponse = selection.HasFlag(JsonRpcErrorProbeSelection.InvalidParams) ? await SendRawJsonAsync(
             endpoint,
             "{\"jsonrpc\":\"2.0\",\"id\":\"invalid-params\",\"method\":\"tools/call\",\"params\":\"invalid_params_string\"}",
-            cancellationToken);
-        results.Add(new JsonRpcErrorTest
+            cancellationToken) : null;
+        if (invalidParamsResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Invalid Params",
             ExpectedErrorCode = -32602,
@@ -476,8 +486,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         return new JsonRpcErrorValidationResult
         {
             Tests = results,
-            OverallScore = results.Count(r => r.IsValid) / (double)results.Count * 100,
-            IsCompliant = results.All(r => r.IsValid)
+            OverallScore = results.Count == 0 ? 0 : results.Count(r => r.IsValid) / (double)results.Count * 100,
+            IsCompliant = results.Count > 0 && results.All(r => r.IsValid)
         };
     }
 
@@ -945,6 +955,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     public async Task<ValidatorJsonRpcResponse> SendRawJsonAsync(string endpoint, string rawJson, CancellationToken cancellationToken, bool setContentType = true)
     {
         var (method, requestId) = TryReadProbeIdentity(rawJson);
+        var authApplied = false;
+        string? authScheme = null;
 
         try
         {
@@ -966,6 +978,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 acceptWildcard: true,
                 includeSessionId: ShouldIncludeSessionHeader(method));
 
+            authApplied = requestMessage.Headers.Authorization is not null;
+            authScheme = requestMessage.Headers.Authorization?.Scheme;
             await EnforceExecutionPolicyAsync(endpoint, cancellationToken);
             var observed = await SendObservedAsync(requestMessage, cancellationToken).ConfigureAwait(false);
             using var httpResponse = observed.Response;
@@ -984,8 +998,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                     method,
                     requestId,
                     _protocolVersion,
-                    authApplied: false,
-                    authScheme: null,
+                    authApplied: authApplied,
+                    authScheme: authScheme,
                     statusCode: (int)httpResponse.StatusCode,
                     isSuccess: httpResponse.IsSuccessStatusCode,
                     error: httpResponse.IsSuccessStatusCode ? null : $"HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}",
@@ -1008,8 +1022,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                     method,
                     requestId,
                     _protocolVersion,
-                    authApplied: false,
-                    authScheme: null,
+                    authApplied: authApplied,
+                    authScheme: authScheme,
                     statusCode: -1,
                     isSuccess: false,
                     error: ex.Message,
@@ -1044,10 +1058,15 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 requestMessage.Content = CreateProbeContent(request.Body, request.ContentType);
             }
 
+            ApplyAuthenticationCustomHeaders(requestMessage,
+                request.Authentication ?? (request.IncludeDefaultAuthentication ? _defaultAuthentication : null));
             foreach (var header in request.Headers)
             {
+                if (requestMessage.Headers.Any(existing => string.Equals(existing.Key, header.Key, StringComparison.OrdinalIgnoreCase)))
+                    requestMessage.Headers.Remove(header.Key);
                 if (!requestMessage.Headers.TryAddWithoutValidation(header.Key, header.Value) && requestMessage.Content is not null)
                 {
+                    requestMessage.Content.Headers.Remove(header.Key);
                     requestMessage.Content.Headers.TryAddWithoutValidation(header.Key, header.Value);
                 }
             }
@@ -1057,10 +1076,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 ApplyProtocolVersionHeader(requestMessage);
             }
 
-            if (request.IncludeSessionIdHeader)
-            {
-                ApplySessionIdHeader(requestMessage, includeSessionId: true);
-            }
+            var expectedSessionId = ApplySessionIdHeader(requestMessage, request.IncludeSessionIdHeader);
 
             if (request.Authentication is not null)
             {
@@ -1110,6 +1126,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 ContentType = contentType,
                 Headers = responseHeaders,
                 RequestHeaders = requestHeaders,
+                RequestSessionIdMatchesSession = string.IsNullOrEmpty(expectedSessionId) ? null :
+                    requestMessage.Headers.TryGetValues(SessionIdHeaderName, out var sentSessionIds) &&
+                    sentSessionIds.SequenceEqual(new[] { expectedSessionId }, StringComparer.Ordinal),
                 ElapsedMs = sw.Elapsed.TotalMilliseconds,
                 TimedOut = preview.TimedOut,
                 SseEvents = sseEvents,
@@ -1240,6 +1259,14 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         return content;
     }
 
+    private static void ApplyAuthenticationCustomHeaders(HttpRequestMessage requestMessage, AuthenticationConfig? authentication)
+    {
+        McpAuthenticationHelper.ApplyCustomHeaders(requestMessage.Headers, authentication);
+        requestMessage.Headers.Remove(ProtocolVersionHeaderName);
+        requestMessage.Headers.Remove(MethodHeaderName);
+        requestMessage.Headers.Remove(SessionIdHeaderName);
+    }
+
     private void ApplyProtocolVersionHeader(HttpRequestMessage requestMessage)
     {
         if (!string.IsNullOrEmpty(_protocolVersion) && !requestMessage.Headers.Contains(ProtocolVersionHeaderName))
@@ -1258,12 +1285,14 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         }
     }
 
-    private void ApplySessionIdHeader(HttpRequestMessage requestMessage, bool includeSessionId)
+    private string? ApplySessionIdHeader(HttpRequestMessage requestMessage, bool includeSessionId)
     {
-        if (includeSessionId && !string.IsNullOrEmpty(_sessionId) && !requestMessage.Headers.Contains(SessionIdHeaderName))
+        var sessionId = _sessionId;
+        if (includeSessionId && !string.IsNullOrEmpty(sessionId) && !requestMessage.Headers.Contains(SessionIdHeaderName))
         {
-            requestMessage.Headers.TryAddWithoutValidation(SessionIdHeaderName, _sessionId);
+            requestMessage.Headers.TryAddWithoutValidation(SessionIdHeaderName, sessionId);
         }
+        return sessionId;
     }
 
     private static bool ShouldIncludeSessionHeader(string? method)
@@ -1344,7 +1373,8 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
             }
         }
 
-        return headers;
+        return new Dictionary<string, string>(new McpServerConfig { Headers = headers }.CloneWithoutSecrets().Headers,
+            StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -1450,6 +1480,13 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        if (_httpClient.DefaultRequestHeaders.Contains(ProtocolVersionHeaderName) ||
+            _httpClient.DefaultRequestHeaders.Contains(MethodHeaderName) ||
+            _httpClient.DefaultRequestHeaders.Contains(SessionIdHeaderName) ||
+            _httpClient.DefaultRequestHeaders.Contains("Authorization"))
+        {
+            throw new InvalidOperationException("Runtime identity headers must use the governed protocol/authentication configuration, not HttpClient defaults.");
+        }
         var observeLocally = _networkPolicyContext == null;
         if (observeLocally)
         {
@@ -1848,42 +1885,34 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         bool acceptWildcard = false,
         bool includeSessionId = true)
     {
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint)
+        HttpRequestMessage? requestMessage = null;
+        try
         {
-            Content = content
-        };
+            requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint) { Content = content };
+            if (acceptWildcard)
+            {
+                requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
+            }
+            else
+            {
+                requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+                requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
+            }
 
-        if (acceptWildcard)
-        {
-            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
-        }
-        else
-        {
-            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            requestMessage.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/event-stream"));
-        }
-
-        ApplyProtocolVersionHeader(requestMessage);
-        ApplySessionIdHeader(requestMessage, includeSessionId);
-
-        if (authentication != null)
-        {
-            var headerValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(authentication);
+            ApplyAuthenticationCustomHeaders(requestMessage, authentication ?? _defaultAuthentication);
+            ApplyProtocolVersionHeader(requestMessage);
+            ApplySessionIdHeader(requestMessage, includeSessionId);
+            var headerValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(authentication ?? _defaultAuthentication);
             if (!string.IsNullOrEmpty(headerValue))
-            {
                 McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, headerValue);
-            }
+            return requestMessage;
         }
-        else if (_defaultAuthentication != null)
+        catch
         {
-            var defaultHeaderValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(_defaultAuthentication);
-            if (!string.IsNullOrEmpty(defaultHeaderValue))
-            {
-                McpAuthenticationHelper.ApplyAuthorizationHeader(requestMessage.Headers, defaultHeaderValue);
-            }
+            if (requestMessage is null) content.Dispose();
+            else requestMessage.Dispose();
+            throw;
         }
-
-        return requestMessage;
     }
 
     private string CreateProbePayload(string method)

@@ -42,6 +42,8 @@ public sealed class HttpTransportProbeResponse
 
     public Dictionary<string, string> RequestHeaders { get; init; } = new(StringComparer.OrdinalIgnoreCase);
 
+    public bool? RequestSessionIdMatchesSession { get; init; }
+
     public double? ElapsedMs { get; init; }
 
     public bool TimedOut { get; init; }
@@ -55,7 +57,7 @@ public sealed class StreamableHttpTransportTestResult
 {
     public string ProtocolVersion { get; set; } = string.Empty;
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonIgnore]
     public string? SessionId { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

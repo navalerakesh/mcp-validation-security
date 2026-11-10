@@ -14,6 +14,24 @@ namespace Mcp.Benchmark.Tests.Integration;
 
 public class FixtureServerProcessIntegrationTests
 {
+    [Theory]
+    [InlineData(JsonRpcErrorProbeSelection.None, 0)]
+    [InlineData(JsonRpcErrorProbeSelection.ParseError, 1)]
+    [InlineData(JsonRpcErrorProbeSelection.MethodNotFound, 1)]
+    [InlineData(JsonRpcErrorProbeSelection.ParseError | JsonRpcErrorProbeSelection.MethodNotFound, 2)]
+    public async Task CompliantFixtureServer_SelectErrorProbes_ShouldMatchObservedAttemptCount(JsonRpcErrorProbeSelection selection, int expectedAttempts)
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+        using var telemetry = ValidationObservability.BeginRun("selective-stdio", 10);
+
+        var result = await adapter.ValidateErrorCodesAsync(command, selection);
+
+        result.Tests.Should().HaveCount(expectedAttempts);
+        telemetry.Complete(0).RequestsStarted.Should().Be(expectedAttempts);
+        result.IsCompliant.Should().Be(expectedAttempts > 0);
+    }
+
     [Fact]
     public async Task CompliantFixtureServer_ShouldSupportInitializeAndCapabilityListing()
     {
