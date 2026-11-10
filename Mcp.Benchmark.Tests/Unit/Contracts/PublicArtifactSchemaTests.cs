@@ -68,6 +68,9 @@ public sealed class PublicArtifactSchemaTests
     {
         var manifest = new AuditManifest
         {
+            ConfigurationSources = Enum.GetValues<ConfigurationSourceKind>()
+                .Select(source => new ConfigurationSettingOrigin("$.server.timeoutMs", source,
+                    "budget", null, "Source vocabulary contract fixture.")).ToArray(),
             CommandName = "validate",
             ValidationId = "validation-test",
             SessionId = "session-test",
@@ -90,7 +93,17 @@ public sealed class PublicArtifactSchemaTests
             }
         };
 
-        AssertConforms("mcpval-audit-manifest.schema.json", Serialize(manifest));
+        var serialized = Serialize(manifest);
+        AssertConforms("mcpval-audit-manifest.schema.json", serialized);
+        serialized["documentSchemaVersion"] = "2.0.0";
+        AssertConforms("mcpval-audit-manifest.schema.json", serialized);
+        ArtifactContracts.IsCompatible(ArtifactContracts.AuditManifestDocumentType, "2.0.0").Should().BeTrue();
+        ArtifactContracts.IsCompatible(ArtifactContracts.AuditManifestDocumentType, "2.1.0").Should().BeTrue();
+        serialized["configurationSources"]![0]!["source"] = "unknown-source";
+        AssertDoesNotConform("mcpval-audit-manifest.schema.json", serialized);
+        serialized["configurationSources"]![0]!["source"] = "default";
+        serialized["configurationSources"]![0]!["value"] = "canary-value";
+        AssertDoesNotConform("mcpval-audit-manifest.schema.json", serialized);
     }
 
     [Fact]
@@ -391,6 +404,18 @@ public sealed class PublicArtifactSchemaTests
         result!.ValidationId.Should().Be("backward-fixture-v1");
         ArtifactContracts.IsCompatible(result.DocumentType, result.DocumentSchemaVersion).Should().BeFalse();
         AssertDoesNotConform("mcpval-validation-result.schema.json", JsonNode.Parse(json)!);
+    }
+
+    [Fact]
+    public void ConfigurationSchema_ShouldMatchParserMetadataAndAcceptDefaultConfiguration()
+    {
+        const string schemaName = "mcpval-configuration-v1.schema.json";
+        var schemaPath = Path.Combine(GetRepositoryRoot(), "docs", "Schemas", schemaName);
+        var published = JsonNode.Parse(File.ReadAllText(schemaPath));
+        var generated = Mcp.Benchmark.CLI.Utilities.BoundedArtifactReader.CreateConfigurationSchema();
+
+        JsonNode.DeepEquals(published, generated).Should().BeTrue();
+        AssertConforms(schemaName, JsonSerializer.SerializeToNode(new McpValidatorConfiguration())!);
     }
 
     private void AssertConforms(string schemaName, JsonNode instance)

@@ -6,6 +6,7 @@ using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
@@ -51,7 +52,7 @@ public class HealthCheckCommand(
     /// <returns>Task representing the asynchronous health check operation.</returns>
     public async Task ExecuteAsync(
         string? server,
-        int timeoutMs,
+        int? timeoutMs,
         FileInfo? configFile,
         bool verbose,
         string? token,
@@ -84,8 +85,11 @@ public class HealthCheckCommand(
 
             var profileOverride = CommandConnectionHelper.ParseServerProfile(serverProfile);
 
-            var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride);
+            var sources = new ConfigurationSourceTracker();
+            var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride,
+                sources, defaultTimeoutSeconds: 30, cancellationToken, _sessionContext);
             configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
+            if (!string.IsNullOrWhiteSpace(protocolEra)) sources.RecordCommandLine(value => value.Server.ProtocolEra, "--protocol-era");
             ExecutionPolicyOverrides.Apply(
                 configuration,
                 executionMode: executionMode,
@@ -93,12 +97,13 @@ public class HealthCheckCommand(
                 allowedHosts: allowedHosts,
                 allowPrivateAddresses: allowPrivateAddresses,
                 maxRequests: maxRequests,
-                timeoutSeconds: (int)Math.Ceiling(Math.Max(1, timeoutMs) / 1000d),
+                timeoutSeconds: timeoutMs.HasValue ? (int)Math.Ceiling(timeoutMs.Value / 1000d) : null,
                 persistenceMode: persistenceMode,
                 redactLevel: redactLevel,
                 traceMode: traceMode,
                 confirmElevatedRisk: confirmElevatedRisk,
-                allowedOrigins: allowedOrigins);
+                allowedOrigins: allowedOrigins,
+                sources: sources);
 
             var executionPolicy = configuration.Execution ?? new ExecutionPolicy();
             var serverConfig = configuration.Server;
@@ -117,7 +122,7 @@ public class HealthCheckCommand(
                 return;
             }
 
-            CommandConnectionHelper.ApplyAuthenticationOverrides(serverConfig, token, interactive);
+            CommandConnectionHelper.ApplyAuthenticationOverrides(serverConfig, token, interactive, sources);
 
             _sessionContext.ApplyExecutionPolicy(executionPolicy);
             var executionPlan = _executionGovernanceService.BuildCommandPlan(
@@ -128,6 +133,7 @@ public class HealthCheckCommand(
                 outputDirectory: null,
                 plannedChecks: ["health-check"],
                 plannedArtifacts: BuildPlannedArtifacts("health-check", executionPolicy));
+            executionPlan.ConfigurationSources = sources.Snapshot(configuration);
 
             if (!executionPlan.IsValid)
             {
@@ -341,7 +347,7 @@ public class DiscoverCommand
     public async Task ExecuteAsync(
         string? server,
         string format,
-        int timeoutMs,
+        int? timeoutMs,
         FileInfo? configFile,
         bool verbose,
         string? token,
@@ -373,8 +379,11 @@ public class DiscoverCommand
 
             var profileOverride = CommandConnectionHelper.ParseServerProfile(serverProfile);
 
-            var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride);
+            var sources = new ConfigurationSourceTracker();
+            var configuration = await CommandConnectionHelper.CreateCommandConfigurationAsync(server, configFile, timeoutMs, profileOverride,
+                sources, cancellationToken: cancellationToken, sessionContext: _sessionContext);
             configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
+            if (!string.IsNullOrWhiteSpace(protocolEra)) sources.RecordCommandLine(value => value.Server.ProtocolEra, "--protocol-era");
             ExecutionPolicyOverrides.Apply(
                 configuration,
                 executionMode: executionMode,
@@ -382,12 +391,13 @@ public class DiscoverCommand
                 allowedHosts: allowedHosts,
                 allowPrivateAddresses: allowPrivateAddresses,
                 maxRequests: maxRequests,
-                timeoutSeconds: (int)Math.Ceiling(Math.Max(1, timeoutMs) / 1000d),
+                timeoutSeconds: timeoutMs.HasValue ? (int)Math.Ceiling(timeoutMs.Value / 1000d) : null,
                 persistenceMode: persistenceMode,
                 redactLevel: redactLevel,
                 traceMode: traceMode,
                 confirmElevatedRisk: confirmElevatedRisk,
-                allowedOrigins: allowedOrigins);
+                allowedOrigins: allowedOrigins,
+                sources: sources);
 
             var executionPolicy = configuration.Execution ?? new ExecutionPolicy();
             var serverConfig = configuration.Server;
@@ -406,7 +416,7 @@ public class DiscoverCommand
                 return;
             }
 
-            CommandConnectionHelper.ApplyAuthenticationOverrides(serverConfig, token, interactive);
+            CommandConnectionHelper.ApplyAuthenticationOverrides(serverConfig, token, interactive, sources);
 
             _sessionContext.ApplyExecutionPolicy(executionPolicy);
             var executionPlan = _executionGovernanceService.BuildCommandPlan(
@@ -417,6 +427,7 @@ public class DiscoverCommand
                 outputDirectory: null,
                 plannedChecks: ["discover"],
                 plannedArtifacts: BuildPlannedArtifacts("discover", executionPolicy));
+            executionPlan.ConfigurationSources = sources.Snapshot(configuration);
 
             if (!executionPlan.IsValid)
             {
@@ -559,14 +570,24 @@ internal static class CommandConnectionHelper
     public static async Task<McpValidatorConfiguration> CreateCommandConfigurationAsync(
         string? server,
         FileInfo? configFile,
-        int timeoutMs,
-        McpServerProfile? profileOverride)
+        int? timeoutMs,
+        McpServerProfile? profileOverride,
+        ConfigurationSourceTracker? sources = null,
+        int defaultTimeoutSeconds = ExecutionPolicyDefaults.DefaultTimeoutSeconds,
+        CancellationToken cancellationToken = default,
+        CliSessionContext? sessionContext = null)
     {
+        if (timeoutMs is <= 0) throw new CliUsageException("Timeout must be positive.");
+        sources ??= new ConfigurationSourceTracker();
         McpValidatorConfiguration configuration;
 
         if (configFile is not null)
         {
-            configuration = await BoundedArtifactReader.ReadConfigurationAsync(configFile).ConfigureAwait(false);
+            var document = sessionContext is null
+                ? await BoundedArtifactReader.ReadConfigurationDocumentAsync(configFile, cancellationToken).ConfigureAwait(false)
+                : await sessionContext.ReadConfigurationAsync(configFile, cancellationToken).ConfigureAwait(false);
+            configuration = document.Configuration;
+            sources.RecordFileSettings(document.SuppliedSettings);
         }
         else
         {
@@ -576,12 +597,34 @@ internal static class CommandConnectionHelper
         if (!string.IsNullOrWhiteSpace(server))
         {
             configuration.Server.Endpoint = server;
+            sources.RecordCommandLine(value => value.Server.Endpoint, "--server");
         }
 
-        configuration.Server.TimeoutMs = timeoutMs;
-        ApplyTransportOverride(configuration.Server, server);
+        if (timeoutMs.HasValue)
+        {
+            configuration.Server.TimeoutMs = timeoutMs.Value;
+            sources.RecordCommandLine(value => value.Server.TimeoutMs, "--timeout");
+        }
+        ApplyTransportOverride(configuration.Server, server, sources);
         ApplyServerProfileOverride(configuration.Server, profileOverride);
+        if (profileOverride.HasValue) sources.RecordCommandLine(value => value.Server.Profile, "--access");
         configuration.Execution ??= new ExecutionPolicy();
+        if (!timeoutMs.HasValue && sources.GetSource(value => value.Execution!.TimeoutSeconds) != ConfigurationSourceKind.File)
+        {
+            if (sources.GetSource(value => value.Server.TimeoutMs) == ConfigurationSourceKind.File)
+            {
+                if (configuration.Server.TimeoutMs <= 0) throw new CliUsageException("Configured server timeout must be positive.");
+                configuration.Execution.TimeoutSeconds = (int)Math.Ceiling(configuration.Server.TimeoutMs / 1000d);
+                sources.Record(value => value.Execution!.TimeoutSeconds, ConfigurationSourceKind.File, "--config",
+                    "Execution budget derived from the configured server timeout.");
+            }
+            else
+            {
+                configuration.Execution.TimeoutSeconds = defaultTimeoutSeconds;
+                sources.Record(value => value.Execution!.TimeoutSeconds, ConfigurationSourceKind.Default, "command-timeout",
+                    "Command default timeout budget.");
+            }
+        }
         return configuration;
     }
 
@@ -645,7 +688,7 @@ internal static class CommandConnectionHelper
         return false;
     }
 
-    public static void ApplyAuthenticationOverrides(McpServerConfig serverConfig, string? token, bool interactive)
+    public static void ApplyAuthenticationOverrides(McpServerConfig serverConfig, string? token, bool interactive, ConfigurationSourceTracker? sources = null)
     {
         if (string.IsNullOrWhiteSpace(token) && !interactive)
         {
@@ -657,13 +700,22 @@ internal static class CommandConnectionHelper
         if (!string.IsNullOrWhiteSpace(token))
         {
             auth.Token = token;
+            sources?.RecordCommandLine(value => value.Server.Authentication!.Token, "--token");
+            if (string.IsNullOrWhiteSpace(auth.Type) || auth.Type == "none")
+                sources?.Record(value => value.Server.Authentication!.Type, ConfigurationSourceKind.CommandLine, "--token", "Bearer authentication implied by CLI token.");
             auth.Type = string.IsNullOrWhiteSpace(auth.Type) || auth.Type == "none"
                 ? "bearer"
                 : auth.Type;
             auth.Required = true;
+            sources?.Record(value => value.Server.Authentication!.Required, ConfigurationSourceKind.CommandLine, "--token", "Authentication required by CLI token.");
         }
 
         auth.AllowInteractive = interactive;
+        if (interactive)
+            sources?.RecordCommandLine(value => value.Server.Authentication!.AllowInteractive, "--interactive");
+        else
+            sources?.Record(value => value.Server.Authentication!.AllowInteractive, ConfigurationSourceKind.Governance,
+                "authentication", "Interactive authentication was not admitted by this invocation.");
     }
 
     public static void DisplayExecutionPlan(IConsoleOutputService consoleOutput, ExecutionPlan executionPlan)
@@ -711,7 +763,7 @@ internal static class CommandConnectionHelper
         return "Execution plan rejected:" + Environment.NewLine + string.Join(Environment.NewLine, errors.Select(error => $"- {error}"));
     }
 
-    private static void ApplyTransportOverride(McpServerConfig serverConfig, string? server)
+    private static void ApplyTransportOverride(McpServerConfig serverConfig, string? server, ConfigurationSourceTracker sources)
     {
         if (!string.IsNullOrWhiteSpace(server) && Uri.TryCreate(server, UriKind.Absolute, out var uri))
         {
@@ -719,11 +771,13 @@ internal static class CommandConnectionHelper
                 uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
             {
                 serverConfig.Transport = "http";
+                sources.Record(value => value.Server.Transport, ConfigurationSourceKind.CommandLine, "--server", "Transport inferred from CLI endpoint.");
             }
             else if (uri.Scheme.Equals("ws", StringComparison.OrdinalIgnoreCase) ||
                      uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
             {
                 serverConfig.Transport = "websocket";
+                sources.Record(value => value.Server.Transport, ConfigurationSourceKind.CommandLine, "--server", "Transport inferred from CLI endpoint.");
             }
 
             return;

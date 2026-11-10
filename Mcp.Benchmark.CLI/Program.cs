@@ -78,17 +78,38 @@ internal class Program
                 return 0;
             }
 
+            if (args.FirstOrDefault() == "config-schema")
+                return await CreateLightweightRootCommand().Parse(args).InvokeAsync();
+
             // Full path: build DI container only when actually running a command
             var sessionContext = McpHost.CreateSession();
+            var invocationServices = new InvocationServiceProvider();
+            var rootCommand = CreateRootCommand(invocationServices);
+            var parseResult = rootCommand.Parse(args);
+            if (parseResult.Errors.Count > 0)
+            {
+                if (IsStructuredOutput(args))
+                    WriteStructuredError("CLI_PARSE_ERROR", "usage", string.Join(" ", parseResult.Errors.Select(error => error.Message)), 64, retryable: false);
+                else
+                    foreach (var error in parseResult.Errors) Console.Error.WriteLine(error.Message);
+                return 64;
+            }
+            var configOption = (Option<FileInfo?>)rootCommand.Options.Single(option => option.Name == "--config");
+            var configFile = parseResult.GetValue(configOption);
+            ConfigurationDocument? configurationDocument = null;
+            if (configFile is not null)
+            {
+                configurationDocument = await BoundedArtifactReader.ReadConfigurationDocumentAsync(configFile).ConfigureAwait(false);
+                sessionContext.PrepareConfiguration(configFile, configurationDocument);
+            }
+            var serverOption = parseResult.CommandResult.Command.Options.OfType<Option<string>>().FirstOrDefault(option => option.Name == "--server");
+            var server = serverOption is null ? null : parseResult.GetValue(serverOption);
 
             // Create and configure the host
-            using var host = CreateHostBuilder(args, sessionContext).Build();
-
-            // Create the root command and options
-            var rootCommand = CreateRootCommand(host.Services);
+            using var host = CreateHostBuilderForInvocation(args, sessionContext, IsStdioTransport(server, configurationDocument)).Build();
+            invocationServices.Services = host.Services;
 
             // Execute the command
-            var parseResult = rootCommand.Parse(args);
             if (IsStructuredOutput(args) && parseResult.Errors.Count > 0)
             {
                 WriteStructuredError(
@@ -245,6 +266,7 @@ internal class Program
         root.Subcommands.Add(health);
         root.Subcommands.Add(discover);
         root.Subcommands.Add(report);
+        root.Subcommands.Add(CreateConfigurationSchemaCommand());
 
         var verboseOpt = new Option<bool>("--verbose", "-v") { Description = "Enable verbose output", Recursive = true };
         var configOpt = new Option<string>("--config", "-c") { Description = "Path to configuration file", Recursive = true };
@@ -254,6 +276,17 @@ internal class Program
         root.Options.Add(listSpecOpt);
 
         return root;
+    }
+
+    private static Command CreateConfigurationSchemaCommand()
+    {
+        var command = new Command("config-schema", "Write the supported configuration JSON schema without contacting a target");
+        command.SetAction(_ =>
+        {
+            Console.WriteLine(BoundedArtifactReader.CreateConfigurationSchema().ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            return 0;
+        });
+        return command;
     }
 
     /// <summary>
@@ -281,43 +314,33 @@ internal class Program
         return null;
     }
 
-    private static bool IsStdioTransport(string[] args)
+    private sealed class InvocationServiceProvider : IServiceProvider
+    {
+        internal IServiceProvider? Services { get; set; }
+
+        public object? GetService(Type serviceType) =>
+            (Services ?? throw new InvalidOperationException("Invocation services are not initialized.")).GetService(serviceType);
+    }
+
+    private static bool IsStdioTransport(string[] args, CliSessionContext sessionContext)
     {
         var serverArg = GetServerArgFromArgs(args);
-        if (!string.IsNullOrWhiteSpace(serverArg))
-        {
-            return !serverArg.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
-                   !serverArg.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-        }
-
         var configPath = GetOptionValue(args, "-c", "--config");
-        if (string.IsNullOrWhiteSpace(configPath) || !File.Exists(configPath))
-        {
-            return false;
-        }
+        var document = string.IsNullOrWhiteSpace(configPath) ? null : sessionContext.GetPreparedConfiguration(new FileInfo(configPath));
+        return IsStdioTransport(serverArg, document);
+    }
 
-        try
-        {
-            var configJson = BoundedArtifactReader.ReadText(new FileInfo(configPath), BoundedArtifactReader.MaximumConfigurationBytes);
-            using var document = JsonDocument.Parse(configJson);
-            if (!document.RootElement.TryGetProperty("server", out var server) || server.ValueKind != JsonValueKind.Object)
-            {
-                return false;
-            }
-
-            if (server.TryGetProperty("transport", out var transport) && transport.ValueKind == JsonValueKind.String)
-            {
-                return string.Equals(transport.GetString(), ValidationConstants.Transports.Stdio, StringComparison.OrdinalIgnoreCase);
-            }
-
-            return server.TryGetProperty("endpoint", out var endpoint) &&
-                   endpoint.ValueKind == JsonValueKind.String &&
-                   !endpoint.GetString()!.StartsWith("http", StringComparison.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            return false;
-        }
+    private static bool IsStdioTransport(string? server, ConfigurationDocument? document)
+    {
+        if (!string.IsNullOrWhiteSpace(server))
+            return !server.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && !server.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        if (document is null) return false;
+        var sources = new ConfigurationSourceTracker();
+        sources.RecordFileSettings(document.SuppliedSettings);
+        if (sources.GetSource(value => value.Server.Transport) == ConfigurationSourceKind.File)
+            return string.Equals(document.Configuration.Server.Transport, ValidationConstants.Transports.Stdio, StringComparison.OrdinalIgnoreCase);
+        var endpoint = document.Configuration.Server.Endpoint;
+        return !string.IsNullOrWhiteSpace(endpoint) && !endpoint.StartsWith("http", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? GetOptionValue(string[] args, params string[] optionNames)
@@ -348,6 +371,9 @@ internal class Program
     /// <param name="args">Command line arguments for configuration.</param>
     /// <returns>Configured host builder with all services registered.</returns>
     internal static IHostBuilder CreateHostBuilder(string[] args, CliSessionContext sessionContext) =>
+        CreateHostBuilderForInvocation(args, sessionContext, null);
+
+    private static IHostBuilder CreateHostBuilderForInvocation(string[] args, CliSessionContext sessionContext, bool? stdioTransport) =>
         Host.CreateDefaultBuilder(args)
             .ConfigureServices((context, services) =>
             {
@@ -367,7 +393,7 @@ internal class Program
 
                 // Register HTTP or STDIO client for MCP communication
                 // Detect transport from CLI args: if --server does not start with http, assume STDIO
-                var isStdioTransport = IsStdioTransport(args);
+                var isStdioTransport = stdioTransport ?? IsStdioTransport(args, sessionContext);
 
                 services.AddGovernedMcpHttpTransport();
 
@@ -498,7 +524,8 @@ internal class Program
             CreateValidateCommand(serviceProvider, configOption, verboseOption),
             CreateHealthCheckCommand(serviceProvider, configOption, verboseOption),
             CreateDiscoverCommand(serviceProvider, configOption, verboseOption),
-            CreateReportCommand(serviceProvider, configOption, verboseOption)
+            CreateReportCommand(serviceProvider, configOption, verboseOption),
+            CreateConfigurationSchemaCommand()
         };
 
         verboseOption.Recursive = true;
@@ -882,10 +909,9 @@ internal class Program
             Description = "MCP server endpoint or configuration"
         };
 
-        var timeoutOption = new Option<int>("--timeout", "-T")
+        var timeoutOption = new Option<int?>("--timeout", "-T")
         {
-            Description = "Timeout for the health check in milliseconds",
-            DefaultValueFactory = _ => 30000
+            Description = "Timeout for the health check in milliseconds (otherwise use configuration or the command default)"
         };
 
         var executionModeOption = new Option<string?>("--mode")
@@ -1036,10 +1062,9 @@ internal class Program
             DefaultValueFactory = _ => "json"
         };
 
-        var timeoutOption = new Option<int>("--timeout", "-T")
+        var timeoutOption = new Option<int?>("--timeout", "-T")
         {
-            Description = "Timeout for discovery in milliseconds",
-            DefaultValueFactory = _ => 120000
+            Description = "Timeout for discovery in milliseconds (otherwise use configuration or the command default)"
         };
 
         var executionModeOption = new Option<string?>("--mode")

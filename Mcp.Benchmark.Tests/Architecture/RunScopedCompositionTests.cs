@@ -43,7 +43,10 @@ public sealed class RunScopedCompositionTests
         await File.WriteAllTextAsync(configPath, "{\"server\":{\"endpoint\":\"node fixture.cjs\",\"transport\":\"stdio\"}}");
         try
         {
-            using var host = BuildHost(["validate", "--config", configPath]);
+            var file = new FileInfo(configPath);
+            var session = new CliSessionContext(Guid.NewGuid().ToString());
+            session.PrepareConfiguration(file, await BoundedArtifactReader.ReadConfigurationDocumentAsync(file));
+            using var host = BuildHost(["validate", "--config", configPath], session);
             await using var scope = host.Services.CreateAsyncScope();
 
             scope.ServiceProvider.GetRequiredService<IMcpHttpClient>().Should().BeOfType<StdioMcpClientAdapter>();
@@ -63,13 +66,13 @@ public sealed class RunScopedCompositionTests
         scope.ServiceProvider.GetRequiredService<IMcpHttpClient>().Should().BeOfType<StdioMcpClientAdapter>();
     }
 
-    private static IHost BuildHost(string[] args)
+    private static IHost BuildHost(string[] args, CliSessionContext? session = null)
     {
         var programType = typeof(ValidateCommand).Assembly.GetType("Program", throwOnError: true)!;
         var createHostBuilder = programType.GetMethod("CreateHostBuilder", BindingFlags.NonPublic | BindingFlags.Static)!;
         var hostBuilder = (IHostBuilder)createHostBuilder.Invoke(
             null,
-            [args, new CliSessionContext(Guid.NewGuid().ToString())])!;
+            [args, session ?? new CliSessionContext(Guid.NewGuid().ToString())])!;
         return hostBuilder.Build();
     }
 }

@@ -18,4 +18,8 @@ Assurance-result schema `2.0.0` uses document type `mcpval.assurance-result`. It
 
 Client-profile summaries, model-evaluation companions, and audit manifests also use `2.x` contracts. V1 companions are incompatible by design.
 
+Audit manifest `2.1.0` adds optional `configurationSources`. Each entry identifies a canonical setting path, source (`default`, `file`, `profile`, `commandLine`, or `governance`), non-secret pointer, replaced source and override reason. It contains no setting values, raw file paths or arbitrary dictionary-key text. Existing `2.0.0` manifests remain readable and are not assumed to contain this evidence. Execution plans carry the same projection; offline-report session receipts include only their reporting settings. This operational metadata does not change canonical findings or scoring.
+
+Configuration input has a separate `schemaVersion` contract, currently `1.0.0`. Omitting it preserves legacy interpretation; adding it does not alter normalized settings. Unsupported explicit versions fail preflight rather than being interpreted as current. The [published schema](Schemas/mcpval-configuration-v1.schema.json) is generated from CLI serializer metadata with `mcpval config-schema`; the [configuration guidance](../Mcp.Benchmark.CLI/README.md#configuration-files) describes migration and parser-only limits. This input version is independent of artifact and MCP protocol versions.
+
 The `mcpval.official-conformance-evidence` wrapper has its own `1.x` contract. Import verifies the document contract, bounded structure, exact scenario check digests, pinned runner/package/requirement-set provenance, and target/protocol binding. Audit manifests bind the imported wrapper SHA-256 under `externalEvidenceSha256`.

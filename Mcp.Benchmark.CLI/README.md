@@ -90,11 +90,43 @@ dotnet run --project Mcp.Benchmark.CLI -- discover \
 
 An explicitly supplied configuration file must exist, be a regular non-symlink file, and fit the 1 MiB input limit. Configuration JSON must be an object with at most 64 levels of nesting. Malformed JSON, unknown fields, duplicate fields (including casing aliases), and null required sections fail before target contact; omitting the file still uses defaults.
 
+CLI binding and configuration normalization occur before host construction. Host transport selection and the selected command consume one invocation-owned normalized input; a later file change does not replace that input. Undefined enum values, including collection items, are rejected. Zero-length inputs are rejected before opening, preventing the observed FIFO blocking case. These checks are not a sandbox against hostile filesystem path replacement; keep configuration files and their parent directories under trusted ownership.
+
 Configuration field names accept casing aliases, including `server`/`Server` and `headers`/`Headers`. This does not lowercase dictionary keys: environment variables and arbitrary parameter names retain their case. Duplicate HTTP header names are rejected case-insensitively. Nullable settings remain nullable; non-nullable settings and string dictionary values must not explicitly be null.
 
 This is stricter than 2.0.1, which could silently ignore unknown fields or a missing file. Remove misspelled or duplicated fields instead of relying on last-value-wins behavior. The same reader is used by validation, health/discovery configuration and offline report configuration. Diagnostics do not include configuration values or unrecognized key text.
 
-These checks do not yet add a versioned configuration schema, per-setting provenance, or a full migration command. See the [implementation status](../docs/EnterpriseRecoveryProgress.md) for the remaining work.
+Configuration documents may declare `"schemaVersion": "1.0.0"` at the root. Files without this property retain legacy interpretation; adding the current version does not change normalized settings. Unsupported versions, null or non-string versions, and duplicate version aliases fail preflight. This version identifies the configuration format, not the MCP protocol revision or canonical result contract. UTF-8 files with one leading byte-order mark are accepted; invalid UTF-8 is a usage error.
+
+A minimal versioned configuration:
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "server": {
+    "endpoint": "https://example.invalid/mcp",
+    "transport": "http"
+  },
+  "execution": {
+    "mode": "safe",
+    "timeoutSeconds": 30
+  }
+}
+```
+
+The [configuration schema](../docs/Schemas/mcpval-configuration-v1.schema.json) is generated from the same serializer metadata as the parser. Emit it without target contact using:
+
+```bash
+mcpval config-schema
+```
+
+For migration, first remove unknown or duplicate fields and explicit nulls rejected by the parser, then add `"schemaVersion": "1.0.0"`. Do not relabel an unsupported future version as current without reviewing its settings. The schema describes structural input shape; byte/depth limits, duplicate aliases, case-insensitive header collisions and runtime numeric representation checks remain parser responsibilities. The checked-in schema has a drift test and must be regenerated deliberately when the contract changes.
+
+Validation, health and discovery plans and audit manifests record value-free setting origins: default, file, profile, CLI or governance. A same-value explicit CLI setting still records the override. Dictionary/collection settings are tracked as units without recording arbitrary keys or values. Offline-report session receipts track only their effective reporting settings.
+
+For health and discovery, an explicit `--timeout` (milliseconds) wins; otherwise the configured `execution.timeoutSeconds` wins over legacy `server.timeoutMs`. If neither is supplied, health retains its 30-second default and discovery its 120-second default. Milliseconds are rounded up to whole seconds for the execution budget. Non-positive explicit timeouts fail with usage exit 64. Safe-mode restrictions and derived budgets are recorded after command overrides.
+
+The full entrypoint qualification matrix remains in progress; see the [implementation status](../docs/EnterpriseRecoveryProgress.md). Schema generation uses the locked System.Text.Json exporter described by the [official documentation revision](https://github.com/dotnet/docs/blob/700169ff5b8d4936652749c196f76eb31a512bd1/docs/standard/serialization/system-text-json/extract-schema.md).
 
 ## Internal Windows Supervision
 

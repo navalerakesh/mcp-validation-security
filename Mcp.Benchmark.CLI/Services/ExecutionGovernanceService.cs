@@ -111,6 +111,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
 
         return new AuditManifest
         {
+            ConfigurationSources = plan.ConfigurationSources,
             CommandName = plan.CommandName,
             ValidationId = result?.ValidationId ?? plan.SessionId,
             SessionId = plan.SessionId,

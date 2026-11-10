@@ -4,6 +4,7 @@ using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.CLI.Exceptions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.CLI.Models;
 using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
 
@@ -24,7 +25,8 @@ public class ReportCommand(
     IValidationReportRenderer reportRenderer,
     IGitHubActionsReporter gitHubActionsReporter,
     INextStepAdvisor nextStepAdvisor,
-    ISessionArtifactStore artifactStore)
+    ISessionArtifactStore artifactStore,
+    CliSessionContext? sessionContext = null)
 {
     private readonly IConsoleOutputService _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
     private readonly ILogger<ReportCommand> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -68,8 +70,10 @@ public class ReportCommand(
             var outputPath = DetermineOutputPath(inputFile, outputFile, format);
 
             // Load report configuration if provided
-            var reportConfig = await LoadReportConfigurationAsync(configFile);
-            ApplyReportingPreferences(reportConfig, safeResult.ValidationConfig.Reporting, reportDetail);
+            var sources = new ConfigurationSourceTracker();
+            var configuration = await LoadReportConfigurationAsync(configFile, sources);
+            var reportConfig = configuration.Reporting;
+            ApplyReportingPreferences(configuration, safeResult.ValidationConfig.Reporting, reportDetail, sources);
 
             // Display report generation plan
             _consoleOutput.DisplayReportPlan(inputFile, outputPath, format, safeResult);
@@ -80,7 +84,8 @@ public class ReportCommand(
 
             _consoleOutput.WriteSuccess($"Report generated successfully: {outputPath}");
 
-            PersistSessionArtifact(inputFile, outputPath, format, safeResult);
+            PersistSessionArtifact(inputFile, outputPath, format, safeResult,
+                sources.Snapshot(configuration, value => value.Reporting));
 
             _logger.LogInformation("Report generated successfully: {OutputPath}", outputPath);
             Environment.ExitCode = 0;
@@ -127,7 +132,8 @@ public class ReportCommand(
         }
     }
 
-    private void PersistSessionArtifact(FileInfo inputFile, string outputPath, string format, ValidationResult validationResult)
+    private void PersistSessionArtifact(FileInfo inputFile, string outputPath, string format, ValidationResult validationResult,
+        IReadOnlyList<ConfigurationSettingOrigin> configurationSources)
     {
         _artifactStore.TrySaveJson(
             "report-results",
@@ -137,6 +143,7 @@ public class ReportCommand(
                 input = inputFile.FullName,
                 output = outputPath,
                 format,
+                configurationSources,
                 validationResult
             });
     }
@@ -201,16 +208,19 @@ public class ReportCommand(
     /// </summary>
     /// <param name="configFile">Optional configuration file.</param>
     /// <returns>Report configuration or default configuration if no file provided.</returns>
-    private async Task<ReportingConfig> LoadReportConfigurationAsync(FileInfo? configFile)
+    private async Task<McpValidatorConfiguration> LoadReportConfigurationAsync(FileInfo? configFile, ConfigurationSourceTracker sources)
     {
         if (configFile is not null)
         {
             _logger.LogDebug("Loading report configuration from: {ConfigFile}", configFile.FullName);
-            var fullConfig = await BoundedArtifactReader.ReadConfigurationAsync(configFile).ConfigureAwait(false);
-            return fullConfig.Reporting;
+            var document = sessionContext is null
+                ? await BoundedArtifactReader.ReadConfigurationDocumentAsync(configFile).ConfigureAwait(false)
+                : await sessionContext.ReadConfigurationAsync(configFile).ConfigureAwait(false);
+            sources.RecordFileSettings(document.SuppliedSettings);
+            return document.Configuration;
         }
 
-        return new ReportingConfig();
+        return new McpValidatorConfiguration();
     }
 
     /// <summary>
@@ -286,30 +296,49 @@ public class ReportCommand(
         }
     }
 
-    private static void ApplyReportingPreferences(ReportingConfig target, ReportingConfig source, string? reportDetail)
+    private static void ApplyReportingPreferences(McpValidatorConfiguration configuration, ReportingConfig source, string? reportDetail,
+        ConfigurationSourceTracker sources)
     {
+        var target = configuration.Reporting;
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(source);
 
         if (TryParseReportDetailLevel(reportDetail, out var detailLevel))
         {
-            target.ApplyDetailLevel(detailLevel);
+            sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.CommandLine, "--report-detail",
+                "Explicit CLI reporting detail.", () => target.ApplyDetailLevel(detailLevel));
+            sources.RecordCommandLine(value => value.Reporting.DetailLevel, "--report-detail");
         }
         else if (source.IncludesDetailedSections())
         {
-            target.ApplyDetailLevel(ReportDetailLevel.Full);
+            sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.Profile, "--input",
+                "Saved-result reporting preferences.", () => target.ApplyDetailLevel(ReportDetailLevel.Full));
+            sources.Record(value => value.Reporting.DetailLevel, ConfigurationSourceKind.Profile, "--input",
+                "Detail inherited from normalized saved-result preferences.");
         }
         else
         {
-            target.NormalizeDetailLevel();
+            var previousDetail = target.DetailLevel;
+            sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.Profile, nameof(ReportingConfig.DetailLevel),
+                "Normalized reporting detail profile.", target.NormalizeDetailLevel);
+            if (previousDetail != target.DetailLevel)
+                sources.Record(value => value.Reporting.DetailLevel, ConfigurationSourceKind.Profile, nameof(ReportingConfig.DetailLevel),
+                    "Detail derived from effective reporting preferences.");
         }
 
-        target.IncludePerformanceMetrics = target.IncludePerformanceMetrics && source.IncludePerformanceMetrics;
-        target.IncludeSecurityDetails = target.IncludeSecurityDetails && source.IncludeSecurityDetails;
-        target.GenerateComplianceSummary = target.GenerateComplianceSummary || source.GenerateComplianceSummary;
+        sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.Governance, "--input",
+            "Presentation constrained by saved-result preferences.", () =>
+            {
+                target.IncludePerformanceMetrics = target.IncludePerformanceMetrics && source.IncludePerformanceMetrics;
+                target.IncludeSecurityDetails = target.IncludeSecurityDetails && source.IncludeSecurityDetails;
+                target.GenerateComplianceSummary = target.GenerateComplianceSummary || source.GenerateComplianceSummary;
+            });
         if (string.IsNullOrWhiteSpace(target.SpecProfile))
         {
             target.SpecProfile = source.SpecProfile;
+            if (!string.IsNullOrWhiteSpace(source.SpecProfile))
+                sources.Record(value => value.Reporting.SpecProfile, ConfigurationSourceKind.Profile, "--input",
+                    "Specification profile inherited from normalized saved-result preferences.");
         }
     }
 

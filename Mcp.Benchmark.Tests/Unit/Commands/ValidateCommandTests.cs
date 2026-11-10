@@ -27,6 +27,8 @@ public sealed class ValidateCommandTests : IDisposable
     [InlineData("{\"server\":null}")]
     [InlineData("{\"server\":{\"heders\":{\"X-Route\":\"route\"}}}")]
     [InlineData("{\"server\":{\"endpoint\":\"first\",\"Endpoint\":\"second\"}}")]
+    [InlineData("{\"schemaVersion\":\"2.0.0\"}")]
+    [InlineData("{\"schemaVersion\":\"1.0.0\",\"SchemaVersion\":\"1.0.0\"}")]
     public async Task ExecuteAsync_WithInvalidExplicitConfiguration_ShouldRejectBeforeValidation(string? json)
     {
         var configPath = Path.Combine(Path.GetTempPath(), $"invalid-config-{Guid.NewGuid():N}.json");
@@ -733,6 +735,53 @@ public sealed class ValidateCommandTests : IDisposable
 
         Environment.ExitCode.Should().Be(0);
         validatorService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DryRun_ShouldProjectFileCliProfileAndGovernanceOriginsWithoutValues()
+    {
+        var configPath = Path.Combine(Path.GetTempPath(), $"origin-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(configPath);
+        await File.WriteAllTextAsync(configPath,
+            "{\"schemaVersion\":\"1.0.0\",\"server\":{\"endpoint\":\"https://1.1.1.1/mcp\",\"Headers\":{\"canary-header-key\":\"canary-header-value\"}},\"validation\":{\"categories\":{\"tools\":{\"TestToolExecution\":true}}}}");
+        var realGovernance = new ExecutionGovernanceService();
+        var governance = new Mock<IExecutionGovernanceService>();
+        ExecutionPlan? capturedPlan = null;
+        AuditManifest? capturedAudit = null;
+        governance.Setup(service => service.BuildValidationPlan(It.IsAny<CliSessionContext>(), It.IsAny<McpValidatorConfiguration>(), It.IsAny<string?>()))
+            .Returns((CliSessionContext session, McpValidatorConfiguration configuration, string? output) =>
+                capturedPlan = realGovernance.BuildValidationPlan(session, configuration, output));
+        governance.Setup(service => service.BuildAuditManifest(It.IsAny<ExecutionPlan>(), It.IsAny<ValidationResult?>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<ModelEvaluationArtifact?>()))
+            .Returns((ExecutionPlan plan, ValidationResult? result, IReadOnlyList<string> artifacts, ModelEvaluationArtifact? model) =>
+                capturedAudit = realGovernance.BuildAuditManifest(plan, result, artifacts, model));
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var command = new ValidateCommand(validator.Object, new Mock<IConsoleOutputService>().Object,
+            new Mock<IClientProfileEvaluator>().Object, new Mock<IReportGenerator>().Object,
+            new Mock<IValidationReportRenderer>().Object, new Mock<IGitHubActionsReporter>().Object,
+            NullLogger<ValidateCommand>.Instance, new Mock<INextStepAdvisor>().Object,
+            governance.Object, new NoOpModelEvaluationExecutor(), new Mock<ISessionArtifactStore>().Object,
+            transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(server: "https://1.1.1.1/mcp", outputDirectory: null,
+            specProfile: "2025-11-25", configFile: new FileInfo(configPath), verbose: false, dryRun: true);
+
+        Environment.ExitCode.Should().Be(0);
+        capturedPlan.Should().NotBeNull();
+        capturedAudit.Should().NotBeNull();
+        var origins = capturedPlan!.ConfigurationSources!;
+        var endpoint = origins.Single(origin => origin.Setting == "$.server.endpoint");
+        endpoint.Source.Should().Be(ConfigurationSourceKind.CommandLine);
+        endpoint.ReplacedSource.Should().Be(ConfigurationSourceKind.File);
+        origins.Single(origin => origin.Setting == "$.server.Headers").Source.Should().Be(ConfigurationSourceKind.File);
+        origins.Single(origin => origin.Setting == "$.validation.categories.tools.TestToolExecution")
+            .Source.Should().Be(ConfigurationSourceKind.Governance);
+        origins.Should().Contain(origin => origin.Source == ConfigurationSourceKind.Profile && origin.Pointer == "--mcpspec");
+        origins.Should().Contain(origin => origin.Source == ConfigurationSourceKind.Default);
+        JsonSerializer.Serialize(capturedAudit!.ConfigurationSources).Should().Be(JsonSerializer.Serialize(origins)).And.NotContain("canary");
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+        governance.Verify(service => service.ValidateTargetResolutionAsync(It.IsAny<ExecutionPlan>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]

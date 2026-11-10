@@ -57,8 +57,27 @@ public sealed class ValidationAttestation
     public string SignatureBase64 { get; init; } = string.Empty;
 }
 
+public enum ConfigurationSourceKind
+{
+    Default,
+    File,
+    Profile,
+    CommandLine,
+    Governance
+}
+
+public sealed record ConfigurationSettingOrigin(
+    string Setting,
+    ConfigurationSourceKind Source,
+    string Pointer,
+    ConfigurationSourceKind? ReplacedSource,
+    string Reason);
+
 public sealed class ExecutionPlan
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; set; }
+
     public string ValidatorDigest { get; init; } = string.Empty;
 
     public string ConfigDigest { get; init; } = string.Empty;
@@ -132,6 +151,9 @@ public sealed class ExecutionPlan
 
 public sealed class AuditManifest
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; init; }
+
     public string DocumentType { get; init; } = ArtifactContracts.AuditManifestDocumentType;
 
     public string DocumentSchemaVersion { get; init; } = ArtifactContracts.AuditManifestSchemaVersion;

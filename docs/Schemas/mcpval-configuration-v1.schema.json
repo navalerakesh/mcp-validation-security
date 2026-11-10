@@ -1,0 +1,1693 @@
+{
+  "type": "object",
+  "properties": {
+    "server": {
+      "type": "object",
+      "properties": {
+        "endpoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "transport": {
+          "type": "string"
+        },
+        "protocolVersion": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "protocolEra": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[aA][uU][tT][oO]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[lL][eE][gG][aA][cC][yY]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[mM][oO][dD][eE][rR][nN]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            }
+          ]
+        },
+        "authentication": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "type": {
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "token": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tokenRef": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "provider": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[pP][rR][oO][vV][iI][dD][eE][rR]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/tokenRef/properties/provider"
+                },
+                "^[nN][aA][mM][eE]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/tokenRef/properties/name"
+                }
+              }
+            },
+            "username": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "password": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "clientId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tenantId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "scopes": {
+              "type": [
+                "array",
+                "null"
+              ],
+              "items": {
+                "type": "string"
+              }
+            },
+            "authority": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "customHeaders": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            },
+            "allowInteractive": {
+              "type": "boolean"
+            },
+            "clientRegistration": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "mode": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^\\s*[nN][oO][nN][eE]\\s*$(?![\\s\\S])"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\s*[sS][tT][aA][tT][iI][cC]\\s*$(?![\\s\\S])"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\s*[mM][eE][tT][aA][dD][aA][tT][aA][dD][oO][cC][uU][mM][eE][nN][tT]\\s*$(?![\\s\\S])"
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\s*[lL][eE][gG][aA][cC][yY][dD][yY][nN][aA][mM][iI][cC]\\s*$(?![\\s\\S])"
+                    },
+                    {
+                      "const": 0
+                    },
+                    {
+                      "const": 1
+                    },
+                    {
+                      "const": 2
+                    },
+                    {
+                      "const": 3
+                    }
+                  ]
+                },
+                "clientId": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "metadataUri": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "authorizationServerIssuer": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "redirectUris": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[mM][oO][dD][eE]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/clientRegistration/properties/mode"
+                },
+                "^[cC][lL][iI][eE][nN][tT][iI][dD]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/clientRegistration/properties/clientId"
+                },
+                "^[mM][eE][tT][aA][dD][aA][tT][aA][uU][rR][iI]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/clientRegistration/properties/metadataUri"
+                },
+                "^[aA][uU][tT][hH][oO][rR][iI][zZ][aA][tT][iI][oO][nN][sS][eE][rR][vV][eE][rR][iI][sS][sS][uU][eE][rR]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/clientRegistration/properties/authorizationServerIssuer"
+                },
+                "^[rR][eE][dD][iI][rR][eE][cC][tT][uU][rR][iI][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/clientRegistration/properties/redirectUris"
+                }
+              }
+            },
+            "conformanceCredentials": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "wrongAudienceResource": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "wrongAudienceScopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "previouslyGrantedScopes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[wW][rR][oO][nN][gG][aA][uU][dD][iI][eE][nN][cC][eE][rR][eE][sS][oO][uU][rR][cC][eE]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/conformanceCredentials/properties/wrongAudienceResource"
+                },
+                "^[wW][rR][oO][nN][gG][aA][uU][dD][iI][eE][nN][cC][eE][sS][cC][oO][pP][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/conformanceCredentials/properties/wrongAudienceScopes"
+                },
+                "^[pP][rR][eE][vV][iI][oO][uU][sS][lL][yY][gG][rR][aA][nN][tT][eE][dD][sS][cC][oO][pP][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/server/properties/authentication/properties/conformanceCredentials/properties/previouslyGrantedScopes"
+                }
+              }
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[tT][yY][pP][eE]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/type"
+            },
+            "^[rR][eE][qQ][uU][iI][rR][eE][dD]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/required"
+            },
+            "^[tT][oO][kK][eE][nN]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/token"
+            },
+            "^[tT][oO][kK][eE][nN][rR][eE][fF]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/tokenRef"
+            },
+            "^[uU][sS][eE][rR][nN][aA][mM][eE]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/username"
+            },
+            "^[pP][aA][sS][sS][wW][oO][rR][dD]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/password"
+            },
+            "^[cC][lL][iI][eE][nN][tT][iI][dD]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/clientId"
+            },
+            "^[tT][eE][nN][aA][nN][tT][iI][dD]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/tenantId"
+            },
+            "^[sS][cC][oO][pP][eE][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/scopes"
+            },
+            "^[aA][uU][tT][hH][oO][rR][iI][tT][yY]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/authority"
+            },
+            "^[cC][uU][sS][tT][oO][mM][hH][eE][aA][dD][eE][rR][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/customHeaders"
+            },
+            "^[aA][lL][lL][oO][wW][iI][nN][tT][eE][rR][aA][cC][tT][iI][vV][eE]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/allowInteractive"
+            },
+            "^[cC][lL][iI][eE][nN][tT][rR][eE][gG][iI][sS][tT][rR][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/clientRegistration"
+            },
+            "^[cC][oO][nN][fF][oO][rR][mM][aA][nN][cC][eE][cC][rR][eE][dD][eE][nN][tT][iI][aA][lL][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/server/properties/authentication/properties/conformanceCredentials"
+            }
+          }
+        },
+        "timeoutMs": {
+          "type": "integer"
+        },
+        "Headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "Environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "profile": {
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            },
+            {
+              "const": 3
+            }
+          ]
+        },
+        "contentSafetyContext": {
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            },
+            {
+              "const": 3
+            },
+            {
+              "const": 4
+            },
+            {
+              "const": 5
+            },
+            {
+              "const": 6
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[eE][nN][dD][pP][oO][iI][nN][tT]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/endpoint"
+        },
+        "^[tT][rR][aA][nN][sS][pP][oO][rR][tT]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/transport"
+        },
+        "^[pP][rR][oO][tT][oO][cC][oO][lL][vV][eE][rR][sS][iI][oO][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/protocolVersion"
+        },
+        "^[pP][rR][oO][tT][oO][cC][oO][lL][eE][rR][aA]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/protocolEra"
+        },
+        "^[aA][uU][tT][hH][eE][nN][tT][iI][cC][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/authentication"
+        },
+        "^[tT][iI][mM][eE][oO][uU][tT][mM][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/timeoutMs"
+        },
+        "^[hH][eE][aA][dD][eE][rR][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/Headers"
+        },
+        "^[eE][nN][vV][iI][rR][oO][nN][mM][eE][nN][tT]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/Environment"
+        },
+        "^[pP][rR][oO][fF][iI][lL][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/profile"
+        },
+        "^[cC][oO][nN][tT][eE][nN][tT][sS][aA][fF][eE][tT][yY][cC][oO][nN][tT][eE][xX][tT]$(?![\\s\\S])": {
+          "$ref": "#/properties/server/properties/contentSafetyContext"
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "properties": {
+        "categories": {
+          "type": "object",
+          "properties": {
+            "protocol": {
+              "type": "object",
+              "properties": {
+                "TestJsonRpcCompliance": {
+                  "type": "boolean"
+                },
+                "TestInitialization": {
+                  "type": "boolean"
+                },
+                "TestCapabilities": {
+                  "type": "boolean"
+                },
+                "TestNotifications": {
+                  "type": "boolean"
+                },
+                "TestMessageFormat": {
+                  "type": "boolean"
+                },
+                "ProtocolVersion": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][jJ][sS][oO][nN][rR][pP][cC][cC][oO][mM][pP][lL][iI][aA][nN][cC][eE]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/TestJsonRpcCompliance"
+                },
+                "^[tT][eE][sS][tT][iI][nN][iI][tT][iI][aA][lL][iI][zZ][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/TestInitialization"
+                },
+                "^[tT][eE][sS][tT][cC][aA][pP][aA][bB][iI][lL][iI][tT][iI][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/TestCapabilities"
+                },
+                "^[tT][eE][sS][tT][nN][oO][tT][iI][fF][iI][cC][aA][tT][iI][oO][nN][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/TestNotifications"
+                },
+                "^[tT][eE][sS][tT][mM][eE][sS][sS][aA][gG][eE][fF][oO][rR][mM][aA][tT]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/TestMessageFormat"
+                },
+                "^[pP][rR][oO][tT][oO][cC][oO][lL][vV][eE][rR][sS][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/protocol/properties/ProtocolVersion"
+                }
+              }
+            },
+            "tools": {
+              "type": "object",
+              "properties": {
+                "TestToolDiscovery": {
+                  "type": "boolean"
+                },
+                "TestToolExecution": {
+                  "type": "boolean"
+                },
+                "TestParameterValidation": {
+                  "type": "boolean"
+                },
+                "SpecificTools": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "PreDiscoveredAuth": {
+                  "type": [
+                    "object",
+                    "null"
+                  ],
+                  "properties": {
+                    "WwwAuthenticateHeader": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "Metadata": {
+                      "type": [
+                        "object",
+                        "null"
+                      ],
+                      "properties": {
+                        "resource": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        },
+                        "authorization_servers": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "scopes_supported": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        },
+                        "bearer_methods_supported": {
+                          "type": [
+                            "array",
+                            "null"
+                          ],
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "additionalProperties": false,
+                      "patternProperties": {
+                        "^[rR][eE][sS][oO][uU][rR][cC][eE]$(?![\\s\\S])": {
+                          "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Metadata/properties/resource"
+                        },
+                        "^[aA][uU][tT][hH][oO][rR][iI][zZ][aA][tT][iI][oO][nN]_[sS][eE][rR][vV][eE][rR][sS]$(?![\\s\\S])": {
+                          "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Metadata/properties/authorization_servers"
+                        },
+                        "^[sS][cC][oO][pP][eE][sS]_[sS][uU][pP][pP][oO][rR][tT][eE][dD]$(?![\\s\\S])": {
+                          "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Metadata/properties/scopes_supported"
+                        },
+                        "^[bB][eE][aA][rR][eE][rR]_[mM][eE][tT][hH][oO][dD][sS]_[sS][uU][pP][pP][oO][rR][tT][eE][dD]$(?![\\s\\S])": {
+                          "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Metadata/properties/bearer_methods_supported"
+                        }
+                      }
+                    },
+                    "Issues": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "DiscoveryTimeMs": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false,
+                  "patternProperties": {
+                    "^[wW][wW][wW][aA][uU][tT][hH][eE][nN][tT][iI][cC][aA][tT][eE][hH][eE][aA][dD][eE][rR]$(?![\\s\\S])": {
+                      "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/WwwAuthenticateHeader"
+                    },
+                    "^[mM][eE][tT][aA][dD][aA][tT][aA]$(?![\\s\\S])": {
+                      "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Metadata"
+                    },
+                    "^[iI][sS][sS][uU][eE][sS]$(?![\\s\\S])": {
+                      "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/Issues"
+                    },
+                    "^[dD][iI][sS][cC][oO][vV][eE][rR][yY][tT][iI][mM][eE][mM][sS]$(?![\\s\\S])": {
+                      "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth/properties/DiscoveryTimeMs"
+                    }
+                  }
+                },
+                "CustomScenarios": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "ToolName": {
+                        "type": "string"
+                      },
+                      "Parameters": {
+                        "type": "object"
+                      },
+                      "ExpectedResult": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ExpectError": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^[tT][oO][oO][lL][nN][aA][mM][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ToolName"
+                      },
+                      "^[pP][aA][rR][aA][mM][eE][tT][eE][rR][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/Parameters"
+                      },
+                      "^[eE][xX][pP][eE][cC][tT][eE][dD][rR][eE][sS][uU][lL][tT]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ExpectedResult"
+                      },
+                      "^[eE][xX][pP][eE][cC][tT][eE][rR][rR][oO][rR]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ExpectError"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][tT][oO][oO][lL][dD][iI][sS][cC][oO][vV][eE][rR][yY]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/TestToolDiscovery"
+                },
+                "^[tT][eE][sS][tT][tT][oO][oO][lL][eE][xX][eE][cC][uU][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/TestToolExecution"
+                },
+                "^[tT][eE][sS][tT][pP][aA][rR][aA][mM][eE][tT][eE][rR][vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/TestParameterValidation"
+                },
+                "^[sS][pP][eE][cC][iI][fF][iI][cC][tT][oO][oO][lL][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/SpecificTools"
+                },
+                "^[pP][rR][eE][dD][iI][sS][cC][oO][vV][eE][rR][eE][dD][aA][uU][tT][hH]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/PreDiscoveredAuth"
+                },
+                "^[cC][uU][sS][tT][oO][mM][sS][cC][eE][nN][aA][rR][iI][oO][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios"
+                }
+              }
+            },
+            "resources": {
+              "type": "object",
+              "properties": {
+                "MaxResources": {
+                  "type": "integer"
+                },
+                "TestResourceDiscovery": {
+                  "type": "boolean"
+                },
+                "TestResourceReading": {
+                  "type": "boolean"
+                },
+                "TestUriValidation": {
+                  "type": "boolean"
+                },
+                "TestSubscriptions": {
+                  "type": "boolean"
+                },
+                "SpecificResources": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[mM][aA][xX][rR][eE][sS][oO][uU][rR][cC][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/MaxResources"
+                },
+                "^[tT][eE][sS][tT][rR][eE][sS][oO][uU][rR][cC][eE][dD][iI][sS][cC][oO][vV][eE][rR][yY]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/TestResourceDiscovery"
+                },
+                "^[tT][eE][sS][tT][rR][eE][sS][oO][uU][rR][cC][eE][rR][eE][aA][dD][iI][nN][gG]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/TestResourceReading"
+                },
+                "^[tT][eE][sS][tT][uU][rR][iI][vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/TestUriValidation"
+                },
+                "^[tT][eE][sS][tT][sS][uU][bB][sS][cC][rR][iI][pP][tT][iI][oO][nN][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/TestSubscriptions"
+                },
+                "^[sS][pP][eE][cC][iI][fF][iI][cC][rR][eE][sS][oO][uU][rR][cC][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/resources/properties/SpecificResources"
+                }
+              }
+            },
+            "prompts": {
+              "type": "object",
+              "properties": {
+                "TestPromptDiscovery": {
+                  "type": "boolean"
+                },
+                "TestPromptExecution": {
+                  "type": "boolean"
+                },
+                "TestArgumentValidation": {
+                  "type": "boolean"
+                },
+                "SpecificPrompts": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][pP][rR][oO][mM][pP][tT][dD][iI][sS][cC][oO][vV][eE][rR][yY]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/TestPromptDiscovery"
+                },
+                "^[tT][eE][sS][tT][pP][rR][oO][mM][pP][tT][eE][xX][eE][cC][uU][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/TestPromptExecution"
+                },
+                "^[tT][eE][sS][tT][aA][rR][gG][uU][mM][eE][nN][tT][vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/TestArgumentValidation"
+                },
+                "^[sS][pP][eE][cC][iI][fF][iI][cC][pP][rR][oO][mM][pP][tT][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/SpecificPrompts"
+                }
+              }
+            },
+            "security": {
+              "type": "object",
+              "properties": {
+                "TestInputValidation": {
+                  "type": "boolean"
+                },
+                "TestInjectionAttacks": {
+                  "type": "boolean"
+                },
+                "TestAuthenticationBypass": {
+                  "type": "boolean"
+                },
+                "TestBufferOverflow": {
+                  "type": "boolean"
+                },
+                "TestMalformedMessages": {
+                  "type": "boolean"
+                },
+                "TestResourceExhaustion": {
+                  "type": "boolean"
+                },
+                "CustomPayloads": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Name": {
+                        "type": "string"
+                      },
+                      "Target": {
+                        "type": "string"
+                      },
+                      "Payload": {
+                        "type": "string"
+                      },
+                      "ExpectedResponse": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "ShouldReject": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^[nN][aA][mM][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads/items/properties/Name"
+                      },
+                      "^[tT][aA][rR][gG][eE][tT]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads/items/properties/Target"
+                      },
+                      "^[pP][aA][yY][lL][oO][aA][dD]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads/items/properties/Payload"
+                      },
+                      "^[eE][xX][pP][eE][cC][tT][eE][dD][rR][eE][sS][pP][oO][nN][sS][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads/items/properties/ExpectedResponse"
+                      },
+                      "^[sS][hH][oO][uU][lL][dD][rR][eE][jJ][eE][cC][tT]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads/items/properties/ShouldReject"
+                      }
+                    }
+                  }
+                },
+                "MaxTestDurationSeconds": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][iI][nN][pP][uU][tT][vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestInputValidation"
+                },
+                "^[tT][eE][sS][tT][iI][nN][jJ][eE][cC][tT][iI][oO][nN][aA][tT][tT][aA][cC][kK][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestInjectionAttacks"
+                },
+                "^[tT][eE][sS][tT][aA][uU][tT][hH][eE][nN][tT][iI][cC][aA][tT][iI][oO][nN][bB][yY][pP][aA][sS][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestAuthenticationBypass"
+                },
+                "^[tT][eE][sS][tT][bB][uU][fF][fF][eE][rR][oO][vV][eE][rR][fF][lL][oO][wW]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestBufferOverflow"
+                },
+                "^[tT][eE][sS][tT][mM][aA][lL][fF][oO][rR][mM][eE][dD][mM][eE][sS][sS][aA][gG][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestMalformedMessages"
+                },
+                "^[tT][eE][sS][tT][rR][eE][sS][oO][uU][rR][cC][eE][eE][xX][hH][aA][uU][sS][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/TestResourceExhaustion"
+                },
+                "^[cC][uU][sS][tT][oO][mM][pP][aA][yY][lL][oO][aA][dD][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/CustomPayloads"
+                },
+                "^[mM][aA][xX][tT][eE][sS][tT][dD][uU][rR][aA][tT][iI][oO][nN][sS][eE][cC][oO][nN][dD][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/security/properties/MaxTestDurationSeconds"
+                }
+              }
+            },
+            "performance": {
+              "type": "object",
+              "properties": {
+                "TestConcurrentRequests": {
+                  "type": "boolean"
+                },
+                "TestResponseTimes": {
+                  "type": "boolean"
+                },
+                "TestMemoryUsage": {
+                  "type": "boolean"
+                },
+                "TestThroughput": {
+                  "type": "boolean"
+                },
+                "MaxConcurrentConnections": {
+                  "type": "integer"
+                },
+                "LoadTestDurationSeconds": {
+                  "type": "integer"
+                },
+                "ResponseTimeThresholdMs": {
+                  "type": "integer"
+                },
+                "CustomScenarios": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Name": {
+                        "type": "string"
+                      },
+                      "RequestCount": {
+                        "type": "integer"
+                      },
+                      "ConcurrentUsers": {
+                        "type": "integer"
+                      },
+                      "Target": {
+                        "type": "string"
+                      },
+                      "Parameters": {
+                        "type": "object"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^[nN][aA][mM][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios/items/properties/Name"
+                      },
+                      "^[rR][eE][qQ][uU][eE][sS][tT][cC][oO][uU][nN][tT]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios/items/properties/RequestCount"
+                      },
+                      "^[cC][oO][nN][cC][uU][rR][rR][eE][nN][tT][uU][sS][eE][rR][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios/items/properties/ConcurrentUsers"
+                      },
+                      "^[tT][aA][rR][gG][eE][tT]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios/items/properties/Target"
+                      },
+                      "^[pP][aA][rR][aA][mM][eE][tT][eE][rR][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios/items/properties/Parameters"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][cC][oO][nN][cC][uU][rR][rR][eE][nN][tT][rR][eE][qQ][uU][eE][sS][tT][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/TestConcurrentRequests"
+                },
+                "^[tT][eE][sS][tT][rR][eE][sS][pP][oO][nN][sS][eE][tT][iI][mM][eE][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/TestResponseTimes"
+                },
+                "^[tT][eE][sS][tT][mM][eE][mM][oO][rR][yY][uU][sS][aA][gG][eE]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/TestMemoryUsage"
+                },
+                "^[tT][eE][sS][tT][tT][hH][rR][oO][uU][gG][hH][pP][uU][tT]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/TestThroughput"
+                },
+                "^[mM][aA][xX][cC][oO][nN][cC][uU][rR][rR][eE][nN][tT][cC][oO][nN][nN][eE][cC][tT][iI][oO][nN][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/MaxConcurrentConnections"
+                },
+                "^[lL][oO][aA][dD][tT][eE][sS][tT][dD][uU][rR][aA][tT][iI][oO][nN][sS][eE][cC][oO][nN][dD][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/LoadTestDurationSeconds"
+                },
+                "^[rR][eE][sS][pP][oO][nN][sS][eE][tT][iI][mM][eE][tT][hH][rR][eE][sS][hH][oO][lL][dD][mM][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/ResponseTimeThresholdMs"
+                },
+                "^[cC][uU][sS][tT][oO][mM][sS][cC][eE][nN][aA][rR][iI][oO][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/performance/properties/CustomScenarios"
+                }
+              }
+            },
+            "errorHandling": {
+              "type": "object",
+              "properties": {
+                "TestInvalidMethods": {
+                  "type": "boolean"
+                },
+                "TestMalformedJson": {
+                  "type": "boolean"
+                },
+                "TestConnectionInterruption": {
+                  "type": "boolean"
+                },
+                "TestTimeoutHandling": {
+                  "type": "boolean"
+                },
+                "TestGracefulDegradation": {
+                  "type": "boolean"
+                },
+                "CustomErrorScenarios": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "Name": {
+                        "type": "string"
+                      },
+                      "ErrorType": {
+                        "type": "string"
+                      },
+                      "ErrorCondition": {
+                        "type": "string"
+                      },
+                      "ExpectedErrorCode": {
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "ShouldRecover": {
+                        "type": "boolean"
+                      }
+                    },
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^[nN][aA][mM][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios/items/properties/Name"
+                      },
+                      "^[eE][rR][rR][oO][rR][tT][yY][pP][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios/items/properties/ErrorType"
+                      },
+                      "^[eE][rR][rR][oO][rR][cC][oO][nN][dD][iI][tT][iI][oO][nN]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios/items/properties/ErrorCondition"
+                      },
+                      "^[eE][xX][pP][eE][cC][tT][eE][dD][eE][rR][rR][oO][rR][cC][oO][dD][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios/items/properties/ExpectedErrorCode"
+                      },
+                      "^[sS][hH][oO][uU][lL][dD][rR][eE][cC][oO][vV][eE][rR]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios/items/properties/ShouldRecover"
+                      }
+                    }
+                  }
+                }
+              },
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[tT][eE][sS][tT][iI][nN][vV][aA][lL][iI][dD][mM][eE][tT][hH][oO][dD][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/TestInvalidMethods"
+                },
+                "^[tT][eE][sS][tT][mM][aA][lL][fF][oO][rR][mM][eE][dD][jJ][sS][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/TestMalformedJson"
+                },
+                "^[tT][eE][sS][tT][cC][oO][nN][nN][eE][cC][tT][iI][oO][nN][iI][nN][tT][eE][rR][rR][uU][pP][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/TestConnectionInterruption"
+                },
+                "^[tT][eE][sS][tT][tT][iI][mM][eE][oO][uU][tT][hH][aA][nN][dD][lL][iI][nN][gG]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/TestTimeoutHandling"
+                },
+                "^[tT][eE][sS][tT][gG][rR][aA][cC][eE][fF][uU][lL][dD][eE][gG][rR][aA][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/TestGracefulDegradation"
+                },
+                "^[cC][uU][sS][tT][oO][mM][eE][rR][rR][oO][rR][sS][cC][eE][nN][aA][rR][iI][oO][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/errorHandling/properties/CustomErrorScenarios"
+                }
+              }
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[pP][rR][oO][tT][oO][cC][oO][lL]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/protocol"
+            },
+            "^[tT][oO][oO][lL][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/tools"
+            },
+            "^[rR][eE][sS][oO][uU][rR][cC][eE][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/resources"
+            },
+            "^[pP][rR][oO][mM][pP][tT][sS]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/prompts"
+            },
+            "^[sS][eE][cC][uU][rR][iI][tT][yY]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/security"
+            },
+            "^[pP][eE][rR][fF][oO][rR][mM][aA][nN][cC][eE]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/performance"
+            },
+            "^[eE][rR][rR][oO][rR][hH][aA][nN][dD][lL][iI][nN][gG]$(?![\\s\\S])": {
+              "$ref": "#/properties/validation/properties/categories/properties/errorHandling"
+            }
+          }
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[cC][aA][tT][eE][gG][oO][rR][iI][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/validation/properties/categories"
+        },
+        "^[eE][xX][tT][eE][nN][sS][iI][oO][nN][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/validation/properties/extensions"
+        }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "properties": {
+        "OutputDirectory": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "Formats": {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "const": 0
+              },
+              {
+                "const": 1
+              },
+              {
+                "const": 2
+              },
+              {
+                "const": 3
+              },
+              {
+                "const": 4
+              },
+              {
+                "const": 5
+              },
+              {
+                "const": 6
+              }
+            ]
+          }
+        },
+        "detailLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[mM][iI][nN][iI][mM][aA][lL]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[fF][uU][lL][lL]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            }
+          ]
+        },
+        "IncludeDetailedLogs": {
+          "type": "boolean"
+        },
+        "IncludePerformanceMetrics": {
+          "type": "boolean"
+        },
+        "IncludeSecurityDetails": {
+          "type": "boolean"
+        },
+        "GenerateComplianceSummary": {
+          "type": "boolean"
+        },
+        "signAttestation": {
+          "type": "boolean"
+        },
+        "CustomTemplates": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "MinimumLogLevel": {
+          "anyOf": [
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            },
+            {
+              "const": 3
+            },
+            {
+              "const": 4
+            },
+            {
+              "const": 5
+            }
+          ]
+        },
+        "specProfile": {
+          "type": "string"
+        },
+        "includeSpecReferences": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[oO][uU][tT][pP][uU][tT][dD][iI][rR][eE][cC][tT][oO][rR][yY]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/OutputDirectory"
+        },
+        "^[fF][oO][rR][mM][aA][tT][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/Formats"
+        },
+        "^[dD][eE][tT][aA][iI][lL][lL][eE][vV][eE][lL]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/detailLevel"
+        },
+        "^[iI][nN][cC][lL][uU][dD][eE][dD][eE][tT][aA][iI][lL][eE][dD][lL][oO][gG][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/IncludeDetailedLogs"
+        },
+        "^[iI][nN][cC][lL][uU][dD][eE][pP][eE][rR][fF][oO][rR][mM][aA][nN][cC][eE][mM][eE][tT][rR][iI][cC][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/IncludePerformanceMetrics"
+        },
+        "^[iI][nN][cC][lL][uU][dD][eE][sS][eE][cC][uU][rR][iI][tT][yY][dD][eE][tT][aA][iI][lL][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/IncludeSecurityDetails"
+        },
+        "^[gG][eE][nN][eE][rR][aA][tT][eE][cC][oO][mM][pP][lL][iI][aA][nN][cC][eE][sS][uU][mM][mM][aA][rR][yY]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/GenerateComplianceSummary"
+        },
+        "^[sS][iI][gG][nN][aA][tT][tT][eE][sS][tT][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/signAttestation"
+        },
+        "^[cC][uU][sS][tT][oO][mM][tT][eE][mM][pP][lL][aA][tT][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/CustomTemplates"
+        },
+        "^[mM][iI][nN][iI][mM][uU][mM][lL][oO][gG][lL][eE][vV][eE][lL]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/MinimumLogLevel"
+        },
+        "^[sS][pP][eE][cC][pP][rR][oO][fF][iI][lL][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/specProfile"
+        },
+        "^[iI][nN][cC][lL][uU][dD][eE][sS][pP][eE][cC][rR][eE][fF][eE][rR][eE][nN][cC][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/reporting/properties/includeSpecReferences"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "properties": {
+        "mode": {
+          "type": "string"
+        },
+        "suppressions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "signalId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "ruleId": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "component": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "source": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "category": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "owner": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "reason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "expiresOn": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false,
+            "patternProperties": {
+              "^[iI][dD]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/id"
+              },
+              "^[sS][iI][gG][nN][aA][lL][iI][dD]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/signalId"
+              },
+              "^[rR][uU][lL][eE][iI][dD]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/ruleId"
+              },
+              "^[cC][oO][mM][pP][oO][nN][eE][nN][tT]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/component"
+              },
+              "^[sS][oO][uU][rR][cC][eE]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/source"
+              },
+              "^[cC][aA][tT][eE][gG][oO][rR][yY]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/category"
+              },
+              "^[oO][wW][nN][eE][rR]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/owner"
+              },
+              "^[rR][eE][aA][sS][oO][nN]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/reason"
+              },
+              "^[eE][xX][pP][iI][rR][eE][sS][oO][nN]$(?![\\s\\S])": {
+                "$ref": "#/properties/policy/properties/suppressions/items/properties/expiresOn"
+              }
+            }
+          }
+        },
+        "regressionOnly": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[mM][oO][dD][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/policy/properties/mode"
+        },
+        "^[sS][uU][pP][pP][rR][eE][sS][sS][iI][oO][nN][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/policy/properties/suppressions"
+        },
+        "^[rR][eE][gG][rR][eE][sS][sS][iI][oO][nN][oO][nN][lL][yY]$(?![\\s\\S])": {
+          "$ref": "#/properties/policy/properties/regressionOnly"
+        }
+      }
+    },
+    "assurance": {
+      "type": "object",
+      "properties": {
+        "profile": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[pP][rR][oO][fF][iI][lL][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/assurance/properties/profile"
+        }
+      }
+    },
+    "execution": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "mode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[sS][aA][fF][eE]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[sS][tT][aA][nN][dD][aA][rR][dD]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[eE][lL][eE][vV][aA][tT][eE][dD]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            }
+          ]
+        },
+        "dryRun": {
+          "type": "boolean"
+        },
+        "allowedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowPrivateAddresses": {
+          "type": "boolean"
+        },
+        "maxRequests": {
+          "type": "integer"
+        },
+        "maxConcurrency": {
+          "type": "integer"
+        },
+        "timeoutSeconds": {
+          "type": "integer"
+        },
+        "maxResponseBytes": {
+          "type": "integer"
+        },
+        "persistenceMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[eE][pP][hH][eE][mM][eE][rR][aA][lL]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[eE][xX][pP][lL][iI][cC][iI][tT][oO][uU][tT][pP][uU][tT]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[sS][eE][sS][sS][iI][oO][nN]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            }
+          ]
+        },
+        "redactLevel": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[sS][tT][rR][iI][cC][tT]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[sS][tT][aA][nN][dD][aA][rR][dD]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            }
+          ]
+        },
+        "traceMode": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\s*[oO][fF][fF]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[rR][eE][dD][aA][cC][tT][eE][dD]\\s*$(?![\\s\\S])"
+            },
+            {
+              "type": "string",
+              "pattern": "^\\s*[fF][uU][lL][lL]\\s*$(?![\\s\\S])"
+            },
+            {
+              "const": 0
+            },
+            {
+              "const": 1
+            },
+            {
+              "const": 2
+            }
+          ]
+        },
+        "confirmElevatedRisk": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[mM][oO][dD][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/mode"
+        },
+        "^[dD][rR][yY][rR][uU][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/dryRun"
+        },
+        "^[aA][lL][lL][oO][wW][eE][dD][hH][oO][sS][tT][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/allowedHosts"
+        },
+        "^[aA][lL][lL][oO][wW][eE][dD][oO][rR][iI][gG][iI][nN][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/allowedOrigins"
+        },
+        "^[aA][lL][lL][oO][wW][pP][rR][iI][vV][aA][tT][eE][aA][dD][dD][rR][eE][sS][sS][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/allowPrivateAddresses"
+        },
+        "^[mM][aA][xX][rR][eE][qQ][uU][eE][sS][tT][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/maxRequests"
+        },
+        "^[mM][aA][xX][cC][oO][nN][cC][uU][rR][rR][eE][nN][cC][yY]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/maxConcurrency"
+        },
+        "^[tT][iI][mM][eE][oO][uU][tT][sS][eE][cC][oO][nN][dD][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/timeoutSeconds"
+        },
+        "^[mM][aA][xX][rR][eE][sS][pP][oO][nN][sS][eE][bB][yY][tT][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/maxResponseBytes"
+        },
+        "^[pP][eE][rR][sS][iI][sS][tT][eE][nN][cC][eE][mM][oO][dD][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/persistenceMode"
+        },
+        "^[rR][eE][dD][aA][cC][tT][lL][eE][vV][eE][lL]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/redactLevel"
+        },
+        "^[tT][rR][aA][cC][eE][mM][oO][dD][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/traceMode"
+        },
+        "^[cC][oO][nN][fF][iI][rR][mM][eE][lL][eE][vV][aA][tT][eE][dD][rR][iI][sS][kK]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/confirmElevatedRisk"
+        }
+      }
+    },
+    "testExecution": {
+      "type": "object",
+      "properties": {
+        "ContinueOnFailure": {
+          "type": "boolean"
+        },
+        "EnableParallelExecution": {
+          "type": "boolean"
+        },
+        "MaxParallelThreads": {
+          "type": "integer"
+        },
+        "DefaultTestTimeoutMs": {
+          "type": "integer"
+        },
+        "GlobalTimeoutMinutes": {
+          "type": "integer"
+        },
+        "RetryAttempts": {
+          "type": "integer"
+        },
+        "RetryDelayMs": {
+          "type": "integer"
+        },
+        "RandomizeExecutionOrder": {
+          "type": "boolean"
+        },
+        "IncludeCategories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ExcludeCategories": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "CustomFilters": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "EnableProgressReporting": {
+          "type": "boolean"
+        },
+        "CaptureSnapshots": {
+          "type": "boolean"
+        },
+        "EnvironmentVariables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[cC][oO][nN][tT][iI][nN][uU][eE][oO][nN][fF][aA][iI][lL][uU][rR][eE]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/ContinueOnFailure"
+        },
+        "^[eE][nN][aA][bB][lL][eE][pP][aA][rR][aA][lL][lL][eE][lL][eE][xX][eE][cC][uU][tT][iI][oO][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/EnableParallelExecution"
+        },
+        "^[mM][aA][xX][pP][aA][rR][aA][lL][lL][eE][lL][tT][hH][rR][eE][aA][dD][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/MaxParallelThreads"
+        },
+        "^[dD][eE][fF][aA][uU][lL][tT][tT][eE][sS][tT][tT][iI][mM][eE][oO][uU][tT][mM][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/DefaultTestTimeoutMs"
+        },
+        "^[gG][lL][oO][bB][aA][lL][tT][iI][mM][eE][oO][uU][tT][mM][iI][nN][uU][tT][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/GlobalTimeoutMinutes"
+        },
+        "^[rR][eE][tT][rR][yY][aA][tT][tT][eE][mM][pP][tT][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/RetryAttempts"
+        },
+        "^[rR][eE][tT][rR][yY][dD][eE][lL][aA][yY][mM][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/RetryDelayMs"
+        },
+        "^[rR][aA][nN][dD][oO][mM][iI][zZ][eE][eE][xX][eE][cC][uU][tT][iI][oO][nN][oO][rR][dD][eE][rR]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/RandomizeExecutionOrder"
+        },
+        "^[iI][nN][cC][lL][uU][dD][eE][cC][aA][tT][eE][gG][oO][rR][iI][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/IncludeCategories"
+        },
+        "^[eE][xX][cC][lL][uU][dD][eE][cC][aA][tT][eE][gG][oO][rR][iI][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/ExcludeCategories"
+        },
+        "^[cC][uU][sS][tT][oO][mM][fF][iI][lL][tT][eE][rR][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/CustomFilters"
+        },
+        "^[eE][nN][aA][bB][lL][eE][pP][rR][oO][gG][rR][eE][sS][sS][rR][eE][pP][oO][rR][tT][iI][nN][gG]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/EnableProgressReporting"
+        },
+        "^[cC][aA][pP][tT][uU][rR][eE][sS][nN][aA][pP][sS][hH][oO][tT][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/CaptureSnapshots"
+        },
+        "^[eE][nN][vV][iI][rR][oO][nN][mM][eE][nN][tT][vV][aA][rR][iI][aA][bB][lL][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/testExecution/properties/EnvironmentVariables"
+        }
+      }
+    },
+    "clientProfiles": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[pP][rR][oO][fF][iI][lL][eE][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/clientProfiles/properties/profiles"
+        }
+      }
+    },
+    "evaluation": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "modelEvaluation": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "provider": {
+              "type": "string"
+            },
+            "model": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "promptSet": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "metadata": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[eE][nN][aA][bB][lL][eE][dD]$(?![\\s\\S])": {
+              "$ref": "#/properties/evaluation/properties/modelEvaluation/properties/enabled"
+            },
+            "^[pP][rR][oO][vV][iI][dD][eE][rR]$(?![\\s\\S])": {
+              "$ref": "#/properties/evaluation/properties/modelEvaluation/properties/provider"
+            },
+            "^[mM][oO][dD][eE][lL]$(?![\\s\\S])": {
+              "$ref": "#/properties/evaluation/properties/modelEvaluation/properties/model"
+            },
+            "^[pP][rR][oO][mM][pP][tT][sS][eE][tT]$(?![\\s\\S])": {
+              "$ref": "#/properties/evaluation/properties/modelEvaluation/properties/promptSet"
+            },
+            "^[mM][eE][tT][aA][dD][aA][tT][aA]$(?![\\s\\S])": {
+              "$ref": "#/properties/evaluation/properties/modelEvaluation/properties/metadata"
+            }
+          }
+        }
+      },
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[mM][oO][dD][eE][lL][eE][vV][aA][lL][uU][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+          "$ref": "#/properties/evaluation/properties/modelEvaluation"
+        }
+      }
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    }
+  },
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "patternProperties": {
+    "^[sS][eE][rR][vV][eE][rR]$(?![\\s\\S])": {
+      "$ref": "#/properties/server"
+    },
+    "^[vV][aA][lL][iI][dD][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+      "$ref": "#/properties/validation"
+    },
+    "^[rR][eE][pP][oO][rR][tT][iI][nN][gG]$(?![\\s\\S])": {
+      "$ref": "#/properties/reporting"
+    },
+    "^[pP][oO][lL][iI][cC][yY]$(?![\\s\\S])": {
+      "$ref": "#/properties/policy"
+    },
+    "^[aA][sS][sS][uU][rR][aA][nN][cC][eE]$(?![\\s\\S])": {
+      "$ref": "#/properties/assurance"
+    },
+    "^[eE][xX][eE][cC][uU][tT][iI][oO][nN]$(?![\\s\\S])": {
+      "$ref": "#/properties/execution"
+    },
+    "^[tT][eE][sS][tT][eE][xX][eE][cC][uU][tT][iI][oO][nN]$(?![\\s\\S])": {
+      "$ref": "#/properties/testExecution"
+    },
+    "^[cC][lL][iI][eE][nN][tT][pP][rR][oO][fF][iI][lL][eE][sS]$(?![\\s\\S])": {
+      "$ref": "#/properties/clientProfiles"
+    },
+    "^[eE][vV][aA][lL][uU][aA][tT][iI][oO][nN]$(?![\\s\\S])": {
+      "$ref": "#/properties/evaluation"
+    },
+    "^[sS][cC][hH][eE][mM][aA][vV][eE][rR][sS][iI][oO][nN]$(?![\\s\\S])": {
+      "$ref": "#/properties/schemaVersion"
+    }
+  }
+}

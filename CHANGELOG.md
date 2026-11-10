@@ -8,6 +8,9 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Configuration inputs support explicit schema version `1.0.0`, a serializer-derived published schema and target-free `config-schema` export. Legacy UTF-8 BOM files remain readable; malformed UTF-8 is a sanitized usage failure. Audit manifest `2.1.0` adds optional value-free configuration origins while retaining `2.0.0` readability.
+- Health/discovery no longer overwrite file-supplied timeout budgets with implicit CLI defaults. Explicit timeouts still win; omitted settings retain configured budgets or the existing command defaults. Non-positive explicit timeouts are rejected before target contact.
+- CLI host transport selection now shares one normalized configuration snapshot with the selected command instead of parsing raw input again. Invalid encoding, undefined enum values (including collections), duplicate aliases and zero-length inputs fail preflight; BOM/casing aliases also apply to config-only STDIO host selection.
 - Explicit missing configuration files now fail before validation. CLI commands share bounded strict JSON loading, reject unknown/duplicate fields and invalid nulls, and support configuration field casing aliases without changing environment-variable key case.
 - Validator callbacks now retain their shared result accumulator on late failures, timeout and cancellation. Completed category evidence survives sibling cancellation in sequential and parallel orchestration.
 - Tool catalog parsing recovers valid neighbors around malformed metadata, reports rejected entries instead of an empty successful list, and retains earlier-page inventory when pagination is cancelled.

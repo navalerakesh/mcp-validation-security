@@ -1,6 +1,7 @@
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.CLI.Models;
 
 namespace Mcp.Benchmark.CLI.Utilities;
 
@@ -20,7 +21,8 @@ internal static class ExecutionPolicyOverrides
         string? traceMode = null,
         bool? confirmElevatedRisk = null,
         bool? enableModelEval = null,
-        string[]? allowedOrigins = null)
+        string[]? allowedOrigins = null,
+        ConfigurationSourceTracker? sources = null)
     {
         ArgumentNullException.ThrowIfNull(configuration);
 
@@ -31,11 +33,13 @@ internal static class ExecutionPolicyOverrides
         if (TryParseEnum(executionMode, out ExecutionMode parsedExecutionMode))
         {
             configuration.Execution.Mode = parsedExecutionMode;
+            sources?.RecordCommandLine(value => value.Execution!.Mode, "--mode");
         }
 
         if (dryRun.HasValue)
         {
             configuration.Execution.DryRun = dryRun.Value;
+            sources?.RecordCommandLine(value => value.Execution!.DryRun, "--dry-run");
         }
 
         if (allowedHosts is { Length: > 0 })
@@ -44,6 +48,7 @@ internal static class ExecutionPolicyOverrides
                 .SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+            sources?.RecordCommandLine(value => value.Execution!.AllowedHosts, "--allow-host");
         }
 
             if (allowedOrigins is { Length: > 0 })
@@ -52,61 +57,77 @@ internal static class ExecutionPolicyOverrides
                 .SelectMany(value => value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToList();
+                sources?.RecordCommandLine(value => value.Execution!.AllowedOrigins, "--allow-origin");
             }
 
         if (allowPrivateAddresses.HasValue)
         {
             configuration.Execution.AllowPrivateAddresses = allowPrivateAddresses.Value;
+            sources?.RecordCommandLine(value => value.Execution!.AllowPrivateAddresses, "--allow-private-addresses");
         }
 
         if (maxRequests.HasValue)
         {
             configuration.Execution.MaxRequests = maxRequests.Value;
+            sources?.RecordCommandLine(value => value.Execution!.MaxRequests, "--max-requests");
         }
 
         if (maxConcurrency.HasValue)
         {
             configuration.Execution.MaxConcurrency = maxConcurrency.Value;
+            sources?.RecordCommandLine(value => value.Execution!.MaxConcurrency, "--max-concurrency");
         }
 
         if (timeoutSeconds.HasValue)
         {
             configuration.Execution.TimeoutSeconds = timeoutSeconds.Value;
+            sources?.RecordCommandLine(value => value.Execution!.TimeoutSeconds, "--timeout");
         }
 
         if (TryParseEnum(persistenceMode?.Replace("-", string.Empty, StringComparison.OrdinalIgnoreCase), out PersistenceMode parsedPersistenceMode))
         {
             configuration.Execution.PersistenceMode = parsedPersistenceMode;
+            sources?.RecordCommandLine(value => value.Execution!.PersistenceMode, "--persistence-mode");
         }
 
         if (TryParseEnum(redactLevel, out RedactionLevel parsedRedactionLevel))
         {
             configuration.Execution.RedactLevel = parsedRedactionLevel;
+            sources?.RecordCommandLine(value => value.Execution!.RedactLevel, "--redact-level");
         }
 
         if (TryParseEnum(traceMode, out TraceMode parsedTraceMode))
         {
             configuration.Execution.TraceMode = parsedTraceMode;
+            sources?.RecordCommandLine(value => value.Execution!.TraceMode, "--trace");
         }
 
         if (confirmElevatedRisk.HasValue)
         {
             configuration.Execution.ConfirmElevatedRisk = confirmElevatedRisk.Value;
+            sources?.RecordCommandLine(value => value.Execution!.ConfirmElevatedRisk, "--confirm-elevated-risk");
         }
 
         if (enableModelEval.HasValue)
         {
             configuration.Evaluation.ModelEvaluation.Enabled = enableModelEval.Value;
+            sources?.RecordCommandLine(value => value.Evaluation!.ModelEvaluation.Enabled, "--enable-model-eval");
         }
 
         if (configuration.Execution.TimeoutSeconds is >= ExecutionPolicyDefaults.MinimumPositiveValue and <= ExecutionPolicyDefaults.MaximumTimeoutSeconds)
         {
             configuration.Server.TimeoutMs = configuration.Execution.TimeoutSeconds * 1000;
+            sources?.Record(value => value.Server.TimeoutMs, ConfigurationSourceKind.Governance,
+                nameof(ExecutionPolicy.TimeoutSeconds), "Derived from the effective execution timeout budget.");
         }
 
         if (configuration.Execution.Mode == ExecutionMode.Safe)
         {
-            ApplySafeMode(configuration.Validation.Categories);
+            if (sources is null)
+                ApplySafeMode(configuration.Validation.Categories);
+            else
+                sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.Governance, "safe-mode",
+                    "Safe mode disallows active probes.", () => ApplySafeMode(configuration.Validation.Categories));
         }
     }
 

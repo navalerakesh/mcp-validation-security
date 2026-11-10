@@ -26,8 +26,23 @@
     "certificateEligibility"
   ],
   "properties": {
+    "configurationSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["setting", "source", "pointer", "reason"],
+        "properties": {
+          "setting": { "type": "string", "pattern": "^\\$\\.", "maxLength": 4096 },
+          "source": { "enum": ["default", "file", "profile", "commandLine", "governance"] },
+          "pointer": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "replacedSource": { "enum": [null, "default", "file", "profile", "commandLine", "governance"] },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "additionalProperties": false
+      }
+    },
     "documentType": { "const": "mcpval.audit-manifest" },
-    "documentSchemaVersion": { "const": "2.0.0" },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0"] },
     "timestampUtc": { "type": "string", "format": "date-time" },
     "commandName": { "type": "string", "minLength": 1 },
     "validationId": { "type": "string", "minLength": 1 },
