@@ -93,7 +93,7 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     assert.match(JSON.stringify(envelope.contentTrust), /untrusted-target-derived/);
     const result = record(envelope.result);
     assert.equal(result.documentType, "mcpval.assurance-result");
-    assert.equal(result.documentSchemaVersion, "2.0.0");
+    assert.equal(result.documentSchemaVersion, "2.1.0");
     assert.equal(record(result.run).executionMode, "safe");
     assert.equal(record(result.serverConfig).protocolEra, "legacy");
     const tools = record(record(result.measurements).toolValidation);

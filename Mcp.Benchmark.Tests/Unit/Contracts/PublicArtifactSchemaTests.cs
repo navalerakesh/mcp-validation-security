@@ -107,6 +107,33 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
+    public void ValidationResult_CatalogEvidence_ShouldValidateTypedCountsAndCompletion()
+    {
+        var result = new ValidationResult
+        {
+            ToolValidation = new ToolTestResult
+            {
+                CatalogEnumeration = new CatalogEnumerationEvidence
+                {
+                    RawItemsObserved = 2, RecoveredItems = 1, RejectedItems = 1,
+                    PageAttempts = 1, ParsedPages = 1, Termination = CatalogEnumerationTermination.Complete
+                },
+                AiReadinessAnalyzedSchemaCount = 0,
+                AiReadinessInspectionIssues = [new SchemaInspectionIssue("fixture", SchemaInspectionStatus.UnresolvedReference)]
+            }
+        };
+        var instance = Serialize(result);
+        AssertConforms("mcpval-validation-result.schema.json", instance);
+        instance["documentSchemaVersion"] = "2.0.0";
+        AssertConforms("mcpval-validation-result.schema.json", instance);
+        instance["measurements"]!["toolValidation"]!["catalogEnumeration"]!["isComplete"] = true;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+        instance["measurements"]!["toolValidation"]!["catalogEnumeration"]!["isComplete"] = false;
+        instance["measurements"]!["toolValidation"]!["aiReadinessInspectionIssues"]![0]!["status"] = "unknown-status";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+    }
+
+    [Fact]
     public void ProviderHarness_PublicJson_ConformsToPublishedSchema()
     {
         var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);

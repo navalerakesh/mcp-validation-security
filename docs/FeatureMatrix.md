@@ -56,7 +56,7 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | Area | Coverage |
 | --- | --- |
 | Protocol | JSON-RPC structure, initialization, capability negotiation, error handling, and response-shape validation |
-| Tools | `tools/list`, `tools/call`, pagination, annotations, destructive-action signaling, and AI-readiness schema checks |
+| Tools | Bounded `tools/list` pagination and exact observed counts; annotations; bounded local-reference/composition guidance; schema-validated synthetic candidates under execution policy |
 | Prompts | `prompts/list` and `prompts/get` structure, metadata quality, argument guidance, and prompt-safety checks |
 | Resources | `resources/list`, `resources/read`, `resources/templates/list`, URI clarity, MIME guidance, and template ergonomics |
 | Official conformance | Isolated pinned companion, exact transitive dependency lock, runner/requirement/raw-scenario digest verification, frozen scenario completeness, target binding, separate evidence coverage, and explicit evidence-conflict review decisions |

@@ -1,0 +1,505 @@
+{
+  "status": "local-s2-bounded-catalog-and-inspection-qualified",
+  "baseCommit": "1dcfbd068ab9b3a88b68047f572b60de9038c590",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-10T22:04:13.490Z",
+  "sourceIdentity": "58e9d136083f7ec49cd514de66bcf903b3900b3d9029895ca65b76fa7c645020",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s2-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "bd79aeac86e1fe7469e28f5c677811217a3747d673bd560ac2722f57ddb9d695"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/ArtifactContracts.cs",
+      "sha256": "7c8483e61f06f9417041ead5f7331d8ac5f74346af6ee6c3fce688ca62c54cdc"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/CatalogEnumerationLimits.cs",
+      "sha256": "62cb4f6209f085b5ac23f5f0b8516b08709ee9a05832bc1c98392ec9c8230634"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/TestResults.cs",
+      "sha256": "768497e74978120482df9dfceb6b21dc5833e8c7b9bccbcac4b92c5ce3ae6e27"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ToolAiReadinessModels.cs",
+      "sha256": "acbe1e60d515cb361c3b0c292200f1a3edf923cdf93f8185896d9baed015e057"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationFinding.cs",
+      "sha256": "635c6a93b0903faff44432bac52aae85ffb39fcc51bbc7c0f85e53e0afe8542a"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/SchemaInspectionContext.cs",
+      "sha256": "5ad008bf64550b299e10eb47981c91cec2f991da13981568c0fea7f43fe7fae7"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/ToolAiReadinessAnalyzer.cs",
+      "sha256": "208f1a7112084dca2a14206b2379b2b0bb1b780dd7d51829bc1927942a4a8d2a"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/BoundedCatalogReader.cs",
+      "sha256": "e1cc2fb802e38d8ea0fe35ed5309e8c4dcfda8526efcab1eb1f79d846acee0e2"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/CatalogMetadataGuard.cs",
+      "sha256": "50948114ffbe551f50baf6f359273234df5b1c7d0aee25eef79ae2bdc901c23d"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/PromptValidator.cs",
+      "sha256": "b1e466aff94248007fdaf32f44d01f2b0e38666b24db32611b40293f5751507e"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ResourceValidator.cs",
+      "sha256": "35219de4b13cb7e05246fbd3396d6c920efd79b34d1733fdc9b2b25e765fbc93"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ToolValidator.cs",
+      "sha256": "dc472271b12ab0fd438d25d9a7b02f3c3df22abb1a8c251fd6c986417d759ce4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/json.snap",
+      "sha256": "6dd44044b5e2f34b1550d28dab9fbff961a2a434ab6208406e6d0803aef60e6f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/sarif.snap",
+      "sha256": "175fe3c041b956a0b7a50eb7424abfe4b1feedd61c5d7dc77fb9cedd01137fa2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Contracts/PublicArtifactSchemaTests.cs",
+      "sha256": "10da4e7e30aebb9cbe62c865c97ba96fbefcf32094740688efc2556f847b4d60"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/ToolAiReadinessAnalyzerTests.cs",
+      "sha256": "7c930beec7e67d8751a36d3fc99bbdb8aa900fa576fbe68dae4f86f66fa50a2e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/PromptValidatorUnitTests.cs",
+      "sha256": "fb3ee7c7fe144356b063f21a800a604b9a95e977598f628e757bab7497e5932c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/ResourceValidatorUnitTests.cs",
+      "sha256": "9180410d9858925586f46350d23c1a7e6d271f72470770b839e901bf83682e03"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/ToolValidatorComprehensiveTests.cs",
+      "sha256": "2f77ed0a4b4ce2c4dcbf9b41be46dbb8ef673ff97e7146331fa566ce0851a950"
+    },
+    {
+      "path": "docs/FeatureMatrix.md",
+      "sha256": "8f5ea8006a77c3058718e2f6fd370cd707abe4f2e578366e77a88541c352c747"
+    },
+    {
+      "path": "docs/SchemaCompatibility.md",
+      "sha256": "007bf46ca059ffb5e99828c328e14dc73f6554983587f6fcf3441c8bf0d80b3d"
+    },
+    {
+      "path": "docs/Schemas/mcpval-validation-result.schema.json",
+      "sha256": "01310648019f9a52dd96dc84d219cc25134779a9ed0b0e073f76f260219e2855"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-integration.test.ts",
+      "sha256": "8bc87c2db73cd6959813c3d70878555ec98447c3bd5c88357e157d98fc931638"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-final-links.log",
+      "sha256": "bb28d257aa188ebc510fd99d444890ddbc1adeb60b37f33a7cdfbb233a1a65f9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-full-repository-gate.log",
+      "sha256": "ba25c8248f9e56b1a88b3c105ec514211680a5d4a13b1510d59c8e8e24c584af"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-mutation-gate.log",
+      "sha256": "7f2b8bfcbfcd867e724e4d99be95435e7d85ac096bacebe7b5e6e95c68f21056"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/canonical-oracle/methods.jsonl",
+      "sha256": "8668bca1a2f361095effbd4019cdadb925b43df8ca878568a861743fc89b5a4e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/canonical-oracle/processes.jsonl",
+      "sha256": "53972d802d277a1195ff71512ee6fdff349169b8f991a4529c5f49bab5b7168e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/canonical-oracle/receipt.json",
+      "sha256": "4f4c7137c56af6b6234bfab80cc2c4b5108333f2d07de45eeecca34a5a1fdd88"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/canonical-oracle/stdout.json",
+      "sha256": "c4eb9fd01aaad82dabacd7ae9f92e1e96cae52b04b981fdc48ef6571000885d2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/commands.json",
+      "sha256": "152b1904f83d19437b0be9304b0215aa0b6ea2d9a78cbc0c58f0512b20ecc016"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/logs/installed-lifecycle.log",
+      "sha256": "05c70e9113f132983bd46ad0ef90f85840d7c8898521b6dceac0a385de2e77a4"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "41ded7f2fd9eae92748ce86aba31c771461e40b3b5c104eb76f44e9820b0b6f8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "a3f15e30f4732ba8374f060ab72a7abd276aac77e821fefa445a38c4e87e6c7f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s2-package-qualification/receipt.json",
+      "sha256": "a9e56f4e88a5f3a2e32492a71bb2a70766a7f84d3b86cc1e5fef523838785634"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-alternative-guidance-after.trx",
+      "sha256": "1b95dc2534b0414342614491ecb9c7ccf1df52a568682ed487dd8be2ccb4b4aa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-alternative-guidance-before.trx",
+      "sha256": "13a1fcbd287060e3a6c6fecf96806da039895ec610167d210dbdf0b73c93bd83"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-candidate-resource-bounds.trx",
+      "sha256": "39c408b0ef4a2e7566d62222c6e5b73293848933bed3d5714ee26cf5e8281303"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-candidate-size-before.trx",
+      "sha256": "e2ca18c74c6e52808cc4b17bc3a96ae5b85db22e981e40ee549b20eef3291193"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-catalog-budget-boundaries.trx",
+      "sha256": "dec4b9fe6e9df0734dba1b6ae53b9ee6bb66c376cff162b4c7331d887263e97d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-catalog-count-compatibility-after.trx",
+      "sha256": "c0a0f82cb62e2f78f0bafe7d36f793e2d52d2feab30669a924c833f1fd6ed0f9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-catalog-count-compatibility.trx",
+      "sha256": "d64c9ebe94cfb0a055b9be03778493ab5ac8431b40b7b67ba2b29e8ddc5262bc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-catalog-counts.trx",
+      "sha256": "8335d64426b36389318996db4cb0450d0e5194c6bfa55d3d23c676a91d640b8b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-catalog-terminal-outcomes.trx",
+      "sha256": "f2dd43fea39aefeed6d26efb5d876123323e831fcddee8ab7bd782079f7842c1"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-conjunction-after.trx",
+      "sha256": "04ba20fa7c4409f51a278d033b857066c4ab322f62358e4b526fc74bcb4d6a7a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-conjunction-before.trx",
+      "sha256": "a7ceefecad07aa3fd84c0f53786691c5ee5c982dacec0e6332f544d9c68b51a7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-continuation-auth-before.trx",
+      "sha256": "aa0dd34430476ca94d038899905e6003b5ed02918fb0fdfc3464482895512e94"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-full-dotnet-before-snapshots.trx",
+      "sha256": "ca129f5974a0ccce38ff668a10e33ad5890f6e322ce2cf294764e8148153421e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-generated-input-after.trx",
+      "sha256": "32655c8e7a0e1c7d9fc3d34408754153c5232945c4fcf19a326db31056a9056d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-generated-input-before.trx",
+      "sha256": "3751b9030fa230a02409939c9dcebb38508cd82c4437b42802fb1a3970b0f1ae"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-generated-input-corrected-fixture.trx",
+      "sha256": "2cffb033c01dcc8a04ed96fc341c4181e434cb906c908274032b0bcc6b4a6782"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-generation-dependency-guard.trx",
+      "sha256": "4da7c78badc61996a4d6e0e5ffad15aa577afa4ad7c1b8c3c40cbf67fa2cc8ff"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-incomplete-score-after.trx",
+      "sha256": "40b2d6952c206e9900dccfb249e0f6de42085681cfb8370497eeb2eadf232324"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-incomplete-score-before.trx",
+      "sha256": "06d96a96c48811222eef8884a858337413c66b4d8e6118daddde5e8b72ae3cb7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-inspection-canonical-retention-clean.trx",
+      "sha256": "5a42bfcc2599aeb1d6d51215db27f73277b8cabe67aae61775369be75d563a73"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-inspection-canonical-retention.trx",
+      "sha256": "64aeaef792aaa436121d0e7181ad302b8e3d86be599873e857b1d71afd373351"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-inspection-integrity-after.trx",
+      "sha256": "0562aa2b340218f23115f6f83dcee6018a59ab2811078e7bfc13f5f722e74262"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-inspection-integrity-before.trx",
+      "sha256": "c4921d1c9caf7d4daab55dbe25b757395afe438b49c48df56a52e6f30eae5390"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-last-item-cancellation-after.trx",
+      "sha256": "72d8e8074be25c41b385ff746c14d21f1f86b20477d3463f073d59ba6ca4cb52"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-last-item-cancellation-before.trx",
+      "sha256": "58ae0cdbb61daa3913d03e32724d1ea066a2c35b8ea62dc9b2d0d36c54b51f18"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-local-ref-after.trx",
+      "sha256": "7dc4dd0c0cb98ef1cf67a3c7d692df4a2d90207fe8dff32c7c2cba6413bba3aa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-local-ref-before.trx",
+      "sha256": "a0bf579e454550bc54c600c7314de2b893762be2853e318c45a84cac3e29c583"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-missing-schema-after.trx",
+      "sha256": "d380fbf802c11895bf5364a7d2304cc1ff8aae1648221bdf26b800e0726ff91e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-missing-schema-before.trx",
+      "sha256": "6e174a35f02d36d65e846c80d5f2dbb12b9e073100f339038a5f0391d3636928"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-observed-schema-execution-matrix.trx",
+      "sha256": "2716d07204c522843c0126c2bdeb5400d68f0ecfac7109614c9ffe63bf42c54b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-opaque-cursor-before.trx",
+      "sha256": "8e91cf61177745fbd5697bf3b79a472a88ce110e24dea8e851ceb2906446504a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-other-catalog-recovery-after.trx",
+      "sha256": "0ecb16f2bfcc5d8cda048512932269f670f14ee2fef8c05ac75dbed9bf4a1fb8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-other-catalog-recovery-before.trx",
+      "sha256": "75978eead6328f4f2e5a97f7ee4724ae7d35db2e336d8c7ce73d8768364e2637"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-partial-catalog-score-after.trx",
+      "sha256": "8735be76b9af7c445a51401510371f682af2d4024ddf9f1b2d59542c55ff65fc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-partial-catalog-score-before.trx",
+      "sha256": "20c1c82e1f8a397691212a899c08e33c86e394a8df7d60c4645f0599c4579dec"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-prompt-nested-retention-after.trx",
+      "sha256": "695f823545465b77e651c102ac579791c02276b9ce7cbfb0b5a2cc97ac6c13c9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-prompt-nested-retention-before.trx",
+      "sha256": "ebc99f252d82a0da60f941a4b8b76db173d70510629fde1f9a8e8cbc2956ae49"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-prompt-pagination-before.trx",
+      "sha256": "37517a33f993399dad7187c21e26b5ea93c8f76b6f1808706e1a064a0d10f7dc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-public-evidence-contract.trx",
+      "sha256": "1eb5e84d93e8c38bedc98c6c61a96f17f6519ad5a8690182f195fe168fdc969f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-reference-scope-boundaries.trx",
+      "sha256": "d7dc2e82c24ab172d90a33a5be872d547b03689772544c001a9a7706a9865689"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-repeated-conjunct-after.trx",
+      "sha256": "599089a552188d45f0f74e32a767060ce3fbdcc703e86cadedacd61bad4a8a15"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-repeated-conjunct-before.trx",
+      "sha256": "77c77d678da3fa39830cdffe3103d722b36302f888002c5e22eafd2fc6ddc757"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-required-conditional-after.trx",
+      "sha256": "0123e8b4cf7e83b98892119c935e439caa0b048de68e2f23d6c63c6d28c7099a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-required-conditional-before.trx",
+      "sha256": "7fd98cf7b91bebd533bd8b09f3a27a4cb788364892c84d09d17cc9fc12cff8cd"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-resource-pagination-after.trx",
+      "sha256": "1bbc05e9d484b37d8311960b9531d4e918cd9beb35278fa7e7e0578a4c4d5ae7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-resource-pagination-before.trx",
+      "sha256": "bf77eddc4dc99c7cd52f1e1c93307fe052b8cf6d1c0df98d0d0b7b9ae4c42bee"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-resource-prompt-integration.trx",
+      "sha256": "249ca747f045da626e7b72bde0236cce1bf69c003e106421907d3f919cfdcd05"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-review-candidate-budget-controls.trx",
+      "sha256": "9035cf2493332718ff265feeefaad7a24d4ab67c07418c53e8a9b22f958181ba"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-review-counterexample-controls.trx",
+      "sha256": "2b6afe819f340fdf224c84cbb42b2fb77ce4117b950faffc9d384c988bda753d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-shared-catalog-pagination.trx",
+      "sha256": "64ec1832aa86d7caa533285abdbc47d53a8483d7e47febf1a690f74818e53943"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-shared-projection.trx",
+      "sha256": "dac8582fe7eabf4d70b2fd23d6d8f9632182a687a70d8ec511afea8c307108e6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-snapshot-regeneration.trx",
+      "sha256": "9b615c7fae195b10d0e464f4f6817ff38e06f078952bc52f3a96bb4be8d0c761"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-snapshot-verification-copied.trx",
+      "sha256": "6212a15b0f7149ac7b5de4ecd663f330bcab2db0b6f4d3383af0af7e91ad202e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-snapshot-verification.trx",
+      "sha256": "df69eb8c7bbb7251e07531172dac069743fc89a7e2371327d5335212bd252ddb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-template-name-authority-after.trx",
+      "sha256": "237401df79cb867784ac57bc569c34e2b87f492b632743e83b049c3af7ca7424"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-template-name-authority-before.trx",
+      "sha256": "a3547acc470e891462c66e9f4a0d299e2aca260cf49d7bf4f8e8dd569ff984cb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-template-name-authority-verified.trx",
+      "sha256": "6cea948f369fdaad6c60a2258967b3cc2e60015c7d7ae3f411ab524d783e9729"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-template-recovery-after.trx",
+      "sha256": "17cba19c53d2adb4cb5698841fe27498d469fca6b535c9c01df50dc450808417"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-template-recovery-before.trx",
+      "sha256": "995055414bf1284b76125fa924bca851fd0cf4e9694e59cc628013d6948a654a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-tool-inspection-integration-after.trx",
+      "sha256": "5c0fd15f540ccd1fb29124d467f7b7553e363b3f8332d5ede5681856d3d66e5a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-tool-inspection-integration.trx",
+      "sha256": "77ae4801aa81ee1f290359d135441ae5611f699432bcd66a2e7c42211d73018e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s2-unified-catalog-reader.trx",
+      "sha256": "f4f97b038a7060fa5533b9712f5e32174d310fad172a9d9ac941c079f8df03ec"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/stryker-s2-final/reports/mutation-report.json",
+      "sha256": "cab63fba20bcdd081fbae6fcbf0131d0ca2c1b83ad44d9d264364e6071b8899e"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1349,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 150,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 3,
+    "mutationPercent": 93.32,
+    "mutationExit": 0,
+    "mutationScopes": [
+      "Services/AssuranceAssessmentEngine.cs",
+      "Services/ProviderHarnessEvaluator.cs",
+      "Services/RuleCalibrationEvaluator.cs"
+    ],
+    "mutationSourceMatches": true,
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedCanonicalValidatedWith": "AJV draft2020-12",
+    "receiverAuditNoActiveCalls": true,
+    "ownedProcessExitObserved": true,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "markdownFiles": 45,
+    "linkChecks": {
+      "total": 131,
+      "ok": 121,
+      "excluded": 5,
+      "redirected": 5,
+      "errors": 0
+    }
+  },
+  "requirements": [
+    {
+      "id": "S2/I03/W02/W06",
+      "code": [
+        "SchemaInspectionContext",
+        "ToolAiReadinessAnalyzer",
+        "ToolValidator",
+        "BoundedCatalogReader",
+        "CatalogMetadataGuard",
+        "ResourceValidator",
+        "PromptValidator"
+      ],
+      "tests": [
+        "ToolAiReadinessAnalyzerTests",
+        "ToolValidatorComprehensiveTests",
+        "ResourceValidatorUnitTests",
+        "PromptValidatorUnitTests",
+        "PublicArtifactSchemaTests",
+        "ReportSnapshotTests",
+        "cli-integration.test.ts"
+      ],
+      "accepted": "Bounded declared schema-inspection support, exact observed catalog accounting, recovery, cancellation and original-schema-validated candidate admission"
+    }
+  ],
+  "authority": {
+    "jsonSchemaRevision": "2020-12, published2022-06-16",
+    "mcpRevision": "2026-07-28",
+    "embeddedSchemaSha256": "e8c8ae56f7dd8eab465fb2740db54042761c4f9e0e19b23b98504cec27f4c91d",
+    "templateNameRequiredAcrossAllFiveEmbeddedRevisions": true
+  },
+  "contracts": {
+    "assuranceResult": "2.1.0",
+    "previousResultReadable": "2.0.0",
+    "ruleCatalog": "2026-11-10.1",
+    "snapshotChanges": "One result-version field and eight rule-revision fields only; ordinary snapshot verification passed after fixture-copy build"
+  },
+  "reviews": {
+    "type": "Independent AI reviews with executable counterexample resolution",
+    "latest": "READY FOR BUILD GATE scoped to documented S2 boundary"
+  },
+  "notAccepted": [
+    "S3-S8 recovery slices",
+    "Native Windows/Linux qualification; Windows tests remain skips on macOS",
+    "W00 original customer incident reconciliation",
+    "Unbounded or complete JSON Schema interpretation; unsupported dialects, external/dynamic references, nested resources and conditional/pattern-dependent guidance remain incomplete",
+    "Synthetic generation for alternatives/regex/unsupported dependencies, or proof of harmless application effects",
+    "Whole-product mutation or measured model accuracy claims"
+  ],
+  "notes": [
+    "No push, publish, live enterprise targets or model inference",
+    "Catalog traversal termination and integrity completeness are distinct; rejected items prevent complete-catalog credit",
+    "Dictionaries of opaque cursor values are not persisted",
+    "Source schemas remain unchanged; clause/alternative projections do not replace normative validation",
+    "Original absent-schema execution fixtures retained as no-call controls; valid-schema variants still exercise dispatch/cancellation",
+    "Earlier wrong-overload fixture and stale copied-snapshot failures are retained and not product-defect proof",
+    "Mutation score applies only to three configured Core evaluators, not the new schema inspector"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

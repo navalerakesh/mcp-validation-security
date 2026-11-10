@@ -167,20 +167,40 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             }
 
             var rawJson = response.RawJson ?? "{}";
-            var jsonDoc = JsonDocument.Parse(rawJson);
-            if (jsonDoc.RootElement.TryGetProperty("result", out var resultElement) &&
-                resultElement.TryGetProperty("prompts", out var promptsElement) &&
-                promptsElement.ValueKind == JsonValueKind.Array)
+            result.CatalogEnumeration = new CatalogEnumerationEvidence();
             {
-                result.PromptsDiscovered = promptsElement.GetArrayLength();
-                
-                foreach (var prompt in promptsElement.EnumerateArray())
+                await foreach (var prompt in BoundedCatalogReader.ReadAsync(response, "prompts", CatalogEnumerationLimits.MaximumItems,
+                    result.CatalogEnumeration, result.Issues,
+                    (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsList,
+                        new { cursor }, serverConfig.Authentication, token), ct))
                 {
+                    result.PromptsDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
+                    ct.ThrowIfCancellationRequested();
                     var promptResult = new IndividualPromptResult
                     {
                         DiscoveredCorrectly = true,
                         MetadataValid = true
                     };
+
+                    if (CatalogMetadataGuard.HasMalformedText(prompt, "name", "description"))
+                    {
+                        result.CatalogEnumeration.RejectedItems++;
+                        promptResult.MetadataValid = false;
+                        promptResult.Status = TestStatus.Failed;
+                        promptResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.PromptListItemInvalid,
+                            Category = "ProtocolCompliance",
+                            Component = ValidationConstants.Methods.PromptsList,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Prompt catalog item has an invalid object or metadata field type.",
+                            Recommendation = "Return prompt metadata objects with a string name and optional string description."
+                        }, "Malformed prompt catalog item; neighboring entries remain available.");
+                        result.PromptResults.Add(promptResult);
+                        continue;
+                    }
+                    result.CatalogEnumeration.RecoveredItems++;
+                    result.PromptResults.Add(promptResult);
 
                     if (prompt.TryGetProperty("name", out var nameElement))
                     {
@@ -229,6 +249,21 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                             promptResult.ArgumentsCount = argsElement.GetArrayLength();
                             foreach (var arg in argsElement.EnumerateArray())
                             {
+                                if (CatalogMetadataGuard.HasMalformedText(arg, "name", "description") ||
+                                    arg.TryGetProperty("required", out var requiredFlag) && requiredFlag.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                                {
+                                    promptResult.MetadataValid = false;
+                                    promptResult.AddFinding(new ValidationFinding
+                                    {
+                                        RuleId = ValidationFindingRuleIds.PromptListItemInvalid,
+                                        Category = "ProtocolCompliance",
+                                        Component = promptResult.PromptName,
+                                        Severity = ValidationFindingSeverity.High,
+                                        Summary = "Prompt argument metadata has an invalid object or field type.",
+                                        Recommendation = "Return argument objects with string names/descriptions and boolean required flags."
+                                    }, "Malformed prompt argument metadata; neighboring arguments remain available.");
+                                    continue;
+                                }
                                 var argumentName = arg.TryGetProperty("name", out var argName) && argName.ValueKind == JsonValueKind.String
                                     ? argName.GetString() ?? string.Empty
                                     : string.Empty;
@@ -429,9 +464,10 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                         }
                     }
 
-                    result.PromptResults.Add(promptResult);
                 }
             }
+
+            result.PromptsDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
 
                     // Schema-based validation of prompts/list response shape (best-effort)
                     var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
@@ -465,6 +501,12 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                 result.PromptsTestPassed = result.PromptResults.Count(r => r.Status == TestStatus.Passed);
                 result.PromptsTestFailed = result.PromptResults.Count(r => r.Status == TestStatus.Failed);
                 result.Status = result.PromptsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
+            }
+            if (!result.CatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
+            {
+                result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                    ? TestStatus.AuthRequired : TestStatus.Inconclusive;
+                result.Message = "Prompt catalog enumeration is incomplete; retained results cover the observed portion.";
             }
             
             // Calculate Score using Strategy

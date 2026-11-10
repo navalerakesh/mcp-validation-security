@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "const": "2.0.0" },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0"] },
     "producer": {
       "type": "object",
       "required": ["name", "packageId", "repositoryUrl", "packageUrl"],
@@ -84,9 +84,9 @@
       "type": "object",
       "properties": {
         "protocolCompliance": { "type": ["object", "null"] },
-        "toolValidation": { "type": ["object", "null"] },
-        "resourceTesting": { "type": ["object", "null"] },
-        "promptTesting": { "type": ["object", "null"] },
+        "toolValidation": { "$ref": "#/$defs/catalogMeasurement" },
+        "resourceTesting": { "$ref": "#/$defs/catalogMeasurement" },
+        "promptTesting": { "$ref": "#/$defs/catalogMeasurement" },
         "securityTesting": { "type": ["object", "null"] },
         "performanceTesting": { "type": ["object", "null"] },
         "errorHandling": { "type": ["object", "null"] },
@@ -119,6 +119,48 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "$defs": {
+    "catalogMeasurement": {
+      "type": ["object", "null"],
+      "properties": {
+        "catalogEnumeration": { "$ref": "#/$defs/catalogEnumeration" },
+        "templateCatalogEnumeration": { "$ref": "#/$defs/catalogEnumeration" },
+        "aiReadinessAnalyzedSchemaCount": { "type": "integer", "minimum": 0 },
+        "aiReadinessInspectionIssues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["component", "status"],
+            "properties": {
+              "component": { "type": "string" },
+              "status": { "enum": ["complete", "unresolvedReference", "cyclicReference", "unsupported", "budgetExceeded"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "catalogEnumeration": {
+      "type": "object",
+      "required": ["termination", "payloadCharactersObserved", "continuationObserved", "rawItemsObserved", "recoveredItems", "rejectedItems", "pageAttempts", "parsedPages", "rejectedPages", "isComplete"],
+      "properties": {
+        "termination": { "enum": ["incomplete", "complete", "malformedPage", "transportFailure", "authenticationRequired", "cancelled", "cursorLoop", "budgetExceeded"] },
+        "payloadCharactersObserved": { "type": "integer", "minimum": 0 },
+        "continuationObserved": { "type": "boolean" },
+        "rawItemsObserved": { "type": "integer", "minimum": 0 },
+        "recoveredItems": { "type": "integer", "minimum": 0 },
+        "rejectedItems": { "type": "integer", "minimum": 0 },
+        "pageAttempts": { "type": "integer", "minimum": 0 },
+        "parsedPages": { "type": "integer", "minimum": 0 },
+        "rejectedPages": { "type": "integer", "minimum": 0 },
+        "isComplete": { "type": "boolean" }
+      },
+      "allOf": [{
+        "if": { "properties": { "isComplete": { "const": true } }, "required": ["isComplete"] },
+        "then": { "properties": { "termination": { "const": "complete" }, "rejectedItems": { "const": 0 }, "rejectedPages": { "const": 0 } } }
+      }],
+      "additionalProperties": false
+    },
     "assuranceEvaluation": {
       "type": "object",
       "required": ["contractVersion", "profile", "claims", "assessments", "evidenceSummary", "certificateEligibility"],

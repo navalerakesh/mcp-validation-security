@@ -84,43 +84,42 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             }
 
             var rawJson = response.RawJson ?? "{}";
-            var jsonDoc = JsonDocument.Parse(rawJson);
+            result.CatalogEnumeration = new CatalogEnumerationEvidence();
             var catalogTruncated = false;
-            if (jsonDoc.RootElement.TryGetProperty("result", out var resultElement) &&
-                resultElement.TryGetProperty("resources", out var resourcesElement) &&
-                resourcesElement.ValueKind == JsonValueKind.Array)
+            var maxResources = Math.Clamp(config.MaxResources, 1, CatalogEnumerationLimits.MaximumItems);
             {
-                result.ResourcesDiscovered = resourcesElement.GetArrayLength();
-                var maxResources = Math.Max(1, config.MaxResources);
-                catalogTruncated = result.ResourcesDiscovered > maxResources;
-                if (catalogTruncated)
+                await foreach (var resource in BoundedCatalogReader.ReadAsync(response, "resources", maxResources,
+                    result.CatalogEnumeration, result.Issues,
+                    (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesList,
+                        new { cursor }, serverConfig.Authentication, token), ct))
                 {
-                    result.Findings.Add(new ValidationFinding
-                    {
-                        RuleId = ValidationFindingRuleIds.ResourceCatalogTruncated,
-                        Category = "Coverage",
-                        Component = ValidationConstants.Methods.ResourcesList,
-                        Severity = ValidationFindingSeverity.Medium,
-                        Source = ValidationRuleSource.Heuristic,
-                        Summary = $"Resource catalog processing was limited to {maxResources} of {result.ResourcesDiscovered} entries.",
-                        Recommendation = "Raise validation.resources.maxResources only within a reviewed run budget, or validate catalog partitions separately.",
-                        Metadata = new Dictionary<string, string>
-                        {
-                            ["observedCount"] = result.ResourcesDiscovered.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            ["processedLimit"] = maxResources.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            ["truncated"] = "true"
-                        }
-                    });
-                    result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} entries.");
-                }
-
-                foreach (var resource in resourcesElement.EnumerateArray().Take(maxResources))
-                {
+                    result.ResourcesDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
+                    ct.ThrowIfCancellationRequested();
                     var resourceResult = new IndividualResourceResult
                     {
                         DiscoveredCorrectly = true,
                         MetadataValid = true
                     };
+
+                    if (CatalogMetadataGuard.HasMalformedText(resource, "uri", "name", "description", "mimeType"))
+                    {
+                        result.CatalogEnumeration.RejectedItems++;
+                        resourceResult.MetadataValid = false;
+                        resourceResult.Status = TestStatus.Failed;
+                        resourceResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.ResourceListItemInvalid,
+                            Category = "ProtocolCompliance",
+                            Component = ValidationConstants.Methods.ResourcesList,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Resource catalog item has an invalid object or metadata field type.",
+                            Recommendation = "Return resource metadata objects with string uri, name and optional descriptive fields."
+                        }, "Malformed resource catalog item; neighboring entries remain available.");
+                        result.ResourceResults.Add(resourceResult);
+                        continue;
+                    }
+                    result.CatalogEnumeration.RecoveredItems++;
+                    result.ResourceResults.Add(resourceResult);
 
                     if (resource.TryGetProperty("uri", out var uriElement))
                     {
@@ -177,8 +176,6 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             result.ContentSafetyFindings.AddRange(safetyFindings);
                         }
                     }
-
-                    result.ResourceResults.Add(resourceResult);
 
                     // EXECUTION VALIDATION: resources/read
                     if (config.TestResourceReading && resourceResult.MetadataValid && !string.IsNullOrEmpty(resourceResult.ResourceUri)) 
@@ -275,6 +272,29 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
             await ValidateResourceSubscriptionsIfAdvertisedAsync(serverConfig, config, result, capabilitySnapshot, ct);
 
+            result.ResourcesDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
+            catalogTruncated = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.BudgetExceeded;
+            if (catalogTruncated)
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ResourceCatalogTruncated,
+                    Category = "Coverage",
+                    Component = ValidationConstants.Methods.ResourcesList,
+                    Severity = ValidationFindingSeverity.Medium,
+                    Source = ValidationRuleSource.Heuristic,
+                    Summary = $"Resource catalog processing was limited to {maxResources} of {result.ResourcesDiscovered} observed entries.",
+                    Recommendation = "Validate catalog partitions within a reviewed run budget.",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["observedCount"] = result.ResourcesDiscovered.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["processedLimit"] = maxResources.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["truncated"] = "true"
+                    }
+                });
+                result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} observed entries.");
+            }
+
                     // Schema-based validation of resources/list response shape (best-effort)
                     var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
                     if (SchemaValidationHelpers.TryValidateListResult(
@@ -306,9 +326,10 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Status = result.ResourceResults.All(r => r.Status == TestStatus.Passed) ? TestStatus.Passed : TestStatus.Failed;
             }
-            if (catalogTruncated && result.Status == TestStatus.Passed)
+            if (!result.CatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
             {
-                result.Status = TestStatus.Inconclusive;
+                result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                    ? TestStatus.AuthRequired : TestStatus.Inconclusive;
                 result.Message = $"Resource validation processed a bounded subset of {result.ResourcesDiscovered} catalog entries.";
             }
 
@@ -318,25 +339,37 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 var templatesResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesTemplatesList, null, serverConfig.Authentication, ct);
                 if (templatesResponse.IsSuccess && !string.IsNullOrEmpty(templatesResponse.RawJson))
                 {
-                    using var templatesDoc = JsonDocument.Parse(templatesResponse.RawJson);
-                    if (templatesDoc.RootElement.TryGetProperty("result", out var templatesResult) &&
-                        templatesResult.TryGetProperty("resourceTemplates", out var templates) &&
-                        templates.ValueKind == JsonValueKind.Array)
+                    result.TemplateCatalogEnumeration = new CatalogEnumerationEvidence();
                     {
-                        var templateCount = templates.GetArrayLength();
-                        result.ResourceTemplatesDiscovered = templateCount;
-                        result.Issues.Add($"✅ Resource templates: {templateCount} templates discovered");
-                        
                         // Validate each template has uriTemplate and name
-                        foreach (var template in templates.EnumerateArray())
+                        await foreach (var template in BoundedCatalogReader.ReadAsync(templatesResponse, "resourceTemplates",
+                            CatalogEnumerationLimits.MaximumItems, result.TemplateCatalogEnumeration, result.Issues,
+                            (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesTemplatesList,
+                                new { cursor }, serverConfig.Authentication, token), ct))
                         {
+                            result.ResourceTemplatesDiscovered = checked((int)result.TemplateCatalogEnumeration.RawItemsObserved);
+                            if (CatalogMetadataGuard.HasMalformedText(template, "uriTemplate", "name", "description", "mimeType"))
+                            {
+                                result.TemplateCatalogEnumeration.RejectedItems++;
+                                templateSpecFailure = true;
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateListItemInvalid,
+                                    Category = "ProtocolCompliance",
+                                    Component = ValidationConstants.Methods.ResourcesTemplatesList,
+                                    Severity = ValidationFindingSeverity.High,
+                                    Summary = "Resource template item has an invalid object or metadata field type.",
+                                    Recommendation = "Return template metadata objects with string identifiers and descriptive fields."
+                                });
+                                continue;
+                            }
+                            result.TemplateCatalogEnumeration.RecoveredItems++;
                             var component = GetTemplateComponent(template);
                             var hasUriTemplate = template.TryGetProperty("uriTemplate", out var uriTemplateElement) &&
                                 uriTemplateElement.ValueKind == JsonValueKind.String &&
                                 !string.IsNullOrWhiteSpace(uriTemplateElement.GetString());
                             var hasName = template.TryGetProperty("name", out var nameElement) &&
-                                nameElement.ValueKind == JsonValueKind.String &&
-                                !string.IsNullOrWhiteSpace(nameElement.GetString());
+                                nameElement.ValueKind == JsonValueKind.String;
                             var hasDescription = template.TryGetProperty("description", out var descriptionElement) &&
                                 descriptionElement.ValueKind == JsonValueKind.String &&
                                 !string.IsNullOrWhiteSpace(descriptionElement.GetString());
@@ -358,14 +391,27 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
                             if (!hasName)
                             {
-                                result.Issues.Add("⚠️ MCP Compliance: Resource template missing 'name' field");
+                                templateSpecFailure = true;
+                                result.Issues.Add("Resource template is missing its required name field.");
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing,
+                                    Category = "ProtocolCompliance",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.High,
+                                    Summary = $"Resource template '{component}' is missing the required name property.",
+                                    Recommendation = "Return the required string name for every resource template."
+                                });
+                            }
+                            else if (string.IsNullOrWhiteSpace(nameElement.GetString()))
+                            {
                                 result.Findings.Add(new ValidationFinding
                                 {
                                     RuleId = ValidationFindingRuleIds.ResourceTemplateNameMissing,
                                     Category = "McpGuideline",
                                     Component = component,
                                     Severity = ValidationFindingSeverity.Low,
-                                    Summary = $"Resource template '{component}' does not include a name.",
+                                    Summary = $"Resource template '{component}' does not include a readable non-blank name.",
                                     Recommendation = "Add a stable name so clients can present resource templates clearly."
                                 });
                             }
@@ -411,6 +457,11 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             }
                         }
                     }
+                    result.ResourceTemplatesDiscovered = checked((int)result.TemplateCatalogEnumeration.RawItemsObserved);
+                    result.Issues.Add($"Resource templates: {result.ResourceTemplatesDiscovered} entries observed.");
+                    if (!result.TemplateCatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
+                        result.Status = result.TemplateCatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                            ? TestStatus.AuthRequired : TestStatus.Inconclusive;
                 }
                 else if (AuthenticationChallengeInterpreter.Inspect(templatesResponse).RequiresAuthentication)
                 {
@@ -420,6 +471,10 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 {
                     result.Issues.Add("ℹ️ Resource templates: Not supported by server (MethodNotFound)");
                 }
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

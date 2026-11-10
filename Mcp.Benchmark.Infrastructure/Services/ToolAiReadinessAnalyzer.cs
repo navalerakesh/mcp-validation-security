@@ -21,75 +21,76 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         double totalScore = 0;
         int scored = 0;
         var findings = new List<ValidationFinding>();
+        var inspectionIssues = new List<SchemaInspectionIssue>();
 
         foreach (var tool in tools)
         {
             double toolScore = ScoringConstants.ScoreMaximum;
             var schema = tool.InputSchema;
-            var requiredProperties = GetRequiredPropertyNames(schema);
-
-            if (schema.ValueKind != JsonValueKind.Object ||
-                !schema.TryGetProperty("properties", out var properties) ||
-                properties.ValueKind != JsonValueKind.Object ||
-                properties.EnumerateObject().Count() == 0)
+            var inspection = new SchemaInspectionContext(schema);
+            var rootStatus = inspection.InspectAlternatives([schema], out var rootAlternatives);
+            if (rootStatus != SchemaInspectionStatus.Complete)
+            {
+                inspectionIssues.Add(new SchemaInspectionIssue(tool.Name, rootStatus));
+                continue;
+            }
+            var parameters = new Dictionary<string, List<(IReadOnlyList<JsonElement> Clauses, bool Required)>>(StringComparer.Ordinal);
+            var incomplete = false;
+            foreach (var rootClauses in rootAlternatives)
+            {
+                var (properties, requiredProperties) = SchemaInspectionContext.GetObjectShape(rootClauses);
+                foreach (var property in properties)
+                {
+                    var status = inspection.InspectAlternatives(property.Value, out var alternatives);
+                    if (status != SchemaInspectionStatus.Complete)
+                    {
+                        inspectionIssues.Add(new SchemaInspectionIssue(tool.Name, status));
+                        incomplete = true;
+                        continue;
+                    }
+                    if (!parameters.TryGetValue(property.Key, out var variants)) parameters[property.Key] = variants = [];
+                    variants.AddRange(alternatives.Select(clauses => (clauses, requiredProperties.Contains(property.Key))));
+                }
+            }
+            if (parameters.Count == 0 && !incomplete)
             {
                 totalScore += ScoringConstants.AiReadinessEmptySchemaScore;
                 scored++;
                 continue;
             }
 
-            int paramCount = 0;
+            int paramCount = parameters.Count;
             int undescribedParams = 0;
             int vagueStringParams = 0;
             int requiredArrayParamsMissingShape = 0;
             int enumCoverageMissingParams = 0;
             int formatHintMissingParams = 0;
-
-            foreach (var property in properties.EnumerateObject())
+            foreach (var property in parameters)
             {
-                paramCount++;
-                var isRequired = requiredProperties.Contains(property.Name);
-
-                if (property.Value.ValueKind != JsonValueKind.Object)
+                if (property.Value.Any(variant => !variant.Clauses.Any(clause => clause.TryGetProperty("description", out _)))) undescribedParams++;
+                var vague = false;
+                var missingEnum = false;
+                var missingFormat = false;
+                var missingArray = false;
+                foreach (var variant in property.Value)
                 {
-                    undescribedParams++;
-                    continue;
-                }
-
-                if (!property.Value.TryGetProperty("description", out _))
-                {
-                    undescribedParams++;
-                }
-
-                if (HasType(property.Value, "string"))
-                {
-                    var looksEnumerated = LooksLikeEnumeratedChoice(property.Name, property.Value);
-                    var looksStructured = LooksLikeStructuredFormatValue(property.Name, property.Value);
-                    var hasConstraint = property.Value.TryGetProperty("enum", out _) ||
-                                        property.Value.TryGetProperty("pattern", out _) ||
-                                        property.Value.TryGetProperty("format", out _);
-                    var hasSemanticGuidance = HasSemanticGuidance(property.Value);
-
-                    if (!hasConstraint && !hasSemanticGuidance && !looksEnumerated && !looksStructured)
+                    var clauses = variant.Clauses;
+                    if (SchemaInspectionContext.HasType(clauses, "string"))
                     {
-                        vagueStringParams++;
+                        var looksEnumerated = clauses.Any(clause => LooksLikeEnumeratedChoice(property.Key, clause));
+                        var looksStructured = clauses.Any(clause => LooksLikeStructuredFormatValue(property.Key, clause));
+                        var hasConstraint = clauses.Any(clause => clause.TryGetProperty("enum", out _) ||
+                            clause.TryGetProperty("pattern", out _) || clause.TryGetProperty("format", out _));
+                        vague |= !hasConstraint && !clauses.Any(HasSemanticGuidance) && !looksEnumerated && !looksStructured;
+                        missingEnum |= looksEnumerated && !clauses.Any(HasEnumLikeConstraint);
+                        missingFormat |= looksStructured && !clauses.Any(HasFormatLikeConstraint);
                     }
-
-                    if (looksEnumerated && !HasEnumLikeConstraint(property.Value))
-                    {
-                        enumCoverageMissingParams++;
-                    }
-
-                    if (looksStructured && !HasFormatLikeConstraint(property.Value))
-                    {
-                        formatHintMissingParams++;
-                    }
+                    missingArray |= variant.Required && SchemaInspectionContext.HasType(clauses, "array") && clauses.All(MissingRequiredArrayShape);
                 }
-
-                if (isRequired && HasType(property.Value, "array") && MissingRequiredArrayShape(property.Value))
-                {
-                    requiredArrayParamsMissingShape++;
-                }
+                if (vague) vagueStringParams++;
+                if (missingEnum) enumCoverageMissingParams++;
+                if (missingFormat) formatHintMissingParams++;
+                if (missingArray) requiredArrayParamsMissingShape++;
             }
 
             if (paramCount > 0)
@@ -146,11 +147,14 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                 $"Tool '{tool.Name}': {formatHintMissingParams}/{paramCount} string parameters look like structured values but do not declare format/pattern hints",
                 "Add format or pattern metadata for URLs, URIs, dates, email addresses, UUIDs, and similar structured strings.");
 
-            totalScore += Math.Max(ScoringConstants.ScoreMinimum, toolScore);
-            scored++;
+            if (!incomplete)
+            {
+                totalScore += Math.Max(ScoringConstants.ScoreMinimum, toolScore);
+                scored++;
+            }
         }
 
-        var score = scored > 0 ? Math.Round(totalScore / scored, 1) : -1;
+        var score = scored > 0 && inspectionIssues.Count == 0 ? Math.Round(totalScore / scored, 1) : -1;
         var payloadChars = totalPayloadChars ?? rawJson?.Length ?? 0;
         long estimatedTokenCount = 0;
 
@@ -174,7 +178,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
                         [AiReadinessEvidenceKinds.ModelEvaluationImpactKey] = AiReadinessEvidenceKinds.NotMeasuredModelImpact
                     }
                 });
-                score = Math.Max(ScoringConstants.ScoreMinimum, score - ScoringConstants.TokenExcessPenalty);
+                if (score >= 0)
+                    score = Math.Max(ScoringConstants.ScoreMinimum, score - ScoringConstants.TokenExcessPenalty);
             }
             else if (estimatedTokenCount > ScoringConstants.TokenWarningThreshold)
             {
@@ -205,6 +210,8 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
 
         return new ToolAiReadinessAnalysis
         {
+            AnalyzedSchemaCount = scored,
+            InspectionIssues = inspectionIssues,
             Score = score,
             EstimatedTokenCount = estimatedTokenCount,
             SummaryIssue = summaryIssue,
@@ -401,32 +408,6 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
         });
     }
 
-    private static HashSet<string> GetRequiredPropertyNames(JsonElement schema)
-    {
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        if (schema.ValueKind == JsonValueKind.Object &&
-            schema.TryGetProperty("required", out var required) &&
-            required.ValueKind == JsonValueKind.Array)
-        {
-            foreach (var entry in required.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
-                    names.Add(entry.GetString()!);
-            }
-        }
-
-        return names;
-    }
-
-    private static bool HasType(JsonElement propertySchema, string expectedType)
-    {
-        if (propertySchema.ValueKind != JsonValueKind.Object || !propertySchema.TryGetProperty("type", out var type))
-            return false;
-        return type.ValueKind == JsonValueKind.String ? type.ValueEquals(expectedType) :
-            type.ValueKind == JsonValueKind.Array && type.EnumerateArray().Any(candidate =>
-                candidate.ValueKind == JsonValueKind.String && candidate.ValueEquals(expectedType));
-    }
-
     private static bool MissingRequiredArrayShape(JsonElement propertySchema)
     {
         return !propertySchema.TryGetProperty("items", out var items) ||
@@ -445,7 +426,7 @@ public sealed class ToolAiReadinessAnalyzer : IToolAiReadinessAnalyzer
             return true;
         }
 
-        return HasConstrainedAlternatives(propertySchema, "oneOf") || HasConstrainedAlternatives(propertySchema, "anyOf");
+        return false;
     }
 
     private static bool HasFormatLikeConstraint(JsonElement propertySchema)

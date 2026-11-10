@@ -65,6 +65,9 @@ public class ComplianceTestResult : TestResultBase
 /// </summary>
 public class ToolTestResult : TestResultBase
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CatalogEnumerationEvidence? CatalogEnumeration { get; set; }
+
     /// <summary>
     /// Gets or sets the number of tools discovered.
     /// </summary>
@@ -127,6 +130,12 @@ public class ToolTestResult : TestResultBase
     /// </summary>
     public double AiReadinessScore { get; set; } = -1;
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? AiReadinessAnalyzedSchemaCount { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<SchemaInspectionIssue>? AiReadinessInspectionIssues { get; set; }
+
     /// <summary>
     /// Issues found during AI readiness analysis.
     /// </summary>
@@ -146,6 +155,41 @@ public class ToolTestResult : TestResultBase
     /// Estimated token count for the full tools/list response payload.
     /// </summary>
     public long EstimatedTokenCount { get; set; } = 0;
+}
+
+public sealed class CatalogEnumerationEvidence
+{
+    public CatalogEnumerationTermination Termination { get; set; } = CatalogEnumerationTermination.Incomplete;
+
+    public long PayloadCharactersObserved { get; set; }
+
+    public bool ContinuationObserved { get; set; }
+
+    public long RawItemsObserved { get; set; }
+
+    public long RecoveredItems { get; set; }
+
+    public long RejectedItems { get; set; }
+
+    public int PageAttempts { get; set; }
+
+    public int ParsedPages { get; set; }
+
+    public int RejectedPages { get; set; }
+
+    public bool IsComplete { get; set; }
+}
+
+public enum CatalogEnumerationTermination
+{
+    Incomplete,
+    Complete,
+    MalformedPage,
+    TransportFailure,
+    AuthenticationRequired,
+    Cancelled,
+    CursorLoop,
+    BudgetExceeded
 }
 
 /// <summary>
@@ -246,6 +290,12 @@ public class SecurityValidationResult
 /// </summary>
 public class ResourceTestResult : TestResultBase
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CatalogEnumerationEvidence? CatalogEnumeration { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CatalogEnumerationEvidence? TemplateCatalogEnumeration { get; set; }
+
     /// <summary>
     /// Gets or sets the number of resources discovered.
     /// </summary>
@@ -290,6 +340,9 @@ public class ResourceTestResult : TestResultBase
 /// </summary>
 public class PromptTestResult : TestResultBase
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public CatalogEnumerationEvidence? CatalogEnumeration { get; set; }
+
     /// <summary>
     /// Gets or sets the number of prompts discovered.
     /// </summary>

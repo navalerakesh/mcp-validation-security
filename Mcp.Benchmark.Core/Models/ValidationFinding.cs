@@ -58,7 +58,7 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
-    public const string CatalogVersion = "2026-11-09.1";
+    public const string CatalogVersion = "2026-11-10.1";
 
     private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
 
@@ -202,6 +202,7 @@ public static class ValidationFindingRuleIds
     public const string AiReadinessTokenBudgetExceeded = "AI.TOOL.SCHEMA.TOKEN_BUDGET_EXCEEDED";
     public const string AiReadinessTokenBudgetWarning = "AI.TOOL.SCHEMA.TOKEN_BUDGET_WARNING";
     public const string ResourceMissingUri = "MCP.RESOURCE.LIST.URI_MISSING";
+    public const string ResourceListItemInvalid = "MCP.RESOURCE.LIST.ITEM_INVALID";
     public const string ResourceCatalogTruncated = "MCP.COVERAGE.RESOURCE.CATALOG_TRUNCATED";
     public const string ResourceMissingName = "MCP.RESOURCE.LIST.NAME_MISSING";
     public const string ResourceGuidelineMimeTypeMissing = "MCP.GUIDELINE.RESOURCE.MIMETYPE_MISSING";
@@ -216,6 +217,8 @@ public static class ValidationFindingRuleIds
     public const string ResourceReadMissingTextOrBlob = "MCP.RESOURCE.READ.CONTENT_PAYLOAD_MISSING";
     public const string ResourceSubscribeAdvertisedButUnsupported = "MCP.RESOURCE.SUBSCRIBE.ADVERTISED_BUT_UNSUPPORTED";
     public const string ResourceTemplateMissingUriTemplate = "MCP.RESOURCE_TEMPLATE.URITEMPLATE_MISSING";
+    public const string ResourceTemplateListItemInvalid = "MCP.RESOURCE_TEMPLATE.LIST.ITEM_INVALID";
+    public const string ResourceTemplateRequiredNameMissing = "MCP.RESOURCE_TEMPLATE.LIST.NAME_MISSING";
     public const string ResourceTemplateNameMissing = "MCP.GUIDELINE.RESOURCE_TEMPLATE.NAME_MISSING";
     public const string ResourceTemplateDescriptionMissing = "MCP.GUIDELINE.RESOURCE_TEMPLATE.DESCRIPTION_MISSING";
     public const string PromptGuidelineDescriptionMissing = "MCP.GUIDELINE.PROMPT.DESCRIPTION_MISSING";
@@ -237,6 +240,7 @@ public static class ValidationFindingRuleIds
     public const string OptionalCapabilityCompletionsDeclaredButUnsupported = "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_DECLARED_BUT_UNSUPPORTED";
     public const string OptionalCapabilityCompletionsSupportedButUndeclared = "MCP.GUIDELINE.CAPABILITY.COMPLETIONS_SUPPORTED_BUT_UNDECLARED";
     public const string PromptMissingName = "MCP.PROMPT.LIST.NAME_MISSING";
+    public const string PromptListItemInvalid = "MCP.PROMPT.LIST.ITEM_INVALID";
     public const string PromptArgumentsNotArray = "MCP.PROMPT.LIST.ARGUMENTS_NOT_ARRAY";
     public const string PromptArgumentMissingName = "MCP.PROMPT.LIST.ARGUMENT_NAME_MISSING";
     public const string PromptGetMissingMessagesArray = "MCP.PROMPT.GET.MESSAGES_MISSING";
@@ -325,6 +329,10 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.AiTaskSupportWithoutCapability] = HeuristicRule(ValidationFindingRuleIds.AiTaskSupportWithoutCapability);
 
         descriptors[ValidationFindingRuleIds.ResourceMissingUri] = SpecRule(ValidationFindingRuleIds.ResourceMissingUri);
+        descriptors[ValidationFindingRuleIds.ResourceListItemInvalid] = SpecRule(ValidationFindingRuleIds.ResourceListItemInvalid);
+        descriptors[ValidationFindingRuleIds.ResourceTemplateListItemInvalid] = SpecRule(ValidationFindingRuleIds.ResourceTemplateListItemInvalid);
+        descriptors[ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing] = SpecRule(ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing);
+        descriptors[ValidationFindingRuleIds.PromptListItemInvalid] = SpecRule(ValidationFindingRuleIds.PromptListItemInvalid);
         descriptors[ValidationFindingRuleIds.ResourceMissingName] = SpecRule(ValidationFindingRuleIds.ResourceMissingName);
         descriptors[ValidationFindingRuleIds.ResourceUriSchemeUnclear] = HeuristicRule(ValidationFindingRuleIds.ResourceUriSchemeUnclear);
         descriptors[ValidationFindingRuleIds.ResourceAnnotationInvalid] = SpecRule(ValidationFindingRuleIds.ResourceAnnotationInvalid);

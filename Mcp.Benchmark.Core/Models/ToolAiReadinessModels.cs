@@ -11,6 +11,10 @@ public sealed class ToolAiReadinessTarget
 
 public sealed class ToolAiReadinessAnalysis
 {
+    public int AnalyzedSchemaCount { get; init; }
+
+    public IReadOnlyList<SchemaInspectionIssue> InspectionIssues { get; init; } = Array.Empty<SchemaInspectionIssue>();
+
     public double Score { get; init; } = -1;
 
     public long EstimatedTokenCount { get; init; }
@@ -19,6 +23,17 @@ public sealed class ToolAiReadinessAnalysis
 
     public IReadOnlyList<ValidationFinding> Findings { get; init; } = Array.Empty<ValidationFinding>();
 }
+
+public enum SchemaInspectionStatus
+{
+    Complete,
+    UnresolvedReference,
+    CyclicReference,
+    Unsupported,
+    BudgetExceeded
+}
+
+public sealed record SchemaInspectionIssue(string Component, SchemaInspectionStatus Status);
 
 public static class AiReadinessEvidenceKinds
 {

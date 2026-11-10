@@ -11,6 +11,89 @@ namespace Mcp.Benchmark.Tests.Unit;
 
 public class PromptValidatorUnitTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidatePromptDiscoveryAsync_Continuation_ShouldRetainObservedPages(bool cancelContinuation)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"prompts\":[{\"name\":\"first\",\"description\":\"First prompt\"}],\"nextCursor\":\"next\"}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (cancelContinuation)
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<JsonRpcResponse>(cancellation.Token);
+                }
+                return Task.FromResult(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                    RawJson = "{\"result\":{\"prompts\":[{\"name\":\"last\",\"description\":\"Last prompt\"}]}}" });
+            });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int>())).Returns([]);
+        var validator = new PromptValidator(new Mock<ILogger<PromptValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidatePromptDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new PromptTestingConfig { TestPromptExecution = false, TestArgumentValidation = false }, cancellation.Token);
+
+        result.PromptResults.Select(prompt => prompt.PromptName).Should().Equal(cancelContinuation ? ["first"] : ["first", "last"]);
+        result.CatalogEnumeration!.PageAttempts.Should().Be(2);
+        result.CatalogEnumeration.ParsedPages.Should().Be(cancelContinuation ? 1 : 2);
+        result.CatalogEnumeration.IsComplete.Should().Be(!cancelContinuation);
+        result.Status.Should().Be(cancelContinuation ? TestStatus.Cancelled : TestStatus.Passed);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{\"name\":\"invalid\",\"description\":42}")]
+    [InlineData("{\"name\":\"invalid\",\"arguments\":[null]}")]
+    [InlineData("{\"name\":\"invalid\",\"arguments\":[{\"name\":\"value\",\"required\":\"true\"}]}")]
+    public async Task ValidatePromptDiscoveryAsync_MalformedMiddleItem_ShouldRetainValidNeighbors(string invalid)
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"prompts\":[{\"name\":\"first\",\"description\":\"First prompt\"}," + invalid + ",{\"name\":\"last\",\"description\":\"Last prompt\"}]}}"
+            });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int>()))
+            .Returns([]);
+        var validator = new PromptValidator(new Mock<ILogger<PromptValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidatePromptDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new PromptTestingConfig { TestPromptExecution = false, TestArgumentValidation = false });
+
+        result.PromptResults.Select(prompt => prompt.PromptName).Should().ContainInOrder("first", "last");
+        result.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
+    public async Task ValidatePromptDiscoveryAsync_LateAnalysisFailure_ShouldRetainObservedPromptMetadata()
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "prompts/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"prompts\":[{\"name\":\"retained\",\"description\":\"Observed prompt metadata\"}]}}" });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int>()))
+            .Throws(new InvalidOperationException("Synthetic analysis failure."));
+        var validator = new PromptValidator(new Mock<ILogger<PromptValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidatePromptDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new PromptTestingConfig { TestPromptExecution = false, TestArgumentValidation = false });
+
+        result.Status.Should().Be(TestStatus.Error);
+        result.PromptResults.Should().ContainSingle(prompt => prompt.PromptName == "retained" && prompt.Description == "Observed prompt metadata");
+    }
+
     [Fact]
     public async Task ValidatePromptDiscoveryAsync_WhenPromptsCapabilityIsNotAdvertised_ShouldSkipPromptProbes()
     {
