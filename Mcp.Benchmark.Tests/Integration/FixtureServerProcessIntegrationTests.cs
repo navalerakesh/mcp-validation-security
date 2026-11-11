@@ -9,11 +9,113 @@ using Mcp.Benchmark.Infrastructure.Validators;
 using Mcp.Compliance.Spec;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Security.Cryptography;
+using Mcp.Benchmark.Core.Utilities;
 
 namespace Mcp.Benchmark.Tests.Integration;
 
 public class FixtureServerProcessIntegrationTests
 {
+    [Theory]
+    [InlineData("write", ControlledStateExpectation.ChangeRequired, ControlledApplicationOutcome.Succeeded, ValidationOutcome.Succeeded)]
+    [InlineData("drop", ControlledStateExpectation.ChangeRequired, ControlledApplicationOutcome.Succeeded, ValidationOutcome.Failed)]
+    [InlineData("noop", ControlledStateExpectation.NoOpPermitted, ControlledApplicationOutcome.Succeeded, ValidationOutcome.Succeeded)]
+    [InlineData("reject", ControlledStateExpectation.UnchangedRequired, ControlledApplicationOutcome.Rejected, ValidationOutcome.Succeeded)]
+    [InlineData("partial-error", ControlledStateExpectation.UnchangedRequired, ControlledApplicationOutcome.Rejected, ValidationOutcome.Failed)]
+    public async Task OwnedStateOracle_ShouldReconcileRealStdioEffectsWithSyntheticObservationWindow(
+        string mode, ControlledStateExpectation expectation, ControlledApplicationOutcome application, ValidationOutcome expected)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mcpval-owned-state-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var statePath = Path.Combine(root, "state.json");
+        var before = mode == "noop" ? 1 : 0;
+        await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new { value = before }));
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        try
+        {
+            var command = BuildFixtureCommand("controlled-state") + $" --root \"{root}\" --mode {mode}";
+            JsonRpcResponse response;
+            await using (var adapter = await StartFixtureServerAsync(command))
+            {
+                adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = 8 });
+                (await adapter.ValidateInitializeAsync(command, deadline.Token)).IsSuccessful.Should().BeTrue();
+                response = await adapter.CallAsync(command, ValidationConstants.Methods.ToolsCall,
+                    new { name = "fixture_write", arguments = new { value = 1 } }, deadline.Token);
+            }
+            response.IsSuccess.Should().BeTrue("the fixture returns a valid correlated tool response, including application errors");
+            using var wire = JsonDocument.Parse(response.RawJson!);
+            var rejected = wire.RootElement.GetProperty("result").GetProperty("isError").GetBoolean();
+            new FileInfo(statePath).Length.Should().BeLessThan(4096);
+            using var observed = JsonDocument.Parse(await File.ReadAllTextAsync(statePath, deadline.Token));
+            var after = observed.RootElement.GetProperty("value").GetInt32();
+            using var audit = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(root, "audit.json"), deadline.Token));
+            var auditMatched = audit.RootElement.GetProperty("attempted").GetBoolean() &&
+                audit.RootElement.GetProperty("applicationRejected").GetBoolean() == rejected;
+            Directory.Delete(root, recursive: true);
+            Directory.Exists(root).Should().BeFalse();
+
+            var syntheticWindowStart = new DateTimeOffset(2026, 11, 11, 0, 0, 0, TimeSpan.Zero);
+            var binding = new ControlledOperationBinding(Guid.NewGuid().ToString("N"), "owned-operation", "owned-attempt",
+                response.ProbeContext!.RequestId!, "owned-stdio-boundary", CanonicalJsonDigest.ComputeText(command),
+                CanonicalJsonDigest.ComputeText("owned-stdio-route"), CanonicalJsonDigest.ComputeObject(new { value = 1 }),
+                "synthetic-authorized-actor", "owned-counter");
+            var contract = new ControlledStateScenarioContract
+            {
+                ScenarioId = "owned-synchronous-state-" + mode, PolicyRevision = "owned-synchronous-fixture-v1",
+                ToolName = "fixture_write", ObserverId = "owned-file-observer", PredicateId = "counter-equals-one",
+                PreconditionId = "owned-counter-ready", AuditPredicateId = "single-owned-operation", CleanupOwner = "test-owned-directory",
+                Binding = binding, StateExpectation = expectation, ExpectedApplicationOutcome = application, AuditRequired = true,
+                ConsistencyWindow = TimeSpan.FromSeconds(5), MaximumBaselineAge = TimeSpan.FromSeconds(5),
+                MaximumEvidenceAge = TimeSpan.FromMinutes(1), MaximumObserverReads = 3
+            };
+            var evidence = new ControlledStateEvidence
+            {
+                Binding = binding, ObserverId = contract.ObserverId, PredicateId = contract.PredicateId,
+                PreconditionId = contract.PreconditionId, AuditPredicateId = contract.AuditPredicateId,
+                BaselineAt = syntheticWindowStart.AddSeconds(-1), OperationStartedAt = syntheticWindowStart,
+                OperationEndedAt = syntheticWindowStart.AddSeconds(1), ObservedThrough = syntheticWindowStart.AddSeconds(6),
+                ObserverOutcome = ValidationOutcome.Succeeded, ObservationComplete = true, PreconditionsSatisfied = true,
+                BeforePredicateSatisfied = before == 1, AfterPredicateSatisfied = after == 1, StateChanged = before != after,
+                ApplicationOutcome = rejected ? ControlledApplicationOutcome.Rejected : ControlledApplicationOutcome.Succeeded,
+                AuditMatched = auditMatched, AuditObserverOutcome = ValidationOutcome.Succeeded, AuditObservationComplete = true,
+                AuditObservedThrough = syntheticWindowStart.AddSeconds(6), ObserverReads = 3, CleanupOutcome = ValidationOutcome.Succeeded
+            };
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var document = new ControlledStateEvidenceDocument
+            {
+                Contract = contract, Evidence = evidence, IssuedAt = syntheticWindowStart.AddSeconds(6), ExpiresAt = syntheticWindowStart.AddMinutes(2),
+                SigningKeyId = Convert.ToHexString(SHA256.HashData(key.ExportSubjectPublicKeyInfo())).ToLowerInvariant(), SignatureBase64 = string.Empty
+            };
+            document = document with { SignatureBase64 = Convert.ToBase64String(key.SignHash(
+                Convert.FromHexString(document.ComputePayloadDigest()), DSASignatureFormat.IeeeP1363FixedFieldConcatenation)) };
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            var assessment = new ControlledStateEvidenceImporter().Import(JsonSerializer.Serialize(document, options),
+                contract, key.ExportSubjectPublicKeyInfoPem(), syntheticWindowStart.AddMinutes(1));
+
+            assessment.Outcome.Should().Be(expected);
+            assessment.ApplicationOutcome.Should().Be(ValidationOutcome.Succeeded);
+            assessment.AuditOutcome.Should().Be(ValidationOutcome.Succeeded);
+            assessment.CleanupOutcome.Should().Be(ValidationOutcome.Succeeded);
+            assessment.RetryPermitted.Should().BeFalse();
+            if (Environment.GetEnvironmentVariable("MCPVAL_CONTROLLED_STATE_OUTPUT") is { Length: > 0 } output)
+            {
+                Directory.CreateDirectory(output);
+                await using var stream = new FileStream(Path.Combine(output, mode + ".json"), FileMode.CreateNew, FileAccess.Write);
+                await JsonSerializer.SerializeAsync(stream, assessment, options, deadline.Token);
+                await using var evidenceStream = new FileStream(Path.Combine(output, mode + ".evidence.json"), FileMode.CreateNew, FileAccess.Write);
+                await JsonSerializer.SerializeAsync(evidenceStream, document, options, deadline.Token);
+                await using var publicKeyStream = new FileStream(Path.Combine(output, mode + ".observer-public.pem"), FileMode.CreateNew, FileAccess.Write);
+                await publicKeyStream.WriteAsync(Encoding.UTF8.GetBytes(key.ExportSubjectPublicKeyInfoPem()), deadline.Token);
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(root)) Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Theory]
     [InlineData(1, true, ExecutionPolicyDefaults.DefaultMaxResponseBytes)]
     [InlineData(64, true, ExecutionPolicyDefaults.DefaultMaxResponseBytes)]

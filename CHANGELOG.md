@@ -6,6 +6,10 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Added
+
+- Experimental controlled-application state evidence contracts, evidence-only scenario reconciliation and bounded signed import with operator-selected observer trust. Write/no-op/failed-write, unavailable observation, audit, cleanup and replay distinctions are retained in a separate lane. No default activation or automatic target invocation is added. Assurance-result schema is `3.2.0`; rule catalog revision is `2026-11-11.1`.
+
 ### Changed
 
 - HTML overview and performance metrics use semantic fact lists instead of decorative tiles. The overview no longer repeats its metric summary or displays generic explanatory cards; recorded values and supporting evidence text are retained.

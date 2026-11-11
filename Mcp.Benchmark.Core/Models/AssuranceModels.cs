@@ -9,7 +9,8 @@ public enum AssuranceDimension
     Extension,
     ClientCompatibility,
     ExternalConformance,
-    ExecutionIntegrity
+    ExecutionIntegrity,
+    ControlledApplication
 }
 
 public enum AssuranceRequirementLevel

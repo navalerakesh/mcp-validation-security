@@ -13,6 +13,7 @@ dotnet stryker \
   --mutate '**/AssuranceAssessmentEngine.cs' \
   --mutate '**/ProviderHarnessEvaluator.cs' \
   --mutate '**/RuleCalibrationEvaluator.cs' \
+  --mutate '**/ControlledStateEvaluator.cs' \
   --test-project Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj \
   --test-runner vstest \
   --configuration Debug \

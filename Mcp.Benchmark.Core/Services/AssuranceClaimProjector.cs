@@ -390,6 +390,7 @@ public static class AssuranceClaimProjector
 
     private static AssuranceDimension DimensionForLayer(string layerId, EvaluationLane? lane)
     {
+        if (lane == EvaluationLane.ControlledApplication) return AssuranceDimension.ControlledApplication;
         if (lane == EvaluationLane.ExtensionReadiness) return AssuranceDimension.Extension;
         if (lane == EvaluationLane.ClientCompatibility) return AssuranceDimension.ClientCompatibility;
         if (lane == EvaluationLane.ExternalConformance) return AssuranceDimension.ExternalConformance;

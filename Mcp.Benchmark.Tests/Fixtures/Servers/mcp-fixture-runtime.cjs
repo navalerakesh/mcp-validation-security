@@ -466,7 +466,7 @@ function validateToolCall(profile, request) {
   return null;
 }
 
-function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond = () => true, transformResponse = response => response) {
+function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond = () => true, transformResponse = response => response, configureProfile = () => {}) {
   const writeResponse = response => writeWireResponse(transformResponse(response));
   const profiles = createProfiles();
   const profile = profiles[profileName];
@@ -476,6 +476,8 @@ function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond
   if (!profile) {
     throw new Error(`Unknown fixture profile: ${profileName}`);
   }
+
+  configureProfile(profile);
 
   const createProfileSuccess = (id, result, method) => {
     if (!profile.modernResults || !result || typeof result !== "object" || Array.isArray(result)) {

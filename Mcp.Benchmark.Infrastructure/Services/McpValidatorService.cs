@@ -841,14 +841,14 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             if (!plan.Prepared)
             {
                 var planningGap = CreatePendingScenarioCoverage(plan.Descriptor.Key.Value, plan.Descriptor.Key.Value, cancelled,
-                    "Scenario inventory could not be completed; remaining scenario identities are unavailable.");
+                    "Scenario inventory could not be completed; remaining scenario identities are unavailable.", plan.Descriptor.Lane);
                 if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [planningGap]);
                 else plan.ExtensionCoverage.Add(planningGap);
             }
             foreach (var pending in plan.Pending)
             {
                 var gap = CreatePendingScenarioCoverage(pending.Descriptor.LayerKey, pending.Descriptor.Key.Value, cancelled,
-                    "Scenario execution ended before this planned scenario produced complete evidence.");
+                    "Scenario execution ended before this planned scenario produced complete evidence.", pending.Descriptor.Lane ?? plan.Descriptor.Lane);
                 if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [gap]);
                 else plan.ExtensionCoverage.Add(gap);
             }
@@ -863,8 +863,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         }
     }
 
-    private static ValidationCoverageDeclaration CreatePendingScenarioCoverage(string layerId, string scope, bool cancelled, string reason) => new()
+    private static ValidationCoverageDeclaration CreatePendingScenarioCoverage(string layerId, string scope, bool cancelled, string reason, EvaluationLane? lane = null) => new()
     {
+        Lane = lane,
         LayerId = layerId,
         Scope = scope,
         Status = cancelled ? ValidationCoverageStatus.Blocked : ValidationCoverageStatus.Unavailable,

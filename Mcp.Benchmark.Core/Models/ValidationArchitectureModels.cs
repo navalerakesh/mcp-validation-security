@@ -33,6 +33,9 @@ public enum ValidationPackKind
 
 public sealed class ValidationPackDescriptor
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
     public required ValidationDescriptorKey Key { get; init; }
 
     public required ValidationPackKind Kind { get; init; }
@@ -345,6 +348,9 @@ public sealed class ValidationScenarioResult
 
     public string? Summary { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledStateAssessment? ControlledState { get; init; }
+
     public List<ValidationFinding> Findings { get; init; } = new();
 }
 
@@ -600,7 +606,8 @@ public enum EvaluationLane
     ExternalConformance,
     ExtensionReadiness,
     ClientCompatibility,
-    ModelAdvisory
+    ModelAdvisory,
+    ControlledApplication
 }
 
 public enum EvidenceOrigin

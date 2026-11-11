@@ -6,9 +6,8 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class ProviderAuthorizationVerifier
 {
-    private const string GrantAlgorithm = "ECDSA_P256_SHA256_P1363";
-    private const string HarnessAlgorithm = "ECDSA_P256_SHA256_P1363";
-    private const string P256Oid = "1.2.840.10045.3.1.7";
+    private const string GrantAlgorithm = P256ArtifactSignatures.Algorithm;
+    private const string HarnessAlgorithm = P256ArtifactSignatures.Algorithm;
 
     public static ProviderAuthorizationVerification Verify(
         ProviderAuthorizationGrant grant,
@@ -171,25 +170,11 @@ public static class ProviderAuthorizationVerifier
 
     private static void EnsureP256(ECDsa key)
     {
-        var parameters = key.ExportParameters(includePrivateParameters: false);
-        if (key.KeySize != 256 || !string.Equals(parameters.Curve.Oid.Value, P256Oid, StringComparison.Ordinal))
-        {
-            throw new ArgumentException("Provider authorization keys must use the NIST P-256 curve.");
-        }
+        P256ArtifactSignatures.EnsureKey(key);
     }
 
     private static bool TryDecodeSignature(string value, out byte[] signature)
     {
-        signature = [];
-        if (string.IsNullOrWhiteSpace(value)) return false;
-        try
-        {
-            signature = Convert.FromBase64String(value);
-            return signature.Length == 64;
-        }
-        catch (FormatException)
-        {
-            return false;
-        }
+        return P256ArtifactSignatures.TryDecodeSignature(value, out signature);
     }
 }

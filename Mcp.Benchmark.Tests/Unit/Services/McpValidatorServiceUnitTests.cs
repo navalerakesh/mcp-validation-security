@@ -239,12 +239,16 @@ public class McpValidatorServiceUnitTests
     }
 
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, false, false, true)]
+    [InlineData(true, false, false, true)]
+    [InlineData(true, true, false, true)]
+    [InlineData(false, false, true, true)]
     public async Task ValidateServerAsync_InterruptedPack_ShouldRetainLaterResolvedObligations(
-        bool callerCancellation, bool beforeScenarioPhase, bool planningFailure)
+        bool callerCancellation, bool beforeScenarioPhase, bool planningFailure, bool controlled)
     {
         using var cancellation = new CancellationTokenSource();
         var scenarios = Enumerable.Range(0, 3).Select(index =>
@@ -253,6 +257,7 @@ public class McpValidatorServiceUnitTests
             scenario.SetupGet(value => value.Descriptor).Returns(new ValidationScenarioDescriptor
             {
                 Key = new ValidationDescriptorKey($"obligation-{index}"),
+                Lane = controlled ? EvaluationLane.ControlledApplication : null,
                 Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture obligation",
                 LayerKey = $"obligation-layer-{index}", Stability = ValidationStability.Stable
             });
@@ -271,6 +276,7 @@ public class McpValidatorServiceUnitTests
             pack.SetupGet(value => value.Descriptor).Returns(new ValidationPackDescriptor
             {
                 Key = new ValidationDescriptorKey($"obligation-pack-{index}"), Kind = ValidationPackKind.ScenarioPack,
+                Lane = controlled ? EvaluationLane.ControlledApplication : null,
                 Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture pack", Stability = ValidationStability.Stable,
                 ExtensionId = index == 2 ? "fixture.unstarted-extension" : null,
                 ExtensionStage = index == 2 ? ExtensionLifecycleStage.Stable : null,
@@ -302,7 +308,8 @@ public class McpValidatorServiceUnitTests
         result.OverallStatus.Should().Be(callerCancellation ? ValidationStatus.Cancelled : ValidationStatus.Error);
         result.Evidence.Coverage.Should().Contain(coverage => coverage.Scope == "obligation-1" &&
             coverage.ObservedOutcome == (callerCancellation ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable) &&
-            coverage.Confidence == EvidenceConfidenceLevel.None);
+            coverage.Confidence == EvidenceConfidenceLevel.None &&
+            coverage.Lane == (controlled ? EvaluationLane.ControlledApplication : null));
         var extension = result.Assessments.Extensions.Should().ContainSingle(value =>
             value.ExtensionId == "fixture.unstarted-extension").Which;
         extension.Verdict.Should().Be(ValidationVerdict.ReviewRequired);
