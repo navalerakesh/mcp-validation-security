@@ -16,6 +16,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- HTML claim counts no longer appear in a duplicate table labeled as scores; the complete outcome table retains all six outcomes and an explicit recorded total.
 - HTML claim articles, count tables and outcome filters now share readable outcome labels while retaining canonical outcome values and unchanged assessment decisions.
 - The composite Action exposes the invoked collector's `exit-code` and preserves its step status after successful output publication. Output-publication failure exits `70` with a sanitized diagnostic; preflight rejection does not fabricate collector output. Sixteen actual YAML-owned shell tests cover collector codes, no-launch rejection and missing/unwritable outputs. The upload-on-failure condition is unchanged.
 - Offline result round trips retain runtime-error and cancellation attribution. Returned framework errors cannot earn run-completion credit; completed Safe inventory and incomplete assurance remain distinct.

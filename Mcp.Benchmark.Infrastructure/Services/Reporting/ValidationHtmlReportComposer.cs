@@ -282,7 +282,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("        <table class=\"data-table data-table--outcomes\" id=\"claim-outcomes\"><caption>Recorded claim outcomes</caption><thead><tr><th scope=\"col\">Outcome</th><th scope=\"col\">Count</th></tr></thead><tbody>");
         foreach (var outcome in ClaimOutcomeDisplayOrder)
             sb.AppendLine($"          <tr><th scope=\"row\">{Encode(ReportContextFormatter.FormatClaimOutcome(outcome))}</th><td>{assurance.Claims.Count(claim => claim.Outcome == outcome)}</td></tr>");
-        sb.AppendLine("        </tbody></table>");
+        sb.AppendLine($"        </tbody><tfoot><tr><th scope=\"row\">Total recorded claims</th><td>{assurance.Claims.Count}</td></tr></tfoot></table>");
         AddList("Recorded eligibility reasons", assurance.CertificateEligibility.Reasons);
         var governanceNotes = document.ReleaseDecision.Highlights
             .Except(assurance.CertificateEligibility.Reasons, StringComparer.Ordinal).ToArray();
@@ -328,7 +328,6 @@ internal sealed class ValidationHtmlReportComposer
             HtmlReportTone.Info,
             collapsible: false));
         sb.AppendLine(RenderMetricFacts(document.OverviewMetrics));
-        sb.AppendLine(RenderDomainCalibrationTable(document.RiskMetrics));
         sb.AppendLine(RenderDomainEvidenceMatrix(document.DomainSummaries));
         sb.AppendLine(RenderSectionCardClose());
 
@@ -691,27 +690,6 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("            </div>");
         }
         sb.AppendLine("          </dl>");
-        return sb.ToString();
-    }
-
-    private static string RenderDomainCalibrationTable(IReadOnlyList<ValidationHtmlMetricCard> cards)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"table-shell table-shell--compact\">");
-        sb.AppendLine("            <table class=\"data-table calibration-table\">");
-        sb.AppendLine("              <thead><tr><th>Domain</th><th>Score</th><th>Reading</th></tr></thead>");
-        sb.AppendLine("              <tbody>");
-        foreach (var card in cards)
-        {
-            sb.AppendLine("                <tr>");
-            sb.AppendLine($"                  <td><div class=\"cell-title\">{Encode(card.Label)}</div></td>");
-            sb.AppendLine($"                  <td>{RenderToneChip(card.Value, card.Tone)}</td>");
-            sb.AppendLine($"                  <td>{Encode(card.SupportingText ?? card.Eyebrow)}</td>");
-            sb.AppendLine("                </tr>");
-        }
-        sb.AppendLine("              </tbody>");
-        sb.AppendLine("            </table>");
-        sb.AppendLine("          </div>");
         return sb.ToString();
     }
 

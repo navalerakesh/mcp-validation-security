@@ -41,7 +41,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Hero = BuildHero(result, reportConfig),
             ReleaseDecision = BuildReleaseDecision(result),
             OverviewMetrics = BuildOverviewMetrics(result),
-            RiskMetrics = BuildRiskMetrics(result),
             DomainSummaries = BuildDomainSummaries(result),
             DecisionTrace = decisionTrace,
             Hotspots = BuildHotspots(result),
@@ -231,46 +230,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
     {
         return result.Assurance.EvidenceSummary;
-    }
-
-    private static IReadOnlyList<ValidationHtmlMetricCard> BuildRiskMetrics(ValidationResult result)
-    {
-        var claims = result.Assurance.Claims;
-        return new List<ValidationHtmlMetricCard>
-        {
-            new()
-            {
-                Eyebrow = "Claims",
-                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.Violated).ToString(),
-                Label = "Violated",
-                SupportingText = "Deterministic claim failures",
-                Tone = HtmlReportTone.Danger
-            },
-            new()
-            {
-                Eyebrow = "Claims",
-                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.ReviewRequired).ToString(),
-                Label = "Review Required",
-                SupportingText = "Claims requiring human review",
-                Tone = HtmlReportTone.Warning
-            },
-            new()
-            {
-                Eyebrow = "Claims",
-                Value = claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.Incomplete).ToString(),
-                Label = "Incomplete",
-                SupportingText = "Applicable claims lacking evidence",
-                Tone = HtmlReportTone.Warning
-            },
-            new()
-            {
-                Eyebrow = "Claims",
-                Value = claims.Count.ToString(),
-                Label = "Total",
-                SupportingText = "All projected assurance claims",
-                Tone = HtmlReportTone.Info
-            }
-        };
     }
 
     private static IReadOnlyList<ValidationHtmlDomainSummary> BuildDomainSummaries(ValidationResult result)

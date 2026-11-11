@@ -13,6 +13,31 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 public sealed class ValidationHtmlAccessibilityTests
 {
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void ClaimCounts_ShouldUseOneOutcomeTableWithAnExplicitTotal(bool verbose, bool empty)
+    {
+        var result = empty ? new ValidationResult() : ReportSnapshotTestData.CreateComprehensiveResult();
+        var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
+        var document = new HtmlParser().ParseDocument(html);
+        var table = document.QuerySelectorAll("#claim-outcomes").Should().ContainSingle().Subject;
+
+        document.QuerySelectorAll(".calibration-table").Should().BeEmpty("claim counts are not scores and already have an outcome table");
+        table.QuerySelectorAll("thead th").Select(element => element.TextContent).Should().Equal("Outcome", "Count");
+        table.QuerySelectorAll("tbody tr").Should().HaveCount(Enum.GetValues<AssuranceClaimOutcome>().Length);
+        foreach (var outcome in Enum.GetValues<AssuranceClaimOutcome>())
+        {
+            var row = table.QuerySelectorAll("tbody tr").Single(element =>
+                element.QuerySelector("th")!.TextContent == ReportContextFormatter.FormatClaimOutcome(outcome));
+            row.QuerySelector("td")!.TextContent.Should().Be(result.Assurance.Claims.Count(claim => claim.Outcome == outcome).ToString());
+        }
+        table.QuerySelector("tfoot th")!.TextContent.Should().Be("Total recorded claims");
+        table.QuerySelector("tfoot td")!.TextContent.Should().Be(result.Assurance.Claims.Count.ToString());
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void Overview_ShouldPresentEachProjectedMetricOnceAsUnframedFacts(bool verbose)

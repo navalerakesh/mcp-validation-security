@@ -20,7 +20,6 @@ internal sealed class ValidationHtmlReportDocument
 
     public required IReadOnlyList<ValidationHtmlMetricCard> OverviewMetrics { get; init; }
 
-    public required IReadOnlyList<ValidationHtmlMetricCard> RiskMetrics { get; init; }
 
     public required IReadOnlyList<ValidationHtmlDomainSummary> DomainSummaries { get; init; }
 
