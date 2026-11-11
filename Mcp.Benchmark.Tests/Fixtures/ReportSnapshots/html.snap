@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'sha256-Dnk+lth1Bn+NsJJh3K7p3q62IxminO4u/8m4yFzp8Mo='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bC4qaSNYGUiPwV0eCOR98H7/yv0XH75XlmsR6UOdQ/s='; style-src 'sha256-flduq76SusK8eXgJK0F7D8ZOwq5F9M9xrdGJJWU8sHc='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
     <title>MCP Server Assurance Report - Full</title>
     <link rel="icon" href="data:,">
     <style>:root {
@@ -112,6 +112,26 @@ body {
 }
 .assessment-facts dt { font-weight: 600; }
 .assessment-facts dd { margin: 0; }
+[hidden] { display: none !important; }
+.claim-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0; }
+.claim-filters label { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.claim-filters input, .claim-filters select, .claim-filters button {
+    font: inherit;
+    min-height: 40px;
+    max-width: 100%;
+    padding: 8px;
+    color: var(--text);
+    background: var(--surface-strong);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+}
+.claim-filters :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+#claim-filter-status { flex-basis: 100%; min-height: 24px; }
+.print-claims-scope { display: none; }
+.assessment-claim {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 440px;
+}
 .assessment-reference summary { cursor: pointer; }
 .assessment-reference summary h2 { display: inline; }
 .assessment-reference summary:focus-visible,
@@ -1929,6 +1949,9 @@ a:hover {
     }
 }
 @media print {
+    .assessment-claim { content-visibility: visible; contain-intrinsic-size: none; }
+    .claim-filters, #claim-filter-empty { display: none !important; }
+    .assessment-claim[hidden], .print-claims-scope { display: block !important; }
     .assessment-reference::details-content {
         content-visibility: visible;
         display: block;
@@ -2551,7 +2574,13 @@ a:hover {
         </div></section>
 
       <section class="assessment-section" id="recorded-claims" aria-labelledby="recorded-claims-title"><h2 id="recorded-claims-title">Findings and recorded claims</h2>
-        <article class="assessment-claim" id="claim-77367faa3ba63895bb9a0478cc1a37a8f2f315b3677da1d7b148b277571d95e4" data-claim-id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent">
+        <div class="claim-filters" id="claim-filters" role="search" aria-label="Recorded claims" hidden>
+          <label for="claim-search">Search claims<input id="claim-search" type="search" maxlength="512" autocomplete="off"></label>
+          <label for="claim-outcome">Outcome<select id="claim-outcome"><option value="">All outcomes</option><option value="Satisfied">Satisfied</option><option value="Violated">Violated</option><option value="Error">Error</option><option value="Incomplete">Incomplete</option><option value="ReviewRequired">Review required</option><option value="NotApplicable">Not applicable</option></select></label>
+          <button type="button" id="claim-filter-reset">Reset filters</button><span id="claim-filter-status" role="status" aria-live="polite" aria-atomic="true"></span>
+        </div><p id="claim-filter-empty" hidden>No claims match the current filters.</p>
+        <p class="print-claims-scope">Print scope: all 13 recorded claims.</p>
+        <article class="assessment-claim" id="claim-77367faa3ba63895bb9a0478cc1a37a8f2f315b3677da1d7b148b277571d95e4" data-claim-id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent" data-claim-outcome="Satisfied">
           <h3>github-copilot-cli,github-copilot-cloud-agent</h3><p><code>coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2561,7 +2590,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-c5b934f31c1e821dde9a515acb288ec2be556ab62ed06793e60d3c16808576ae" data-claim-id="coverage:error-handling:error-handling">
+        <article class="assessment-claim" id="claim-c5b934f31c1e821dde9a515acb288ec2be556ab62ed06793e60d3c16808576ae" data-claim-id="coverage:error-handling:error-handling" data-claim-outcome="Satisfied">
           <h3>error-handling</h3><p><code>coverage:error-handling:error-handling</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2571,7 +2600,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:error-handling:error-handling:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-e973727e1443ce592b51b0042be4df0280f72b033103bc95c23126facea88896" data-claim-id="coverage:error-handling:error-handling-matrix">
+        <article class="assessment-claim" id="claim-e973727e1443ce592b51b0042be4df0280f72b033103bc95c23126facea88896" data-claim-id="coverage:error-handling:error-handling-matrix" data-claim-outcome="Satisfied">
           <h3>error-handling-matrix</h3><p><code>coverage:error-handling:error-handling-matrix</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2581,7 +2610,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:error-handling:error-handling-matrix:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40" data-claim-id="coverage:prompt-surface:prompts-list">
+        <article class="assessment-claim" id="claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40" data-claim-id="coverage:prompt-surface:prompts-list" data-claim-outcome="Incomplete">
           <h3>prompts/list</h3><p><code>coverage:prompt-surface:prompts-list</code></p>
           <p><strong>Outcome:</strong> Incomplete · <strong>Requirement:</strong> Policy</p>
           <p>Server does not advertise prompts capability.</p>
@@ -2591,7 +2620,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:prompt-surface:prompts-list:Skipped</p>
         </article>
-        <article class="assessment-claim" id="claim-d3729d2810e2edbdbb06e41ed0af80dd1c89cc536a73c34dea6797309a59d079" data-claim-id="coverage:protocol-core:json-rpc">
+        <article class="assessment-claim" id="claim-d3729d2810e2edbdbb06e41ed0af80dd1c89cc536a73c34dea6797309a59d079" data-claim-id="coverage:protocol-core:json-rpc" data-claim-outcome="Satisfied">
           <h3>json-rpc</h3><p><code>coverage:protocol-core:json-rpc</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2601,7 +2630,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:protocol-core:json-rpc:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-44e61bfd9be12c70606bb0dd25efe36495eafcaf1fbe7cf9523f41b39e80f5a1" data-claim-id="coverage:security-boundaries:security-authentication-challenge">
+        <article class="assessment-claim" id="claim-44e61bfd9be12c70606bb0dd25efe36495eafcaf1fbe7cf9523f41b39e80f5a1" data-claim-id="coverage:security-boundaries:security-authentication-challenge" data-claim-outcome="Satisfied">
           <h3>security-authentication-challenge</h3><p><code>coverage:security-boundaries:security-authentication-challenge</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> SecurityControl</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2611,7 +2640,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:security-boundaries:security-authentication-challenge:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-8001d250277130786f2545e366480f98a6313873e8b61c9d3ded5409d2dad5f1" data-claim-id="coverage:tool-surface:tool-catalog-smoke">
+        <article class="assessment-claim" id="claim-8001d250277130786f2545e366480f98a6313873e8b61c9d3ded5409d2dad5f1" data-claim-id="coverage:tool-surface:tool-catalog-smoke" data-claim-outcome="Satisfied">
           <h3>tool-catalog-smoke</h3><p><code>coverage:tool-surface:tool-catalog-smoke</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2621,7 +2650,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:tool-surface:tool-catalog-smoke:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-73d46a28d1969b053d8b4c84ba35b6320ebd72b9d5a0c0cd4afa6432d5d6e07c" data-claim-id="coverage:tool-surface:tools-list">
+        <article class="assessment-claim" id="claim-73d46a28d1969b053d8b4c84ba35b6320ebd72b9d5a0c0cd4afa6432d5d6e07c" data-claim-id="coverage:tool-surface:tools-list" data-claim-outcome="Satisfied">
           <h3>tools/list</h3><p><code>coverage:tool-surface:tools-list</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
@@ -2631,7 +2660,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> coverage:tool-surface:tools-list:Covered</p>
         </article>
-        <article class="assessment-claim" id="claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2" data-claim-id="finding:ai-tool-schema-parameter-description-missing:delete-repo">
+        <article class="assessment-claim" id="claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2" data-claim-id="finding:ai-tool-schema-parameter-description-missing:delete-repo" data-claim-outcome="ReviewRequired">
           <h3>delete_repo</h3><p><code>finding:ai-tool-schema-parameter-description-missing:delete-repo</code></p>
           <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
@@ -2641,7 +2670,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
         </article>
-        <article class="assessment-claim" id="claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445" data-claim-id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo">
+        <article class="assessment-claim" id="claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445" data-claim-id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" data-claim-outcome="ReviewRequired">
           <h3>delete_repo</h3><p><code>finding:mcp-guideline-tool-destructive-hint-missing:delete-repo</code></p>
           <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
@@ -2651,7 +2680,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
         </article>
-        <article class="assessment-claim" id="claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f" data-claim-id="finding:mcp-tool-call-result-object-missing:tools-call">
+        <article class="assessment-claim" id="claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f" data-claim-id="finding:mcp-tool-call-result-object-missing:tools-call" data-claim-outcome="ReviewRequired">
           <h3>tools/call</h3><p><code>finding:mcp-tool-call-result-object-missing:tools-call</code></p>
           <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Should</p>
           <p>One tool response omitted the outer result object.</p>
@@ -2661,7 +2690,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
         </article>
-        <article class="assessment-claim" id="claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a" data-claim-id="protocol:mcp-init-version-negotiation">
+        <article class="assessment-claim" id="claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a" data-claim-id="protocol:mcp-init-version-negotiation" data-claim-outcome="Violated">
           <h3>Initialization</h3><p><code>protocol:mcp-init-version-negotiation</code></p>
           <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> Must</p>
           <p>Server ignored the requested MCP protocol version.</p>
@@ -2671,7 +2700,7 @@ a:hover {
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> protocol/MCP.INIT.VERSION_NEGOTIATION</p>
         </article>
-        <article class="assessment-claim" id="claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd" data-claim-id="vulnerability:mcp-security-prompt-injection:prompt-get">
+        <article class="assessment-claim" id="claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd" data-claim-id="vulnerability:mcp-security-prompt-injection:prompt-get" data-claim-outcome="Violated">
           <h3>prompt:get</h3><p><code>vulnerability:mcp-security-prompt-injection:prompt-get</code></p>
           <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> SecurityControl</p>
           <p>Server reflected untrusted prompt content without sanitization.</p>
@@ -3359,5 +3388,49 @@ a:hover {
       <div class="footer">Generated by MCP Validator · Full report · print-ready HTML for PDF export</div>
     </main>
   </div>
+  <script>(() => {
+    const section = document.getElementById('recorded-claims');
+    const controls = document.getElementById('claim-filters');
+    const search = document.getElementById('claim-search');
+    const outcome = document.getElementById('claim-outcome');
+    const reset = document.getElementById('claim-filter-reset');
+    const status = document.getElementById('claim-filter-status');
+    const empty = document.getElementById('claim-filter-empty');
+    if (!section || !controls || !search || !outcome || !reset || !status || !empty) return;
+    const entries = Array.from(section.querySelectorAll('article[data-claim-id]'), element => ({
+        element,
+        outcome: element.dataset.claimOutcome,
+        text: element.textContent.toLowerCase()
+    }));
+    const apply = () => {
+        const query = search.value.slice(0, 512).trim().toLowerCase();
+        let visible = 0;
+        for (const entry of entries) {
+            const matches = (!query || entry.text.includes(query)) && (!outcome.value || entry.outcome === outcome.value);
+            entry.element.hidden = !matches;
+            if (matches) visible++;
+        }
+        status.textContent = `${visible} of ${entries.length} recorded claims`;
+        empty.hidden = visible !== 0 || entries.length === 0;
+        reset.disabled = !search.value && !outcome.value;
+    };
+    const clear = () => { search.value = ''; outcome.value = ''; apply(); };
+    const revealAnchor = () => {
+        let id;
+        try { id = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+        const target = document.getElementById(id);
+        if (target && section.contains(target) && target.matches('article[data-claim-id]')) {
+            clear();
+            target.scrollIntoView();
+        }
+    };
+    search.addEventListener('input', apply);
+    outcome.addEventListener('change', apply);
+    reset.addEventListener('click', clear);
+    window.addEventListener('hashchange', revealAnchor);
+    apply();
+    controls.hidden = false;
+    revealAnchor();
+})();</script>
 </body>
 </html>

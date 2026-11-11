@@ -12,6 +12,35 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 
 public sealed class ValidationHtmlAccessibilityTests
 {
+    [Fact]
+    public void LargeReport_ShouldRetainExactClaimAndToolInventories()
+    {
+        var result = ReportSnapshotTestData.CreateLargeReportResult().CloneWithoutSecrets();
+        result.Assurance.Claims.Should().HaveCount(10_000);
+        result.Assurance.Claims.Select(claim => claim.ClaimId).Should().OnlyHaveUniqueItems();
+        result.ToolValidation!.ToolsDiscovered.Should().Be(1000);
+        result.ToolValidation.ToolResults.Should().HaveCount(1000);
+        result.ToolValidation.ToolResults.Select(tool => tool.ToolName).Should().OnlyHaveUniqueItems();
+        result.ToolValidation.ToolResults.Skip(2).Should().OnlyContain(tool => tool.Status == TestStatus.Skipped);
+        var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+        var document = new HtmlParser().ParseDocument(html);
+        document.QuerySelectorAll("article[data-claim-id]").Should().HaveCount(10_000);
+        document.QuerySelectorAll("article[data-claim-id][hidden]").Should().BeEmpty();
+        var text = document.Body!.TextContent;
+        foreach (var tool in result.ToolValidation.ToolResults)
+            text.Should().Contain(tool.ToolName);
+
+        var output = Environment.GetEnvironmentVariable("MCPVAL_REPORT_SCALE_OUTPUT");
+        if (!string.IsNullOrWhiteSpace(output))
+        {
+            Directory.Exists(output).Should().BeFalse("scale evidence must not overwrite an earlier run");
+            Directory.CreateDirectory(output);
+            File.WriteAllText(Path.Combine(output, "report.html"), html);
+            File.WriteAllText(Path.Combine(output, "result.json"), System.Text.Json.JsonSerializer.Serialize(
+                result.CloneWithoutSecrets(), Mcp.Benchmark.CLI.Utilities.ArtifactJsonOptions.Create()));
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -29,24 +58,31 @@ public sealed class ValidationHtmlAccessibilityTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ReportPolicy_ShouldAllowOnlyExactStylesheetAndNoActiveContent(bool verbose)
+    [InlineData(false, "\n")]
+    [InlineData(true, "\n")]
+    [InlineData(false, "\r\n")]
+    [InlineData(true, "\r")]
+    public void ReportPolicy_ShouldAllowOnlyExactStylesheetAndFixedLocalScript(bool verbose, string lineEnding)
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
         var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
-        var document = new HtmlParser().ParseDocument(html);
+        var document = new HtmlParser().ParseDocument(html.ReplaceLineEndings(lineEnding));
         var stylesheet = document.QuerySelectorAll("style").Should().ContainSingle().Subject.TextContent;
         var expectedHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(stylesheet)));
+        var script = document.QuerySelectorAll("script").Should().ContainSingle().Subject.TextContent;
+        var expectedScriptHash = Convert.ToBase64String(SHA256.HashData(Encoding.UTF8.GetBytes(script)));
         var policy = document.QuerySelector("meta[http-equiv='Content-Security-Policy']")!.GetAttribute("content");
 
         policy.Should().Contain($"style-src 'sha256-{expectedHash}'");
         policy.Should().Contain("default-src 'none'");
-        policy.Should().Contain("script-src 'none'");
+        policy.Should().Contain($"script-src 'sha256-{expectedScriptHash}'");
         policy.Should().Contain("base-uri 'none'");
         policy.Should().Contain("form-action 'none'");
         policy.Should().NotContain("unsafe-inline");
-        document.QuerySelectorAll("[style],script,iframe,object,form").Should().BeEmpty();
+        document.QuerySelectorAll("[style],iframe,object,form").Should().BeEmpty();
+        document.GetElementById("claim-filters")!.HasAttribute("hidden").Should().BeTrue();
+        document.QuerySelectorAll("article[data-claim-id][hidden]").Should().BeEmpty();
+        script.Should().NotContain("innerHTML").And.NotContain("fetch(").And.NotContain("eval(");
     }
 
     [Theory]
@@ -158,7 +194,7 @@ public sealed class ValidationHtmlAccessibilityTests
             }
         }
 
-        document.QuerySelectorAll("details,[hidden]").Should().BeEmpty("the current report retains all content in its static document");
+        document.QuerySelectorAll("details,article[hidden]").Should().BeEmpty("all claim content must exist in the static document");
         document.QuerySelectorAll("table").Should().NotBeEmpty();
         document.QuerySelectorAll("table").Should().OnlyContain(table => table.QuerySelectorAll("th").Length > 0);
         document.QuerySelectorAll("a[href]").All(link =>
@@ -169,7 +205,7 @@ public sealed class ValidationHtmlAccessibilityTests
             return string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase);
         }).Should().BeTrue();
-        document.QuerySelectorAll("script").Should().BeEmpty();
+        document.QuerySelectorAll("script").Should().ContainSingle();
         document.QuerySelectorAll("[tabindex^='-']").Should().BeEmpty();
         document.QuerySelectorAll(".producer-signature__divider")
             .Should().OnlyContain(element => element.GetAttribute("aria-hidden") == "true");
@@ -231,7 +267,8 @@ public sealed class ValidationHtmlAccessibilityTests
         var html = new ValidationReportRenderer().GenerateHtmlReport(result, new ReportingConfig(), verbose: true);
         var document = new HtmlParser().ParseDocument(html);
 
-        document.QuerySelectorAll("script,img").Should().BeEmpty();
+        document.QuerySelectorAll("img").Should().BeEmpty();
+        document.QuerySelectorAll("script").Should().ContainSingle().Subject.TextContent.Should().NotContain("alert(");
         document.QuerySelectorAll("a[href^='javascript:'],a[href^='data:']").Should().BeEmpty();
         document.Body!.TextContent.Should().Contain("<script>alert(2)</script>");
     }

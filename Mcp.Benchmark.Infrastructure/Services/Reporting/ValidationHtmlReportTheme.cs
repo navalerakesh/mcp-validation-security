@@ -111,6 +111,26 @@ body {
 }
 .assessment-facts dt { font-weight: 600; }
 .assessment-facts dd { margin: 0; }
+[hidden] { display: none !important; }
+.claim-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 16px 0; }
+.claim-filters label { display: grid; gap: 4px; flex: 1 1 220px; min-width: 0; }
+.claim-filters input, .claim-filters select, .claim-filters button {
+    font: inherit;
+    min-height: 40px;
+    max-width: 100%;
+    padding: 8px;
+    color: var(--text);
+    background: var(--surface-strong);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+}
+.claim-filters :focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+#claim-filter-status { flex-basis: 100%; min-height: 24px; }
+.print-claims-scope { display: none; }
+.assessment-claim {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 440px;
+}
 .assessment-reference summary { cursor: pointer; }
 .assessment-reference summary h2 { display: inline; }
 .assessment-reference summary:focus-visible,
@@ -1928,6 +1948,9 @@ a:hover {
     }
 }
 @media print {
+    .assessment-claim { content-visibility: visible; contain-intrinsic-size: none; }
+    .claim-filters, #claim-filter-empty { display: none !important; }
+    .assessment-claim[hidden], .print-claims-scope { display: block !important; }
     .assessment-reference::details-content {
         content-visibility: visible;
         display: block;
