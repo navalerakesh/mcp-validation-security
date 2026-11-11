@@ -320,19 +320,14 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine(RenderSectionCardClose());
         }
 
-        var scorecardAbstract = document.OverviewMetrics
-            .Take(4)
-            .Select(card => (card.Label, card.Value, card.Tone))
-            .ToArray();
         sb.AppendLine(RenderSectionCardOpen(
-            "Scorecard",
+            "Assessment evidence",
             "Compliance & Domain Evidence",
-            "Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.",
-            scorecardAbstract,
+            "Recorded assessments and domain evidence for the selected profile.",
+            [],
             HtmlReportTone.Info,
             collapsible: false));
-        sb.AppendLine(RenderEvaluationPrinciples());
-        sb.AppendLine(RenderScoreStrip(document.OverviewMetrics));
+        sb.AppendLine(RenderMetricFacts(document.OverviewMetrics));
         sb.AppendLine(RenderDomainCalibrationTable(document.RiskMetrics));
         sb.AppendLine(RenderDomainEvidenceMatrix(document.DomainSummaries));
         sb.AppendLine(RenderSectionCardClose());
@@ -480,30 +475,6 @@ internal sealed class ValidationHtmlReportComposer
     private static string RenderSectionAbstractCard(string label, string value, HtmlReportTone tone)
     {
         return $"          <div><dt class=\"section-abstract__label\">{Encode(label)}</dt><dd>{Encode(value)}</dd></div>";
-    }
-
-    private static string RenderEvaluationPrinciples()
-    {
-        var principles = new (string Title, string Summary)[]
-        {
-            ("Protocol", "Spec-linked correctness and response contract integrity."),
-            ("Security", "Auth boundaries, data exposure, and exploit resistance."),
-            ("AI Safety", "Tool schema clarity, autonomy hints, and output handling."),
-            ("Operations", "Measured runtime behavior, recovery, and load resilience."),
-            ("Coverage", "Covered, skipped, and blocked scopes are explicit.")
-        };
-
-        var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"principle-rail\">");
-        foreach (var principle in principles)
-        {
-            sb.AppendLine("            <div class=\"principle-card\">");
-            sb.AppendLine($"              <div class=\"principle-card__title\">{Encode(principle.Title)}</div>");
-            sb.AppendLine($"              <div class=\"principle-card__copy\">{Encode(principle.Summary)}</div>");
-            sb.AppendLine("            </div>");
-        }
-        sb.AppendLine("          </div>");
-        return sb.ToString();
     }
 
     private static string RenderReleaseDecision(ValidationHtmlReleaseDecision decision)
@@ -708,20 +679,18 @@ internal sealed class ValidationHtmlReportComposer
         return sb.ToString();
     }
 
-    private static string RenderScoreStrip(IReadOnlyList<ValidationHtmlMetricCard> cards)
+    private static string RenderMetricFacts(IReadOnlyList<ValidationHtmlMetricCard> cards)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"score-strip\">");
+        sb.AppendLine("          <dl class=\"assessment-facts\">");
         foreach (var card in cards)
         {
-            var toneCss = ValidationHtmlReportTheme.ToCssTone(card.Tone);
-            sb.AppendLine($"            <div class=\"score-pill score-pill--{toneCss}\">");
-            sb.AppendLine($"              <div class=\"score-pill__eyebrow\">{Encode(card.Label)}</div>");
-            sb.AppendLine($"              <div class=\"score-pill__value\">{Encode(card.Value)}</div>");
-            sb.AppendLine($"              <div class=\"score-pill__meta\">{Encode(card.SupportingText ?? card.Eyebrow)}</div>");
+            sb.AppendLine("            <div>");
+            sb.AppendLine($"              <dt>{Encode(card.Label)}</dt>");
+            sb.AppendLine($"              <dd><strong>{Encode(card.Value)}</strong><br>{Encode(card.SupportingText ?? card.Eyebrow)}</dd>");
             sb.AppendLine("            </div>");
         }
-        sb.AppendLine("          </div>");
+        sb.AppendLine("          </dl>");
         return sb.ToString();
     }
 
@@ -2041,7 +2010,7 @@ internal sealed class ValidationHtmlReportComposer
                 new() { Eyebrow = "Throughput", Value = $"{perf.LoadTesting.RequestsPerSecond:F2}", Label = "Requests / Second", SupportingText = "Sustained throughput during probe", Tone = HtmlReportTone.Info },
                 new() { Eyebrow = "Failures", Value = $"{perf.LoadTesting.ErrorRate:F2}%", Label = "Error Rate", SupportingText = "Target ≤ 1%", Tone = MapErrorRateTone(perf.LoadTesting.ErrorRate) }
             };
-            sb.AppendLine(RenderScoreStrip(cards));
+            sb.AppendLine(RenderMetricFacts(cards));
             sb.AppendLine($"          <div class=\"evidence-note\">Requests: {perf.LoadTesting.SuccessfulRequests}/{perf.LoadTesting.TotalRequests} successful.</div>");
             if (perf.LoadTesting.PressureSignalsObserved)
             {

@@ -13,6 +13,52 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 public sealed class ValidationHtmlAccessibilityTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Overview_ShouldPresentEachProjectedMetricOnceAsUnframedFacts(bool verbose)
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        var projection = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, verbose);
+        var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
+        var document = new HtmlParser().ParseDocument(html);
+        var overview = document.QuerySelectorAll("section").Single(section =>
+            section.Children.Any(child => child.LocalName == "h2" && child.TextContent == "Compliance & Domain Evidence"));
+
+        document.QuerySelectorAll(".score-strip, .score-pill, .principle-rail, .principle-card").Should().BeEmpty();
+        var facts = overview.QuerySelectorAll("dl").Should().ContainSingle().Subject;
+        facts.QuerySelectorAll("dt").Select(element => element.TextContent)
+            .Should().Equal(projection.OverviewMetrics.Select(metric => metric.Label));
+        var descriptions = facts.QuerySelectorAll("dd");
+        descriptions.Should().HaveCount(projection.OverviewMetrics.Count);
+        for (var index = 0; index < projection.OverviewMetrics.Count; index++)
+        {
+            var metric = projection.OverviewMetrics[index];
+            descriptions[index].TextContent.Should().Contain(metric.Value)
+                .And.Contain(metric.SupportingText ?? metric.Eyebrow);
+        }
+        document.QuerySelectorAll("article[data-claim-id]").Should().HaveCount(result.Assurance.Claims.Count);
+        if (verbose)
+        {
+            var performance = document.QuerySelectorAll("section").Single(section =>
+                section.Children.Any(child => child.LocalName == "h2" && child.TextContent == "Performance Metrics"));
+            var performanceFacts = performance.QuerySelector(".assessment-section__content > dl")!;
+            var load = result.PerformanceTesting!.LoadTesting;
+            performanceFacts.QuerySelectorAll("dt").Select(element => element.TextContent).Should().Equal(
+                "Average Latency", "95th-Percentile Latency", "Requests / Second", "Error Rate");
+            performanceFacts.QuerySelectorAll("dd strong").Select(element => element.TextContent).Should().Equal(
+                FormattableString.Invariant($"{load.AverageResponseTimeMs:F1} ms"),
+                FormattableString.Invariant($"{load.P95ResponseTimeMs:F1} ms"),
+                FormattableString.Invariant($"{load.RequestsPerSecond:F2}"),
+                FormattableString.Invariant($"{load.ErrorRate:F2}%"));
+            var performanceDescriptions = performanceFacts.QuerySelectorAll("dd");
+            performanceDescriptions[0].TextContent.Should().Contain("Target \u2264 300 ms");
+            performanceDescriptions[1].TextContent.Should().Contain("Tail latency under pressure");
+            performanceDescriptions[2].TextContent.Should().Contain("Sustained throughput during probe");
+            performanceDescriptions[3].TextContent.Should().Contain("Target \u2264 1%");
+        }
+    }
+
+    [Theory]
     [InlineData(AssuranceClaimOutcome.Satisfied, "Satisfied", false)]
     [InlineData(AssuranceClaimOutcome.Satisfied, "Satisfied", true)]
     [InlineData(AssuranceClaimOutcome.Violated, "Violated", false)]

@@ -8,6 +8,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Changed
 
+- HTML overview and performance metrics use semantic fact lists instead of decorative tiles. The overview no longer repeats its metric summary or displays generic explanatory cards; recorded values and supporting evidence text are retained.
 - HTML reports add hash-allowlisted local claim search/outcome filtering with unchanged decisions, complete no-script evidence and full-claim printing. Native off-screen layout containment retains every claim in the document; local synthetic scale measurements are not universal performance or accessibility certification.
 - Assurance-result `3.1.0` adds optional recorded run termination, separate from target assurance; audit manifest `2.2.0` retains termination and recommended exit. Historical missing lifecycle evidence remains unknown. Rule catalog revision is `2026-11-10.5`.
 - **Breaking artifact shape:** assurance-result `3.0.0` uses nullable values for unmeasured operational and target-resource metrics, retaining an explicit `2.x` migration path with original-version provenance. The typed assurance model and document type are unchanged. Rule catalog revision is `2026-11-10.4`.

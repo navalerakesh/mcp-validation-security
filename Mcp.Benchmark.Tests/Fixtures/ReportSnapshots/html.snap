@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bC4qaSNYGUiPwV0eCOR98H7/yv0XH75XlmsR6UOdQ/s='; style-src 'sha256-flduq76SusK8eXgJK0F7D8ZOwq5F9M9xrdGJJWU8sHc='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-bC4qaSNYGUiPwV0eCOR98H7/yv0XH75XlmsR6UOdQ/s='; style-src 'sha256-fx/SHcp7TlmQxQC9rvrsHf/iTlj2a5nqUqNAp7BndJA='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
     <title>MCP Server Assurance Report - Full</title>
     <link rel="icon" href="data:,">
     <style>:root {
@@ -726,47 +726,6 @@ body {
     margin-top: 8px;
     line-height: 1.58;
 }
-.score-strip {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 12px;
-    margin-top: 18px;
-}
-.score-pill {
-    --score-pill-eyebrow: var(--text-soft);
-    --score-pill-meta: var(--text-muted);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-card);
-    background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(248,250,252,0.94));
-    box-shadow: 0 8px 18px rgba(24,34,49,0.04);
-    padding: 14px 16px;
-}
-.score-pill--success { border-color: var(--tone-success-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(238,246,241,0.86)); --score-pill-eyebrow: var(--tone-success); --score-pill-meta: var(--tone-success); }
-.score-pill--warning { border-color: var(--tone-warning-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,241,230,0.72)); }
-.score-pill--danger { border-color: var(--tone-danger-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(249,236,239,0.72)); }
-.score-pill--info { border-color: var(--tone-info-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(237,242,251,0.86)); --score-pill-eyebrow: var(--tone-info); --score-pill-meta: var(--tone-info); }
-.score-pill--neutral { border-color: var(--tone-neutral-line); background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(242,245,248,0.9)); --score-pill-eyebrow: var(--tone-neutral); --score-pill-meta: var(--tone-neutral); }
-.score-pill__eyebrow {
-    font-size: 0.72rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--score-pill-eyebrow);
-    font-weight: 700;
-}
-.score-pill__value {
-    margin-top: 8px;
-    font-size: 1.65rem;
-    line-height: 1.05;
-    letter-spacing: 0;
-    color: var(--text-strong);
-    font-weight: 700;
-}
-.score-pill__meta {
-    margin-top: 7px;
-    color: var(--score-pill-meta);
-    font-size: 0.88rem;
-    line-height: 1.45;
-}
 .panel-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -1034,32 +993,6 @@ body {
     margin: 5px 0 0;
     color: var(--text-muted);
     line-height: 1.5;
-}
-.principle-rail {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-    gap: 10px;
-    margin-top: 18px;
-}
-.principle-card {
-    border-radius: 16px;
-    border: 1px solid rgba(174, 187, 201, 0.48);
-    background: rgba(255,255,255,0.82);
-    padding: 13px 14px;
-    box-shadow: 0 8px 20px rgba(24,34,49,0.035);
-}
-.principle-card__title {
-    font-size: 0.72rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--text-soft);
-    font-weight: 700;
-}
-.principle-card__copy {
-    margin-top: 8px;
-    color: var(--text);
-    line-height: 1.52;
-    font-size: 0.92rem;
 }
 .distribution-summary {
     margin-top: 14px;
@@ -1680,11 +1613,6 @@ a:hover {
 .auth-scenario--danger,
 .auth-scenario--info,
 .auth-scenario--neutral,
-.score-pill--success,
-.score-pill--warning,
-.score-pill--danger,
-.score-pill--info,
-.score-pill--neutral,
 .metric-card--success,
 .metric-card--warning,
 .metric-card--danger,
@@ -1755,8 +1683,7 @@ a:hover {
     .auth-scenario__detail-grid {
         grid-template-columns: 1fr;
     }
-    .section-card__abstract,
-    .principle-rail {
+    .section-card__abstract {
         grid-template-columns: 1fr;
     }
     .section-heading-row {
@@ -1995,7 +1922,6 @@ a:hover {
     .evidence-card,
     .summary-card,
     .section-abstract,
-    .principle-card,
     .table-shell,
     .meta-card,
     .stack-item,
@@ -2016,7 +1942,6 @@ a:hover {
     .evidence-card,
     .summary-card,
     .section-abstract,
-    .principle-card,
     .table-shell,
     .meta-card,
     .stack-item,
@@ -2433,66 +2358,32 @@ a:hover {
         </div></section>
       <section class="assessment-section">
         <h2>Compliance &amp; Domain Evidence</h2>
-        <p class="assessment-context">Scorecard</p>
-        <p>Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
-        <dl class="assessment-facts">
-          <div><dt class="section-abstract__label">Certificate Outcome</dt><dd>Ineligible</dd></div>
-          <div><dt class="section-abstract__label">Conformance</dt><dd>Nonconformant</dd></div>
-          <div><dt class="section-abstract__label">Assurance</dt><dd>IssuesFound</dd></div>
-          <div><dt class="section-abstract__label">Readiness</dt><dd>Ready</dd></div>
-        </dl>
+        <p class="assessment-context">Assessment evidence</p>
+        <p>Recorded assessments and domain evidence for the selected profile.</p>
         <div class="assessment-section__content">
 
-          <div class="principle-rail">
-            <div class="principle-card">
-              <div class="principle-card__title">Protocol</div>
-              <div class="principle-card__copy">Spec-linked correctness and response contract integrity.</div>
+          <dl class="assessment-facts">
+            <div>
+              <dt>Certificate Outcome</dt>
+              <dd><strong>Ineligible</strong><br>Profile: provider</dd>
             </div>
-            <div class="principle-card">
-              <div class="principle-card__title">Security</div>
-              <div class="principle-card__copy">Auth boundaries, data exposure, and exploit resistance.</div>
+            <div>
+              <dt>Conformance</dt>
+              <dd><strong>Nonconformant</strong><br>0/1 required claims satisfied</dd>
             </div>
-            <div class="principle-card">
-              <div class="principle-card__title">AI Safety</div>
-              <div class="principle-card__copy">Tool schema clarity, autonomy hints, and output handling.</div>
+            <div>
+              <dt>Assurance</dt>
+              <dd><strong>IssuesFound</strong><br>1 deterministic control claim(s)</dd>
             </div>
-            <div class="principle-card">
-              <div class="principle-card__title">Operations</div>
-              <div class="principle-card__copy">Measured runtime behavior, recovery, and load resilience.</div>
+            <div>
+              <dt>Readiness</dt>
+              <dd><strong>Ready</strong><br>2 objective claim(s)</dd>
             </div>
-            <div class="principle-card">
-              <div class="principle-card__title">Coverage</div>
-              <div class="principle-card__copy">Covered, skipped, and blocked scopes are explicit.</div>
+            <div>
+              <dt>Coverage</dt>
+              <dd><strong>87.5%</strong><br>91.9% confidence</dd>
             </div>
-          </div>
-
-          <div class="score-strip">
-            <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Certificate Outcome</div>
-              <div class="score-pill__value">Ineligible</div>
-              <div class="score-pill__meta">Profile: provider</div>
-            </div>
-            <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Conformance</div>
-              <div class="score-pill__value">Nonconformant</div>
-              <div class="score-pill__meta">0/1 required claims satisfied</div>
-            </div>
-            <div class="score-pill score-pill--danger">
-              <div class="score-pill__eyebrow">Assurance</div>
-              <div class="score-pill__value">IssuesFound</div>
-              <div class="score-pill__meta">1 deterministic control claim(s)</div>
-            </div>
-            <div class="score-pill score-pill--success">
-              <div class="score-pill__eyebrow">Readiness</div>
-              <div class="score-pill__value">Ready</div>
-              <div class="score-pill__meta">2 objective claim(s)</div>
-            </div>
-            <div class="score-pill score-pill--info">
-              <div class="score-pill__eyebrow">Coverage</div>
-              <div class="score-pill__value">87.5%</div>
-              <div class="score-pill__meta">91.9% confidence</div>
-            </div>
-          </div>
+          </dl>
 
           <div class="table-shell table-shell--compact">
             <table class="data-table calibration-table">
@@ -3231,28 +3122,24 @@ a:hover {
         </dl>
         <div class="assessment-section__content">
 
-          <div class="score-strip">
-            <div class="score-pill score-pill--success">
-              <div class="score-pill__eyebrow">Average Latency</div>
-              <div class="score-pill__value">120.5 ms</div>
-              <div class="score-pill__meta">Target ≤ 300 ms</div>
+          <dl class="assessment-facts">
+            <div>
+              <dt>Average Latency</dt>
+              <dd><strong>120.5 ms</strong><br>Target ≤ 300 ms</dd>
             </div>
-            <div class="score-pill score-pill--success">
-              <div class="score-pill__eyebrow">95th-Percentile Latency</div>
-              <div class="score-pill__value">210.4 ms</div>
-              <div class="score-pill__meta">Tail latency under pressure</div>
+            <div>
+              <dt>95th-Percentile Latency</dt>
+              <dd><strong>210.4 ms</strong><br>Tail latency under pressure</dd>
             </div>
-            <div class="score-pill score-pill--info">
-              <div class="score-pill__eyebrow">Requests / Second</div>
-              <div class="score-pill__value">18.20</div>
-              <div class="score-pill__meta">Sustained throughput during probe</div>
+            <div>
+              <dt>Requests / Second</dt>
+              <dd><strong>18.20</strong><br>Sustained throughput during probe</dd>
             </div>
-            <div class="score-pill score-pill--success">
-              <div class="score-pill__eyebrow">Error Rate</div>
-              <div class="score-pill__value">0.00%</div>
-              <div class="score-pill__meta">Target ≤ 1%</div>
+            <div>
+              <dt>Error Rate</dt>
+              <dd><strong>0.00%</strong><br>Target ≤ 1%</dd>
             </div>
-          </div>
+          </dl>
 
           <div class="evidence-note">Requests: 120/120 successful.</div>
         </div></section>
