@@ -155,7 +155,7 @@ public sealed class PublicArtifactSchemaTests
             };
             var instance = Serialize(result);
             AssertConforms("mcpval-validation-result.schema.json", instance);
-            foreach (var version in new[] { "2.0.0", "2.1.0" })
+            foreach (var version in new[] { "2.0.0", "2.1.0", "2.2.0" })
             {
                 instance["documentSchemaVersion"] = version;
                 AssertConforms("mcpval-validation-result.schema.json", instance);
@@ -176,6 +176,33 @@ public sealed class PublicArtifactSchemaTests
             observation["statusCode"] = 401;
             AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
         }
+    }
+
+    [Fact]
+    public void ValidationResult_RecordedClockAndExtensionObligations_ShouldValidateExplicitEvidence()
+    {
+        var result = new ValidationResult();
+        result.Assessments.Extensions.Add(new ExtensionAssessment
+        {
+            ExtensionId = "fixture.extension", Stage = ExtensionLifecycleStage.Stable,
+            SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64),
+            Verdict = ValidationVerdict.ReviewRequired,
+            Coverage = [new ValidationCoverageDeclaration
+            {
+                LayerId = "fixture", Scope = "unstarted", Status = ValidationCoverageStatus.Blocked,
+                ObservedOutcome = ValidationOutcome.Cancelled, Confidence = EvidenceConfidenceLevel.None
+            }]
+        });
+        var instance = Serialize(result);
+        AssertConforms("mcpval-validation-result.schema.json", instance);
+        var recordedStart = instance["startTime"]!.DeepClone();
+        instance.AsObject().Remove("startTime");
+        AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+        instance["startTime"] = "2020-01-01T12:00:00";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+        instance["startTime"] = recordedStart;
+        instance["measurements"]!["extensions"]![0]!["coverage"]![0]!["status"] = "invented-status";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
     }
 
     [Fact]

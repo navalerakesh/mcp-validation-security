@@ -265,5 +265,7 @@ public sealed class ExtensionAssessment
 
     public EvidenceCoverageSummary EvidenceSummary { get; init; } = new();
 
+    public IReadOnlyList<ValidationCoverageDeclaration> Coverage { get; init; } = Array.Empty<ValidationCoverageDeclaration>();
+
     public IReadOnlyList<ValidationFinding> Findings { get; init; } = Array.Empty<ValidationFinding>();
 }

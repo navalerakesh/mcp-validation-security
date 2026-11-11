@@ -4,7 +4,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { config } from "./config.js";
@@ -229,6 +229,9 @@ async function runCliInvocation(invocation: CliInvocation, extraEnv?: Record<str
 
     preserveArtifacts = execution.processCleanupConfirmed === false;
     const resultJson = invocation.captureResultJson && !preserveArtifacts ? await loadResultJson(outputDir) : undefined;
+    if (invocation.captureResultJson && execution.exitCode === 0 && resultJson === undefined) {
+      return { ...execution, exitCode: 70, stderr: "CLI completed without one readable committed result artifact.", resultJson };
+    }
 
     return { ...execution, resultJson };
   } catch {
@@ -262,14 +265,49 @@ export function normalizeCliExitCode(error: { code?: unknown; killed?: boolean }
 
 async function loadResultJson(dir: string): Promise<Record<string, unknown> | undefined> {
   try {
-    const files = await readdir(dir);
-    const resultFile = files.find((f) => f.endsWith("-result.json"));
-    if (!resultFile) return undefined;
+    const entries = await readdir(dir, { withFileTypes: true });
+    const resultFiles = entries
+      .filter(entry => entry.isFile() && !entry.name.startsWith(".") && entry.name.endsWith("-result.json"))
+      .map(entry => join(dir, entry.name));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith("mcp-validation-")) continue;
+      const bundle = join(dir, entry.name);
+      const files = await readdir(bundle, { withFileTypes: true });
+      resultFiles.push(...files
+        .filter(file => file.isFile() && !file.name.startsWith(".") && file.name.endsWith("-result.json"))
+        .map(file => join(bundle, file.name)));
+    }
+    if (resultFiles.length !== 1) return undefined;
 
-    const content = await readFile(join(dir, resultFile), "utf-8");
-    return JSON.parse(content);
+    const file = await open(resultFiles[0], "r");
+    try {
+      const buffer = Buffer.alloc(config.maximumCliOutputBytes + 1);
+      let length = 0;
+      while (length < buffer.length) {
+        const { bytesRead } = await file.read(buffer, length, buffer.length - length, null);
+        if (bytesRead === 0) break;
+        length += bytesRead;
+      }
+      if (length > config.maximumCliOutputBytes) return undefined;
+      const content = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, length));
+      const result: unknown = JSON.parse(content);
+      if (result === null || typeof result !== "object" || Array.isArray(result)) return undefined;
+      const artifact = result as Record<string, unknown>;
+      if (artifact.documentType !== "mcpval.assurance-result" || !isCompatibleResultVersion(artifact.documentSchemaVersion) ||
+          artifact.assurance === null || typeof artifact.assurance !== "object" || Array.isArray(artifact.assurance)) return undefined;
+      return artifact;
+    } finally {
+      await file.close();
+    }
   } catch {
     return undefined;
   }
+}
+
+function isCompatibleResultVersion(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const parts = value.split(".");
+  return parts.length === 3 && parts[0] === "2" && parts.every(part =>
+    part.length <= 10 && /^(0|[1-9][0-9]*)$/.test(part) && Number(part) <= 2147483647);
 }
 

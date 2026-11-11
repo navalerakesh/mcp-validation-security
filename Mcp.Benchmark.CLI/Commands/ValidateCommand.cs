@@ -262,6 +262,7 @@ public class ValidateCommand
             var conformanceEvidenceJson = await LoadOfficialConformanceEvidenceAsync(
                 conformanceResultsFile,
                 cancellationToken).ConfigureAwait(false);
+            var baselineResult = baselineFile == null ? null : await LoadBaselineAsync(baselineFile, cancellationToken).ConfigureAwait(false);
             ProviderHarnessManifest? providerHarnessManifest = null;
             ProviderAuthorizationVerification? providerAuthorizationVerification = null;
             ProviderHarnessAssessment? providerHarnessAssessment = null;
@@ -374,7 +375,7 @@ public class ValidateCommand
             }
 
             var assuranceProfileManifest = AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile);
-            var certificationTime = DateTimeOffset.UtcNow;
+            var certificationTime = ValidationAssessmentClock.GetTimestamp(result);
             var suppressionAssessment = ValidationPolicyEvaluator.AssessSuppressions(
                 configuration.Policy,
                 certificationTime);
@@ -418,10 +419,10 @@ public class ValidateCommand
                     InvalidWaiverCount = suppressionAssessment.InvalidSuppressions.Count
                 });
 
-            if (baselineFile != null)
+            if (baselineResult != null)
             {
                 result.BaselineComparison = ValidationBaselineEvaluator.Compare(
-                    await LoadBaselineAsync(baselineFile, cancellationToken),
+                    baselineResult,
                     result);
             }
             result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
@@ -470,12 +471,21 @@ public class ValidateCommand
             // Persist Markdown report if requested
             if (!string.IsNullOrWhiteSpace(explicitOutputDirectory))
             {
-                artifactPaths = await SaveValidationResultsAsync(
-                    result,
-                    explicitOutputDirectory,
-                    verbose,
-                    executionPlan,
-                    modelEvaluationArtifact);
+                using var artifactPersistence = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    artifactPaths = await SaveValidationResultsAsync(
+                        result,
+                        explicitOutputDirectory,
+                        verbose,
+                        executionPlan,
+                        modelEvaluationArtifact,
+                        artifactPersistence.Token);
+                }
+                catch (OperationCanceledException exception)
+                {
+                    throw new IOException("Artifact bundle publication did not complete.", exception);
+                }
             }
             else
             {
@@ -1086,14 +1096,27 @@ public class ValidateCommand
         string outputDirectory,
         bool verbose,
         ExecutionPlan executionPlan,
-        ModelEvaluationArtifact? modelEvaluationArtifact)
+        ModelEvaluationArtifact? modelEvaluationArtifact,
+        CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(outputDirectory))
-        {
-            Directory.CreateDirectory(outputDirectory);
-        }
-
         var baseName = CreateArtifactBaseName(result.ValidationId);
+        var paths = await AtomicFileWriter.WriteBundleAsync(outputDirectory, baseName,
+            (staging, token) => WriteValidationBundleContentsAsync(result, staging, baseName, verbose,
+                executionPlan, modelEvaluationArtifact, token), cancellationToken);
+        foreach (var path in paths) _logger.LogInformation("Validation artifact published: {Path}", path);
+        _consoleOutput.WriteSuccess($"Reports generated: {string.Join(", ", paths.Where(path => path.EndsWith("-report.md", StringComparison.Ordinal) || path.EndsWith("-report.html", StringComparison.Ordinal)))}");
+        return paths;
+    }
+
+    private async Task<IReadOnlyList<string>> WriteValidationBundleContentsAsync(
+        ValidationResult result,
+        string outputDirectory,
+        string baseName,
+        bool verbose,
+        ExecutionPlan executionPlan,
+        ModelEvaluationArtifact? modelEvaluationArtifact,
+        CancellationToken cancellationToken)
+    {
 
         // Always work from a redacted clone when persisting artifacts so that
         // no tokens, passwords or sensitive headers are written to disk.
@@ -1102,12 +1125,12 @@ public class ValidateCommand
         // Human‑readable Markdown report used by most users.
         var markdownPath = Path.Combine(outputDirectory, $"{baseName}-report.md");
         var reportContent = _reportGenerator.GenerateReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(markdownPath, reportContent, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(markdownPath, reportContent, outputDirectory, cancellationToken);
 
         var htmlPath = Path.Combine(outputDirectory, $"{baseName}-report.html");
         var includeDetailedSections = safeResult.ValidationConfig.Reporting.IncludesDetailedSections();
         var html = _reportRenderer.GenerateHtmlReport(safeResult, safeResult.ValidationConfig.Reporting, includeDetailedSections);
-        await AtomicFileWriter.WriteAllTextAsync(htmlPath, html, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(htmlPath, html, outputDirectory, cancellationToken);
 
         // Machine‑readable JSON snapshot for offline reporting (mcpval report).
         var jsonPath = Path.Combine(outputDirectory, $"{baseName}-result.json");
@@ -1117,22 +1140,15 @@ public class ValidateCommand
             ?? throw new InvalidOperationException("Failed to serialize validation result to JSON.");
         AnnotatePerformanceMeasurementState(jsonRoot, safeResult.PerformanceTesting);
         var json = jsonRoot.ToJsonString(jsonOptions);
-        await AtomicFileWriter.WriteAllTextAsync(jsonPath, json, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(jsonPath, json, outputDirectory, cancellationToken);
 
         var sarifPath = Path.Combine(outputDirectory, $"{baseName}-results.sarif.json");
         var sarif = _reportRenderer.GenerateSarifReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(sarifPath, sarif, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(sarifPath, sarif, outputDirectory, cancellationToken);
 
         var junitPath = Path.Combine(outputDirectory, $"{baseName}-results.junit.xml");
         var junit = _reportRenderer.GenerateJunitReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(junitPath, junit, outputDirectory);
-
-        _logger.LogInformation("Markdown report saved: {MarkdownPath}", markdownPath);
-        _logger.LogInformation("HTML report saved: {HtmlPath}", htmlPath);
-        _logger.LogInformation("Validation result JSON saved: {JsonPath}", jsonPath);
-        _logger.LogInformation("SARIF report saved: {SarifPath}", sarifPath);
-        _logger.LogInformation("JUnit report saved: {JunitPath}", junitPath);
-        _consoleOutput.WriteSuccess($"Reports generated: {markdownPath} and {htmlPath}");
+        await AtomicFileWriter.WriteAllTextAsync(junitPath, junit, outputDirectory, cancellationToken);
 
         var savedPaths = new List<string> { markdownPath, htmlPath, jsonPath, sarifPath, junitPath };
 
@@ -1142,7 +1158,7 @@ public class ValidateCommand
             var attestation = ValidationAttestationSigner.Sign(safeResult.ValidationId, jsonPath, privateKeyPem);
             var attestationPath = Path.Combine(outputDirectory, $"{baseName}-attestation.json");
             var attestationJson = JsonSerializer.Serialize(attestation, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(attestationPath, attestationJson, outputDirectory);
+            await AtomicFileWriter.WriteAllTextAsync(attestationPath, attestationJson, outputDirectory, cancellationToken);
             savedPaths.Add(attestationPath);
         }
 
@@ -1152,8 +1168,7 @@ public class ValidateCommand
             var profileSummaryPath = Path.Combine(outputDirectory, $"{baseName}-profile-summary.json");
             var profileSummary = BuildClientProfileSummary(safeResult);
             var profileSummaryJson = JsonSerializer.Serialize(profileSummary, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(profileSummaryPath, profileSummaryJson, outputDirectory);
-            _logger.LogInformation("Client profile summary saved: {Path}", profileSummaryPath);
+            await AtomicFileWriter.WriteAllTextAsync(profileSummaryPath, profileSummaryJson, outputDirectory, cancellationToken);
             savedPaths.Add(profileSummaryPath);
         }
 
@@ -1161,8 +1176,7 @@ public class ValidateCommand
         {
             var modelEvaluationPath = Path.Combine(outputDirectory, $"{baseName}-model-evaluation.json");
             var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, outputDirectory);
-            _logger.LogInformation("Model evaluation artifact saved: {Path}", modelEvaluationPath);
+            await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, outputDirectory, cancellationToken);
             savedPaths.Add(modelEvaluationPath);
         }
 
@@ -1173,8 +1187,7 @@ public class ValidateCommand
             modelEvaluationArtifact);
         var auditManifestPath = Path.Combine(outputDirectory, $"{baseName}-audit.json");
         var auditManifestJson = JsonSerializer.Serialize(auditManifest, jsonOptions);
-        await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, outputDirectory);
-        _logger.LogInformation("Audit manifest saved: {Path}", auditManifestPath);
+        await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, outputDirectory, cancellationToken);
         savedPaths.Add(auditManifestPath);
 
         return savedPaths;

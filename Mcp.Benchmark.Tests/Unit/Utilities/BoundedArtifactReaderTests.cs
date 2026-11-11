@@ -430,6 +430,27 @@ public sealed class BoundedArtifactReaderTests : IDisposable
         await read.Should().ThrowAsync<CliUsageException>().WithMessage("*exceeds*");
     }
 
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"startTime\":\"2020-01-01T12:00:00\"}")]
+    [InlineData("{\"startTime\":\"2020-01-01T12:00:00Z\",\"StartTime\":\"2021-01-01T12:00:00Z\"}")]
+    [InlineData("{\"startTime\":\"timestamp-canary\"}")]
+    [InlineData("{\"startTime\":\"2020-01-01T12:00:00Z\",\"endTime\":\"2020-01-01T12:01:00\"}")]
+    public async Task ReadValidationResultAsync_ShouldRejectMissingOrAmbiguousRecordedClock(string timestamps)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "invalid-clock.json");
+        var document = JsonNode.Parse(timestamps)!.AsObject();
+        document["documentType"] = "mcpval.assurance-result";
+        document["documentSchemaVersion"] = "2.0.0";
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        var failure = await FluentActions.Awaiting(() => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path)))
+            .Should().ThrowAsync<CliUsageException>();
+
+        failure.Which.Message.Should().NotContain("timestamp-canary");
+    }
+
     [Fact]
     public async Task ReadValidationResultAsync_ShouldLoadExplicitCurrentContract()
     {

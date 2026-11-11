@@ -15,7 +15,9 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0"] },
+    "startTime": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
+    "endTime": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "producer": {
       "type": "object",
       "required": ["name", "packageId", "repositoryUrl", "packageUrl"],
@@ -118,6 +120,10 @@
     "policyDecision": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/policyOutcome" }] },
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
+  "allOf": [{
+    "if": { "properties": { "documentSchemaVersion": { "const": "2.3.0" } }, "required": ["documentSchemaVersion"] },
+    "then": { "required": ["startTime"] }
+  }],
   "$defs": {
     "protocolMeasurement": {
       "type": ["object", "null"],
@@ -551,11 +557,12 @@
       "properties": {
         "layerId": { "type": "string", "minLength": 1 },
         "scope": { "type": "string", "minLength": 1 },
-        "status": { "type": ["string", "integer"] },
+        "status": { "enum": ["covered", "skipped", "authRequired", "inconclusive", "notApplicable", "unavailable", "blocked", 0, 1, 2, 3, 4, 5, 6] },
         "lane": { "enum": ["baseline", "externalConformance", "extensionReadiness", "clientCompatibility", "modelAdvisory", null] },
         "origin": { "enum": ["deterministicObservation", "deterministicAggregation", "externalConformanceCheck", "heuristicInference", "modelAssistance", null] },
-        "blocker": { "type": ["string", "integer"] },
-        "confidence": { "type": ["string", "integer"] },
+        "blocker": { "enum": ["none", "notAdvertised", "configDisabled", "authRequired", "transientFailure", "unsupportedTransport", "unimplemented", "timeout", "parserBoundary", "noSafeTarget", "transportError", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] },
+        "confidence": { "enum": ["none", "low", "medium", "high", 0, 1, 2, 3] },
+        "observedOutcome": { "enum": ["notEvaluated", "running", "succeeded", "failed", "skipped", "authRequired", "inconclusive", "notApplicable", "unavailable", "blocked", "cancelled", "error", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, null] },
         "reason": { "type": ["string", "null"] }
       },
       "additionalProperties": true
@@ -611,6 +618,7 @@
         "specificationSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
         "verdict": { "$ref": "#/$defs/verdict" },
         "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
+        "coverage": { "type": "array", "items": { "$ref": "#/$defs/coverage" } },
         "findings": { "type": "array", "items": { "type": "object" } }
       },
       "additionalProperties": true

@@ -11,6 +11,12 @@ import { normalizeCliExitCode, runCli } from "../src/cli-runner.js";
 const temporaryRoots: string[] = [];
 after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive: true, force: true }))));
 
+const canonicalResult = {
+  documentType: "mcpval.assurance-result",
+  documentSchemaVersion: "2.3.0",
+  assurance: { profile: { profileId: "inventory" }, certificateEligibility: { status: "ineligible" } },
+};
+
 const runnerScript = `#!/usr/bin/env node
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -29,8 +35,25 @@ if (outputIndex >= 0) {
   const outputDir = args[outputIndex + 1];
   payload.outputDir = outputDir;
   await mkdir(outputDir, { recursive: true });
-  await writeFile(join(outputDir, "validation-result.json"), JSON.stringify({ overallStatus: "NeedsReview", complianceScore: 62 }));
-  await writeFile(join(outputDir, "validation-report.md"), "# mock report\\n");
+  const layoutIndex = args.indexOf("--mock-layout");
+  const layout = layoutIndex < 0 ? "flat" : args[layoutIndex + 1];
+  const roots = layout === "bundle" ? [join(outputDir, "mcp-validation-fixture")]
+    : layout === "staging" ? [join(outputDir, ".pending-fixture")]
+    : layout === "multiple" ? [join(outputDir, "mcp-validation-first"), join(outputDir, "mcp-validation-second")]
+    : layout === "missing" ? [] : [outputDir];
+  for (const root of roots) {
+    await mkdir(root, { recursive: true });
+    const canonical = ${JSON.stringify(canonicalResult)};
+    const body = JSON.stringify(layout === "empty-object" ? {}
+      : layout === "unrelated" ? { ...canonical, documentType: "unrelated.document" }
+      : layout === "future-major" ? { ...canonical, documentSchemaVersion: "3.0.0" }
+      : layout === "invalid-version" ? { ...canonical, documentSchemaVersion: "2.01.0" }
+      : layout === "legacy-v1" ? { overallStatus: "NeedsReview", complianceScore: 62 } : canonical);
+    const padding = layout === "oversized" ? " ".repeat(${config.maximumCliOutputBytes} + 1)
+      : layout === "exact-limit" ? " ".repeat(${config.maximumCliOutputBytes} - Buffer.byteLength(body)) : "";
+    await writeFile(join(root, layout === "hidden" ? ".pending-result.json" : "validation-result.json"), body + padding);
+    await writeFile(join(root, "validation-report.md"), "# mock report\\n");
+  }
 }
 
 process.stdout.write(JSON.stringify(payload));
@@ -45,6 +68,25 @@ async function createMockCli(): Promise<string> {
   await writeFile(scriptPath, runnerScript, "utf-8");
   await chmod(scriptPath, 0o755);
   return scriptPath;
+}
+
+for (const layout of ["flat", "bundle", "staging", "multiple", "missing", "exact-limit", "oversized", "hidden", "empty-object", "unrelated", "future-major", "invalid-version", "legacy-v1"]) {
+  test(`runCli admits only one completed result: ${layout}`, async () => {
+    const mockCliPath = await createMockCli();
+    const previousCliPath = process.env[config.cliPathEnvVar];
+    process.env[config.cliPathEnvVar] = mockCliPath;
+    try {
+      const result = await runCli({ command: "validate", args: ["--mock-layout", layout], captureResultJson: true });
+      const accepted = layout === "flat" || layout === "bundle" || layout === "exact-limit";
+      assert.equal(result.exitCode, accepted ? 0 : 70);
+      assert.deepEqual(result.resultJson, accepted ? canonicalResult : undefined);
+      const invocation = JSON.parse(result.stdout) as { outputDir: string };
+      assert.equal(existsSync(dirname(invocation.outputDir)), false);
+    } finally {
+      if (previousCliPath) process.env[config.cliPathEnvVar] = previousCliPath;
+      else delete process.env[config.cliPathEnvVar];
+    }
+  });
 }
 
 test("runCli passes secrets via config and not argv", async () => {
@@ -75,7 +117,7 @@ test("runCli passes secrets via config and not argv", async () => {
     };
 
     assert.equal(result.exitCode, 0);
-    assert.deepEqual(result.resultJson, { overallStatus: "NeedsReview", complianceScore: 62 });
+    assert.deepEqual(result.resultJson, canonicalResult);
     assert.ok(invocation.args.includes("--config"));
     assert.ok(invocation.args.includes("--output"));
     assert.ok(!invocation.args.includes("super-secret-token"));
@@ -189,7 +231,7 @@ test("runCli preserves result artifacts on non-zero validate exit", async () => 
     );
 
     assert.equal(result.exitCode, 2);
-    assert.deepEqual(result.resultJson, { overallStatus: "NeedsReview", complianceScore: 62 });
+    assert.deepEqual(result.resultJson, canonicalResult);
   } finally {
     if (previousCliPath) {
       process.env[config.cliPathEnvVar] = previousCliPath;

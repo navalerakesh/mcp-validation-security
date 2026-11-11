@@ -172,6 +172,132 @@ public class McpValidatorServiceUnitTests
             _telemetryServiceMock.Object,
             _loggerMock.Object);
 
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    public async Task ValidateServerAsync_InterruptedPack_ShouldRetainLaterResolvedObligations(
+        bool callerCancellation, bool beforeScenarioPhase, bool planningFailure)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var scenarios = Enumerable.Range(0, 3).Select(index =>
+        {
+            var scenario = new Mock<IValidationScenario>();
+            scenario.SetupGet(value => value.Descriptor).Returns(new ValidationScenarioDescriptor
+            {
+                Key = new ValidationDescriptorKey($"obligation-{index}"),
+                Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture obligation",
+                LayerKey = $"obligation-layer-{index}", Stability = ValidationStability.Stable
+            });
+            return scenario;
+        }).ToArray();
+        scenarios[0].Setup(value => value.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (callerCancellation) cancellation.Cancel();
+                return Task.FromException<ValidationScenarioExecutionResult>(callerCancellation
+                    ? new OperationCanceledException(cancellation.Token) : new InvalidOperationException("Synthetic pack failure."));
+            });
+        var packs = scenarios.Select((scenario, index) =>
+        {
+            var pack = new Mock<IValidationScenarioPack>();
+            pack.SetupGet(value => value.Descriptor).Returns(new ValidationPackDescriptor
+            {
+                Key = new ValidationDescriptorKey($"obligation-pack-{index}"), Kind = ValidationPackKind.ScenarioPack,
+                Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture pack", Stability = ValidationStability.Stable,
+                ExtensionId = index == 2 ? "fixture.unstarted-extension" : null,
+                ExtensionStage = index == 2 ? ExtensionLifecycleStage.Stable : null,
+                SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64)
+            });
+            if (planningFailure && index == 2)
+                pack.Setup(value => value.GetScenarios()).Throws(new InvalidOperationException("Synthetic plan enumeration failure."));
+            else pack.Setup(value => value.GetScenarios()).Returns([scenario.Object]);
+            return pack.Object;
+        }).ToArray();
+        var registry = new Mock<IValidationPackRegistry<IValidationScenarioPack>>();
+        registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(packs);
+        var configuration = new McpValidatorConfiguration
+            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
+        if (beforeScenarioPhase)
+        {
+            configuration.TestExecution.EnableParallelExecution = false;
+            _protocolValidatorMock.Setup(value => value.ValidateJsonRpcComplianceAsync(It.IsAny<McpServerConfig>(),
+                    It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<ComplianceTestResult>(cancellation.Token);
+                });
+        }
+
+        var result = await CreateService(registry.Object).ValidateServerAsync(configuration, cancellation.Token);
+
+        result.OverallStatus.Should().Be(callerCancellation ? ValidationStatus.Cancelled : ValidationStatus.Error);
+        result.Evidence.Coverage.Should().Contain(coverage => coverage.Scope == "obligation-1" &&
+            coverage.ObservedOutcome == (callerCancellation ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable) &&
+            coverage.Confidence == EvidenceConfidenceLevel.None);
+        var extension = result.Assessments.Extensions.Should().ContainSingle(value =>
+            value.ExtensionId == "fixture.unstarted-extension").Which;
+        extension.Verdict.Should().Be(ValidationVerdict.ReviewRequired);
+        extension.EvidenceSummary.EvidenceCoverageRatio.Should().Be(0);
+        var canonical = JsonSerializer.SerializeToNode(result.CloneWithoutSecrets(), new JsonSerializerOptions
+            { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
+        var persistedExtension = canonical["measurements"]!["extensions"]!.AsArray()
+            .Single(value => value!["extensionId"]!.GetValue<string>() == "fixture.unstarted-extension")!;
+        persistedExtension["coverage"].Should().NotBeNull("individual extension obligations must survive canonical persistence");
+        persistedExtension["coverage"]!.AsArray().Should().Contain(value =>
+            value!["scope"]!.GetValue<string>() == (planningFailure ? "obligation-pack-2" : "obligation-2"));
+        foreach (var scenario in scenarios.Skip(1))
+            scenario.Verify(value => value.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()), Times.Never);
+        if (beforeScenarioPhase || planningFailure)
+            scenarios[0].Verify(value => value.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateServerAsync_MalformedScenarioEvidence_ShouldRetainEachExtensionOnce(bool emptyCoverage)
+    {
+        var packs = Enumerable.Range(0, 3).Select(index =>
+        {
+            var scenario = new Mock<IValidationScenario>();
+            scenario.SetupGet(value => value.Descriptor).Returns(new ValidationScenarioDescriptor
+            {
+                Key = new ValidationDescriptorKey($"scenario-{index}"), LayerKey = $"extension-{index}",
+                Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture", Stability = ValidationStability.Stable
+            });
+            scenario.Setup(value => value.ExecuteAsync(It.IsAny<ValidationScenarioContext>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ValidationScenarioExecutionResult
+                {
+                    Scenario = new ValidationScenarioResult { ScenarioId = $"scenario-{index}", Status = TestStatus.Passed },
+                    Coverage = index == 1 ? (emptyCoverage ? [] : [null!]) : [ValidationCoverageFactory.FromTestStatus($"extension-{index}", $"scenario-{index}", TestStatus.Passed)]
+                });
+            var pack = new Mock<IValidationScenarioPack>();
+            pack.SetupGet(value => value.Descriptor).Returns(new ValidationPackDescriptor
+            {
+                Key = new ValidationDescriptorKey($"pack-{index}"), Kind = ValidationPackKind.ScenarioPack,
+                Revision = new ValidationRevision("fixture-v1"), DisplayName = "Fixture", Stability = ValidationStability.Stable,
+                ExtensionId = $"fixture.extension-{index}", ExtensionStage = ExtensionLifecycleStage.Stable,
+                SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64)
+            });
+            pack.Setup(value => value.GetScenarios()).Returns([scenario.Object]);
+            return pack.Object;
+        }).ToArray();
+        var registry = new Mock<IValidationPackRegistry<IValidationScenarioPack>>();
+        registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(packs);
+
+        var result = await CreateService(registry.Object).ValidateServerAsync(new McpValidatorConfiguration
+            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+
+        result.OverallStatus.Should().Be(ValidationStatus.Error);
+        result.Assessments.Extensions.Should().HaveCount(3).And.OnlyHaveUniqueItems(value => value.ExtensionId);
+        result.Assessments.Extensions.Single(value => value.ExtensionId == "fixture.extension-0")
+            .Coverage.Should().ContainSingle(value => value.ObservedOutcome == ValidationOutcome.Succeeded);
+        result.Assessments.Extensions.Single(value => value.ExtensionId == "fixture.extension-1")
+            .Coverage.Should().ContainSingle(value => value.ObservedOutcome == ValidationOutcome.Unavailable);
+    }
+
     [Fact]
     public async Task ValidateServerAsync_InterruptedExtensionPack_ShouldRetainCompletedViolation()
     {

@@ -237,23 +237,48 @@ public sealed class ValidateCommandTests : IDisposable
                     capturedConfiguration.Policy.Suppressions[0].SignalId.Should().Be("POLICY.TRUST.L4_MINIMUM");
         }
 
-    [Fact]
-    public async Task ExecuteAsync_WithOutputDirectory_ShouldPersistFullReportsByDefault()
+    [Theory]
+    [InlineData(false, ValidationStatus.Passed, false)]
+    [InlineData(true, ValidationStatus.Passed, false)]
+    [InlineData(false, ValidationStatus.Cancelled, false)]
+    [InlineData(false, ValidationStatus.Error, false)]
+    [InlineData(false, ValidationStatus.Cancelled, true)]
+    [InlineData(false, ValidationStatus.Error, true)]
+    [InlineData(true, ValidationStatus.Error, false)]
+    public async Task ExecuteAsync_WithOutputDirectory_ShouldPersistFullReportsByDefault(
+        bool failRendering, ValidationStatus terminalStatus, bool withBaseline)
     {
         var sessionContext = CreateSessionContext();
+        using var cancellation = new CancellationTokenSource();
         var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
         Directory.CreateDirectory(outputRoot);
         _sessionRoots.Add(outputRoot);
+        FileInfo? baselineFile = null;
+        if (withBaseline)
+        {
+            var baselineRoot = Path.Combine(Path.GetTempPath(), $"validate-baseline-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(baselineRoot);
+            _sessionRoots.Add(baselineRoot);
+            baselineFile = new FileInfo(Path.Combine(baselineRoot, "baseline.json"));
+            var baseline = new ValidationResult { OverallStatus = ValidationStatus.Passed };
+            baseline.Assurance = Mcp.Benchmark.Core.Services.AssuranceAssessmentEngine.Evaluate(baseline, AssuranceProfileCatalog.Inventory);
+            await File.WriteAllTextAsync(baselineFile.FullName, JsonSerializer.Serialize(baseline, ArtifactJsonOptions.Create()));
+        }
 
         var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
         var validatorService = new Mock<IMcpValidatorService>();
         validatorService
             .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult
+            .Returns(() =>
             {
-                OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
+                if (terminalStatus != ValidationStatus.Passed) cancellation.Cancel();
+                return Task.FromResult(new ValidationResult
+                {
+                    OverallStatus = terminalStatus, EndTime = DateTime.UtcNow,
+                    CriticalErrors = terminalStatus == ValidationStatus.Error ? ["retained-framework-evidence"] : [],
+                    ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
+                    ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
+                });
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -263,6 +288,11 @@ public sealed class ValidateCommandTests : IDisposable
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
         reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
+        if (failRendering)
+            reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>()))
+                .Throws(terminalStatus == ValidationStatus.Error
+                    ? new OperationCanceledException("Synthetic publication cancellation.")
+                    : new InvalidOperationException("Synthetic rendering failure."));
 
         var command = new ValidateCommand(
             validatorService.Object,
@@ -289,13 +319,32 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
-            policyMode: ValidationPolicyModes.Advisory);
+            policyMode: ValidationPolicyModes.Advisory,
+            baselineFile: baselineFile,
+            cancellationToken: cancellation.Token);
 
+        if (failRendering)
+        {
+            Environment.ExitCode.Should().Be(70);
+            Directory.GetFileSystemEntries(outputRoot).Should().BeEmpty("an incomplete report set must not be published");
+            return;
+        }
+        Directory.GetFiles(outputRoot).Should().BeEmpty();
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         Directory.GetFiles(outputRoot, "*-report.md").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-report.html").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-results.sarif.json").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-results.junit.xml").Should().ContainSingle();
+        Environment.ExitCode.Should().Be(terminalStatus switch
+        {
+            ValidationStatus.Cancelled => 124,
+            ValidationStatus.Error => 70,
+            _ => 0
+        });
+        if (terminalStatus == ValidationStatus.Error)
+            (await File.ReadAllTextAsync(Directory.GetFiles(outputRoot, "*-result.json").Single()))
+                .Should().Contain("retained-framework-evidence");
 
         reportRenderer.Verify(renderer => renderer.GenerateHtmlReport(
             It.IsAny<ValidationResult>(),
@@ -426,6 +475,7 @@ public sealed class ValidateCommandTests : IDisposable
             maxConcurrency: null,
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
         var performance = document.RootElement
@@ -505,6 +555,7 @@ public sealed class ValidateCommandTests : IDisposable
             maxConcurrency: null,
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
         var performance = document.RootElement
@@ -577,6 +628,7 @@ public sealed class ValidateCommandTests : IDisposable
             maxConcurrency: null,
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var expectedArtifactPaths = Directory.GetFiles(outputRoot)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
@@ -874,6 +926,7 @@ public sealed class ValidateCommandTests : IDisposable
             policyMode: ValidationPolicyModes.Advisory,
             enableModelEval: true);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         Directory.GetFiles(outputRoot, "*-model-evaluation.json").Should().ContainSingle();
         var modelEvaluationPath = Directory.GetFiles(outputRoot, "*-model-evaluation.json").Single();
         var modelEvaluationJson = await File.ReadAllTextAsync(modelEvaluationPath);
@@ -1002,6 +1055,7 @@ public sealed class ValidateCommandTests : IDisposable
                 policyMode: ValidationPolicyModes.Advisory,
                 signAttestation: true);
 
+            outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
             var resultPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
             var attestationPath = Directory.GetFiles(outputRoot, "*-attestation.json").Should().ContainSingle().Subject;
             var attestation = JsonSerializer.Deserialize<ValidationAttestation>(

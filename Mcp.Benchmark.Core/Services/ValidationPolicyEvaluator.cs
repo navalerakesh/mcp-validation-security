@@ -20,7 +20,8 @@ public static class ValidationPolicyEvaluator
         policy ??= new ValidationPolicyConfig();
         var mode = NormalizeMode(policy.Mode);
         var ignoredSuppressions = new List<IgnoredPolicySuppression>();
-        var activeSuppressions = GetActiveSuppressions(policy.Suppressions, ignoredSuppressions, DateTimeOffset.UtcNow);
+        var assessmentTime = ValidationAssessmentClock.GetTimestamp(result);
+        var activeSuppressions = GetActiveSuppressions(policy.Suppressions, ignoredSuppressions, assessmentTime);
         var signals = policy.RegressionOnly
             ? BuildRegressionSignals(result)
             : BuildAssuranceSignals(result);

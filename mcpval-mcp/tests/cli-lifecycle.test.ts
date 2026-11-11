@@ -186,8 +186,22 @@ function runnerHarness(options: {
         directories.delete(root);
       },
       writeFile: async () => {},
-      readdir: async () => { artifactReads++; return []; },
-      readFile: async () => { assert.fail("Unexpected artifact read"); },
+      readdir: async () => {
+        artifactReads++;
+        return [{ name: "validation-result.json", isFile: () => true, isDirectory: () => false }];
+      },
+      open: async () => {
+        const content = Buffer.from('{"documentType":"mcpval.assurance-result","documentSchemaVersion":"2.0.0","assurance":{}}');
+        let position = 0;
+        return {
+          read: async (buffer: Buffer, offset: number, length: number) => {
+            const bytesRead = content.copy(buffer, offset, position, position + length);
+            position += bytesRead;
+            return { bytesRead, buffer };
+          },
+          close: async () => {},
+        };
+      },
     },
     "node:child_process": {
       spawn: () => {
@@ -199,6 +213,7 @@ function runnerHarness(options: {
       },
     },
   }, {
+    TextDecoder,
     process: {
       env: {}, platform: options.platform ?? "linux",
       kill: (pid: number, signal: string | 0) => {

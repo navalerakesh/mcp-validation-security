@@ -304,10 +304,26 @@ internal static class BoundedArtifactReader
             throw new CliUsageException($"Validation artifact contract '{type}' version '{version}' is not compatible with this validator.");
         }
 
+        ValidateRecordedAssessmentTimes(root);
         return JsonSerializer.Deserialize<ValidationResult>(
             RemoveRuntimeOnlyFields(json),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
+    }
+
+    private static void ValidateRecordedAssessmentTimes(JsonElement root)
+    {
+        foreach (var (name, required) in new[] { ("startTime", true), ("endTime", false) })
+        {
+            var matches = root.EnumerateObject().Where(property =>
+                string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (matches.Length > 1)
+                throw new CliUsageException("Validation artifact contains ambiguous recorded timestamps.");
+            if (!required && (matches.Length == 0 || matches[0].Value.ValueKind == JsonValueKind.Null)) continue;
+            if (matches.Length == 0 || matches[0].Value.ValueKind != JsonValueKind.String ||
+                !matches[0].Value.TryGetDateTime(out var timestamp) || timestamp.Kind == DateTimeKind.Unspecified)
+                throw new CliUsageException("Validation artifact requires well-formed recorded timestamps with explicit timezones.");
+        }
     }
 
     private static string RemoveRuntimeOnlyFields(string json)

@@ -231,6 +231,58 @@ public class ValidationPolicyEvaluatorTests
         outcome.RecommendedExitCode.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(-1, false)]
+    [InlineData(0, false)]
+    [InlineData(1, true)]
+    public void Evaluate_CompletedResult_ShouldUseRecordedAssessmentTime(int expiryOffsetSeconds, bool expectedPass)
+    {
+        var result = CreateResultWithCriticalFinding();
+        var assessedAt = new DateTimeOffset(2020, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        result.StartTime = assessedAt.AddMinutes(-1).UtcDateTime;
+        result.EndTime = assessedAt.UtcDateTime;
+        var policy = new ValidationPolicyConfig
+        {
+            Mode = ValidationPolicyModes.Balanced,
+            Suppressions = [new ValidationPolicySuppression
+            {
+                Id = "recorded-clock", RuleId = "TEST.CRITICAL", Owner = "fixture-owner",
+                Reason = "Frozen evaluation boundary.", ExpiresOn = assessedAt.AddSeconds(expiryOffsetSeconds)
+            }]
+        };
+
+        var outcome = ValidationPolicyEvaluator.Evaluate(result, policy);
+
+        outcome.Passed.Should().Be(expectedPass);
+        outcome.SuppressedSignalCount.Should().Be(expectedPass ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData(DateTimeKind.Utc, false)]
+    [InlineData(DateTimeKind.Utc, true)]
+    [InlineData(DateTimeKind.Local, true)]
+    [InlineData(DateTimeKind.Unspecified, true)]
+    public void Evaluate_RecordedTime_ShouldNormalizeExplicitZonesAndRejectAmbiguity(DateTimeKind kind, bool completed)
+    {
+        var result = CreateResultWithCriticalFinding();
+        var instant = new DateTimeOffset(2020, 1, 1, 12, 0, 0, TimeSpan.Zero);
+        var recorded = kind == DateTimeKind.Local ? instant.LocalDateTime : DateTime.SpecifyKind(instant.UtcDateTime, kind);
+        result.StartTime = recorded;
+        result.EndTime = completed ? recorded : null;
+        var policy = new ValidationPolicyConfig
+        {
+            Suppressions = [new ValidationPolicySuppression
+            {
+                Id = "timezone-control", RuleId = "TEST.CRITICAL", Owner = "fixture-owner",
+                Reason = "Recorded timezone boundary.", ExpiresOn = instant.AddSeconds(1)
+            }]
+        };
+
+        if (kind == DateTimeKind.Unspecified)
+            FluentActions.Invoking(() => ValidationPolicyEvaluator.Evaluate(result, policy)).Should().Throw<ArgumentException>();
+        else ValidationPolicyEvaluator.Evaluate(result, policy).Passed.Should().BeTrue();
+    }
+
     [Fact]
     public void Evaluate_BalancedMode_WithActiveSuppression_ShouldSuppressBlockingSignal()
     {

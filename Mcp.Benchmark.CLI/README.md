@@ -43,7 +43,7 @@ Example commands:
 dotnet run --project Mcp.Benchmark.CLI -- validate --server https://example.test/mcp --access public --output ./reports
 dotnet run --project Mcp.Benchmark.CLI -- health-check --server https://example.test/mcp --access public
 dotnet run --project Mcp.Benchmark.CLI -- discover --server https://example.test/mcp --format json
-dotnet run --project Mcp.Benchmark.CLI -- report --input ./reports/mcp-validation-20260421-031745-result.json --format junit
+dotnet run --project Mcp.Benchmark.CLI -- report --input "./reports/<run-directory>/<base-name>-result.json" --format junit
 ```
 
 ## Execution Governance
@@ -51,6 +51,7 @@ dotnet run --project Mcp.Benchmark.CLI -- report --input ./reports/mcp-validatio
 `validate`, `health-check`, and `discover` now apply a safe-by-default execution contract before contacting a target.
 
 - Default persistence is ephemeral. Session logs and session-state artifacts are only created when `--persistence-mode session` is selected.
+- Explicit `validate --output` reports are published as one per-run directory after all reports and the audit manifest are complete. Use the emitted artifact paths; ignore `.pending-*` staging directories. Existing bundles are never overwritten. See [artifact migration](../docs/SchemaCompatibility.md) for recorded timestamps, legacy flat results and interruption limits.
 - `--dry-run` renders the execution plan and exits without sending requests.
 - `--mode elevated` requires `--confirm-elevated-risk` before the run starts.
 - `--allow-host`, `--allow-origin`, `--allow-private-addresses`, `--max-requests`, and `--timeout` define the outbound execution budget instead of leaving it implicit.

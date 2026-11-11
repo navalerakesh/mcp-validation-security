@@ -15,6 +15,7 @@ public static class AssuranceExitCodeMapper
     public static int Map(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (result.OverallStatus == ValidationStatus.Cancelled) return TimeoutOrCancellation;
         if (IsTargetUnavailable(result)) return TargetUnavailable;
         if (result.OverallStatus == ValidationStatus.Error && result.CriticalErrors.Count > 0)
             return RuntimeIntegrityFailure;

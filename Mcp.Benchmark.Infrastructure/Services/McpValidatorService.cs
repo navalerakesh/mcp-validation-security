@@ -110,6 +110,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         };
         result.ValidationId = request.RequestId;
         var categoryEvidenceProjected = false;
+        var scenarioEvidenceProjected = false;
+        IReadOnlyList<ScenarioPackExecutionPlan> scenarioPlans = [];
         var assuranceEvaluationAttempted = false;
         var summaryCalculationAttempted = false;
         var runStopwatch = System.Diagnostics.Stopwatch.StartNew();
@@ -127,6 +129,11 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     PopulateAssessmentLayers(result);
                     PopulateCoverage(result, terminalCategories, result.OverallStatus);
                     categoryEvidenceProjected = true;
+                }
+                if (!scenarioEvidenceProjected)
+                {
+                    FinalizeScenarioPlans(result, scenarioPlans, cancellationToken.IsCancellationRequested);
+                    scenarioEvidenceProjected = true;
                 }
                 if (!assuranceEvaluationAttempted)
                 {
@@ -244,6 +251,29 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
             result.Run.ApplicabilityContext = applicabilityContext;
             PopulateAppliedPacks(result, applicabilityContext);
+            var resolvedScenarioPacks = _scenarioPackRegistry.Resolve(applicabilityContext).ToArray();
+            scenarioPlans = resolvedScenarioPacks.Select(pack => new ScenarioPackExecutionPlan(pack.Descriptor)).ToArray();
+            var planningFailed = false;
+            for (var packIndex = 0; packIndex < resolvedScenarioPacks.Length; packIndex++)
+            {
+                try
+                {
+                    foreach (var scenario in resolvedScenarioPacks[packIndex].GetScenarios())
+                    {
+                        if (scenario?.Descriptor is not { } descriptor)
+                            throw new InvalidOperationException("Scenario planning returned an invalid descriptor.");
+                        scenarioPlans[packIndex].Pending.Enqueue(new PlannedScenario(scenario, descriptor));
+                    }
+                    scenarioPlans[packIndex].Prepared = true;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch (Exception planningException)
+                {
+                    planningFailed = true;
+                    _logger.LogError("Scenario planning failed with {ExceptionType}", planningException.GetType().Name);
+                }
+            }
+            if (planningFailed) throw new InvalidOperationException("Scenario planning did not complete.");
 
             configuration.Validation ??= new ValidationConfig();
             configuration.Validation.Categories ??= new ValidationScenarios();
@@ -394,7 +424,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             categoryEvidenceProjected = true;
             using (ValidationObservability.MeasureStage("validation.scenarios"))
             {
-                await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, cancellationToken);
+                await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, scenarioPlans, cancellationToken);
+                FinalizeScenarioPlans(result, scenarioPlans, cancellationToken.IsCancellationRequested);
+                scenarioEvidenceProjected = true;
             }
 
             // Calculate overall results
@@ -709,10 +741,23 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             testResult.Message));
     }
 
+    private sealed record PlannedScenario(IValidationScenario Scenario, ValidationScenarioDescriptor Descriptor);
+
+    private sealed class ScenarioPackExecutionPlan(ValidationPackDescriptor descriptor)
+    {
+        public ValidationPackDescriptor Descriptor { get; } = descriptor;
+        public Queue<PlannedScenario> Pending { get; } = new();
+        public bool Prepared { get; set; }
+        public bool Finalized { get; set; }
+        public List<ValidationCoverageDeclaration> ExtensionCoverage { get; } = [];
+        public List<ValidationFinding> ExtensionFindings { get; } = [];
+    }
+
     private async Task ExecuteScenarioPacksAsync(
         ValidationResult result,
         ValidationApplicabilityContext applicabilityContext,
         McpValidatorConfiguration configuration,
+        IReadOnlyList<ScenarioPackExecutionPlan> plans,
         CancellationToken cancellationToken)
     {
         result.Assessments.Scenarios.Clear();
@@ -727,58 +772,73 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             ValidationResult = result
         };
 
-        foreach (var pack in _scenarioPackRegistry.Resolve(applicabilityContext))
+        foreach (var plan in plans)
         {
-            var extensionCoverage = new List<ValidationCoverageDeclaration>();
-            var extensionFindings = new List<ValidationFinding>();
-            var scenarios = pack.GetScenarios();
-            var completedCount = 0;
-            try
+            while (plan.Pending.TryPeek(out var scenario))
             {
-                foreach (var scenario in scenarios)
+                cancellationToken.ThrowIfCancellationRequested();
+                var execution = await scenario.Scenario.ExecuteAsync(scenarioContext, cancellationToken);
+                if (execution?.Scenario?.Findings == null || execution.Coverage == null || execution.Observations == null ||
+                    execution.Coverage.Count == 0 ||
+                    execution.Scenario.Findings.Any(finding => finding == null) ||
+                    execution.Coverage.Any(coverage => coverage == null || !Enum.IsDefined(coverage.Status)) ||
+                    execution.Observations.Any(observation => observation == null))
+                    throw new InvalidOperationException("Scenario returned malformed evidence.");
+                result.Assessments.Scenarios.Add(execution.Scenario);
+                if (plan.Descriptor.ExtensionId == null)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var execution = await scenario.ExecuteAsync(scenarioContext, cancellationToken);
-                    result.Assessments.Scenarios.Add(execution.Scenario);
-                    if (pack.Descriptor.ExtensionId == null)
-                    {
-                        AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
-                    }
-                    else
-                    {
-                        extensionCoverage.AddRange(execution.Coverage);
-                        extensionFindings.AddRange(execution.Scenario.Findings);
-                    }
-                    AddObservations(result.Evidence.Observations, execution.Observations);
-                    completedCount++;
+                    AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
                 }
-            }
-            finally
-            {
-                foreach (var pending in scenarios.Skip(completedCount))
+                else
                 {
-                    var gap = new ValidationCoverageDeclaration
-                    {
-                        LayerId = pending.Descriptor.LayerKey,
-                        Scope = pending.Descriptor.Key.Value,
-                        Status = cancellationToken.IsCancellationRequested ? ValidationCoverageStatus.Blocked : ValidationCoverageStatus.Unavailable,
-                        ObservedOutcome = cancellationToken.IsCancellationRequested ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable,
-                        Confidence = EvidenceConfidenceLevel.None,
-                        Reason = "Scenario pack was interrupted before this scenario produced complete evidence."
-                    };
-                    if (pack.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [gap]);
-                    else extensionCoverage.Add(gap);
+                    plan.ExtensionCoverage.AddRange(execution.Coverage);
+                    plan.ExtensionFindings.AddRange(execution.Scenario.Findings);
                 }
-                if (pack.Descriptor.ExtensionId != null)
-                {
-                    result.Assessments.Extensions.Add(BuildExtensionAssessment(
-                        pack.Descriptor,
-                        extensionCoverage,
-                        extensionFindings));
-                }
+                AddObservations(result.Evidence.Observations, execution.Observations);
+                plan.Pending.Dequeue();
             }
         }
     }
+
+    private static void FinalizeScenarioPlans(ValidationResult result, IReadOnlyList<ScenarioPackExecutionPlan> plans, bool cancelled)
+    {
+        foreach (var plan in plans)
+        {
+            if (plan.Finalized) continue;
+            if (!plan.Prepared)
+            {
+                var planningGap = CreatePendingScenarioCoverage(plan.Descriptor.Key.Value, plan.Descriptor.Key.Value, cancelled,
+                    "Scenario inventory could not be completed; remaining scenario identities are unavailable.");
+                if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [planningGap]);
+                else plan.ExtensionCoverage.Add(planningGap);
+            }
+            foreach (var pending in plan.Pending)
+            {
+                var gap = CreatePendingScenarioCoverage(pending.Descriptor.LayerKey, pending.Descriptor.Key.Value, cancelled,
+                    "Scenario execution ended before this planned scenario produced complete evidence.");
+                if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [gap]);
+                else plan.ExtensionCoverage.Add(gap);
+            }
+            if (plan.Descriptor.ExtensionId != null)
+            {
+                result.Assessments.Extensions.Add(BuildExtensionAssessment(
+                    plan.Descriptor,
+                    plan.ExtensionCoverage,
+                    plan.ExtensionFindings));
+            }
+                    plan.Finalized = true;
+        }
+    }
+
+    private static ValidationCoverageDeclaration CreatePendingScenarioCoverage(string layerId, string scope, bool cancelled, string reason) => new()
+    {
+        LayerId = layerId,
+        Scope = scope,
+        Status = cancelled ? ValidationCoverageStatus.Blocked : ValidationCoverageStatus.Unavailable,
+        ObservedOutcome = cancelled ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable,
+        Confidence = EvidenceConfidenceLevel.None,
+        Reason = reason
+    };
 
     private static ExtensionAssessment BuildExtensionAssessment(
         ValidationPackDescriptor descriptor,
@@ -787,7 +847,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     {
         var summary = ValidationEvidenceSummarizer.Summarize(coverage);
         var hasFailure = coverage.Any(item => item.Status == ValidationCoverageStatus.Covered && item.ObservedOutcome == ValidationOutcome.Failed);
-        var hasReviewSignal = findings.Any(finding => finding.Severity >= ValidationFindingSeverity.Medium) ||
+        var hasReviewSignal = coverage.Count == 0 || findings.Any(finding => finding.Severity >= ValidationFindingSeverity.Medium) ||
             coverage.Any(ValidationEvidenceSummarizer.IsEvidenceDebt);
         var verdict = descriptor.ExtensionStage switch
         {
@@ -808,6 +868,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             SpecificationSha256 = descriptor.SpecificationSha256 ?? new string('0', 64),
             Verdict = verdict,
             EvidenceSummary = summary,
+            Coverage = coverage.ToArray(),
             Findings = findings
                 .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
                 .ToArray()
