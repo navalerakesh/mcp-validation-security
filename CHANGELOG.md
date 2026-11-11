@@ -20,6 +20,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Run requests freeze the existing canonical target digest before validation, allowing explicitly composed signed state-evidence packs to verify admitted run/target bindings during orchestration. CLI plans and host-neutral execution share one identity calculation; ordinary validation adds no target operations.
 - HTML claim counts no longer appear in a duplicate table labeled as scores; the complete outcome table retains all six outcomes and an explicit recorded total.
 - HTML claim articles, count tables and outcome filters now share readable outcome labels while retaining canonical outcome values and unchanged assessment decisions.
 - The composite Action exposes the invoked collector's `exit-code` and preserves its step status after successful output publication. Output-publication failure exits `70` with a sanitized diagnostic; preflight rejection does not fabricate collector output. Sixteen actual YAML-owned shell tests cover collector codes, no-launch rejection and missing/unwritable outputs. The upload-on-failure condition is unchanged.

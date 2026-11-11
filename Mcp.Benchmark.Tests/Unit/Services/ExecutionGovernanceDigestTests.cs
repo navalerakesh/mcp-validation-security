@@ -10,6 +10,24 @@ public sealed class ExecutionGovernanceDigestTests : IDisposable
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"mcpval-audit-{Guid.NewGuid():N}");
 
     [Theory]
+    [InlineData("http", "https://example.test/mcp?access_token=secret#fragment", "https://example.test/mcp")]
+    [InlineData("stdio", "node /tmp/owned-server.cjs", "node /tmp/owned-server.cjs")]
+    public void CapturedRunTarget_ShouldMatchPlanAndRemainImmutable(string transport, string endpoint, string digestInput)
+    {
+        var configuration = new McpValidatorConfiguration { Server = new McpServerConfig { Transport = transport, Endpoint = endpoint } };
+        var request = ValidationRunRequest.Capture(configuration, "admitted-run");
+        var plan = new ExecutionGovernanceService().BuildCommandPlan(new CliSessionContext("session-test"), "validate",
+            configuration.Server, configuration.Execution, outputDirectory: null, plannedChecks: [], plannedArtifacts: []);
+
+        configuration.Server.Endpoint = "https://changed.invalid/mcp";
+        request.CreateConfiguration().Server.Endpoint = "https://mutated-copy.invalid/mcp";
+
+        request.TargetIdentitySha256.Should().Be(ArtifactDigestUtility.ComputeText(digestInput));
+        request.TargetIdentitySha256.Should().Be(plan.TargetDigest);
+        request.CreateConfiguration().Server.Endpoint.Should().Be(endpoint);
+    }
+
+    [Theory]
     [InlineData(ValidationStatus.Error, ValidationOutcome.Error, 70)]
     [InlineData(ValidationStatus.Cancelled, ValidationOutcome.Cancelled, 124)]
     [InlineData(ValidationStatus.InProgress, null, 2)]

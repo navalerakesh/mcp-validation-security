@@ -112,6 +112,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             ProtocolVersion = configuration.Server.ProtocolVersion
         };
         result.ValidationId = request.RequestId;
+        result.Run.TargetIdentitySha256 = request.TargetIdentitySha256;
         var categoryEvidenceProjected = false;
         var scenarioEvidenceProjected = false;
         IReadOnlyList<ScenarioPackExecutionPlan> scenarioPlans = [];

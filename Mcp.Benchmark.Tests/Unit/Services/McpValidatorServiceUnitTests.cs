@@ -14,6 +14,9 @@ using Moq;
 using FluentAssertions;
 using Xunit;
 using Mcp.Compliance.Spec;
+using Mcp.Benchmark.Core.Utilities;
+using System.Security.Cryptography;
+using System.Text.Json.Serialization;
 
 namespace Mcp.Benchmark.Tests.Unit;
 
@@ -172,6 +175,87 @@ public class McpValidatorServiceUnitTests
             _telemetryServiceMock.Object,
             _loggerMock.Object,
             resourceSampler);
+
+    [Theory]
+    [InlineData("written", ValidationOutcome.Succeeded)]
+    [InlineData("dropped", ValidationOutcome.Failed)]
+    [InlineData("other-run", ValidationOutcome.Blocked)]
+    [InlineData("other-target", ValidationOutcome.Blocked)]
+    [InlineData("cancelled", ValidationOutcome.Cancelled)]
+    public async Task ValidateServerAsync_SignedStatePack_ShouldPreserveAdmittedRunAndTarget(string mode, ValidationOutcome expected)
+    {
+        var configuration = CreateFunctionalCategoryConfiguration();
+        var request = ValidationRunRequest.Capture(configuration, "admitted-state-run");
+        var binding = new ControlledOperationBinding(
+            mode == "other-run" ? "different-run" : request.RequestId, "operation-1", "attempt-1", "request-1", "boundary-1",
+            CanonicalJsonDigest.ComputeText(mode == "other-target" ? "https://different.invalid/mcp" : configuration.Server.Endpoint!),
+            new string('b', 64), new string('c', 64), "actor-1", "object-1");
+        var contract = new ControlledStateScenarioContract
+        {
+            ScenarioId = "state-write", PolicyRevision = "fixture-policy-v1", ToolName = "fixture_write",
+            ObserverId = "observer-1", PredicateId = "expected-state", PreconditionId = "fixture-ready", CleanupOwner = "fixture-owner",
+            Binding = binding, StateExpectation = ControlledStateExpectation.ChangeRequired,
+            ExpectedApplicationOutcome = ControlledApplicationOutcome.Succeeded, ConsistencyWindow = TimeSpan.FromSeconds(5),
+            MaximumBaselineAge = TimeSpan.FromSeconds(5), MaximumEvidenceAge = TimeSpan.FromMinutes(1), MaximumObserverReads = 3
+        };
+        var start = new DateTimeOffset(2026, 11, 11, 0, 0, 0, TimeSpan.Zero);
+        var evidence = new ControlledStateEvidence
+        {
+            Binding = binding, ObserverId = contract.ObserverId, PredicateId = contract.PredicateId, PreconditionId = contract.PreconditionId,
+            BaselineAt = start.AddSeconds(-1), OperationStartedAt = start, OperationEndedAt = start.AddSeconds(1), ObservedThrough = start.AddSeconds(6),
+            ObserverOutcome = ValidationOutcome.Succeeded, ObservationComplete = true, PreconditionsSatisfied = true,
+            BeforePredicateSatisfied = false, AfterPredicateSatisfied = mode != "dropped", StateChanged = mode != "dropped",
+            ApplicationOutcome = ControlledApplicationOutcome.Succeeded, ObserverReads = 2, CleanupOutcome = ValidationOutcome.Succeeded
+        };
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var document = new ControlledStateEvidenceDocument
+        {
+            Contract = contract, Evidence = evidence, IssuedAt = start.AddSeconds(6), ExpiresAt = start.AddMinutes(2),
+            SigningKeyId = CanonicalJsonDigest.ComputeBytes(key.ExportSubjectPublicKeyInfo()), SignatureBase64 = string.Empty
+        };
+        document = document with { SignatureBase64 = Convert.ToBase64String(key.SignHash(
+            Convert.FromHexString(document.ComputePayloadDigest()), DSASignatureFormat.IeeeP1363FixedFieldConcatenation)) };
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        var json = JsonSerializer.Serialize(document, options);
+        var pack = new ControlledStateEvidenceImporter().ImportPack(json, contract, key.ExportSubjectPublicKeyInfoPem(), start.AddMinutes(1));
+        _protocolValidatorMock.Setup(validator => validator.ValidateJsonRpcComplianceAsync(
+            It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ComplianceTestResult { Status = TestStatus.Passed });
+        var baseline = await CreateService(new ValidationPackRegistry<IValidationScenarioPack>([])).ValidateServerAsync(request);
+        var transportCalls = _httpClientMock.Invocations.Select(invocation => invocation.Method).ToArray();
+        _httpClientMock.Invocations.Clear();
+        using var cancellation = new CancellationTokenSource();
+        if (mode == "cancelled")
+        {
+            _protocolValidatorMock.Setup(validator => validator.ValidateJsonRpcComplianceAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<ComplianceTestResult>(cancellation.Token);
+                });
+        }
+
+        var result = await CreateService(new ValidationPackRegistry<IValidationScenarioPack>([pack])).ValidateServerAsync(request, cancellation.Token);
+
+        result.ValidationId.Should().Be(request.RequestId);
+        result.Run.TargetIdentitySha256.Should().Be(request.TargetIdentitySha256);
+        result.Evidence.Coverage.Should().ContainSingle(entry => entry.Lane == EvaluationLane.ControlledApplication && entry.Outcome == expected);
+        _httpClientMock.Invocations.Select(invocation => invocation.Method).Should().Equal(transportCalls);
+        if (mode == "cancelled")
+        {
+            result.Run.TerminationOutcome.Should().Be(ValidationOutcome.Cancelled);
+            result.Assessments.Scenarios.Should().BeEmpty();
+            return;
+        }
+
+        var assessment = result.Assessments.Scenarios.Should().ContainSingle().Which.ControlledState!;
+        assessment.Outcome.Should().Be(expected);
+        assessment.VerifiedObserverKeyId.Should().Be(document.SigningKeyId);
+        assessment.SourceEvidenceSha256.Should().Be(CanonicalJsonDigest.ComputeText(json));
+        result.Assurance.Assessments.CoreConformance.Should().BeEquivalentTo(baseline.Assurance.Assessments.CoreConformance);
+    }
 
     [Theory]
     [InlineData("valid")]

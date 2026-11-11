@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Core.Models;
 
@@ -10,6 +11,7 @@ public sealed class ValidationRunRequest
     {
         RequestId = string.IsNullOrWhiteSpace(requestId) ? Guid.NewGuid().ToString("N") : requestId;
         Target = configuration.Server.Endpoint ?? string.Empty;
+        TargetIdentitySha256 = ValidationTargetIdentity.ComputeDigest(configuration.Server);
         Transport = configuration.Server.Transport;
         OperationPolicy = OperationPolicySnapshot.From(configuration.Execution ?? new ExecutionPolicy());
         _configurationUtf8 = JsonSerializer.SerializeToUtf8Bytes(configuration);
@@ -18,6 +20,8 @@ public sealed class ValidationRunRequest
     public string RequestId { get; }
 
     public string Target { get; }
+
+    public string TargetIdentitySha256 { get; }
 
     public string Transport { get; }
 
