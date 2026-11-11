@@ -15,7 +15,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "tsx --test tests/cli-runner.test.ts tests/cli-lifecycle.test.ts tests/windows-supervisor.test.ts tests/handlers.test.ts tests/server-surface.test.ts tests/strict-stdio-server-transport.test.ts",
+    "test": "tsx --test tests/action-entrypoint.test.ts tests/cli-runner.test.ts tests/cli-lifecycle.test.ts tests/windows-supervisor.test.ts tests/handlers.test.ts tests/server-surface.test.ts tests/strict-stdio-server-transport.test.ts",
     "test:integration": "tsx --test tests/cli-integration.test.ts",
     "typecheck": "tsc --noEmit",
     "start": "node dist/index.js",
@@ -52,7 +52,8 @@
     "@types/node": "^25.5.0",
     "fast-check": "^4.7.0",
     "tsx": "4.23.12",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "yaml": "2.9.1"
   },
   "allowScripts": {
     "esbuild@0.28.2": true,

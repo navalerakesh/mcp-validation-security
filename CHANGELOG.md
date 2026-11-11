@@ -14,6 +14,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- The composite Action exposes the invoked collector's `exit-code` and preserves its step status after successful output publication. Output-publication failure exits `70` with a sanitized diagnostic; preflight rejection does not fabricate collector output. Sixteen actual YAML-owned shell tests cover collector codes, no-launch rejection and missing/unwritable outputs. The upload-on-failure condition is unchanged.
 - Offline result round trips retain runtime-error and cancellation attribution. Returned framework errors cannot earn run-completion credit; completed Safe inventory and incomplete assurance remain distinct.
 - HTML uses a static document opening, contents anchors and complete canonical claims, with hash-bound stylesheet policy and no active content. Markdown no longer silently truncates canonical claims; XML retains claim references and observed coverage outcomes. SARIF distinguishes invocation completion from policy exit, and JUnit retains separate run-integrity and policy cases. Report-design and accessibility qualification remains tracked separately.
 - Operational reports distinguish unavailable data from measured zero and disclose retained percentile windows. Actual CPU/working-set observations are scoped to the validator process and include concurrent activity; transport successes/failures do not establish target resource limits or exhaustion.

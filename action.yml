@@ -102,6 +102,11 @@ inputs:
     description: Optional command output format. Supported value is json.
     required: false
 
+outputs:
+  exit-code:
+    description: Actual mcpval collector exit code when invoked and published. Does not imply assurance success or artifact completeness; publication failure makes the step exit 70.
+    value: ${{ steps.mcpval-validation.outputs.exit-code }}
+
 runs:
   using: composite
   steps:
@@ -160,6 +165,7 @@ runs:
         echo "$tool_path" >> "$GITHUB_PATH"
 
     - name: Run MCP validation
+      id: mcpval-validation
       shell: bash
       env:
         INPUT_SERVER: ${{ inputs.server }}
@@ -309,7 +315,16 @@ runs:
 
         echo "Running mcpval validation with redacted input values."
 
-        "${cmd[@]}"
+        if "${cmd[@]}"; then
+          collector_exit=0
+        else
+          collector_exit=$?
+        fi
+        if [[ -z "${GITHUB_OUTPUT:-}" ]] || ! { printf 'exit-code=%s\n' "$collector_exit" >> "$GITHUB_OUTPUT"; } 2>/dev/null; then
+          echo "::error::Unable to publish collector exit status (collector exit: $collector_exit)."
+          exit 70
+        fi
+        exit "$collector_exit"
 
     - name: Upload validation artifacts
       if: ${{ always() && inputs.upload-artifacts == 'true' && inputs.output-dir != '' }}
