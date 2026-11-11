@@ -12,6 +12,50 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 
 public sealed class ValidationHtmlAccessibilityTests
 {
+    [Theory]
+    [InlineData(AssuranceClaimOutcome.Satisfied, "Satisfied", false)]
+    [InlineData(AssuranceClaimOutcome.Satisfied, "Satisfied", true)]
+    [InlineData(AssuranceClaimOutcome.Violated, "Violated", false)]
+    [InlineData(AssuranceClaimOutcome.Violated, "Violated", true)]
+    [InlineData(AssuranceClaimOutcome.Error, "Error", false)]
+    [InlineData(AssuranceClaimOutcome.Error, "Error", true)]
+    [InlineData(AssuranceClaimOutcome.Incomplete, "Incomplete", false)]
+    [InlineData(AssuranceClaimOutcome.Incomplete, "Incomplete", true)]
+    [InlineData(AssuranceClaimOutcome.ReviewRequired, "Review required", false)]
+    [InlineData(AssuranceClaimOutcome.ReviewRequired, "Review required", true)]
+    [InlineData(AssuranceClaimOutcome.NotApplicable, "Not applicable", false)]
+    [InlineData(AssuranceClaimOutcome.NotApplicable, "Not applicable", true)]
+    public void RecordedClaims_ShouldUseReadableOutcomeLabelsWithoutChangingFilterValues(
+        AssuranceClaimOutcome outcome, string label, bool verbose)
+    {
+        var claim = new AssuranceClaim
+        {
+            ClaimId = "readable-outcome", Subject = "Synthetic subject", Outcome = outcome,
+            Dimension = AssuranceDimension.CoreProtocol, RequirementLevel = AssuranceRequirementLevel.Must,
+            Authority = AssuranceAuthority.OfficialSpecification, Source = new AssuranceSourceReference { Revision = "fixture" },
+            Summary = "Synthetic recorded assertion."
+        };
+        var result = new ValidationResult
+        {
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory, Claims = [claim],
+                CertificateEligibility = new CertificateEligibilityAssessment { ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible }
+            }
+        };
+        var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
+        var document = new HtmlParser().ParseDocument(html);
+        var article = document.QuerySelector("article[data-claim-id]")!;
+
+        article.GetAttribute("data-claim-outcome").Should().Be(outcome.ToString());
+        article.QuerySelectorAll("p").Single(element => element.QuerySelector("strong")?.TextContent == "Outcome:")
+            .TextContent.Should().StartWith($"Outcome: {label} ");
+        document.QuerySelectorAll("#claim-outcomes tbody th").Select(element => element.TextContent).Should().Contain(label);
+        document.QuerySelectorAll("#claim-outcome option").Single(element => element.GetAttribute("value") == outcome.ToString())
+            .TextContent.Should().Be(label);
+        claim.Outcome.Should().Be(outcome);
+    }
+
     [Fact]
     public void LargeReport_ShouldRetainExactClaimAndToolInventories()
     {

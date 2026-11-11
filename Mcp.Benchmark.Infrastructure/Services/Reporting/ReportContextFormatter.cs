@@ -8,6 +8,13 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class ReportContextFormatter
 {
+    internal static string FormatClaimOutcome(AssuranceClaimOutcome outcome) => outcome switch
+    {
+        AssuranceClaimOutcome.ReviewRequired => "Review required",
+        AssuranceClaimOutcome.NotApplicable => "Not applicable",
+        _ => outcome.ToString()
+    };
+
     internal static string FormatRunTermination(ValidationOutcome? outcome) => outcome switch
     {
         ValidationOutcome.Succeeded => "Execution completed; assurance is assessed separately",

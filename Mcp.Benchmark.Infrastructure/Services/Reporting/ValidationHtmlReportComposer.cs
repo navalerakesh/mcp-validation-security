@@ -9,6 +9,13 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal sealed class ValidationHtmlReportComposer
 {
+    private static readonly AssuranceClaimOutcome[] ClaimOutcomeDisplayOrder =
+    [
+        AssuranceClaimOutcome.Satisfied, AssuranceClaimOutcome.Violated,
+        AssuranceClaimOutcome.Error, AssuranceClaimOutcome.Incomplete,
+        AssuranceClaimOutcome.ReviewRequired, AssuranceClaimOutcome.NotApplicable
+    ];
+
     public string Compose(ValidationHtmlReportDocument document)
     {
         ArgumentNullException.ThrowIfNull(document);
@@ -273,13 +280,8 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine($"        <p>Core required claims: {assurance.Assessments.CoreConformance.SatisfiedRequiredClaims} satisfied of {assurance.Assessments.CoreConformance.RequiredClaims} recorded.</p>");
         sb.AppendLine($"        <p>Recorded coverage declarations: {assurance.EvidenceSummary.Covered} covered of {assurance.EvidenceSummary.ApplicableDeclarations} applicable; {assurance.EvidenceSummary.TotalDeclarations} total.</p>");
         sb.AppendLine("        <table class=\"data-table data-table--outcomes\" id=\"claim-outcomes\"><caption>Recorded claim outcomes</caption><thead><tr><th scope=\"col\">Outcome</th><th scope=\"col\">Count</th></tr></thead><tbody>");
-        foreach (var (outcome, label) in new[]
-        {
-            (AssuranceClaimOutcome.Satisfied, "Satisfied"), (AssuranceClaimOutcome.Violated, "Violated"),
-            (AssuranceClaimOutcome.Error, "Error"), (AssuranceClaimOutcome.Incomplete, "Incomplete"),
-            (AssuranceClaimOutcome.ReviewRequired, "Review required"), (AssuranceClaimOutcome.NotApplicable, "Not applicable")
-        })
-            sb.AppendLine($"          <tr><th scope=\"row\">{label}</th><td>{assurance.Claims.Count(claim => claim.Outcome == outcome)}</td></tr>");
+        foreach (var outcome in ClaimOutcomeDisplayOrder)
+            sb.AppendLine($"          <tr><th scope=\"row\">{Encode(ReportContextFormatter.FormatClaimOutcome(outcome))}</th><td>{assurance.Claims.Count(claim => claim.Outcome == outcome)}</td></tr>");
         sb.AppendLine("        </tbody></table>");
         AddList("Recorded eligibility reasons", assurance.CertificateEligibility.Reasons);
         var governanceNotes = document.ReleaseDecision.Highlights
@@ -357,7 +359,10 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("      <section class=\"assessment-section\" id=\"recorded-claims\" aria-labelledby=\"recorded-claims-title\"><h2 id=\"recorded-claims-title\">Findings and recorded claims</h2>");
         sb.AppendLine("        <div class=\"claim-filters\" id=\"claim-filters\" role=\"search\" aria-label=\"Recorded claims\" hidden>");
         sb.AppendLine("          <label for=\"claim-search\">Search claims<input id=\"claim-search\" type=\"search\" maxlength=\"512\" autocomplete=\"off\"></label>");
-        sb.AppendLine("          <label for=\"claim-outcome\">Outcome<select id=\"claim-outcome\"><option value=\"\">All outcomes</option><option value=\"Satisfied\">Satisfied</option><option value=\"Violated\">Violated</option><option value=\"Error\">Error</option><option value=\"Incomplete\">Incomplete</option><option value=\"ReviewRequired\">Review required</option><option value=\"NotApplicable\">Not applicable</option></select></label>");
+        sb.Append("          <label for=\"claim-outcome\">Outcome<select id=\"claim-outcome\"><option value=\"\">All outcomes</option>");
+        foreach (var outcome in ClaimOutcomeDisplayOrder)
+            sb.Append($"<option value=\"{Encode(outcome.ToString())}\">{Encode(ReportContextFormatter.FormatClaimOutcome(outcome))}</option>");
+        sb.AppendLine("</select></label>");
         sb.AppendLine("          <button type=\"button\" id=\"claim-filter-reset\">Reset filters</button><span id=\"claim-filter-status\" role=\"status\" aria-live=\"polite\" aria-atomic=\"true\"></span>");
         sb.AppendLine("        </div><p id=\"claim-filter-empty\" hidden>No claims match the current filters.</p>");
         sb.AppendLine($"        <p class=\"print-claims-scope\">Print scope: all {claims.Count} recorded claims.</p>");
@@ -371,7 +376,7 @@ internal sealed class ValidationHtmlReportComposer
             var anchor = occurrence == 0 ? anchorBase : $"{anchorBase}-{occurrence}";
             sb.AppendLine($"        <article class=\"assessment-claim\" id=\"{anchor}\" data-claim-id=\"{Encode(claim.ClaimId)}\" data-claim-outcome=\"{Encode(claim.Outcome.ToString())}\">");
             sb.AppendLine($"          <h3>{Encode(claim.Subject)}</h3><p><code>{Encode(claim.ClaimId)}</code></p>");
-            sb.AppendLine($"          <p><strong>Outcome:</strong> {Encode(claim.Outcome.ToString())} · <strong>Requirement:</strong> {Encode(claim.RequirementLevel.ToString())}</p>");
+            sb.AppendLine($"          <p><strong>Outcome:</strong> {Encode(ReportContextFormatter.FormatClaimOutcome(claim.Outcome))} · <strong>Requirement:</strong> {Encode(claim.RequirementLevel.ToString())}</p>");
             sb.AppendLine($"          <p>{Encode(claim.Summary)}</p>");
             sb.AppendLine($"          <p><strong>Authority:</strong> {Encode(claim.Authority.ToString())} · <strong>Recorded confidence:</strong> {Encode(claim.Confidence.ToString())}</p>");
             sb.AppendLine($"          <p><strong>Source revision:</strong> {Encode(claim.Source.Revision)} · {BuildSpecCell(claim.Source.Uri)}</p>");

@@ -1,0 +1,414 @@
+{
+  "status": "local-s6d-outcome-wording-qualified",
+  "baseCommit": "7b3de1dc8a078e033cbf9077824ec3bc836c86c3",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-11T09:37:01.819Z",
+  "sourceIdentity": "0d93e84bf00ea2425189bc0c0642cd6a24ae20e152a95cb05f1f2b691b62c021",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s6d-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "e7333fbbecd200c7142fef1c39d259fa154535474e6540c27c33692b55aaae8e"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ReportContextFormatter.cs",
+      "sha256": "96a79f4984245bb621a3d2aa5e65f7082e4084150373fd2418d715cf0e8b73f7"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ValidationHtmlReportComposer.cs",
+      "sha256": "7b46b3af316ed7c5438a763dc1967cd3a5268ff9e176a9ff9f7fd6291510bbd8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/html.snap",
+      "sha256": "23081b113f07c0b5896d64811ff8f2c9a1969144a5fe73b342cf3f34d0afb883"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Reporting/ValidationHtmlAccessibilityTests.cs",
+      "sha256": "3d1e8973a3968932aac4b9caa41c81a97e46aa23538f451b0ce74f30f72a7cff"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s3-package-qualification.mjs",
+      "sha256": "7883c228027281c6e43cbb9e14ef099ebdcb905992300a838b599b11f6cb50cb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s4-package-qualification.mjs",
+      "sha256": "1cb14c1fb6c8872096269ca64770d63baecceac486e4af39aee827c66d3abcab"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s5-package-qualification.mjs",
+      "sha256": "a5d3dfb9153a2d845fb8738fe287bf7db3a0c37e25dcd1062ec4315cee3efa65"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-package-qualification.mjs",
+      "sha256": "ff7f1f09e844dfc3dd5110107b1cc586b8bc2962ea1cc73ea12f5bc8b16fdec9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6c-package-qualification.mjs",
+      "sha256": "10f488c4b6213c0b8b36884b84232f785aa66903f9d7af4bfc1ef7cc3d406105"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-browser.json",
+      "sha256": "7471f7d90406faa28843e44b8679d6b86d264b80f6be5bc07753486091da456c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-focused-markdown.log",
+      "sha256": "79d43aedc9e838a21f988d6364293231960c423d27cc909b703a2b6916456ea8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-labels-1440.png",
+      "sha256": "3e03f2a3b8ffb380899475201d576bf3fce0c666c224035a93564be1520c4918"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-labels-320.png",
+      "sha256": "c98f1c88b3d2e59442e6fa800124463714b163245a90c5ad2f6b4522ad090d65"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-links.log",
+      "sha256": "31229cf7308f0c6f06f814f861fd9d405337340fa1666cf515f3682055699b8c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-markdown.log",
+      "sha256": "ed955aff411d97986dd079b4296540c0a4cd83b32eab189c05a5a2901307e26c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-outcome-label-baseline.log",
+      "sha256": "135491803eb6ca830bf01f3d36459a3120b48aaad3f8709151f0c9c16e351986"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-outcome-label-fixed.log",
+      "sha256": "b2665f98abf54e459b41f5bec3d033ca9c34bbd9c9890828832a3028baf5d214"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-gate.log",
+      "sha256": "52e5ee91e08bf1ff4144ce2fc86182c769fae490a94a0183c0a23c6c6f7bb212"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification.mjs",
+      "sha256": "ecced8c75402eff368ccc53d0a531e803e0c0fe6f33d0b5f6f0822cfa90be26c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/base-receipt.json",
+      "sha256": "bec03ab366c5e91776e553568e1989ca30a16afab67c01e4496bc60c2c18bc6e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-audit.json",
+      "sha256": "77f670bb226984d3dd0390415afd5a36595d10d99f3f06d31ce252bba41f9bef"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-profile-summary.json",
+      "sha256": "d9a83c865e85722bf2d8a25cb32625cec2eadb4ec8be18c46d0bfccf68740bce"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-report.html",
+      "sha256": "1d5375724b13c2075c225437860c83db3b886b04a90bc4e96784b0853b1e6207"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-report.md",
+      "sha256": "318398f021399e8566f764f198953fbbfbf93c3211b12ac5b561b6a0cd7509b6"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-result.json",
+      "sha256": "b68bdb1481b918d84c7199754b8b7f59bdde08058577ed3cbd51248fd376d625"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-results.junit.xml",
+      "sha256": "2ac3664b5c3b86fb21013453beb227ebd62e27dd19e778ac2f3ff6defb65a812"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-093516-676-e4e3020d1d24/mcp-validation-20261111-093516-676-e4e3020d1d24-results.sarif.json",
+      "sha256": "39d9f56150000f247c8560ddf8d6d49801feabf5db63bd45ca14770963039cd6"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/methods.jsonl",
+      "sha256": "8668bca1a2f361095effbd4019cdadb925b43df8ca878568a861743fc89b5a4e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/processes.jsonl",
+      "sha256": "702debd94998bf461071d1746ecc03c9e8e124147bc70e2a325ea099a1e10a46"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/receipt.json",
+      "sha256": "3edb9dc1ac5c0e2db01c97ccf79363aad1c5abd86e345e96254c8b6439c0f56a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/canonical-oracle/stdout.json",
+      "sha256": "dbab306b01baf8e3750977c6c3762e7356c3137dc11fff287dc05d77f2a8405d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/commands.json",
+      "sha256": "1660d1f385ed6a1e5895cd5cb2080d77fc5d1e420be34f6be375feccd9dca753"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/current-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/current-version.stdout",
+      "sha256": "bea85434b54db5e8403063e37f592cae294af26680fa4c55875f16aac91bb851"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/distribution-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/distribution-smoke.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/dotnet-pack.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/dotnet-pack.stdout",
+      "sha256": "fa0506f8c37a433b3541ac96d3580c15992337784e5c8fd2ea88dd0b8c0ac99d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-canonical.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-canonical.stdout",
+      "sha256": "dbab306b01baf8e3750977c6c3762e7356c3137dc11fff287dc05d77f2a8405d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-lifecycle.stdout",
+      "sha256": "4533b16511402ae78842204437a7df2524ea2448e7c2d7901925bd559ea9fa3b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-schema.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/installed-schema.stdout",
+      "sha256": "4b93b36c0e9d94f1a3d855e20718d3e414d80f62d641b9577057a9dbe591f634"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-init.stdout",
+      "sha256": "c5fd6265f1446c60ea14c6db2db238253d339f82986c7ddcbb9fa514e73ab289"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-install.stdout",
+      "sha256": "3762d27f4c2bbf59182f78fd18a2e2f22400f1f9bbe00def9622e1d3972ecfca"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-pack-dry-run.stderr",
+      "sha256": "fe2e90d6e91c86135e2751cb89f36c01feaf4c075882eb46f7968558985e4ff2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-pack-dry-run.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-pack.stderr",
+      "sha256": "fe2e90d6e91c86135e2751cb89f36c01feaf4c075882eb46f7968558985e4ff2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-pack.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/npm-smoke.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/tool-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/logs/tool-install.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "73bf61a79aeb21c22eabe1d1dda9103a33c2aa87682102e9d027ae3a33364c97"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "5f79726f832461e7a1eff082df1931a726d6396bba2102f910827188bb84ff2e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-package-qualification/receipt.json",
+      "sha256": "91d7dee9efdbe7d766692602dfc2df09a316657ab47b6542aa3788fe9b905baf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-receipt.mjs",
+      "sha256": "da63e080e9e465a99a98071036c4332833f6a8a58bf491fd67dda661d4d00177"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-reporting.log",
+      "sha256": "0ec8e83d88379ffe97db0274576509d768e71bc4bd18d9f3b7614c4812711ab7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-repository-gate.log",
+      "sha256": "b07f7fe89d19cdcc073f207ab72e42ae6ed97601c9a5b4e3029fdc9aa91e74d4"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-safety-gates.json",
+      "sha256": "21ab08bf2be3f3ff2e27e436be953d008b9c0b6c4e47d6613fba9f7341fbebcc"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6d-snapshot-regeneration.log",
+      "sha256": "92facd8e3e4ffe0cc65b0922b8ea891b8c68b46a1c996db62b0c61d1d39f8716"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6d-reporting.trx",
+      "sha256": "6b1f375636968482c8a081ec93234354de46688f9335fe6de21018a056ad72a5"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "S6D/R02/R07/readable-outcomes",
+      "code": [
+        "ReportContextFormatter.FormatClaimOutcome",
+        "ValidationHtmlReportComposer"
+      ],
+      "tests": [
+        "RecordedClaims_ShouldUseReadableOutcomeLabelsWithoutChangingFilterValues",
+        "ReportSnapshotTests",
+        "s6d-browser.json"
+      ],
+      "accepted": "Readable outcome labels agree across claim articles, count rows and filter options; canonical values, display order and decisions remain unchanged"
+    }
+  ],
+  "results": {
+    "focused": {
+      "beforeFailed": 4,
+      "beforePassed": 8,
+      "afterPassed": 12,
+      "reportingPassed": 118
+    },
+    "dotnet": {
+      "passed": 1661,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 180,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 3,
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedBundleSubjectDigestsVerified": 6,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "markdownFiles": 46,
+    "linkChecks": {
+      "total": 142,
+      "ok": 132,
+      "errors": 0,
+      "excluded": 5,
+      "redirected": 5
+    },
+    "packageHashes": {
+      "nuget": "5f79726f832461e7a1eff082df1931a726d6396bba2102f910827188bb84ff2e",
+      "npm": "73bf61a79aeb21c22eabe1d1dda9103a33c2aa87682102e9d027ae3a33364c97"
+    },
+    "browser": {
+      "method": "Executed Playwright checks over owned loopback previews; server stopped afterward",
+      "observations": [
+        {
+          "route": "/mixed",
+          "width": 1440,
+          "all": 13,
+          "reviewRequired": 3,
+          "notApplicable": 0,
+          "readableSearchMatches": 3,
+          "decisionUnchanged": true,
+          "canonicalFilters": true,
+          "resetComplete": true,
+          "overflow": false
+        },
+        {
+          "route": "/installed",
+          "width": 1440,
+          "all": 23,
+          "reviewRequired": 6,
+          "notApplicable": 0,
+          "readableSearchMatches": 6,
+          "decisionUnchanged": true,
+          "canonicalFilters": true,
+          "resetComplete": true,
+          "overflow": false
+        },
+        {
+          "route": "/mixed",
+          "width": 320,
+          "all": 13,
+          "reviewRequired": 3,
+          "notApplicable": 0,
+          "readableSearchMatches": 3,
+          "decisionUnchanged": true,
+          "canonicalFilters": true,
+          "resetComplete": true,
+          "overflow": false
+        },
+        {
+          "route": "/installed",
+          "width": 320,
+          "all": 23,
+          "reviewRequired": 6,
+          "notApplicable": 0,
+          "readableSearchMatches": 6,
+          "decisionUnchanged": true,
+          "canonicalFilters": true,
+          "resetComplete": true,
+          "overflow": false
+        }
+      ],
+      "limitations": [
+        "NotApplicable browser selection exercised the zero-match state; nonzero labels are covered by the focused unit theory",
+        "No manual assistive-technology, human-comprehension or performance qualification"
+      ]
+    },
+    "mutationGate": "Not applicable: display-only changes; no scoring, reducer or calibration source changed"
+  },
+  "reviews": {
+    "type": "Independent AI precommit review",
+    "result": "READY FOR BUILD GATE",
+    "independentlyExecutedTests": 24,
+    "golden": "Three visible ReviewRequired labels become Review required; other golden bytes unchanged"
+  },
+  "contracts": {
+    "assuranceResult": "3.1.0 unchanged",
+    "auditManifest": "2.2.0 unchanged",
+    "canonicalFilterValues": "Unchanged",
+    "freeTextSearch": "Indexes the displayed readable labels"
+  },
+  "notes": [
+    "The execution delegate's initial count summary was corrected against retained logs: 180 adapter, 2 actual-CLI and 3 Node companion tests",
+    "Historical receipts/harnesses unchanged; owned preview stopped; no push, publish, credentials, live enterprise targets or model inference"
+  ],
+  "notAccepted": [
+    "All S6 or all R01-R20",
+    "Remaining authority labels, finding grammar and layout cleanup",
+    "Complete R18 acceptance corpus",
+    "Native/manual accessibility and human comprehension",
+    "Lower-resource scale qualification",
+    "S7/S8 and enterprise readiness",
+    "Protected remote checks and release readiness"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

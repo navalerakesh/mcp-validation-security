@@ -2662,7 +2662,7 @@ a:hover {
         </article>
         <article class="assessment-claim" id="claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2" data-claim-id="finding:ai-tool-schema-parameter-description-missing:delete-repo" data-claim-outcome="ReviewRequired">
           <h3>delete_repo</h3><p><code>finding:ai-tool-schema-parameter-description-missing:delete-repo</code></p>
-          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
+          <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
           <p><strong>Authority:</strong> Heuristic · <strong>Recorded confidence:</strong> Medium</p>
           <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
@@ -2672,7 +2672,7 @@ a:hover {
         </article>
         <article class="assessment-claim" id="claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445" data-claim-id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" data-claim-outcome="ReviewRequired">
           <h3>delete_repo</h3><p><code>finding:mcp-guideline-tool-destructive-hint-missing:delete-repo</code></p>
-          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
+          <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> Medium</p>
           <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
@@ -2682,7 +2682,7 @@ a:hover {
         </article>
         <article class="assessment-claim" id="claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f" data-claim-id="finding:mcp-tool-call-result-object-missing:tools-call" data-claim-outcome="ReviewRequired">
           <h3>tools/call</h3><p><code>finding:mcp-tool-call-result-object-missing:tools-call</code></p>
-          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Should</p>
+          <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Should</p>
           <p>One tool response omitted the outer result object.</p>
           <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
           <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
