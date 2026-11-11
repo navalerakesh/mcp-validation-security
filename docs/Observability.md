@@ -16,7 +16,13 @@ Target latency measures each HTTP/STDIO request/response-header cycle and exclud
 
 Operational request failure means a transport exception, missing response, non-success HTTP status, or policy rejection. A received JSON-RPC error envelope is a completed transport exchange and remains protocol evidence; it does not by itself increase the operational error rate.
 
-Latency and queue percentiles retain at most 4,096 samples per run in bounded circular buffers. Request totals remain exact up to the governed maximum request budget of 100,000; percentiles are a bounded representative window for longer runs.
+Latency and queue percentiles retain at most 4,096 valid samples in bounded circular buffers. Each window records observed, retained, discarded and rejected counts and declares `mostRecent` sampling. It is not a random representative sample or a whole-run percentile once older observations are discarded. Negative/non-finite duration samples are rejected without losing request outcome counts. Human reports display this scope explicitly.
+
+No latency/queue samples produce null percentiles, not zero. Error rate is null without completed requests; throughput is null without a positive elapsed duration. A measured zero duration remains zero. Legacy artifacts with zero denominators are normalized to unavailable metric values during loading, while measured zero is preserved and the original contract version is retained in `run.sourceDocumentSchemaVersion`.
+
+`validatorProcessResources` records an actual process CPU-time delta and working-set endpoints around the validation run. Its scope is explicitly `validatorProcess` and includes concurrent process activity; it is not isolated per-request CPU, target-server CPU, a memory peak/average, or proof of a leak. Unavailable/regressing counter observations remain null. Target resource fields remain unmeasured unless real telemetry supplies them; successful RPCs cannot establish resource-limit compliance, and failed RPCs alone cannot establish resource exhaustion.
+
+Resource probes preserve authentication-required, policy-blocked, unavailable, timed-out and local framework-error outcomes separately. Already-dispatched work remains owned after a later dispatch refusal. Request failures can be retained as transport evidence, but do not establish which server resource was exhausted.
 
 ## OpenTelemetry
 

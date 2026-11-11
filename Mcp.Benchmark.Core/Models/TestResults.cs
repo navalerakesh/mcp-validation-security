@@ -472,7 +472,8 @@ public enum PerformanceMeasurementDisposition
     AuthRequired = 2,
     TimedOut = 3,
     Cancelled = 4,
-    Unavailable = 5
+    Unavailable = 5,
+    Blocked = 6
 }
 
 /// <summary>

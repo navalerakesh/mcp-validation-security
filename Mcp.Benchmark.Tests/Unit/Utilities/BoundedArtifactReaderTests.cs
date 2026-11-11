@@ -451,6 +451,88 @@ public sealed class BoundedArtifactReaderTests : IDisposable
         failure.Which.Message.Should().NotContain("timestamp-canary");
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReadValidationResultAsync_LegacyMetrics_ShouldPreserveMissingnessAndSourceVersion(bool measured)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "legacy-metrics.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult { DocumentSchemaVersion = "2.3.0" },
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
+        document["run"]!["operationalMetrics"] = JsonSerializer.SerializeToNode(new
+        {
+            targetLatencyP50Ms = 0, targetLatencyP95Ms = 0, targetLatencyP99Ms = 0, queueTimeP95Ms = 0,
+            targetLatencySampleCount = measured ? 1 : 0, queueTimeSampleCount = measured ? 1 : 0,
+            requestsCompleted = measured ? 1 : 0, errorRate = 0,
+            totalRunDurationMs = 0, throughputRequestsPerSecond = 0
+        });
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        var result = await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path));
+
+        result.Run.OperationalMetrics!.TargetLatencyP95Ms.Should().Be(measured ? 0 : null);
+        result.Run.OperationalMetrics.QueueTimeP95Ms.Should().Be(measured ? 0 : null);
+        result.Run.OperationalMetrics.ErrorRate.Should().Be(measured ? 0 : null);
+        result.Run.OperationalMetrics.ThroughputRequestsPerSecond.Should().BeNull();
+        result.DocumentSchemaVersion.Should().Be(Mcp.Benchmark.Core.Constants.ArtifactContracts.ValidationResultSchemaVersion);
+        var migrated = JsonSerializer.SerializeToNode(result.CloneWithoutSecrets(), new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
+        migrated["run"]!["sourceDocumentSchemaVersion"]!.GetValue<string>().Should().Be("2.3.0");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(42)]
+    public async Task ReadValidationResultAsync_LegacyResourceClaims_ShouldRemainUnverified(double legacyCpu)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "legacy-resources.json");
+        var input = new ValidationResult
+        {
+            DocumentSchemaVersion = "2.3.0",
+            PerformanceTesting = new PerformanceTestResult
+            {
+                LoadTesting = new LoadTestResult { TotalRequests = 3, SuccessfulRequests = 2, FailedRequests = 1 },
+                ResourceUsage = new ResourceUsageMetrics
+                {
+                    WithinAcceptableLimits = true,
+                    Cpu = new CpuUsageMetrics { AverageCpuUsagePercent = legacyCpu, PeakCpuUsagePercent = legacyCpu },
+                    Memory = new MemoryUsageMetrics { InitialMemoryBytes = 0, PeakMemoryBytes = 0 },
+                    Network = new NetworkUsageMetrics { TotalBytesSent = 0, TotalBytesReceived = 0 }
+                }
+            }
+        };
+        var original = JsonSerializer.Serialize(input, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        await File.WriteAllTextAsync(path, original);
+
+        var actual = (await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path))).CloneWithoutSecrets();
+
+        actual.PerformanceTesting!.ResourceUsage.WithinAcceptableLimits.Should().BeNull();
+        actual.PerformanceTesting.ResourceUsage.Cpu.AverageCpuUsagePercent.Should().BeNull();
+        actual.PerformanceTesting.ResourceUsage.Memory.InitialMemoryBytes.Should().BeNull();
+        actual.PerformanceTesting.ResourceUsage.Network.TotalBytesSent.Should().BeNull();
+        actual.PerformanceTesting.LoadTesting.TotalRequests.Should().Be(3);
+        actual.PerformanceTesting.LoadTesting.FailedRequests.Should().Be(1);
+        actual.Run.SourceDocumentSchemaVersion.Should().Be("2.3.0");
+        (await File.ReadAllTextAsync(path)).Should().Be(original);
+    }
+
+    [Theory]
+    [InlineData("DocumentSchemaVersion", "2.3.0")]
+    [InlineData("DocumentType", "mcpval.assurance-result")]
+    public async Task ReadValidationResultAsync_ShouldRejectAmbiguousContractAliases(string alias, string value)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "ambiguous-contract.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult { DocumentSchemaVersion = "2.3.0" },
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!.AsObject();
+        document[alias] = value;
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        await FluentActions.Awaiting(() => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path)))
+            .Should().ThrowAsync<CliUsageException>();
+    }
+
     [Fact]
     public async Task ReadValidationResultAsync_ShouldLoadExplicitCurrentContract()
     {

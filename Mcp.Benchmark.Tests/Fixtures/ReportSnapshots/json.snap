@@ -1,6 +1,6 @@
 {
   "documentType": "mcpval.assurance-result",
-  "documentSchemaVersion": "2.3.0",
+  "documentSchemaVersion": "3.0.0",
   "producer": {
     "name": "MCP Validator",
     "version": "2.0.1",
@@ -744,24 +744,24 @@
       },
       "resourceUsage": {
         "memory": {
-          "initialMemoryBytes": 0,
-          "peakMemoryBytes": 0,
-          "finalMemoryBytes": 0,
-          "averageMemoryBytes": 0,
-          "memoryLeaksDetected": false
+          "initialMemoryBytes": null,
+          "peakMemoryBytes": null,
+          "finalMemoryBytes": null,
+          "averageMemoryBytes": null,
+          "memoryLeaksDetected": null
         },
         "cpu": {
-          "averageCpuUsagePercent": 0,
-          "peakCpuUsagePercent": 0,
-          "withinAcceptableLimits": false
+          "averageCpuUsagePercent": null,
+          "peakCpuUsagePercent": null,
+          "withinAcceptableLimits": null
         },
         "network": {
-          "totalBytesSent": 0,
-          "totalBytesReceived": 0,
-          "averageNetworkLatencyMs": 0,
-          "networkErrors": 0
+          "totalBytesSent": null,
+          "totalBytesReceived": null,
+          "averageNetworkLatencyMs": null,
+          "networkErrors": null
         },
-        "withinAcceptableLimits": false,
+        "withinAcceptableLimits": null,
         "resourceExhaustionEvents": []
       },
       "throughput": {
@@ -1572,7 +1572,7 @@
         "authority": 5,
         "source": {
           "uri": null,
-          "revision": "2026-11-10.3",
+          "revision": "2026-11-10.4",
           "sha256": null
         },
         "applicability": 0,
@@ -1595,7 +1595,7 @@
         "authority": 4,
         "source": {
           "uri": null,
-          "revision": "2026-11-10.3",
+          "revision": "2026-11-10.4",
           "sha256": null
         },
         "applicability": 0,
@@ -1618,7 +1618,7 @@
         "authority": 0,
         "source": {
           "uri": null,
-          "revision": "2026-11-10.3",
+          "revision": "2026-11-10.4",
           "sha256": null
         },
         "applicability": 0,
@@ -1666,7 +1666,7 @@
         "authority": 2,
         "source": {
           "uri": null,
-          "revision": "2026-11-10.3",
+          "revision": "2026-11-10.4",
           "sha256": null
         },
         "applicability": 0,

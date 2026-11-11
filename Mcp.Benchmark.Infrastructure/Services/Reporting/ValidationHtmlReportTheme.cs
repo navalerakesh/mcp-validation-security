@@ -1369,6 +1369,15 @@ body {
 .data-table tbody tr:last-child td {
     border-bottom: 0;
 }
+.data-table.data-table--operations {
+    min-width: 0;
+    table-layout: fixed;
+}
+.data-table.data-table--operations th,
+.data-table.data-table--operations td {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
 .domain-evidence-table,
 .layered-report-table {
     table-layout: fixed;

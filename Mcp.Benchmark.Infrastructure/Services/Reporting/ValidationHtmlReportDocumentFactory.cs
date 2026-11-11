@@ -207,15 +207,15 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Eyebrow = "Validator",
             Value = $"{metrics.ValidatorOverheadMs:F1} ms",
             Label = "Run Overhead",
-            SupportingText = $"Queue 95th percentile {metrics.QueueTimeP95Ms:F1} ms · {metrics.RetryCount} retries · {metrics.RetryDelayMs:F1} ms backoff",
+            SupportingText = $"Queue 95th percentile {ReportContextFormatter.FormatOperationalMetric(metrics.QueueTimeP95Ms, metrics.QueueTimeSampleCount > 0, "F1", "ms")} · {metrics.RetryCount} retries · {metrics.RetryDelayMs:F1} ms backoff · {ReportContextFormatter.FormatMetricWindow(metrics.QueueTimeWindow)}",
             Tone = HtmlReportTone.Info
         });
         cards.Add(new ValidationHtmlMetricCard
         {
             Eyebrow = "Target",
-            Value = $"{metrics.TargetLatencyP95Ms:F1} ms",
+            Value = ReportContextFormatter.FormatOperationalMetric(metrics.TargetLatencyP95Ms, metrics.TargetLatencySampleCount > 0, "F1", "ms"),
             Label = "Target 95th-Percentile Latency",
-            SupportingText = $"50th percentile {metrics.TargetLatencyP50Ms:F1} ms · 99th percentile {metrics.TargetLatencyP99Ms:F1} ms · {metrics.ThroughputRequestsPerSecond:F1} requests/second · {metrics.RequestsFailed} failed transport attempt(s) ({metrics.ErrorRate:P1})",
+            SupportingText = $"50th percentile {ReportContextFormatter.FormatOperationalMetric(metrics.TargetLatencyP50Ms, metrics.TargetLatencySampleCount > 0, "F1", "ms")} · 99th percentile {ReportContextFormatter.FormatOperationalMetric(metrics.TargetLatencyP99Ms, metrics.TargetLatencySampleCount > 0, "F1", "ms")} · {ReportContextFormatter.FormatOperationalMetric(metrics.ThroughputRequestsPerSecond, metrics.TotalRunDurationMs > 0, "F1", "requests/second")} · {metrics.RequestsFailed} failed transport attempt(s) ({ReportContextFormatter.FormatOperationalMetric(metrics.ErrorRate, metrics.RequestsCompleted > 0, "P1")}) · {ReportContextFormatter.FormatMetricWindow(metrics.TargetLatencyWindow)}",
             Tone = HtmlReportTone.Info
         });
         cards.Add(new ValidationHtmlMetricCard

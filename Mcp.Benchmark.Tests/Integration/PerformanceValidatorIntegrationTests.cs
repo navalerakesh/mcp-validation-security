@@ -47,6 +47,12 @@ public class PerformanceValidatorIntegrationTests
         result.LoadTesting.SuccessfulRequests.Should().BeGreaterThan(0);
         result.LoadTesting.FailedRequests.Should().Be(0);
         result.LoadTesting.RequestsPerSecond.Should().BeGreaterThan(0);
+        ((object?)result.ResourceUsage.WithinAcceptableLimits).Should().BeNull("successful RPCs do not measure server resource limits");
+        ((object?)result.ResourceUsage.Cpu.AverageCpuUsagePercent).Should().BeNull();
+        ((object?)result.ResourceUsage.Cpu.PeakCpuUsagePercent).Should().BeNull();
+        ((object?)result.ResourceUsage.Memory.InitialMemoryBytes).Should().BeNull();
+        ((object?)result.ResourceUsage.Memory.PeakMemoryBytes).Should().BeNull();
+        ((object?)result.ResourceUsage.Network.TotalBytesSent).Should().BeNull();
     }
 
     [Fact]
@@ -223,8 +229,163 @@ public class PerformanceValidatorIntegrationTests
         result.PerformanceBottlenecks.Should().NotContain(b => b.Contains("tools/call latency", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestResourceExhaustion_ConfiguredDeadline_ShouldRemainDistinctFromCallerCancellation(bool callerCancellation)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async (string endpoint, string method, object? parameters, AuthenticationConfig? authentication, CancellationToken token) =>
+            {
+                if (callerCancellation) cancellation.Cancel();
+                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                return new JsonRpcResponse { StatusCode = 200, IsSuccess = true };
+            });
+
+        var result = await _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http", TimeoutMs = 25 }, ["connections"], cancellation.Token)
+            .WaitAsync(TimeSpan.FromSeconds(10));
+
+        result.Status.Should().Be(callerCancellation ? TestStatus.Cancelled : TestStatus.Inconclusive);
+        result.MeasurementDisposition.Should().Be(callerCancellation
+            ? PerformanceMeasurementDisposition.Cancelled : PerformanceMeasurementDisposition.TimedOut);
+        result.ResourceUsage.WithinAcceptableLimits.Should().BeNull();
+    }
+
     [Fact]
-    public async Task TestResourceExhaustion_WithFailedResponses_ShouldFail()
+    public async Task TestResourceExhaustion_LaterBatchTimeout_ShouldNotDowngradeObservedFailure()
+    {
+        var calls = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ++calls <= 50
+                ? Task.FromResult(new JsonRpcResponse { StatusCode = 500, IsSuccess = false })
+                : Task.FromException<JsonRpcResponse>(new TimeoutException("Synthetic later timeout.")));
+
+        var result = await _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http" }, ["connections", "threads"]);
+
+        result.Status.Should().Be(TestStatus.Failed);
+        result.MeasurementDisposition.Should().Be(PerformanceMeasurementDisposition.Unavailable);
+        result.PerformanceBottlenecks.Should().ContainSingle(value => value.Contains("50/50 failed", StringComparison.Ordinal));
+        calls.Should().Be(100);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestResourceExhaustion_MixedFaults_ShouldRetainCompletedOutcomes(bool blockedResponses)
+    {
+        var calls = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(),
+                It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(() => ++calls == 50
+                ? Task.FromException<JsonRpcResponse>(new TimeoutException("Synthetic timeout."))
+                : Task.FromResult(new JsonRpcResponse
+                {
+                    StatusCode = blockedResponses ? -1 : 500, IsSuccess = false,
+                    ProbeContext = blockedResponses ? new ProbeContext { ResponseClassification = ProbeResponseClassification.PolicyBlocked } : null
+                }));
+
+        var result = await _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http" }, ["connections"]);
+
+        result.Status.Should().Be(blockedResponses ? TestStatus.Inconclusive : TestStatus.Failed);
+        result.MeasurementDisposition.Should().Be(blockedResponses ? PerformanceMeasurementDisposition.Blocked : PerformanceMeasurementDisposition.Unavailable);
+        if (blockedResponses) result.PerformanceBottlenecks.Should().BeEmpty();
+        else result.PerformanceBottlenecks.Should().ContainSingle(value => value.Contains("49/50 failed", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData("timeout", TestStatus.Inconclusive, PerformanceMeasurementDisposition.TimedOut)]
+    [InlineData("cancelled", TestStatus.Inconclusive, PerformanceMeasurementDisposition.TimedOut)]
+    [InlineData("connection", TestStatus.Inconclusive, PerformanceMeasurementDisposition.Unavailable)]
+    [InlineData("unsupported", TestStatus.Inconclusive, PerformanceMeasurementDisposition.Unavailable)]
+    [InlineData("framework", TestStatus.Error, PerformanceMeasurementDisposition.Unavailable)]
+    public async Task TestResourceExhaustion_Exceptions_ShouldPreserveLocalAttribution(
+        string failure, TestStatus expectedStatus, PerformanceMeasurementDisposition expectedDisposition)
+    {
+        Exception exception = failure switch
+        {
+            "timeout" => new TimeoutException("synthetic-exception-canary"),
+            "cancelled" => new TaskCanceledException("synthetic-exception-canary"),
+            "connection" => new HttpRequestException("synthetic-exception-canary"),
+            "unsupported" => new NotSupportedException("synthetic-exception-canary"),
+            _ => new InvalidOperationException("synthetic-exception-canary")
+        };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(),
+            It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>())).ThrowsAsync(exception);
+
+        var result = await _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http" }, ["connections"]);
+
+        result.Status.Should().Be(expectedStatus);
+        result.MeasurementDisposition.Should().Be(expectedDisposition);
+        result.PerformanceBottlenecks.Should().BeEmpty();
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("synthetic-exception-canary");
+    }
+
+    [Fact]
+    public async Task TestResourceExhaustion_DispatchFailure_ShouldDrainStartedRequests()
+    {
+        var pending = new TaskCompletionSource<JsonRpcResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (++calls == 1) return pending.Task;
+                throw new Mcp.Benchmark.Core.Exceptions.OperationAdmissionException("Synthetic exhausted admission.");
+            });
+        var operation = _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http" }, ["connections"]);
+        try
+        {
+            operation.IsCompleted.Should().BeFalse("started requests remain owned after a later dispatch refusal");
+        }
+        finally { pending.TrySetResult(new JsonRpcResponse { StatusCode = 200, IsSuccess = true }); }
+
+        var result = await operation.WaitAsync(TimeSpan.FromSeconds(10));
+
+        result.MeasurementDisposition.Should().Be(PerformanceMeasurementDisposition.Blocked);
+        calls.Should().Be(2);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task TestResourceExhaustion_AdmissionAndAuthentication_ShouldNotBecomeTargetFailure(bool blocked, bool responseDenial)
+    {
+        var setup = _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()));
+        if (responseDenial) setup.ReturnsAsync(new JsonRpcResponse
+        {
+            StatusCode = -1, IsSuccess = false,
+            ProbeContext = new ProbeContext { ResponseClassification = ProbeResponseClassification.PolicyBlocked }
+        });
+        else if (blocked) setup.Throws(new Mcp.Benchmark.Core.Exceptions.OperationAdmissionException("Synthetic admission denial."));
+        else setup.ReturnsAsync(new JsonRpcResponse { StatusCode = 401, IsSuccess = false });
+
+        var result = await _validator.TestResourceExhaustionAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http" }, ["connections"]);
+
+        result.Status.Should().Be(blocked ? TestStatus.Inconclusive : TestStatus.AuthRequired);
+        result.MeasurementDisposition.Should().Be(blocked ? PerformanceMeasurementDisposition.Blocked : PerformanceMeasurementDisposition.AuthRequired);
+        result.ResourceUsage.WithinAcceptableLimits.Should().BeNull();
+        result.ResourceUsage.ResourceExhaustionEvents.Should().BeEmpty();
+        result.PerformanceBottlenecks.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(200, TestStatus.Inconclusive)]
+    [InlineData(500, TestStatus.Failed)]
+    [InlineData(503, TestStatus.Inconclusive)]
+    [InlineData(429, TestStatus.Inconclusive)]
+    [InlineData(0, TestStatus.Inconclusive)]
+    public async Task TestResourceExhaustion_ShouldSeparateTransportFailuresFromResourceClaims(int statusCode, TestStatus expectedStatus)
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient
@@ -234,11 +395,17 @@ public class PerformanceValidatorIntegrationTests
                 It.IsAny<object>(),
                 It.IsAny<AuthenticationConfig>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JsonRpcResponse { StatusCode = 503, IsSuccess = false });
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = statusCode, IsSuccess = statusCode == 200 });
 
         var result = await _validator.TestResourceExhaustionAsync(config, ["connections"], CancellationToken.None);
 
-        result.Status.Should().Be(TestStatus.Failed);
-        result.ResourceUsage.ResourceExhaustionEvents.Should().ContainSingle(eventText => eventText.Contains("50/50 failed", StringComparison.Ordinal));
+        result.Status.Should().Be(expectedStatus);
+        result.ResourceUsage.WithinAcceptableLimits.Should().BeNull();
+        result.ResourceUsage.ResourceExhaustionEvents.Should().BeEmpty();
+        if (expectedStatus == TestStatus.Failed)
+            result.PerformanceBottlenecks.Should().ContainSingle(eventText => eventText.Contains("50/50 failed", StringComparison.Ordinal));
+        else result.PerformanceBottlenecks.Should().BeEmpty();
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(),
+            It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()), Times.Exactly(50));
     }
 }

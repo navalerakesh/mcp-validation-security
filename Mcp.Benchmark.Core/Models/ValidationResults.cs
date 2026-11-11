@@ -293,6 +293,7 @@ public class ValidationResult
                 ValidationId = ValidationId,
                 ProtocolVersion = ProtocolVersion,
                 SchemaVersion = Run.SchemaVersion,
+                SourceDocumentSchemaVersion = Run.SourceDocumentSchemaVersion,
                 TargetIdentitySha256 = Run.TargetIdentitySha256,
                 ExecutionPlanSha256 = Run.ExecutionPlanSha256,
                 ExecutionMode = Run.ExecutionMode,

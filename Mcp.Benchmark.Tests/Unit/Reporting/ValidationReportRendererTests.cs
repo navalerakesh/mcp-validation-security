@@ -15,6 +15,54 @@ public class ValidationReportRendererTests
 {
     private readonly ValidationReportRenderer _renderer = new();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OperationalReports_ShouldLabelUnavailableMetricsAndWindowScope(bool legacyZeros)
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics
+        {
+            TargetLatencyP50Ms = legacyZeros ? 0 : null,
+            TargetLatencyP95Ms = legacyZeros ? 0 : null,
+            TargetLatencyP99Ms = legacyZeros ? 0 : null,
+            QueueTimeP95Ms = legacyZeros ? 0 : null,
+            ErrorRate = legacyZeros ? 0 : null
+        };
+
+        foreach (var report in new[]
+        {
+            _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true),
+            new MarkdownReportGenerator().GenerateReport(result)
+        })
+        {
+            report.Should().Contain("Unavailable");
+            report.Should().NotContain(" /  /  ms");
+        }
+
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics
+        {
+            TargetLatencyP50Ms = 1, TargetLatencyP95Ms = 1, TargetLatencyP99Ms = 1,
+            TargetLatencySampleCount = 4096,
+            TargetLatencyWindow = new MetricSampleWindow(5001, 4096, 4096, 1),
+            ValidatorProcessResources = new ValidatorProcessResourceMetrics(15, 100, 200)
+        };
+        var htmlReport = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
+        Regex.Matches(htmlReport, "<table class=\"data-table data-table--operations\">").Count.Should().Be(2);
+        foreach (var report in new[]
+        {
+            htmlReport,
+            new MarkdownReportGenerator().GenerateReport(result)
+        })
+        {
+            report.Should().Contain("Most recent 4096 of 5001");
+            report.Should().Contain("904 discarded");
+            report.Should().Contain("1 rejected");
+            report.Should().Contain("Validator process CPU time");
+            report.Should().Contain("Concurrent process activity included");
+        }
+    }
+
     [Fact]
     public void GenerateHtmlReport_WithBaselineWaiverAndHostileEndpoint_ShouldEncodeAndAlignGovernance()
     {

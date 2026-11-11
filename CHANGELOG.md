@@ -6,8 +6,14 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+### Changed
+
+- **Breaking artifact shape:** assurance-result `3.0.0` uses nullable values for unmeasured operational and target-resource metrics, retaining an explicit `2.x` migration path with original-version provenance. The typed assurance model and document type are unchanged. Rule catalog revision is `2026-11-10.4`.
+- Calibration policy `2026-11-10.1` separates tuning diagnostics from holdout eligibility, requires reviewed source/scenario diversity and partition isolation, bounds input, and treats abstentions and undefined rates explicitly. Synthetic policy tests do not qualify production heuristic accuracy.
+
 ### Fixed
 
+- Operational reports distinguish unavailable data from measured zero and disclose retained percentile windows. Actual CPU/working-set observations are scoped to the validator process and include concurrent activity; transport successes/failures do not establish target resource limits or exhaustion.
 - Assurance-result `2.3.0` persists individual extension obligation coverage. Resolved scenario plans survive interruption before or during execution, and planning failures retain explicit unavailable scope. Malformed scenario evidence cannot duplicate completed extension assessments or earn pass credit.
 - Post-run policy and provider interpretation use recorded assessment time rather than replay time. Saved results require explicit zoned timestamps; missing or ambiguous clock evidence is not silently replaced with current time. Canonical cancelled results retain exit `124` after terminal artifact persistence.
 - Explicit validation reports publish atomically as a per-run directory containing all reports, optional companions/attestation and the audit manifest. Rendering failure, cancellation before commit or a destination collision does not publish a partial bundle. The MCP wrapper supports the new layout and legacy flat results, bounds artifact capture and rejects missing/ambiguous successful captures. Rule catalog revision is `2026-11-10.3`.

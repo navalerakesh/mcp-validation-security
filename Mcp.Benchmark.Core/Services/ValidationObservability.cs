@@ -7,6 +7,7 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class ValidationObservability
 {
+    private const int RetainedSampleCapacity = 4096;
     public const string InstrumentationName = "McpVal.Validation";
     public const string InstrumentationVersion = "1.0.0";
 
@@ -42,7 +43,7 @@ public static class ValidationObservability
 
     public static void RecordQueue(double milliseconds)
     {
-        QueueDuration.Record(milliseconds);
+        if (IsValidDuration(milliseconds)) QueueDuration.Record(milliseconds);
         Current.Value?.QueueTimes.Record(milliseconds);
     }
 
@@ -55,7 +56,8 @@ public static class ValidationObservability
 
     public static void RecordRequestCompleted(string? method, double milliseconds, bool success)
     {
-        RequestDuration.Record(milliseconds, new KeyValuePair<string, object?>("mcpval.request.state", success ? "completed" : "failed"));
+        if (IsValidDuration(milliseconds))
+            RequestDuration.Record(milliseconds, new KeyValuePair<string, object?>("mcpval.request.state", success ? "completed" : "failed"));
         var collector = Current.Value;
         if (collector == null) return;
         collector.TargetDurations.Record(milliseconds);
@@ -97,12 +99,14 @@ public static class ValidationObservability
         while (Interlocked.CompareExchange(ref target, updated, initial) != initial);
     }
 
-    private static double Percentile(IEnumerable<double> values, double percentile)
+    private static bool IsValidDuration(double value) => double.IsFinite(value) && value >= 0;
+
+    private static double? Percentile(IEnumerable<double> values, double percentile)
     {
         var ordered = values.OrderBy(value => value).ToArray();
-        if (ordered.Length == 0) return 0;
+        if (ordered.Length == 0) return null;
         var index = (int)Math.Ceiling(percentile * ordered.Length) - 1;
-        return ordered[Math.Clamp(index, 0, ordered.Length - 1)];
+        return Math.Round(ordered[Math.Clamp(index, 0, ordered.Length - 1)], 3);
     }
 
     public sealed class ValidationRunTelemetry : IDisposable
@@ -121,9 +125,13 @@ public static class ValidationObservability
 
         public ValidationOperationalMetrics Complete(double totalRunDurationMs)
         {
+            if (!IsValidDuration(totalRunDurationMs))
+                throw new ArgumentOutOfRangeException(nameof(totalRunDurationMs), "Run duration must be finite and non-negative.");
             var elapsedSeconds = totalRunDurationMs / 1000.0;
-            var targetDurationSamples = _collector.TargetDurations.Snapshot();
-            var queueTimeSamples = _collector.QueueTimes.Snapshot();
+            var targetSnapshot = _collector.TargetDurations.Snapshot();
+            var queueSnapshot = _collector.QueueTimes.Snapshot();
+            var targetDurationSamples = targetSnapshot.Values;
+            var queueTimeSamples = queueSnapshot.Values;
             var localOverheadMs = _collector.StageDurations
                 .Where(pair => pair.Key is "validation.scenarios" or "validation.scoring" or "validation.trust" or "validation.verdict")
                 .Sum(pair => pair.Value);
@@ -139,14 +147,16 @@ public static class ValidationObservability
                 RetryCount = _collector.RetryCount,
                 RetryDelayMs = Math.Round(_collector.RetryDelayMs, 3),
                 TruncatedResponseCount = _collector.TruncatedResponseCount,
-                TargetLatencyP50Ms = Math.Round(Percentile(targetDurationSamples, 0.50), 3),
-                TargetLatencyP95Ms = Math.Round(Percentile(targetDurationSamples, 0.95), 3),
-                TargetLatencyP99Ms = Math.Round(Percentile(targetDurationSamples, 0.99), 3),
-                QueueTimeP95Ms = Math.Round(Percentile(queueTimeSamples, 0.95), 3),
+                TargetLatencyP50Ms = Percentile(targetDurationSamples, 0.50),
+                TargetLatencyP95Ms = Percentile(targetDurationSamples, 0.95),
+                TargetLatencyP99Ms = Percentile(targetDurationSamples, 0.99),
+                QueueTimeP95Ms = Percentile(queueTimeSamples, 0.95),
                 TargetLatencySampleCount = targetDurationSamples.Length,
                 QueueTimeSampleCount = queueTimeSamples.Length,
-                ThroughputRequestsPerSecond = elapsedSeconds > 0 ? Math.Round(_collector.RequestsCompleted / elapsedSeconds, 3) : 0,
-                ErrorRate = _collector.RequestsCompleted > 0 ? Math.Round(Math.Min(1, (double)_collector.RequestsFailed / _collector.RequestsCompleted), 4) : 0,
+                TargetLatencyWindow = targetSnapshot.Window,
+                QueueTimeWindow = queueSnapshot.Window,
+                ThroughputRequestsPerSecond = elapsedSeconds > 0 ? Math.Round(_collector.RequestsCompleted / elapsedSeconds, 3) : null,
+                ErrorRate = _collector.RequestsCompleted > 0 ? Math.Round(Math.Min(1, (double)_collector.RequestsFailed / _collector.RequestsCompleted), 4) : null,
                 StageDurationMs = new SortedDictionary<string, double>(
                     _collector.StageDurations.ToDictionary(pair => pair.Key, pair => Math.Round(pair.Value, 3), StringComparer.Ordinal),
                     StringComparer.Ordinal)
@@ -199,16 +209,19 @@ public static class ValidationObservability
         public int RetryCount;
         public double RetryDelayMs;
         public int TruncatedResponseCount;
-        public BoundedSampleBuffer TargetDurations { get; } = new(4096);
-        public BoundedSampleBuffer QueueTimes { get; } = new(4096);
+        public BoundedSampleBuffer TargetDurations { get; } = new(RetainedSampleCapacity);
+        public BoundedSampleBuffer QueueTimes { get; } = new(RetainedSampleCapacity);
         public ConcurrentDictionary<string, double> StageDurations { get; } = new(StringComparer.Ordinal);
     }
+
+    internal sealed record BoundedSampleSnapshot(double[] Values, MetricSampleWindow Window);
 
     internal sealed class BoundedSampleBuffer
     {
         private readonly double[] _samples;
         private readonly object _sync = new();
         private long _writeCount;
+        private long _rejectedCount;
 
         public BoundedSampleBuffer(int capacity)
         {
@@ -219,19 +232,24 @@ public static class ValidationObservability
         {
             lock (_sync)
             {
+                if (!IsValidDuration(value))
+                {
+                    _rejectedCount++;
+                    return;
+                }
                 _samples[_writeCount % _samples.Length] = value;
                 _writeCount++;
             }
         }
 
-        public double[] Snapshot()
+        public BoundedSampleSnapshot Snapshot()
         {
             lock (_sync)
             {
                 var count = (int)Math.Min(_writeCount, _samples.Length);
                 var snapshot = new double[count];
                 Array.Copy(_samples, snapshot, count);
-                return snapshot;
+                return new BoundedSampleSnapshot(snapshot, new MetricSampleWindow(_writeCount + _rejectedCount, count, _samples.Length, _rejectedCount));
             }
         }
     }

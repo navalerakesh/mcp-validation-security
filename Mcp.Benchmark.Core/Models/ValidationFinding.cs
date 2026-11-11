@@ -58,7 +58,7 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
-    public const string CatalogVersion = "2026-11-10.3";
+    public const string CatalogVersion = "2026-11-10.4";
 
     private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
 

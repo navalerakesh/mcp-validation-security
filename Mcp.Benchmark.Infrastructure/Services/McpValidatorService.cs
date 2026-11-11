@@ -37,6 +37,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     private readonly IHealthCheckService _healthCheckService;
     private readonly ITelemetryService _telemetryService;
     private readonly ILogger<McpValidatorService> _logger;
+    private readonly IValidatorProcessResourceSampler _processResourceSampler;
 
     /// <summary>
     /// Initializes a new instance of the McpValidatorService class.
@@ -58,7 +59,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         IAggregateScoringStrategy scoringStrategy,
         IHealthCheckService healthCheckService,
         ITelemetryService telemetryService,
-        ILogger<McpValidatorService> logger)
+        ILogger<McpValidatorService> logger,
+        IValidatorProcessResourceSampler? processResourceSampler = null)
     {
         _protocolValidator = protocolValidator ?? throw new ArgumentNullException(nameof(protocolValidator));
         _toolValidator = toolValidator ?? throw new ArgumentNullException(nameof(toolValidator));
@@ -77,6 +79,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         _healthCheckService = healthCheckService ?? throw new ArgumentNullException(nameof(healthCheckService));
         _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _processResourceSampler = processResourceSampler ?? new ValidatorProcessResourceSampler();
     }
 
     /// <summary>
@@ -114,6 +117,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         IReadOnlyList<ScenarioPackExecutionPlan> scenarioPlans = [];
         var assuranceEvaluationAttempted = false;
         var summaryCalculationAttempted = false;
+        var processResourcesAtStart = CaptureProcessResources();
         var runStopwatch = System.Diagnostics.Stopwatch.StartNew();
         using var runTelemetry = ValidationObservability.BeginRun(
             result.ValidationId,
@@ -157,9 +161,18 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 result.CriticalErrors.Add("Validation framework error: retained evidence could not be fully interpreted.");
                 _logger.LogError("Partial evidence finalization failed with {ExceptionType}", finalizationException.GetType().Name);
             }
+            var processResourcesAtEnd = CaptureProcessResources();
             runStopwatch.Stop();
             result.Summary.CriticalIssues = result.CriticalErrors.Count;
             result.Run.OperationalMetrics = runTelemetry.Complete(runStopwatch.Elapsed.TotalMilliseconds);
+            var processorTimeDelta = processResourcesAtStart != null && processResourcesAtEnd != null &&
+                processResourcesAtStart.TotalProcessorTime >= TimeSpan.Zero &&
+                processResourcesAtEnd.TotalProcessorTime >= processResourcesAtStart.TotalProcessorTime
+                    ? (double?)(processResourcesAtEnd.TotalProcessorTime - processResourcesAtStart.TotalProcessorTime).TotalMilliseconds : null;
+            result.Run.OperationalMetrics.ValidatorProcessResources = new ValidatorProcessResourceMetrics(
+                processorTimeDelta,
+                processResourcesAtStart?.WorkingSetBytes > 0 ? processResourcesAtStart.WorkingSetBytes : null,
+                processResourcesAtEnd?.WorkingSetBytes > 0 ? processResourcesAtEnd.WorkingSetBytes : null);
             result.Run.OperationalMetrics.EvidenceCoverageRatio = result.Assurance?.EvidenceSummary.EvidenceCoverageRatio
                 ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage).EvidenceCoverageRatio;
             return result;
@@ -679,6 +692,16 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             Summary = testResult.Message,
             Findings = testResult.Findings.ToList()
         });
+    }
+
+    private ValidatorProcessResourceSnapshot? CaptureProcessResources()
+    {
+        try { return _processResourceSampler.Capture(); }
+        catch (Exception exception)
+        {
+            _logger.LogDebug("Validator process resource observation unavailable ({ExceptionType}).", exception.GetType().Name);
+            return null;
+        }
     }
 
     private static void PopulateCoverage(ValidationResult result, ValidationScenarios categories, ValidationStatus? terminalStatus = null)

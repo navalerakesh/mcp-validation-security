@@ -307,7 +307,7 @@ async function loadResultJson(dir: string): Promise<Record<string, unknown> | un
 function isCompatibleResultVersion(value: unknown): boolean {
   if (typeof value !== "string") return false;
   const parts = value.split(".");
-  return parts.length === 3 && parts[0] === "2" && parts.every(part =>
+  return parts.length === 3 && (parts[0] === "2" || parts[0] === "3") && parts.every(part =>
     part.length <= 10 && /^(0|[1-9][0-9]*)$/.test(part) && Number(part) <= 2147483647);
 }
 

@@ -56,10 +56,10 @@ public class MarkdownReportGenerator : IReportGenerator
         if (result.Run.OperationalMetrics is { } operations)
         {
             sb.AppendLine($"| **Validator Overhead** | {operations.ValidatorOverheadMs:F1} ms |");
-            sb.AppendLine($"| **Target Latency (50th / 95th / 99th Percentile)** | {operations.TargetLatencyP50Ms:F1} / {operations.TargetLatencyP95Ms:F1} / {operations.TargetLatencyP99Ms:F1} ms |");
-            sb.AppendLine($"| **Retries / Queue 95th Percentile** | {operations.RetryCount} / {operations.QueueTimeP95Ms:F1} ms |");
-            sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {operations.ThroughputRequestsPerSecond:F2} requests/second |");
-            sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {operations.ErrorRate:P1} aggregate failure rate |");
+            sb.AppendLine($"| **Target Latency (50th / 95th / 99th Percentile)** | {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP50Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} / {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP95Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} / {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP99Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} |");
+            sb.AppendLine($"| **Retries / Queue 95th Percentile** | {operations.RetryCount} / {ReportContextFormatter.FormatOperationalMetric(operations.QueueTimeP95Ms, operations.QueueTimeSampleCount > 0, "F1", "ms")} |");
+            sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {ReportContextFormatter.FormatOperationalMetric(operations.ThroughputRequestsPerSecond, operations.TotalRunDurationMs > 0, "F2", "requests/second")} |");
+            sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {ReportContextFormatter.FormatOperationalMetric(operations.ErrorRate, operations.RequestsCompleted > 0, "P1")} aggregate failure rate |");
             sb.AppendLine($"| **Budget / Rejected Responses** | {operations.RequestBudgetLimit} / {operations.TruncatedResponseCount} |");
             sb.AppendLine($"| **Operational Evidence Coverage** | {operations.EvidenceCoverageRatio:P1} |");
         }
@@ -789,6 +789,14 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| Deterministic validator overhead | {metrics.ValidatorOverheadMs:F1} ms |");
         sb.AppendLine($"| Requests started / completed / failed | {metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed} |");
         sb.AppendLine($"| Retained latency / queue samples | {metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount} |");
+        sb.AppendLine($"| Latency sample window | {ReportContextFormatter.FormatMetricWindow(metrics.TargetLatencyWindow)} |");
+        sb.AppendLine($"| Queue sample window | {ReportContextFormatter.FormatMetricWindow(metrics.QueueTimeWindow)} |");
+        if (metrics.ValidatorProcessResources is { } resources)
+        {
+            sb.AppendLine($"| Validator process CPU time | {ReportContextFormatter.FormatOperationalMetric(resources.ProcessorTimeDeltaMs, true, "F1", "ms")} |");
+            sb.AppendLine($"| Validator process working set (start / end) | {ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetStartBytes, true, "F0", "bytes")} / {ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetEndBytes, true, "F0", "bytes")} |");
+            sb.AppendLine("| Resource observation scope | Concurrent process activity included; not target-server telemetry |");
+        }
         sb.AppendLine($"| Evidence coverage | {metrics.EvidenceCoverageRatio:P1} |");
         sb.AppendLine();
         sb.AppendLine("### Stage And Rule Timings");

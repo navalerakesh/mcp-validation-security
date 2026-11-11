@@ -13,7 +13,7 @@ after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive:
 
 const canonicalResult = {
   documentType: "mcpval.assurance-result",
-  documentSchemaVersion: "2.3.0",
+  documentSchemaVersion: "3.0.0",
   assurance: { profile: { profileId: "inventory" }, certificateEligibility: { status: "ineligible" } },
 };
 
@@ -46,7 +46,8 @@ if (outputIndex >= 0) {
     const canonical = ${JSON.stringify(canonicalResult)};
     const body = JSON.stringify(layout === "empty-object" ? {}
       : layout === "unrelated" ? { ...canonical, documentType: "unrelated.document" }
-      : layout === "future-major" ? { ...canonical, documentSchemaVersion: "3.0.0" }
+      : layout === "future-major" ? { ...canonical, documentSchemaVersion: "4.0.0" }
+      : layout === "legacy-2" ? { ...canonical, documentSchemaVersion: "2.3.0" }
       : layout === "invalid-version" ? { ...canonical, documentSchemaVersion: "2.01.0" }
       : layout === "legacy-v1" ? { overallStatus: "NeedsReview", complianceScore: 62 } : canonical);
     const padding = layout === "oversized" ? " ".repeat(${config.maximumCliOutputBytes} + 1)
@@ -70,16 +71,17 @@ async function createMockCli(): Promise<string> {
   return scriptPath;
 }
 
-for (const layout of ["flat", "bundle", "staging", "multiple", "missing", "exact-limit", "oversized", "hidden", "empty-object", "unrelated", "future-major", "invalid-version", "legacy-v1"]) {
+for (const layout of ["flat", "bundle", "staging", "multiple", "missing", "exact-limit", "oversized", "hidden", "empty-object", "unrelated", "future-major", "invalid-version", "legacy-v1", "legacy-2"]) {
   test(`runCli admits only one completed result: ${layout}`, async () => {
     const mockCliPath = await createMockCli();
     const previousCliPath = process.env[config.cliPathEnvVar];
     process.env[config.cliPathEnvVar] = mockCliPath;
     try {
       const result = await runCli({ command: "validate", args: ["--mock-layout", layout], captureResultJson: true });
-      const accepted = layout === "flat" || layout === "bundle" || layout === "exact-limit";
+      const accepted = layout === "flat" || layout === "bundle" || layout === "exact-limit" || layout === "legacy-2";
       assert.equal(result.exitCode, accepted ? 0 : 70);
-      assert.deepEqual(result.resultJson, accepted ? canonicalResult : undefined);
+      assert.deepEqual(result.resultJson, accepted
+        ? layout === "legacy-2" ? { ...canonicalResult, documentSchemaVersion: "2.3.0" } : canonicalResult : undefined);
       const invocation = JSON.parse(result.stdout) as { outputDir: string };
       assert.equal(existsSync(dirname(invocation.outputDir)), false);
     } finally {

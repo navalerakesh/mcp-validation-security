@@ -220,7 +220,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 });
             }
 
-            result.ResourceUsage = new ResourceUsageMetrics { WithinAcceptableLimits = true };
+            result.ResourceUsage = new ResourceUsageMetrics();
             result.Throughput = new ThroughputMetrics
             {
                 RequestsPerSecond = requestsPerSecond,
@@ -480,37 +480,79 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     {
         return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Resource Exhaustion", async (result, ct) =>
         {
-            var exhaustionEvents = new List<string>();
+            var transportEvents = result.PerformanceBottlenecks;
+            var observedFailedResponses = 0;
 
             foreach (var resourceType in resourceTypes)
             {
+                var tasks = new List<Task<JsonRpcResponse>>();
+                var errors = new List<Exception>();
                 try
                 {
-                    var tasks = new List<Task<JsonRpcResponse>>();
-                    for (int i = 0; i < 50; i++)
+                    for (var requestIndex = 0; requestIndex < 50; requestIndex++)
                     {
-                        tasks.Add(_httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct));
-                    }
-                    var responses = await Task.WhenAll(tasks);
-                    var failedResponses = responses.Count(response => !response.IsSuccess);
-                    if (failedResponses > 0)
-                    {
-                        exhaustionEvents.Add($"Resource exhaustion probe for {resourceType} returned {failedResponses}/{responses.Length} failed responses.");
+                        ct.ThrowIfCancellationRequested();
+                        tasks.Add(_httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct)
+                            ?? throw new InvalidOperationException("Resource-probe dispatch returned no operation."));
                     }
                 }
-                catch (Exception ex)
+                catch (Exception exception) { errors.Add(exception); }
+                try { await Task.WhenAll(tasks); }
+                catch { }
+
+                var responses = tasks.Where(task => task.IsCompletedSuccessfully).Select(task => task.Result).ToArray();
+                errors.AddRange(tasks.Where(task => task.IsFaulted).SelectMany(task => task.Exception!.Flatten().InnerExceptions));
+                if (tasks.Any(task => task.IsCanceled)) errors.Add(new OperationCanceledException());
+                var failedResponses = responses.Count(response => response != null && !response.IsSuccess && response.StatusCode > 0 &&
+                    !ValidationReliability.IsRetryableHttpStatusCode(response.StatusCode) &&
+                    !AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication &&
+                    response.ProbeContext?.ResponseClassification != ProbeResponseClassification.PolicyBlocked &&
+                    !JsonRpcResponseInspector.IsMethodNotFound(response));
+                observedFailedResponses += failedResponses;
+                if (failedResponses > 0)
+                    transportEvents.Add($"Transport probe for {resourceType} returned {failedResponses}/{tasks.Count} failed responses; resource exhaustion was not established.");
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    exhaustionEvents.Add($"Resource exhaustion detected for {resourceType}: {ex.Message}");
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Cancelled;
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                if (errors.Any(ValidationReliability.IsPolicyBlockedException) ||
+                    responses.Any(response => response?.ProbeContext?.ResponseClassification == ProbeResponseClassification.PolicyBlocked))
+                {
+                    result.Status = TestStatus.Inconclusive;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Blocked;
+                    result.Message = "Resource probe was blocked by local execution policy.";
+                    return result;
+                }
+                if (responses.Any(response => AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication))
+                {
+                    result.Status = TestStatus.AuthRequired;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.AuthRequired;
+                    result.Message = "Resource probe requires authentication; resource telemetry remains unavailable.";
+                    return result;
+                }
+                if (errors.Any(exception => exception is not (TimeoutException or OperationCanceledException or HttpRequestException or IOException or NotSupportedException)))
+                {
+                    result.Status = TestStatus.Error;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Unavailable;
+                    result.Message = "Resource probe encountered a local framework error; completed transport evidence was retained.";
+                    return result;
+                }
+                if (errors.Count > 0 || responses.Any(response => response == null || response.StatusCode <= 0 ||
+                    ValidationReliability.IsRetryableHttpStatusCode(response.StatusCode) || JsonRpcResponseInspector.IsMethodNotFound(response)))
+                {
+                    result.Status = observedFailedResponses > 0 ? TestStatus.Failed : TestStatus.Inconclusive;
+                    result.MeasurementDisposition = observedFailedResponses == 0 && errors.Any(exception => exception is TimeoutException or OperationCanceledException)
+                        ? PerformanceMeasurementDisposition.TimedOut : PerformanceMeasurementDisposition.Unavailable;
+                    result.Message = "Resource probe had incomplete transport evidence; completed outcomes were retained without resource-exhaustion claims.";
+                    return result;
                 }
             }
 
-            result.ResourceUsage = new ResourceUsageMetrics
-            {
-                WithinAcceptableLimits = exhaustionEvents.Count == 0,
-                ResourceExhaustionEvents = exhaustionEvents
-            };
-
-            result.Status = exhaustionEvents.Count == 0 ? TestStatus.Passed : TestStatus.Failed;
+            result.ResourceUsage = new ResourceUsageMetrics();
+            result.MeasurementDisposition = PerformanceMeasurementDisposition.Unavailable;
+            result.Message = "Transport outcomes were observed; target CPU, memory and resource-limit telemetry was not measured.";
+            result.Status = transportEvents.Count == 0 ? TestStatus.Inconclusive : TestStatus.Failed;
             return result;
         }, cancellationToken);
     }

@@ -126,14 +126,22 @@ internal sealed class ValidationHtmlReportComposer
         var sb = new StringBuilder();
         sb.AppendLine("      <section class=\"section\">");
         sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">Operations</div><h2>Validator And Target Timing</h2></div></div>");
-        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table data-table--operations\"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>");
         AddRow("Total run wall time", $"{metrics.TotalRunDurationMs:F1} ms");
         AddRow("Deterministic validator overhead", $"{metrics.ValidatorOverheadMs:F1} ms");
         AddRow("Requests started / completed / failed", $"{metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed}");
         AddRow("Retained latency / queue samples", $"{metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount}");
+        AddRow("Latency sample window", ReportContextFormatter.FormatMetricWindow(metrics.TargetLatencyWindow));
+        AddRow("Queue sample window", ReportContextFormatter.FormatMetricWindow(metrics.QueueTimeWindow));
+        if (metrics.ValidatorProcessResources is { } resources)
+        {
+            AddRow("Validator process CPU time", ReportContextFormatter.FormatOperationalMetric(resources.ProcessorTimeDeltaMs, true, "F1", "ms"));
+            AddRow("Validator process working set (start / end)", $"{ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetStartBytes, true, "F0", "bytes")} / {ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetEndBytes, true, "F0", "bytes")}");
+            AddRow("Resource observation scope", "Concurrent process activity included; not target-server telemetry");
+        }
         AddRow("Evidence coverage", $"{metrics.EvidenceCoverageRatio:P1}");
         sb.AppendLine("        </tbody></table></div>");
-        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th>Stage / Rule</th><th>Duration</th></tr></thead><tbody>");
+        sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table data-table--operations\"><thead><tr><th>Stage / Rule</th><th>Duration</th></tr></thead><tbody>");
         foreach (var stage in metrics.StageDurationMs.OrderBy(pair => pair.Key, StringComparer.Ordinal))
         {
             AddRow(stage.Key, $"{stage.Value:F3} ms");

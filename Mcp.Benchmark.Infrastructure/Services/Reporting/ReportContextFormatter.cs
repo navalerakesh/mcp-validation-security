@@ -8,6 +8,17 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class ReportContextFormatter
 {
+    internal static string FormatOperationalMetric(double? value, bool measured, string format, string unit = "") =>
+        measured && value is { } number && double.IsFinite(number) && number >= 0
+            ? number.ToString(format, CultureInfo.InvariantCulture) + (unit.Length == 0 ? string.Empty : " " + unit)
+            : "Unavailable";
+
+    internal static string FormatMetricWindow(MetricSampleWindow? window) =>
+        window is { ObservedCount: >= 0, RetainedCount: >= 0, Capacity: > 0, RejectedCount: >= 0 } &&
+        window.RetainedCount <= window.Capacity && window.DiscardedCount >= 0
+            ? FormattableString.Invariant($"Most recent {window.RetainedCount} of {window.ObservedCount} observations; {window.DiscardedCount} discarded; {window.RejectedCount} rejected")
+            : "Sample window unavailable";
+
     private const int MaxDisplayValueLength = 180;
 
     private static readonly string[] PreferredKeyOrder =

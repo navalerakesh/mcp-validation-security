@@ -296,6 +296,10 @@ internal static class BoundedArtifactReader
             throw new CliUsageException("Validation artifact is missing its document type or schema version.");
         }
 
+        foreach (var name in new[] { "documentType", "documentSchemaVersion" })
+            if (root.EnumerateObject().Where(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)).Skip(1).Any())
+                throw new CliUsageException("Validation artifact contains ambiguous document identity aliases.");
+
         var type = documentType.GetString();
         var version = schemaVersion.GetString();
         if (!string.Equals(type, ArtifactContracts.ValidationResultDocumentType, StringComparison.Ordinal) ||
@@ -306,7 +310,7 @@ internal static class BoundedArtifactReader
 
         ValidateRecordedAssessmentTimes(root);
         return JsonSerializer.Deserialize<ValidationResult>(
-            RemoveRuntimeOnlyFields(json),
+            NormalizeSavedResult(json, version!),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
     }
@@ -326,7 +330,7 @@ internal static class BoundedArtifactReader
         }
     }
 
-    private static string RemoveRuntimeOnlyFields(string json)
+    private static string NormalizeSavedResult(string json, string version)
     {
         var root = JsonNode.Parse(json, documentOptions: new JsonDocumentOptions
         {
@@ -340,7 +344,46 @@ internal static class BoundedArtifactReader
             payload["tools"] = new JsonArray();
         }
 
+        if (version.StartsWith("2.", StringComparison.Ordinal) && root is JsonObject artifact)
+        {
+            var run = GetArtifactProperty(artifact, "run") as JsonObject
+                ?? throw new CliUsageException("Validation artifact is missing run metadata.");
+            if (GetArtifactProperty(run, "operationalMetrics") is JsonObject metrics)
+            {
+                NormalizeUnmeasuredMetrics(metrics, "targetLatencySampleCount", "targetLatencyP50Ms", "targetLatencyP95Ms", "targetLatencyP99Ms");
+                NormalizeUnmeasuredMetrics(metrics, "queueTimeSampleCount", "queueTimeP95Ms");
+                NormalizeUnmeasuredMetrics(metrics, "requestsCompleted", "errorRate");
+                NormalizeUnmeasuredMetrics(metrics, "totalRunDurationMs", "throughputRequestsPerSecond");
+            }
+            if (GetArtifactProperty(artifact, "measurements") is JsonObject measurements &&
+                GetArtifactProperty(measurements, "performanceTesting") is JsonObject performance &&
+                GetArtifactProperty(performance, "resourceUsage") is JsonObject)
+            {
+                performance[FindArtifactPropertyName(performance, "resourceUsage") ?? "resourceUsage"] =
+                    JsonSerializer.SerializeToNode(new ResourceUsageMetrics(), ArtifactJsonOptions.Create(writeIndented: false));
+            }
+            run[FindArtifactPropertyName(run, "sourceDocumentSchemaVersion") ?? "sourceDocumentSchemaVersion"] = version;
+            artifact["documentSchemaVersion"] = ArtifactContracts.ValidationResultSchemaVersion;
+        }
+
         return root?.ToJsonString() ?? json;
+    }
+
+    private static void NormalizeUnmeasuredMetrics(JsonObject metrics, string denominator, params string[] values)
+    {
+        if (GetArtifactProperty(metrics, denominator) is JsonValue count && count.TryGetValue<double>(out var observed) && observed > 0) return;
+        foreach (var value in values) metrics[FindArtifactPropertyName(metrics, value) ?? value] = null;
+    }
+
+    private static JsonNode? GetArtifactProperty(JsonObject value, string name) =>
+        FindArtifactPropertyName(value, name) is { } key ? value[key] : null;
+
+    private static string? FindArtifactPropertyName(JsonObject value, string name)
+    {
+        var matches = value.Select(property => property.Key)
+            .Where(key => string.Equals(key, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+        if (matches.Length > 1) throw new CliUsageException("Validation artifact contains ambiguous metadata aliases.");
+        return matches.SingleOrDefault();
     }
 
     internal static async Task<string> ReadTextAsync(

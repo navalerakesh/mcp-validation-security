@@ -3,7 +3,7 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class ArtifactContracts
 {
     public const string SchemaVersion = "1.0.0";
-    public const string ValidationResultSchemaVersion = "2.3.0";
+    public const string ValidationResultSchemaVersion = "3.0.0";
     public const string AuditManifestSchemaVersion = "2.1.0";
     public const string ClientProfileSummarySchemaVersion = "2.0.0";
     public const string OfficialConformanceEvidenceSchemaVersion = "1.0.0";
@@ -40,7 +40,8 @@ public static class ArtifactContracts
 
         return currentVersion != null &&
             TryParseVersion(currentVersion, out var currentMajor) &&
-            candidateMajor == currentMajor;
+            (candidateMajor == currentMajor ||
+                documentType == ValidationResultDocumentType && currentMajor == 3 && candidateMajor == 2);
     }
 
     private static bool TryParseVersion(string? value, out int major)

@@ -40,7 +40,7 @@ public static class ValidationBaselineEvaluator
         return new AssuranceBaselineComparison
         {
             BaselineValidationId = baseline.ValidationId,
-            BaselineDocumentSchemaVersion = baseline.DocumentSchemaVersion,
+            BaselineDocumentSchemaVersion = baseline.Run.SourceDocumentSchemaVersion ?? baseline.DocumentSchemaVersion,
             ProfileId = current.Assurance.Profile.ProfileId,
             ProfileRevision = current.Assurance.Profile.Revision,
             CoreConformanceBefore = before.CoreConformance.Status,

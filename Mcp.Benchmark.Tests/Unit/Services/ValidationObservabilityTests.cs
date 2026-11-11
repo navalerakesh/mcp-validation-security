@@ -7,6 +7,77 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ValidationObservabilityTests
 {
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-1)]
+    public void Complete_ShouldRejectInvalidElapsedTime(double duration)
+    {
+        using var run = ValidationObservability.BeginRun("invalid-elapsed", 1);
+
+        FluentActions.Invoking(() => run.Complete(duration)).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    [InlineData(-1)]
+    public void Complete_ShouldRejectInvalidDurationSamplesWithoutInventingZero(double duration)
+    {
+        using var run = ValidationObservability.BeginRun("invalid-duration", 1);
+        ValidationObservability.RecordQueue(duration);
+        ValidationObservability.RecordRequestStarted("tools/list");
+        ValidationObservability.RecordRequestCompleted("tools/list", duration, success: false);
+
+        var metrics = run.Complete(1000);
+
+        metrics.RequestsCompleted.Should().Be(1);
+        metrics.RequestsFailed.Should().Be(1);
+        metrics.ErrorRate.Should().Be(1);
+        metrics.TargetLatencyP50Ms.Should().BeNull();
+        metrics.QueueTimeP95Ms.Should().BeNull();
+        var document = System.Text.Json.JsonSerializer.SerializeToNode(metrics, new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;
+        document["targetLatencyWindow"]!["rejectedCount"]!.GetValue<long>().Should().Be(1);
+        document["queueTimeWindow"]!["rejectedCount"]!.GetValue<long>().Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Complete_ShouldDistinguishAbsentMeasurementsFromMeasuredZero(bool measured)
+    {
+        using var run = ValidationObservability.BeginRun("zero-or-absent", 1);
+        if (measured)
+        {
+            ValidationObservability.RecordQueue(0);
+            ValidationObservability.RecordRequestStarted("tools/list");
+            ValidationObservability.RecordRequestCompleted("tools/list", 0, success: true);
+        }
+
+        var metrics = run.Complete(0);
+
+        if (measured)
+        {
+            metrics.TargetLatencyP50Ms.Should().Be(0);
+            metrics.TargetLatencyP95Ms.Should().Be(0);
+            metrics.TargetLatencyP99Ms.Should().Be(0);
+            metrics.QueueTimeP95Ms.Should().Be(0);
+            metrics.ErrorRate.Should().Be(0);
+        }
+        else
+        {
+            ((object?)metrics.TargetLatencyP50Ms).Should().BeNull();
+            ((object?)metrics.TargetLatencyP95Ms).Should().BeNull();
+            ((object?)metrics.TargetLatencyP99Ms).Should().BeNull();
+            ((object?)metrics.QueueTimeP95Ms).Should().BeNull();
+            ((object?)metrics.ErrorRate).Should().BeNull();
+        }
+        ((object?)metrics.ThroughputRequestsPerSecond).Should().BeNull("zero elapsed time cannot define a rate");
+        metrics.TargetLatencySampleCount.Should().Be(measured ? 1 : 0);
+    }
+
     [Fact]
     public void Complete_ShouldAggregateOperationalMetricsAndPercentiles()
     {
@@ -86,6 +157,13 @@ public sealed class ValidationObservabilityTests
 
         metrics.RequestsCompleted.Should().Be(10_000);
         metrics.TargetLatencySampleCount.Should().Be(4096);
+        var document = System.Text.Json.JsonSerializer.SerializeToNode(metrics, new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;
+        document["targetLatencyWindow"].Should().NotBeNull();
+        document["targetLatencyWindow"]!["observedCount"]!.GetValue<long>().Should().Be(10_000);
+        document["targetLatencyWindow"]!["retainedCount"]!.GetValue<int>().Should().Be(4096);
+        document["targetLatencyWindow"]!["discardedCount"]!.GetValue<long>().Should().Be(5904);
+        document["targetLatencyWindow"]!["strategy"]!.GetValue<string>().Should().Be("mostRecent");
         metrics.StageDurationMs.Keys.Should().NotContain(key => key.Contains("untrusted-method", StringComparison.Ordinal));
     }
 

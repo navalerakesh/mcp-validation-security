@@ -152,7 +152,7 @@ public class McpValidatorServiceUnitTests
         _validatorService = CreateService(_scenarioPackRegistry);
     }
 
-    private McpValidatorService CreateService(IValidationPackRegistry<IValidationScenarioPack> scenarioRegistry) =>
+    private McpValidatorService CreateService(IValidationPackRegistry<IValidationScenarioPack> scenarioRegistry, IValidatorProcessResourceSampler? resourceSampler = null) =>
         new McpValidatorService(
             _protocolValidatorMock.Object,
             _toolValidatorMock.Object,
@@ -170,7 +170,49 @@ public class McpValidatorServiceUnitTests
             _scoringStrategyMock.Object,
             _healthCheckServiceMock.Object,
             _telemetryServiceMock.Object,
-            _loggerMock.Object);
+            _loggerMock.Object,
+            resourceSampler);
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("unavailable")]
+    [InlineData("regressing")]
+    public async Task ValidateServerAsync_ProcessResourceFaults_ShouldNotInventMeasurements(string mode)
+    {
+        var sampler = new Mock<IValidatorProcessResourceSampler>();
+        if (mode == "unavailable") sampler.Setup(value => value.Capture()).Throws(new InvalidOperationException("synthetic-resource-canary"));
+        else sampler.SetupSequence(value => value.Capture())
+            .Returns(new ValidatorProcessResourceSnapshot(TimeSpan.FromMilliseconds(10), 100))
+            .Returns(new ValidatorProcessResourceSnapshot(TimeSpan.FromMilliseconds(mode == "valid" ? 25 : 5), 200));
+
+        var result = await CreateService(_scenarioPackRegistry, sampler.Object).ValidateServerAsync(new McpValidatorConfiguration
+            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+
+        result.CriticalErrors.Should().BeEmpty();
+        var resources = result.Run.OperationalMetrics!.ValidatorProcessResources!;
+        resources.ProcessorTimeDeltaMs.Should().Be(mode == "valid" ? 15 : null);
+        resources.WorkingSetStartBytes.Should().Be(mode == "unavailable" ? null : 100);
+        resources.WorkingSetEndBytes.Should().Be(mode == "unavailable" ? null : 200);
+        JsonSerializer.Serialize(result).Should().NotContain("synthetic-resource-canary");
+        sampler.Verify(value => value.Capture(), Times.Exactly(2));
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_ShouldAttributeMeasuredResourcesToValidatorProcess()
+    {
+        var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
+            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+        var document = JsonSerializer.SerializeToNode(result.CloneWithoutSecrets(), new JsonSerializerOptions
+            { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
+        var resources = document["run"]!["operationalMetrics"]!["validatorProcessResources"];
+
+        resources.Should().NotBeNull();
+        resources!["scope"]!.GetValue<string>().Should().Be("validatorProcess");
+        resources["includesConcurrentActivity"]!.GetValue<bool>().Should().BeTrue();
+        resources["processorTimeDeltaMs"]!.GetValue<double>().Should().BeGreaterThanOrEqualTo(0);
+        resources["workingSetStartBytes"]!.GetValue<long>().Should().BeGreaterThan(0);
+        resources["workingSetEndBytes"]!.GetValue<long>().Should().BeGreaterThan(0);
+    }
 
     [Theory]
     [InlineData(false, false, false)]

@@ -219,6 +219,9 @@ public sealed class ValidationRunDocument
 
     public string? SchemaVersion { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceDocumentSchemaVersion { get; set; }
+
     public string? TargetIdentitySha256 { get; set; }
 
     public string? ExecutionPlanSha256 { get; set; }

@@ -6,18 +6,25 @@ MCP Validator V2 separates deterministic observations, typed claims, evidence de
 
 Heuristic rules are review-only unless a versioned labeled corpus demonstrates all default-blocking thresholds:
 
-- at least 100 labeled samples;
+- at least 100 explicitly held-out labeled samples;
 - both expected-positive and expected-negative samples, with non-empty, unique sample IDs within each rule;
+- at least three source groups and two scenario families, each containing classified positive and negative controls;
+- no source group contributing more than 50% of holdout observations, and no holdout source group used for tuning any rule in the submitted corpus;
+- at least 95% held-out prediction coverage; abstentions remain explicit and cannot substitute for negative predictions;
 - precision of at least 95%;
 - recall of at least 90%;
 - false-positive rate of at most 5%;
 - false-negative rate of at most 10%.
 
-`RuleCalibrationEvaluator` calculates the confusion matrix and metrics from individual labeled samples. Empty, undersized, or one-class corpora fail closed. Official specification failures and directly demonstrated deterministic security control failures are authority-based evidence and do not become heuristics merely because they are not statistically calibrated.
+`RuleCalibrationEvaluator` retains whole-rule diagnostics in `Metrics` and uses only `HoldoutMetrics` for eligibility. Every submitted row must declare its partition and provenance, including rows for other rules; unknown partitions cannot establish source isolation. `Partition` is explicit (`Unspecified`, `Tuning`, `Holdout`); `SourceGroupId` and `ScenarioFamily` are required provenance, along with protocol and transport labels. Group/family identity is trimmed and compared ordinally without case sensitivity. Empty, undersized, unpartitioned, concentrated, leaked or class-confounded evidence fails closed. Admission is bounded to 100,000 total samples and 512 characters per identifier. Official specification failures and directly demonstrated deterministic security control failures remain authority-based evidence.
 
 The initial `rule-quality-v2.json` corpus documents known behavior of `MCP.CONTENT.SystemImpact`, including benign destructive names and dangerous operations missed by name matching. It intentionally does not meet the minimum sample count, so the rule remains review-only.
 
-Calibration policy revision `2026-11-09.1` explicitly enforces class support and sample identity. Earlier revision `2026-11-05.1` could accept a positive-only corpus despite the previous one-class fail-closed documentation. Unique IDs do not prove independent observations or scenario diversity; those still require corpus review. Undefined numeric rates retain their legacy zero representation and must not be interpreted as measured accuracy without the corresponding class counts.
+Calibration policy revision `2026-11-10.1` adds holdout, provenance, diversity and abstention admission to the class/identity protections introduced in `2026-11-09.1`. Each decision records its policy revision. Earlier `2026-11-05.1` could accept a positive-only corpus. Declared groups do not prove real-world independence or trustworthy labels: provenance still requires review. Synthetic tests qualify the gate implementation, not a heuristic rule's production accuracy; the original small corpus remains non-blocking.
+
+Eligibility is a versioned point-estimate policy, not a statistical confidence interval, independent certification or automatic rule promotion. Human-reviewed corpus provenance and an approved rule revision remain necessary.
+
+A null `ObservedPositive` is an abstention, not a false negative or true negative. Recall divides true positives by all expected positives, including abstentions. False-positive and false-negative rates use their classified class denominators; abstentions cannot dilute those observed rates. Both classes must have classified evidence. Undefined rates are null, with explicit counts and eligibility reasons, never invented zero accuracy. Source partition isolation applies across rule IDs even though quality metrics remain rule-local.
 
 Eligibility compares unrounded ratios; serialized metrics remain rounded to four decimal places for compatibility. A displayed threshold value does not override an underlying just-outside result. Failure reasons retain the exact numerator/denominator and use culture-invariant formatting. Undefined precision/recall are described by missing-evidence reasons rather than numeric threshold claims. Equivalent input permutations select stable transport labels before case-insensitive deduplication.
 
