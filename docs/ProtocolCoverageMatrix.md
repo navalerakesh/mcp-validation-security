@@ -15,6 +15,18 @@ This matrix describes executable MCP Validator coverage. `Validated` means deter
 
 `--protocol-era legacy --mcpspec latest` resolves to `2025-11-25`. Explicit cross-era combinations fail before target contact.
 
+Positive modern HTTP probes use `server/discover`, not the removed `ping` method. For `2026-07-28`, present tool `structuredContent` may be any JSON value, including explicit null, and must satisfy an advertised output schema. The field is object-shaped in `2025-06-18` and `2025-11-25`; the validator does not impose that later rule on extension fields in `2024-11-05` or `2025-03-26`. Absence and explicit null are distinct. The dated modern embedded schema has SHA-256 `e8c8ae56f7dd8eab465fb2740db54042761c4f9e0e19b23b98504cec27f4c91d`; the June-2025 introduction schema has SHA-256 `1bcc5c08022443ffb12aed2da6b5d59fb74fc46c3dc0b59a805c0fb29f212f4d`.
+
+`roots/list` and `sampling/createMessage` are server-to-client requests, not server capability probes. Optional-method observations separate declarations from attempted probes and supported/unsupported/unknown evidence. A modern logging declaration does not prove a logging operation was exercised. Authentication failures, unavailable responses and local policy denial do not become advertised-capability mismatch findings.
+
+Optional method evidence requires a correlated request ID, a valid dated response envelope and the method's result schema. Logging probes send a schema-valid level. Completion preparation currently selects an observed prompt argument from bounded catalog metadata; it never invents a reference or sends null parameters. A missing usable prompt reference, including resource-template-only completion surfaces, leaves completion unattempted and unknown rather than unsupported. Preparation inspects at most 4,096 argument entries; failures identify their preparatory method separately from the unattempted completion method.
+
+SDK client caching uses one transient configuration/credential snapshot and unambiguous fingerprints of effective routing and credential fields. Caller cancellation stops that caller's wait; factory disposal owns cancellation and draining of initialization and invalidated cleanup. Cleanup failures remain errors rather than successful disposal receipts.
+
+Ordinary STDIO RPCs retain selected protocol and process identity, reject unrelated response IDs, and tolerate at most 64 interleaved notifications within the response byte budget and one overall response timeout. Cancellation or an incomplete exchange makes the session unavailable for subsequent ordinary/raw/structured probes until explicit restart. Timeout recovery requires a correlated drained response and cannot convert parser-boundary evidence into recovery credit.
+
+Configured Safe mode admits discovery and lifecycle operations, not active/raw protocol probe purposes merely because their payload names a discovery method. SDK HTTP envelopes are bounded and checked before dispatch; passive GET/HEAD and bodyless session-bearing DELETE cleanup remain available. Standard mode retains explicitly selected active behavior; elevated mode requires risk acknowledgement. These application checks are not a network sandbox or proof that arbitrary generated tool arguments are harmless.
+
 ## Feature Coverage
 
 | Feature | Legacy | Modern HTTP | Modern STDIO | Evidence |

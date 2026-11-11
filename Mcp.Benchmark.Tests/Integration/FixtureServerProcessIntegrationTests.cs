@@ -15,6 +15,122 @@ namespace Mcp.Benchmark.Tests.Integration;
 public class FixtureServerProcessIntegrationTests
 {
     [Theory]
+    [InlineData(1, true, ExecutionPolicyDefaults.DefaultMaxResponseBytes)]
+    [InlineData(64, true, ExecutionPolicyDefaults.DefaultMaxResponseBytes)]
+    [InlineData(65, false, ExecutionPolicyDefaults.DefaultMaxResponseBytes)]
+    [InlineData(3, false, 256)]
+    public async Task StdioResponse_ShouldBoundInterleavedNotifications(int notifications, bool expectedSuccess, int byteLimit)
+    {
+        var command = BuildFixtureCommand("compliant") + $" --notifications-before-response {notifications}";
+        await using var adapter = await StartFixtureServerAsync(command);
+        adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxResponseBytes = byteLimit });
+
+        var response = await adapter.CallAsync(command, "ping");
+
+        response.IsSuccess.Should().Be(expectedSuccess);
+        if (expectedSuccess)
+        {
+            using var document = JsonDocument.Parse(response.RawJson!);
+            document.RootElement.GetProperty("id").GetString().Should().Be(response.ProbeContext!.RequestId);
+        }
+        else ValidationOutcomeTaxonomy.From(response.ProbeContext!.ResponseClassification).Should().Be(ValidationOutcome.Blocked);
+    }
+
+    [Fact]
+    public async Task StdioResponse_ShouldNotAcceptUnrelatedRequestIdentity()
+    {
+        var command = BuildFixtureCommand("compliant") + " --mismatch-response-id";
+        await using var adapter = await StartFixtureServerAsync(command);
+
+        var response = await adapter.CallAsync(command, "ping");
+
+        response.IsSuccess.Should().BeFalse();
+        response.ProbeContext!.ResponseClassification.Should().Be(ProbeResponseClassification.ParserBoundary);
+        response.RawJson.Should().Contain("unrelated-fixture-response");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QueuedStdioRequest_ShouldRetainSelectedProtocol(bool raw)
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+        adapter.SetProtocolVersion("2025-11-25");
+        var gate = (SemaphoreSlim)typeof(StdioMcpClientAdapter).GetField("_lock",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(adapter)!;
+        await gate.WaitAsync();
+        Task<JsonRpcResponse> pending;
+        try
+        {
+            pending = raw
+                ? adapter.SendRawJsonAsync(command, "{\"jsonrpc\":\"2.0\",\"id\":\"queued\",\"method\":\"ping\"}", CancellationToken.None)
+                : adapter.CallAsync(command, "ping");
+            adapter.SetProtocolVersion("2026-07-28");
+        }
+        finally { gate.Release(); }
+
+        var response = await pending.WaitAsync(TimeSpan.FromSeconds(10));
+
+        response.IsSuccess.Should().BeTrue();
+        response.ProbeContext!.ProtocolVersion.Should().Be("2025-11-25");
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task CancelledStdioRequest_ShouldPreventUncertainSessionReuse(bool raw, bool structuredProbe)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mcpval-cancelled-session-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var audit = Path.Combine(root, "methods.jsonl");
+        var command = BuildFixtureCommand("compliant") + $" --hold-method tools/list --audit-methods \"{audit}\"";
+        try
+        {
+            await using var adapter = await StartFixtureServerAsync(command);
+            using var cancellation = new CancellationTokenSource();
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var pending = raw
+                ? adapter.SendRawJsonAsync(command, "{\"jsonrpc\":\"2.0\",\"id\":\"cancelled\",\"method\":\"tools/list\"}", cancellation.Token)
+                : adapter.CallAsync(command, "tools/list", null, cancellation.Token);
+            try
+            {
+                while (!File.Exists(audit) || !(await File.ReadAllTextAsync(audit, deadline.Token)).Contains("tools/list", StringComparison.Ordinal))
+                    await Task.Delay(10, deadline.Token);
+            }
+            finally { cancellation.Cancel(); }
+            await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+
+            var timeoutProbe = await adapter.ProbeTimeoutRecoveryAsync(command, deadline.Token);
+            timeoutProbe.Executed.Should().BeFalse();
+            timeoutProbe.GracefulRecovery.Should().BeFalse();
+            (await File.ReadAllTextAsync(audit, deadline.Token)).Should().NotContain("rpc.timeout.probe");
+
+            if (structuredProbe)
+            {
+                var next = await adapter.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
+                {
+                    Endpoint = command, ProbeId = "after-cancel", Kind = StdioTransportProbeKind.MessageExchange,
+                    RawMessage = "{\"jsonrpc\":\"2.0\",\"id\":\"next\",\"method\":\"prompts/list\"}"
+                }, deadline.Token);
+                next.IsSuccess.Should().BeFalse();
+                next.Executed.Should().BeFalse();
+                ValidationOutcomeTaxonomy.From(next.ProbeContext!.ResponseClassification).Should().Be(ValidationOutcome.Unavailable);
+            }
+            else
+            {
+                var next = await adapter.CallAsync(command, "prompts/list", null, deadline.Token);
+                next.IsSuccess.Should().BeFalse();
+                ValidationOutcomeTaxonomy.From(next.ProbeContext!.ResponseClassification).Should().Be(ValidationOutcome.Unavailable);
+            }
+            (await File.ReadAllTextAsync(audit, deadline.Token)).Should().NotContain("prompts/list");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
     [InlineData(JsonRpcErrorProbeSelection.None, 0)]
     [InlineData(JsonRpcErrorProbeSelection.ParseError, 1)]
     [InlineData(JsonRpcErrorProbeSelection.MethodNotFound, 1)]
@@ -368,10 +484,12 @@ public class FixtureServerProcessIntegrationTests
         metrics.QueueTimeSampleCount.Should().Be(2);
     }
 
-    [Fact]
-    public async Task StdioTimeoutRecovery_ShouldRecordFailedAttemptAndObservedRecovery()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task StdioTimeoutRecovery_ShouldRecordFailedAttemptAndObservedRecovery(bool mismatchedId)
     {
-        var command = BuildFixtureCommand("compliant");
+        var command = BuildFixtureCommand("compliant") + (mismatchedId ? " --mismatch-response-id" : string.Empty);
         await using var adapter = await StartFixtureServerAsync(command);
         using var telemetry = ValidationObservability.BeginRun("stdio-timeout", 2);
 
@@ -379,9 +497,9 @@ public class FixtureServerProcessIntegrationTests
         var metrics = telemetry.Complete(100);
 
         result.FailureObserved.Should().BeTrue();
-        result.GracefulRecovery.Should().BeTrue();
-        metrics.RequestsStarted.Should().Be(2);
-        metrics.RequestsCompleted.Should().Be(2);
+        result.GracefulRecovery.Should().Be(!mismatchedId);
+        metrics.RequestsStarted.Should().Be(mismatchedId ? 1 : 2);
+        metrics.RequestsCompleted.Should().Be(mismatchedId ? 1 : 2);
         metrics.RequestsFailed.Should().Be(1);
         metrics.QueueTimeSampleCount.Should().Be(2);
     }

@@ -103,7 +103,8 @@ internal static class SchemaValidationHelpers
         string responseDefinitionName,
         string? rawJson,
         ILogger logger,
-        out SchemaValidationResult? validationResult)
+        out SchemaValidationResult? validationResult,
+        string? fallbackDefinitionName = null)
     {
         validationResult = null;
         if (string.IsNullOrWhiteSpace(rawJson))
@@ -122,7 +123,13 @@ internal static class SchemaValidationHelpers
             using var schemaStream = schemaRegistry.GetSchema(protocolVersion, area: "protocol", name: "schema");
             using var schemaDocument = JsonDocument.Parse(schemaStream);
             var schemaRoot = JsonNode.Parse(schemaDocument.RootElement.GetRawText());
-            var definition = (schemaRoot?["$defs"] ?? schemaRoot?["definitions"])?[responseDefinitionName];
+            var definitions = schemaRoot?["$defs"] ?? schemaRoot?["definitions"];
+            var definition = definitions?[responseDefinitionName];
+            if (definition is null && fallbackDefinitionName != null)
+            {
+                responseDefinitionName = fallbackDefinitionName;
+                definition = definitions?[responseDefinitionName];
+            }
             if (definition is null)
             {
                 return false;
@@ -168,11 +175,12 @@ internal static class SchemaValidationHelpers
 
     private static JsonObject CreateDefinitionWrapper(JsonNode schemaRoot, string definitionName)
     {
+        var definitionsKeyword = schemaRoot["$defs"] is not null ? "$defs" : "definitions";
         var wrapper = new JsonObject
         {
             ["$schema"] = schemaRoot["$schema"]?.DeepClone(),
-            ["$defs"] = (schemaRoot["$defs"] ?? schemaRoot["definitions"])?.DeepClone(),
-            ["$ref"] = $"#/$defs/{definitionName}"
+            [definitionsKeyword] = schemaRoot[definitionsKeyword]?.DeepClone(),
+            ["$ref"] = $"#/{definitionsKeyword}/{definitionName}"
         };
         return wrapper;
     }

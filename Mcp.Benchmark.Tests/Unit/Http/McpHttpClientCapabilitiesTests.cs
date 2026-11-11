@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Exceptions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Http;
 using Mcp.Benchmark.Infrastructure.Validators;
@@ -20,6 +21,498 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 
 public class McpHttpClientCapabilitiesTests
 {
+    [Fact]
+    public async Task GovernedSdkHttp_SafeMode_ShouldPreserveDiscoveryAndSessionCleanup()
+    {
+        var methods = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy
+        {
+            Mode = ExecutionMode.Safe,
+            AllowedHosts = ["example.test"]
+        }));
+        using var policy = new GovernedRequestPolicyHandler(context)
+        {
+            InnerHandler = new AsyncRoutingHandler(async (request, token) =>
+            {
+                if (request.Method == HttpMethod.Delete)
+                {
+                    methods.Enqueue("DELETE");
+                    request.Headers.GetValues("MCP-Session-Id").Should().Equal("synthetic-owned-session");
+                    return new HttpResponseMessage(HttpStatusCode.OK);
+                }
+                if (request.Method == HttpMethod.Get)
+                    return new HttpResponseMessage(HttpStatusCode.MethodNotAllowed);
+                using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+                var root = document.RootElement;
+                var method = root.GetProperty("method").GetString()!;
+                methods.Enqueue(method);
+                if (method == "notifications/initialized") return new HttpResponseMessage(HttpStatusCode.Accepted);
+                object result = method switch
+                {
+                    "initialize" => new
+                    {
+                        protocolVersion = "2025-03-26",
+                        capabilities = new { tools = new { } },
+                        serverInfo = new { name = "owned-policy-fixture", version = "1.0" }
+                    },
+                    "tools/list" => new { tools = Array.Empty<object>() },
+                    _ => throw new InvalidOperationException("Unexpected synthetic fixture method.")
+                };
+                var response = CreateJsonResponse(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = root.GetProperty("id"), result }));
+                response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("application/json");
+                if (method == "initialize") response.Headers.Add("MCP-Session-Id", "synthetic-owned-session");
+                return response;
+            })
+        };
+        using var http = new HttpClient(policy);
+        await using var transport = new HttpClientTransport(new HttpClientTransportOptions
+        {
+            Endpoint = new Uri("https://example.test/mcp"),
+            TransportMode = HttpTransportMode.StreamableHttp
+        }, http, ownsHttpClient: false);
+        await using (var sdk = await McpClient.CreateAsync(transport, new McpClientOptions { ProtocolVersion = "2025-03-26" }))
+        {
+            var tools = await sdk.ListToolsAsync();
+            tools.Should().BeEmpty();
+        }
+
+        methods.Should().Equal("initialize", "notifications/initialized", "tools/list", "DELETE");
+    }
+
+    [Theory]
+    [InlineData("rpc")]
+    [InlineData("raw")]
+    [InlineData("timeout")]
+    [InlineData("interruption")]
+    public async Task ConfiguredSafeStdio_ShouldDenyActiveMethodBeforeSessionAccess(string path)
+    {
+        using var client = new StdioMcpClientAdapter(Mock.Of<ILogger<StdioMcpClientAdapter>>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Safe });
+        Func<Task> send = () => path switch
+        {
+            "raw" => client.SendRawJsonAsync("owned-command", "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\"}", CancellationToken.None),
+            "timeout" => client.ProbeTimeoutRecoveryAsync("owned-command"),
+            "interruption" => client.ProbeConnectionInterruptionRecoveryAsync("owned-command"),
+            _ => client.CallAsync("owned-command", "tools/call")
+        };
+
+        await send.Should().ThrowAsync<OperationAdmissionException>().WithMessage("*did not admit*");
+    }
+
+    [Theory]
+    [InlineData("GET", true)]
+    [InlineData("HEAD", true)]
+    [InlineData("PUT", false)]
+    [InlineData("PATCH", false)]
+    [InlineData("TRACE", false)]
+    [InlineData("OPTIONS", false)]
+    [InlineData("DELETE", false)]
+    public async Task GovernedSdkHttp_SafeMode_ShouldRejectUnclassifiedHttpOperations(string method, bool expectedContact)
+    {
+        var requests = 0;
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy { Mode = ExecutionMode.Safe, AllowedHosts = ["example.test"] }));
+        using var policy = new GovernedRequestPolicyHandler(context)
+            { InnerHandler = new RoutingHandler(_ => { requests++; return CreateJsonResponse("{}"); }) };
+        using var client = new HttpClient(policy);
+        using var request = new HttpRequestMessage(new HttpMethod(method), "https://example.test/mcp");
+
+        if (expectedContact) using (await client.SendAsync(request)) { }
+        else await FluentActions.Awaiting(() => client.SendAsync(request)).Should().ThrowAsync<OperationAdmissionException>();
+        requests.Should().Be(expectedContact ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("tools/list", true)]
+    [InlineData("tools/call", false)]
+    public async Task GovernedSdkHttp_SafeMode_ShouldAdmitOnlyKnownDiscovery(string method, bool expectedContact)
+    {
+        var requests = 0;
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy { Mode = ExecutionMode.Safe, AllowedHosts = ["example.test"] }));
+        using var policy = new GovernedRequestPolicyHandler(context)
+        {
+            InnerHandler = new RoutingHandler(_ => { requests++; return CreateJsonResponse("{}"); })
+        };
+        using var client = new HttpClient(policy);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://example.test/mcp")
+        {
+            Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method, @params = new { } }))
+        };
+
+        if (expectedContact) using (await client.SendAsync(request)) { }
+        else await FluentActions.Awaiting(() => client.SendAsync(request)).Should().ThrowAsync<OperationAdmissionException>().WithMessage("*did not admit*");
+        requests.Should().Be(expectedContact ? 1 : 0);
+    }
+
+    [Theory]
+    [InlineData("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":null}")]
+    [InlineData("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":-32700}")]
+    [InlineData("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{}}")]
+    [InlineData("{\"jsonrpc\":\"2.0\",\"id\":1,\"error\":{\"code\":\"-32700\",\"message\":\"Parse error\"}}")]
+    [InlineData("{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"method\":\"tools/list\"}")]
+    public async Task GovernedSdkHttp_SafeMode_ShouldRejectAmbiguousOrMalformedEnvelope(string body)
+    {
+        var requests = 0;
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy { Mode = ExecutionMode.Safe, AllowedHosts = ["example.test"] }));
+        using var policy = new GovernedRequestPolicyHandler(context)
+            { InnerHandler = new RoutingHandler(_ => { requests++; return CreateJsonResponse("{}"); }) };
+        using var client = new HttpClient(policy);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "https://example.test/mcp") { Content = new StringContent(body) };
+
+        await FluentActions.Awaiting(() => client.SendAsync(request)).Should().ThrowAsync<OperationAdmissionException>();
+        requests.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("tools/call", "rpc")]
+    [InlineData("tools/call", "raw")]
+    [InlineData("tools/call", "probe")]
+    [InlineData("resources/read", "rpc")]
+    [InlineData("prompts/get", "rpc")]
+    [InlineData("custom/write", "rpc")]
+    [InlineData("tools/list", "raw")]
+    [InlineData("tools/list", "probe")]
+    public async Task ConfiguredSafeMode_ShouldRejectActiveOperationsBeforeReceiver(string method, string path)
+    {
+        var requests = 0;
+        using var http = new HttpClient(new RoutingHandler(_ => { requests++; return CreateJsonResponse("{}"); }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Safe, AllowedHosts = ["example.test"], AllowPrivateAddresses = true });
+        var body = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method, @params = new { } });
+
+        ProbeContext? context;
+        if (path == "rpc") context = (await client.CallAsync("https://example.test/mcp", method)).ProbeContext;
+        else if (path == "raw") context = (await client.SendRawJsonAsync("https://example.test/mcp", body, CancellationToken.None)).ProbeContext;
+        else context = (await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest { Endpoint = "https://example.test/mcp", Body = body })).ProbeContext;
+
+        requests.Should().Be(0);
+        context.Should().NotBeNull();
+        ValidationOutcomeTaxonomy.From(context!.ResponseClassification).Should().Be(ValidationOutcome.Blocked);
+    }
+
+    [Theory]
+    [InlineData("rpc")]
+    [InlineData("raw")]
+    [InlineData("probe")]
+    public async Task ConnectionPolicyDenial_ShouldSurviveHttpWrappingWithoutRetry(string path)
+    {
+        var connections = 0;
+        using var sockets = new SocketsHttpHandler
+        {
+            UseProxy = false,
+            ConnectCallback = (_, _) =>
+            {
+                Interlocked.Increment(ref connections);
+                throw new OperationAdmissionException("Synthetic connection-policy denial.");
+            }
+        };
+        using var http = new HttpClient(sockets);
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy
+        {
+            Mode = ExecutionMode.Standard,
+            AllowedHosts = ["example.test"],
+            AllowPrivateAddresses = true
+        });
+        const string body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}";
+        ProbeContext? context;
+        if (path == "rpc") context = (await client.CallAsync("https://example.test/mcp", "tools/list")).ProbeContext;
+        else if (path == "raw") context = (await client.SendRawJsonAsync("https://example.test/mcp", body, CancellationToken.None)).ProbeContext;
+        else context = (await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest { Endpoint = "https://example.test/mcp", Body = body })).ProbeContext;
+
+        connections.Should().Be(1);
+        context.Should().NotBeNull();
+        context!.ResponseClassification.Should().Be(ProbeResponseClassification.PolicyBlocked);
+        Mcp.Benchmark.Core.Services.ValidationReliability.ShouldRetryException(
+            new HttpRequestException("Synthetic wrapper.", new OperationAdmissionException("Denied.")), CancellationToken.None).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("host", "rpc")]
+    [InlineData("host", "raw")]
+    [InlineData("host", "probe")]
+    [InlineData("origin", "rpc")]
+    [InlineData("origin", "raw")]
+    [InlineData("origin", "probe")]
+    [InlineData("budget", "rpc")]
+    [InlineData("budget", "raw")]
+    [InlineData("budget", "probe")]
+    public async Task ConfiguredTargetPolicy_ShouldRetainBlockedAttribution(string denial, string path)
+    {
+        var requests = 0;
+        using var http = new HttpClient(new RoutingHandler(_ =>
+        {
+            requests++;
+            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy
+        {
+            Mode = ExecutionMode.Standard,
+            AllowedHosts = denial == "host" ? ["allowed.example.test"] : ["example.test"],
+            AllowedOrigins = denial == "origin" ? ["https://example.test:8443"] : [],
+            AllowPrivateAddresses = true,
+            MaxRequests = 1
+        });
+        if (denial == "budget")
+            (await client.CallAsync("https://example.test/mcp", "tools/list")).IsSuccess.Should().BeTrue();
+
+        const string body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}";
+        ProbeContext? context;
+        if (path == "rpc") context = (await client.CallAsync("https://example.test/mcp", "tools/list")).ProbeContext;
+        else if (path == "raw") context = (await client.SendRawJsonAsync("https://example.test/mcp", body, CancellationToken.None)).ProbeContext;
+        else context = (await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest { Endpoint = "https://example.test/mcp", Body = body })).ProbeContext;
+
+        requests.Should().Be(denial == "budget" ? 1 : 0);
+        context.Should().NotBeNull();
+        ValidationOutcomeTaxonomy.From(context!.ResponseClassification).Should().Be(ValidationOutcome.Blocked);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResilienceProbe_DisallowedTarget_ShouldNotReachReceiver(bool interruption)
+    {
+        var requests = 0;
+        using var http = new HttpClient(new RoutingHandler(_ =>
+        {
+            requests++;
+            return CreateJsonResponse("{}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy
+        {
+            Mode = ExecutionMode.Standard,
+            AllowedHosts = ["allowed.example.test"],
+            AllowPrivateAddresses = true
+        });
+
+        if (interruption) await client.ProbeConnectionInterruptionRecoveryAsync("https://blocked.example.test/mcp");
+        else await client.ProbeTimeoutRecoveryAsync("https://blocked.example.test/mcp");
+
+        requests.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RawRpc_QueuedRequest_ShouldKeepDefaultRoutingHeaders(bool addedAfterSelection)
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var count = 0;
+        string? route = null;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            if (Interlocked.Increment(ref count) == 1)
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token);
+            }
+            else route = request.Headers.GetValues("X-Tenant-Route").Single();
+            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}");
+        }));
+        if (!addedAfterSelection) http.DefaultRequestHeaders.Add("X-Tenant-Route", "first-route");
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetConcurrencyLimit(1);
+        var first = client.CallAsync("https://example.test/mcp", "tools/list");
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var queued = client.CallAsync("https://example.test/mcp", "tools/list");
+        http.DefaultRequestHeaders.Remove("X-Tenant-Route");
+        http.DefaultRequestHeaders.Add("X-Tenant-Route", "second-route");
+        release.SetResult();
+        var responses = await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(10));
+
+        if (addedAfterSelection)
+        {
+            count.Should().Be(1);
+            responses[1].IsSuccess.Should().BeFalse();
+            responses[1].StatusCode.Should().BeLessThan(0);
+        }
+        else route.Should().Be("first-route");
+    }
+
+    [Fact]
+    public async Task RawRpc_QueuedRequest_ShouldKeepSessionSnapshotAcrossProbeRotation()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requests = 0;
+        string? queuedSession = null;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            var body = await request.Content!.ReadAsStringAsync(token);
+            var response = CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{}}}");
+            if (body.Contains("session-one", StringComparison.Ordinal)) response.Headers.Add("MCP-Session-Id", "synthetic-session-one");
+            else if (body.Contains("session-two", StringComparison.Ordinal)) response.Headers.Add("MCP-Session-Id", "synthetic-session-two");
+            else if (Interlocked.Increment(ref requests) == 1)
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token);
+            }
+            else queuedSession = request.Headers.GetValues("MCP-Session-Id").Single();
+            return response;
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion("2025-11-25");
+        client.SetConcurrencyLimit(1);
+        await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest
+            { Endpoint = "https://example.test/mcp", Body = "{\"method\":\"initialize\",\"id\":\"session-one\"}", CaptureSessionId = true });
+        var first = client.CallAsync("https://example.test/mcp", "tools/list");
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var queued = client.CallAsync("https://example.test/mcp", "tools/list");
+        try
+        {
+            await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest
+                { Endpoint = "https://example.test/mcp", Body = "{\"method\":\"initialize\",\"id\":\"session-two\"}", CaptureSessionId = true });
+        }
+        finally { release.TrySetResult(); }
+        await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(10));
+
+        queuedSession.Should().Be("synthetic-session-one");
+    }
+
+    [Fact]
+    public async Task RawRpc_QueuedRequest_ShouldKeepSelectedAuthenticationAndRoutingSnapshot()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requests = 0;
+        string? authorization = null;
+        string? route = null;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            if (Interlocked.Increment(ref requests) == 1)
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token);
+            }
+            else
+            {
+                authorization = request.Headers.Authorization?.Parameter;
+                route = request.Headers.GetValues("X-Tenant-Route").Single();
+            }
+            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetConcurrencyLimit(1);
+        var selected = new AuthenticationConfig
+        {
+            Type = "bearer", Token = "synthetic-first-principal",
+            CustomHeaders = new() { ["X-Tenant-Route"] = "first-route" }
+        };
+        client.SetAuthentication(selected);
+        var first = client.CallAsync("https://example.test/mcp", "tools/list");
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var queued = client.CallAsync("https://example.test/mcp", "tools/list");
+        selected.Token = "synthetic-mutated-principal";
+        selected.CustomHeaders["X-Tenant-Route"] = "mutated-route";
+        client.SetAuthentication(new AuthenticationConfig
+        {
+            Type = "bearer", Token = "synthetic-second-principal",
+            CustomHeaders = new() { ["X-Tenant-Route"] = "second-route" }
+        });
+        release.SetResult();
+        var responses = await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(10));
+
+        authorization.Should().Be("synthetic-first-principal");
+        route.Should().Be("first-route");
+        JsonSerializer.Serialize(responses.Select(response => response.ProbeContext)).Should().NotContain("synthetic-");
+    }
+
+    [Fact]
+    public async Task RawRpc_QueuedRequest_ShouldKeepProtocolHeaderAndBodyOnSameSnapshot()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requests = 0;
+        string? bodyVersion = null;
+        string? headerVersion = null;
+        string? methodHeader = null;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            if (Interlocked.Increment(ref requests) == 1)
+            {
+                entered.SetResult();
+                await release.Task.WaitAsync(token);
+            }
+            else
+            {
+                using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+                bodyVersion = body.RootElement.GetProperty("params").GetProperty("_meta").GetProperty("io.modelcontextprotocol/protocolVersion").GetString();
+                headerVersion = request.Headers.GetValues("MCP-Protocol-Version").Single();
+                methodHeader = request.Headers.TryGetValues("MCP-Method", out var values) ? values.Single() : null;
+            }
+            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\"}}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetConcurrencyLimit(1);
+        client.SetProtocolVersion("2026-07-28");
+        var first = client.CallAsync("https://example.test/mcp", "tools/list");
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        var queued = client.CallAsync("https://example.test/mcp", "tools/list");
+        client.SetProtocolVersion("2025-11-25");
+        release.SetResult();
+        await Task.WhenAll(first, queued).WaitAsync(TimeSpan.FromSeconds(10));
+
+        bodyVersion.Should().Be("2026-07-28");
+        headerVersion.Should().Be(bodyVersion);
+        methodHeader.Should().Be("tools/list");
+    }
+
+    [Theory]
+    [InlineData("2026-07-28", false)]
+    [InlineData("2026-07-28", true)]
+    [InlineData("2025-11-25", false)]
+    [InlineData("2025-11-25", true)]
+    public async Task RawAndTransportRequests_ShouldCarryRevisionAppropriateMethodHeader(string version, bool transportProbe)
+    {
+        string? observedMethod = null;
+        using var http = new HttpClient(new RoutingHandler(request =>
+        {
+            observedMethod = request.Headers.TryGetValues("MCP-Method", out var values) ? values.Single() : null;
+            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\"}}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion(version);
+        const string body = "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{}}";
+
+        if (transportProbe)
+            await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest { Endpoint = "https://example.test/mcp", Body = body });
+        else
+            await client.SendRawJsonAsync("https://example.test/mcp", body, CancellationToken.None);
+
+        observedMethod.Should().Be(version == "2026-07-28" ? "tools/list" : null);
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, "intentional-mismatch")]
+    public async Task TransportProbe_MethodHeaderMutation_ShouldRemainExplicit(bool includeMethod, string? overriddenMethod)
+    {
+        string? observed = null;
+        using var http = new HttpClient(new RoutingHandler(request =>
+        {
+            observed = request.Headers.TryGetValues("MCP-Method", out var values) ? values.Single() : null;
+            return CreateJsonResponse("{}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion("2026-07-28");
+        var headers = new Dictionary<string, string>();
+        if (overriddenMethod is not null) headers["MCP-Method"] = overriddenMethod;
+
+        await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest
+        {
+            Endpoint = "https://example.test/mcp", Body = "{\"method\":\"tools/list\"}",
+            IncludeMethodHeader = includeMethod, Headers = headers
+        });
+
+        observed.Should().Be(overriddenMethod);
+    }
+
     [Fact]
     public async Task ErrorHandling_LocalDispatchRejection_ShouldNotBlameTarget()
     {

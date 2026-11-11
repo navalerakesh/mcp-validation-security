@@ -61,7 +61,7 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
             {
                 ConfigureTarget(targetKind);
             }
-            var serverConfig = _fixture.CreateTestServerConfig();
+            var serverConfig = _fixture.CreateTestServerConfig(timeoutMs: 10000);
 
             var protocolResult = await _protocolValidator.ValidateJsonRpcComplianceAsync(
                 serverConfig,
@@ -92,7 +92,9 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
                 assurance.Assessments.CoreConformance.Status.Should().NotBe(CoreConformanceStatus.Nonconformant, evidence);
             if (targetKind == "vulnerable")
                 assurance.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.IssuesFound, evidence);
-            score.OverallScore.Should().Be(expected.Score, targetKind);
+            score.OverallScore.Should().Be(expected.Score,
+                "{0}; protocol {1}: {2}; security {3}: {4}", targetKind,
+                protocolResult.Status, protocolResult.Message, securityResult.Status, securityResult.Message);
             observedScores[targetKind] = score.OverallScore;
         }
 

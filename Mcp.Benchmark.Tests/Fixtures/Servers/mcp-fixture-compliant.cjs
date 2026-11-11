@@ -15,8 +15,18 @@ const holdArgument = process.argv.indexOf("--hold-method");
 const heldMethod = holdArgument < 0 ? null : process.argv[holdArgument + 1];
 if (holdArgument >= 0 && heldMethod !== "tools/list") throw new Error("Only tools/list can be held by this fixture.");
 let recorded = 0;
+const notificationArgument = process.argv.indexOf("--notifications-before-response");
+const notificationCount = notificationArgument < 0 ? 0 : Number(process.argv[notificationArgument + 1]);
+if (!Number.isInteger(notificationCount) || notificationCount < 0 || notificationCount > 65) throw new Error("Invalid fixture notification count.");
 startFixtureServer("compliant", method => {
 	if (!auditFile) return;
 	if (++recorded > 256 || method.length > 128) throw new Error("Fixture method audit budget exceeded.");
 	appendFileSync(auditFile, `${JSON.stringify({ method })}\n`, { mode: 0o600 });
-}, method => method !== heldMethod);
+}, method => method !== heldMethod, response => {
+	for (let index = 0; index < notificationCount; index++) {
+		process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", method: "notifications/message", params: { level: "info", data: "owned fixture notification" } })}\n`);
+	}
+	return process.argv.includes("--mismatch-response-id") && Object.prototype.hasOwnProperty.call(response, "id")
+		? { ...response, id: "unrelated-fixture-response" }
+		: response;
+});

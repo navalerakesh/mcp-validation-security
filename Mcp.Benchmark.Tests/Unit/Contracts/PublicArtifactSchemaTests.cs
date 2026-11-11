@@ -134,6 +134,51 @@ public sealed class PublicArtifactSchemaTests
     }
 
     [Fact]
+    public void ValidationResult_OptionalCapabilityEvidence_ShouldRejectUnknownAndUnsupportedClaims()
+    {
+        foreach (var classification in Enum.GetValues<ProbeResponseClassification>())
+        {
+            var result = new ValidationResult
+            {
+                ProtocolCompliance = new ComplianceTestResult
+                {
+                    OptionalCapabilityObservations =
+                    [
+                        new CapabilityMethodObservation("logging", "logging/setLevel", true,
+                            classification != ProbeResponseClassification.Unknown,
+                            classification == ProbeResponseClassification.Success ? true :
+                                classification == ProbeResponseClassification.ProtocolError ? false : null,
+                            classification, null,
+                            classification == ProbeResponseClassification.PolicyBlocked ? ValidationConstants.Methods.PromptsList : null)
+                    ]
+                }
+            };
+            var instance = Serialize(result);
+            AssertConforms("mcpval-validation-result.schema.json", instance);
+            foreach (var version in new[] { "2.0.0", "2.1.0" })
+            {
+                instance["documentSchemaVersion"] = version;
+                AssertConforms("mcpval-validation-result.schema.json", instance);
+                ArtifactContracts.IsCompatible(ArtifactContracts.ValidationResultDocumentType, version).Should().BeTrue();
+            }
+            var observation = instance["measurements"]!["protocolCompliance"]!["optionalCapabilityObservations"]![0]!;
+            observation["classification"] = "unknown-classification";
+            AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+            observation["classification"] = "policyBlocked";
+            observation["supported"] = true;
+            AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+            observation["classification"] = "success";
+            observation["attempted"] = false;
+            observation["supported"] = null;
+            AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+            observation["attempted"] = true;
+            observation["supported"] = true;
+            observation["statusCode"] = 401;
+            AssertDoesNotConform("mcpval-validation-result.schema.json", instance);
+        }
+    }
+
+    [Fact]
     public void ProviderHarness_PublicJson_ConformsToPublishedSchema()
     {
         var now = new DateTimeOffset(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);

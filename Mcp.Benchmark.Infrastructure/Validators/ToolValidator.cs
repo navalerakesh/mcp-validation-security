@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Services;
+using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 
@@ -519,7 +520,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             InputParameterNames = GetInputParameterNames(tool)
         };
         ApplyAiSafetyControlEvidence(result, tool);
-        ValidateToolMetadata(tool, result);
+        var outputShape = BuiltInProtocolFeaturePack.GetToolStructuredOutputShape(
+            SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry));
+        ValidateToolMetadata(tool, result, outputShape);
 
         if (!config.TestToolExecution && !config.TestParameterValidation)
         {
@@ -587,7 +590,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     else
                     {
                         // Successful tool execution — validate response structure
-                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result, tool);
+                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result, tool, outputShape);
                     }
                 }
             }
@@ -661,7 +664,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         return false;
     }
 
-    private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result)
+    private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result, ToolStructuredOutputShape outputShape)
     {
         // The MCP schema requires the `name` property be present (Tool.required = ["inputSchema","name"])
         // and a string. Missing/empty name is therefore a true Spec violation.
@@ -696,7 +699,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid,
             isRequired: true);
 
-        ValidateJsonSchemaProperty(
+        if (outputShape != ToolStructuredOutputShape.NotDefined) ValidateJsonSchemaProperty(
             result,
             tool.HasOutputSchema,
             tool.OutputSchema,
@@ -704,7 +707,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             null,
             ValidationFindingRuleIds.ToolOutputSchemaInvalid,
             ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid,
-            isRequired: false);
+            isRequired: false,
+            requireObjectRoot: outputShape == ToolStructuredOutputShape.Object);
 
         ValidateToolIcons(tool, result);
         ValidateToolExecutionMetadata(tool, result);
@@ -718,7 +722,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         string? missingRuleId,
         string invalidRuleId,
         string invalidRootTypeRuleId,
-        bool isRequired)
+        bool isRequired,
+        bool requireObjectRoot = true)
     {
         if (!isPresent)
         {
@@ -767,6 +772,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 $"Fix {propertyName} so it parses as JSON Schema 2020-12.",
                 schemaErrors);
         }
+
+        if (!requireObjectRoot) return;
 
         if (!schema.TryGetProperty("type", out var typeProperty) || typeProperty.ValueKind != JsonValueKind.String)
         {
@@ -993,7 +1000,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         {
             node = JsonNode.Parse(element.GetRawText());
             error = null;
-            return node is not null;
+            return node is not null || element.ValueKind == JsonValueKind.Null;
         }
         catch (Exception ex)
         {
@@ -1054,7 +1061,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     /// - Each Content MUST have a "type" field ("text", "image", "audio", "resource")
     /// - result.isError MAY be omitted; omitted is equivalent to false per the MCP schema
     /// </summary>
-    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result, ToolInfo tool)
+    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result, ToolInfo tool, ToolStructuredOutputShape outputShape)
     {
         try
         {
@@ -1216,7 +1223,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
-            ValidateStructuredContentAgainstOutputSchema(resultObj, result, tool);
+            ValidateStructuredContentAgainstOutputSchema(resultObj, result, tool, outputShape);
 
         }
         catch (Exception ex)
@@ -1233,8 +1240,20 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
     }
 
-    private void ValidateStructuredContentAgainstOutputSchema(JsonElement resultObj, IndividualToolResult result, ToolInfo tool)
+    private void ValidateStructuredContentAgainstOutputSchema(JsonElement resultObj, IndividualToolResult result, ToolInfo tool, ToolStructuredOutputShape outputShape)
     {
+        if (outputShape == ToolStructuredOutputShape.NotDefined) return;
+        var hasStructuredContent = resultObj.TryGetProperty("structuredContent", out var structuredContent);
+        if (hasStructuredContent && outputShape == ToolStructuredOutputShape.Object && structuredContent.ValueKind != JsonValueKind.Object)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
+                ValidationFindingSeverity.Critical,
+                $"Tool '{tool.Name}' returned structuredContent that is not a JSON object under the selected legacy revision.",
+                "Return structuredContent as a JSON object for legacy protocol revisions.");
+            return;
+        }
         if (!tool.HasOutputSchema)
         {
             return;
@@ -1246,7 +1265,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return;
         }
 
-        if (!resultObj.TryGetProperty("structuredContent", out var structuredContent))
+        if (!hasStructuredContent)
         {
             AddToolSpecFinding(
                 result,
@@ -1257,27 +1276,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return;
         }
 
-        if (structuredContent.ValueKind != JsonValueKind.Object)
-        {
-            AddToolSpecFinding(
-                result,
-                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
-                ValidationFindingSeverity.Critical,
-                $"Tool '{tool.Name}' returned structuredContent that is not a JSON object.",
-                "Return structuredContent as a JSON object that matches the declared outputSchema.");
-            return;
-        }
-
         var contentConverted = TryConvertToJsonNode(structuredContent, out var structuredContentNode, out var contentError);
         var schemaConverted = TryConvertToJsonNode(tool.OutputSchema, out var outputSchemaNode, out var schemaError);
-        if (!contentConverted || structuredContentNode is null || !schemaConverted || outputSchemaNode is null)
+        if (!contentConverted || !schemaConverted || outputSchemaNode is null)
         {
             AddToolSpecFinding(
                 result,
                 ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
                 ValidationFindingSeverity.High,
                 $"Tool '{tool.Name}' returned structuredContent or outputSchema that could not be parsed for validation.",
-                "Return parseable JSON objects for outputSchema and structuredContent.",
+                "Return a JSON Schema object and a structuredContent value supported by the selected protocol revision.",
                 new[] { contentError, schemaError }.OfType<string>());
             return;
         }

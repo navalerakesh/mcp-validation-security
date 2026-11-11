@@ -444,7 +444,8 @@ public enum ProbeResponseClassification
     TransportFailure,
     ParserBoundary,
     Timeout,
-    NoResponse
+    NoResponse,
+    PolicyBlocked
 }
 
 public sealed class ProbeContext

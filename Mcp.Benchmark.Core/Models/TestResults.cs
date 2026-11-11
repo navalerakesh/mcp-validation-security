@@ -8,6 +8,9 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class ComplianceTestResult : TestResultBase
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<CapabilityMethodObservation>? OptionalCapabilityObservations { get; set; }
+
     /// <summary>
     /// Gets or sets the compliance score (0-100).
     /// </summary>
@@ -59,6 +62,16 @@ public class ComplianceTestResult : TestResultBase
     /// </summary>
     public List<ComplianceViolation> Violations { get; set; } = new();
 }
+
+public sealed record CapabilityMethodObservation(
+    string Capability,
+    string Method,
+    bool Declared,
+    bool Attempted,
+    bool? Supported,
+    ProbeResponseClassification Classification,
+    int? StatusCode,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? PreparationMethod = null);
 
 /// <summary>
 /// Represents the result of tool validation testing.

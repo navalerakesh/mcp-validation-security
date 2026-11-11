@@ -941,7 +941,7 @@ public class ToolValidatorComprehensiveTests
     [Fact]
     public async Task ValidateToolDiscovery_WithOutputSchemaAndMatchingStructuredContent_ShouldPassSchemaCheck()
     {
-        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http", ProtocolVersion = "2025-11-25" };
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":\"42\"}},\"id\":1}");
 
@@ -953,10 +953,56 @@ public class ToolValidatorComprehensiveTests
         toolResult.Status.Should().Be(TestStatus.Passed);
     }
 
+    [Theory]
+    [InlineData("2026-07-28", "array", "[1,2]", true)]
+    [InlineData("2026-07-28", "string", "\"value\"", true)]
+    [InlineData("2026-07-28", "number", "42", true)]
+    [InlineData("2026-07-28", "boolean", "true", true)]
+    [InlineData("2026-07-28", "null", "null", true)]
+    [InlineData("2025-11-25", "array", "[1,2]", false)]
+    [InlineData("2025-11-25", "null", "null", false)]
+    [InlineData("2026-07-28", "array", "42", false)]
+    public async Task ValidateToolDiscovery_StructuredContent_ShouldFollowSelectedRevision(
+        string revision, string outputType, string content, bool expectedPass)
+    {
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"},\"outputSchema\":{\"type\":\"" + outputType + "\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":" + content + "}}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = revision }, new ToolTestingConfig());
+
+        var tool = result.ToolResults.Single(tool => tool.ToolName == "structured_tool");
+        tool.Status.Should().Be(expectedPass ? TestStatus.Passed : TestStatus.Failed);
+        if (expectedPass)
+            tool.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid ||
+                finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentInvalid || finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+        else if (revision == "2026-07-28")
+            tool.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+    }
+
+    [Theory]
+    [InlineData("2024-11-05", true)]
+    [InlineData("2025-03-26", true)]
+    [InlineData("2025-06-18", false)]
+    [InlineData("2025-11-25", false)]
+    [InlineData("2026-07-28", true)]
+    public async Task ValidateToolDiscovery_StructuredContentWithoutOutputSchema_ShouldStillFollowWireShape(string revision, bool expectedPass)
+    {
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":[]}}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", ProtocolVersion = revision }, new ToolTestingConfig());
+
+        var tool = result.ToolResults.Single(tool => tool.ToolName == "structured_tool");
+        tool.Status.Should().Be(expectedPass ? TestStatus.Passed : TestStatus.Failed);
+        tool.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentInvalid).Should().Be(!expectedPass);
+    }
+
     [Fact]
     public async Task ValidateToolDiscovery_WithOutputSchemaMismatch_ShouldEmitStructuredContentFinding()
     {
-        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http", ProtocolVersion = "2025-11-25" };
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":7}},\"id\":1}");
 

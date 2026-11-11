@@ -1,7 +1,10 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Exceptions;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Core.Abstractions;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,7 +69,7 @@ internal sealed class RunNetworkPolicyContext
         var requestNumber = Interlocked.Increment(ref _requestCount);
         if (requestNumber > policy.MaxRequests)
         {
-            throw new InvalidOperationException($"Execution request budget exceeded ({policy.MaxRequests}).");
+            throw new OperationAdmissionException($"Execution request budget exceeded ({policy.MaxRequests}).");
         }
     }
 }
@@ -90,7 +93,7 @@ internal sealed class GovernedConnectionFactory(
         var policy = PolicyContext.Snapshot;
         if (policy.AllowedHosts.Count > 0 && !policy.AllowedHosts.Contains(normalizedHost))
         {
-            throw new InvalidOperationException($"Execution policy blocked outbound connection to host '{normalizedHost}'.");
+            throw new OperationAdmissionException($"Execution policy blocked outbound connection to host '{normalizedHost}'.");
         }
 
         var addresses = await resolver.ResolveAsync(normalizedHost, cancellationToken).ConfigureAwait(false);
@@ -101,7 +104,7 @@ internal sealed class GovernedConnectionFactory(
 
         if (!policy.AllowPrivateAddresses && addresses.Any(NetworkAddressClassifier.IsRestricted))
         {
-            throw new InvalidOperationException($"Execution policy blocked private, local, or reserved address resolution for host '{normalizedHost}'.");
+            throw new OperationAdmissionException($"Execution policy blocked private, local, or reserved address resolution for host '{normalizedHost}'.");
         }
 
         Exception? lastError = null;
@@ -187,32 +190,43 @@ internal sealed class GovernedRequestObservabilityHandler : DelegatingHandler
 
 internal sealed class GovernedRequestPolicyHandler(RunNetworkPolicyContext policyContext) : DelegatingHandler
 {
+    private const int MaximumSafeEnvelopeBytes = 64 * 1024;
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         var uri = request.RequestUri ?? throw new InvalidOperationException("Outbound HTTP request is missing an absolute URI.");
         if (!uri.IsAbsoluteUri || uri.Scheme is not ("http" or "https"))
         {
-            throw new InvalidOperationException("Execution policy allows only absolute HTTP or HTTPS request URIs.");
+            throw new OperationAdmissionException("Execution policy allows only absolute HTTP or HTTPS request URIs.");
         }
 
         if (!string.IsNullOrEmpty(uri.UserInfo))
         {
-            throw new InvalidOperationException("Execution policy blocked a request URI containing user-info.");
+            throw new OperationAdmissionException("Execution policy blocked a request URI containing user-info.");
         }
 
         var policy = policyContext.Snapshot;
         var normalizedHost = NetworkTargetPolicy.NormalizeHost(uri.IdnHost);
         if (policy.AllowedHosts.Count > 0 && !policy.AllowedHosts.Contains(normalizedHost))
         {
-            throw new InvalidOperationException($"Execution policy blocked outbound request to host '{normalizedHost}'.");
+            throw new OperationAdmissionException($"Execution policy blocked outbound request to host '{normalizedHost}'.");
         }
 
         var origin = NetworkTargetPolicy.NormalizeOrigin(uri);
         if (policy.AllowedOrigins.Count > 0 && !policy.AllowedOrigins.Contains(origin))
         {
-            throw new InvalidOperationException($"Execution policy blocked outbound request to origin '{origin}'.");
+            throw new OperationAdmissionException($"Execution policy blocked outbound request to origin '{origin}'.");
         }
 
+        if (policy.Mode == ExecutionMode.Safe)
+        {
+            if (request.Method == HttpMethod.Post)
+                await ValidateSafeEnvelopeAsync(request, policy, cancellationToken).ConfigureAwait(false);
+            else if (request.Method != HttpMethod.Get && request.Method != HttpMethod.Head && !IsSessionTermination(request))
+                throw new OperationAdmissionException("Execution policy did not admit this operation; request was not sent.");
+        }
+        else if (policy.Mode is not (ExecutionMode.Safe or ExecutionMode.Standard) && !McpOperationAdmission.IsAllowed(policy, null))
+            throw new OperationAdmissionException("Execution policy did not admit this operation; request was not sent.");
         policyContext.AdmitRequest();
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         var maxResponseBytes = policy.MaxResponseBytes;
@@ -226,6 +240,74 @@ internal sealed class GovernedRequestPolicyHandler(RunNetworkPolicyContext polic
 
         response.Content = new BoundedHttpContent(response.Content, maxResponseBytes, response.IsSuccessStatusCode);
         return response;
+    }
+
+    private static bool IsSessionTermination(HttpRequestMessage request)
+    {
+        if (request.Method != HttpMethod.Delete || request.Content != null ||
+            !request.Headers.TryGetValues(McpSpecConstants.SessionIdHeader, out var values)) return false;
+        var sessionIds = values.Take(2).ToArray();
+        return sessionIds.Length == 1 && !string.IsNullOrWhiteSpace(sessionIds[0]);
+    }
+
+    private static async Task ValidateSafeEnvelopeAsync(HttpRequestMessage request, OperationPolicySnapshot policy, CancellationToken cancellationToken)
+    {
+        var content = request.Content ?? throw new OperationAdmissionException("Execution policy did not admit an unclassified empty POST.");
+        if (content.Headers.ContentLength > MaximumSafeEnvelopeBytes)
+            throw new OperationAdmissionException("Execution policy did not admit an oversized Safe-mode envelope.");
+        var stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+        var bytes = new byte[MaximumSafeEnvelopeBytes + 1];
+        var length = 0;
+        while (length < bytes.Length)
+        {
+            var read = await stream.ReadAsync(bytes.AsMemory(length), cancellationToken).ConfigureAwait(false);
+            if (read == 0) break;
+            length += read;
+        }
+        if (length > MaximumSafeEnvelopeBytes)
+            throw new OperationAdmissionException("Execution policy did not admit an oversized Safe-mode envelope.");
+        var replacement = new ByteArrayContent(bytes, 0, length);
+        foreach (var header in content.Headers) replacement.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        request.Content = replacement;
+        content.Dispose();
+        try
+        {
+            using var document = JsonDocument.Parse(bytes.AsMemory(0, length), new JsonDocumentOptions { MaxDepth = 64 });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || HasDuplicateProperties(root) ||
+                !root.TryGetProperty("jsonrpc", out var version) || version.ValueKind != JsonValueKind.String || !version.ValueEquals("2.0"))
+                throw new OperationAdmissionException("Execution policy did not admit a malformed Safe-mode envelope.");
+            if (!root.TryGetProperty("method", out var method))
+            {
+                if (root.TryGetProperty("id", out var responseId) && responseId.ValueKind is JsonValueKind.String or JsonValueKind.Number or JsonValueKind.Null &&
+                    root.TryGetProperty("error", out var error) && error.ValueKind == JsonValueKind.Object &&
+                    error.TryGetProperty("code", out var code) && code.ValueKind == JsonValueKind.Number && code.TryGetInt32(out _) &&
+                    error.TryGetProperty("message", out var message) && message.ValueKind == JsonValueKind.String &&
+                    !root.TryGetProperty("result", out _)) return;
+                throw new OperationAdmissionException("Execution policy did not admit an unclassified Safe-mode envelope.");
+            }
+            if (root.TryGetProperty("result", out _) || root.TryGetProperty("error", out _) ||
+                method.ValueKind != JsonValueKind.String || !McpOperationAdmission.IsAllowed(policy, method.GetString()))
+                throw new OperationAdmissionException("Execution policy did not admit this operation; request was not sent.");
+        }
+        catch (JsonException)
+        {
+            throw new OperationAdmissionException("Execution policy did not admit a malformed Safe-mode envelope.");
+        }
+    }
+
+    private static bool HasDuplicateProperties(JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in value.EnumerateObject())
+                if (!names.Add(property.Name) || HasDuplicateProperties(property.Value)) return true;
+        }
+        else if (value.ValueKind == JsonValueKind.Array)
+            foreach (var item in value.EnumerateArray())
+                if (HasDuplicateProperties(item)) return true;
+        return false;
     }
 }
 

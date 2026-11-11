@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0"] },
     "producer": {
       "type": "object",
       "required": ["name", "packageId", "repositoryUrl", "packageUrl"],
@@ -83,7 +83,7 @@
     "measurements": {
       "type": "object",
       "properties": {
-        "protocolCompliance": { "type": ["object", "null"] },
+        "protocolCompliance": { "$ref": "#/$defs/protocolMeasurement" },
         "toolValidation": { "$ref": "#/$defs/catalogMeasurement" },
         "resourceTesting": { "$ref": "#/$defs/catalogMeasurement" },
         "promptTesting": { "$ref": "#/$defs/catalogMeasurement" },
@@ -119,6 +119,58 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "$defs": {
+    "protocolMeasurement": {
+      "type": ["object", "null"],
+      "properties": {
+        "optionalCapabilityObservations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/capabilityMethodObservation" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "capabilityMethodObservation": {
+      "type": "object",
+      "required": ["capability", "method", "declared", "attempted", "classification"],
+      "properties": {
+        "capability": { "type": "string", "minLength": 1 },
+        "method": { "type": "string", "minLength": 1 },
+        "declared": { "type": "boolean" },
+        "attempted": { "type": "boolean" },
+        "supported": { "type": ["boolean", "null"] },
+        "classification": {
+          "enum": ["unknown", "success", "protocolError", "authenticationChallenge", "authorizationFailure", "transientFailure", "transportFailure", "parserBoundary", "timeout", "noResponse", "policyBlocked"]
+        },
+        "statusCode": { "type": ["integer", "null"] },
+        "preparationMethod": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "supported": { "const": true } }, "required": ["supported"] },
+          "then": { "properties": { "attempted": { "const": true }, "classification": { "const": "success" } } }
+        },
+        {
+          "if": { "properties": { "supported": { "const": false } }, "required": ["supported"] },
+          "then": { "properties": { "attempted": { "const": true }, "classification": { "const": "protocolError" } } }
+        },
+        {
+          "if": { "properties": { "attempted": { "const": false } } },
+          "then": { "properties": { "supported": { "type": "null" } } }
+        },
+        {
+          "if": { "properties": { "classification": { "const": "success" } } },
+          "then": {
+            "required": ["supported"],
+            "properties": {
+              "attempted": { "const": true },
+              "supported": { "const": true },
+              "statusCode": { "type": ["integer", "null"], "minimum": 200, "maximum": 299 }
+            }
+          }
+        }
+      ],
+      "additionalProperties": false
+    },
     "catalogMeasurement": {
       "type": ["object", "null"],
       "properties": {

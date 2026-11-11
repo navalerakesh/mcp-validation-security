@@ -9,6 +9,7 @@ public sealed class OperationPolicySnapshot
     private OperationPolicySnapshot(ExecutionPolicy policy)
     {
         Mode = policy.Mode;
+        ConfirmElevatedRisk = policy.ConfirmElevatedRisk;
         AllowedHosts = policy.AllowedHosts
             .Where(host => !string.IsNullOrWhiteSpace(host))
             .Select(NetworkTargetPolicy.NormalizeHost)
@@ -34,6 +35,8 @@ public sealed class OperationPolicySnapshot
     }
 
     public ExecutionMode Mode { get; }
+
+    public bool ConfirmElevatedRisk { get; }
 
     public IReadOnlySet<string> AllowedHosts { get; }
 

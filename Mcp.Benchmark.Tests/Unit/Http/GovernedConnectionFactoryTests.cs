@@ -153,11 +153,12 @@ public sealed class GovernedConnectionFactoryTests
     }
 
     [Fact]
-    public async Task GovernedObserver_SdkEquivalentRequest_ShouldRecordOneAttempt()
+    public async Task GovernedObserver_AdmittedPost_ShouldRecordOneAttempt()
     {
         var context = new RunNetworkPolicyContext();
         context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy
         {
+            Mode = ExecutionMode.Standard,
             AllowedHosts = ["example.test"],
             AllowedOrigins = ["https://example.test"]
         }));
@@ -183,6 +184,7 @@ public sealed class GovernedConnectionFactoryTests
         var context = new RunNetworkPolicyContext();
         context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy
         {
+            Mode = ExecutionMode.Standard,
             AllowedHosts = ["example.test"],
             AllowedOrigins = ["https://example.test"]
         }));

@@ -18,7 +18,7 @@ public enum ValidationOutcome
 
 public static class ValidationOutcomeTaxonomy
 {
-    public const string Version = "1.0.0";
+    public const string Version = "1.1.0";
 
     public static ValidationOutcome From(TestStatus status) => status switch
     {
@@ -69,6 +69,7 @@ public static class ValidationOutcomeTaxonomy
         ProbeResponseClassification.ParserBoundary => ValidationOutcome.Inconclusive,
         ProbeResponseClassification.Timeout => ValidationOutcome.Unavailable,
         ProbeResponseClassification.NoResponse => ValidationOutcome.Unavailable,
+        ProbeResponseClassification.PolicyBlocked => ValidationOutcome.Blocked,
         _ => throw new ArgumentOutOfRangeException(nameof(classification), classification, "Unknown probe classification.")
     };
 

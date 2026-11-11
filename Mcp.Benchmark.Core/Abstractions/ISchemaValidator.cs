@@ -14,7 +14,7 @@ public interface ISchemaValidator
     /// <param name="instance">The JSON instance to validate.</param>
     /// <param name="schema">The JSON schema definition.</param>
     /// <returns>A result indicating success or failure with error details.</returns>
-    SchemaValidationResult Validate(JsonNode instance, JsonNode schema);
+    SchemaValidationResult Validate(JsonNode? instance, JsonNode schema);
 
     /// <summary>
     /// Validates that a JSON node represents a valid JSON Schema.

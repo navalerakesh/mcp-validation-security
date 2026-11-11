@@ -21,6 +21,8 @@ public sealed class HttpTransportProbeRequest
 
     public bool IncludeProtocolVersionHeader { get; init; } = true;
 
+    public bool IncludeMethodHeader { get; init; } = true;
+
     public bool IncludeSessionIdHeader { get; init; } = true;
 
     public bool CaptureSessionId { get; init; }

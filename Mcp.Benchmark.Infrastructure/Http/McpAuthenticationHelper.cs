@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http.Headers;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 
 namespace Mcp.Benchmark.Infrastructure.Http;
@@ -10,6 +11,14 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 /// </summary>
 internal static class McpAuthenticationHelper
 {
+    public static bool IsRuntimeProtocolHeader(string name) =>
+        string.Equals(name, McpSpecConstants.ProtocolVersionHeader, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, McpSpecConstants.MethodHeader, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, McpSpecConstants.SessionIdHeader, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsRuntimeIdentityHeader(string name) =>
+        IsRuntimeProtocolHeader(name) || string.Equals(name, "Authorization", StringComparison.OrdinalIgnoreCase);
+
     public static void ApplyCustomHeaders(HttpRequestHeaders headers, AuthenticationConfig? authentication)
     {
         if (authentication is null) return;

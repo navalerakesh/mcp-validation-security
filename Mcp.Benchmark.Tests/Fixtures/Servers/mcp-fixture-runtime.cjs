@@ -390,7 +390,7 @@ function createProfiles() {
   };
 }
 
-function writeResponse(response) {
+function writeWireResponse(response) {
   process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
@@ -466,7 +466,8 @@ function validateToolCall(profile, request) {
   return null;
 }
 
-function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond = () => true) {
+function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond = () => true, transformResponse = response => response) {
+  const writeResponse = response => writeWireResponse(transformResponse(response));
   const profiles = createProfiles();
   const profile = profiles[profileName];
   let initializedNotificationReceived = false;
