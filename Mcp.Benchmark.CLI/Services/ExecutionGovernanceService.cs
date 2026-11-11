@@ -111,6 +111,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
 
         return new AuditManifest
         {
+            RunTerminationOutcome = result?.Run.TerminationOutcome,
+            RecommendedExitCode = result == null ? null : AssuranceExitCodeMapper.Map(result),
             ConfigurationSources = plan.ConfigurationSources,
             CommandName = plan.CommandName,
             ValidationId = result?.ValidationId ?? plan.SessionId,

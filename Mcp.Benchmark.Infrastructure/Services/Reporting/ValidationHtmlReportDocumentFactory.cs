@@ -64,7 +64,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var title = result.Assurance.CertificateEligibility.Status switch
         {
             CertificateEligibilityStatus.Eligible => "Provider Certificate Eligible",
-            CertificateEligibilityStatus.Ineligible when inventoryProfile => "Inventory Assessment Complete",
+            CertificateEligibilityStatus.Ineligible when inventoryProfile => "Inventory assessment evidence",
             CertificateEligibilityStatus.Ineligible => "Assurance Requirements Not Met",
             _ => "Assurance Review Required"
         };
@@ -94,7 +94,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
             SecurityStatusTone = MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status),
             MetaItems = new List<ValidationHtmlMetaItem>
             {
-                new() { Label = "Endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
+                new() { Label = "Configured endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
                 new() { Label = "Validation Identifier", Value = result.ValidationId },
                 new() { Label = "Duration", Value = duration },
                 new() { Label = "MCP Specification Profile", Value = schemaVersion },
@@ -107,7 +107,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(ValidationResult result)
     {
         var assurance = result.Assurance;
-        var exitCode = AssuranceExitCodeMapper.Map(assurance, result.PolicyOutcome);
+        var exitCode = AssuranceExitCodeMapper.Map(result);
         var eligible = assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Eligible;
         var inventoryProfile = string.Equals(assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
         var assuranceHighlights = assurance.CertificateEligibility.Reasons.Take(4).ToList();
@@ -121,10 +121,10 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Title = eligible
                 ? "Selected assurance profile satisfied"
                 : inventoryProfile
-                    ? "Inventory completed with assurance evidence gaps"
+                    ? "Recorded evidence for the inventory profile"
                     : "Selected assurance profile is not satisfied",
             Summary = assurance.CertificateEligibility.Reasons.Count == 0
-                ? "All requirements for the selected assurance profile are satisfied."
+                ? ReportContextFormatter.FormatMissingEligibilityExplanation(assurance.CertificateEligibility.Status)
                 : string.Join(" ", assurance.CertificateEligibility.Reasons.Take(3)),
             Tone = ResolveReleaseTone(result),
             Highlights = assuranceHighlights,

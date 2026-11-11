@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using FluentAssertions;
+using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
@@ -14,6 +15,211 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 public class ValidationReportRendererTests
 {
     private readonly ValidationReportRenderer _renderer = new();
+
+    [Fact]
+    public void SarifReviewResults_ShouldNotAssignFailureSeverityToMissingEvidence()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        using var report = JsonDocument.Parse(_renderer.GenerateSarifReport(result));
+        var results = report.RootElement.GetProperty("runs")[0].GetProperty("results").EnumerateArray().ToArray();
+
+        results.Should().Contain(entry => entry.GetProperty("kind").GetString() != "fail");
+        foreach (var entry in results.Where(entry => entry.GetProperty("kind").GetString() != "fail"))
+            entry.GetProperty("level").GetString().Should().Be("none");
+    }
+
+    [Fact]
+    public void JunitInventory_ShouldNotFailBecauseTheProfileDoesNotIssueCertificates()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.Passed,
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory,
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible,
+                    Reasons = ["Inventory profile does not issue provider certificates."]
+                }
+            }
+        };
+
+        var report = XDocument.Parse(_renderer.GenerateJunitReport(result));
+        var certificate = report.Descendants("testsuite").Single(suite => (string?)suite.Attribute("name") == "assurance-certificate");
+
+        certificate.Descendants("failure").Should().BeEmpty();
+        certificate.Descendants("skipped").Should().ContainSingle();
+        report.Root!.Attribute("failures")!.Value.Should().Be("0");
+        report.Root.Attribute("errors")!.Value.Should().Be("0");
+    }
+
+    [Fact]
+    public void XmlAndMarkdown_ShouldPreserveClaimReferencesAndCoveredErrorOutcome()
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.OverallStatus = ValidationStatus.Error;
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "recorded-error-layer", Scope = "recorded-error-scope", Status = ValidationCoverageStatus.Covered,
+            ObservedOutcome = ValidationOutcome.Error, Reason = "Synthetic validator observation."
+        });
+
+        var xml = XDocument.Parse(_renderer.GenerateXmlReport(result, verbose: false));
+        var coverage = xml.Descendants("Declaration").Single(element => (string?)element.Attribute("scope") == "recorded-error-scope");
+        coverage.Attribute("status")!.Value.Should().Be("Covered");
+        coverage.Attribute("outcome")!.Value.Should().Be("Error");
+        coverage.Attribute("observedOutcome")!.Value.Should().Be("Error");
+        xml.Root!.Element("RunIntegrity")!.Element("RecommendedExitCode")!.Value.Should().Be("70");
+        foreach (var claim in result.Assurance.Claims)
+        {
+            var element = xml.Descendants("Claim").Single(item => (string?)item.Attribute("id") == claim.ClaimId);
+            element.Element("Source")!.Attribute("revision")!.Value.Should().Be(claim.Source.Revision);
+            element.Element("EvidenceReferences")!.Elements("EvidenceId").Select(item => item.Value).Should().Equal(claim.EvidenceIds);
+            element.Attribute("applicability")!.Value.Should().Be(claim.Applicability.ToString());
+        }
+        var markdown = new MarkdownReportGenerator().GenerateReport(result);
+        markdown.Should().Contain("`recorded-error-scope` | `Covered` (Error)");
+        markdown.Should().Contain("Observed: Error");
+    }
+
+    [Fact]
+    public void Markdown_ShouldRetainAllCanonicalClaimsAndEvidenceWithoutInventingSuccess()
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = ValidationStatus.Cancelled,
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory,
+                CertificateEligibility = new CertificateEligibilityAssessment { ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible },
+                Claims = Enumerable.Range(0, 25).Select(index => new AssuranceClaim
+                {
+                    ClaimId = $"claim-{index:D2}", Subject = $"subject-{index}",
+                    Outcome = index == 0 ? AssuranceClaimOutcome.Satisfied : index == 1 ? AssuranceClaimOutcome.NotApplicable : AssuranceClaimOutcome.Error,
+                    Dimension = AssuranceDimension.CoreProtocol, RequirementLevel = AssuranceRequirementLevel.Must,
+                    Authority = AssuranceAuthority.OfficialSpecification, Source = new AssuranceSourceReference { Revision = "fixture-revision" },
+                    Summary = $"Summary {index}.", EvidenceIds = [$"evidence-{index:D2}"]
+                }).ToArray()
+            }
+        };
+
+        var report = new MarkdownReportGenerator().GenerateReport(result);
+
+        foreach (var claim in result.Assurance.Claims)
+        {
+            report.Should().Contain($"#### `{claim.ClaimId}`");
+            report.Should().Contain($"Evidence reference: `{claim.EvidenceIds[0]}`");
+        }
+        report.Should().Contain("| **Recommended Exit** | 124 |");
+        report.Should().Contain("| **Run Termination** | Cancelled |");
+        report.Should().Contain("No certificate-eligibility explanation was recorded for this profile.");
+        report.Should().NotContain("All requirements for the selected assurance profile are satisfied.");
+    }
+
+    [Theory]
+    [InlineData(ValidationStatus.Error, "error", "70")]
+    [InlineData(ValidationStatus.Cancelled, "error", "124")]
+    [InlineData(ValidationStatus.InProgress, "skipped", "1")]
+    [InlineData(ValidationStatus.Passed, null, "1")]
+    public void Junit_ShouldRetainRunIntegrityAndIndependentPolicy(ValidationStatus status, string? elementName, string expectedExit)
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = status,
+            PolicyOutcome = new ValidationPolicyOutcome { Passed = false, RecommendedExitCode = 1, Summary = "Synthetic policy rejection." },
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory,
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible
+                }
+            }
+        };
+
+        var report = XDocument.Parse(_renderer.GenerateJunitReport(result));
+        var run = report.Root!.Elements("testsuite").Single(suite => (string?)suite.Attribute("name") == "run-integrity");
+        var testCase = run.Element("testcase")!;
+
+        if (elementName == null) testCase.Elements().Should().NotContain(element => element.Name == "error" || element.Name == "failure" || element.Name == "skipped");
+        else testCase.Element(elementName).Should().NotBeNull();
+        run.Element("properties")!.Elements("property").Single(property => (string?)property.Attribute("name") == "recommendedExitCode")
+            .Attribute("value")!.Value.Should().Be(expectedExit);
+        report.Root.Elements("testsuite").Single(suite => (string?)suite.Attribute("name") == "host-policy")
+            .Descendants("failure").Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(ValidationStatus.Passed, true, 1)]
+    [InlineData(ValidationStatus.Error, false, 70)]
+    [InlineData(ValidationStatus.Cancelled, false, 124)]
+    [InlineData(ValidationStatus.InProgress, false, 1)]
+    public void SarifInvocation_ShouldSeparateExecutionFromPolicyExit(ValidationStatus status, bool completed, int expectedExit)
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = status,
+            PolicyOutcome = new ValidationPolicyOutcome { Passed = false, RecommendedExitCode = 1 },
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory,
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible
+                }
+            }
+        };
+
+        using var report = JsonDocument.Parse(_renderer.GenerateSarifReport(result));
+        var run = report.RootElement.GetProperty("runs")[0];
+        run.GetProperty("properties").GetProperty("recommendedExitCode").GetInt32().Should().Be(expectedExit);
+        if (result.Run.TerminationOutcome == null)
+        {
+            run.GetProperty("invocations").GetArrayLength().Should().Be(0);
+            run.GetProperty("properties").GetProperty("executionEvidenceAvailable").GetBoolean().Should().BeFalse();
+            return;
+        }
+        var invocation = run.GetProperty("invocations")[0];
+
+        invocation.GetProperty("executionSuccessful").GetBoolean().Should().Be(completed);
+        invocation.GetProperty("properties").GetProperty("recommendedExitCode").GetInt32().Should().Be(expectedExit);
+        invocation.GetProperty("properties").GetProperty("runTerminationOutcome").GetString()
+            .Should().Be(result.Run.TerminationOutcome?.ToString());
+    }
+
+    [Theory]
+    [InlineData(ValidationStatus.Error, ValidationOutcome.Error, 70)]
+    [InlineData(ValidationStatus.Cancelled, ValidationOutcome.Cancelled, 124)]
+    [InlineData(ValidationStatus.Passed, ValidationOutcome.Succeeded, 0)]
+    [InlineData(ValidationStatus.Failed, ValidationOutcome.Succeeded, 0)]
+    [InlineData(ValidationStatus.PartiallyCompleted, ValidationOutcome.Inconclusive, 2)]
+    [InlineData(ValidationStatus.InProgress, null, 2)]
+    public void RecordedRunTermination_ShouldPreserveExitAfterJsonRoundTrip(
+        ValidationStatus status, ValidationOutcome? expectedTermination, int expectedExit)
+    {
+        var result = new ValidationResult
+        {
+            OverallStatus = status,
+            CriticalErrors = ["Synthetic validation interruption."],
+            Assurance = new AssuranceEvaluation
+            {
+                Profile = AssuranceProfileCatalog.Inventory,
+                CertificateEligibility = new CertificateEligibilityAssessment
+                {
+                    ProfileId = "inventory", Status = CertificateEligibilityStatus.Ineligible
+                }
+            }
+        };
+        var options = ArtifactJsonOptions.Create(writeIndented: false);
+        var saved = JsonSerializer.Serialize(result.CloneWithoutSecrets(), options);
+        var reloaded = JsonSerializer.Deserialize<ValidationResult>(saved, options)!;
+
+        AssuranceExitCodeMapper.Map(result).Should().Be(expectedExit);
+        AssuranceExitCodeMapper.Map(reloaded).Should().Be(expectedExit);
+        reloaded.Run.TerminationOutcome.Should().Be(expectedTermination);
+        reloaded.CloneWithoutSecrets().Run.TerminationOutcome.Should().Be(expectedTermination);
+    }
 
     [Theory]
     [InlineData(false)]
@@ -440,7 +646,7 @@ public class ValidationReportRendererTests
         var root = document.Root;
         root.Should().NotBeNull();
         root!.Name.LocalName.Should().Be("testsuites");
-        root.Attribute("tests")!.Value.Should().Be((result.Assurance.Claims.Count + 1).ToString());
+        root.Attribute("tests")!.Value.Should().Be((result.Assurance.Claims.Count + 2 + (result.PolicyOutcome == null ? 0 : 1)).ToString());
         root.Elements("testsuite").Should().Contain(suite => suite.Attribute("name")!.Value == "assurance-certificate");
         var incompleteCases = root.Descendants("testcase")
             .Where(testCase => result.Assurance.Claims.Any(claim =>
@@ -577,7 +783,7 @@ public class ValidationReportRendererTests
         html.Should().Contain(">Certificate Outcome</span>");
         html.Should().Contain(">Core Conformance</span>");
         html.Should().Contain(">Security Assurance</span>");
-        html.Should().Contain("aria-label=\"Tested scope\"");
+        html.Should().Contain("aria-label=\"Configured scope\"");
         html.Should().Contain(result.Assurance.CertificateEligibility.Status.ToString());
         html.Should().NotContain(">Trust Level</span>");
     }
@@ -601,14 +807,53 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Inventory Assessment Complete");
+        html.Should().Contain("Inventory assessment evidence");
         html.Should().Contain("Not issued by inventory profile");
-        html.Should().Contain("Inventory completed with assurance evidence gaps");
+        html.Should().Contain("Selected profile: <strong>inventory</strong>");
         html.Should().Contain("<div class=\"fact-item__value\">2025-06-18</div>");
         html.Should().NotContain("Assurance Requirements Not Met");
         html.Should().NotContain("Selected assurance profile is not satisfied");
-        html.Should().Contain("<span class=\"scope-item__label\">Tool invocation</span><strong>Not attempted</strong>");
+        html.Should().Contain("<span class=\"scope-item__label\">Tool invocation</span><strong>Not configured</strong>");
         html.Should().Contain("<span class=\"scope-item__label\">Security probes</span><strong>Skipped</strong>");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void GenerateHtmlReport_InventoryAnalysisError_ShouldNotClaimCompletion(bool verbose)
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.ToolValidation!.Status = TestStatus.Error;
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(
+            result, AssuranceProfileCatalog.Inventory,
+            new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Safe });
+        var before = JsonSerializer.Serialize(result.CloneWithoutSecrets());
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
+
+        html.Should().NotContain("Inventory Assessment Complete");
+        html.Should().NotContain("Inventory completed with assurance evidence gaps");
+        html.Should().Contain("Inventory assessment evidence");
+        JsonSerializer.Serialize(result.CloneWithoutSecrets()).Should().Be(before);
+    }
+
+    [Theory]
+    [InlineData(CertificateEligibilityStatus.Ineligible)]
+    [InlineData(CertificateEligibilityStatus.ReviewRequired)]
+    public void GenerateHtmlReport_MissingEligibilityReasons_ShouldNotInventSuccess(CertificateEligibilityStatus status)
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        result.Assurance = new AssuranceEvaluation
+        {
+            Profile = AssuranceProfileCatalog.Inventory,
+            CertificateEligibility = new CertificateEligibilityAssessment { ProfileId = "inventory", Status = status }
+        };
+
+        var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: false);
+
+        html.Should().Contain("No certificate-eligibility explanation was recorded for this profile.");
+        html.Should().NotContain("All requirements for the selected assurance profile are satisfied.");
+        html.Should().NotContain("Certificate eligibility requirements for the selected profile are satisfied.");
     }
 
     [Fact]
@@ -657,8 +902,8 @@ public class ValidationReportRendererTests
         html.Should().Contain("Typed claim");
         html.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
         html.Should().Contain("P50 / P95 / P99");
-        html.Should().Contain("section-abstract__label\">Priority 1</div>");
-        html.Should().NotContain("section-abstract__label\">P1</div>");
+        html.Should().Contain("section-abstract__label\">Priority 1</dt>");
+        html.Should().NotContain("section-abstract__label\">P1</dt>");
     }
 
     [Fact]
@@ -700,11 +945,12 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(1);
-        html.IndexOf("Release Decision &amp; Reading Path", StringComparison.Ordinal)
-            .Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
-        html.Should().Contain("section-card__toggle-label section-card__toggle-label--collapsed\">Expand details</span>");
-        html.Should().Contain("section-card__toggle-label section-card__toggle-label--expanded\">Collapse details</span>");
+        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(0);
+        var decisionPosition = html.IndexOf("id=\"assessment-decision\"", StringComparison.Ordinal);
+        decisionPosition.Should().BeGreaterThanOrEqualTo(0);
+        decisionPosition.Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
+        html.Should().Contain("<h2>Terms And Abbreviations</h2>");
+        html.Should().NotContain("<details");
     }
 
     [Fact]

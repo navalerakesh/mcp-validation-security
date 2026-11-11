@@ -20,6 +20,16 @@ public static class ValidationOutcomeTaxonomy
 {
     public const string Version = "1.1.0";
 
+    public static ValidationOutcome? FromRunTermination(ValidationStatus status) => status switch
+    {
+        ValidationStatus.InProgress => null,
+        ValidationStatus.Passed or ValidationStatus.Failed => ValidationOutcome.Succeeded,
+        _ => From(status)
+    };
+
+    public static bool IsRunTermination(ValidationOutcome outcome) => outcome is
+        ValidationOutcome.Succeeded or ValidationOutcome.Inconclusive or ValidationOutcome.Cancelled or ValidationOutcome.Error;
+
     public static ValidationOutcome From(TestStatus status) => status switch
     {
         TestStatus.NotRun => ValidationOutcome.NotEvaluated,

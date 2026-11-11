@@ -7,7 +7,7 @@ internal static class ValidationHtmlReportTheme
     return """
 :root {
     color-scheme: light;
-    --report-bg: #eef1f4;
+    --report-bg: #ffffff;
     --report-bg-glow-a: rgba(54, 95, 161, 0.08);
     --report-bg-glow-b: rgba(168, 93, 25, 0.08);
     --report-bg-glow-c: rgba(15, 23, 38, 0.05);
@@ -54,25 +54,73 @@ body {
     max-width: 1260px;
     margin: 0 auto;
     background: rgba(255,255,255,0.98);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-shell);
-    box-shadow: var(--shadow-panel);
-    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
     position: relative;
-}
-.report-shell::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 3px;
-    background: var(--tone-info);
-    opacity: 0.55;
-    pointer-events: none;
 }
 .report-content {
     position: relative;
     z-index: 1;
     padding: 22px 24px 28px;
+}
+.assessment-masthead {
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--text-strong);
+}
+.assessment-masthead h1 {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.2;
+    letter-spacing: 0;
+}
+.assessment-masthead p {
+    margin: 8px 0 0;
+    color: var(--text-soft);
+}
+.assessment-contents ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+.assessment-contents a {
+    display: inline-block;
+    padding: 4px 0;
+    color: var(--tone-info);
+    text-underline-offset: 3px;
+}
+.assessment-section {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+.assessment-section h2 { margin: 0 0 12px; font-size: 24px; }
+.assessment-section h3 { margin: 20px 0 8px; font-size: 18px; }
+.assessment-section p, .assessment-list { max-width: 80ch; }
+.assessment-facts { margin: 16px 0; }
+.assessment-facts > div {
+    display: grid;
+    grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 4px 0;
+}
+.assessment-facts dt { font-weight: 600; }
+.assessment-facts dd { margin: 0; }
+.assessment-reference summary { cursor: pointer; }
+.assessment-reference summary h2 { display: inline; }
+.assessment-reference summary:focus-visible,
+.assessment-contents a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+@media (max-width: 600px) {
+    .assessment-facts > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 8px 0;
+    }
 }
 .hero {
     border-radius: calc(var(--radius-shell) - 4px);
@@ -1369,12 +1417,15 @@ body {
 .data-table tbody tr:last-child td {
     border-bottom: 0;
 }
-.data-table.data-table--operations {
+.data-table.data-table--operations,
+.data-table.data-table--outcomes {
     min-width: 0;
     table-layout: fixed;
 }
 .data-table.data-table--operations th,
-.data-table.data-table--operations td {
+.data-table.data-table--operations td,
+.data-table.data-table--outcomes th,
+.data-table.data-table--outcomes td {
     min-width: 0;
     overflow-wrap: anywhere;
 }
@@ -1877,6 +1928,15 @@ a:hover {
     }
 }
 @media print {
+    .assessment-reference::details-content {
+        content-visibility: visible;
+        display: block;
+    }
+    .assessment-reference > .assessment-section__content {
+        display: block !important;
+    }
+    .assessment-contents { display: none; }
+    h2, h3 { break-after: avoid; }
     @page {
         size: A4;
         margin: 12mm;

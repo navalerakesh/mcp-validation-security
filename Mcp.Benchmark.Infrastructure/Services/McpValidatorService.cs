@@ -201,6 +201,12 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             });
 
             result.OverallStatus = vex.Status;
+            result.Run.TerminationOutcome = vex.Status switch
+            {
+                ValidationStatus.Cancelled => ValidationOutcome.Cancelled,
+                ValidationStatus.Error => ValidationOutcome.Error,
+                _ => ValidationOutcome.Inconclusive
+            };
             result.CriticalErrors.Add(vex.Message);
             result.EndTime = DateTime.UtcNow;
             return CompleteRun();
@@ -460,6 +466,10 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(
                 result.Assurance,
                 result.CriticalErrors.Count > 0);
+            result.Run.TerminationOutcome = result.CriticalErrors.Count > 0 ||
+                result.Assurance.Claims.Any(claim => claim.Outcome == AssuranceClaimOutcome.Error)
+                ? ValidationOutcome.Error
+                : ValidationOutcome.Succeeded;
 
             // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
             // protocol version actually negotiated, when that version has an embedded

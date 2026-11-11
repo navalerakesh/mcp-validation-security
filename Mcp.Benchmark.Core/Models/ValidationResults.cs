@@ -12,6 +12,8 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class ValidationResult
 {
+    private ValidationStatus _overallStatus = ValidationStatus.InProgress;
+
     public string DocumentType { get; set; } = ArtifactContracts.ValidationResultDocumentType;
 
     public string DocumentSchemaVersion { get; set; } = ArtifactContracts.ValidationResultSchemaVersion;
@@ -59,7 +61,21 @@ public class ValidationResult
     /// Gets or sets the overall validation status.
     /// </summary>
     [JsonIgnore]
-    public ValidationStatus OverallStatus { get; set; } = ValidationStatus.InProgress;
+    public ValidationStatus OverallStatus
+    {
+        get => Run.TerminationOutcome switch
+        {
+            ValidationOutcome.Cancelled => ValidationStatus.Cancelled,
+            ValidationOutcome.Error => ValidationStatus.Error,
+            ValidationOutcome.Inconclusive => ValidationStatus.PartiallyCompleted,
+            _ => _overallStatus
+        };
+        set
+        {
+            _overallStatus = value;
+            Run.TerminationOutcome = ValidationOutcomeTaxonomy.FromRunTermination(value);
+        }
+    }
 
     /// <summary>
     /// Gets or sets the overall compliance score (0-100).
@@ -288,9 +304,11 @@ public class ValidationResult
             DocumentType = DocumentType,
             DocumentSchemaVersion = DocumentSchemaVersion,
             Producer = DeepCloneRequired(Producer),
+            OverallStatus = OverallStatus,
             Run = new ValidationRunDocument
             {
                 ValidationId = ValidationId,
+                TerminationOutcome = Run.TerminationOutcome,
                 ProtocolVersion = ProtocolVersion,
                 SchemaVersion = Run.SchemaVersion,
                 SourceDocumentSchemaVersion = Run.SourceDocumentSchemaVersion,
@@ -310,7 +328,6 @@ public class ValidationResult
             Compatibility = DeepCloneRequired(Compatibility),
             StartTime = StartTime,
             EndTime = EndTime,
-            OverallStatus = OverallStatus,
             ComplianceScore = ComplianceScore,
             ScoringNotes = ScoringNotes.ToList(),
             ScoringDetails = DeepClone(ScoringDetails),

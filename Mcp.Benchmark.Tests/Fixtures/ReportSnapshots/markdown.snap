@@ -31,6 +31,8 @@
 | **Core Conformance** | **Nonconformant** |
 | **Security Assurance** | **IssuesFound** |
 | **Operational Readiness** | **Ready** |
+| **Run Termination** | Execution completed; assurance is assessed separately |
+| **Recommended Exit** | 1 |
 | **Evidence Coverage** | **87.5%** |
 | **Evidence Confidence** | **High (91.9%)** |
 | **Applied Waivers** | **0** |
@@ -51,16 +53,164 @@
 - A verified provider harness receipt with target-bound authorization is required.
 - Repeated-run consistency of at least 99.0% is required.
 
-### Non-Success Claims
+### Recorded Claims
 
-| Claim | Dimension | Authority | Outcome | Confidence | Summary |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `coverage:prompt-surface:prompts-list` | CoreProtocol | ProviderPolicy | **Incomplete** | None | Server does not advertise prompts capability. |
-| `finding:mcp-tool-call-result-object-missing:tools-call` | CoreProtocol | OfficialSpecification | **ReviewRequired** | High | One tool response omitted the outer result object. |
-| `protocol:mcp-init-version-negotiation` | CoreProtocol | OfficialSpecification | **Violated** | High | Server ignored the requested MCP protocol version. |
-| `finding:ai-tool-schema-parameter-description-missing:delete-repo` | CapabilityContract | Heuristic | **ReviewRequired** | Medium | Tool 'delete_repo' has parameters without descriptions. |
-| `finding:mcp-guideline-tool-destructive-hint-missing:delete-repo` | CapabilityContract | ProviderPolicy | **ReviewRequired** | Medium | Tool 'delete_repo' does not declare annotations.destructiveHint. |
-| `vulnerability:mcp-security-prompt-injection:prompt-get` | Security | DeterministicSecurity | **Violated** | High | Server reflected untrusted prompt content without sanitization. |
+#### `coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent`
+
+Coverage outcome: Succeeded.
+
+- Subject: github-copilot-cli,github-copilot-cloud-agent
+- Outcome: **Satisfied**; dimension: CoreProtocol; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered`
+
+#### `coverage:prompt-surface:prompts-list`
+
+Server does not advertise prompts capability.
+
+- Subject: prompts/list
+- Outcome: **Incomplete**; dimension: CoreProtocol; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:prompt-surface:prompts-list:Skipped`
+
+#### `coverage:protocol-core:json-rpc`
+
+Coverage outcome: Succeeded.
+
+- Subject: json-rpc
+- Outcome: **Satisfied**; dimension: CoreProtocol; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:protocol-core:json-rpc:Covered`
+
+#### `coverage:tool-surface:tool-catalog-smoke`
+
+Coverage outcome: Succeeded.
+
+- Subject: tool-catalog-smoke
+- Outcome: **Satisfied**; dimension: CoreProtocol; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:tool-surface:tool-catalog-smoke:Covered`
+
+#### `coverage:tool-surface:tools-list`
+
+Coverage outcome: Succeeded.
+
+- Subject: tools/list
+- Outcome: **Satisfied**; dimension: CoreProtocol; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:tool-surface:tools-list:Covered`
+
+#### `finding:mcp-tool-call-result-object-missing:tools-call`
+
+One tool response omitted the outer result object.
+
+- Subject: tools/call
+- Outcome: **ReviewRequired**; dimension: CoreProtocol; requirement: Should
+- Authority: OfficialSpecification; recorded confidence: High
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-10.5`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence references: none recorded.
+
+#### `protocol:mcp-init-version-negotiation`
+
+Server ignored the requested MCP protocol version.
+
+- Subject: Initialization
+- Outcome: **Violated**; dimension: CoreProtocol; requirement: Must
+- Authority: OfficialSpecification; recorded confidence: High
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2025-11-25`; source: `https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle`
+- Recorded correction: Echo the negotiated protocol version in initialize.result.
+- Evidence reference: `protocol/MCP.INIT.VERSION_NEGOTIATION`
+
+#### `finding:ai-tool-schema-parameter-description-missing:delete-repo`
+
+Tool 'delete_repo' has parameters without descriptions.
+
+- Subject: delete_repo
+- Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
+- Authority: Heuristic; recorded confidence: Medium
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-10.5`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence references: none recorded.
+
+#### `finding:mcp-guideline-tool-destructive-hint-missing:delete-repo`
+
+Tool 'delete_repo' does not declare annotations.destructiveHint.
+
+- Subject: delete_repo
+- Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
+- Authority: ProviderPolicy; recorded confidence: Medium
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-10.5`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence references: none recorded.
+
+#### `coverage:security-boundaries:security-authentication-challenge`
+
+Coverage outcome: Succeeded.
+
+- Subject: security-authentication-challenge
+- Outcome: **Satisfied**; dimension: Security; requirement: SecurityControl
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:security-boundaries:security-authentication-challenge:Covered`
+
+#### `vulnerability:mcp-security-prompt-injection:prompt-get`
+
+Server reflected untrusted prompt content without sanitization.
+
+- Subject: prompt:get
+- Outcome: **Violated**; dimension: Security; requirement: SecurityControl
+- Authority: DeterministicSecurity; recorded confidence: High
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-10.5`; source: `Not recorded`
+- Recorded correction: Sanitize and label untrusted content before returning it.
+- Evidence reference: `probe-prompt-get-reflection-200`
+
+#### `coverage:error-handling:error-handling`
+
+Coverage outcome: Succeeded.
+
+- Subject: error-handling
+- Outcome: **Satisfied**; dimension: Operations; requirement: OperationalObjective
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:error-handling:error-handling:Covered`
+
+#### `coverage:error-handling:error-handling-matrix`
+
+Coverage outcome: Succeeded.
+
+- Subject: error-handling-matrix
+- Outcome: **Satisfied**; dimension: Operations; requirement: OperationalObjective
+- Authority: ProviderPolicy; recorded confidence: None
+- Applicability: Applicable; No reason recorded.
+- Source revision: `2026-11-05.1`; source: `Not recorded`
+- Recorded correction: Not recorded.
+- Evidence reference: `coverage:error-handling:error-handling-matrix:Covered`
+
 
 ## 3. Connectivity & Session Bootstrap
 
@@ -180,14 +330,22 @@ Score reflects observed behavior. Evidence coverage and confidence describe how 
 
 | Layer | Scope | Status | Blocker | Confidence | Reason |
 | :--- | :--- | :--- | :--- | :---: | :--- |
-| `protocol-core` | `json-rpc` | `Covered` | `None` | None | - |
-| `tool-surface` | `tools/list` | `Covered` | `None` | None | - |
-| `prompt-surface` | `prompts/list` | `Skipped` | `None` | None | Server does not advertise prompts capability. |
-| `client-profiles` | `github-copilot-cli,github-copilot-cloud-agent` | `Covered` | `None` | None | - |
-| `tool-surface` | `tool-catalog-smoke` | `Covered` | `None` | None | - |
-| `security-boundaries` | `security-authentication-challenge` | `Covered` | `None` | None | - |
-| `error-handling` | `error-handling` | `Covered` | `None` | None | - |
-| `error-handling` | `error-handling-matrix` | `Covered` | `None` | None | - |
+| `protocol-core` | `json-rpc` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `tool-surface` | `tools/list` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `prompt-surface` | `prompts/list` | `Skipped` (Skipped) | `None` | None | Server does not advertise prompts capability. |
+| | | Observed: Not recorded | Lane: Not recorded | Origin: Not recorded | |
+| `client-profiles` | `github-copilot-cli,github-copilot-cloud-agent` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `tool-surface` | `tool-catalog-smoke` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `security-boundaries` | `security-authentication-challenge` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `error-handling` | `error-handling` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
+| `error-handling` | `error-handling-matrix` | `Covered` (Succeeded) | `None` | None | - |
+| | | Observed: Succeeded | Lane: Not recorded | Origin: Not recorded | |
 
 ### Applied Validation Packs
 

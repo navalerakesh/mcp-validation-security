@@ -155,13 +155,20 @@
           "text": "MCP validation run"
         }
       },
+      "properties": {
+        "runTerminationOutcome": "Succeeded",
+        "recommendedExitCode": 1,
+        "executionEvidenceAvailable": true
+      },
       "invocations": [
         {
-          "executionSuccessful": false,
+          "executionSuccessful": true,
           "startTimeUtc": "2026-04-20T10:00:00.0000000Z",
           "endTimeUtc": "2026-04-20T10:00:12.0000000Z",
           "properties": {
             "validationId": "validation-snapshot-001",
+            "runTerminationOutcome": "Succeeded",
+            "recommendedExitCode": 1,
             "endpoint": "https://snapshot.example.test/mcp",
             "transport": "http",
             "assuranceProfile": "provider",
@@ -181,8 +188,8 @@
       "results": [
         {
           "ruleId": "coverage:prompt-surface:prompts-list",
-          "level": "note",
-          "kind": "informational",
+          "level": "none",
+          "kind": "open",
           "message": {
             "text": "Server does not advertise prompts capability."
           },
@@ -216,8 +223,8 @@
         },
         {
           "ruleId": "finding:ai-tool-schema-parameter-description-missing:delete-repo",
-          "level": "warning",
-          "kind": "fail",
+          "level": "none",
+          "kind": "review",
           "message": {
             "text": "Tool \u0027delete_repo\u0027 has parameters without descriptions."
           },
@@ -241,7 +248,7 @@
             "requirementLevel": "Policy",
             "outcome": "ReviewRequired",
             "confidence": "Medium",
-            "sourceRevision": "2026-11-10.4",
+            "sourceRevision": "2026-11-10.5",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -252,8 +259,8 @@
         },
         {
           "ruleId": "finding:mcp-guideline-tool-destructive-hint-missing:delete-repo",
-          "level": "warning",
-          "kind": "fail",
+          "level": "none",
+          "kind": "review",
           "message": {
             "text": "Tool \u0027delete_repo\u0027 does not declare annotations.destructiveHint."
           },
@@ -277,7 +284,7 @@
             "requirementLevel": "Policy",
             "outcome": "ReviewRequired",
             "confidence": "Medium",
-            "sourceRevision": "2026-11-10.4",
+            "sourceRevision": "2026-11-10.5",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -288,8 +295,8 @@
         },
         {
           "ruleId": "finding:mcp-tool-call-result-object-missing:tools-call",
-          "level": "warning",
-          "kind": "fail",
+          "level": "none",
+          "kind": "review",
           "message": {
             "text": "One tool response omitted the outer result object."
           },
@@ -313,7 +320,7 @@
             "requirementLevel": "Should",
             "outcome": "ReviewRequired",
             "confidence": "High",
-            "sourceRevision": "2026-11-10.4",
+            "sourceRevision": "2026-11-10.5",
             "sourceSha256": null,
             "evidenceIds": [],
             "claimMetadata": {
@@ -387,7 +394,7 @@
             "requirementLevel": "SecurityControl",
             "outcome": "Violated",
             "confidence": "High",
-            "sourceRevision": "2026-11-10.4",
+            "sourceRevision": "2026-11-10.5",
             "sourceSha256": null,
             "evidenceIds": [
               "probe-prompt-get-reflection-200"

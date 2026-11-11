@@ -3,8 +3,8 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class ArtifactContracts
 {
     public const string SchemaVersion = "1.0.0";
-    public const string ValidationResultSchemaVersion = "3.0.0";
-    public const string AuditManifestSchemaVersion = "2.1.0";
+    public const string ValidationResultSchemaVersion = "3.1.0";
+    public const string AuditManifestSchemaVersion = "2.2.0";
     public const string ClientProfileSummarySchemaVersion = "2.0.0";
     public const string OfficialConformanceEvidenceSchemaVersion = "1.0.0";
     public const string ProviderHarnessSchemaVersion = "2.0.0";

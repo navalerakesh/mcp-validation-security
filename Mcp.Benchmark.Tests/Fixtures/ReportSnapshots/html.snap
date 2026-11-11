@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'sha256-Dnk+lth1Bn+NsJJh3K7p3q62IxminO4u/8m4yFzp8Mo='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
     <title>MCP Server Assurance Report - Full</title>
     <link rel="icon" href="data:,">
-    <style>
-:root {
+    <style>:root {
     color-scheme: light;
-    --report-bg: #eef1f4;
+    --report-bg: #ffffff;
     --report-bg-glow-a: rgba(54, 95, 161, 0.08);
     --report-bg-glow-b: rgba(168, 93, 25, 0.08);
     --report-bg-glow-c: rgba(15, 23, 38, 0.05);
@@ -55,25 +55,73 @@ body {
     max-width: 1260px;
     margin: 0 auto;
     background: rgba(255,255,255,0.98);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-shell);
-    box-shadow: var(--shadow-panel);
-    overflow: hidden;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
     position: relative;
-}
-.report-shell::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto 0;
-    height: 3px;
-    background: var(--tone-info);
-    opacity: 0.55;
-    pointer-events: none;
 }
 .report-content {
     position: relative;
     z-index: 1;
     padding: 22px 24px 28px;
+}
+.assessment-masthead {
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--text-strong);
+}
+.assessment-masthead h1 {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.2;
+    letter-spacing: 0;
+}
+.assessment-masthead p {
+    margin: 8px 0 0;
+    color: var(--text-soft);
+}
+.assessment-contents ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 24px;
+    list-style: none;
+    padding: 0;
+    margin: 20px 0;
+}
+.assessment-contents a {
+    display: inline-block;
+    padding: 4px 0;
+    color: var(--tone-info);
+    text-underline-offset: 3px;
+}
+.assessment-section {
+    padding: 16px 0;
+    border-bottom: 1px solid var(--line);
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+.assessment-section h2 { margin: 0 0 12px; font-size: 24px; }
+.assessment-section h3 { margin: 20px 0 8px; font-size: 18px; }
+.assessment-section p, .assessment-list { max-width: 80ch; }
+.assessment-facts { margin: 16px 0; }
+.assessment-facts > div {
+    display: grid;
+    grid-template-columns: minmax(120px, 220px) minmax(0, 1fr);
+    gap: 12px;
+    padding: 4px 0;
+}
+.assessment-facts dt { font-weight: 600; }
+.assessment-facts dd { margin: 0; }
+.assessment-reference summary { cursor: pointer; }
+.assessment-reference summary h2 { display: inline; }
+.assessment-reference summary:focus-visible,
+.assessment-contents a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+@media (max-width: 600px) {
+    .assessment-facts > div {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 4px;
+        padding: 8px 0;
+    }
 }
 .hero {
     border-radius: calc(var(--radius-shell) - 4px);
@@ -1370,12 +1418,15 @@ body {
 .data-table tbody tr:last-child td {
     border-bottom: 0;
 }
-.data-table.data-table--operations {
+.data-table.data-table--operations,
+.data-table.data-table--outcomes {
     min-width: 0;
     table-layout: fixed;
 }
 .data-table.data-table--operations th,
-.data-table.data-table--operations td {
+.data-table.data-table--operations td,
+.data-table.data-table--outcomes th,
+.data-table.data-table--outcomes td {
     min-width: 0;
     overflow-wrap: anywhere;
 }
@@ -1878,6 +1929,15 @@ a:hover {
     }
 }
 @media print {
+    .assessment-reference::details-content {
+        content-visibility: visible;
+        display: block;
+    }
+    .assessment-reference > .assessment-section__content {
+        display: block !important;
+    }
+    .assessment-contents { display: none; }
+    h2, h3 { break-after: avoid; }
     @page {
         size: A4;
         margin: 12mm;
@@ -1980,211 +2040,100 @@ a:hover {
         padding: 7px 8px;
         font-size: 0.78rem;
     }
-}
-    </style>
+}</style>
 </head>
 <body>
   <div class="report-shell">
-    <div class="report-content">
-      <section class="hero">
-        <div class="hero-grid">
-          <div class="hero-heading">
-            <div class="eyebrow">Model Context Protocol (MCP) Assurance Report</div>
-            <h1 class="hero-title">Assurance Requirements Not Met</h1>
-            <p class="hero-subtitle">Core conformance is Nonconformant. Security assurance is IssuesFound.</p>
-            <div class="scope-rail" aria-label="Tested scope">
-              <div class="scope-rail__title">Tested scope</div>
+    <main class="report-content" id="assessment-document">
+      <header class="assessment-masthead"><h1>MCPVal assessment</h1>
+        <p>Generated on <normalized-timestamp> · Full report</p></header>
+      <nav class="assessment-contents" aria-label="Contents"><ul>
+        <li><a href="#assessment-decision">Decision and scope</a></li><li><a href="#evidence-and-actions">Coverage and actions</a></li>
+        <li><a href="#recorded-claims">Findings and claims</a></li><li><a href="#technical-evidence">Technical evidence</a></li><li><a href="#method-and-provenance">Method and provenance</a></li></ul></nav>
+      <section class="assessment-section" id="assessment-decision" aria-labelledby="assessment-decision-title">
+        <h2 id="assessment-decision-title">Assurance Requirements Not Met</h2>
+        <p>Selected profile: <strong>provider</strong> · Revision: 2026-11-05.1</p>
+        <p>Core conformance is Nonconformant. Security assurance is IssuesFound. Evidence coverage 87.5% is below 90.0%.</p>
+        <dl class="assessment-facts">
+          <div><dt><span>Certificate Outcome</span></dt><dd>Ineligible</dd></div>
+          <div><dt><span>Core Conformance</span></dt><dd>Nonconformant</dd></div>
+          <div><dt><span>Security Assurance</span></dt><dd>IssuesFound</dd></div>
+          <div><dt><span>Operational readiness</span></dt><dd>Ready</dd></div>
+          <div><dt><span>Run termination</span></dt><dd>Execution completed; assurance is assessed separately</dd></div>
+          <div><dt><span>Policy outcome</span></dt><dd>Failed</dd></div>
+          <div><dt><span>Recommended exit</span></dt><dd>1</dd></div>
+          <div><dt><span>Configured endpoint</span></dt><dd>https://snapshot.example.test/mcp</dd></div>
+          <div><dt><span>Backend identity</span></dt><dd>Backend verification not recorded</dd></div>
+        </dl>
+        <p>Strict policy blocked the validation result with 6 blocking signal(s).</p>
+            <div class="scope-rail" aria-label="Configured scope">
+              <div class="scope-rail__title">Configured scope</div>
               <div class="scope-rail__items">
                 <div class="scope-item"><span class="scope-dot scope-dot--info" aria-hidden="true"></span><span class="scope-item__label">Execution mode</span><strong>Safe</strong></div>
-                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Tool invocation</span><strong>Enabled</strong></div>
-                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Resource reads</span><strong>Enabled</strong></div>
-                <div class="scope-item"><span class="scope-dot scope-dot--warning" aria-hidden="true"></span><span class="scope-item__label">Prompt execution</span><strong>Enabled</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--neutral" aria-hidden="true"></span><span class="scope-item__label">Tool invocation</span><strong>Configured</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--neutral" aria-hidden="true"></span><span class="scope-item__label">Resource reads</span><strong>Configured</strong></div>
+                <div class="scope-item"><span class="scope-dot scope-dot--neutral" aria-hidden="true"></span><span class="scope-item__label">Prompt execution</span><strong>Configured</strong></div>
                 <div class="scope-item"><span class="scope-dot scope-dot--danger" aria-hidden="true"></span><span class="scope-item__label">Security probes</span><strong>Failed</strong></div>
                 <div class="scope-item"><span class="scope-dot scope-dot--success" aria-hidden="true"></span><span class="scope-item__label">Load testing</span><strong>Passed</strong></div>
               </div>
             </div>
 
-          </div>
-          <div class="hero-side">
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Certificate Outcome</span>
-    <div class="focus-value">Ineligible</div>
-    <div class="focus-label">Generated on <normalized-timestamp></div>
-</div>
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Core Conformance</span>
-    <div class="focus-value">Nonconformant</div>
-    <div class="focus-label">Official specification and conformance claims</div>
-</div>
-<div class="panel status-panel panel--soft panel--tone-danger">
-    <span class="status-chip status-chip--danger">Security Assurance</span>
-    <div class="focus-value">IssuesFound</div>
-    <div class="focus-label">Operational readiness: Ready</div>
-</div>
-          </div>
-            <div class="hero-facts">
-              <div class="fact-item">
-                <div class="fact-item__label">Endpoint</div>
-                <div class="fact-item__value">https://snapshot.example.test/mcp</div>
-              </div>
-              <div class="fact-item">
-                <div class="fact-item__label">Validation Identifier</div>
-                <div class="fact-item__value">validation-snapshot-001</div>
-              </div>
-              <div class="fact-item">
-                <div class="fact-item__label">Duration</div>
-                <div class="fact-item__value">12.0s</div>
-              </div>
-              <div class="fact-item">
-                <div class="fact-item__label">MCP Specification Profile</div>
-                <div class="fact-item__value">2025-11-25</div>
-              </div>
-              <div class="fact-item">
-                <div class="fact-item__label">Server Profile</div>
-                <div class="fact-item__value">Authenticated (UserDeclared)</div>
-              </div>
-              <div class="fact-item">
-                <div class="fact-item__label">Protocol Version</div>
-                <div class="fact-item__value">2025-11-25</div>
-              </div>
-            </div>
+      </section>
 
+      <section class="assessment-section" id="evidence-and-actions" aria-labelledby="evidence-and-actions-title">
+        <h2 id="evidence-and-actions-title">Coverage and missing evidence</h2>
+        <p>Core required claims: 0 satisfied of 1 recorded.</p>
+        <p>Recorded coverage declarations: 7 covered of 8 applicable; 8 total.</p>
+        <table class="data-table data-table--outcomes" id="claim-outcomes"><caption>Recorded claim outcomes</caption><thead><tr><th scope="col">Outcome</th><th scope="col">Count</th></tr></thead><tbody>
+          <tr><th scope="row">Satisfied</th><td>7</td></tr>
+          <tr><th scope="row">Violated</th><td>2</td></tr>
+          <tr><th scope="row">Error</th><td>0</td></tr>
+          <tr><th scope="row">Incomplete</th><td>1</td></tr>
+          <tr><th scope="row">Review required</th><td>3</td></tr>
+          <tr><th scope="row">Not applicable</th><td>0</td></tr>
+        </tbody></table>
+        <h3>Recorded eligibility reasons</h3>
+        <ul class="assessment-list">
+          <li>Core conformance is Nonconformant.</li>
+          <li>Security assurance is IssuesFound.</li>
+          <li>Evidence coverage 87.5% is below 90.0%.</li>
+          <li>Verified official conformance evidence is required.</li>
+          <li>A verified signed attestation is required.</li>
+          <li>A verified provider harness receipt with target-bound authorization is required.</li>
+          <li>Repeated-run consistency of at least 99.0% is required.</li>
+        </ul>
+        <div id="recorded-incomplete-claims">
+        <h3>Recorded incomplete claims</h3>
+        <ul class="assessment-list">
+          <li>coverage:prompt-surface:prompts-list</li>
+        </ul>
         </div>
+        <h3>Priority Findings</h3>
+        <ul class="assessment-list">
+          <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
+          <li>[Guideline] 2 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+          <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
+          <li>[Heuristic] 1 non-spec security or advisory signal(s), led by MCP.SECURITY.PROMPT_INJECTION: Server reflected untrusted prompt content without sanitization.</li>
+          <li>[Operational] 1 critical execution error(s), led by: Prompt validation hit an unsafe reflection path.</li>
+        </ul>
+        <h3>Next Actions</h3>
+        <ul class="assessment-list">
+          <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
+          <li>[Provider Policy] CapabilityContract: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
+          <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
+          <li>[Heuristic] Security: Sanitize and label untrusted content before returning it.</li>
+        </ul>
       </section>
-
-      <section class="section">
-        <details class="section-card section-card--tone-danger" open>
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Executive Summary</div>
-              <h2 class="section-title section-title--card">Assurance Decision &amp; Reading Path</h2>
-              <p class="section-intro section-intro--card">This is the authoritative interpretation surface. It explains what the evidence supports, why, and where to read next.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">Selected assurance profile is not satisfied</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Violated</div><div class="section-abstract__value">2</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Profile</div><div class="section-abstract__value">provider</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Certificate</div><div class="section-abstract__value">Ineligible</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
-
-          <div class="brief-grid">
-            <div class="decision-brief decision-brief--tone-danger">
-              <div class="section-kicker">Assurance Decision</div>
-              <h3 class="decision-title">Selected assurance profile is not satisfied</h3>
-              <p class="decision-summary">Core conformance is Nonconformant. Security assurance is IssuesFound. Evidence coverage 87.5% is below 90.0%.</p>
-              <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Certificate</div><div class="summary-card__value">Ineligible</div></div>
-                <div class="summary-card"><div class="summary-card__label">Policy Mode</div><div class="summary-card__value">provider</div></div>
-                <div class="summary-card"><div class="summary-card__label">Recommended Exit</div><div class="summary-card__value">1</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking Signals</div><div class="summary-card__value">2</div></div>
-              </div>
-              <ul class="compact-list">
-                <li>Core conformance is Nonconformant.</li>
-                <li>Security assurance is IssuesFound.</li>
-                <li>Evidence coverage 87.5% is below 90.0%.</li>
-                <li>Verified official conformance evidence is required.</li>
-              </ul>
-            </div>
-
-            <div class="brief-side">
-              <section class="report-note report-note--warning">
-                <div class="report-note__eyebrow">Read first</div>
-                <h3 class="report-note__title">Priority Findings</h3>
-                <p class="evidence-note">Authority order: Spec blocking and warnings, then Guideline, Heuristic, and Operational signals.</p>
-                <ul class="compact-list">
-                  <li>[Spec] 1 protocol violation(s), led by MCP.INIT.VERSION_NEGOTIATION: Server ignored the requested MCP protocol version.</li>
-                  <li>[Guideline] 2 guidance signal(s), led by MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
-                  <li>[Guideline/Skip] 1 scope(s) skipped by validator design, led by prompts/list: Server does not advertise prompts capability.</li>
-                </ul>
-              </section>
-
-              <section class="report-note report-note--info">
-                <div class="report-note__eyebrow">Then review</div>
-                <h3 class="report-note__title">Next Actions</h3>
-                <ul class="compact-list">
-                  <li>[Spec] Protocol: Echo the negotiated protocol version in initialize.result.</li>
-                  <li>[Provider Policy] CapabilityContract: Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</li>
-                  <li>[Guideline/Skip] prompts/list was skipped: Server does not advertise prompts capability.</li>
-                </ul>
-              </section>
-
-            </div>
-          </div>
-          <div class="summary-grid">
-                <div class="summary-card"><div class="summary-card__label">Signals Evaluated</div><div class="summary-card__value">13</div></div>
-                <div class="summary-card"><div class="summary-card__label">Unsuppressed</div><div class="summary-card__value">6</div></div>
-                <div class="summary-card"><div class="summary-card__label">Suppressed</div><div class="summary-card__value">0</div></div>
-                <div class="summary-card"><div class="summary-card__label">Blocking</div><div class="summary-card__value">2</div></div>
-          </div>
-
-          <div class="distribution-summary">
-            <div class="distribution-summary__title">Assurance claim outcomes</div>
-            <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--success">
-                <div class="distribution-card__label">Satisfied</div>
-                <div class="distribution-card__value">7</div>
-                <div class="distribution-card__meta">54% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--warning">
-                <div class="distribution-card__label">Review required</div>
-                <div class="distribution-card__value">3</div>
-                <div class="distribution-card__meta">23% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--neutral">
-                <div class="distribution-card__label">Incomplete</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">8% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--danger">
-                <div class="distribution-card__label">Violated</div>
-                <div class="distribution-card__value">2</div>
-                <div class="distribution-card__meta">15% of observed outcomes</div>
-              </div>
-            </div>
-            <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:7;"></span>
-              <span class="distribution-segment distribution-segment--warning" style="flex:3;"></span>
-              <span class="distribution-segment distribution-segment--neutral" style="flex:1;"></span>
-              <span class="distribution-segment distribution-segment--danger" style="flex:2;"></span>
-            </div>
-            <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Satisfied 7 (54%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--warning"></span>Review required 3 (23%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--neutral"></span>Incomplete 1 (8%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Violated 2 (15%)</span>
-            </div>
-          </div>
-
-          </div>
-        </details>
-      </section>
-      <section class="section">
-        <details class="section-card section-card--tone-warning">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Remediation Roadmap</div>
-              <h2 class="section-title section-title--card">Recommended Remediation Order</h2>
-              <p class="section-intro section-intro--card">Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Priority 1</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Priority 3</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Priority 4</div><div class="section-abstract__value">2</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Recommended Remediation Order</h2>
+        <p class="assessment-context">Remediation Roadmap</p>
+        <p>Fix dependency gates in this order so later validation evidence becomes trustworthy instead of merely quieter.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Priority 1</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Priority 3</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Priority 4</dt><dd>2</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="ledger-list">
             <article class="ledger-entry ledger-entry--danger">
@@ -2245,30 +2194,18 @@ a:hover {
               </div>
             </article>
           </div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-warning">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Decision Trace</div>
-              <h2 class="section-title section-title--card">Why The Verdict Landed Here</h2>
-              <p class="section-intro section-intro--card">Grouped decision themes show the causal path from evidence to gate outcome. Hotspots call out the components absorbing the most pressure.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Themes</div><div class="section-abstract__value">6</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Hotspots</div><div class="section-abstract__value">5</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Primary Gate</div><div class="section-abstract__value">ReviewRequired</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Why The Verdict Landed Here</h2>
+        <p class="assessment-context">Decision Trace</p>
+        <p>Grouped decision themes show the causal path from evidence to gate outcome. Hotspots call out the components absorbing the most pressure.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Themes</dt><dd>6</dd></div>
+          <div><dt class="section-abstract__label">Hotspots</dt><dd>5</dd></div>
+          <div><dt class="section-abstract__label">Primary Gate</dt><dd>ReviewRequired</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="decision-trace-layout">
             <div class="decision-trace-main">
@@ -2470,30 +2407,18 @@ a:hover {
             </aside>
 
           </div>
-          </div>
-        </details>
-      </section>
-      <section class="section">
-        <details class="section-card section-card--tone-info">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Scorecard</div>
-              <h2 class="section-title section-title--card">Compliance &amp; Domain Evidence</h2>
-              <p class="section-intro section-intro--card">Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Certificate Outcome</div><div class="section-abstract__value">Ineligible</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Conformance</div><div class="section-abstract__value">Nonconformant</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Assurance</div><div class="section-abstract__value">IssuesFound</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Readiness</div><div class="section-abstract__value">Ready</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+        </div></section>
+      <section class="assessment-section">
+        <h2>Compliance &amp; Domain Evidence</h2>
+        <p class="assessment-context">Scorecard</p>
+        <p>Benchmark metrics stay compact here. Domain rows translate those numbers into evidence, impact, and the next concrete move.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Certificate Outcome</dt><dd>Ineligible</dd></div>
+          <div><dt class="section-abstract__label">Conformance</dt><dd>Nonconformant</dd></div>
+          <div><dt class="section-abstract__label">Assurance</dt><dd>IssuesFound</dd></div>
+          <div><dt class="section-abstract__label">Readiness</dt><dd>Ready</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="principle-rail">
             <div class="principle-card">
@@ -2623,31 +2548,153 @@ a:hover {
             </table>
           </div>
 
-          </div>
-        </details>
+        </div></section>
+
+      <section class="assessment-section" id="recorded-claims" aria-labelledby="recorded-claims-title"><h2 id="recorded-claims-title">Findings and recorded claims</h2>
+        <article class="assessment-claim" id="claim-77367faa3ba63895bb9a0478cc1a37a8f2f315b3677da1d7b148b277571d95e4" data-claim-id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent">
+          <h3>github-copilot-cli,github-copilot-cloud-agent</h3><p><code>coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-c5b934f31c1e821dde9a515acb288ec2be556ab62ed06793e60d3c16808576ae" data-claim-id="coverage:error-handling:error-handling">
+          <h3>error-handling</h3><p><code>coverage:error-handling:error-handling</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:error-handling:error-handling:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-e973727e1443ce592b51b0042be4df0280f72b033103bc95c23126facea88896" data-claim-id="coverage:error-handling:error-handling-matrix">
+          <h3>error-handling-matrix</h3><p><code>coverage:error-handling:error-handling-matrix</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:error-handling:error-handling-matrix:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40" data-claim-id="coverage:prompt-surface:prompts-list">
+          <h3>prompts/list</h3><p><code>coverage:prompt-surface:prompts-list</code></p>
+          <p><strong>Outcome:</strong> Incomplete · <strong>Requirement:</strong> Policy</p>
+          <p>Server does not advertise prompts capability.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:prompt-surface:prompts-list:Skipped</p>
+        </article>
+        <article class="assessment-claim" id="claim-d3729d2810e2edbdbb06e41ed0af80dd1c89cc536a73c34dea6797309a59d079" data-claim-id="coverage:protocol-core:json-rpc">
+          <h3>json-rpc</h3><p><code>coverage:protocol-core:json-rpc</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:protocol-core:json-rpc:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-44e61bfd9be12c70606bb0dd25efe36495eafcaf1fbe7cf9523f41b39e80f5a1" data-claim-id="coverage:security-boundaries:security-authentication-challenge">
+          <h3>security-authentication-challenge</h3><p><code>coverage:security-boundaries:security-authentication-challenge</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> SecurityControl</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:security-boundaries:security-authentication-challenge:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-8001d250277130786f2545e366480f98a6313873e8b61c9d3ded5409d2dad5f1" data-claim-id="coverage:tool-surface:tool-catalog-smoke">
+          <h3>tool-catalog-smoke</h3><p><code>coverage:tool-surface:tool-catalog-smoke</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:tool-surface:tool-catalog-smoke:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-73d46a28d1969b053d8b4c84ba35b6320ebd72b9d5a0c0cd4afa6432d5d6e07c" data-claim-id="coverage:tool-surface:tools-list">
+          <h3>tools/list</h3><p><code>coverage:tool-surface:tools-list</code></p>
+          <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
+          <p>Coverage outcome: Succeeded.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
+          <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> coverage:tool-surface:tools-list:Covered</p>
+        </article>
+        <article class="assessment-claim" id="claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2" data-claim-id="finding:ai-tool-schema-parameter-description-missing:delete-repo">
+          <h3>delete_repo</h3><p><code>finding:ai-tool-schema-parameter-description-missing:delete-repo</code></p>
+          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
+          <p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
+          <p><strong>Authority:</strong> Heuristic · <strong>Recorded confidence:</strong> Medium</p>
+          <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> None recorded.</p>
+        </article>
+        <article class="assessment-claim" id="claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445" data-claim-id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo">
+          <h3>delete_repo</h3><p><code>finding:mcp-guideline-tool-destructive-hint-missing:delete-repo</code></p>
+          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Policy</p>
+          <p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
+          <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> Medium</p>
+          <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> None recorded.</p>
+        </article>
+        <article class="assessment-claim" id="claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f" data-claim-id="finding:mcp-tool-call-result-object-missing:tools-call">
+          <h3>tools/call</h3><p><code>finding:mcp-tool-call-result-object-missing:tools-call</code></p>
+          <p><strong>Outcome:</strong> ReviewRequired · <strong>Requirement:</strong> Should</p>
+          <p>One tool response omitted the outer result object.</p>
+          <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
+          <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
+          <p><strong>Recorded correction:</strong> Not recorded.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> None recorded.</p>
+        </article>
+        <article class="assessment-claim" id="claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a" data-claim-id="protocol:mcp-init-version-negotiation">
+          <h3>Initialization</h3><p><code>protocol:mcp-init-version-negotiation</code></p>
+          <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> Must</p>
+          <p>Server ignored the requested MCP protocol version.</p>
+          <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
+          <p><strong>Source revision:</strong> 2025-11-25 · <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></p>
+          <p><strong>Recorded correction:</strong> Echo the negotiated protocol version in initialize.result.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> protocol/MCP.INIT.VERSION_NEGOTIATION</p>
+        </article>
+        <article class="assessment-claim" id="claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd" data-claim-id="vulnerability:mcp-security-prompt-injection:prompt-get">
+          <h3>prompt:get</h3><p><code>vulnerability:mcp-security-prompt-injection:prompt-get</code></p>
+          <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> SecurityControl</p>
+          <p>Server reflected untrusted prompt content without sanitization.</p>
+          <p><strong>Authority:</strong> DeterministicSecurity · <strong>Recorded confidence:</strong> High</p>
+          <p><strong>Source revision:</strong> 2026-11-10.5 · —</p>
+          <p><strong>Recorded correction:</strong> Sanitize and label untrusted content before returning it.</p>
+          <p><strong>Action owner:</strong> Not recorded.</p>
+          <p><strong>Evidence references:</strong> probe-prompt-get-reflection-200</p>
+        </article>
       </section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-info">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Preflight Connectivity</div>
-              <h2 class="section-title section-title--card">Connectivity &amp; Session Bootstrap</h2>
-              <p class="section-intro section-intro--card">The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Bootstrap State</div><div class="section-abstract__value">Reachable (Protected)</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Deferred Validation</div><div class="section-abstract__value">Yes</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Handshake HTTP</div><div class="section-abstract__value">HTTP 401</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Handshake Latency</div><div class="section-abstract__value">84.2 ms</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <div id="technical-evidence">
+      <section class="assessment-section">
+        <h2>Connectivity &amp; Session Bootstrap</h2>
+        <p class="assessment-context">Preflight Connectivity</p>
+        <p>The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Bootstrap State</dt><dd>Reachable (Protected)</dd></div>
+          <div><dt class="section-abstract__label">Deferred Validation</dt><dd>Yes</dd></div>
+          <div><dt class="section-abstract__label">Handshake HTTP</dt><dd>HTTP 401</dd></div>
+          <div><dt class="section-abstract__label">Handshake Latency</dt><dd>84.2 ms</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="section-heading-row">
             <div></div>
@@ -2682,31 +2729,19 @@ a:hover {
             </div>
 
           <div class="evidence-note"><strong>Bootstrap Note:</strong> 401 Unauthorized — bootstrap encountered an authentication challenge.</div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-info">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Structured Envelope</div>
-              <h2 class="section-title section-title--card">Layer Coverage &amp; Applied Packs</h2>
-              <p class="section-intro section-intro--card">This is the persisted validation envelope used to explain what ran, what was covered, and which validation packs were active.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Layers</div><div class="section-abstract__value">4</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Scenarios</div><div class="section-abstract__value">4</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Coverage Declarations</div><div class="section-abstract__value">8</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Applied Packs</div><div class="section-abstract__value">4</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Layer Coverage &amp; Applied Packs</h2>
+        <p class="assessment-context">Structured Envelope</p>
+        <p>This is the persisted validation envelope used to explain what ran, what was covered, and which validation packs were active.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Layers</dt><dd>4</dd></div>
+          <div><dt class="section-abstract__label">Scenarios</dt><dd>4</dd></div>
+          <div><dt class="section-abstract__label">Coverage Declarations</dt><dd>8</dd></div>
+          <div><dt class="section-abstract__label">Applied Packs</dt><dd>4</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="table-shell table-shell--layer-summary">
             <table class="data-table layered-report-table layered-report-table--layers">
@@ -2814,54 +2849,24 @@ a:hover {
                 <tr><td data-label="Observation" class="table-cell--code"><code>attack-mcp-sec-001</code></td><td data-label="Layer" class="table-cell--code"><code>security-boundaries</code></td><td data-label="Component" class="table-cell--code"><code>MCP-SEC-001</code></td><td data-label="Kind" class="table-cell--code"><code>attack-simulation</code></td><td data-label="Preview"><div class="cell-copy">Rejected injected argument with JSON-RPC error -32602.</div></td></tr>
               </tbody></table>
           </div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-danger">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Structured Evidence</div>
-              <h2 class="section-title section-title--card">Rule &amp; Severity Insights</h2>
-              <p class="section-intro section-intro--card">Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Violations</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Spec-linked</div><div class="section-abstract__value">1</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Rule &amp; Severity Insights</h2>
+        <p class="assessment-context">Structured Evidence</p>
+        <p>Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Violations</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Vulnerabilities</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Spec-linked</dt><dd>1</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
-          <div class="distribution-summary">
-            <div class="distribution-summary__title">Finding Distribution</div>
-            <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--danger">
-                <div class="distribution-card__label">Critical</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">50% of observed outcomes</div>
-              </div>
-              <div class="distribution-card distribution-card--danger">
-                <div class="distribution-card__label">High</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">50% of observed outcomes</div>
-              </div>
-            </div>
-            <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
-              <span class="distribution-segment distribution-segment--danger" style="flex:1;"></span>
-            </div>
-            <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>Critical 1 (50%)</span>
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--danger"></span>High 1 (50%)</span>
-            </div>
-          </div>
+          <table class="data-table data-table--outcomes">
+            <caption>Finding Distribution</caption><thead><tr><th scope="col">Outcome</th><th scope="col">Count</th></tr></thead><tbody>
+              <tr><th scope="row">Critical</th><td>1</td></tr>
+              <tr><th scope="row">High</th><td>1</td></tr>
+          </tbody></table>
 
           <div class="ledger-group">
             <h3 class="minor-title">Protocol and Compliance Findings</h3>
@@ -2901,50 +2906,26 @@ a:hover {
           </div>
           </div>
 
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-warning">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Security Evidence</div>
-              <h2 class="section-title section-title--card">Security Assessment Details</h2>
-              <p class="section-intro section-intro--card">Security score 69.0% with 1 recorded vulnerability finding(s).</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Security Score</div><div class="section-abstract__value">69.0%</div></div>
-              <div class="section-abstract section-abstract--danger"><div class="section-abstract__label">Vulnerabilities</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Authentication Scenarios</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Attack Sims</div><div class="section-abstract__value">1</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Security Assessment Details</h2>
+        <p class="assessment-context">Security Evidence</p>
+        <p>Security score 69.0% with 1 recorded vulnerability finding(s).</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Security Score</dt><dd>69.0%</dd></div>
+          <div><dt class="section-abstract__label">Vulnerabilities</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Authentication Scenarios</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Attack Sims</dt><dd>1</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="ledger-group">
             <h3 class="minor-title">Authentication Scenarios</h3>
-          <div class="distribution-summary">
-            <div class="distribution-summary__title">Authentication Outcome Distribution</div>
-            <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--success">
-                <div class="distribution-card__label">Aligned</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">100% of observed outcomes</div>
-              </div>
-            </div>
-            <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
-            </div>
-            <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Aligned 1 (100%)</span>
-            </div>
-          </div>
+          <table class="data-table data-table--outcomes">
+            <caption>Authentication Outcome Distribution</caption><thead><tr><th scope="col">Outcome</th><th scope="col">Count</th></tr></thead><tbody>
+              <tr><th scope="row">Aligned</th><td>1</td></tr>
+          </tbody></table>
 
             <div class="auth-surface-list">
               <section class="auth-surface">
@@ -2980,22 +2961,10 @@ a:hover {
           </div>
           <div class="ledger-group">
             <h3 class="minor-title">Attack Simulation Outcomes</h3>
-          <div class="distribution-summary">
-            <div class="distribution-summary__title">Attack Outcome Distribution</div>
-            <div class="distribution-summary__cards">
-              <div class="distribution-card distribution-card--success">
-                <div class="distribution-card__label">Blocked</div>
-                <div class="distribution-card__value">1</div>
-                <div class="distribution-card__meta">100% of observed outcomes</div>
-              </div>
-            </div>
-            <div class="distribution-bar">
-              <span class="distribution-segment distribution-segment--success" style="flex:1;"></span>
-            </div>
-            <div class="distribution-legend">
-              <span class="distribution-legend__item"><span class="distribution-swatch distribution-swatch--success"></span>Blocked 1 (100%)</span>
-            </div>
-          </div>
+          <table class="data-table data-table--outcomes">
+            <caption>Attack Outcome Distribution</caption><thead><tr><th scope="col">Outcome</th><th scope="col">Count</th></tr></thead><tbody>
+              <tr><th scope="row">Blocked</th><td>1</td></tr>
+          </tbody></table>
 
             <div class="ledger-list">
               <article class="ledger-entry ledger-entry--success">
@@ -3011,31 +2980,19 @@ a:hover {
               </article>
             </div>
           </div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-success">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Tool Surface</div>
-              <h2 class="section-title section-title--card">Tool Validation Details</h2>
-              <p class="section-intro section-intro--card">Tools discovered 2; passed 2; failed 0.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">2</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Passed</div><div class="section-abstract__value">2</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">AI Findings</div><div class="section-abstract__value">1</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Tool Validation Details</h2>
+        <p class="assessment-context">Tool Surface</p>
+        <p>Tools discovered 2; passed 2; failed 0.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Discovered</dt><dd>2</dd></div>
+          <div><dt class="section-abstract__label">Passed</dt><dd>2</dd></div>
+          <div><dt class="section-abstract__label">Failed</dt><dd>0</dd></div>
+          <div><dt class="section-abstract__label">AI Findings</dt><dd>1</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="card-grid">
             <div class="evidence-card">
@@ -3194,30 +3151,18 @@ a:hover {
                 <tr><td><code>list_repos</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>80.00 ms</td><td>title</td></tr>
               </tbody></table>
           </div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-success">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Resource Surface</div>
-              <h2 class="section-title section-title--card">Resource Capabilities</h2>
-              <p class="section-intro section-intro--card">Resources discovered 1; accessible 1.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Accessible</div><div class="section-abstract__value">1</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Resource Capabilities</h2>
+        <p class="assessment-context">Resource Surface</p>
+        <p>Resources discovered 1; accessible 1.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Discovered</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Accessible</dt><dd>1</dd></div>
+          <div><dt class="section-abstract__label">Failed</dt><dd>0</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="table-shell">
             <table class="data-table">
@@ -3225,61 +3170,37 @@ a:hover {
                 <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
               </tbody></table>
           </div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-success">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Prompt Surface</div>
-              <h2 class="section-title section-title--card">Prompt Capabilities</h2>
-              <p class="section-intro section-intro--card">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Discovered</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Passed</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Failed</div><div class="section-abstract__value">0</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Prompt Capabilities</h2>
+        <p class="assessment-context">Prompt Surface</p>
+        <p>Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Discovered</dt><dd>0</dd></div>
+          <div><dt class="section-abstract__label">Passed</dt><dd>0</dd></div>
+          <div><dt class="section-abstract__label">Failed</dt><dd>0</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="status-callout status-callout--info">
             <div class="status-callout__title">Prompt catalog applicability</div>
             <div class="status-callout__body">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</div>
           </div>
 
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-success">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Runtime Evidence</div>
-              <h2 class="section-title section-title--card">Performance Metrics</h2>
-              <p class="section-intro section-intro--card">Observed values from the completed runtime probe.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Average</div><div class="section-abstract__value">120.5 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">95th Percentile</div><div class="section-abstract__value">210.4 ms</div></div>
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Requests</div><div class="section-abstract__value">120</div></div>
-              <div class="section-abstract section-abstract--success"><div class="section-abstract__label">Error Rate</div><div class="section-abstract__value">0.00%</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Performance Metrics</h2>
+        <p class="assessment-context">Runtime Evidence</p>
+        <p>Observed values from the completed runtime probe.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Average</dt><dd>120.5 ms</dd></div>
+          <div><dt class="section-abstract__label">95th Percentile</dt><dd>210.4 ms</dd></div>
+          <div><dt class="section-abstract__label">Requests</dt><dd>120</dd></div>
+          <div><dt class="section-abstract__label">Error Rate</dt><dd>0.00%</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="score-strip">
             <div class="score-pill score-pill--success">
@@ -3305,29 +3226,17 @@ a:hover {
           </div>
 
           <div class="evidence-note">Requests: 120/120 successful.</div>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
-      <section class="section">
-        <details class="section-card section-card--tone-neutral">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Appendix</div>
-              <h2 class="section-title section-title--card">Method &amp; Deferred Notes</h2>
-              <p class="section-intro section-intro--card">Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--info"><div class="section-abstract__label">Method Notes</div><div class="section-abstract__value">0</div></div>
-              <div class="section-abstract section-abstract--warning"><div class="section-abstract__label">Deferred</div><div class="section-abstract__value">2</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Method &amp; Deferred Notes</h2>
+        <p class="assessment-context">Appendix</p>
+        <p>Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Method Notes</dt><dd>0</dd></div>
+          <div><dt class="section-abstract__label">Deferred</dt><dd>2</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
           <div class="appendix-grid">
             <div>
@@ -3338,29 +3247,48 @@ a:hover {
               </ul>
             </div>
           </div>
-          </div>
-        </details>
+        </div></section>
+
+
+      </div>
+      <div id="method-and-provenance">
+      <section class="assessment-section" aria-labelledby="run-provenance-title"><h2 id="run-provenance-title">Run provenance</h2>
+            <div class="provenance-facts">
+              <div class="fact-item">
+                <div class="fact-item__label">Configured endpoint</div>
+                <div class="fact-item__value">https://snapshot.example.test/mcp</div>
+              </div>
+              <div class="fact-item">
+                <div class="fact-item__label">Validation Identifier</div>
+                <div class="fact-item__value">validation-snapshot-001</div>
+              </div>
+              <div class="fact-item">
+                <div class="fact-item__label">Duration</div>
+                <div class="fact-item__value">12.0s</div>
+              </div>
+              <div class="fact-item">
+                <div class="fact-item__label">MCP Specification Profile</div>
+                <div class="fact-item__value">2025-11-25</div>
+              </div>
+              <div class="fact-item">
+                <div class="fact-item__label">Server Profile</div>
+                <div class="fact-item__value">Authenticated (UserDeclared)</div>
+              </div>
+              <div class="fact-item">
+                <div class="fact-item__label">Protocol Version</div>
+                <div class="fact-item__value">2025-11-25</div>
+              </div>
+            </div>
+
       </section>
-
-
-      <section class="section">
-        <details class="section-card section-card--tone-neutral">
-          <summary class="section-card__summary">
-            <div class="section-card__summary-main">
-              <div class="section-kicker">Reference Appendix</div>
-              <h2 class="section-title section-title--card">Terms And Abbreviations</h2>
-              <p class="section-intro section-intro--card">Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>
-            </div>
-            <div class="section-card__abstract">
-              <div class="section-abstract section-abstract--neutral"><div class="section-abstract__label">Terms</div><div class="section-abstract__value">14</div></div>
-            </div>
-            <div class="section-card__toggle-row">
-              <span class="section-card__toggle-icon" aria-hidden="true"></span>
-              <span class="section-card__toggle-label section-card__toggle-label--collapsed">Expand details</span>
-              <span class="section-card__toggle-label section-card__toggle-label--expanded">Collapse details</span>
-            </div>
-          </summary>
-          <div class="section-card__content">
+      <section class="assessment-section">
+        <h2>Terms And Abbreviations</h2>
+        <p class="assessment-context">Reference Appendix</p>
+        <p>Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>
+        <dl class="assessment-facts">
+          <div><dt class="section-abstract__label">Terms</dt><dd>14</dd></div>
+        </dl>
+        <div class="assessment-section__content">
 
         <dl class="reader-key-grid">
           <div class="reader-key-item">
@@ -3420,17 +3348,16 @@ a:hover {
             <dd>ID means identifier. UUID means Universally Unique Identifier. Validation and rule identifiers are stable machine references, not scores.</dd>
           </div>
         </dl>
-          </div>
-        </details>
-      </section>
+        </div></section>
 
 <div class="producer-signature">
   <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>
   <span class="producer-signature__divider" aria-hidden="true">·</span>
   <a href="https://www.nuget.org/packages/McpVal#versions-body-tab">McpVal on NuGet</a>
 </div>
+      </div>
       <div class="footer">Generated by MCP Validator · Full report · print-ready HTML for PDF export</div>
-    </div>
+    </main>
   </div>
 </body>
 </html>

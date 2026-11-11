@@ -8,6 +8,20 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class ReportContextFormatter
 {
+    internal static string FormatRunTermination(ValidationOutcome? outcome) => outcome switch
+    {
+        ValidationOutcome.Succeeded => "Execution completed; assurance is assessed separately",
+        ValidationOutcome.Cancelled => "Cancelled",
+        ValidationOutcome.Error => "Validator error",
+        ValidationOutcome.Inconclusive => "Partial execution",
+        _ => "Not recorded"
+    };
+
+    internal static string FormatMissingEligibilityExplanation(CertificateEligibilityStatus status) =>
+        status == CertificateEligibilityStatus.Eligible
+            ? "Certificate eligibility requirements for the selected profile are satisfied."
+            : "No certificate-eligibility explanation was recorded for this profile.";
+
     internal static string FormatOperationalMetric(double? value, bool measured, string format, string unit = "") =>
         measured && value is { } number && double.IsFinite(number) && number >= 0
             ? number.ToString(format, CultureInfo.InvariantCulture) + (unit.Length == 0 ? string.Empty : " " + unit)

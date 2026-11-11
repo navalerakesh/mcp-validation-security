@@ -431,6 +431,82 @@ public sealed class BoundedArtifactReaderTests : IDisposable
     }
 
     [Theory]
+    [InlineData("\"succeeded\"", ValidationOutcome.Succeeded)]
+    [InlineData("\"inconclusive\"", ValidationOutcome.Inconclusive)]
+    [InlineData("\"cancelled\"", ValidationOutcome.Cancelled)]
+    [InlineData("\"error\"", ValidationOutcome.Error)]
+    [InlineData("2", ValidationOutcome.Succeeded)]
+    [InlineData("null", null)]
+    public async Task ReadValidationResultAsync_ShouldRetainAdmittedTermination(string value, ValidationOutcome? expected)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "termination.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult(), ArtifactJsonOptions.Create())!;
+        document["run"]!["terminationOutcome"] = JsonNode.Parse(value);
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        var result = await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path));
+
+        result.Run.TerminationOutcome.Should().Be(expected);
+        result.CloneWithoutSecrets().Run.TerminationOutcome.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("\"running\"")]
+    [InlineData("\"failed\"")]
+    [InlineData("\"termination-canary\"")]
+    [InlineData("\"ERROR\"")]
+    [InlineData("\"2\"")]
+    [InlineData("\"succeeded, error\"")]
+    [InlineData("999")]
+    [InlineData("true")]
+    [InlineData("{}")]
+    public async Task ReadValidationResultAsync_ShouldRejectInvalidTerminationWithoutEcho(string value)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "invalid-termination.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult(), ArtifactJsonOptions.Create())!;
+        document["run"]!["terminationOutcome"] = JsonNode.Parse(value);
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        var failure = await FluentActions.Awaiting(() => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path)))
+            .Should().ThrowAsync<CliUsageException>();
+
+        failure.Which.ToString().Should().NotContain("termination-canary");
+    }
+
+    [Theory]
+    [InlineData("2.3.0")]
+    [InlineData("3.0.0")]
+    [InlineData("3.1.0")]
+    public async Task ReadValidationResultAsync_MissingTermination_ShouldRemainUnknownAcrossCompatibleVersions(string version)
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "missing-termination.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult(), ArtifactJsonOptions.Create())!;
+        document["documentSchemaVersion"] = version;
+        document["run"]!.AsObject().Remove("terminationOutcome");
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        var result = await BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path));
+        result.Run.TerminationOutcome.Should().BeNull();
+        Mcp.Benchmark.Core.Services.AssuranceExitCodeMapper.Map(result).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task ReadValidationResultAsync_ShouldRejectTerminationAliases()
+    {
+        Directory.CreateDirectory(_root);
+        var path = Path.Combine(_root, "aliased-termination.json");
+        var document = JsonSerializer.SerializeToNode(new ValidationResult(), ArtifactJsonOptions.Create())!;
+        document["run"]!["TerminationOutcome"] = "succeeded";
+        await File.WriteAllTextAsync(path, document.ToJsonString());
+
+        await FluentActions.Awaiting(() => BoundedArtifactReader.ReadValidationResultAsync(new FileInfo(path)))
+            .Should().ThrowAsync<CliUsageException>();
+    }
+
+    [Theory]
     [InlineData("{}")]
     [InlineData("{\"startTime\":\"2020-01-01T12:00:00\"}")]
     [InlineData("{\"startTime\":\"2020-01-01T12:00:00Z\",\"StartTime\":\"2021-01-01T12:00:00Z\"}")]

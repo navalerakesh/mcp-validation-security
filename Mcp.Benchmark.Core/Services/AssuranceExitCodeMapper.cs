@@ -17,9 +17,13 @@ public static class AssuranceExitCodeMapper
         ArgumentNullException.ThrowIfNull(result);
         if (result.OverallStatus == ValidationStatus.Cancelled) return TimeoutOrCancellation;
         if (IsTargetUnavailable(result)) return TargetUnavailable;
+        if (result.Run.TerminationOutcome == ValidationOutcome.Error) return RuntimeIntegrityFailure;
         if (result.OverallStatus == ValidationStatus.Error && result.CriticalErrors.Count > 0)
             return RuntimeIntegrityFailure;
-        return Map(result.Assurance, result.PolicyOutcome);
+        var exitCode = Map(result.Assurance, result.PolicyOutcome);
+        return exitCode == Satisfied && result.Run.TerminationOutcome != ValidationOutcome.Succeeded
+            ? Incomplete
+            : exitCode;
     }
 
     public static int Map(AssuranceEvaluation assurance, ValidationPolicyOutcome? policyOutcome)

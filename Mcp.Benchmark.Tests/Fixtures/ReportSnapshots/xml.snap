@@ -4,6 +4,10 @@
     <GeneratedAt><normalized-timestamp></GeneratedAt>
     <ValidationId>validation-snapshot-001</ValidationId>
   </Report>
+  <RunIntegrity>
+    <TerminationOutcome recorded="true">Succeeded</TerminationOutcome>
+    <RecommendedExitCode>1</RecommendedExitCode>
+  </RunIntegrity>
   <Server>
     <Endpoint>https://snapshot.example.test/mcp</Endpoint>
     <Transport>http</Transport>
@@ -29,58 +33,156 @@
       <Reason>Repeated-run consistency of at least 99.0% is required.</Reason>
     </EligibilityReasons>
     <Claims>
-      <Claim id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>github-copilot-cli,github-copilot-cloud-agent</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:error-handling:error-handling" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:error-handling:error-handling" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>error-handling</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:error-handling:error-handling:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:error-handling:error-handling-matrix" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:error-handling:error-handling-matrix" dimension="Operations" authority="ProviderPolicy" requirementLevel="OperationalObjective" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>error-handling-matrix</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:error-handling:error-handling-matrix:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:prompt-surface:prompts-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Incomplete" confidence="None">
+      <Claim id="coverage:prompt-surface:prompts-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Incomplete" confidence="None" applicability="Applicable">
         <Subject>prompts/list</Subject>
         <Summary>Server does not advertise prompts capability.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:prompt-surface:prompts-list:Skipped</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:protocol-core:json-rpc" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:protocol-core:json-rpc" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>json-rpc</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:protocol-core:json-rpc:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:security-boundaries:security-authentication-challenge" dimension="Security" authority="ProviderPolicy" requirementLevel="SecurityControl" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:security-boundaries:security-authentication-challenge" dimension="Security" authority="ProviderPolicy" requirementLevel="SecurityControl" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>security-authentication-challenge</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:security-boundaries:security-authentication-challenge:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:tool-surface:tool-catalog-smoke" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:tool-surface:tool-catalog-smoke" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>tool-catalog-smoke</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:tool-surface:tool-catalog-smoke:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="coverage:tool-surface:tools-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None">
+      <Claim id="coverage:tool-surface:tools-list" dimension="CoreProtocol" authority="ProviderPolicy" requirementLevel="Policy" outcome="Satisfied" confidence="None" applicability="Applicable">
         <Subject>tools/list</Subject>
         <Summary>Coverage outcome: Succeeded.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-05.1">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>coverage:tool-surface:tools-list:Covered</EvidenceId>
+        </EvidenceReferences>
       </Claim>
-      <Claim id="finding:ai-tool-schema-parameter-description-missing:delete-repo" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+      <Claim id="finding:ai-tool-schema-parameter-description-missing:delete-repo" dimension="CapabilityContract" authority="Heuristic" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium" applicability="Applicable">
         <Subject>delete_repo</Subject>
         <Summary>Tool 'delete_repo' has parameters without descriptions.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-10.5">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences />
       </Claim>
-      <Claim id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" dimension="CapabilityContract" authority="ProviderPolicy" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium">
+      <Claim id="finding:mcp-guideline-tool-destructive-hint-missing:delete-repo" dimension="CapabilityContract" authority="ProviderPolicy" requirementLevel="Policy" outcome="ReviewRequired" confidence="Medium" applicability="Applicable">
         <Subject>delete_repo</Subject>
         <Summary>Tool 'delete_repo' does not declare annotations.destructiveHint.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-10.5">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences />
       </Claim>
-      <Claim id="finding:mcp-tool-call-result-object-missing:tools-call" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Should" outcome="ReviewRequired" confidence="High">
+      <Claim id="finding:mcp-tool-call-result-object-missing:tools-call" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Should" outcome="ReviewRequired" confidence="High" applicability="Applicable">
         <Subject>tools/call</Subject>
         <Summary>One tool response omitted the outer result object.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-10.5">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences />
       </Claim>
-      <Claim id="protocol:mcp-init-version-negotiation" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Must" outcome="Violated" confidence="High">
+      <Claim id="protocol:mcp-init-version-negotiation" dimension="CoreProtocol" authority="OfficialSpecification" requirementLevel="Must" outcome="Violated" confidence="High" applicability="Applicable">
         <Subject>Initialization</Subject>
         <Summary>Server ignored the requested MCP protocol version.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2025-11-25">
+          <Uri>https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</Uri>
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>protocol/MCP.INIT.VERSION_NEGOTIATION</EvidenceId>
+        </EvidenceReferences>
         <Remediation>Echo the negotiated protocol version in initialize.result.</Remediation>
       </Claim>
-      <Claim id="vulnerability:mcp-security-prompt-injection:prompt-get" dimension="Security" authority="DeterministicSecurity" requirementLevel="SecurityControl" outcome="Violated" confidence="High">
+      <Claim id="vulnerability:mcp-security-prompt-injection:prompt-get" dimension="Security" authority="DeterministicSecurity" requirementLevel="SecurityControl" outcome="Violated" confidence="High" applicability="Applicable">
         <Subject>prompt:get</Subject>
         <Summary>Server reflected untrusted prompt content without sanitization.</Summary>
+        <ApplicabilityReason />
+        <Source revision="2026-11-10.5">
+          <Uri />
+          <Sha256 />
+        </Source>
+        <EvidenceReferences>
+          <EvidenceId>probe-prompt-get-reflection-200</EvidenceId>
+        </EvidenceReferences>
         <Remediation>Sanitize and label untrusted content before returning it.</Remediation>
       </Claim>
     </Claims>
@@ -155,28 +257,28 @@
       </Scenario>
     </Scenarios>
     <Coverage>
-      <Declaration layerId="protocol-core" scope="json-rpc" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="protocol-core" scope="json-rpc" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="tool-surface" scope="tools/list" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="tool-surface" scope="tools/list" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="prompt-surface" scope="prompts/list" status="Skipped" blocker="None" confidence="None">
+      <Declaration layerId="prompt-surface" scope="prompts/list" status="Skipped" outcome="Skipped" blocker="None" confidence="None">
         <Reason>Server does not advertise prompts capability.</Reason>
       </Declaration>
-      <Declaration layerId="client-profiles" scope="github-copilot-cli,github-copilot-cloud-agent" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="client-profiles" scope="github-copilot-cli,github-copilot-cloud-agent" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="tool-surface" scope="tool-catalog-smoke" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="tool-surface" scope="tool-catalog-smoke" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="security-boundaries" scope="security-authentication-challenge" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="security-boundaries" scope="security-authentication-challenge" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="error-handling" scope="error-handling" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="error-handling" scope="error-handling" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
-      <Declaration layerId="error-handling" scope="error-handling-matrix" status="Covered" blocker="None" confidence="None">
+      <Declaration layerId="error-handling" scope="error-handling-matrix" status="Covered" outcome="Succeeded" observedOutcome="Succeeded" blocker="None" confidence="None">
         <Reason></Reason>
       </Declaration>
     </Coverage>

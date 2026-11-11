@@ -151,6 +151,10 @@ public sealed class ExecutionPlan
 
 public sealed class AuditManifest
 {
+    public ValidationOutcome? RunTerminationOutcome { get; init; }
+
+    public int? RecommendedExitCode { get; init; }
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; init; }
 

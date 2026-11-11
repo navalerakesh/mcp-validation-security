@@ -42,6 +42,8 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Core Conformance** | **{result.Assurance.Assessments.CoreConformance.Status}** |");
         sb.AppendLine($"| **Security Assurance** | **{result.Assurance.Assessments.SecurityAssurance.Status}** |");
         sb.AppendLine($"| **Operational Readiness** | **{result.Assurance.Assessments.OperationalReadiness.Status}** |");
+        sb.AppendLine($"| **Run Termination** | {ReportContextFormatter.FormatRunTermination(result.Run.TerminationOutcome)} |");
+        sb.AppendLine($"| **Recommended Exit** | {AssuranceExitCodeMapper.Map(result)} |");
         if (evidenceSummary.TotalDeclarations > 0)
         {
             sb.AppendLine($"| **Evidence Coverage** | **{FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")}** |");
@@ -745,28 +747,39 @@ public class MarkdownReportGenerator : IReportGenerator
         }
         if (assurance.CertificateEligibility.Reasons.Count == 0)
         {
-            sb.AppendLine("- All requirements for the selected assurance profile are satisfied.");
+            sb.AppendLine($"- {ReportContextFormatter.FormatMissingEligibilityExplanation(assurance.CertificateEligibility.Status)}");
         }
         sb.AppendLine();
 
-        var nonSuccessClaims = assurance.Claims
-            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+        var claims = assurance.Claims
             .OrderBy(claim => claim.Dimension)
             .ThenBy(claim => claim.ClaimId, StringComparer.Ordinal)
-            .Take(20)
             .ToList();
-        if (nonSuccessClaims.Count == 0)
+        if (claims.Count == 0)
         {
+            sb.AppendLine("No claims recorded.");
+            sb.AppendLine();
             return;
         }
 
-        sb.AppendLine("### Non-Success Claims");
+        sb.AppendLine("### Recorded Claims");
         sb.AppendLine();
-        sb.AppendLine("| Claim | Dimension | Authority | Outcome | Confidence | Summary |");
-        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- | :--- |");
-        foreach (var claim in nonSuccessClaims)
+        foreach (var claim in claims)
         {
-            sb.AppendLine($"| `{EscapeInlineCode(claim.ClaimId)}` | {claim.Dimension} | {claim.Authority} | **{claim.Outcome}** | {claim.Confidence} | {EscapeTableCell(claim.Summary)} |");
+            sb.AppendLine($"#### `{EscapeInlineCode(claim.ClaimId)}`");
+            sb.AppendLine();
+            sb.AppendLine($"{EscapeMarkdownText(claim.Summary)}");
+            sb.AppendLine();
+            sb.AppendLine($"- Subject: {EscapeMarkdownText(claim.Subject)}");
+            sb.AppendLine($"- Outcome: **{claim.Outcome}**; dimension: {claim.Dimension}; requirement: {claim.RequirementLevel}");
+            sb.AppendLine($"- Authority: {claim.Authority}; recorded confidence: {claim.Confidence}");
+            sb.AppendLine($"- Applicability: {claim.Applicability}; {EscapeMarkdownText(claim.ApplicabilityReason ?? "No reason recorded.")}");
+            sb.AppendLine($"- Source revision: `{EscapeInlineCode(claim.Source.Revision)}`; source: `{EscapeInlineCode(claim.Source.Uri ?? "Not recorded")}`");
+            sb.AppendLine($"- Recorded correction: {EscapeMarkdownText(claim.Remediation ?? "Not recorded.")}");
+            if (claim.EvidenceIds.Count == 0) sb.AppendLine("- Evidence references: none recorded.");
+            foreach (var evidenceId in claim.EvidenceIds)
+                sb.AppendLine($"- Evidence reference: `{EscapeInlineCode(evidenceId)}`");
+            sb.AppendLine();
         }
         sb.AppendLine();
     }
@@ -1314,7 +1327,8 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- |");
             foreach (var coverage in result.Evidence.Coverage)
             {
-                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | `{coverage.Blocker}` | {coverage.Confidence} | {EscapeTableCell(coverage.Reason ?? "-")} |");
+                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` ({coverage.Outcome}) | `{coverage.Blocker}` | {coverage.Confidence} | {EscapeTableCell(coverage.Reason ?? "-")} |");
+                sb.AppendLine($"| | | Observed: {coverage.ObservedOutcome?.ToString() ?? "Not recorded"} | Lane: {coverage.Lane?.ToString() ?? "Not recorded"} | Origin: {coverage.Origin?.ToString() ?? "Not recorded"} | |");
             }
             sb.AppendLine();
         }

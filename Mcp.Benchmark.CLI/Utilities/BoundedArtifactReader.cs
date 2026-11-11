@@ -309,10 +309,40 @@ internal static class BoundedArtifactReader
         }
 
         ValidateRecordedAssessmentTimes(root);
+        ValidateRecordedRunTermination(root);
         return JsonSerializer.Deserialize<ValidationResult>(
             NormalizeSavedResult(json, version!),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
+    }
+
+    private static void ValidateRecordedRunTermination(JsonElement root)
+    {
+        var runs = root.EnumerateObject().Where(property =>
+            string.Equals(property.Name, "run", StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+        if (runs.Length != 1 || runs[0].Value.ValueKind != JsonValueKind.Object)
+            throw new CliUsageException("Validation artifact requires unambiguous run metadata.");
+        var outcomes = runs[0].Value.EnumerateObject().Where(property =>
+            string.Equals(property.Name, "terminationOutcome", StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+        if (outcomes.Length > 1)
+            throw new CliUsageException("Validation artifact contains ambiguous run termination metadata.");
+        if (outcomes.Length == 0)
+        {
+            return;
+        }
+        if (outcomes[0].Value.ValueKind == JsonValueKind.Null) return;
+        try
+        {
+            var outcome = outcomes[0].Value.Deserialize<ValidationOutcome>(ArtifactJsonOptions.Create(writeIndented: false));
+            if (ValidationOutcomeTaxonomy.IsRunTermination(outcome) &&
+                (outcomes[0].Value.ValueKind != JsonValueKind.String ||
+                 string.Equals(outcomes[0].Value.GetString(), JsonNamingPolicy.CamelCase.ConvertName(outcome.ToString()), StringComparison.Ordinal))) return;
+        }
+        catch (JsonException)
+        {
+            throw new CliUsageException("Validation artifact contains invalid run termination metadata.");
+        }
+        throw new CliUsageException("Validation artifact contains invalid run termination metadata.");
     }
 
     private static void ValidateRecordedAssessmentTimes(JsonElement root)

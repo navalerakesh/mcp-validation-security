@@ -215,6 +215,8 @@ public sealed class ValidationRunDocument
 {
     public string ValidationId { get; set; } = Guid.NewGuid().ToString();
 
+    public ValidationOutcome? TerminationOutcome { get; set; }
+
     public string? ProtocolVersion { get; set; }
 
     public string? SchemaVersion { get; set; }

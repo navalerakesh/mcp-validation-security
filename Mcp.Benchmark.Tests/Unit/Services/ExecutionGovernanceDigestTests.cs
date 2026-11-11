@@ -9,6 +9,28 @@ public sealed class ExecutionGovernanceDigestTests : IDisposable
 {
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"mcpval-audit-{Guid.NewGuid():N}");
 
+    [Theory]
+    [InlineData(ValidationStatus.Error, ValidationOutcome.Error, 70)]
+    [InlineData(ValidationStatus.Cancelled, ValidationOutcome.Cancelled, 124)]
+    [InlineData(ValidationStatus.InProgress, null, 2)]
+    public void BuildAuditManifest_ShouldRetainRecordedTermination(ValidationStatus status, ValidationOutcome? outcome, int exit)
+    {
+        var result = new ValidationResult { OverallStatus = status };
+        var manifest = new ExecutionGovernanceService().BuildAuditManifest(new ExecutionPlan(), result, [], null);
+
+        manifest.RunTerminationOutcome.Should().Be(outcome);
+        manifest.RecommendedExitCode.Should().Be(exit);
+    }
+
+    [Fact]
+    public void BuildAuditManifest_PlanOnly_ShouldNotInventExecutionOutcome()
+    {
+        var manifest = new ExecutionGovernanceService().BuildAuditManifest(new ExecutionPlan(), null, [], null);
+
+        manifest.RunTerminationOutcome.Should().BeNull();
+        manifest.RecommendedExitCode.Should().BeNull();
+    }
+
     [Fact]
     public void BuildAuditManifest_ShouldDigestFinalArtifactBytesAndVersionedCatalogs()
     {

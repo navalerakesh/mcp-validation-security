@@ -8,11 +8,14 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Changed
 
+- Assurance-result `3.1.0` adds optional recorded run termination, separate from target assurance; audit manifest `2.2.0` retains termination and recommended exit. Historical missing lifecycle evidence remains unknown. Rule catalog revision is `2026-11-10.5`.
 - **Breaking artifact shape:** assurance-result `3.0.0` uses nullable values for unmeasured operational and target-resource metrics, retaining an explicit `2.x` migration path with original-version provenance. The typed assurance model and document type are unchanged. Rule catalog revision is `2026-11-10.4`.
 - Calibration policy `2026-11-10.1` separates tuning diagnostics from holdout eligibility, requires reviewed source/scenario diversity and partition isolation, bounds input, and treats abstentions and undefined rates explicitly. Synthetic policy tests do not qualify production heuristic accuracy.
 
 ### Fixed
 
+- Offline result round trips retain runtime-error and cancellation attribution. Returned framework errors cannot earn run-completion credit; completed Safe inventory and incomplete assurance remain distinct.
+- HTML uses a static document opening, contents anchors and complete canonical claims, with hash-bound stylesheet policy and no active content. Markdown no longer silently truncates canonical claims; XML retains claim references and observed coverage outcomes. SARIF distinguishes invocation completion from policy exit, and JUnit retains separate run-integrity and policy cases. Report-design and accessibility qualification remains tracked separately.
 - Operational reports distinguish unavailable data from measured zero and disclose retained percentile windows. Actual CPU/working-set observations are scoped to the validator process and include concurrent activity; transport successes/failures do not establish target resource limits or exhaustion.
 - Assurance-result `2.3.0` persists individual extension obligation coverage. Resolved scenario plans survive interruption before or during execution, and planning failures retain explicit unavailable scope. Malformed scenario evidence cannot duplicate completed extension assessments or earn pass credit.
 - Post-run policy and provider interpretation use recorded assessment time rather than replay time. Saved results require explicit zoned timestamps; missing or ambiguous clock evidence is not silently replaced with current time. Canonical cancelled results retain exit `124` after terminal artifact persistence.

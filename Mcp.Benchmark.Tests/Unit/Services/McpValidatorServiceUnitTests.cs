@@ -189,6 +189,8 @@ public class McpValidatorServiceUnitTests
             { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
 
         result.CriticalErrors.Should().BeEmpty();
+        result.Run.TerminationOutcome.Should().Be(ValidationOutcome.Succeeded,
+            "a completed execution is separate from missing assurance or unavailable process counters");
         var resources = result.Run.OperationalMetrics!.ValidatorProcessResources!;
         resources.ProcessorTimeDeltaMs.Should().Be(mode == "valid" ? 15 : null);
         resources.WorkingSetStartBytes.Should().Be(mode == "unavailable" ? null : 100);
@@ -212,6 +214,28 @@ public class McpValidatorServiceUnitTests
         resources["processorTimeDeltaMs"]!.GetValue<double>().Should().BeGreaterThanOrEqualTo(0);
         resources["workingSetStartBytes"]!.GetValue<long>().Should().BeGreaterThan(0);
         resources["workingSetEndBytes"]!.GetValue<long>().Should().BeGreaterThan(0);
+    }
+
+    [Theory]
+    [InlineData(TestStatus.Error, ValidationOutcome.Error, 70)]
+    [InlineData(TestStatus.Failed, ValidationOutcome.Succeeded, 0)]
+    public async Task ValidateServerAsync_ReturnedCategoryOutcome_ShouldSeparateExecutionFromTargetFailure(
+        TestStatus status, ValidationOutcome expectedTermination, int expectedExit)
+    {
+        _protocolValidatorMock
+            .Setup(validator => validator.ValidateJsonRpcComplianceAsync(
+                It.IsAny<McpServerConfig>(), It.IsAny<ProtocolComplianceConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ComplianceTestResult
+            {
+                Status = status,
+                CriticalErrors = status == TestStatus.Error ? ["Synthetic unexpected validator exception."] : []
+            });
+        var service = CreateService(new ValidationPackRegistry<IValidationScenarioPack>([]));
+
+        var result = await service.ValidateServerAsync(CreateFunctionalCategoryConfiguration());
+
+        result.Run.TerminationOutcome.Should().Be(expectedTermination);
+        AssuranceExitCodeMapper.Map(result).Should().Be(expectedExit);
     }
 
     [Theory]
@@ -479,6 +503,25 @@ public class McpValidatorServiceUnitTests
         result.CriticalErrors.Should().NotBeEmpty();
         JsonSerializer.Serialize(result).Should().NotContain("synthetic-bootstrap-secret");
         _protocolValidatorMock.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ValidateServerAsync_TypedBootstrapRejection_ShouldNotClaimCompletedExecution()
+    {
+        _sessionBuilderMock.Setup(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new ValidationSessionException("Synthetic bootstrap rejection.", ValidationStatus.Failed));
+        var config = CreateFunctionalCategoryConfiguration();
+        config.Validation.Categories.ToolTesting.TestToolDiscovery = false;
+
+        var result = await _validatorService.ValidateServerAsync(config);
+        var reloaded = JsonSerializer.Deserialize<ValidationResult>(JsonSerializer.Serialize(result.CloneWithoutSecrets()))!;
+
+        result.Run.TerminationOutcome.Should().Be(ValidationOutcome.Inconclusive);
+        reloaded.Run.TerminationOutcome.Should().Be(ValidationOutcome.Inconclusive);
+        AssuranceExitCodeMapper.Map(result).Should().Be(2);
+        AssuranceExitCodeMapper.Map(reloaded).Should().Be(2);
+        _protocolValidatorMock.Invocations.Should().BeEmpty();
+        _toolValidatorMock.Invocations.Should().BeEmpty();
     }
 
     [Fact]

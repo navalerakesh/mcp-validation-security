@@ -13,7 +13,7 @@ after(async () => Promise.all(temporaryRoots.map((root) => rm(root, { recursive:
 
 const canonicalResult = {
   documentType: "mcpval.assurance-result",
-  documentSchemaVersion: "3.0.0",
+  documentSchemaVersion: "3.1.0",
   assurance: { profile: { profileId: "inventory" }, certificateEligibility: { status: "ineligible" } },
 };
 
