@@ -2,6 +2,7 @@ namespace Mcp.Benchmark.Core.Models;
 
 public sealed class ValidationOperationalMetrics
 {
+    private IReadOnlyList<RequestFailureCount>? _requestFailures;
     public string RunCorrelationId { get; set; } = string.Empty;
 
     public double ValidatorOverheadMs { get; init; }
@@ -15,6 +16,9 @@ public sealed class ValidationOperationalMetrics
     public int RequestsCompleted { get; init; }
 
     public int RequestsFailed { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<RequestFailureCount>? RequestFailures { get => _requestFailures; init => _requestFailures = value; }
 
     public int RetryCount { get; init; }
 
@@ -47,6 +51,14 @@ public sealed class ValidationOperationalMetrics
     public ValidatorProcessResourceMetrics? ValidatorProcessResources { get; set; }
 
     public IReadOnlyDictionary<string, double> StageDurationMs { get; init; } = new SortedDictionary<string, double>(StringComparer.Ordinal);
+
+    public ValidationOperationalMetrics CloneWithoutSecrets()
+    {
+        var clone = (ValidationOperationalMetrics)MemberwiseClone();
+        clone._requestFailures = RequestFailureCount.IsValidCollection(RequestFailures, RequestsFailed)
+            ? RequestFailures?.Select(entry => entry with { }).ToArray() : null;
+        return clone;
+    }
 }
 
 public sealed record MetricSampleWindow(long ObservedCount, int RetainedCount, int Capacity, long RejectedCount = 0)
@@ -54,6 +66,39 @@ public sealed record MetricSampleWindow(long ObservedCount, int RetainedCount, i
     public long DiscardedCount => ObservedCount - RetainedCount - RejectedCount;
 
     public string Strategy => "mostRecent";
+}
+
+public enum RequestFailureKind
+{
+    Unspecified,
+    HttpStatus,
+    RequestException,
+    ResponseRejected,
+    RequestCancelled
+}
+
+public sealed record RequestFailureCount(string Method, int? HttpStatusCode, RequestFailureKind Kind, int Count)
+{
+    public const int MaximumBuckets = 5040;
+
+    public static string NormalizeMethod(string? method) =>
+        method is "GET" or "POST" or "PUT" or "PATCH" or "DELETE" or "HEAD" or "OPTIONS" or "CONNECT" or "TRACE" ? method : "OTHER";
+
+    public static bool IsValidCollection(IReadOnlyList<RequestFailureCount>? entries, int expectedFailures)
+    {
+        if (entries == null) return true;
+        if (entries.Count > MaximumBuckets) return false;
+        var keys = new HashSet<(string, int?, RequestFailureKind)>();
+        long total = 0;
+        foreach (var entry in entries)
+        {
+            if (entry == null || entry.Method != NormalizeMethod(entry.Method) || !Enum.IsDefined(entry.Kind) || entry.Count <= 0 ||
+                (entry.Kind == RequestFailureKind.HttpStatus ? entry.HttpStatusCode is not (>= 100 and <= 599) : entry.HttpStatusCode != null) ||
+                !keys.Add((entry.Method, entry.HttpStatusCode, entry.Kind))) return false;
+            total += entry.Count;
+        }
+        return total == expectedFailures;
+    }
 }
 
 public sealed record ValidatorProcessResourceSnapshot(TimeSpan TotalProcessorTime, long WorkingSetBytes);

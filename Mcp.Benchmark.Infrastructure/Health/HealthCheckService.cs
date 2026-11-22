@@ -92,11 +92,11 @@ public class HealthCheckService : IHealthCheckService
                     null,
                     serverConfig.Authentication,
                     cancellationToken);
-                result.IsHealthy = discovery.IsSuccess && discovery.ProtocolSemanticsValid != false;
+                result.IsHealthy = Mcp.Benchmark.Infrastructure.Utilities.ModernResultSemantics.IsCompleteDiscovery(discovery, serverConfig.ProtocolVersion);
                 result.Disposition = result.IsHealthy ? HealthCheckDisposition.Healthy : HealthCheckDisposition.Unhealthy;
                 result.ResponseTimeMs = discovery.ElapsedMs ?? (DateTime.UtcNow - startTime).TotalMilliseconds;
                 result.ErrorMessage = result.IsHealthy ? null : discovery.Error ?? "Modern server/discover failed.";
-                result.ProtocolVersion = serverConfig.ProtocolVersion;
+                result.ProtocolVersion = result.IsHealthy ? serverConfig.ProtocolVersion : null;
                 result.ServerVersion = "Not advertised by server/discover";
                 result.ServerMetadata["healthMethod"] = ValidationConstants.Methods.ServerDiscover;
                 return result;

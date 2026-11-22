@@ -9,6 +9,79 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 
 public sealed class McpClientFactorySecurityTests
 {
+    [Theory]
+    [InlineData(true, RequestFailureKind.RequestCancelled)]
+    [InlineData(false, RequestFailureKind.RequestException)]
+    public async Task GovernedCancellation_ShouldRequireCancelledRequestToken(bool cancelToken, RequestFailureKind expected)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var observer = (DelegatingHandler)Activator.CreateInstance(typeof(McpHttpClient).Assembly
+            .GetType("Mcp.Benchmark.Infrastructure.Http.GovernedRequestObservabilityHandler")!, nonPublic: true)!;
+        observer.InnerHandler = new CancellationResponseHandler(cancellation, cancelToken);
+        using var client = new HttpClient(observer);
+        using var run = Mcp.Benchmark.Core.Services.ValidationObservability.BeginRun("cancel-attribution", 1);
+
+        await FluentActions.Awaiting(() => client.GetAsync("https://example.test/mcp", cancellation.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+
+        var metrics = run.Complete(10);
+        metrics.RequestsFailed.Should().Be(1);
+        metrics.RequestFailures.Should().ContainSingle(entry => entry.Kind == expected && entry.Count == 1);
+    }
+
+    private sealed class CancellationResponseHandler(CancellationTokenSource cancellation, bool cancelToken) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (cancelToken) cancellation.Cancel();
+            return Task.FromException<HttpResponseMessage>(new OperationCanceledException("Synthetic cancellation", cancellationToken));
+        }
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task GovernedResponseLimit_ShouldAttributeOneRejectionRegardlessOfContentLength(bool declared, bool successful)
+    {
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy { MaxResponseBytes = 128 }));
+        var assembly = typeof(McpHttpClient).Assembly;
+        var observer = (DelegatingHandler)Activator.CreateInstance(assembly.GetType("Mcp.Benchmark.Infrastructure.Http.GovernedRequestObservabilityHandler")!, nonPublic: true)!;
+        var policy = (DelegatingHandler)Activator.CreateInstance(assembly.GetType("Mcp.Benchmark.Infrastructure.Http.GovernedRequestPolicyHandler")!, context)!;
+        observer.InnerHandler = policy;
+        policy.InnerHandler = new OversizedResponseHandler(declared, successful);
+        using var client = new HttpClient(observer);
+        using var run = Mcp.Benchmark.Core.Services.ValidationObservability.BeginRun("response-limit", 1);
+
+        await FluentActions.Awaiting(async () =>
+        {
+            using var response = await client.GetAsync("https://example.test/mcp", HttpCompletionOption.ResponseHeadersRead);
+            await response.Content.ReadAsByteArrayAsync();
+        }).Should().ThrowAsync<InvalidDataException>();
+
+        var metrics = run.Complete(10);
+        metrics.RequestsFailed.Should().Be(1);
+        metrics.TruncatedResponseCount.Should().Be(1);
+        metrics.RequestFailures.Should().ContainSingle(entry => entry.Kind == (successful ? RequestFailureKind.ResponseRejected : RequestFailureKind.HttpStatus) && entry.Count == 1);
+    }
+
+    private sealed class OversizedResponseHandler(bool declared, bool successful) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(successful ? System.Net.HttpStatusCode.OK : System.Net.HttpStatusCode.InternalServerError)
+            {
+                Content = declared ? new ByteArrayContent(new byte[256]) : new UnknownLengthContent()
+            });
+    }
+
+    private sealed class UnknownLengthContent : HttpContent
+    {
+        protected override bool TryComputeLength(out long length) { length = 0; return false; }
+        protected override Task SerializeToStreamAsync(Stream stream, System.Net.TransportContext? context) => stream.WriteAsync(new byte[256]).AsTask();
+    }
+
     [Fact]
     public async Task DisposeAsync_ShouldRetainInitializationCleanupFailureAfterGetterEviction()
     {

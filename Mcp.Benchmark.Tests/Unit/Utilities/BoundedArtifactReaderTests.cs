@@ -16,6 +16,47 @@ public sealed class BoundedArtifactReaderTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"mcpval-artifact-reader-{Guid.NewGuid():N}");
 
     [Theory]
+    [InlineData("valid", true)]
+    [InlineData("absent", true)]
+    [InlineData("method", false)]
+    [InlineData("status", false)]
+    [InlineData("kind", false)]
+    [InlineData("count", false)]
+    [InlineData("total", false)]
+    [InlineData("duplicate", false)]
+    [InlineData("oversized", false)]
+    public async Task SavedFailureAttribution_ShouldRejectMalformedBucketsWithoutEcho(string fault, bool valid)
+    {
+        var result = new ValidationResult();
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics
+        {
+            RunCorrelationId = result.ValidationId, RequestsFailed = 1,
+            RequestFailures = [new RequestFailureCount("POST", 405, RequestFailureKind.HttpStatus, 1)]
+        };
+        var node = JsonSerializer.SerializeToNode(result, ArtifactJsonOptions.Create(writeIndented: false))!;
+        var metrics = node["run"]!["operationalMetrics"]!;
+        var buckets = metrics["requestFailures"]!.AsArray();
+        if (fault == "method") buckets[0]!["method"] = "secret-method-canary";
+        if (fault == "status") buckets[0]!["httpStatusCode"] = 999;
+        if (fault == "kind") buckets[0]!["kind"] = 999;
+        if (fault == "count") buckets[0]!["count"] = 0;
+        if (fault == "total") metrics["requestsFailed"] = 2;
+        if (fault == "duplicate") buckets[0]!["Method"] = "secret-method-canary";
+        if (fault == "oversized") while (buckets.Count <= RequestFailureCount.MaximumBuckets) buckets.Add(buckets[0]!.DeepClone());
+        if (fault == "absent") metrics.AsObject().Remove("requestFailures");
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "result.json"));
+        await File.WriteAllTextAsync(file.FullName, node.ToJsonString());
+
+        if (valid) (await BoundedArtifactReader.ReadValidationResultAsync(file)).Should().NotBeNull();
+        else
+        {
+            var action = () => BoundedArtifactReader.ReadValidationResultAsync(file);
+            (await action.Should().ThrowAsync<CliUsageException>()).Which.ToString().Should().NotContain("secret-method-canary");
+        }
+    }
+
+    [Theory]
     [InlineData("{}", true)]
     [InlineData("{\"schemaVersion\":\"1.0.0\"}", true)]
     [InlineData("{\"SchemaVersion\":\"1.0.0\",\"Server\":{\"Headers\":{\"X-Route\":\"route\"}}}", true)]

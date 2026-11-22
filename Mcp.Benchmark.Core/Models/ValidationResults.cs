@@ -321,7 +321,7 @@ public class ValidationResult
                 CapabilitySnapshot = SanitizeCapabilitySnapshot(CapabilitySnapshot),
                 ModernDiscovery = SanitizeModernDiscovery(ModernDiscovery),
                 BootstrapHealth = SanitizeBootstrapHealth(BootstrapHealth),
-                OperationalMetrics = Run.OperationalMetrics
+                OperationalMetrics = Run.OperationalMetrics?.CloneWithoutSecrets()
             },
             Assessments = SanitizeAssessments(Assessments),
             Evidence = SanitizeEvidence(Evidence),

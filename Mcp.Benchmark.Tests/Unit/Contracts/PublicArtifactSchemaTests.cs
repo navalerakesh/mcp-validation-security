@@ -13,6 +13,27 @@ public sealed class PublicArtifactSchemaTests
     private readonly JsonSchemaValidator _validator = new();
 
     [Fact]
+    public void RequestFailureBreakdown_ShouldRoundTripAndRejectInvalidAttribution()
+    {
+        var result = new ValidationResult();
+        using var run = Mcp.Benchmark.Core.Services.ValidationObservability.BeginRun(result.ValidationId, 1);
+        Mcp.Benchmark.Core.Services.ValidationObservability.RecordRequestStarted("POST");
+        Mcp.Benchmark.Core.Services.ValidationObservability.RecordRequestCompleted("POST", 1, false, 405);
+        result.Run.OperationalMetrics = run.Complete(10);
+        var serialized = Serialize(result.CloneWithoutSecrets());
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var failure = serialized["run"]!["operationalMetrics"]!["requestFailures"]![0]!;
+        failure["httpStatusCode"] = null;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        failure["httpStatusCode"] = 405;
+        failure["method"] = "secret-canary";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        serialized["run"]!["operationalMetrics"]!.AsObject().Remove("requestFailures");
+        serialized["documentSchemaVersion"] = "3.2.0";
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+    }
+
+    [Fact]
     public void ValidationResult_PublicJson_ConformsToPublishedSchema()
     {
         var result = new ValidationResult

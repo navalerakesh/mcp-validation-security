@@ -8,6 +8,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Added
 
+- Assurance-result `3.3.0` adds optional, bounded request-failure counts by normalized HTTP method, status and failure kind. Historical missing attribution remains unavailable. Saved artifacts reject malformed attribution; canonical cloning preserves privacy and isolates valid entries. Transport counters are not protocol-failure verdicts.
 - Experimental controlled-application state evidence contracts, evidence-only scenario reconciliation and bounded signed import with operator-selected observer trust. Write/no-op/failed-write, unavailable observation, audit, cleanup and replay distinctions are retained in a separate lane. No default activation or automatic target invocation is added. Assurance-result schema is `3.2.0`; rule catalog revision is `2026-11-11.1`.
 
 ### Changed
@@ -20,6 +21,8 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Auto-era bootstrap now enters actual legacy initialization after unsuccessful modern discovery, preserving the observed negotiated version; explicit Modern mode still fails closed. Declared and streamed oversized responses receive consistent failure attribution without double-counting, and cancelled request tokens are distinguished from other exceptions.
+- Standalone modern health requires a schema-valid completed discovery response advertising the selected protocol version. Error envelopes, missing or incomplete discovery and unsupported version advertisements no longer establish healthy modern protocol status.
 - Run requests freeze the existing canonical target digest before validation, allowing explicitly composed signed state-evidence packs to verify admitted run/target bindings during orchestration. CLI plans and host-neutral execution share one identity calculation; ordinary validation adds no target operations.
 - HTML claim counts no longer appear in a duplicate table labeled as scores; the complete outcome table retains all six outcomes and an explicit recorded total.
 - HTML claim articles, count tables and outcome filters now share readable outcome labels while retaining canonical outcome values and unchanged assessment decisions.

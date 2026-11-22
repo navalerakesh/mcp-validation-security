@@ -164,8 +164,11 @@ internal sealed class GovernedHttpClientProvider : IDisposable
 
 internal sealed class GovernedRequestObservabilityHandler : DelegatingHandler
 {
+    internal static readonly HttpRequestOptionsKey<int?> ResponseLimitRejected = new("McpVal.ResponseLimitRejected");
+
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        request.Options.Set(ResponseLimitRejected, null);
         ValidationObservability.RecordRequestStarted(request.Method.Method);
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();
         try
@@ -174,15 +177,22 @@ internal sealed class GovernedRequestObservabilityHandler : DelegatingHandler
             ValidationObservability.RecordRequestCompleted(
                 request.Method.Method,
                 stopwatch.Elapsed.TotalMilliseconds,
-                response.IsSuccessStatusCode);
+                response.IsSuccessStatusCode,
+                (int)response.StatusCode);
             return response;
         }
-        catch
+        catch (Exception exception)
         {
+            request.Options.TryGetValue(ResponseLimitRejected, out var rejectedStatus);
             ValidationObservability.RecordRequestCompleted(
                 request.Method.Method,
                 stopwatch.Elapsed.TotalMilliseconds,
-                success: false);
+                success: false,
+                httpStatusCode: rejectedStatus is >= 200 and <= 299 ? null : rejectedStatus,
+                failureKind: rejectedStatus != null
+                    ? RequestFailureKind.ResponseRejected
+                    : exception is OperationCanceledException && cancellationToken.IsCancellationRequested
+                    ? RequestFailureKind.RequestCancelled : RequestFailureKind.RequestException);
             throw;
         }
     }
@@ -233,6 +243,7 @@ internal sealed class GovernedRequestPolicyHandler(RunNetworkPolicyContext polic
         if (response.Content.Headers.ContentLength is { } declaredLength && declaredLength > maxResponseBytes)
         {
             ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful: false);
+            request.Options.Set(GovernedRequestObservabilityHandler.ResponseLimitRejected, (int)response.StatusCode);
             response.Dispose();
             throw new InvalidDataException(
             $"Response body exceeds configured limit of {maxResponseBytes} bytes (Content-Length: {declaredLength}).");

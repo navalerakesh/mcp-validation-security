@@ -310,10 +310,57 @@ internal static class BoundedArtifactReader
 
         ValidateRecordedAssessmentTimes(root);
         ValidateRecordedRunTermination(root);
+        ValidateRecordedRequestFailures(root);
         return JsonSerializer.Deserialize<ValidationResult>(
             NormalizeSavedResult(json, version!),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
+    }
+
+    private static void ValidateRecordedRequestFailures(JsonElement root)
+    {
+        try
+        {
+            var run = Unique(root, "run");
+            if (run == null) return;
+            var metrics = Unique(run.Value, "operationalMetrics");
+            if (metrics == null || metrics.Value.ValueKind == JsonValueKind.Null) return;
+            var failures = Unique(metrics.Value, "requestFailures");
+            if (failures == null || failures.Value.ValueKind == JsonValueKind.Null) return;
+            if (failures.Value.ValueKind != JsonValueKind.Array || failures.Value.GetArrayLength() > RequestFailureCount.MaximumBuckets)
+                throw Invalid();
+            var count = Unique(metrics.Value, "requestsFailed");
+            if (count == null || !count.Value.TryGetInt32(out var expectedFailures)) throw Invalid();
+            var entries = new List<RequestFailureCount>();
+            foreach (var element in failures.Value.EnumerateArray())
+            {
+                if (element.ValueKind != JsonValueKind.Object) throw Invalid();
+                var names = element.EnumerateObject().Take(5).Select(property => property.Name).ToArray();
+                if (names.Length != 4 || names.Distinct(StringComparer.OrdinalIgnoreCase).Count() != 4 ||
+                    new[] { "method", "httpStatusCode", "kind", "count" }.Any(name => !names.Contains(name, StringComparer.OrdinalIgnoreCase)))
+                    throw Invalid();
+                var entry = element.Deserialize<RequestFailureCount>(ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true));
+                if (entry == null) throw Invalid();
+                var kind = Unique(element, "kind")!.Value;
+                if (kind.ValueKind == JsonValueKind.String && kind.GetString() != JsonNamingPolicy.CamelCase.ConvertName(entry.Kind.ToString()))
+                    throw Invalid();
+                entries.Add(entry);
+            }
+            if (!RequestFailureCount.IsValidCollection(entries, expectedFailures)) throw Invalid();
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or FormatException or OverflowException)
+        {
+            throw Invalid();
+        }
+
+        static CliUsageException Invalid() => new("Validation artifact contains invalid request failure attribution.");
+        static JsonElement? Unique(JsonElement parent, string name)
+        {
+            if (parent.ValueKind != JsonValueKind.Object) throw Invalid();
+            var matches = parent.EnumerateObject().Where(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
+            if (matches.Length > 1) throw Invalid();
+            return matches.Length == 0 ? null : matches[0].Value;
+        }
     }
 
     private static void ValidateRecordedRunTermination(JsonElement root)

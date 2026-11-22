@@ -7,6 +7,47 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ValidationObservabilityTests
 {
+    [Fact]
+    public void CanonicalClone_ShouldRemoveInvalidAttributionAndIsolateValidEntries()
+    {
+        var result = new ValidationResult();
+        var entries = new List<RequestFailureCount> { new("POST", 405, RequestFailureKind.HttpStatus, 1) };
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics { RequestsFailed = 1, RequestFailures = entries };
+        var clone = result.CloneWithoutSecrets();
+        entries[0] = new RequestFailureCount("secret-method-canary", 405, RequestFailureKind.HttpStatus, 1);
+
+        clone.Run.OperationalMetrics!.RequestFailures!.Single().Method.Should().Be("POST");
+        var sanitized = result.CloneWithoutSecrets();
+        sanitized.Run.OperationalMetrics!.RequestFailures.Should().BeNull();
+        sanitized.Run.OperationalMetrics.RequestsFailed.Should().Be(1);
+        System.Text.Json.JsonSerializer.Serialize(sanitized).Should().NotContain("secret-method-canary");
+    }
+
+    [Fact]
+    public void FailureBreakdown_ShouldAccountForFailuresWithoutPersistingUntrustedValues()
+    {
+        using var run = ValidationObservability.BeginRun("failure-breakdown", 8);
+        ValidationObservability.RecordRequestCompleted("POST", 1, false, 405);
+        ValidationObservability.RecordRequestCompleted("POST", 1, false, 405);
+        ValidationObservability.RecordRequestCompleted("GET", 1, false, failureKind: RequestFailureKind.RequestException);
+        ValidationObservability.RecordRequestCompleted("GET", 1, false, failureKind: RequestFailureKind.RequestCancelled);
+        ValidationObservability.RecordRequestCompleted("secret-method-canary", 1, false, 999, (RequestFailureKind)999);
+        ValidationObservability.RecordRequestCompleted("POST", 1, true, 200);
+        ValidationObservability.RecordResponseRejected();
+        ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful: false);
+
+        var metrics = run.Complete(10);
+
+        metrics.RequestsFailed.Should().Be(6);
+        metrics.RequestFailures!.Sum(failure => failure.Count).Should().Be(metrics.RequestsFailed);
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("POST", 405, RequestFailureKind.HttpStatus, 2));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("GET", null, RequestFailureKind.RequestException, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("GET", null, RequestFailureKind.RequestCancelled, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("OTHER", null, RequestFailureKind.Unspecified, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("OTHER", null, RequestFailureKind.ResponseRejected, 1));
+        System.Text.Json.JsonSerializer.Serialize(metrics).Should().NotContain("secret-method-canary");
+    }
+
     [Theory]
     [InlineData(double.NaN)]
     [InlineData(double.PositiveInfinity)]
@@ -143,19 +184,24 @@ public sealed class ValidationObservabilityTests
         ValidationObservability.Meter.Version.Should().Be(ValidationObservability.InstrumentationVersion);
     }
 
-    [Fact]
-    public void SoakWithHighCardinalityMethodNames_ShouldAggregateWithoutPersistingNames()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SoakWithHighCardinalityMethodNames_ShouldAggregateWithoutPersistingNames(bool failed)
     {
         using var run = ValidationObservability.BeginRun("soak", 10_000);
         for (var index = 0; index < 10_000; index++)
         {
             ValidationObservability.RecordRequestStarted($"untrusted-method-{index}");
-            ValidationObservability.RecordRequestCompleted($"untrusted-method-{index}", index % 10, success: true);
+            ValidationObservability.RecordRequestCompleted($"untrusted-method-{index}", index % 10, success: !failed, httpStatusCode: index % 1000);
         }
 
         var metrics = run.Complete(1_000);
 
         metrics.RequestsCompleted.Should().Be(10_000);
+        metrics.RequestFailures!.Count.Should().BeLessThanOrEqualTo(501);
+        metrics.RequestFailures.Sum(entry => entry.Count).Should().Be(failed ? 10_000 : 0);
+        System.Text.Json.JsonSerializer.Serialize(metrics.RequestFailures).Should().NotContain("untrusted-method");
         metrics.TargetLatencySampleCount.Should().Be(4096);
         var document = System.Text.Json.JsonSerializer.SerializeToNode(metrics, new System.Text.Json.JsonSerializerOptions
             { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;

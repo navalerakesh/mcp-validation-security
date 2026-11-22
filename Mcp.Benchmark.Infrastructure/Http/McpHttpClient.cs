@@ -1542,11 +1542,12 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 ValidationObservability.RecordRequestCompleted(
                     request.Method.Method,
                     stopwatch.Elapsed.TotalMilliseconds,
-                    response.IsSuccessStatusCode);
+                    response.IsSuccessStatusCode,
+                    (int)response.StatusCode);
             }
             return (response, stopwatch.Elapsed.TotalMilliseconds);
         }
-        catch
+        catch (Exception exception)
         {
             stopwatch.Stop();
             if (observeLocally)
@@ -1554,7 +1555,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 ValidationObservability.RecordRequestCompleted(
                     request.Method.Method,
                     stopwatch.Elapsed.TotalMilliseconds,
-                    success: false);
+                    success: false,
+                    failureKind: exception is OperationCanceledException && cancellationToken.IsCancellationRequested
+                        ? RequestFailureKind.RequestCancelled : RequestFailureKind.RequestException);
             }
             throw;
         }

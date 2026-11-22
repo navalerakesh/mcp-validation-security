@@ -2,6 +2,7 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Authentication;
 using Mcp.Benchmark.Infrastructure.Services;
+using Mcp.Benchmark.Infrastructure.Health;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Protocol;
 using McpServerCapabilities = ModelContextProtocol.Protocol.ServerCapabilities;
@@ -10,6 +11,51 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ValidationSessionBuilderProtocolEraTests
 {
+    [Fact]
+    public async Task BuildAsync_ExplicitModernDiscoveryFailure_ShouldNotFallBack()
+    {
+        var (builder, httpClient) = CreateBuilder("2025-06-18");
+        await FluentActions.Awaiting(() => builder.BuildAsync(CreateConfiguration(McpProtocolEraSelection.Modern, "2026-07-28"), CancellationToken.None))
+            .Should().ThrowAsync<ValidationSessionException>().WithMessage("Modern protocol discovery failed:*");
+        httpClient.Verify(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        httpClient.Verify(client => client.ValidateCapabilitiesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task BuildAsync_AutoDiscoveryRejected_WithRealHealthCheck_ShouldEstablishLegacyVersion()
+    {
+        var (_, httpClient) = CreateBuilder("2025-06-18");
+        httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "server/discover", null,
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Mcp.Benchmark.Core.Models.JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true,
+                RawJson = """{"jsonrpc":"2.0","id":"discover","error":{"code":-32601,"message":"Method not found"}}"""
+            });
+        httpClient.Setup(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TransportResult<InitializeResult>
+            {
+                IsSuccessful = true, Transport = TransportMetadata.Empty,
+                Payload = new InitializeResult
+                {
+                    ProtocolVersion = "2025-06-18", Capabilities = new McpServerCapabilities(),
+                    ServerInfo = new Implementation { Name = "legacy-server", Version = "1.0.0" }
+                }
+            });
+        var health = new HealthCheckService(httpClient.Object, Mock.Of<ILogger<HealthCheckService>>(), Mock.Of<ITelemetryService>());
+        var builder = new ValidationSessionBuilder(httpClient.Object, Mock.Of<IAuthenticationService>(), health,
+            Mock.Of<ILogger<ValidationSessionBuilder>>());
+
+        var context = await builder.BuildAsync(CreateConfiguration(McpProtocolEraSelection.Auto, "2026-07-28"), CancellationToken.None);
+
+        context.ProtocolVersion.Should().Be("2025-06-18");
+        context.InitializationHandshake.Should().NotBeNull();
+        context.ModernDiscovery!.IsSuccessful.Should().BeFalse();
+        httpClient.Verify(client => client.ValidateInitializeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
+        httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "server/discover", null,
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     [Fact]
     public async Task BuildAsync_ExplicitModernEraNegotiatesLegacy_ShouldFailWithoutCapabilityCollection()
     {

@@ -25,6 +25,41 @@ public class HealthCheckServiceUnitTests
         _service = new HealthCheckService(_httpClientMock.Object, _loggerMock.Object, _telemetryServiceMock.Object);
     }
 
+    [Theory]
+    [InlineData(McpResultType.Unknown, true, "valid", false)]
+    [InlineData(McpResultType.Complete, true, "valid", true)]
+    [InlineData(McpResultType.Complete, false, "valid", false)]
+    [InlineData(McpResultType.Complete, null, "valid", false)]
+    [InlineData(McpResultType.InputRequired, true, "valid", false)]
+    [InlineData(McpResultType.Complete, true, "wrong-version", false)]
+    [InlineData(McpResultType.Complete, true, "missing", false)]
+    public async Task ModernHealth_ShouldRequireCompletedValidatedDiscovery(McpResultType resultType, bool? valid, string body, bool expected)
+    {
+        _httpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), "server/discover", null,
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Mcp.Benchmark.Core.Models.JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true, ProtocolSemanticsValid = valid, ResultType = resultType,
+                RawJson = body == "missing" ? "{}" : JsonSerializer.Serialize(new
+                {
+                    jsonrpc = "2.0", id = "discovery", result = new
+                    {
+                        supportedVersions = new[] { body == "wrong-version" ? "2025-06-18" : "2026-07-28" },
+                        capabilities = new { }, resultType = "complete", cacheScope = "public", ttlMs = 0
+                    }
+                })
+            });
+
+        var result = await _service.PerformHealthCheckAsync(new McpServerConfig
+        {
+            Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = "2026-07-28"
+        });
+
+        result.IsHealthy.Should().Be(expected);
+        result.Disposition.Should().Be(expected ? HealthCheckDisposition.Healthy : HealthCheckDisposition.Unhealthy);
+        result.ProtocolVersion.Should().Be(expected ? "2026-07-28" : null);
+    }
+
     [Fact]
     public async Task PerformHealthCheckAsync_WithValidEndpoint_ShouldReturnHealthy()
     {

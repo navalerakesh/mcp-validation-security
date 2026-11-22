@@ -143,6 +143,8 @@ public sealed class ValidationSessionBuilder : IValidationSessionBuilder
         }
         else
         {
+            if (server.ProtocolEra == McpProtocolEraSelection.Auto && ProtocolEraVersions.IsModern(server.ProtocolVersion))
+                server.ProtocolVersion = ProtocolEraVersions.GetLatestLegacyVersion(_schemaRegistry).Value;
             var healthCheck = await _healthCheckService.PerformHealthCheckAsync(server, cancellationToken);
             context.BootstrapHealth = healthCheck;
             context.InitializationHandshake = healthCheck.InitializationDetails;

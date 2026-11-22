@@ -20,6 +20,27 @@ internal static class ModernResultSemantics
     private static readonly ISchemaRegistry SchemaRegistry = new EmbeddedSchemaRegistry();
     private static readonly ISchemaValidator SchemaValidator = new JsonSchemaValidator();
 
+    public static bool IsCompleteDiscovery(JsonRpcResponse response, string? protocolVersion)
+    {
+        if (!response.IsSuccess || response.ProtocolSemanticsValid != true || response.ResultType != McpResultType.Complete ||
+            !ProtocolEraVersions.IsModern(protocolVersion) || string.IsNullOrWhiteSpace(response.RawJson)) return false;
+        if (!SchemaValidationHelpers.TryValidateResponseDefinition(SchemaRegistry, SchemaValidator,
+                SchemaValidationHelpers.ResolveProtocolVersion(SchemaRegistry, protocolVersion),
+                SchemaValidationHelpers.DiscoverResultResponseDefinition, response.RawJson,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance, out var validation) || validation?.IsValid != true)
+            return false;
+        try
+        {
+            using var document = JsonDocument.Parse(response.RawJson);
+            return document.RootElement.GetProperty("result").GetProperty("supportedVersions").EnumerateArray()
+                .Any(version => version.ValueKind == JsonValueKind.String && version.GetString() == protocolVersion);
+        }
+        catch (Exception exception) when (exception is JsonException or InvalidOperationException or KeyNotFoundException)
+        {
+            return false;
+        }
+    }
+
     public static ModernResultAssessment Assess(string? rawJson, string? protocolVersion)
     {
         if (!ProtocolEraVersions.IsModern(protocolVersion))
