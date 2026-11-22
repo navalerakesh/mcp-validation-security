@@ -1,6 +1,6 @@
 {
   "documentType": "mcpval.assurance-result",
-  "documentSchemaVersion": "3.3.0",
+  "documentSchemaVersion": "3.4.0",
   "producer": {
     "name": "MCP Validator",
     "version": "2.0.1",

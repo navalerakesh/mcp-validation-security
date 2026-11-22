@@ -40,6 +40,30 @@ public class ConsoleOutputServiceUnitTests : IDisposable
         _outputService.SetVerbose(true);
     }
 
+    [Theory]
+    [InlineData("2025-06-18", "2025-06-18")]
+    [InlineData(null, "not recorded")]
+    public void HealthProtocolEvidence_ShouldRemainVisibleWithoutVerboseOutput(string? protocol, string expected)
+    {
+        _outputService.SetVerbose(false);
+        _outputService.DisplayHealthCheckResults(new HealthCheckResult { IsHealthy = protocol != null, ProtocolVersion = protocol }, TimeSpan.Zero, false);
+        _stringWriter.ToString().Should().Contain($"Observed Protocol Version: {expected}");
+    }
+
+    [Fact]
+    public void HealthProtocolEvidence_ShouldEscapeTerminalControlsWithoutMutatingEvidence()
+    {
+        const string protocol = "\u001b[2J\rFORGED STATUS\nnext";
+        var result = new HealthCheckResult { ProtocolVersion = protocol };
+        _outputService.SetVerbose(false);
+        _outputService.DisplayHealthCheckResults(result, TimeSpan.Zero, false);
+
+        var output = _stringWriter.ToString();
+        output.Should().NotContain("\u001b").And.NotContain("\rFORGED STATUS");
+        output.Should().Contain(System.Text.Json.JsonEncodedText.Encode(protocol).ToString());
+        result.ProtocolVersion.Should().Be(protocol);
+    }
+
     [Fact]
     public void WriteSuccess_ShouldFormatSuccessMessage()
     {

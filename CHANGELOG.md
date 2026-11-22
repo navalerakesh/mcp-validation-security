@@ -8,6 +8,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Added
 
+- Experimental import-only identity-policy matrices retain authorization, effective-actor, authentication, scope, role-binding and positive-control outcomes separately. Signed evidence pins an independently admitted matrix and run/target/route scope; malformed rows preserve explicit integrity gaps without hiding other known violations. Assurance-result `3.4.0` adds the optional canonical assessment. No identity collector, target execution or default activation is added.
 - Assurance-result `3.3.0` adds optional, bounded request-failure counts by normalized HTTP method, status and failure kind. Historical missing attribution remains unavailable. Saved artifacts reject malformed attribution; canonical cloning preserves privacy and isolates valid entries. Transport counters are not protocol-failure verdicts.
 - Experimental controlled-application state evidence contracts, evidence-only scenario reconciliation and bounded signed import with operator-selected observer trust. Write/no-op/failed-write, unavailable observation, audit, cleanup and replay distinctions are retained in a separate lane. No default activation or automatic target invocation is added. Assurance-result schema is `3.2.0`; rule catalog revision is `2026-11-11.1`.
 
@@ -21,6 +22,8 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Auto-mode standalone health checks now fall back to legacy initialization when modern discovery is unavailable, matching validation behavior while preserving explicit Modern requirements. Normal CLI and STDIO health output shows escaped observed protocol evidence instead of only the selected execution plan.
+- Mutation qualification now rejects Stryker whole-method instrumentation rollback and log-inspection errors instead of accepting a misleading aggregate score.
 - Auto-era bootstrap now enters actual legacy initialization after unsuccessful modern discovery, preserving the observed negotiated version; explicit Modern mode still fails closed. Declared and streamed oversized responses receive consistent failure attribution without double-counting, and cancelled request tokens are distinguished from other exceptions.
 - Standalone modern health requires a schema-valid completed discovery response advertising the selected protocol version. Error envelopes, missing or incomplete discovery and unsupported version advertisements no longer establish healthy modern protocol status.
 - Run requests freeze the existing canonical target digest before validation, allowing explicitly composed signed state-evidence packs to verify admitted run/target bindings during orchestration. CLI plans and host-neutral execution share one identity calculation; ordinary validation adds no target operations.

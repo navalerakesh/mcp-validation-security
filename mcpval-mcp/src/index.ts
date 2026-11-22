@@ -131,7 +131,7 @@ async function main(): Promise<void> {
     "health_check",
     {
       title: "Health Check MCP Server",
-      description: "Quick connectivity check — verifies MCP initialize handshake and protocol version.",
+      description: "Quick connectivity check using version-appropriate MCP discovery or initialization and observed protocol evidence.",
       inputSchema: HealthCheckInputSchema.shape,
       outputSchema: toolOutputSchema,
       annotations: { ...inspectionAnnotations, title: "Health Check MCP Server" },

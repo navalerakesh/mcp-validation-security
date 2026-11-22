@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0"] },
     "startTime": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "endTime": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "producer": {
@@ -121,7 +121,8 @@
           "items": {
             "type": "object",
             "properties": {
-              "controlledState": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateAssessment" }] }
+              "controlledState": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateAssessment" }] },
+              "controlledIdentity": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledIdentityAssessment" }] }
             },
             "additionalProperties": true
           }
@@ -151,10 +152,96 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "allOf": [{
-    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0"] } }, "required": ["documentSchemaVersion"] },
+    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0"] } }, "required": ["documentSchemaVersion"] },
     "then": { "required": ["startTime"] }
   }],
   "$defs": {
+    "controlledIdentityDecision": { "enum": ["unknown", "allowed", "denied", 0, 1, 2] },
+    "controlledIdentityCase": {
+      "type": "object", "required": ["caseId", "binding", "scopePredicateId", "expectedEffectiveActorAlias", "expectedDecision", "identityRole", "isPositiveControl"],
+      "properties": {
+        "caseId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "binding": { "$ref": "#/$defs/controlledOperationBinding" },
+        "scopePredicateId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "expectedEffectiveActorAlias": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "expectedDecision": { "$ref": "#/$defs/controlledIdentityDecision" },
+        "identityRole": { "enum": ["unknown", "callerAssertion", "approverAssertion", "resourceSelector", "displayOnly", "delegationReference", 0, 1, 2, 3, 4, 5] },
+        "isPositiveControl": { "type": "boolean" },
+        "positiveControlCaseId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateIdentifier" }] }
+      }, "additionalProperties": false
+    },
+    "controlledIdentityContract": {
+      "type": "object", "required": ["contractRevision", "policyRevision", "toolName", "observerId", "cases", "maximumEvidenceAge", "maximumObservationDelay"],
+      "properties": {
+        "contractRevision": { "const": "1.0.0" },
+        "policyRevision": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "toolName": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "observerId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "cases": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/controlledIdentityCase" } },
+        "maximumEvidenceAge": { "$ref": "#/$defs/controlledStateDuration" },
+        "maximumObservationDelay": { "$ref": "#/$defs/controlledStateDuration" }
+      }, "additionalProperties": false
+    },
+    "controlledIdentityObservation": {
+      "type": "object", "required": ["caseId", "binding", "observerId", "scopePredicateId", "observerOutcome", "complete", "decision"],
+      "properties": {
+        "caseId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "binding": { "$ref": "#/$defs/controlledOperationBinding" },
+        "observerId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "scopePredicateId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "operationStartedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "operationEndedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "observedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "observerOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "complete": { "type": "boolean" },
+        "preconditionsSatisfied": { "type": ["boolean", "null"] },
+        "decision": { "$ref": "#/$defs/controlledIdentityDecision" },
+        "effectiveActorMatched": { "type": ["boolean", "null"] },
+        "authenticationBindingMatched": { "type": ["boolean", "null"] },
+        "scopeMatched": { "type": ["boolean", "null"] },
+        "delegationBindingMatched": { "type": ["boolean", "null"] },
+        "approvalBindingMatched": { "type": ["boolean", "null"] }
+      }, "additionalProperties": false
+    },
+    "controlledIdentityCaseAssessment": {
+      "type": "object", "required": ["caseId", "outcome", "observationOutcome", "decisionOutcome", "effectiveActorOutcome", "authenticationBindingOutcome", "scopeOutcome", "roleBindingOutcome", "positiveControlOutcome"],
+      "properties": {
+        "caseId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "outcome": { "$ref": "#/$defs/validationOutcome" },
+        "observationOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "decisionOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "effectiveActorOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "authenticationBindingOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "scopeOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "roleBindingOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "positiveControlOutcome": { "$ref": "#/$defs/validationOutcome" }
+      }, "additionalProperties": false
+    },
+    "controlledIdentityAssessment": {
+      "type": "object", "required": ["assessedAt", "outcome", "cases", "reason", "retryPermitted", "recordedGaps", "evidenceIntegrityOutcome"],
+      "properties": {
+        "sourceEvidenceSha256": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateDigest" }] },
+        "verifiedObserverKeyId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateDigest" }] },
+        "admittedContract": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledIdentityContract" }] },
+        "recordedObservations": { "type": ["array", "null"], "maxItems": 64, "items": { "$ref": "#/$defs/controlledIdentityObservation" } },
+        "recordedGaps": {
+          "type": "array", "maxItems": 64,
+          "items": {
+            "type": "object", "required": ["caseId", "rejectedObservations"],
+            "properties": {
+              "caseId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateIdentifier" }] },
+              "rejectedObservations": { "type": "integer", "minimum": 1, "maximum": 64 }
+            }, "additionalProperties": false
+          }
+        },
+        "evidenceIntegrityOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "assessedAt": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
+        "outcome": { "$ref": "#/$defs/validationOutcome" },
+        "cases": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/controlledIdentityCaseAssessment" } },
+        "reason": { "type": "string" },
+        "retryPermitted": { "const": false }
+      }, "additionalProperties": false
+    },
     "validationOutcome": {
       "enum": ["notEvaluated", "running", "succeeded", "failed", "skipped", "authRequired", "inconclusive", "notApplicable", "unavailable", "blocked", "cancelled", "error", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     },

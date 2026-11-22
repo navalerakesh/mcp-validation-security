@@ -116,7 +116,7 @@ export const tools = [
     name: "health_check",
     description:
       "Quick connectivity check on an MCP server. " +
-      "Verifies the server responds to the MCP initialize handshake and reports protocol version.",
+      "Checks version-appropriate MCP discovery or initialization and reports observed protocol evidence.",
     inputSchema: HealthCheckInputSchema,
   },
   {

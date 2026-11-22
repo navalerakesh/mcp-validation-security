@@ -351,6 +351,9 @@ public sealed class ValidationScenarioResult
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ControlledStateAssessment? ControlledState { get; init; }
 
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledIdentityMatrixAssessment? ControlledIdentity { get; init; }
+
     public List<ValidationFinding> Findings { get; init; } = new();
 }
 

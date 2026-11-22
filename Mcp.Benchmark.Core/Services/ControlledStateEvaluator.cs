@@ -121,13 +121,7 @@ public static class ControlledStateEvaluator
         };
     }
 
-    private static bool ValidBinding(ControlledOperationBinding binding) =>
-        new[] { binding.RunId, binding.OperationId, binding.AttemptId, binding.RequestId, binding.BoundaryId, binding.ActorAlias, binding.ObjectAlias }
-            .All(ValidIdentifier) &&
-        new[] { binding.TargetIdentitySha256, binding.RouteIdentitySha256, binding.ArgumentsSha256 }
-            .All(value => value is { Length: 64 } && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f'));
+    private static bool ValidBinding(ControlledOperationBinding binding) => ControlledEvidenceAdmission.IsValidBinding(binding);
 
-    private static bool ValidIdentifier(string? value) =>
-        !string.IsNullOrWhiteSpace(value) && value.Length <= ControlledStateScenarioContract.MaximumIdentifierCharacters &&
-        value.All(character => !char.IsControl(character));
+    private static bool ValidIdentifier(string? value) => ControlledEvidenceAdmission.IsValidIdentifier(value);
 }

@@ -1,12 +1,12 @@
 # Enterprise Recovery Implementation Status
 
-Updated: 2026-11-21
+Updated: 2026-11-22
 
 Status: implementation in progress; not release-ready. The approved technical plan contains eight delivery slices. Passing foundation gates do not establish milestone acceptance. Local milestone commits are now authorized only after all applicable acceptance gates; pushing, publication and live enterprise probing remain unauthorized.
 
 ## Authoritative Checkpoint
 
-- Latest committed functional checkpoint is S7B `846b9db`. The live-driven repair batch below is separately qualified and awaits final receipt review/local commit; no push or publication has occurred.
+- Latest committed functional checkpoint is the independently reviewed live-repair batch `18b469d`. S7C identity-policy evidence integration is in progress; no push or publication has occurred.
 - Priority update, 2026-11-11: the user reports that the HTML experience, particularly the raw findings/claims section, does not meet the intended enterprise design. Further presentation polishing is deferred until the remaining planned functional work is implemented. Prior local report receipts do not constitute user acceptance of the report design. Current implementation work is S7 controlled application evidence; S8 budgets/benchmarks and remaining functional CI requirements also remain open.
 - M0 was committed locally as `0a72ece`; nothing was pushed or published. Its receipt binds that checkpoint, not later working-tree edits.
 - S1 was committed locally as `1dcfbd0`; its receipt binds that accepted checkpoint. S2 was committed locally as `71b8980`; its declared local bounded-catalog/inspection scope is qualified by its [source-bound receipt](Resources/Acceptance/s2-local-receipt.json). Nothing was pushed or published.
@@ -44,6 +44,31 @@ The live-driven repairs have a [source-bound receipt](Resources/Acceptance/live-
 The final real Learn `latest` run used the same binary identities as package qualification: exit 0, negotiated `2025-06-18`, 13 completed requests, and failure buckets GET 405, DELETE 405 and GET request-token cancellation. It recorded no tool invocation. A separate explicit-modern standalone health check against the real endpoint exited 1 with failed discovery, instead of claiming modern health; its four-request cap and outputs are retained. The initial standalone-health harness config was locally rejected with exit 64 because it used a string profile where the config contract required an enum value; that attempt did not test the server and remains preserved separately. These are bounded live observations, not statistical reliability, full conformance, server-side audit or enterprise acceptance. HTML design changes remain deferred; S7 identity/relay and S8 work remain open.
 
 These are retained local observations, not a completed investigation or a server certification. Identity-matrix and relay implementation remain open; the interrupted identity-matrix edit did not land. Real-server checks complement deterministic regressions and independent oracle controls rather than replace them. No remote issue creation, push or publication was authorized.
+
+### S7C Identity Evidence Component
+
+The repaired six-owner mutation run completed at 90.98% with exit 0 and no whole-method rollback. Its six recorded source files match the tested implementation. This is aggregate scoped mutation evidence, not whole-product coverage. The [source-bound S7C receipt](Resources/Acceptance/s7c-local-receipt.json) also records the final live-STDIO alignment work; final receipt review and local commit remain pending.
+
+The user additionally authorized milestone checks of real Microsoft Learn and GitHub MCP through the current local MCPVal STDIO adapter, and approved use of the existing GitHub CLI login for Safe discovery/static checks only. GitHub uses its documented `/mcp/readonly` endpoint; credentials remain transient and are not written to arguments or retained responses. The first milestone found **LIVE-04**: Learn Auto health exited 1 while discovery/validation exited 0, whereas GitHub returned 0 for all three. The shared health service now performs Auto-only legacy fallback; explicit Modern still fails closed. Nonverbose output now includes escaped observed protocol evidence, and tool descriptions cover discovery or initialization. Fifty-nine focused health/output checks pass, including cancellation, failed fallback and hostile terminal text.
+
+The final real STDIO milestone returned exit 0 for health, discovery and validation on both servers. Health and validation agree on observed versions: Learn `2025-06-18` with three tools, GitHub `2026-07-28` with 28 read-only tools. Learn retains eight incomplete and five review-required claims; GitHub retains eight incomplete and 37 review-required claims. Both wrapper processes exited and left no temporary wrapper artifacts. Final gates passed 1,896 .NET tests with 23 Windows-native skips, 180 wrapper tests, two built and two installed CLI lifecycle cases, nine Node companion tests, separate typecheck and documentation checks. Fresh Release-before-pack evidence verifies five DLLs, 28 wrapper files and six bundle digests. The final real runs use those same current binaries.
+
+| Aspect | Milestone evidence boundary |
+| --- | --- |
+| Local MCPVal STDIO protocol and delegation to CLI | Actual SDK-to-wrapper-to-current-CLI execution and cleanup observed |
+| Remote negotiation, discovery and static catalog/schema analysis | Observed for Learn and GitHub's restricted read-only surface |
+| Active tool execution, malformed probes, load and mutation behavior | Not attempted in Safe mode; no pass credit |
+| Per-identity/object/delegation enforcement and state/audit effects | Not established by these public runs; controlled independent observations are still required |
+| Optional/full conformance and long-term reliability | Current claims and gaps retained; no exhaustive or statistical certification |
+| Native-platform and enterprise qualification | Still open; Windows skips are not passes |
+
+Current uncommitted implementation adds a bounded identity-policy matrix, signed import and an evidence-only scenario pack using the existing registry and controlled-application lane. Authorization decision, effective-actor/authentication/scope predicates, declared identity-role binding and positive controls remain separate. Raw observed principal strings are not part of the contract. Expectations and aliases are operator-owned references; an independent collector must establish the observed predicates. This is not a name-based impersonation rule or an authentication verifier.
+
+Independent review found and repaired three evaluator gaps: raw observed identity retention, malformed-row masking of valid independent failures, and stale operations refreshed by recent observation timestamps. A subsequent integration review found case-ID collisions in production coverage merging and claim normalization; both case and punctuation counterexamples failed before digest-based case scopes and pass afterward. Quarantine gaps preserve safe case references/counts and deterministic replay. Shared signature/admission extraction retains the existing state controls. The latest focused run passes 209 identity/state/schema checks, including 90 identity cases, while prior owned STDIO state controls also pass.
+
+Canonical result `3.4.0` and the exact one-value JSON snapshot update accompany this component. The unchanged 90% mutation gate includes the identity evaluator and shared admission guards alongside its prior four owners. Full gates and source-bound receipts are recorded above; final independent receipt review and local commit remain pending. No production identity collector or real identity-enforcement qualification is claimed. Public Microsoft Learn discovery cannot supply the approved identities, objects and independent enforcement oracle needed for that qualification. The remaining owned identity pilot, two-boundary relay, S8 and deferred report design remain open.
+
+Precommit review found that the initial mutation run entered Stryker `Safe Mode` after a CS0165 instrumentation error and removed every mutation in the identity evaluator's `Evaluate` method. That run was stopped and its log retained; it is not acceptance evidence, regardless of any aggregate score. A bounded local-lookup rewrite preserves the evaluator's behavior and passes all 209 focused identity/state/schema checks. The mutation script now retains its own Stryker log and fails on whole-method rollback or log-inspection errors. Six script-level controls verify ordinary completion, stdout/stderr rollback rejection, Stryker failure, and failed/unavailable log inspection while preserving all six owners and the 90% threshold. Independent source and script reviews found no remaining blockers for a fresh build gate. Fresh post-repair mutation evidence and final receipt review are required before commit.
 
 ### S7 In-Progress Traceability
 

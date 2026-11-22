@@ -2,7 +2,7 @@ using Mcp.Benchmark.Core.Utilities;
 
 namespace Mcp.Benchmark.Core.Models;
 
-public sealed record ControlledStateEvidenceDocument
+public sealed record ControlledStateEvidenceDocument : Mcp.Benchmark.Core.Abstractions.ISignedControlledEvidence
 {
     public const string Type = "mcpval.controlled-state-evidence";
     public const string Revision = "1.0.0";

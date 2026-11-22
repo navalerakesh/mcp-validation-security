@@ -151,7 +151,7 @@ On Windows, use the full path to `mcpval.exe`.
 | Tool | Description |
 | --- | --- |
 | `validate` | Evaluate typed claims, independent assurance assessments, and certificate eligibility for an MCP server |
-| `health_check` | Quick connectivity check — verifies initialize handshake |
+| `health_check` | Quick connectivity check using version-appropriate discovery or initialization |
 | `discover` | List tools, resources, and prompts exposed by a remote MCP server |
 
 ### Input Highlights
@@ -161,6 +161,8 @@ On Windows, use the full path to `mcpval.exe`.
 - `discover`: supports `server`, `access`, `token`, `interactive`, `protocolEra`, and `format` (`json`, `yaml`, or `table`).
 
 `protocolEra` accepts `auto`, `legacy`, or `modern`; prefer `auto` unless the target requires an explicit protocol generation.
+
+Auto health checks can establish legacy initialization after unavailable modern discovery; explicit `modern` does not fall back. Health output includes the observed protocol separately from the selected plan, with control characters escaped. A successful inventory exit does not imply complete active security, tool-execution, identity, state or relay coverage; inspect the canonical claims and gaps.
 
 ## Security Behavior
 

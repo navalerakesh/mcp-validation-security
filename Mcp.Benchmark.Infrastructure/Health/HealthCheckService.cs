@@ -99,7 +99,10 @@ public class HealthCheckService : IHealthCheckService
                 result.ProtocolVersion = result.IsHealthy ? serverConfig.ProtocolVersion : null;
                 result.ServerVersion = "Not advertised by server/discover";
                 result.ServerMetadata["healthMethod"] = ValidationConstants.Methods.ServerDiscover;
-                return result;
+                if (result.IsHealthy || serverConfig.ProtocolEra != McpProtocolEraSelection.Auto)
+                    return result;
+                _httpClient.SetProtocolVersion(ProtocolEraVersions.GetLatestLegacyVersion().Value);
+                result.ServerMetadata["healthMethod"] = McpSpecConstants.InitializeMethod;
             }
 
             // REAL HTTP transport health check using MCP initialize
