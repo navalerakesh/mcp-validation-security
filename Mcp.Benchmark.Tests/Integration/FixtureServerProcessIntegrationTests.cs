@@ -12,11 +12,288 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Security.Cryptography;
 using Mcp.Benchmark.Core.Utilities;
+using Mcp.Benchmark.Infrastructure.Utilities;
 
 namespace Mcp.Benchmark.Tests.Integration;
 
 public class FixtureServerProcessIntegrationTests
 {
+    [Theory]
+    [InlineData(false, false, false, ValidationOutcome.Succeeded)]
+    [InlineData(true, false, false, ValidationOutcome.Failed)]
+    [InlineData(false, true, false, ValidationOutcome.Inconclusive)]
+    [InlineData(false, false, true, ValidationOutcome.Inconclusive)]
+    public async Task OwnedHttpIdentityPilot_ShouldObserveIssuedPrincipalsAndPolicy(bool brokenPolicy, bool unavailableObserver, bool counterDrift, ValidationOutcome expected)
+    {
+        var packageRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "mcpval-mcp"));
+        File.Exists(Path.Combine(packageRoot, "node_modules", "@modelcontextprotocol", "sdk", "package.json"))
+            .Should().BeTrue("run npm ci in mcpval-mcp before SDK-backed fixture tests");
+        var tokens = Enumerable.Range(0, 4).Select(_ => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant()).ToArray();
+        var start = new System.Diagnostics.ProcessStartInfo("node")
+        {
+            UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true
+        };
+        start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Servers", "mcp-fixture-controlled-identity.cjs"));
+        start.Environment.Clear();
+        foreach (var name in new[] { "PATH", "SYSTEMROOT", "WINDIR", "PATHEXT" })
+            if (Environment.GetEnvironmentVariable(name) is { } value) start.Environment[name] = value;
+        start.Environment["MCPVAL_FIXTURE_PACKAGE_ROOT"] = packageRoot;
+        start.Environment["MCPVAL_FIXTURE_CREDENTIALS"] = JsonSerializer.Serialize(new { actorA = tokens[0], actorB = tokens[1], readOnlyA = tokens[2], observer = tokens[3] });
+        start.Environment["MCPVAL_FIXTURE_ALLOW_SPOOF"] = brokenPolicy ? "true" : "false";
+        start.Environment["MCPVAL_FIXTURE_OBSERVER_UNAVAILABLE"] = unavailableObserver ? "true" : "false";
+        start.Environment["MCPVAL_FIXTURE_COUNTER_DRIFT"] = counterDrift ? "true" : "false";
+        using var process = new System.Diagnostics.Process { StartInfo = start };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        ControlledIdentityMatrixAssessment? completedAssessment = null;
+        string? signedEnvelope = null;
+        string? observerPublicKey = null;
+        string? canonicalArtifact = null;
+        process.Start().Should().BeTrue();
+        start.Environment.Remove("MCPVAL_FIXTURE_CREDENTIALS");
+        void StopOnOverflow() { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+        var stderr = BoundedStreamReader.ReadUtf8Async(process.StandardError.BaseStream, 4096, BoundedStreamRetention.First, StopOnOverflow, deadline.Token);
+        try
+        {
+            var ready = await ReadIdentityReadinessAsync(process, deadline.Token);
+            ready.IsTruncated.Should().BeFalse("fixture readiness must stay bounded");
+            using var readyDocument = JsonDocument.Parse(ready.Text);
+            readyDocument.RootElement.GetProperty("pid").GetInt32().Should().Be(process.Id);
+            var port = readyDocument.RootElement.GetProperty("port").GetInt32();
+            port.Should().BeInRange(1, 65535);
+            var endpoint = $"http://127.0.0.1:{port}/mcp";
+            var runId = Guid.NewGuid().ToString("N");
+            var targetDigest = CanonicalJsonDigest.ComputeText(endpoint);
+            var routeDigest = CanonicalJsonDigest.ComputeText($"owned-http:{port}");
+            using var observerHttp = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false })
+                { Timeout = TimeSpan.FromSeconds(5), MaxResponseContentBufferSize = 8192 };
+            observerHttp.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens[3]);
+            using (var forbiddenRead = new HttpRequestMessage(HttpMethod.Get, $"http://127.0.0.1:{port}/observer"))
+            {
+                forbiddenRead.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", tokens[0]);
+                using var denied = await observerHttp.SendAsync(forbiddenRead, deadline.Token);
+                denied.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized, "target credentials must not grant observer access");
+            }
+            using (var forbiddenMcp = new HttpRequestMessage(HttpMethod.Post, endpoint))
+            {
+                forbiddenMcp.Content = new StringContent("{}", Encoding.UTF8, "application/json");
+                using var denied = await observerHttp.SendAsync(forbiddenMcp, deadline.Token);
+                denied.StatusCode.Should().Be(System.Net.HttpStatusCode.Unauthorized, "observer credentials must not grant target access");
+            }
+            int? baselineValue = null;
+            using (var baselineResponse = await observerHttp.GetAsync($"http://127.0.0.1:{port}/observer", deadline.Token))
+            {
+                baselineResponse.StatusCode.Should().Be(unavailableObserver ? System.Net.HttpStatusCode.ServiceUnavailable : System.Net.HttpStatusCode.OK);
+                if (baselineResponse.IsSuccessStatusCode)
+                {
+                    using var baseline = JsonDocument.Parse(await baselineResponse.Content.ReadAsStringAsync(deadline.Token));
+                    baseline.RootElement.GetProperty("entries").GetArrayLength().Should().Be(0);
+                    baselineValue = baseline.RootElement.GetProperty("value").GetInt32();
+                    baselineValue.Should().Be(0);
+                }
+            }
+            var cases = new List<ControlledIdentityCase>();
+            var observations = new List<ControlledIdentityObservation>();
+            string? observedProtocol = null;
+            var modes = new[] { "control", "claimed-actor", "other-actor", "insufficient-scope" };
+            for (var index = 0; index < modes.Length; index++)
+            {
+                var mode = modes[index];
+                var principal = mode == "other-actor" ? "actor-b" : "actor-a";
+                var claimed = mode is "claimed-actor" or "other-actor" ? "actor-b" : "actor-a";
+                var token = mode == "other-actor" ? tokens[1] : mode == "insufficient-scope" ? tokens[2] : tokens[0];
+                var arguments = new { @object = "object-a", claimedActor = claimed };
+                var policy = new ExecutionPolicy
+                {
+                    Mode = ExecutionMode.Standard, MaxRequests = 8, AllowPrivateAddresses = true,
+                    AllowedHosts = ["127.0.0.1"], AllowedOrigins = [$"http://127.0.0.1:{port}"]
+                };
+                var network = new RunNetworkPolicyContext();
+                network.Configure(OperationPolicySnapshot.From(policy));
+                using var provider = new GovernedHttpClientProvider(new GovernedConnectionFactory(network, new DnsHostAddressResolver(), new SocketEndpointConnector()));
+                await using var factory = new McpClientFactory(Microsoft.Extensions.Logging.Abstractions.NullLogger<McpClientFactory>.Instance,
+                    Microsoft.Extensions.Logging.Abstractions.NullLoggerFactory.Instance, provider);
+                var sdk = new SdkMcpClient(factory, Microsoft.Extensions.Logging.Abstractions.NullLogger<SdkMcpClient>.Instance);
+                using var client = new McpHttpClient(provider.Client, Microsoft.Extensions.Logging.Abstractions.NullLogger<McpHttpClient>.Instance, sdk, network);
+                client.ConfigureExecutionPolicy(policy);
+                client.SetProtocolVersion("2025-11-25");
+                client.SetAuthentication(new AuthenticationConfig { Type = "bearer", Token = token });
+                var initialization = await client.ValidateInitializeAsync(endpoint, deadline.Token);
+                initialization.IsSuccessful.Should().BeTrue("issued credentials must authenticate, including insufficient tool scope");
+                initialization.Payload!.ProtocolVersion.Should().Be("2025-11-25", "the fixture must actually negotiate the requested supported revision");
+                if (observedProtocol == null) observedProtocol = initialization.Payload.ProtocolVersion;
+                else initialization.Payload.ProtocolVersion.Should().Be(observedProtocol);
+                var began = DateTimeOffset.UtcNow;
+                var response = await client.CallAsync(endpoint, ValidationConstants.Methods.ToolsCall,
+                    new { name = "owned_update", arguments }, deadline.Token);
+                var ended = DateTimeOffset.UtcNow;
+                response.IsSuccess.Should().BeTrue("allow and deny are valid correlated MCP application responses");
+                var requestId = response.ProbeContext!.RequestId!;
+                var binding = new ControlledOperationBinding(runId, mode, "attempt-" + mode, requestId, "owned-http-boundary",
+                    targetDigest, routeDigest, CanonicalJsonDigest.ComputeObject(arguments), principal, "object-a");
+                cases.Add(new ControlledIdentityCase
+                {
+                    CaseId = mode, Binding = binding, ScopePredicateId = "owned-object-effects", ExpectedEffectiveActorAlias = principal,
+                    ExpectedDecision = index == 0 ? ControlledAuthorizationDecision.Allowed : ControlledAuthorizationDecision.Denied,
+                    IdentityRole = ControlledIdentityRole.CallerAssertion, IsPositiveControl = index == 0, PositiveControlCaseId = index == 0 ? null : "control"
+                });
+                using var observedResponse = await observerHttp.GetAsync($"http://127.0.0.1:{port}/observer", deadline.Token);
+                observedResponse.StatusCode.Should().Be(unavailableObserver ? System.Net.HttpStatusCode.ServiceUnavailable : System.Net.HttpStatusCode.OK);
+                var observation = new ControlledIdentityObservation
+                {
+                    CaseId = mode, Binding = binding, ObserverId = "owned-auth-observer", ScopePredicateId = "owned-object-effects",
+                    OperationStartedAt = began, OperationEndedAt = ended, ObservedAt = DateTimeOffset.UtcNow,
+                    ObserverOutcome = ValidationOutcome.Unavailable
+                };
+                if (observedResponse.IsSuccessStatusCode)
+                {
+                    using var ledger = JsonDocument.Parse(await observedResponse.Content.ReadAsStringAsync(deadline.Token));
+                    var rows = ledger.RootElement.GetProperty("entries").EnumerateArray().ToArray();
+                    rows.Should().HaveCount(index + 1);
+                    var observed = rows.Single(entry => entry.GetProperty("requestId").GetString() == requestId);
+                    var allowed = observed.GetProperty("allowed").GetBoolean();
+                    allowed.Should().Be(index == 0 || brokenPolicy && mode == "claimed-actor", "each policy decision must match its independent control");
+                    observed.GetProperty("actor").GetString().Should().Be(principal);
+                    observed.GetProperty("authenticated").GetBoolean().Should().BeTrue();
+                    var counterMatches = ledger.RootElement.GetProperty("value").GetInt32() == observed.GetProperty("after").GetInt32();
+                    counterMatches.Should().Be(!(counterDrift && mode == "insufficient-scope"));
+                    observation = observation with
+                    {
+                        ObserverOutcome = ValidationOutcome.Succeeded, Complete = counterMatches,
+                        PreconditionsSatisfied = baselineValue != null && observed.GetProperty("before").GetInt32() == baselineValue,
+                        Decision = allowed ? ControlledAuthorizationDecision.Allowed : ControlledAuthorizationDecision.Denied,
+                        EffectiveActorMatched = observed.GetProperty("actor").GetString() == principal,
+                        AuthenticationBindingMatched = observed.GetProperty("authenticated").GetBoolean(),
+                        ScopeMatched = observed.GetProperty("object").GetString() == binding.ObjectAlias &&
+                            observed.GetProperty("after").GetInt32() == observed.GetProperty("before").GetInt32() + (allowed ? 1 : 0)
+                    };
+                    baselineValue = ledger.RootElement.GetProperty("value").GetInt32();
+                }
+                observations.Add(observation);
+            }
+            var contract = new ControlledIdentityMatrixContract
+            {
+                PolicyRevision = "owned-http-identity-v1", ToolName = "owned_update", ObserverId = "owned-auth-observer", Cases = cases,
+                MaximumEvidenceAge = TimeSpan.FromMinutes(1), MaximumObservationDelay = TimeSpan.FromSeconds(15)
+            };
+            using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+            var now = DateTimeOffset.UtcNow;
+            var document = new ControlledIdentityEvidenceDocument
+            {
+                Contract = contract, Observations = observations, IssuedAt = now, ExpiresAt = now.AddMinutes(1),
+                SigningKeyId = CanonicalJsonDigest.ComputeBytes(key.ExportSubjectPublicKeyInfo()), SignatureBase64 = string.Empty
+            };
+            document = document with { SignatureBase64 = Convert.ToBase64String(key.SignHash(Convert.FromHexString(document.ComputePayloadDigest()), DSASignatureFormat.IeeeP1363FixedFieldConcatenation)) };
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            var serialized = JsonSerializer.Serialize(document, options);
+            var pack = new ControlledIdentityEvidenceImporter().ImportPack(serialized, contract,
+                new ControlledIdentityAdmission(runId, targetDigest, routeDigest, contract.ObserverId), key.ExportSubjectPublicKeyInfoPem(), DateTimeOffset.UtcNow);
+            var protocol = observedProtocol ?? throw new InvalidOperationException("Owned identity sessions did not establish a protocol version.");
+            var canonical = new ValidationResult { ValidationId = runId, ServerConfig = new McpServerConfig { Endpoint = endpoint, Transport = "http" } };
+            canonical.Run.TargetIdentitySha256 = targetDigest;
+            canonical.Run.ProtocolVersion = protocol;
+            canonical.Run.SchemaVersion = protocol;
+            canonical.Run.TerminationOutcome = ValidationOutcome.Succeeded;
+            var execution = await pack.GetScenarios().Single().ExecuteAsync(new ValidationScenarioContext
+            {
+                ValidationResult = canonical, ServerConfig = canonical.ServerConfig, ValidationConfiguration = new(),
+                ApplicabilityContext = new ValidationApplicabilityContext { NegotiatedProtocolVersion = protocol, SchemaVersion = protocol, Transport = "http", AccessMode = "Authenticated" }
+            }, deadline.Token);
+            canonical.Assessments.Scenarios.Add(execution.Scenario);
+            canonical.Evidence.Coverage.AddRange(execution.Coverage);
+            canonical.Assurance = AssuranceAssessmentEngine.Evaluate(canonical, AssuranceProfileCatalog.Inventory);
+            var assessment = execution.Scenario.ControlledIdentity!;
+            assessment.Outcome.Should().Be(expected);
+            assessment.Cases.Should().HaveCount(4);
+            foreach (var item in assessment.Cases)
+            {
+                var itemExpected = unavailableObserver || counterDrift && item.CaseId == "insufficient-scope" ? ValidationOutcome.Inconclusive
+                    : brokenPolicy && item.CaseId == "claimed-actor" ? ValidationOutcome.Failed : ValidationOutcome.Succeeded;
+                item.Outcome.Should().Be(itemExpected, $"case {item.CaseId} must retain its own observed outcome");
+                if (!unavailableObserver && !(counterDrift && item.CaseId == "insufficient-scope"))
+                {
+                    item.EffectiveActorOutcome.Should().Be(ValidationOutcome.Succeeded);
+                    item.AuthenticationBindingOutcome.Should().Be(ValidationOutcome.Succeeded);
+                    item.DecisionOutcome.Should().Be(itemExpected);
+                }
+            }
+            foreach (var token in tokens) serialized.Contains(token, StringComparison.Ordinal).Should().BeFalse("ephemeral credentials must not be exported");
+            completedAssessment = assessment;
+            signedEnvelope = serialized;
+            observerPublicKey = key.ExportSubjectPublicKeyInfoPem();
+            canonicalArtifact = JsonSerializer.Serialize(canonical.CloneWithoutSecrets(), options);
+            var schemaPath = Path.Combine(packageRoot, "..", "docs", "Schemas", "mcpval-validation-result.schema.json");
+            var schemaResult = new JsonSchemaValidator().Validate(System.Text.Json.Nodes.JsonNode.Parse(canonicalArtifact)!,
+                System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(schemaPath, deadline.Token))!);
+            schemaResult.IsValid.Should().BeTrue(string.Join(Environment.NewLine, schemaResult.Errors));
+            foreach (var token in tokens) canonicalArtifact.Contains(token, StringComparison.Ordinal).Should().BeFalse("canonical output must not retain ephemeral credentials");
+        }
+        finally
+        {
+            process.StandardInput.Close();
+            try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (TimeoutException) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
+            process.HasExited.Should().BeTrue();
+        }
+        process.ExitCode.Should().Be(0);
+        var errors = await stderr;
+        errors.IsTruncated.Should().BeFalse();
+        foreach (var token in tokens) errors.Text.Contains(token, StringComparison.Ordinal).Should().BeFalse("ephemeral credentials must not appear in process diagnostics");
+        if (Environment.GetEnvironmentVariable("MCPVAL_IDENTITY_PILOT_OUTPUT") is { Length: > 0 } output)
+        {
+            Directory.CreateDirectory(output);
+            var name = brokenPolicy ? "broken-policy" : unavailableObserver ? "observer-unavailable" : counterDrift ? "counter-drift" : "correct-policy";
+            var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
+            options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+            foreach (var artifact in new Dictionary<string, string>
+            {
+                [name + ".json"] = JsonSerializer.Serialize(completedAssessment, options),
+                [name + ".canonical.json"] = canonicalArtifact!,
+                [name + ".evidence.json"] = signedEnvelope!,
+                [name + ".observer-public.pem"] = observerPublicKey!
+            })
+            {
+                await using var stream = new FileStream(Path.Combine(output, artifact.Key), FileMode.CreateNew, FileAccess.Write);
+                await stream.WriteAsync(Encoding.UTF8.GetBytes(artifact.Value));
+            }
+        }
+    }
+
+    [Fact]
+    public async Task OwnedHttpIdentityFixture_ShouldExitAtLifetimeWithParentInputOpen()
+    {
+        var packageRoot = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "mcpval-mcp"));
+        var tokens = Enumerable.Range(0, 4).Select(_ => Convert.ToHexString(RandomNumberGenerator.GetBytes(32)).ToLowerInvariant()).ToArray();
+        var start = new System.Diagnostics.ProcessStartInfo("node") { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
+        start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Servers", "mcp-fixture-controlled-identity.cjs"));
+        start.Environment.Clear();
+        foreach (var name in new[] { "PATH", "SYSTEMROOT", "WINDIR", "PATHEXT" })
+            if (Environment.GetEnvironmentVariable(name) is { } value) start.Environment[name] = value;
+        start.Environment["MCPVAL_FIXTURE_PACKAGE_ROOT"] = packageRoot;
+        start.Environment["MCPVAL_FIXTURE_CREDENTIALS"] = JsonSerializer.Serialize(new { actorA = tokens[0], actorB = tokens[1], readOnlyA = tokens[2], observer = tokens[3] });
+        start.Environment["MCPVAL_FIXTURE_LIFETIME_MS"] = "500";
+        using var process = new System.Diagnostics.Process { StartInfo = start };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        process.Start().Should().BeTrue();
+        start.Environment.Remove("MCPVAL_FIXTURE_CREDENTIALS");
+        void StopOnOverflow() { if (!process.HasExited) process.Kill(entireProcessTree: true); }
+        var stderr = BoundedStreamReader.ReadUtf8Async(process.StandardError.BaseStream, 4096, BoundedStreamRetention.First, StopOnOverflow, deadline.Token);
+        try
+        {
+            var ready = await ReadIdentityReadinessAsync(process, deadline.Token);
+            ready.IsTruncated.Should().BeFalse();
+            using var parsed = JsonDocument.Parse(ready.Text);
+            process.StandardInput.BaseStream.CanWrite.Should().BeTrue();
+            await process.WaitForExitAsync(deadline.Token);
+            process.ExitCode.Should().Be(0);
+            (await stderr).IsTruncated.Should().BeFalse();
+        }
+        finally
+        {
+            if (!process.HasExited) { process.Kill(entireProcessTree: true); await process.WaitForExitAsync(); }
+        }
+    }
+
     [Theory]
     [InlineData("write", ControlledStateExpectation.ChangeRequired, ControlledApplicationOutcome.Succeeded, ValidationOutcome.Succeeded)]
     [InlineData("drop", ControlledStateExpectation.ChangeRequired, ControlledApplicationOutcome.Succeeded, ValidationOutcome.Failed)]
@@ -635,6 +912,22 @@ public class FixtureServerProcessIntegrationTests
         metrics.RequestsCompleted.Should().Be(3);
         metrics.RequestsFailed.Should().Be(0);
         metrics.ErrorRate.Should().Be(0);
+    }
+
+    private static async Task<BoundedTextReadResult> ReadIdentityReadinessAsync(System.Diagnostics.Process process, CancellationToken cancellationToken)
+    {
+        var buffer = new BoundedByteBuffer(1024, BoundedStreamRetention.First);
+        var singleByte = new byte[1];
+        while (await process.StandardOutput.BaseStream.ReadAsync(singleByte, cancellationToken) != 0)
+        {
+            if (singleByte[0] == (byte)'\n') break;
+            if (buffer.Append(singleByte))
+            {
+                if (!process.HasExited) process.Kill(entireProcessTree: true);
+                break;
+            }
+        }
+        return buffer.Snapshot();
     }
 
     private static string BuildFixtureCommand(string profile)

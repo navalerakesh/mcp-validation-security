@@ -15,7 +15,7 @@ Mcp.Benchmark.Tests/
 Key fixture assets:
 
 - `Fixtures/McpFixtureProfiles.cs` provides reusable compliant, partially compliant, and unsafe MCP response sets.
-- `Fixtures/Servers/` contains runnable STDIO sample servers for process-backed validation scenarios.
+- `Fixtures/Servers/` contains runnable STDIO and owned HTTP sample servers for process-backed validation scenarios.
 - `Fixtures/ReportSnapshots/` protects executive report output from unintended regressions.
 
 ## Running Tests
@@ -23,8 +23,11 @@ Key fixture assets:
 Run the full suite:
 
 ```bash
+npm --prefix mcpval-mcp ci
 dotnet test
 ```
+
+The owned HTTP identity fixture uses the lockfile-pinned Node MCP SDK. The repository gate installs it before .NET tests; `--skip-node` assumes these dependencies are already installed. Missing fixture dependencies fail explicitly rather than skipping qualification. The identity pilot uses ephemeral issued opaque credentials, a fixed object/action policy and a separately credentialed observer inside the same trusted fixture. It is not proof of an independent production oracle, external issuer security or enterprise enforcement.
 
 Run a filtered slice:
 

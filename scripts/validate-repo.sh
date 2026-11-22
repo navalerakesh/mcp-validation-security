@@ -136,6 +136,11 @@ if $run_audits && $run_dotnet; then
   require_command python3
 fi
 
+if $run_node; then
+  echo "==> Installing npm dependencies for SDK-backed fixtures"
+  npm --prefix ./mcpval-mcp ci
+fi
+
 if $run_dotnet; then
   echo "==> Restoring .NET dependencies"
   dotnet restore ./mcp-benchmark-validation.sln --locked-mode
@@ -159,9 +164,7 @@ if $run_node; then
   echo "==> Testing repository Node companions"
   node --test ./scripts/tests/*.test.mjs
 
-  echo "==> Installing npm dependencies"
   pushd ./mcpval-mcp >/dev/null
-  npm ci
 
   echo "==> Testing npm package"
   npm test
