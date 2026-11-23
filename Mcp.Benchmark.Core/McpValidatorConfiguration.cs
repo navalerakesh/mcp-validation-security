@@ -84,8 +84,15 @@ public class McpValidatorConfiguration
             ClientProfiles = ClientProfiles,
             Evaluation = Evaluation?.Clone()
         };
-        return JsonSerializer.Deserialize<McpValidatorConfiguration>(JsonSerializer.Serialize(redacted))
+        var clone = JsonSerializer.Deserialize<McpValidatorConfiguration>(JsonSerializer.Serialize(redacted))
             ?? throw new InvalidOperationException("Unable to clone validator configuration.");
+        foreach (var scenario in clone.Validation?.Categories?.ToolTesting?.CustomScenarios ?? [])
+        {
+            if (scenario == null) continue;
+            scenario.Parameters = null;
+            scenario.ExpectedResult = null;
+        }
+        return clone;
     }
 
     /// <summary>

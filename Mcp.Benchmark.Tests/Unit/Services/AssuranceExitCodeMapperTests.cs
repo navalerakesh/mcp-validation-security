@@ -8,6 +8,40 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public sealed class AssuranceExitCodeMapperTests
 {
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ComprehensivePreflight_ShouldNotTreatRequiredChecksAsOptionalStressOrMemoryScope(bool security)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true).Should().BeEmpty();
+        if (security) configuration.Validation.Categories.SecurityTesting.TestInputValidation = false;
+        else configuration.Validation.Categories.PerformanceTesting.TestConcurrentRequests = false;
+        var errors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true);
+        errors.Should().ContainSingle().Which.Should().Contain(security
+            ? "SecurityTesting.TestInputValidation" : "PerformanceTesting.TestConcurrentRequests");
+    }
+
+    [Theory]
+    [InlineData("positive", true)]
+    [InlineData("pattern", false)]
+    [InlineData("expected-error", false)]
+    [InlineData("unavailable", false)]
+    public void ComprehensivePreflight_ShouldAdmitOnlySupportedExplicitPositiveArguments(string variant, bool admitted)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        var scenario = new ToolTestScenario { ToolName = "owned-tool", Parameters = new() { ["value"] = "test" } };
+        if (variant == "pattern") scenario.ExpectedResult = "";
+        if (variant == "expected-error") scenario.ExpectError = true;
+        if (variant == "unavailable") scenario.Parameters = null;
+        configuration.Validation.Categories.ToolTesting.CustomScenarios.Add(scenario);
+        var errors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true);
+        if (admitted) errors.Should().BeEmpty();
+        else errors.Should().ContainSingle().Which.Should().Contain("ToolTesting.CustomScenarios");
+    }
+
+    [Theory]
     [InlineData("validation")]
     [InlineData("categories")]
     [InlineData("ProtocolCompliance")]

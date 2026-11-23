@@ -219,6 +219,250 @@ public class CoreModelTests
     }
 
     [Fact]
+    public void ScenarioArguments_ShouldRemainPrivateRuntimeInputsAcrossConfigurationClones()
+    {
+        const string canary = "private-scenario-argument-canary";
+        var configuration = new McpValidatorConfiguration();
+        configuration.Validation.Categories.ToolTesting.CustomScenarios.Add(new ToolTestScenario
+        {
+            ToolName = "owned-tool", Parameters = new() { ["text"] = canary, ["nested"] = new Dictionary<string, object> { ["value"] = canary } }
+        });
+        var request = ValidationRunRequest.Capture(configuration);
+        configuration.Validation.Categories.ToolTesting.CustomScenarios[0].ExpectedResult = canary;
+
+        var redacted = configuration.CloneWithoutSecrets();
+        var deterministic = configuration.CloneForDeterministicResult();
+        var result = new ValidationResult { ValidationConfig = configuration }.CloneWithoutSecrets();
+
+        JsonSerializer.Serialize(redacted).Should().NotContain(canary);
+        JsonSerializer.Serialize(deterministic).Should().NotContain(canary);
+        JsonSerializer.Serialize(result).Should().NotContain(canary);
+        redacted.Validation.Categories.ToolTesting.CustomScenarios.Should().ContainSingle().Which.ToolName.Should().Be("owned-tool");
+        redacted.Validation.Categories.ToolTesting.CustomScenarios[0].Parameters.Should().BeNull();
+        JsonSerializer.Serialize(configuration).Should().Contain(canary);
+        JsonSerializer.Serialize(request.CreateConfiguration()).Should().Contain(canary);
+        JsonSerializer.Serialize(request).Should().NotContain(canary);
+        var replayRedacted = () => ValidationRunRequest.Capture(redacted);
+        replayRedacted.Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("valid", true)]
+    [InlineData("duplicate", false)]
+    [InlineData("unavailable", false)]
+    [InlineData("pattern", false)]
+    [InlineData("expected-error", false)]
+    [InlineData("oversized", false)]
+    [InlineData("many-values", false)]
+    [InlineData("non-json", false)]
+    public void PositiveToolScenarioCapture_ShouldBeBoundedAndIsolated(string variation, bool valid)
+    {
+        var parameters = new Dictionary<string, object> { ["value"] = "original" };
+        var scenario = new ToolTestScenario { ToolName = "owned-tool", Parameters = parameters };
+        var config = new ToolTestingConfig { CustomScenarios = [scenario] };
+        if (variation == "duplicate") config.CustomScenarios.Add(scenario);
+        if (variation == "unavailable") scenario.Parameters = null;
+        if (variation == "pattern") scenario.ExpectedResult = "";
+        if (variation == "expected-error") scenario.ExpectError = true;
+        if (variation == "oversized") parameters["value"] = new string('a', Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes + 1);
+        if (variation == "many-values") parameters["value"] = Enumerable.Range(0, Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentValues).ToArray();
+        if (variation == "non-json") parameters["value"] = new Version(1, 2);
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        if (!valid) capture.Should().Throw<ArgumentException>();
+        else
+        {
+            var captured = capture();
+            parameters["value"] = "changed";
+            captured.Should().ContainSingle();
+            captured["owned-tool"].GetProperty("value").GetString().Should().Be("original");
+        }
+    }
+
+    [Fact]
+    public void PositiveToolScenarioCapture_ShouldBoundAllocationBeforeMaterializingLargeJsonStrings()
+    {
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned", Parameters = new() { ["value"] = "warmup" } }] };
+        Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(new string('a', 4 * 1024 * 1024)));
+        config.CustomScenarios[0].Parameters!["value"] = document.RootElement;
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        capture.Should().Throw<ArgumentException>();
+        (GC.GetAllocatedBytesForCurrentThread() - before).Should().BeLessThan(1024 * 1024);
+    }
+
+    [Fact]
+    public void PositiveToolScenarioCapture_ShouldAcceptAnExactByteLimitObject()
+    {
+        var value = new string('a', Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes - 12);
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned", Parameters = new() { ["value"] = value } }] };
+        JsonSerializer.SerializeToUtf8Bytes(config.CustomScenarios[0].Parameters).Length.Should().Be(Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes);
+        Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config)["owned"].GetProperty("value").GetString().Should().Be(value);
+    }
+
+    [Fact]
+    public void PositiveToolScenarioCapture_ShouldRejectEscapedByteOverflowBeforeReturningArguments()
+    {
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        { ToolName = "owned", Parameters = new() { ["value"] = new string('\u0001', 16 * 1024) } }] };
+        JsonSerializer.SerializeToUtf8Bytes(config.CustomScenarios[0].Parameters).Length
+            .Should().BeGreaterThan(Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes);
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        capture.Should().Throw<ArgumentException>().Which.Message.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Theory]
+    [InlineData(62, true)]
+    [InlineData(63, false)]
+    public void PositiveToolScenarioCapture_ShouldCountValuesInsideParsedJsonArrays(int count, bool accepted)
+    {
+        using var document = JsonDocument.Parse(JsonSerializer.Serialize(Enumerable.Range(0, count)));
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        { ToolName = "owned", Parameters = new() { ["value"] = document.RootElement } }] };
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        if (accepted) capture.Should().NotThrow().Which["owned"].GetProperty("value").GetArrayLength().Should().Be(count);
+        else capture.Should().Throw<ArgumentException>().Which.Message.Should().Contain("structural bounds");
+    }
+
+    [Theory]
+    [InlineData(true, 15, true)]
+    [InlineData(true, 16, false)]
+    [InlineData(false, 15, true)]
+    [InlineData(false, 16, false)]
+    public void PositiveToolScenarioCapture_ShouldCountDepthInsideParsedJson(bool arrays, int levels, bool accepted)
+    {
+        var json = arrays ? new string('[', levels) + "0" + new string(']', levels)
+            : string.Concat(Enumerable.Repeat("{\"nested\":", levels)) + "0" + new string('}', levels);
+        using var document = JsonDocument.Parse(json);
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        { ToolName = "owned", Parameters = new() { ["value"] = document.RootElement } }] };
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        if (accepted) capture.Should().NotThrow();
+        else capture.Should().Throw<ArgumentException>().Which.Message.Should().Contain("structural bounds");
+    }
+
+    [Theory]
+    [InlineData("array")]
+    [InlineData("list")]
+    [InlineData("dictionary")]
+    public void PositiveToolScenarioCapture_ShouldRejectNonJsonValuesInsideClrCollections(string collection)
+    {
+        object unsupported = new Version(1, 2);
+        var nested = collection switch
+        {
+            "array" => (object)new object[] { unsupported },
+            "list" => new List<object> { unsupported },
+            _ => new Dictionary<string, object> { ["nested"] = unsupported }
+        };
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        { ToolName = "owned", Parameters = new() { ["value"] = nested } }] };
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        capture.Should().Throw<ArgumentException>().Which.Message.Should().Contain("only bounded JSON values");
+    }
+
+    [Fact]
+    public void PositiveToolScenarioCapture_ShouldPreserveEmptySelectionAndRejectNullConfiguration()
+    {
+        var config = new ToolTestingConfig { SpecificTools = ["ordinary-selection"] };
+        Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config).Should().BeEmpty();
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(null!);
+        capture.Should().Throw<ArgumentNullException>();
+    }
+
+    public static IEnumerable<object[]> PositiveArgumentPrimitiveCases()
+    {
+        foreach (var value in new object?[] { null, true, (byte)1, (sbyte)-1, (short)-2, (ushort)2, 3, 3u, 4L, 4UL, 1.25m, 1.5d, 1.5f,
+            "text", new object[] { "nested", 1 }, new List<object> { "nested", false }, new Dictionary<string, object> { ["nested"] = 1 } })
+            yield return [value!];
+    }
+
+    [Theory]
+    [MemberData(nameof(PositiveArgumentPrimitiveCases))]
+    public void PositiveToolScenarioCapture_ShouldPreserveSupportedJsonValues(object? value)
+    {
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned", Parameters = new() { ["value"] = value! } }] };
+        var expected = JsonSerializer.Serialize(config.CustomScenarios[0].Parameters);
+        var captured = Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        captured["owned"].GetRawText().Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData("count", false)]
+    [InlineData("count", true)]
+    [InlineData("values", false)]
+    [InlineData("values", true)]
+    [InlineData("depth", false)]
+    [InlineData("depth", true)]
+    [InlineData("name", false)]
+    [InlineData("name", true)]
+    public void PositiveToolScenarioCapture_ShouldEnforceExactStructuralBounds(string kind, bool exceeds)
+    {
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned", Parameters = new() }] };
+        var extra = exceeds ? 1 : 0;
+        if (kind == "count") config.CustomScenarios = Enumerable.Range(0, Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumScenarios + extra)
+            .Select(index => new ToolTestScenario { ToolName = $"tool-{index}", Parameters = new() }).ToList();
+        if (kind == "name") config.CustomScenarios[0].ToolName = new string('n', Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumToolNameCharacters + extra);
+        if (kind == "values")
+            for (var index = 0; index < Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentValues - 1 + extra; index++)
+                config.CustomScenarios[0].Parameters![$"value-{index}"] = index;
+        if (kind == "depth")
+        {
+            var cursor = config.CustomScenarios[0].Parameters!;
+            for (var depth = 0; depth < Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentDepth + extra; depth++)
+            {
+                var next = new Dictionary<string, object>();
+                cursor["nested"] = next;
+                cursor = next;
+            }
+        }
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        if (exceeds) capture.Should().Throw<ArgumentException>().Which.Message.Should().NotBeNullOrWhiteSpace();
+        else capture.Should().NotThrow();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void PositiveToolScenarioCapture_ShouldEnforceAggregateBytes(bool exceeds)
+    {
+        var payload = new string('a', Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes - 12);
+        var count = Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumAggregateArgumentBytes / Mcp.Benchmark.Core.Services.ToolScenarioInputs.MaximumArgumentBytes;
+        var config = new ToolTestingConfig { CustomScenarios = Enumerable.Range(0, count)
+            .Select(index => new ToolTestScenario { ToolName = $"tool-{index}", Parameters = new() { ["value"] = payload } }).ToList() };
+        if (exceeds) config.CustomScenarios.Add(new ToolTestScenario { ToolName = "over-budget", Parameters = new() });
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        if (exceeds) capture.Should().Throw<ArgumentException>().Which.Message.Should().NotBeNullOrWhiteSpace();
+        else capture.Should().NotThrow().Which.Should().HaveCount(count);
+    }
+
+    [Theory]
+    [InlineData("null-inventory")]
+    [InlineData("null-entry")]
+    [InlineData("blank-name")]
+    [InlineData("null-selection")]
+    [InlineData("mixed-selection")]
+    [InlineData("nan")]
+    [InlineData("infinite")]
+    [InlineData("duplicate-json")]
+    [InlineData("undefined-json")]
+    public void PositiveToolScenarioCapture_ShouldRejectMalformedInputsWithoutValues(string variation)
+    {
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned", Parameters = new() { ["value"] = "input-canary" } }] };
+        using var duplicate = JsonDocument.Parse("{\"value\":1,\"value\":2}");
+        if (variation == "null-inventory") config.CustomScenarios = null!;
+        if (variation == "null-entry") config.CustomScenarios[0] = null!;
+        if (variation == "blank-name") config.CustomScenarios[0].ToolName = " ";
+        if (variation == "null-selection") config.SpecificTools = null!;
+        if (variation == "mixed-selection") config.SpecificTools.Add("owned");
+        if (variation == "nan") config.CustomScenarios[0].Parameters!["value"] = double.NaN;
+        if (variation == "infinite") config.CustomScenarios[0].Parameters!["value"] = float.PositiveInfinity;
+        if (variation == "duplicate-json") config.CustomScenarios[0].Parameters!["value"] = duplicate.RootElement;
+        if (variation == "undefined-json") config.CustomScenarios[0].Parameters!["value"] = default(JsonElement);
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(config);
+        capture.Should().Throw<ArgumentException>().Which.Message.Should().NotBeNullOrWhiteSpace().And.NotContain("input-canary");
+    }
+
+    [Fact]
     public void ServerClone_ShouldRedactEntireStdioCommand()
     {
         var server = new McpServerConfig { Transport = "stdio", Endpoint = "node server.js --token secret-canary" };

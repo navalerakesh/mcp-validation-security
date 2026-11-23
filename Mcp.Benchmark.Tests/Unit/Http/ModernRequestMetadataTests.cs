@@ -101,6 +101,7 @@ public sealed class ModernRequestMetadataTests
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             Body = await request.Content!.ReadAsStringAsync(cancellationToken);
+            using var body = JsonDocument.Parse(Body);
             ProtocolVersionHeader = request.Headers.TryGetValues("MCP-Protocol-Version", out var values)
                 ? values.Single()
                 : null;
@@ -109,7 +110,7 @@ public sealed class ModernRequestMetadataTests
                 : null;
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"result\":{\"resultType\":\"complete\"}}")
+                Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = body.RootElement.GetProperty("id"), result = new { resultType = "complete" } }))
             };
         }
     }
@@ -124,7 +125,7 @@ public sealed class ModernRequestMetadataTests
             Methods.Add(body.RootElement.GetProperty("method").GetString()!);
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"jsonrpc\":\"2.0\",\"id\":\"test\",\"result\":{\"resultType\":\"complete\",\"cacheScope\":\"public\",\"ttlMs\":60000,\"tools\":[]}}")
+                Content = new StringContent(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = body.RootElement.GetProperty("id"), result = new { resultType = "complete", cacheScope = "public", ttlMs = 60000, tools = Array.Empty<object>() } }))
             };
         }
     }

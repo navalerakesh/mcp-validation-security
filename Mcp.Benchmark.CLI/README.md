@@ -27,7 +27,7 @@ If you are looking for installation or end-user usage guidance, start with the r
 
 Transport support is intentionally command-specific: `validate` and `health-check` support HTTP and STDIO targets today, `discover` is HTTP-first, and `report` is offline only.
 
-`validate --assurance comprehensive|inventory|ci|provider` selects the V2 assurance contract. The default is `comprehensive`, policy revision `2026-11-22.3`: execution requires explicit standard or elevated admission, pinned target-bound official conformance evidence, and the signed identity baseline described below. Missing prerequisites are rejected before target contact; missing required assessment evidence cannot earn a successful exit. Safe execution remains the default mode, so use `--assurance inventory` explicitly for discovery/static assessment. A dry run is planning only, not assessment acceptance. General per-check completeness and a fully evidenced comprehensive owned run are still under qualification; see the [recovery tracker](../docs/EnterpriseRecoveryProgress.md).
+`validate --assurance comprehensive|inventory|ci|provider` selects the V2 assurance contract. The default is `comprehensive`, policy revision `2026-11-23.1`: execution requires explicit standard or elevated admission, pinned target-bound official conformance evidence, and the signed identity baseline described below. Missing prerequisites are rejected before target contact; missing required assessment evidence cannot earn a successful exit. Safe execution remains the default mode, so use `--assurance inventory` explicitly for discovery/static assessment. A dry run is planning only, not assessment acceptance. General per-check completeness and a fully evidenced comprehensive owned run are still under qualification; see the [recovery tracker](../docs/EnterpriseRecoveryProgress.md).
 
 Default performance scope is client-observable catalog latency, concurrent requests and throughput, not an application workload SLA or capacity-limit guarantee. Target memory, buffer-overflow and resource-exhaustion qualification are explicit additional requirements (`testMemoryUsage`, `testBufferOverflow`, `testResourceExhaustion` default to false). Selecting them in a comprehensive request currently fails closed because the required operator-owned observer or isolated stress harness is unavailable. Generic load measurement never selects and invokes an advertised application tool.
 
@@ -35,7 +35,7 @@ Default performance scope is client-observable catalog latency, concurrent reque
 
 ## Comprehensive Admission
 
-The current comprehensive policy revision is `2026-11-22.3`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
+The current comprehensive policy revision is `2026-11-23.1`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
 
 Reserve the validation ID independently before collecting the controlled observations. `--identity-baseline` reads a bounded JSON selection containing `contract`, `admission`, `signedEvidenceJson`, `trustedObserverPublicKeyPem`, `actorBindingCaseId`, `scopeEnforcementCaseId`, and `authorizationCaseId`. It uses the existing identity contract and original signed envelope, not a second observation format. The three selected denial cases must declare the corresponding signed challenges and reference successful positive controls. Supply only nonsecret run-local aliases and an independently trusted public key, never a private key or credentials.
 
@@ -49,6 +49,30 @@ mcpval validate --server https://example.test/mcp \
 ```
 
 The CLI verifies target, independently planned run ID, signature, observer, case selection and freshness before transport setup. Evidence cannot choose its own run ID. Use a fresh reserved ID for a new independent assessment; replaying the same evidence is not a new observation or repeated-run certificate. Correlated library callers reserve `ValidationRunRequest`, collect the approved observations, then attach the selection with `WithIdentityControls`. Canonical results retain verified selection for signature-checked replay; rejected or quarantined raw envelopes are not retained as baseline inputs. Missing or failed observations never gain credit.
+
+## Explicit Positive Tool Inputs
+
+Supply positive arguments through the existing configuration record and `--config`. Names match the observed catalog exactly and case-sensitively; an absent or ambiguous match remains unexecuted evidence.
+
+```json
+{
+  "validation": {
+    "categories": {
+      "tools": {
+        "CustomScenarios": [
+          { "ToolName": "owned-tool", "Parameters": { "kind": "phone", "phone": "fixture-value" } }
+        ]
+      }
+    }
+  }
+}
+```
+
+Arguments are not execution permission: Safe mode remains non-executing. Standard/elevated policy and all selected assurance prerequisites still apply. One positive scenario per tool is supported, with at most 64 scenarios, 64 JSON values and 16 nesting levels per argument object, 64 KiB serialized arguments per scenario and 1 MiB in aggregate. Values must be JSON-compatible. Unsupported or schema-invalid explicit inputs never fall back to synthetic arguments. Bounded conditional schemas and supported local references are evaluated against the original schema; regex-dependent, cyclic, external and ambiguous-resource evaluation remains unavailable.
+
+Non-null `ExpectedResult`, `ExpectError: true`, unavailable/null `Parameters`, duplicate names, and combining custom inputs with `SpecificTools` are rejected. Custom performance scenarios remain unsupported. Positive success requires a completed, schema-valid, non-error response; protocol-valid errors do not satisfy a positive scenario. Client input requests remain incomplete rather than receiving automatic sampling, elicitation or roots responses.
+
+Use nonsecret fixture inputs where possible. Public configuration/result clones omit argument values and expected-result text; redacted `Parameters: null` cannot be replayed as an empty argument object. Target response content and value-bearing exception diagnostics are not retained for explicit positive scenarios. Keep the operator configuration private.
 
 ## Local Development
 

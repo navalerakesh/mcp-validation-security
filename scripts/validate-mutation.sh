@@ -25,6 +25,7 @@ dotnet stryker \
   --mutate '**/OfficialConformanceContract.cs' \
   --mutate '**/OfficialConformanceReconciler.cs' \
   --mutate '**/SignedControlledEvidenceReader.cs' \
+  --mutate '**/ToolScenarioInputs.cs' \
   --test-project Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj \
   --test-runner vstest \
   --configuration Debug \

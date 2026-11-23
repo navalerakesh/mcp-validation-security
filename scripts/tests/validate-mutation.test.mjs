@@ -56,6 +56,7 @@ process.exit(Number(process.env.MUTATION_FIXTURE_EXIT));
         '**/AssuranceExitCodeMapper.cs', '**/AssuranceClaimProjector.cs', '**/ComprehensiveAssessmentRequirements.cs',
         '**/ControlledIdentitySecurityBaseline.cs', '**/ControlledIdentityEvidenceVerifier.cs',
         '**/OfficialConformanceContract.cs', '**/OfficialConformanceReconciler.cs', '**/SignedControlledEvidenceReader.cs',
+        '**/ToolScenarioInputs.cs',
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

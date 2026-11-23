@@ -562,7 +562,10 @@
                         "type": "string"
                       },
                       "Parameters": {
-                        "type": "object"
+                        "type": [
+                          "object",
+                          "null"
+                        ]
                       },
                       "ExpectedResult": {
                         "type": [

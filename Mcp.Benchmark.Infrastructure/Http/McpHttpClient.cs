@@ -27,6 +27,9 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 /// </summary>
 public class McpHttpClient : IMcpHttpClient, IDisposable
 {
+    private sealed class ResponseBodyLimitException(int maximumBytes)
+        : IOException($"Response body exceeds configured limit of {maximumBytes} bytes.");
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<McpHttpClient> _logger;
     private readonly IMcpClient _mcpClient;
@@ -161,7 +164,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 response.StatusCode);
         }
 
-        var body = await ReadRawResponseContentAsync(response.Content, cancellationToken, response.IsSuccessStatusCode).ConfigureAwait(false);
+        string body;
+        try { body = await ReadRawResponseContentAsync(response.Content, cancellationToken, response.IsSuccessStatusCode).ConfigureAwait(false); }
+        catch (ResponseBodyLimitException exception) { throw new InvalidDataException(exception.Message); }
         var mediaType = response.Content.Headers.ContentType?.MediaType;
         var isJson = string.Equals(mediaType, "application/json", StringComparison.OrdinalIgnoreCase) ||
                      mediaType?.StartsWith("application/", StringComparison.OrdinalIgnoreCase) == true &&
@@ -334,7 +339,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 {
                     var delay = ValidationReliability.GetRetryDelay(attempt);
                     ValidationObservability.RecordRetry(delay);
-                    _logger.LogWarning(ex, "Transient transport failure. Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", delay.TotalSeconds, attempt, maxAttempts);
+                    _logger.LogWarning("Transient transport failure ({ExceptionType}). Retrying in {Delay}s (Attempt {Attempt}/{MaxAttempts})...", ex.GetType().Name, delay.TotalSeconds, attempt, maxAttempts);
                     await Task.Delay(delay, cancellationToken);
                     continue;
                 }
@@ -383,17 +388,29 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 }
 
                 string? errorMessage = null;
+                var correlated = false;
+                if (httpResponse.IsSuccessStatusCode && !string.IsNullOrWhiteSpace(responseJson))
+                {
+                    try
+                    {
+                        using var parsed = JsonDocument.Parse(responseJson, new JsonDocumentOptions { AllowDuplicateProperties = false });
+                        correlated = JsonRpcResponseIdentity.Matches(parsed.RootElement, requestId);
+                    }
+                    catch (JsonException) { }
+                }
                 if (!httpResponse.IsSuccessStatusCode)
                 {
                     errorMessage = $"HTTP {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase}. Body: {responseJson}";
                 }
+                else if (!correlated)
+                    errorMessage = "HTTP response did not match the outstanding request identity.";
 
-                CaptureHttpStateFromResponse(method, responseJson, allHeaders);
+                if (correlated) CaptureHttpStateFromResponse(method, responseJson, allHeaders);
 
                 var rpcResponse = new ValidatorJsonRpcResponse
                 {
                     StatusCode = (int)httpResponse.StatusCode,
-                    IsSuccess = httpResponse.IsSuccessStatusCode,
+                    IsSuccess = httpResponse.IsSuccessStatusCode && correlated,
                     RawJson = responseJson,
                     Headers = allHeaders,
                     Error = errorMessage,
@@ -405,11 +422,12 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                         authApplied,
                         authScheme,
                         (int)httpResponse.StatusCode,
-                        httpResponse.IsSuccessStatusCode,
+                        httpResponse.IsSuccessStatusCode && correlated,
                         errorMessage,
                         allHeaders)
                 };
                 ModernResultSemantics.Apply(rpcResponse, identity.ProtocolVersion, method);
+                if (!correlated) rpcResponse.IsSuccess = false;
                 return rpcResponse;
             }
         }
@@ -419,13 +437,16 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error making JSON-RPC call to {Endpoint}", endpoint);
+            _logger.LogError("JSON-RPC transport failed with {ExceptionType}", ex.GetType().Name);
+            var safeError = ex is ResponseBodyLimitException ? ex.Message : ex is TimeoutException or OperationCanceledException
+                ? "HTTP JSON-RPC request timed out or was cancelled."
+                : "HTTP JSON-RPC request failed; exception details are not retained.";
 
             return new ValidatorJsonRpcResponse
             {
                 StatusCode = -1,
                 IsSuccess = false,
-                Error = ex.Message,
+                Error = safeError,
                 RawJson = null,
                 ElapsedMs = null,
                 ProbeContext = CreateProbeContext(
@@ -436,7 +457,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                     authScheme,
                     -1,
                     false,
-                    ex.Message,
+                    safeError,
                     null,
                     ValidationReliability.IsPolicyBlockedException(ex) ? ProbeResponseClassification.PolicyBlocked : null)
             };
@@ -1626,7 +1647,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
             if (content.Headers.ContentLength > maxResponseBytes)
             {
                 ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful);
-                throw new InvalidDataException($"Response body exceeds configured limit of {maxResponseBytes} bytes (Content-Length: {content.Headers.ContentLength}).");
+                throw new ResponseBodyLimitException(maxResponseBytes);
             }
 
             using var stream = await content.ReadAsStreamAsync(cancellationToken);
@@ -1648,7 +1669,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 if (read > remaining)
                 {
                     ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful);
-                    throw new InvalidDataException($"Response body exceeds configured limit of {maxResponseBytes} bytes.");
+                    throw new ResponseBodyLimitException(maxResponseBytes);
                 }
 
                 await body.WriteAsync(buffer.AsMemory(0, read), cancellationToken).ConfigureAwait(false);
@@ -1661,14 +1682,14 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         {
             throw;
         }
-        catch (InvalidDataException ex)
+        catch (ResponseBodyLimitException ex)
         {
-            _logger.LogWarning(ex, "Response body rejected by execution policy");
+            _logger.LogWarning("Response body rejected by execution policy ({ExceptionType})", ex.GetType().Name);
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error reading response content");
+            _logger.LogError("Response content read failed with {ExceptionType}", ex.GetType().Name);
             return string.Empty;
         }
     }

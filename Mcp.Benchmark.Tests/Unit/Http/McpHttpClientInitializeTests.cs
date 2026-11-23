@@ -70,9 +70,10 @@ public class McpHttpClientInitializeTests
         using var httpClient = new HttpClient(new CapturingHandler(request =>
         {
             capturedRequest = request;
+            using var body = System.Text.Json.JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"1\"}")
+                Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new { jsonrpc = "2.0", result = new { }, id = body.RootElement.GetProperty("id") }))
             };
         }));
 
@@ -100,12 +101,13 @@ public class McpHttpClientInitializeTests
         {
             attempt++;
             requestHeaders.Add(CaptureHeaders(request));
+            using var body = System.Text.Json.JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
 
             if (attempt == 1)
             {
                 var initializeResponse = new HttpResponseMessage(HttpStatusCode.OK)
                 {
-                    Content = new StringContent("{\"jsonrpc\":\"2.0\",\"result\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{}},\"id\":\"init\"}")
+                    Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new { jsonrpc = "2.0", result = new { protocolVersion = "2025-11-25", capabilities = new { } }, id = body.RootElement.GetProperty("id") }))
                 };
                 initializeResponse.Headers.TryAddWithoutValidation("MCP-Session-Id", "session-123");
                 return initializeResponse;
@@ -113,7 +115,7 @@ public class McpHttpClientInitializeTests
 
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
-                Content = new StringContent("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"ping\"}")
+                Content = new StringContent(System.Text.Json.JsonSerializer.Serialize(new { jsonrpc = "2.0", result = new { }, id = body.RootElement.GetProperty("id") }))
             };
         }));
 

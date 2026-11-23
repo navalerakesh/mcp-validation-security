@@ -1434,8 +1434,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     }
 
     private static bool HasMatchingResponseId(JsonElement response, string requestId) =>
-        response.ValueKind == JsonValueKind.Object && response.TryGetProperty("id", out var responseId) &&
-        responseId.ValueKind == JsonValueKind.String && responseId.ValueEquals(requestId);
+        Mcp.Benchmark.Infrastructure.Utilities.JsonRpcResponseIdentity.Matches(response, requestId);
 
     private async Task<string?> ReadResponseLineAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
     {

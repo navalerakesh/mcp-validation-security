@@ -22,6 +22,168 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 public class McpHttpClientCapabilitiesTests
 {
     [Theory]
+    [InlineData(2, true)]
+    [InlineData(12, false)]
+    public void SuppliedArgumentInspection_ShouldBoundRepeatedAcyclicApplicationWork(int levels, bool admitted)
+    {
+        var definitions = new System.Text.Json.Nodes.JsonObject { [$"level{levels}"] = new System.Text.Json.Nodes.JsonObject { ["type"] = "object" } };
+        for (var level = levels - 1; level >= 0; level--)
+        {
+            var reference = new System.Text.Json.Nodes.JsonObject { ["$ref"] = $"#/$defs/level{level + 1}" };
+            definitions[$"level{level}"] = new System.Text.Json.Nodes.JsonObject
+            {
+                ["properties"] = new System.Text.Json.Nodes.JsonObject
+                {
+                    ["next"] = new System.Text.Json.Nodes.JsonObject
+                    { ["allOf"] = new System.Text.Json.Nodes.JsonArray(reference, reference.DeepClone()) }
+                }
+            };
+        }
+        var schema = new System.Text.Json.Nodes.JsonObject { ["type"] = "object", ["$defs"] = definitions, ["$ref"] = "#/$defs/level0" };
+        using var document = JsonDocument.Parse(schema.ToJsonString());
+        new SchemaInspectionContext(document.RootElement).CanEvaluateSuppliedArguments().Should().Be(admitted);
+    }
+
+    [Fact]
+    public async Task OrdinaryHttpSseResponse_ShouldCorrelateFinalResultAfterNotification()
+    {
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var result = JsonSerializer.Serialize(new { jsonrpc = "2.0", id = body.RootElement.GetProperty("id"), result = new { resultType = "complete", content = Array.Empty<object>() } });
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("data: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\",\"params\":{}}\n\ndata: " + result + "\n\n",
+                    System.Text.Encoding.UTF8, "text/event-stream")
+            };
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion("2026-07-28");
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowPrivateAddresses = true, AllowedHosts = ["127.0.0.1"] });
+        var response = await client.CallAsync("https://127.0.0.1/mcp", "tools/call", new { name = "owned-tool", arguments = new { } });
+        response.IsSuccess.Should().BeTrue(response.Error);
+        using var parsed = JsonDocument.Parse(response.RawJson!);
+        parsed.RootElement.GetProperty("id").GetString().Should().Be(response.ProbeContext!.RequestId);
+    }
+
+    [Fact]
+    public async Task ExplicitArguments_ShouldNotGrantSafeModeToolExecution()
+    {
+        var contacted = false;
+        using var http = new HttpClient(new RoutingHandler(_ => { contacted = true; return CreateJsonResponse("{}"); }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion("2026-07-28");
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Safe, AllowPrivateAddresses = true, AllowedHosts = ["127.0.0.1"] });
+        using var schema = JsonDocument.Parse("{\"type\":\"object\"}");
+        using var arguments = JsonDocument.Parse("{}");
+        var response = await client.CallAsync("https://127.0.0.1/mcp", "tools/call", new ToolCallParameters("owned-tool", arguments.RootElement, schema.RootElement));
+        contacted.Should().BeFalse();
+        response.IsSuccess.Should().BeFalse();
+        response.ProbeContext!.ResponseClassification.Should().Be(ProbeResponseClassification.PolicyBlocked);
+    }
+
+    [Fact]
+    public async Task OrdinaryHttpFailure_ShouldNotRetainExceptionPayloadInResultOrLogs()
+    {
+        const string canary = "private-http-exception-canary";
+        var logger = new Mock<ILogger<McpHttpClient>>();
+        using var http = new HttpClient(new RoutingHandler(_ => throw new HttpRequestException(canary)));
+        using var client = new McpHttpClient(http, logger.Object, Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowPrivateAddresses = true, AllowedHosts = ["127.0.0.1"] });
+        var response = await client.CallAsync("https://127.0.0.1/mcp", "tools/call", new { name = "owned-tool", arguments = new { value = canary } });
+
+        response.IsSuccess.Should().BeFalse();
+        JsonSerializer.Serialize(response).Should().NotContain(canary);
+        var logged = string.Join("\n", logger.Invocations.SelectMany(invocation => invocation.Arguments).Select(argument => argument?.ToString()));
+        logged.Should().NotContain(canary);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task OrdinaryHttpResponse_ShouldMatchOutstandingRequestIdentity(bool matches)
+    {
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var expected = body.RootElement.GetProperty("id").GetString();
+            return CreateJsonResponse(JsonSerializer.Serialize(new
+            { jsonrpc = "2.0", id = matches ? expected : "unrelated-response-id", result = new { resultType = "complete", content = Array.Empty<object>() } }));
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion("2026-07-28");
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowPrivateAddresses = true, AllowedHosts = ["127.0.0.1"] });
+
+        var response = await client.CallAsync("https://127.0.0.1/mcp", "tools/call", new { name = "owned-tool", arguments = new { } });
+
+        response.IsSuccess.Should().Be(matches);
+        if (!matches) response.Error.Should().Contain("identity").And.NotContain("unrelated-response-id");
+    }
+
+    [Theory]
+    [InlineData("{\"kind\":\"phone\",\"phone\":\"test\"}", true)]
+    [InlineData("{\"kind\":\"phone\"}", false)]
+    [InlineData("{\"kind\":\"email\",\"email\":\"test\"}", true)]
+    [InlineData("{\"kind\":\"email\",\"phone\":\"test\"}", false)]
+    public void SuppliedArgumentInspection_ShouldAdmitBoundedConditionalSchemaWithoutGeneratingInputs(string argumentsJson, bool valid)
+    {
+        const string schemaJson = """
+            {"type":"object","$defs":{"address":{"type":"object","properties":{"city":{"type":"string"}}}},
+             "properties":{"kind":{"type":"string"},"phone":{"type":"string"},"email":{"type":"string"},"address":{"$ref":"#/$defs/address"}},
+             "if":{"properties":{"kind":{"const":"phone"}},"required":["kind"]},"then":{"required":["phone"]},"else":{"required":["email"]}}
+            """;
+        using var schema = JsonDocument.Parse(schemaJson);
+        var inspection = new SchemaInspectionContext(schema.RootElement);
+        inspection.CanEvaluateSuppliedArguments().Should().BeTrue();
+        inspection.TryCreateObjectCandidate(out _).Should().BeFalse();
+        using var instance = JsonDocument.Parse(argumentsJson);
+        Json.Schema.JsonSchema.FromText(schemaJson, new Json.Schema.BuildOptions { Dialect = Json.Schema.Dialect.Draft202012 })
+            .Evaluate(instance.RootElement).IsValid.Should().Be(valid, "the standard dialect must enforce the conditional requirement");
+        new JsonSchemaValidator().Validate(System.Text.Json.Nodes.JsonNode.Parse(argumentsJson), System.Text.Json.Nodes.JsonNode.Parse(schemaJson)!)
+            .IsValid.Should().Be(valid);
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"object\",\"$ref\":\"#\"}")]
+    [InlineData("{\"type\":\"object\",\"$ref\":\"https://example.test/external\"}")]
+    [InlineData("{\"type\":\"object\",\"properties\":{\"value\":{\"type\":\"string\",\"pattern\":\"(a+)+$\"}}}")]
+    [InlineData("{\"type\":\"object\",\"$defs\":{\"nested\":{\"$id\":\"https://example.test/nested\"}}}")]
+    [InlineData("""{"type":"object","$defs":{"branch":{"properties":{"next":{"$ref":"#"}}}},"allOf":[{"$ref":"#/$defs/branch"},{"$ref":"#/$defs/branch"}]}""")]
+    public void SuppliedArgumentInspection_ShouldRejectUnboundedOrAmbiguousEvaluation(string schemaJson)
+    {
+        using var schema = JsonDocument.Parse(schemaJson);
+        new SchemaInspectionContext(schema.RootElement).CanEvaluateSuppliedArguments().Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("if", false)]
+    [InlineData("if", true)]
+    [InlineData("not", false)]
+    [InlineData("not", true)]
+    [InlineData("patternProperties", false)]
+    [InlineData("patternProperties", true)]
+    [InlineData("dependentSchemas", false)]
+    [InlineData("dependentSchemas", true)]
+    public void ParameterHeaderInspection_ShouldSeparateStaticPlacementFromArgumentGeneration(string keyword, bool nestedHeader)
+    {
+        var schema = System.Text.Json.Nodes.JsonNode.Parse("""
+            {"type":"object","properties":{"region":{"type":"string","x-mcp-header":"Region"}}}
+            """)!;
+        var child = System.Text.Json.Nodes.JsonNode.Parse("""{"properties":{"detail":{"type":"string"}}}""")!;
+        if (nestedHeader) child["properties"]!["detail"]!["x-mcp-header"] = "Nested";
+        schema[keyword] = keyword is "patternProperties" or "dependentSchemas"
+            ? new System.Text.Json.Nodes.JsonObject { ["region"] = child } : child;
+        using var document = JsonDocument.Parse(schema.ToJsonString());
+        using var arguments = JsonDocument.Parse("""{"region":"test-region"}""");
+        var inspection = new SchemaInspectionContext(document.RootElement);
+
+        inspection.InspectParameterHeaderSchema().Should().Be(nestedHeader ? ValidationOutcome.Failed : ValidationOutcome.Succeeded);
+        inspection.TryCreateObjectCandidate(out _).Should().BeFalse("header placement does not establish conditional argument-generation support");
+        inspection.TryCreateParameterHeaders(arguments.RootElement, out var headers).Should().Be(!nestedHeader);
+        if (!nestedHeader) headers.Should().ContainSingle().Which.Should().Be(new KeyValuePair<string, string>("Mcp-Param-Region", "test-region"));
+    }
+
+    [Theory]
     [InlineData("2026-07-28")]
     [InlineData("2025-11-25")]
     public async Task SchemaParameterHeaders_ShouldMirrorStaticPrimitiveValuesWithoutLeakingSchema(string version)
@@ -419,10 +581,10 @@ public class McpHttpClientCapabilitiesTests
     public async Task ConfiguredTargetPolicy_ShouldRetainBlockedAttribution(string denial, string path)
     {
         var requests = 0;
-        using var http = new HttpClient(new RoutingHandler(_ =>
+        using var http = new HttpClient(new RoutingHandler(request =>
         {
             requests++;
-            return CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}");
+            return CreateCorrelatedJsonResponse(request, "{\"jsonrpc\":\"2.0\",\"result\":{}}");
         }));
         using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
         client.ConfigureExecutionPolicy(new ExecutionPolicy
@@ -821,7 +983,7 @@ public class McpHttpClientCapabilitiesTests
             var payload = await request.Content!.ReadAsStringAsync(token);
             if (payload.Contains("\"method\":\"initialize\"", StringComparison.Ordinal))
             {
-                var response = CreateJsonResponse("""{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-11-25","capabilities":{}}}""");
+                var response = CreateCorrelatedJsonResponse(request, """{"jsonrpc":"2.0","result":{"protocolVersion":"2025-11-25","capabilities":{}}}""");
                 response.Headers.Add("MCP-Session-Id", $"session-{Interlocked.Increment(ref initializeCount)}");
                 return response;
             }
@@ -850,6 +1012,14 @@ public class McpHttpClientCapabilitiesTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => factory(request, cancellationToken);
+    }
+
+    private static HttpResponseMessage CreateCorrelatedJsonResponse(HttpRequestMessage request, string json)
+    {
+        using var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
+        var response = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+        response["id"] = System.Text.Json.Nodes.JsonNode.Parse(body.RootElement.GetProperty("id").GetRawText());
+        return CreateJsonResponse(response.ToJsonString());
     }
 
     [Theory]
@@ -888,7 +1058,7 @@ public class McpHttpClientCapabilitiesTests
         {
             using var body = JsonDocument.Parse(request.Content!.ReadAsStringAsync().GetAwaiter().GetResult());
             ids.Add(body.RootElement.GetProperty("id").GetString()!);
-            if (ids.Count > 1) return CreateJsonResponse("""{"jsonrpc":"2.0","id":1,"result":{"tools":[]}}""");
+            if (ids.Count > 1) return CreateCorrelatedJsonResponse(request, """{"jsonrpc":"2.0","result":{"tools":[]}}""");
             var failure = new HttpResponseMessage(HttpStatusCode.ServiceUnavailable) { Content = new StringContent("temporary discovery failure") };
             failure.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.Zero);
             return failure;
@@ -1315,9 +1485,9 @@ public class McpHttpClientCapabilitiesTests
 
             return method switch
             {
-                "tools/list" => CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"demo-tool\"},{\"name\":\"secondary-tool\"}]},\"id\":\"tools\"}"),
-                "resources/list" => CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[]},\"id\":\"resources\"}"),
-                "prompts/list" => CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[]},\"id\":\"prompts\"}"),
+                "tools/list" => CreateCorrelatedJsonResponse(request, "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"demo-tool\"},{\"name\":\"secondary-tool\"}]}}"),
+                "resources/list" => CreateCorrelatedJsonResponse(request, "{\"jsonrpc\":\"2.0\",\"result\":{\"resources\":[]}}"),
+                "prompts/list" => CreateCorrelatedJsonResponse(request, "{\"jsonrpc\":\"2.0\",\"result\":{\"prompts\":[]}}"),
                 "tools/call" => new HttpResponseMessage(HttpStatusCode.BadRequest)
                 {
                     Content = new StringContent("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32602,\"message\":\"Invalid params\"},\"id\":\"call\"}")

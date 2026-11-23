@@ -22,9 +22,11 @@ internal sealed class SchemaInspectionContext
     private readonly JsonElement _root;
     private readonly Dictionary<JsonElement, SchemaInspectionStatus> _schemas = new();
     private readonly Dictionary<JsonElement, IReadOnlyList<string>> _staticPropertyPaths = new();
+    private readonly Dictionary<JsonElement, List<JsonElement>> _schemaChildren = new();
     private int _remainingIndexSteps = MaximumIndexSteps;
     private int _remainingSteps = MaximumInspectionSteps;
     private bool _indexExhausted;
+    private bool _headerInspectionIncomplete;
     private int _remainingGeneratedValues = 64;
     private int _remainingGeneratedCharacters = MaximumGeneratedCharacters;
 
@@ -35,6 +37,39 @@ internal sealed class SchemaInspectionContext
     }
 
     internal ValidationOutcome InspectParameterHeaderSchema() => InspectParameterHeaderSchema(out _);
+
+    internal bool CanEvaluateSuppliedArguments()
+    {
+        if (_indexExhausted || _headerInspectionIncomplete || _root.ValueKind != JsonValueKind.Object ||
+            _root.GetRawText().Length > MaximumGenerationSchemaCharacters) return false;
+        foreach (var schema in _schemas.Keys.Where(schema => schema.ValueKind == JsonValueKind.Object))
+        {
+            if (schema.TryGetProperty("pattern", out _) || schema.TryGetProperty("patternProperties", out _)) return false;
+            if (schema.TryGetProperty("$ref", out _) && InspectConjunction(schema, out _) != SchemaInspectionStatus.Complete) return false;
+        }
+        return InspectEvaluationGraph(_root, new HashSet<JsonElement>(), 0);
+    }
+
+    private bool InspectEvaluationGraph(JsonElement schema, HashSet<JsonElement> path, int depth)
+    {
+        if (_remainingSteps-- <= 0 || depth > MaximumSchemaDepth || !_schemas.ContainsKey(schema) || !path.Add(schema)) return false;
+        try
+        {
+            if (schema.ValueKind == JsonValueKind.Object && schema.TryGetProperty("$ref", out var reference))
+            {
+                if (reference.ValueKind != JsonValueKind.String) return false;
+                var value = reference.GetString()!;
+                if (value.Length > MaximumReferenceCharacters || !value.StartsWith('#') || !JsonPointer.TryParse(value, out var pointer)) return false;
+                var target = pointer.Evaluate(_root);
+                if (target == null || !InspectEvaluationGraph(target.Value, path, depth + 1)) return false;
+            }
+            if (_schemaChildren.TryGetValue(schema, out var children))
+                foreach (var child in children)
+                    if (!InspectEvaluationGraph(child, path, depth + 1)) return false;
+            return true;
+        }
+        finally { path.Remove(schema); }
+    }
 
     private ValidationOutcome InspectParameterHeaderSchema(
         out Dictionary<JsonElement, (string HeaderName, IReadOnlyList<string> Path)> annotations)
@@ -55,7 +90,7 @@ internal sealed class SchemaInspectionContext
             catch (FormatException) { return ValidationOutcome.Failed; }
             annotations.Add(schema, (headerName, path));
         }
-        return _indexExhausted || _schemas.Values.Any(status => status != SchemaInspectionStatus.Complete)
+        return _indexExhausted || _headerInspectionIncomplete
             ? ValidationOutcome.Inconclusive : ValidationOutcome.Succeeded;
     }
 
@@ -370,33 +405,45 @@ internal sealed class SchemaInspectionContext
         }
     }
 
-    private void Index(JsonElement schema, int depth, bool isRoot = false, IReadOnlyList<string>? staticPath = null)
+    private void Index(JsonElement schema, int depth, bool isRoot = false, IReadOnlyList<string>? staticPath = null, JsonElement? parent = null)
     {
         if (_remainingIndexSteps-- <= 0 || depth > MaximumSchemaDepth)
         {
             _indexExhausted = true;
             return;
         }
+        if (parent is { } parentSchema)
+        {
+            if (!_schemaChildren.TryGetValue(parentSchema, out var children)) _schemaChildren[parentSchema] = children = [];
+            children.Add(schema);
+        }
         if (schema.ValueKind is JsonValueKind.True or JsonValueKind.False)
         {
             _schemas[schema] = SchemaInspectionStatus.Complete;
             return;
         }
-        if (schema.ValueKind != JsonValueKind.Object) return;
+        if (schema.ValueKind != JsonValueKind.Object)
+        {
+            _headerInspectionIncomplete = true;
+            return;
+        }
         if (staticPath != null) _staticPropertyPaths[schema] = staticPath;
         _schemas[schema] = SchemaInspectionStatus.Complete;
         if (schema.TryGetProperty("$id", out var identifier) && (!isRoot || identifier.ValueKind != JsonValueKind.String) ||
-            schema.TryGetProperty("$dynamicRef", out _) || schema.TryGetProperty("$recursiveRef", out _) ||
-            schema.TryGetProperty("patternProperties", out _) || schema.TryGetProperty("dependentSchemas", out _) || schema.TryGetProperty("dependentRequired", out _) ||
-            schema.TryGetProperty("if", out _) || schema.TryGetProperty("not", out _))
+            schema.TryGetProperty("$dynamicRef", out _) || schema.TryGetProperty("$recursiveRef", out _))
         {
             _schemas[schema] = SchemaInspectionStatus.Unsupported;
+            _headerInspectionIncomplete = true;
             return;
         }
+        if (schema.TryGetProperty("patternProperties", out _) || schema.TryGetProperty("dependentSchemas", out _) ||
+            schema.TryGetProperty("dependentRequired", out _) || schema.TryGetProperty("if", out _) || schema.TryGetProperty("not", out _))
+            _schemas[schema] = SchemaInspectionStatus.Unsupported;
         if (schema.TryGetProperty("$schema", out var dialect) &&
             (dialect.ValueKind != JsonValueKind.String || !dialect.ValueEquals(SupportedDialect) && !dialect.ValueEquals(SupportedDialect + "#")))
         {
             _schemas[schema] = SchemaInspectionStatus.Unsupported;
+            _headerInspectionIncomplete = true;
             return;
         }
         var names = new HashSet<string>(StringComparer.Ordinal);
@@ -410,6 +457,7 @@ internal sealed class SchemaInspectionContext
             if (!names.Add(keyword.Name))
             {
                 _schemas[schema] = SchemaInspectionStatus.Unsupported;
+                _headerInspectionIncomplete = true;
                 return;
             }
             if (keyword.Name is "$defs" or "definitions" or "properties" or "patternProperties" or "dependentSchemas")
@@ -417,13 +465,18 @@ internal sealed class SchemaInspectionContext
                 if (keyword.Value.ValueKind != JsonValueKind.Object)
                 {
                     _schemas[schema] = SchemaInspectionStatus.Unsupported;
+                    _headerInspectionIncomplete = true;
                     continue;
                 }
                 var childNames = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var child in keyword.Value.EnumerateObject())
                 {
-                    if (!childNames.Add(child.Name)) _schemas[schema] = SchemaInspectionStatus.Unsupported;
-                    Index(child.Value, depth + 1, staticPath: keyword.Name == "properties" && staticPath != null ? staticPath.Append(child.Name).ToArray() : null);
+                    if (!childNames.Add(child.Name))
+                    {
+                        _schemas[schema] = SchemaInspectionStatus.Unsupported;
+                        _headerInspectionIncomplete = true;
+                    }
+                    Index(child.Value, depth + 1, staticPath: keyword.Name == "properties" && staticPath != null ? staticPath.Append(child.Name).ToArray() : null, parent: schema);
                     if (_indexExhausted) return;
                 }
             }
@@ -432,17 +485,18 @@ internal sealed class SchemaInspectionContext
                 if (keyword.Value.ValueKind != JsonValueKind.Array)
                 {
                     _schemas[schema] = SchemaInspectionStatus.Unsupported;
+                    _headerInspectionIncomplete = true;
                     continue;
                 }
                 foreach (var child in keyword.Value.EnumerateArray())
                 {
-                    Index(child, depth + 1);
+                    Index(child, depth + 1, parent: schema);
                     if (_indexExhausted) return;
                 }
             }
             else if (keyword.Name is "items" or "additionalProperties" or "contains" or "propertyNames" or "not" or
                 "if" or "then" or "else" or "unevaluatedItems" or "unevaluatedProperties" or "contentSchema")
-                Index(keyword.Value, depth + 1);
+                Index(keyword.Value, depth + 1, parent: schema);
             else
                 CountAnnotationData(keyword.Value, depth + 1);
             if (_indexExhausted) return;

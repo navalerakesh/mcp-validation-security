@@ -204,15 +204,33 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
         _fixture.MockServer.Given(request).RespondWith(response);
     }
 
-    private static IResponseBuilder JsonRpcError(int code) => Response.Create()
-        .WithStatusCode(200)
-        .WithHeader("Content-Type", "application/json")
-        .WithBody($"{{\"jsonrpc\":\"2.0\",\"error\":{{\"code\":{code},\"message\":\"Calibration error\"}},\"id\":\"calibration\"}}");
+    private static IResponseBuilder JsonRpcError(int code) => JsonRpcFixtureResponse(code);
 
-    private static IResponseBuilder JsonRpcSuccess() => Response.Create()
-        .WithStatusCode(200)
-        .WithHeader("Content-Type", "application/json")
-        .WithBody("{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[]},\"id\":\"calibration\"}");
+    private static IResponseBuilder JsonRpcSuccess() => JsonRpcFixtureResponse(null);
+
+    private static IResponseBuilder JsonRpcFixtureResponse(int? errorCode) => Response.Create().WithCallback(request =>
+    {
+        JsonElement? requestId = null;
+        try
+        {
+            using var body = JsonDocument.Parse(request.Body ?? "null");
+            if (body.RootElement.ValueKind == JsonValueKind.Object && body.RootElement.TryGetProperty("id", out var value) &&
+                value.ValueKind is JsonValueKind.String or JsonValueKind.Number) requestId = value.Clone();
+        }
+        catch (JsonException) { }
+        return new WireMock.ResponseMessage
+        {
+            StatusCode = 200,
+            Headers = new Dictionary<string, WireMock.Types.WireMockList<string>> { ["Content-Type"] = new("application/json") },
+            BodyData = new WireMock.Util.BodyData
+            {
+                DetectedBodyType = WireMock.Types.BodyType.String,
+                BodyAsString = errorCode.HasValue
+                    ? JsonSerializer.Serialize(new { jsonrpc = "2.0", error = new { code = errorCode.Value, message = "Calibration error" }, id = requestId })
+                    : JsonSerializer.Serialize(new { jsonrpc = "2.0", result = new { tools = Array.Empty<object>() }, id = requestId })
+            }
+        };
+    });
 
     private static ValidationResult BuildValidationResult(
         string targetKind,

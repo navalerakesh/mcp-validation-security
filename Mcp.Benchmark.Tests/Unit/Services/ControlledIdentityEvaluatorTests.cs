@@ -13,6 +13,48 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ControlledIdentityEvaluatorTests
 {
+    [Theory]
+    [InlineData("maximum", true)]
+    [InlineData("too-many", false)]
+    [InlineData("empty", false)]
+    [InlineData("invalid-policy", false)]
+    public void SignedIdentityAdmission_ShouldEnforceDeclaredMatrixBeforeAcceptingSignedEvidence(string variant, bool admitted)
+    {
+        using var key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var count = variant == "too-many" ? ControlledIdentityMatrixContract.MaximumCases + 1 : ControlledIdentityMatrixContract.MaximumCases;
+        var entries = Enumerable.Range(1, count - 1).Select(index => Probe() with
+        {
+            CaseId = $"probe-{index}", Binding = Probe().Binding with
+            { OperationId = $"operation-{index}", AttemptId = $"attempt-{index}", RequestId = $"request-{index}" }
+        }).Prepend(Control()).ToArray();
+        var contract = Contract() with { Cases = variant == "empty" ? [] : entries };
+        if (variant == "invalid-policy") contract = contract with { PolicyRevision = "" };
+        var document = SignedDocument(key, false) with { Contract = contract, Observations = contract.Cases.Select(Observation).ToArray() };
+        document = document with { SignatureBase64 = Convert.ToBase64String(key.SignHash(Convert.FromHexString(document.ComputePayloadDigest()), DSASignatureFormat.IeeeP1363FixedFieldConcatenation)) };
+        var verify = () => ControlledIdentityEvidenceVerifier.Verify(SerializeDocument(document), contract, Admission(), key.ExportSubjectPublicKeyInfoPem(), Clock);
+        if (admitted)
+        {
+            var assessment = verify();
+            assessment.Outcome.Should().Be(ValidationOutcome.Succeeded);
+            assessment.Cases.Should().HaveCount(ControlledIdentityMatrixContract.MaximumCases);
+            assessment.RecordedObservations.Should().HaveCount(ControlledIdentityMatrixContract.MaximumCases);
+        }
+        else verify.Should().Throw<InvalidDataException>().Which.Message.Should().Be("Identity matrix admission is invalid.");
+    }
+
+    [Fact]
+    public void IdentityAdmission_ShouldRejectNullRequiredInputsBeforeReadingEvidence()
+    {
+        var contract = () => ControlledIdentityEvidenceVerifier.Verify("{}", null!, Admission(), "untrusted", Clock);
+        var admission = () => ControlledIdentityEvidenceVerifier.Verify("{}", Contract(), null!, "untrusted", Clock);
+        var requirement = () => ControlledIdentitySecurityBaseline.VerifyRequirement(null!, Binding.RunId, Binding.TargetIdentitySha256, Clock);
+        var projection = () => ControlledIdentitySecurityBaseline.Project(null!, null);
+        contract.Should().Throw<ArgumentNullException>();
+        admission.Should().Throw<ArgumentNullException>();
+        requirement.Should().Throw<ArgumentNullException>();
+        projection.Should().Throw<ArgumentNullException>();
+    }
+
     private static readonly DateTimeOffset Clock = new(2026, 11, 22, 0, 0, 0, TimeSpan.Zero);
     private static readonly ControlledOperationBinding Binding = new("run-1", "operation-control", "attempt-control", "request-control", "boundary-1",
         new string('a', 64), new string('b', 64), new string('c', 64), "actor-a", "object-a");

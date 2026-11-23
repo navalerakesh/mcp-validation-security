@@ -12,6 +12,8 @@ public sealed class ValidationRunRequest
     private ValidationRunRequest(McpValidatorConfiguration configuration, string? requestId, string? conformanceEvidenceJson = null,
         ControlledIdentitySecurityRequirement? identityControls = null)
     {
+        if (configuration.Validation?.Categories?.ToolTesting is { } tools)
+            ToolScenarioInputs.CapturePositiveScenarios(tools);
         if (conformanceEvidenceJson != null && (conformanceEvidenceJson.Length > OfficialConformanceContract.MaximumEvidenceBytes ||
             Encoding.UTF8.GetByteCount(conformanceEvidenceJson) > OfficialConformanceContract.MaximumEvidenceBytes))
             throw new ArgumentException("Conformance evidence exceeds the admitted byte limit.", nameof(conformanceEvidenceJson));

@@ -118,23 +118,6 @@ public class JsonSchemaValidator : ISchemaValidator
             schema.ToJsonString(),
             new BuildOptions { Dialect = ExtensibleDraft202012 });
 
-    private static Dialect CreateExtensibleDraft202012()
-    {
-        var vocabularies = new[]
-        {
-            Vocabulary.Draft202012_Core,
-            Vocabulary.Draft202012_Applicator,
-            Vocabulary.Draft202012_Unevaluated,
-            Vocabulary.Draft202012_Validation,
-            Vocabulary.Draft202012_MetaData,
-            Vocabulary.Draft202012_FormatAnnotation,
-            Vocabulary.Draft202012_Content
-        };
-        return new Dialect(vocabularies.SelectMany(vocabulary => vocabulary.Keywords))
-        {
-            Id = Dialect.Draft202012.Id,
-            RefIgnoresSiblingKeywords = Dialect.Draft202012.RefIgnoresSiblingKeywords,
-            AllowUnknownKeywords = true
-        };
-    }
+    private static Dialect CreateExtensibleDraft202012() =>
+        Dialect.Draft202012.With([], allowUnknownKeywords: true);
 }

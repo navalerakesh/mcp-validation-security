@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"] },
     "startTime": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "endTime": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "producer": {
@@ -164,7 +164,7 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "allOf": [{
-    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0"] } }, "required": ["documentSchemaVersion"] },
+    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"] } }, "required": ["documentSchemaVersion"] },
     "then": { "required": ["startTime"] }
   }],
   "$defs": {

@@ -1,6 +1,6 @@
 # Enterprise Recovery Implementation Status
 
-Updated: 2026-11-22
+Updated: 2026-11-23
 
 Status: implementation in progress; not release-ready. The approved technical plan contains eight delivery slices. Passing foundation gates do not establish milestone acceptance. Local milestone commits are now authorized only after all applicable acceptance gates; pushing, publication and live enterprise probing remain unauthorized.
 
@@ -25,6 +25,18 @@ For the current assessment milestone, completion means all mandatory checks in t
 Target-memory observers and buffer-overflow/resource-exhaustion harnesses are explicit additions, not prerequisites for default-scope completion. They remain unavailable when explicitly requested until implemented and admitted. No new platform, inference feature, protocol expansion, universal security guarantee or additional live target is introduced by this checklist. Newly discovered defects are handled within the owning listed work item; new feature requirements require separate approval. External evidence gaps do not prevent local implementation, but they prevent claiming the corresponding external qualification. Push, publish, tags and releases remain separately unauthorized.
 
 ## Authoritative Checkpoint
+
+### Explicit Input Completion Work
+
+The second 15-owner mutation run passed at **90.26%**, above the unchanged 90% threshold, with matching source identities, all 15 embedded source texts verified and no instrumentation rollback: 1,834 killed, 184 survived and 14 uncovered mutants. The first run's **89.27%** failure remains retained and is not qualification evidence. Test-only strengthening covers escaped-byte overflow, parsed-JSON value/depth limits, nested unsupported CLR values, exact signed-matrix admission and required security/performance flags. Independent scoped review is READY FOR BUILD GATE.
+
+The frozen source passed the full repository gate with 2,398 .NET tests, zero failures, 23 Windows-only skips, 181 wrapper tests, two built actual-CLI lifecycle cases and nine Node companion tests. Both Release allocation-budget tests and all six declared benchmark workloads passed. Fresh package/install qualification verified five DLLs, 28 wrapper files, two installed lifecycle cases and six bundle digests. Documentation and exact staged-byte checks govern final local commit admission; no release readiness is implied.
+
+Local milestone `5c29a39` and its historical receipt remain unchanged. This milestone advances the retained conditional-schema tool through the existing explicit-positive `CustomScenarios` input path. Final-binary owned evidence in `BenchmarkDotNet.Artifacts/comprehensive-official-positive-inputs-2` records that tool passed with supplied arguments: 23 tools passed and eight remain inconclusive. Core 120/120 required claims, all three signed security controls and operational readiness remain satisfied; CLI exit remains 1. The unscored official lane still has 30 failures and one skip. The input canary is absent from validation artifacts, and all owned process groups were absent after bounded cleanup. The generic recorder rejected expected exit 1; its original receipt is retained, and a separate strict owned-evidence verifier passed. This is not comprehensive completion.
+
+The work separates structural header inspection from unsupported conditional generation, repairs the custom schema dialect's conditional-validation defect, bounds and isolates JSON argument capture, and redacts public clones to an unavailable null argument state. Both tool paths retain missing/duplicate/disabled request debt, reject invalid metadata before explicit dispatch, require schema-valid positive responses and preserve exception privacy. Review also exposed missing ordinary HTTP response-ID enforcement; real receiver controls now prove correlation, and positive test fixtures were corrected to echo their request IDs without changing verdict or score assertions. The retained calibration corpus still satisfies its original expectations.
+
+Result `3.6.0`, policy/catalog `2026-11-23.1`, schema/docs and the 15-owner mutation scope belong to this milestone. Eight client-capability/input-dependent tools, general required-evidence completion, S6-S8 and external acceptance remain open. The next approved slice is finite operator-supplied synthetic client replies with exact observed-request matching, request-local capabilities, unchanged opaque-state echo and strict budgets/privacy. This milestone introduces no client-reply execution, model inference, inferred answers, automatic consent or filesystem discovery.
 
 ### Admission Milestone Qualification
 

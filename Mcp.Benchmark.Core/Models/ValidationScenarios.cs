@@ -146,9 +146,9 @@ public class ToolTestScenario
     public string ToolName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Gets or sets the test parameters to use.
+    /// Gets or sets the test parameters to use. Null represents unavailable or redacted arguments, not an empty argument object.
     /// </summary>
-    public Dictionary<string, object> Parameters { get; set; } = new();
+    public Dictionary<string, object>? Parameters { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the expected result type or pattern.
