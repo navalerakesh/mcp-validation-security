@@ -21,6 +21,9 @@ const localExecutionEnabled = process.env[localExecutionEnvironmentVariable]?.tr
 const providerHarnessPath = process.env.MCPVAL_PROVIDER_HARNESS?.trim();
 const providerAuthorizationKeyPath = process.env.MCPVAL_PROVIDER_AUTHORIZATION_KEY?.trim();
 const providerConformanceResultsPath = process.env.MCPVAL_OFFICIAL_CONFORMANCE_RESULTS?.trim();
+const comprehensiveMode = process.env.MCPVAL_COMPREHENSIVE_EXECUTION_MODE?.trim().toLowerCase();
+const identityBaselinePath = process.env.MCPVAL_IDENTITY_BASELINE?.trim();
+const validationId = process.env.MCPVAL_VALIDATION_ID?.trim();
 
 export const config = {
   /** CLI command name to invoke */
@@ -58,6 +61,14 @@ export const config = {
       process.env.MCPVAL_ATTESTATION_PRIVATE_KEY_PEM),
   },
 
+  comprehensiveAssurance: {
+    conformanceResultsPath: providerConformanceResultsPath,
+    identityBaselinePath,
+    validationId,
+    executionMode: "standard" as const,
+    enabled: comprehensiveMode === "standard" && Boolean(providerConformanceResultsPath && identityBaselinePath && validationId),
+  },
+
   /** MCP server metadata */
   server: {
     name: "mcpval",
@@ -69,7 +80,7 @@ export const config = {
     websiteUrl: "https://github.com/navalerakesh/mcp-validation-security/tree/main/mcpval-mcp",
     instructions:
       localExecutionEnabled
-        ? `Use health_check first for a quick bootstrap and protocol check. Use discover for remote HTTP MCP endpoints when you need a capability catalog. Use validate for evidence-first assurance assessment; its default inventory profile uses safe mode and reports unperformed active security, execution, and load coverage as incomplete. Local commands execute with this process's privileges because ${localExecutionEnvironmentVariable}=true; review each command and run this wrapper in an isolated environment.`
-        : `Use health_check first for a quick bootstrap and protocol check. Use discover for remote HTTP MCP endpoints when you need a capability catalog. Use validate for evidence-first assurance assessment; its default inventory profile uses safe mode and reports unperformed active security, execution, and load coverage as incomplete. Provide an absolute remote MCP endpoint URL. Local command execution is disabled unless the operator restarts this wrapper with ${localExecutionEnvironmentVariable}=true in an isolated environment.`,
+        ? `Use health_check first for a quick bootstrap and protocol check. Use discover for remote HTTP MCP endpoints when you need a capability catalog. Use validate for evidence-first assurance assessment. Validation defaults to comprehensive and fails closed without required execution admission and conformance evidence. Select assurance=inventory explicitly; it uses safe mode and reports unperformed active security, execution, and load coverage as incomplete. Report detail does not grant execution permission. Local commands execute with this process's privileges because ${localExecutionEnvironmentVariable}=true; review each command and run this wrapper in an isolated environment.`
+        : `Use health_check first for a quick bootstrap and protocol check. Use discover for remote HTTP MCP endpoints when you need a capability catalog. Use validate for evidence-first assurance assessment. Validation defaults to comprehensive and fails closed without required execution admission and conformance evidence. Select assurance=inventory explicitly; it uses safe mode and reports unperformed active security, execution, and load coverage as incomplete. Report detail does not grant execution permission. Provide an absolute remote MCP endpoint URL. Local command execution is disabled unless the operator restarts this wrapper with ${localExecutionEnvironmentVariable}=true in an isolated environment.`,
   },
 } as const;

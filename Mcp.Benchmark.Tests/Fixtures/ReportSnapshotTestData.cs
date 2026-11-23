@@ -113,6 +113,15 @@ public static class ReportSnapshotTestData
             ServerProfileSource = ServerProfileSource.UserDeclared,
             ValidationConfig = new McpValidatorConfiguration
             {
+                Assurance = new AssurancePolicyConfig { Profile = AssuranceProfileCatalog.Inventory.ProfileId },
+                Validation = new ValidationConfig
+                {
+                    Categories = new ValidationScenarios
+                    {
+                        PerformanceTesting = new PerformanceTestingConfig { TestMemoryUsage = true },
+                        SecurityTesting = new SecurityTestingConfig { TestBufferOverflow = true, TestResourceExhaustion = true }
+                    }
+                },
                 Reporting = new ReportingConfig
                 {
                     DetailLevel = ReportDetailLevel.Full,

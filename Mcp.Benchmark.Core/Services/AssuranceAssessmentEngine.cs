@@ -12,6 +12,13 @@ public static class AssuranceAssessmentEngine
     {
         ArgumentNullException.ThrowIfNull(evaluation);
         if (hasCriticalErrors) return ValidationStatus.Error;
+        if (evaluation.Profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId)
+            return AssuranceExitCodeMapper.Map(evaluation, null) switch
+            {
+                AssuranceExitCodeMapper.Satisfied => ValidationStatus.Passed,
+                AssuranceExitCodeMapper.Failed => ValidationStatus.Failed,
+                _ => ValidationStatus.PartiallyCompleted
+            };
         if (evaluation.Assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant ||
             evaluation.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound ||
             evaluation.Assessments.OperationalReadiness.Status == OperationalReadinessStatus.NotReady)
@@ -32,7 +39,30 @@ public static class AssuranceAssessmentEngine
         ArgumentNullException.ThrowIfNull(profile);
         context ??= new AssuranceEvaluationContext();
 
-        var claims = AssuranceClaimProjector.Project(result);
+        var claims = AssuranceClaimProjector.Project(result).ToList();
+        var identityControls = context.RequiredIdentityControls ?? result.Assurance.RequiredIdentityControls;
+        if (profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId)
+        {
+            claims.AddRange(ControlledIdentitySecurityBaseline.Project(result, identityControls, out var verifiedIdentityControls));
+            identityControls = verifiedIdentityControls;
+            foreach (var extensionId in context.RequiredExtensionIds.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
+            {
+                if (result.Assessments.Extensions.Any(extension => extension.ExtensionId == extensionId)) continue;
+                claims.Add(new AssuranceClaim
+                {
+                    ClaimId = $"required-extension:{extensionId}",
+                    Subject = extensionId,
+                    Dimension = AssuranceDimension.Extension,
+                    RequirementLevel = AssuranceRequirementLevel.Must,
+                    Authority = AssuranceAuthority.ProviderPolicy,
+                    Source = new AssuranceSourceReference { Revision = profile.Revision },
+                    Outcome = AssuranceClaimOutcome.Incomplete,
+                    Confidence = EvidenceConfidenceLevel.None,
+                    Summary = "An operator-required extension has no assessment evidence.",
+                    Remediation = "Provide an admitted assessment for the selected extension."
+                });
+            }
+        }
         var evidenceSummary = ValidationEvidenceSummarizer.Summarize(
             ValidationEvidenceLaneClassifier.BaselineOnly(result.Evidence.Coverage));
         var assessments = new AssuranceAssessmentSet
@@ -47,6 +77,9 @@ public static class AssuranceAssessmentEngine
         return new AssuranceEvaluation
         {
             Profile = profile,
+            RequiredIdentityControls = profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId ? identityControls : null,
+            RequiredExtensionIds = profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId
+                ? context.RequiredExtensionIds.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray() : null,
             Claims = claims,
             Assessments = assessments,
             EvidenceSummary = evidenceSummary,
@@ -172,16 +205,21 @@ public static class AssuranceAssessmentEngine
     {
         var assessment = result.Assessments.OfficialConformance;
         if (assessment == null) return new ExternalConformanceAssuranceAssessment();
+        var checks = assessment.Scenarios.SelectMany(scenario => scenario.Checks).ToArray();
+        var hasTestedFailure = checks.Any(check => check.Status == OfficialConformanceCheckStatus.Failure && !check.PrerequisiteMissing) ||
+            assessment.Failed > checks.Count(check => check.Status == OfficialConformanceCheckStatus.Failure);
         var status = assessment.VerificationStatus switch
         {
             OfficialConformanceVerificationStatus.Conflict => ExternalConformanceStatus.Conflict,
             OfficialConformanceVerificationStatus.Incomplete or OfficialConformanceVerificationStatus.Unverified => ExternalConformanceStatus.Incomplete,
-            OfficialConformanceVerificationStatus.Verified when assessment.Failed > 0 => ExternalConformanceStatus.Nonconformant,
+            OfficialConformanceVerificationStatus.Verified when hasTestedFailure => ExternalConformanceStatus.Nonconformant,
+            OfficialConformanceVerificationStatus.Verified when checks.Any(check => check.PrerequisiteMissing) => ExternalConformanceStatus.Incomplete,
             OfficialConformanceVerificationStatus.Verified => ExternalConformanceStatus.Verified,
             _ => ExternalConformanceStatus.Incomplete
         };
         return new ExternalConformanceAssuranceAssessment
         {
+            VerificationStatus = assessment.VerificationStatus,
             Status = status,
             RequirementSetRevision = assessment.RequirementSet.Revision,
             RequirementSetSha256 = assessment.RequirementSet.Sha256,

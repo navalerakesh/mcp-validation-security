@@ -11,6 +11,21 @@ namespace Mcp.Benchmark.Tests.Unit;
 
 public class ProtocolComplianceValidatorUnitTests : IDisposable
 {
+    [Theory]
+    [InlineData("2025-11-25", ValidationConstants.Methods.Ping)]
+    [InlineData("2026-07-28", ValidationConstants.Methods.ServerDiscover)]
+    public async Task FormatProbes_ShouldUseTheResolvedProtocolEra(string version, string method)
+    {
+        await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = version },
+            new ProtocolComplianceConfig { ProtocolVersion = version, TestJsonRpcCompliance = true, TestMessageFormat = true });
+
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), method, It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        if (method == ValidationConstants.Methods.ServerDiscover)
+            _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Ping,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private readonly Mock<ILogger<ProtocolComplianceValidator>> _loggerMock;
     private readonly Mock<IMcpHttpClient> _mcpHttpClientMock;
     private readonly IProtocolRuleRegistry _ruleRegistry;
@@ -1529,6 +1544,10 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"ping\"}"));
+
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ServerDiscover,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"resultType\":\"complete\"},\"id\":\"discovery\"}"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(

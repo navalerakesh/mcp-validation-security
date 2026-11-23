@@ -147,8 +147,11 @@ public sealed class OfficialConformanceSpecReference
     public string? Url { get; init; }
 }
 
-public sealed class OfficialConformanceAssessment
+public sealed class OfficialConformanceAssessment : System.Text.Json.Serialization.IJsonOnDeserialized
 {
+    void System.Text.Json.Serialization.IJsonOnDeserialized.OnDeserialized() =>
+        Mcp.Benchmark.Core.Constants.OfficialConformanceContract.ValidateRetainedAssessment(this);
+
     public OfficialConformanceVerificationStatus VerificationStatus { get; set; }
 
     public string SourceEvidenceSha256 { get; init; } = string.Empty;
@@ -207,6 +210,21 @@ public sealed class OfficialConformanceScenarioAssessment
 
 public sealed class OfficialConformanceCheckAssessment
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool PrerequisiteMissing { get; init; }
+
+    private AssuranceApplicability _applicability = AssuranceApplicability.Applicable;
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public AssuranceApplicability Applicability
+    {
+        get => _applicability;
+        init => _applicability = Enum.IsDefined(value) ? value : throw new ArgumentOutOfRangeException(nameof(value));
+    }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? SourceIndex { get; init; }
+
     public required string Id { get; init; }
 
     public required string Name { get; init; }

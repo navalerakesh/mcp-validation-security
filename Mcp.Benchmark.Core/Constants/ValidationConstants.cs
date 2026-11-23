@@ -5,6 +5,15 @@ namespace Mcp.Benchmark.Core.Constants;
 /// </summary>
 public static class ValidationConstants
 {
+    public static class ProbeIds
+    {
+        public const string TimeoutHandling = "timeout-handling";
+        public const string ConnectionInterruption = "connection-interruption";
+        public const string InvalidMethod = "invalid-method";
+        public const string MalformedJson = "malformed-json";
+        public const string InvalidRequest = "invalid-request";
+    }
+
     public static class Product
     {
         public const string ClientName = "mcpval";

@@ -16,6 +16,7 @@ node scripts/run-official-conformance.mjs \
 
 dotnet run --project Mcp.Benchmark.CLI -- validate \
   --server https://provider.example.com/mcp \
+  --assurance inventory \
   --conformance-results /secure/path/official-conformance.json
 ```
 
@@ -31,7 +32,11 @@ The current trusted pin is:
 | Requirement set | `2026-07-28` |
 | Requirement-set SHA-256 | `ae2f4f6210fd729e2e318edd5bbfa31a43cee0bc608e48052fa26dbf1d939b57` |
 
-The machine-readable pin is owned by `Mcp.Benchmark.Core/Resources/official-conformance-pin.json`; .NET verification and the companion consume that same manifest. The wrapper supplies provenance that the official per-scenario `checks.json` format does not carry itself. Every scenario embeds the exact bounded `checks.json` bytes as base64 and records their raw SHA-256. The importer verifies those bytes before parsing them and rejects malformed contracts, unsupported document majors, duplicate scenario/check IDs, invalid hashes, tampered payloads, target mismatches, protocol mismatches, configured bounds violations, and missing, unexpected, or misclassified frozen scenarios. A completed `2026-07-28` server run must contain all 37 required and 13 not-scored server scenarios.
+The machine-readable pin is owned by `Mcp.Benchmark.Core/Resources/official-conformance-pin.json`; .NET verification and the companion consume that same manifest. The wrapper supplies provenance that the official per-scenario `checks.json` format does not carry itself. Every scenario embeds the exact bounded `checks.json` bytes as base64 and records their raw SHA-256. The importer verifies those bytes before parsing them and rejects malformed contracts, unsupported document majors, duplicate scenario IDs, invalid hashes, tampered payloads, target mismatches, protocol mismatches, configured bounds violations, and missing, unexpected, or misclassified frozen scenarios. A completed `2026-07-28` server run must contain all 37 required and 13 not-scored server scenarios.
+
+Parameterized checks may repeat their original check ID. Import preserves each occurrence with its zero-based `sourceIndex`; evidence, claims and conflict decisions retain distinct occurrence identities without changing raw bytes. Canonical loading rejects out-of-range indices and identities that collide either as evidence IDs or projected claim IDs. Legacy index-free evidence remains readable when unambiguous.
+
+The pinned runner's `untestable` marker on failure/warning checks means a prerequisite was missing, not that the target exercised and violated the requirement. Raw status/counts remain visible, while required prerequisite debt prevents acceptance. Contradictory status/applicability/prerequisite metadata is rejected on canonical loading. The specifically verified JSON-only optional-SSE INFO case is not-applicable, without success credit; other informational evidence is not silently promoted.
 
 An unknown future runner or requirement-set pin remains `Unverified` and receives no pass credit. A non-completed run remains `Incomplete`. If an official success contradicts a native review/reject decision with the same stable rule/check ID, the report records category `EvidenceConflict` with gate `ReviewRequired`; neither source silently overrides the other.
 

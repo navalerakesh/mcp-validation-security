@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, parse, resolve } from "node:path";
@@ -74,6 +76,13 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     });
   });
   try {
+    await assert.rejects(promisify(execFile)(cli, ["validate", "--server", server, "--mode", "standard", "--protocol-era", "legacy"], {
+      cwd: root, env: environment, timeout: 10_000,
+    }), error => {
+      const failed = error as Error & { code?: number; stdout?: string; stderr?: string };
+      return failed.code === 64 && /Comprehensive assessment requires/.test(`${failed.stdout ?? ""}${failed.stderr ?? ""}`);
+    });
+    await assert.rejects(access(processAudit), error => (error as NodeJS.ErrnoException).code === "ENOENT");
     await client.connect(transport);
     ownedWrapperPid = transport.pid;
     const surface = await client.listTools();
@@ -82,6 +91,14 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     const health = await client.callTool({ name: "health_check", arguments: { server, protocolEra: "legacy" } }, undefined, { timeout: 60_000, signal: operationSignal });
     assert.equal(record(health.structuredContent).exitCode, 0);
     assert.equal(health.isError, false);
+
+    const beforeDefault = await readFile(audit, "utf8");
+    const defaultResponse = await client.callTool({
+      name: "validate", arguments: { server, protocolEra: "legacy", mcpspec: "2025-11-25" },
+    }, undefined, { timeout: 60_000, signal: operationSignal });
+    assert.equal(defaultResponse.isError, true);
+    assert.equal(record(defaultResponse.structuredContent).exitCode, 64);
+    assert.equal(await readFile(audit, "utf8"), beforeDefault);
 
     const response = await client.callTool({
       name: "validate", arguments: { server, protocolEra: "legacy", mcpspec: "2025-11-25", assurance: "inventory" },
@@ -93,7 +110,7 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     assert.match(JSON.stringify(envelope.contentTrust), /untrusted-target-derived/);
     const result = record(envelope.result);
     assert.equal(result.documentType, "mcpval.assurance-result");
-    assert.equal(result.documentSchemaVersion, "3.4.0");
+    assert.equal(result.documentSchemaVersion, "3.5.0");
     assert.equal(record(result.run).executionMode, "safe");
     assert.equal(record(result.serverConfig).protocolEra, "legacy");
     const tools = record(record(result.measurements).toolValidation);

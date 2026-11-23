@@ -38,6 +38,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     private readonly ITelemetryService _telemetryService;
     private readonly ILogger<McpValidatorService> _logger;
     private readonly IValidatorProcessResourceSampler _processResourceSampler;
+    private static readonly IOfficialConformanceEvidenceImporter ConformanceImporter = new OfficialConformanceEvidenceImporter();
 
     /// <summary>
     /// Initializes a new instance of the McpValidatorService class.
@@ -97,6 +98,34 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     {
         ArgumentNullException.ThrowIfNull(request);
         var configuration = request.CreateConfiguration();
+        cancellationToken.ThrowIfCancellationRequested();
+        var admissionErrors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, request.ConformanceEvidenceJson != null);
+        if (admissionErrors.Count > 0)
+            throw new ValidationSessionException(string.Join(" ", admissionErrors), ValidationStatus.Failed);
+        OfficialConformanceImportResult? importedConformance = null;
+        if (request.ConformanceEvidenceJson != null)
+        {
+            importedConformance = ConformanceImporter.Import(request.ConformanceEvidenceJson, new OfficialConformanceImportContext
+            {
+                ExpectedTargetIdentitySha256 = request.TargetIdentitySha256,
+                ExpectedProtocolVersion = AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId
+                    ? configuration.Server.ProtocolVersion : null
+            });
+            if (AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId &&
+                importedConformance.Assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
+                throw new ValidationSessionException("Comprehensive assessment requires verified conformance evidence.", ValidationStatus.Failed);
+        }
+        ControlledIdentityScenarioPack? identityBaselinePack = null;
+        if (AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId || request.IdentityControls != null)
+        {
+            if (request.IdentityControls == null)
+                throw new ValidationSessionException("Comprehensive assessment requires the selected signed identity security baseline.", ValidationStatus.Failed);
+            var assessment = ControlledIdentitySecurityBaseline.VerifyRequirement(request.IdentityControls, request.RequestId,
+                request.TargetIdentitySha256, DateTimeOffset.UtcNow, cancellationToken);
+            if (!ControlledIdentitySecurityBaseline.HasCompleteSelection(request.IdentityControls))
+                throw new ValidationSessionException("The identity security baseline does not select all required control cases.", ValidationStatus.Failed);
+            identityBaselinePack = new ControlledIdentityScenarioPack(assessment, request.IdentityControls.Admission);
+        }
         ConfigureTransportPolicy(configuration.Server, configuration.Execution, force: true);
         var safeTarget = configuration.Server.CloneWithoutSecrets().Endpoint ?? "Unknown";
         _logger.LogInformation("Starting comprehensive validation for target: {Target}", safeTarget);
@@ -113,6 +142,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         };
         result.ValidationId = request.RequestId;
         result.Run.TargetIdentitySha256 = request.TargetIdentitySha256;
+        result.Run.ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe;
         var categoryEvidenceProjected = false;
         var scenarioEvidenceProjected = false;
         IReadOnlyList<ScenarioPackExecutionPlan> scenarioPlans = [];
@@ -123,6 +153,21 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         using var runTelemetry = ValidationObservability.BeginRun(
             result.ValidationId,
             configuration.Execution?.MaxRequests ?? ExecutionPolicyDefaults.DefaultMaxRequests);
+
+        var conformanceAttached = false;
+        var conformanceBound = false;
+        void AttachConformance()
+        {
+            if (conformanceAttached || !conformanceBound || importedConformance == null) return;
+            conformanceAttached = true;
+            var reconciliation = OfficialConformanceReconciler.Reconcile(importedConformance.Assessment, AssuranceClaimProjector.Project(result));
+            importedConformance.Assessment.Conflicts.AddRange(reconciliation.Conflicts);
+            importedConformance.Assessment.Decisions.AddRange(reconciliation.Decisions);
+            if (reconciliation.Conflicts.Count > 0) importedConformance.Assessment.VerificationStatus = OfficialConformanceVerificationStatus.Conflict;
+            result.Assessments.OfficialConformance = importedConformance.Assessment;
+            result.Evidence.Coverage.AddRange(importedConformance.Coverage);
+            result.Evidence.Observations.AddRange(importedConformance.Observations);
+        }
 
         ValidationResult CompleteRun()
         {
@@ -150,10 +195,16 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                         finally { result.OverallStatus = terminalStatus; }
                     }
                     assuranceEvaluationAttempted = true;
+                    AttachConformance();
                     result.Assurance = AssuranceAssessmentEngine.Evaluate(
                         result,
                         AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
-                        new AssuranceEvaluationContext { ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe });
+                        new AssuranceEvaluationContext
+                        {
+                            ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe,
+                            RequiredIdentityControls = request.IdentityControls,
+                            RequiredExtensionIds = configuration.Validation?.Extensions ?? []
+                        });
                 }
             }
             catch (Exception finalizationException)
@@ -249,7 +300,16 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             result.BootstrapHealth = session.BootstrapHealth;
             result.ServerProfile = session.ServerProfile;
             result.ServerProfileSource = session.ServerProfileSource;
+            if (importedConformance != null && importedConformance.Assessment.Target.ProtocolVersion != result.ProtocolVersion)
+            {
+                importedConformance = null;
+                result.Run.TerminationOutcome = ValidationOutcome.Inconclusive;
+                result.CriticalErrors.Add("Admitted conformance evidence does not match the negotiated protocol; active validation was not started.");
+                result.EndTime = DateTime.UtcNow;
+                return CompleteRun();
+            }
 
+            conformanceBound = importedConformance != null;
             var effectiveConcurrency = ValidationCalibration.GetFunctionalProbeConcurrency(session.EffectiveServer, requestedConcurrency);
             if (effectiveConcurrency != calibratedConcurrency)
             {
@@ -271,7 +331,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
             result.Run.ApplicabilityContext = applicabilityContext;
             PopulateAppliedPacks(result, applicabilityContext);
-            var resolvedScenarioPacks = _scenarioPackRegistry.Resolve(applicabilityContext).ToArray();
+            var resolvedScenarioPacks = _scenarioPackRegistry.Resolve(applicabilityContext)
+                .Concat(identityBaselinePack == null ? [] : new IValidationScenarioPack[] { identityBaselinePack }).ToArray();
             scenarioPlans = resolvedScenarioPacks.Select(pack => new ScenarioPackExecutionPlan(pack.Descriptor)).ToArray();
             var planningFailed = false;
             for (var packIndex = 0; packIndex < resolvedScenarioPacks.Length; packIndex++)
@@ -457,12 +518,15 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             }
 
             assuranceEvaluationAttempted = true;
+            AttachConformance();
             result.Assurance = AssuranceAssessmentEngine.Evaluate(
                 result,
                 AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
                 new AssuranceEvaluationContext
                 {
-                    ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe
+                    ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe,
+                    RequiredIdentityControls = request.IdentityControls,
+                    RequiredExtensionIds = configuration.Validation.Extensions
                 });
             result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(
                 result.Assurance,
@@ -1350,6 +1414,11 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             totalTests += result.ToolValidation.ToolsDiscovered;
             passedTests += result.ToolValidation.ToolsTestPassed;
             failedTests += result.ToolValidation.ToolsTestFailed;
+            var discoveredTools = result.ToolValidation.DiscoveredToolNames.ToHashSet(StringComparer.Ordinal);
+            var recordedTools = result.ToolValidation.ToolResults.Where(tool => discoveredTools.Contains(tool.ToolName)).ToArray();
+            skippedTests += recordedTools.Count(tool => tool.Status == TestStatus.Skipped);
+            authRequiredTests += recordedTools.Count(tool => tool.Status == TestStatus.AuthRequired);
+            inconclusiveTests += recordedTools.Count(tool => tool.Status == TestStatus.Inconclusive);
         }
 
         // Aggregate security testing results

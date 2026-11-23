@@ -40,7 +40,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                     errorCodeValidation,
                     expectedErrorCode: -32601,
                     scenarioName: "Invalid Method Call",
-                    errorType: "invalid-method",
+                    errorType: ValidationConstants.ProbeIds.InvalidMethod,
                     expectedResponse: "JSON-RPC error code -32601 (Method not found).",
                     unsupportedMessage: "Invalid-method probing is enabled, but the active transport did not expose a method-not-found error test.");
             }
@@ -51,7 +51,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                 {
                     unsupportedProbeCount++;
                     result.Findings.Add(CreateUnsupportedProbeFinding(
-                        "malformed-json",
+                        ValidationConstants.ProbeIds.MalformedJson,
                         "Malformed JSON probing is enabled, but the active stdio transport did not surface a JSON-RPC parse-error envelope for malformed input."));
                 }
                 else
@@ -61,7 +61,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                         errorCodeValidation,
                         expectedErrorCode: -32700,
                         scenarioName: "Malformed JSON Payload",
-                        errorType: "malformed-json",
+                        errorType: ValidationConstants.ProbeIds.MalformedJson,
                         expectedResponse: "JSON-RPC error code -32700 (Parse error).",
                         unsupportedMessage: "Malformed JSON probing is enabled, but the active transport did not expose a parse-error test.");
                 }
@@ -73,7 +73,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                 {
                     unsupportedProbeCount++;
                     result.Findings.Add(CreateUnsupportedProbeFinding(
-                        "invalid-request",
+                        ValidationConstants.ProbeIds.InvalidRequest,
                         "Graceful-degradation probing is enabled, but the active stdio transport did not surface a JSON-RPC invalid-request envelope for malformed input."));
                 }
                 else
@@ -83,7 +83,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                         errorCodeValidation,
                         expectedErrorCode: -32600,
                         scenarioName: "Graceful Degradation On Invalid Request",
-                        errorType: "invalid-request",
+                        errorType: ValidationConstants.ProbeIds.InvalidRequest,
                         expectedResponse: "JSON-RPC error code -32600 (Invalid request).",
                         unsupportedMessage: "Graceful-degradation probing is enabled, but the active transport did not expose an invalid-request error test.");
                 }
@@ -95,7 +95,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                     result,
                     await _httpClient.ProbeTimeoutRecoveryAsync(serverConfig.Endpoint!, ct),
                     scenarioName: "Timeout Handling Recovery",
-                    errorType: "timeout-handling",
+                    errorType: ValidationConstants.ProbeIds.TimeoutHandling,
                     expectedResponse: "Validator-induced timeout should surface a transport failure and the endpoint should respond to a follow-up recovery probe.");
             }
 
@@ -105,7 +105,7 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
                     result,
                     await _httpClient.ProbeConnectionInterruptionRecoveryAsync(serverConfig.Endpoint!, ct),
                     scenarioName: "Connection Interruption Recovery",
-                    errorType: "connection-interruption",
+                    errorType: ValidationConstants.ProbeIds.ConnectionInterruption,
                     expectedResponse: "Validator-induced transport interruption should not leave the endpoint unresponsive to a follow-up recovery probe.");
             }
 
@@ -186,44 +186,39 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         {
             var classification = JsonRpcResponseInspector.Classify(errorTest.ActualResponse);
 
-            // MCP 2025-11-25 Streamable HTTP §2.1: when the server cannot accept input
-            // (e.g. malformed JSON / missing jsonrpc / invalid request) it MUST return an
-            // HTTP error status code (e.g. 400 Bad Request); the JSON-RPC error body is MAY,
-            // not MUST. So a 4xx HTTP front-door rejection for parse-error (-32700) and
-            // invalid-request (-32600) is spec-allowed — it is a Guideline preference, not a
-            // protocol violation. 5xx still indicates a server fault and remains a Spec issue.
-            // For -32601/-32602 (well-formed JSON-RPC routing failures) the spec implies a
-            // JSON-RPC envelope return, so those continue to surface as Spec/High.
-            var isSpecAllowedFrontDoor =
-                classification.Surface == JsonRpcResponseSurface.HttpFrontDoorRejection &&
+            if (classification.Surface == JsonRpcResponseSurface.HttpFrontDoorRejection &&
                 classification.StatusCode is >= 400 and < 500 &&
-                (expectedErrorCode == -32700 || expectedErrorCode == -32600);
-
-            scenarioResult.AdditionalIssues.Add(isSpecAllowedFrontDoor
-                ? "Server returned an HTTP error status (spec-allowed for malformed/invalid input) instead of a JSON-RPC error envelope (preferred)."
-                : "Server did not return the expected structured JSON-RPC error response.");
-            scenarioResult.AdditionalIssues.Add(DescribeSurfaceIssue(classification, expectedErrorCode));
-
-            // Spec-allowed front-door rejection should not block the layer; mark the scenario
-            // as handled correctly so the error-handling layer score and pass/fail reflect
-            // observed spec behaviour rather than the validator's stylistic preference.
-            if (isSpecAllowedFrontDoor)
+                expectedErrorCode is -32700 or -32600)
             {
-                scenarioResult.HandledCorrectly = true;
-                scenarioResult.GracefulRecovery = true;
+                if (result.Status is not (TestStatus.Failed or TestStatus.Error)) result.Status = TestStatus.Inconclusive;
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE", Category = "ErrorHandling", Component = errorType,
+                    Severity = ValidationFindingSeverity.Info, Source = ValidationRuleSource.Guideline,
+                    Summary = $"HTTP {classification.StatusCode} rejected the malformed input; JSON-RPC error handling was not observed at the protocol boundary.",
+                    Recommendation = "Retain the front-door rejection and obtain protocol-boundary evidence before deciding parse-error conformance.",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["responseSurface"] = ToSurfaceLabel(classification.Surface),
+                        ["httpStatus"] = classification.StatusCode.ToString(),
+                        ["expectedErrorCode"] = expectedErrorCode.ToString()
+                    }
+                });
+                return;
             }
+
+            scenarioResult.AdditionalIssues.Add("Server did not return the expected structured JSON-RPC error response.");
+            scenarioResult.AdditionalIssues.Add(DescribeSurfaceIssue(classification, expectedErrorCode));
 
             result.Findings.Add(new ValidationFinding
             {
                 RuleId = "MCP.ERROR_HANDLING.NON_STANDARD_ERROR_RESPONSE",
-                Category = isSpecAllowedFrontDoor ? "ErrorHandling" : "Protocol",
+                Category = "Protocol",
                 Component = errorType,
-                Severity = isSpecAllowedFrontDoor ? ValidationFindingSeverity.Low : ValidationFindingSeverity.High,
-                Summary = BuildScenarioSummary(scenarioName, expectedErrorCode, classification, isSpecAllowedFrontDoor),
-                Recommendation = isSpecAllowedFrontDoor
-                    ? "MCP Streamable HTTP §2.1 allows responding to malformed or invalid input with an HTTP error status (e.g. 400). Returning a JSON-RPC error envelope alongside the HTTP status is preferred so AI agents can self-correct, but it is not required."
-                    : ComplianceRecommendations.GetRecommendation(ValidationConstants.CheckIds.ProtocolErrorHandling, "Error Code Violation"),
-                Source = isSpecAllowedFrontDoor ? ValidationRuleSource.Guideline : ValidationRuleSource.Spec,
+                Severity = ValidationFindingSeverity.High,
+                Summary = BuildScenarioSummary(scenarioName, expectedErrorCode, classification),
+                Recommendation = ComplianceRecommendations.GetRecommendation(ValidationConstants.CheckIds.ProtocolErrorHandling, "Error Code Violation"),
+                Source = ValidationRuleSource.Spec,
                 SpecReference = ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.ErrorHandling],
                 Metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
                 {
@@ -240,13 +235,8 @@ public class ErrorHandlingValidator : BaseValidator<ErrorHandlingValidator>, IEr
         result.ErrorScenarioResults.Add(scenarioResult);
     }
 
-    private static string BuildScenarioSummary(string scenarioName, int expectedErrorCode, JsonRpcResponseClassification classification, bool isSpecAllowedFrontDoor = false)
+    private static string BuildScenarioSummary(string scenarioName, int expectedErrorCode, JsonRpcResponseClassification classification)
     {
-        if (isSpecAllowedFrontDoor)
-        {
-            return $"Error-handling scenario '{scenarioName}' was rejected at the HTTP front door (HTTP {classification.StatusCode}); MCP Streamable HTTP §2.1 allows this for malformed or invalid input. Returning a JSON-RPC error envelope with code {expectedErrorCode} alongside the HTTP error is preferred for AI agent self-correction but is not required.";
-        }
-
         return classification.Surface switch
         {
             JsonRpcResponseSurface.HttpFrontDoorRejection =>

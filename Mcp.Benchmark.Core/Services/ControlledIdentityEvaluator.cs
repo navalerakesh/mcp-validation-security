@@ -12,7 +12,7 @@ public static class ControlledIdentityEvaluator
         ArgumentNullException.ThrowIfNull(contract);
         ArgumentNullException.ThrowIfNull(observations);
         ControlledIdentityMatrixContract? admitted = null;
-        if (contract.ContractRevision != ControlledIdentityMatrixContract.CurrentRevision ||
+        if (!ControlledIdentityMatrixContract.IsSupportedRevision(contract.ContractRevision) ||
             !new[] { contract.PolicyRevision, contract.ToolName, contract.ObserverId, admittedRunId, trustedObserverId }.All(ControlledEvidenceAdmission.IsValidIdentifier) ||
             contract.ObserverId != trustedObserverId || !ControlledEvidenceAdmission.IsSha256(admittedTargetDigest) ||
             !ControlledEvidenceAdmission.IsSha256(admittedRouteDigest) || contract.MaximumEvidenceAge <= TimeSpan.Zero || contract.MaximumObservationDelay <= TimeSpan.Zero ||
@@ -29,6 +29,7 @@ public static class ControlledIdentityEvaluator
                 entry.Binding.TargetIdentitySha256 != admittedTargetDigest || entry.Binding.RouteIdentitySha256 != admittedRouteDigest ||
                 !cases.TryAdd(entry.CaseId, entry) || !operations.Add(entry.Binding.OperationId) || !attempts.Add(entry.Binding.AttemptId) || !requests.Add(entry.Binding.RequestId) ||
                 !Enum.IsDefined(entry.IdentityRole) || entry.ExpectedDecision is not (ControlledAuthorizationDecision.Allowed or ControlledAuthorizationDecision.Denied) ||
+                entry.SecurityChallenge is { } challenge && (contract.ContractRevision == ControlledIdentityMatrixContract.LegacyRevision || !Enum.IsDefined(challenge)) ||
                 (entry.IsPositiveControl ? entry.ExpectedDecision != ControlledAuthorizationDecision.Allowed || entry.PositiveControlCaseId != null
                     : !ControlledEvidenceAdmission.IsValidIdentifier(entry.PositiveControlCaseId))) return Rejected();
         }

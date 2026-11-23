@@ -36,7 +36,14 @@ export async function handleValidate(input: ValidateInput, signal?: AbortSignal)
 
   const args: string[] = [];
   if (input.policy) args.push("--policy", input.policy);
-  if (input.assurance) args.push("--assurance", input.assurance);
+  const assurance = input.assurance ?? "comprehensive";
+  args.push("--assurance", assurance);
+  if (assurance === "comprehensive" && config.comprehensiveAssurance.enabled) {
+    args.push("--mode", config.comprehensiveAssurance.executionMode,
+      "--conformance-results", config.comprehensiveAssurance.conformanceResultsPath!,
+      "--identity-baseline", config.comprehensiveAssurance.identityBaselinePath!,
+      "--validation-id", config.comprehensiveAssurance.validationId!);
+  }
   if (input.assurance === "provider") {
     if (!config.providerAssurance.enabled) {
       return commandError(

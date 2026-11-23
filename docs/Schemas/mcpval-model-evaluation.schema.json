@@ -23,7 +23,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.model-evaluation" },
-    "documentSchemaVersion": { "const": "2.0.0" },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0"] },
     "timestampUtc": { "type": "string", "format": "date-time" },
     "validationId": { "type": "string", "minLength": 1 },
     "sessionId": { "type": "string", "minLength": 1 },
@@ -45,7 +45,7 @@
       "additionalProperties": false
     },
     "summary": { "type": "string" },
-    "assuranceProfile": { "enum": ["inventory", "ci", "provider"] },
+    "assuranceProfile": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
     "coreConformance": { "enum": ["conformant", "nonconformant", "incomplete"] },
     "securityAssurance": { "enum": ["verified", "issuesFound", "incomplete"] },
     "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },

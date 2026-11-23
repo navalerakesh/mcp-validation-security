@@ -5,6 +5,15 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class LoadTestResult
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? PeakInFlightRequests { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? TimingSampleCount { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? ObservationDurationMs { get; set; }
+
     /// <summary>
     /// Gets or sets the maximum number of concurrent connections tested.
     /// </summary>

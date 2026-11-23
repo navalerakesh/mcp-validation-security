@@ -123,7 +123,7 @@ One tool response omitted the outer result object.
 - Outcome: **ReviewRequired**; dimension: CoreProtocol; requirement: Should
 - Authority: OfficialSpecification; recorded confidence: High
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-11.1`; source: `Not recorded`
+- Source revision: `2026-11-22.1`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -147,7 +147,7 @@ Tool 'delete_repo' has parameters without descriptions.
 - Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
 - Authority: Heuristic; recorded confidence: Medium
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-11.1`; source: `Not recorded`
+- Source revision: `2026-11-22.1`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -159,7 +159,7 @@ Tool 'delete_repo' does not declare annotations.destructiveHint.
 - Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
 - Authority: ProviderPolicy; recorded confidence: Medium
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-11.1`; source: `Not recorded`
+- Source revision: `2026-11-22.1`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -183,7 +183,7 @@ Server reflected untrusted prompt content without sanitization.
 - Outcome: **Violated**; dimension: Security; requirement: SecurityControl
 - Authority: DeterministicSecurity; recorded confidence: High
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-11.1`; source: `Not recorded`
+- Source revision: `2026-11-22.1`; source: `Not recorded`
 - Recorded correction: Sanitize and label untrusted content before returning it.
 - Evidence reference: `probe-prompt-get-reflection-200`
 

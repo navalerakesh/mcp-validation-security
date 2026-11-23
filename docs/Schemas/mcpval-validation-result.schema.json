@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0"] },
     "startTime": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "endTime": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "producer": {
@@ -111,7 +111,19 @@
         "resourceTesting": { "$ref": "#/$defs/catalogMeasurement" },
         "promptTesting": { "$ref": "#/$defs/catalogMeasurement" },
         "securityTesting": { "type": ["object", "null"] },
-        "performanceTesting": { "type": ["object", "null"] },
+        "performanceTesting": {
+          "type": ["object", "null"],
+          "properties": {
+            "loadTesting": {
+              "type": ["object", "null"],
+              "properties": {
+                "timingSampleCount": { "type": ["integer", "null"], "minimum": 0 },
+                "peakInFlightRequests": { "type": ["integer", "null"], "minimum": 0 },
+                "observationDurationMs": { "type": ["number", "null"], "minimum": 0 }
+              }
+            }
+          }
+        },
         "errorHandling": { "type": ["object", "null"] },
         "officialConformance": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/officialConformanceAssessment" }] },
         "extensions": { "type": "array", "items": { "$ref": "#/$defs/extensionAssessment" } },
@@ -152,14 +164,36 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "allOf": [{
-    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0"] } }, "required": ["documentSchemaVersion"] },
+    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0"] } }, "required": ["documentSchemaVersion"] },
     "then": { "required": ["startTime"] }
   }],
   "$defs": {
+    "controlledIdentitySecurityRequirement": {
+      "type": "object",
+      "required": ["contract", "admission", "signedEvidenceJson", "trustedObserverPublicKeyPem", "actorBindingCaseId", "scopeEnforcementCaseId", "authorizationCaseId"],
+      "properties": {
+        "contract": { "$ref": "#/$defs/controlledIdentityContract" },
+        "admission": {
+          "type": "object", "required": ["runId", "targetIdentitySha256", "routeIdentitySha256", "observerId"],
+          "properties": {
+            "runId": { "$ref": "#/$defs/controlledStateIdentifier" },
+            "targetIdentitySha256": { "$ref": "#/$defs/controlledStateDigest" },
+            "routeIdentitySha256": { "$ref": "#/$defs/controlledStateDigest" },
+            "observerId": { "$ref": "#/$defs/controlledStateIdentifier" }
+          }, "additionalProperties": false
+        },
+        "signedEvidenceJson": { "type": "string", "minLength": 1, "maxLength": 1048576 },
+        "trustedObserverPublicKeyPem": { "type": "string", "minLength": 1, "maxLength": 16384 },
+        "actorBindingCaseId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "scopeEnforcementCaseId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "authorizationCaseId": { "$ref": "#/$defs/controlledStateIdentifier" }
+      }, "additionalProperties": false
+    },
     "controlledIdentityDecision": { "enum": ["unknown", "allowed", "denied", 0, 1, 2] },
     "controlledIdentityCase": {
       "type": "object", "required": ["caseId", "binding", "scopePredicateId", "expectedEffectiveActorAlias", "expectedDecision", "identityRole", "isPositiveControl"],
       "properties": {
+        "securityChallenge": { "enum": [null, "actorSubstitution", "insufficientScope", "unauthorizedActorOrObject", 0, 1, 2] },
         "caseId": { "$ref": "#/$defs/controlledStateIdentifier" },
         "binding": { "$ref": "#/$defs/controlledOperationBinding" },
         "scopePredicateId": { "$ref": "#/$defs/controlledStateIdentifier" },
@@ -173,14 +207,19 @@
     "controlledIdentityContract": {
       "type": "object", "required": ["contractRevision", "policyRevision", "toolName", "observerId", "cases", "maximumEvidenceAge", "maximumObservationDelay"],
       "properties": {
-        "contractRevision": { "const": "1.0.0" },
+        "contractRevision": { "enum": ["1.0.0", "1.1.0"] },
         "policyRevision": { "$ref": "#/$defs/controlledStateIdentifier" },
         "toolName": { "$ref": "#/$defs/controlledStateIdentifier" },
         "observerId": { "$ref": "#/$defs/controlledStateIdentifier" },
         "cases": { "type": "array", "minItems": 1, "maxItems": 64, "items": { "$ref": "#/$defs/controlledIdentityCase" } },
         "maximumEvidenceAge": { "$ref": "#/$defs/controlledStateDuration" },
         "maximumObservationDelay": { "$ref": "#/$defs/controlledStateDuration" }
-      }, "additionalProperties": false
+      },
+      "allOf": [{
+        "if": { "properties": { "contractRevision": { "const": "1.0.0" } }, "required": ["contractRevision"] },
+        "then": { "properties": { "cases": { "items": { "properties": { "securityChallenge": { "const": null } } } } } }
+      }],
+      "additionalProperties": false
     },
     "controlledIdentityObservation": {
       "type": "object", "required": ["caseId", "binding", "observerId", "scopePredicateId", "observerOutcome", "complete", "decision"],
@@ -462,6 +501,8 @@
       "type": "object",
       "required": ["contractVersion", "profile", "claims", "assessments", "evidenceSummary", "certificateEligibility"],
       "properties": {
+        "requiredExtensionIds": { "type": ["array", "null"], "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
+        "requiredIdentityControls": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledIdentitySecurityRequirement" }] },
         "contractVersion": { "const": "2.0.0" },
         "profile": { "$ref": "#/$defs/assuranceProfile" },
         "claims": { "type": "array", "items": { "$ref": "#/$defs/assuranceClaim" } },
@@ -475,7 +516,7 @@
       "type": "object",
       "required": ["profileId", "revision", "minimumExecutionMode", "minimumEvidenceCoverageRatio", "minimumEvidenceConfidenceRatio", "minimumRepeatedRunConsistency", "requiresOfficialConformance", "requiresSignedAttestation", "requiresRepeatedRuns", "certificateEligible"],
       "properties": {
-        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "profileId": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
         "revision": { "type": "string", "minLength": 1 },
         "minimumExecutionMode": { "enum": ["safe", "standard", "elevated"] },
         "minimumEvidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
@@ -596,6 +637,7 @@
       "type": "object",
       "required": ["status", "creditedPassed", "failed", "skipped", "conflictCount"],
       "properties": {
+        "verificationStatus": { "enum": [null, "verified", "unverified", "incomplete", "conflict"] },
         "status": { "enum": ["notProvided", "verified", "nonconformant", "incomplete", "conflict"] },
         "requirementSetRevision": { "type": ["string", "null"] },
         "requirementSetSha256": { "type": ["string", "null"], "pattern": "^[a-f0-9]{64}$" },
@@ -611,7 +653,7 @@
       "required": ["status", "profileId", "reasons", "evidenceCoverageRatio", "evidenceConfidenceRatio"],
       "properties": {
         "status": { "enum": ["eligible", "ineligible", "reviewRequired"] },
-        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "profileId": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
         "reasons": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "evidenceCoverageRatio": { "type": "number", "minimum": 0, "maximum": 1 },
         "evidenceConfidenceRatio": { "type": "number", "minimum": 0, "maximum": 1 }
@@ -657,7 +699,7 @@
       "properties": {
         "baselineValidationId": { "type": "string", "minLength": 1 },
         "baselineDocumentSchemaVersion": { "type": "string", "pattern": "^[23]\\.[0-9]+\\.[0-9]+$" },
-        "profileId": { "enum": ["inventory", "ci", "provider"] },
+        "profileId": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
         "profileRevision": { "type": "string", "minLength": 1 },
         "coreConformanceBefore": { "enum": ["conformant", "nonconformant", "incomplete"] },
         "coreConformanceAfter": { "enum": ["conformant", "nonconformant", "incomplete"] },
@@ -841,7 +883,28 @@
         "skipped": { "type": "integer", "minimum": 0 },
         "informational": { "type": "integer", "minimum": 0 },
         "evidenceSummary": { "$ref": "#/$defs/evidenceSummary" },
-        "scenarios": { "type": "array", "items": { "type": "object" } },
+        "scenarios": {
+          "type": "array", "items": {
+            "type": "object", "properties": {
+              "checks": {
+                "type": "array", "items": {
+                  "type": "object", "properties": {
+                    "sourceIndex": { "type": ["integer", "null"], "minimum": 0, "maximum": 8191 },
+                    "prerequisiteMissing": { "type": "boolean" },
+                    "applicability": { "enum": ["applicable", "notApplicable", 0, 1] }
+                  },
+                  "allOf": [{
+                    "if": { "properties": { "applicability": { "enum": ["notApplicable", 1] } }, "required": ["applicability"] },
+                    "then": { "properties": { "status": { "enum": ["info", 4] } }, "required": ["status"] }
+                  }, {
+                    "if": { "properties": { "prerequisiteMissing": { "const": true } }, "required": ["prerequisiteMissing"] },
+                    "then": { "properties": { "status": { "enum": ["failure", "warning", 1, 2] }, "applicability": { "enum": ["applicable", 0] } }, "required": ["status"] }
+                  }]
+                }
+              }
+            }
+          }
+        },
         "conflicts": { "type": "array", "items": { "type": "object" } },
         "decisions": { "type": "array", "items": { "type": "object" } }
       },

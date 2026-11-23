@@ -2,6 +2,8 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Infrastructure.Validators;
+using Mcp.Benchmark.Infrastructure.Scenarios;
+using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging;
 using Moq;
 using FluentAssertions;
@@ -12,6 +14,85 @@ namespace Mcp.Benchmark.Tests.Integration;
 
 public class PerformanceValidatorIntegrationTests
 {
+    [Theory]
+    [InlineData("performance-latency")]
+    [InlineData("performance-concurrency")]
+    [InlineData("performance-throughput")]
+    public async Task PerformanceObligation_ShouldDetectMissingMeasurementDespitePassingCategory(string scenarioId)
+    {
+        var overlap = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(async () =>
+            {
+                var call = Interlocked.Increment(ref calls);
+                if (call is 2 or 3)
+                {
+                    if (call == 3) overlap.TrySetResult();
+                    await overlap.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                }
+                return new JsonRpcResponse { StatusCode = 200, IsSuccess = true, ElapsedMs = 50 };
+            });
+        var configuration = new McpValidatorConfiguration();
+        configuration.Server.Endpoint = "https://example.invalid/mcp";
+        configuration.Server.Transport = "http";
+        configuration.Validation.Categories.PerformanceTesting.MaxConcurrentConnections = 2;
+        var measured = await _validator.PerformLoadTestingAsync(configuration.Server, configuration.Validation.Categories.PerformanceTesting);
+        measured.Status.Should().Be(TestStatus.Passed);
+        measured.LoadTesting.PeakInFlightRequests.Should().Be(2);
+        var result = new ValidationResult { PerformanceTesting = measured };
+        var context = new ValidationScenarioContext
+        {
+            ServerConfig = configuration.Server, ValidationConfiguration = configuration, ValidationResult = result,
+            ApplicabilityContext = new ValidationApplicabilityContext
+            {
+                NegotiatedProtocolVersion = "2025-11-25", SchemaVersion = "2025-11-25", Transport = "http", AccessMode = "public"
+            }
+        };
+        var scenario = new BuiltInObservedSurfaceScenarioPack().GetScenarios().Single(candidate => candidate.Descriptor.Key.Value == scenarioId);
+        var complete = await scenario.ExecuteAsync(context, CancellationToken.None);
+        complete.Coverage.Should().ContainSingle(coverage => coverage.ObservedOutcome == ValidationOutcome.Succeeded);
+        switch (scenarioId)
+        {
+            case "performance-latency": measured.LoadTesting.TimingSampleCount = null; break;
+            case "performance-concurrency": measured.LoadTesting.PeakInFlightRequests = 1; break;
+            case "performance-throughput": measured.LoadTesting.ObservationDurationMs = null; break;
+        }
+        var missing = await scenario.ExecuteAsync(context, CancellationToken.None);
+        measured.Status.Should().Be(TestStatus.Passed);
+        missing.Coverage.Should().ContainSingle(coverage => coverage.Status == ValidationCoverageStatus.Unavailable);
+        result.Evidence.Coverage.AddRange(missing.Coverage);
+        AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive).Assessments.OperationalReadiness.Status
+            .Should().Be(OperationalReadinessStatus.Incomplete);
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(-1.0, false)]
+    [InlineData(double.NaN, false)]
+    [InlineData(double.PositiveInfinity, false)]
+    [InlineData(0.0, true)]
+    [InlineData(0.6, true)]
+    public async Task LoadTimings_ShouldDistinguishObservedZeroFromMissingAndInvalidSamples(double? elapsed, bool captured)
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, ElapsedMs = elapsed });
+        var measured = await _validator.PerformLoadTestingAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new PerformanceTestingConfig { MaxConcurrentConnections = 1 });
+
+        measured.LoadTesting.TimingSampleCount.Should().Be(captured ? measured.LoadTesting.TotalRequests : 0);
+        measured.LoadTesting.ObservationDurationMs.Should().BeGreaterThan(0);
+        measured.LoadTesting.SuccessfulRequests.Should().Be(measured.LoadTesting.TotalRequests);
+        measured.LoadTesting.PeakInFlightRequests.Should().Be(1);
+        measured.Status.Should().Be(captured ? TestStatus.Passed : TestStatus.Inconclusive);
+        if (!captured)
+        {
+            measured.Score.Should().Be(0);
+            measured.Throughput.MeetsPerformanceTargets.Should().BeFalse();
+        }
+    }
+
     private readonly PerformanceValidator _validator;
     private readonly Mock<IMcpHttpClient> _httpClient;
 
@@ -19,6 +100,45 @@ public class PerformanceValidatorIntegrationTests
     {
         _httpClient = new Mock<IMcpHttpClient>();
         _validator = new PerformanceValidator(new Mock<ILogger<PerformanceValidator>>().Object, _httpClient.Object);
+    }
+
+    [Fact]
+    public async Task LoadMeasurement_ShouldNeverInvokeAnAdvertisedToolWithoutWorkloadAdmission()
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = 200, IsSuccess = true, ElapsedMs = 50,
+                RawJson = """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"delete_all_records","inputSchema":{"type":"object"},"annotations":{"destructiveHint":true}}]}}"""
+            });
+
+        var measured = await _validator.PerformLoadTestingAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new PerformanceTestingConfig { MaxConcurrentConnections = 1 });
+
+        measured.LoadTesting.SuccessfulRequests.Should().BeGreaterThan(0);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ToolsCall,
+            It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(false, OperationalReadinessStatus.Ready)]
+    [InlineData(true, OperationalReadinessStatus.Incomplete)]
+    public async Task MeasuredPerformance_ShouldNotTurnScopeAdviceIntoRequiredEvidenceDebt(bool missingObjective, OperationalReadinessStatus expected)
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{}", ElapsedMs = 50 });
+        var performance = await _validator.PerformLoadTestingAsync(new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" },
+            new PerformanceTestingConfig { MaxConcurrentConnections = 1 }, CancellationToken.None);
+        var result = new ValidationResult { PerformanceTesting = performance };
+        result.Evidence.Coverage.Add(ValidationCoverageFactory.FromOutcome("performance", "configured-load-objective",
+            missingObjective ? ValidationOutcome.Unavailable : ValidationOutcome.Succeeded));
+
+        var assessment = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Ci);
+
+        assessment.Assessments.OperationalReadiness.Status.Should().Be(expected);
+        assessment.Claims.Should().Contain(claim => claim.Metadata.ContainsKey("ruleId") && claim.Metadata["ruleId"] == "MCP.GUIDELINE.PERFORMANCE.SYNTHETIC_PROBE",
+            "scope advice must remain visible");
     }
 
     [Fact]

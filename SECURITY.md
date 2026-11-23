@@ -45,6 +45,8 @@ When using MCP Validator against third-party or production-adjacent systems:
 - Use the same dry-run-first workflow for `mcpval health-check` and `mcpval discover` when probing third-party targets.
 - Prefer `--mode safe` unless you intentionally need a broader execution surface.
 - Safe mode performs discovery and static metadata/schema analysis only. It does not invoke target tools or run malformed, attack, or load probes.
+- Select `--assurance inventory` for Safe discovery. Comprehensive execution requires the approved signed identity baseline and an independently reserved validation ID as well as official conformance evidence; report detail does not grant execution authority.
+- Baseline observer keys must be public keys chosen independently of target responses. Contracts and observations must use nonsecret aliases. Signatures bind assertions, not observer truthfulness or independence; those remain operator prerequisites. Reusing a run ID or signed envelope does not establish a new observation.
 - Use `--allow-host` to pin the outbound host set when validating remote systems.
 - Use `--allow-origin` to authorize exact scheme/host/port combinations, especially for auxiliary authorization metadata endpoints or custom ports.
 - Do not use `--mode elevated` without an explicit review and `--confirm-elevated-risk`.

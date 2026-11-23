@@ -27,7 +27,28 @@ If you are looking for installation or end-user usage guidance, start with the r
 
 Transport support is intentionally command-specific: `validate` and `health-check` support HTTP and STDIO targets today, `discover` is HTTP-first, and `report` is offline only.
 
-`validate --assurance inventory|ci|provider` selects the V2 assurance contract. `validate --conformance-results <wrapper.json>` imports pinned official conformance evidence through the Core importer contract. Provider assurance additionally requires `--provider-harness <manifest.json>`, `--provider-authorization-key <public-key.pem>`, and `--sign-attestation`; the P-256-signed authorization and prior-run harness, target, protocol revision, dry-run execution-plan digest, repeated receipts, and internally produced current run must all verify. Repeatable `--extension <id>` selections flow through the existing applicability resolver; they do not create extension-specific top-level commands. Core, security, operations, extensions, clients, and external conformance remain independent typed assessments.
+`validate --assurance comprehensive|inventory|ci|provider` selects the V2 assurance contract. The default is `comprehensive`, policy revision `2026-11-22.3`: execution requires explicit standard or elevated admission, pinned target-bound official conformance evidence, and the signed identity baseline described below. Missing prerequisites are rejected before target contact; missing required assessment evidence cannot earn a successful exit. Safe execution remains the default mode, so use `--assurance inventory` explicitly for discovery/static assessment. A dry run is planning only, not assessment acceptance. General per-check completeness and a fully evidenced comprehensive owned run are still under qualification; see the [recovery tracker](../docs/EnterpriseRecoveryProgress.md).
+
+Default performance scope is client-observable catalog latency, concurrent requests and throughput, not an application workload SLA or capacity-limit guarantee. Target memory, buffer-overflow and resource-exhaustion qualification are explicit additional requirements (`testMemoryUsage`, `testBufferOverflow`, `testResourceExhaustion` default to false). Selecting them in a comprehensive request currently fails closed because the required operator-owned observer or isolated stress harness is unavailable. Generic load measurement never selects and invokes an advertised application tool.
+
+`validate --conformance-results <wrapper.json>` imports pinned official conformance evidence through the Core importer contract. Provider assurance additionally requires `--provider-harness <manifest.json>`, `--provider-authorization-key <public-key.pem>`, and `--sign-attestation`; the P-256-signed authorization and prior-run harness, target, protocol revision, dry-run execution-plan digest, repeated receipts, and internally produced current run must all verify. Repeatable `--extension <id>` selections flow through the existing applicability resolver; they do not create extension-specific top-level commands. Core, security, operations, extensions, clients, and external conformance remain independent typed assessments.
+
+## Comprehensive Admission
+
+The current comprehensive policy revision is `2026-11-22.3`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
+
+Reserve the validation ID independently before collecting the controlled observations. `--identity-baseline` reads a bounded JSON selection containing `contract`, `admission`, `signedEvidenceJson`, `trustedObserverPublicKeyPem`, `actorBindingCaseId`, `scopeEnforcementCaseId`, and `authorizationCaseId`. It uses the existing identity contract and original signed envelope, not a second observation format. The three selected denial cases must declare the corresponding signed challenges and reference successful positive controls. Supply only nonsecret run-local aliases and an independently trusted public key, never a private key or credentials.
+
+```bash
+mcpval validate --server https://example.test/mcp \
+  --assurance comprehensive --mode standard \
+  --validation-id "$RESERVED_RUN_ID" \
+  --identity-baseline ./identity-baseline.json \
+  --conformance-results ./official-conformance.json \
+  --output ./mcp-reports
+```
+
+The CLI verifies target, independently planned run ID, signature, observer, case selection and freshness before transport setup. Evidence cannot choose its own run ID. Use a fresh reserved ID for a new independent assessment; replaying the same evidence is not a new observation or repeated-run certificate. Correlated library callers reserve `ValidationRunRequest`, collect the approved observations, then attach the selection with `WithIdentityControls`. Canonical results retain verified selection for signature-checked replay; rejected or quarantined raw envelopes are not retained as baseline inputs. Missing or failed observations never gain credit.
 
 ## Local Development
 

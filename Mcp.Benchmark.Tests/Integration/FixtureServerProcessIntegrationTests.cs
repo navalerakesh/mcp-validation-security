@@ -133,6 +133,13 @@ public class FixtureServerProcessIntegrationTests
                 cases.Add(new ControlledIdentityCase
                 {
                     CaseId = mode, Binding = binding, ScopePredicateId = "owned-object-effects", ExpectedEffectiveActorAlias = principal,
+                    SecurityChallenge = mode switch
+                    {
+                        "claimed-actor" => ControlledIdentityChallenge.ActorSubstitution,
+                        "other-actor" => ControlledIdentityChallenge.UnauthorizedActorOrObject,
+                        "insufficient-scope" => ControlledIdentityChallenge.InsufficientScope,
+                        _ => null
+                    },
                     ExpectedDecision = index == 0 ? ControlledAuthorizationDecision.Allowed : ControlledAuthorizationDecision.Denied,
                     IdentityRole = ControlledIdentityRole.CallerAssertion, IsPositiveControl = index == 0, PositiveControlCaseId = index == 0 ? null : "control"
                 });
@@ -201,7 +208,23 @@ public class FixtureServerProcessIntegrationTests
             }, deadline.Token);
             canonical.Assessments.Scenarios.Add(execution.Scenario);
             canonical.Evidence.Coverage.AddRange(execution.Coverage);
-            canonical.Assurance = AssuranceAssessmentEngine.Evaluate(canonical, AssuranceProfileCatalog.Inventory);
+            canonical.EndTime = DateTime.UtcNow;
+            var baselineRequirement = new ControlledIdentitySecurityRequirement(contract,
+                new ControlledIdentityAdmission(runId, targetDigest, routeDigest, contract.ObserverId), serialized,
+                key.ExportSubjectPublicKeyInfoPem(), "claimed-actor", "insufficient-scope", "other-actor");
+            canonical.Assurance = AssuranceAssessmentEngine.Evaluate(canonical, AssuranceProfileCatalog.Comprehensive,
+                new AssuranceEvaluationContext { RequiredIdentityControls = baselineRequirement, ExecutionMode = ExecutionMode.Standard });
+            var securityClaims = canonical.Assurance.Claims.Where(claim => ControlledIdentitySecurityBaseline.RequiredClaimIds.Contains(claim.ClaimId)).ToArray();
+            securityClaims.Should().HaveCount(3);
+            securityClaims.Single(claim => claim.Subject == "actor-binding").Outcome.Should().Be(unavailableObserver ? AssuranceClaimOutcome.Incomplete
+                : brokenPolicy ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.Satisfied);
+            securityClaims.Single(claim => claim.Subject == "scope-enforcement").Outcome.Should().Be(unavailableObserver || counterDrift
+                ? AssuranceClaimOutcome.Incomplete : AssuranceClaimOutcome.Satisfied);
+            securityClaims.Single(claim => claim.Subject == "actor-action-object-authorization").Outcome.Should().Be(unavailableObserver
+                ? AssuranceClaimOutcome.Incomplete : AssuranceClaimOutcome.Satisfied);
+            canonical.Assurance.Assessments.SecurityAssurance.Status.Should().Be(brokenPolicy ? SecurityAssuranceStatus.IssuesFound
+                : unavailableObserver || counterDrift ? SecurityAssuranceStatus.Incomplete : SecurityAssuranceStatus.Verified);
+            canonical.Assurance.Assessments.CoreConformance.RequiredClaims.Should().Be(0, "identity controls do not earn MCP core-conformance credit");
             var assessment = execution.Scenario.ControlledIdentity!;
             assessment.Outcome.Should().Be(expected);
             assessment.Cases.Should().HaveCount(4);

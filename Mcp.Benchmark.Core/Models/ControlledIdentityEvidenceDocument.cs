@@ -6,7 +6,8 @@ namespace Mcp.Benchmark.Core.Models;
 public sealed record ControlledIdentityEvidenceDocument : ISignedControlledEvidence
 {
     public const string Type = "mcpval.controlled-identity-evidence";
-    public const string Revision = "1.0.0";
+    public const string LegacyRevision = "1.0.0";
+    public const string Revision = "1.1.0";
     public string DocumentType { get; init; } = Type;
     public string DocumentSchemaVersion { get; init; } = Revision;
     public required ControlledIdentityMatrixContract Contract { get; init; }

@@ -123,7 +123,9 @@ public class ValidateCommand
         string[]? extensionIds = null,
         FileInfo? providerHarnessFile = null,
         FileInfo? providerAuthorizationKeyFile = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        FileInfo? identityBaselineFile = null,
+        string? validationId = null)
     {
         var structuredOutput = string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase);
         _consoleOutput.SetVerbose(verbose);
@@ -174,6 +176,12 @@ public class ValidateCommand
                 sources);
             configuration.Execution ??= new ExecutionPolicy();
             ApplyTestExecutionOverrides(configuration, configuration.Execution.MaxConcurrency, sources);
+            var comprehensiveErrors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, conformanceResultsFile != null, configuration.Execution.DryRun);
+            if (comprehensiveErrors.Count > 0)
+                throw new CliUsageException(string.Join(" ", comprehensiveErrors));
+            if (configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && !configuration.Execution.DryRun &&
+                _validatorService is not ICorrelatedMcpValidatorService)
+                throw new CliUsageException("Comprehensive assessment requires a validator service supporting immutable admitted run requests.");
             targetEndpoint = configuration.Server.Endpoint ?? targetEndpoint;
             var effectiveProfile = configuration.Server.Profile;
 
@@ -193,7 +201,7 @@ public class ValidateCommand
             EnsureAuthenticationPrerequisites(effectiveProfile, configuration, token, interactive, targetEndpoint);
 
             // Apply authentication overrides from CLI if provided
-            ApplyAuthenticationOverrides(configuration, token, interactive, sources);
+            CommandConnectionHelper.ApplyAuthenticationOverrides(configuration.Server, token, interactive, sources);
 
             // Apply output directory override if specified
             if (outputDirectory != null)
@@ -252,6 +260,9 @@ public class ValidateCommand
 
             _sessionContext.ApplyExecutionPolicy(configuration.Execution);
             var executionPlan = _executionGovernanceService.BuildValidationPlan(_sessionContext, configuration, explicitOutputDirectory);
+            if (validationId != null && !ControlledEvidenceAdmission.IsValidIdentifier(validationId))
+                throw new CliUsageException("The reserved validation ID is invalid.");
+            executionPlan.ValidationId = validationId ?? _sessionContext.SessionId;
             executionPlan.ConfigurationSources = sources.Snapshot(configuration);
             if (!executionPlan.IsValid)
             {
@@ -261,8 +272,34 @@ public class ValidateCommand
 
             var conformanceEvidenceJson = await LoadOfficialConformanceEvidenceAsync(
                 conformanceResultsFile,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && !configuration.Execution.DryRun
+                    ? new OfficialConformanceImportContext
+                    {
+                        ExpectedTargetIdentitySha256 = executionPlan.TargetDigest,
+                        ExpectedProtocolVersion = executionPlan.ResolvedSchemaVersion
+                    } : null).ConfigureAwait(false);
             var baselineResult = baselineFile == null ? null : await LoadBaselineAsync(baselineFile, cancellationToken).ConfigureAwait(false);
+            ControlledIdentitySecurityRequirement? identityControls = null;
+            if (identityBaselineFile != null)
+            {
+                identityControls = await BoundedArtifactReader.ReadIdentityBaselineAsync(identityBaselineFile, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    ControlledIdentitySecurityBaseline.VerifyRequirement(identityControls, executionPlan.ValidationId,
+                        executionPlan.TargetDigest, DateTimeOffset.UtcNow, cancellationToken);
+                    if (!ControlledIdentitySecurityBaseline.HasCompleteSelection(identityControls))
+                        throw new InvalidDataException("The selected baseline does not identify all required control cases.");
+                }
+                catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
+                {
+                    throw new CliUsageException("The selected signed identity baseline could not be admitted.", exception);
+                }
+            }
+            if (!configuration.Execution.DryRun && configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && identityControls == null)
+                throw new CliUsageException("Comprehensive assessment requires --identity-baseline with the selected signed security controls.");
+            if (identityControls != null && _validatorService is not ICorrelatedMcpValidatorService)
+                throw new CliUsageException("Identity baseline admission requires correlated validation execution.");
             ProviderHarnessManifest? providerHarnessManifest = null;
             ProviderAuthorizationVerification? providerAuthorizationVerification = null;
             ProviderHarnessAssessment? providerHarnessAssessment = null;
@@ -344,14 +381,16 @@ public class ValidateCommand
 
             _consoleOutput.ShowProgress(ValidationMessages.Progress.Initializing);
 
+            var requestId = executionPlan.ValidationId;
+            var request = conformanceEvidenceJson == null ? ValidationRunRequest.Capture(configuration, requestId)
+                : ValidationRunRequest.CaptureWithConformance(configuration, conformanceEvidenceJson, requestId);
+            if (identityControls != null) request = request.WithIdentityControls(identityControls);
             var result = _validatorService is ICorrelatedMcpValidatorService correlatedValidatorService
-                ? await correlatedValidatorService.ValidateServerAsync(
-                    ValidationRunRequest.Capture(configuration, _sessionContext.SessionId),
-                    cts.Token)
+                ? await correlatedValidatorService.ValidateServerAsync(request, cts.Token)
                 : await _validatorService.ValidateServerAsync(configuration, cts.Token);
-            if (result.ValidationId != _sessionContext.SessionId)
+            if (result.ValidationId != requestId)
             {
-                result.ValidationId = _sessionContext.SessionId;
+                result.ValidationId = requestId;
                 if (result.Run.OperationalMetrics != null)
                 {
                     result.Run.OperationalMetrics.RunCorrelationId = result.ValidationId;
@@ -365,7 +404,7 @@ public class ValidateCommand
             {
                 throw new CliUsageException(ex.Message);
             }
-            if (conformanceEvidenceJson != null)
+            if (conformanceEvidenceJson != null && _validatorService is not ICorrelatedMcpValidatorService)
             {
                 AttachOfficialConformanceEvidence(
                     result,
@@ -687,7 +726,8 @@ public class ValidateCommand
 
     private async Task<string?> LoadOfficialConformanceEvidenceAsync(
         FileInfo? conformanceResultsFile,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OfficialConformanceImportContext? requiredContext = null)
     {
         if (conformanceResultsFile == null)
         {
@@ -700,7 +740,9 @@ public class ValidateCommand
                 conformanceResultsFile,
                 OfficialConformanceContract.MaximumEvidenceBytes,
                 cancellationToken).ConfigureAwait(false);
-            _officialConformanceEvidenceImporter.Import(json);
+            var imported = _officialConformanceEvidenceImporter.Import(json, requiredContext);
+            if (requiredContext != null && imported.Assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
+                throw new CliUsageException("Comprehensive assessment requires verified official conformance evidence for the selected target and protocol.");
             return json;
         }
         catch (Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException exception)
@@ -768,41 +810,6 @@ public class ValidateCommand
 
         detailLevel = default;
         return false;
-    }
-
-    private static void ApplyAuthenticationOverrides(
-        McpValidatorConfiguration configuration,
-        string? token,
-        bool interactive,
-        ConfigurationSourceTracker sources)
-    {
-        if (string.IsNullOrEmpty(token) &&
-            !interactive)
-        {
-            return;
-        }
-
-        var auth = configuration.Server.Authentication ??= new AuthenticationConfig();
-
-        if (!string.IsNullOrEmpty(token))
-        {
-            auth.Token = token;
-            sources.RecordCommandLine(value => value.Server.Authentication!.Token, "--token");
-            if (string.IsNullOrEmpty(auth.Type) || auth.Type == "none")
-                sources.Record(value => value.Server.Authentication!.Type, ConfigurationSourceKind.CommandLine, "--token", "Bearer authentication implied by CLI token.");
-            auth.Type = string.IsNullOrEmpty(auth.Type) || auth.Type == "none"
-                ? "bearer"
-                : auth.Type;
-            auth.Required = true;
-            sources.Record(value => value.Server.Authentication!.Required, ConfigurationSourceKind.CommandLine, "--token", "Authentication required by CLI token.");
-        }
-
-        auth.AllowInteractive = interactive;
-        if (interactive)
-            sources.RecordCommandLine(value => value.Server.Authentication!.AllowInteractive, "--interactive");
-        else
-            sources.Record(value => value.Server.Authentication!.AllowInteractive, ConfigurationSourceKind.Governance,
-                "authentication", "Interactive authentication was not admitted by this invocation.");
     }
 
     private static void NormalizeServerConfig(McpServerConfig serverConfig, string server, ConfigurationSourceTracker sources)

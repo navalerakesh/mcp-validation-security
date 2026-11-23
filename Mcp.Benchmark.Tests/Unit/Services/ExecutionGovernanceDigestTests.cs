@@ -7,6 +7,27 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ExecutionGovernanceDigestTests : IDisposable
 {
+    [Theory]
+    [InlineData("comprehensive")]
+    [InlineData("inventory")]
+    public void PlanOnlyAudit_ShouldRetainSelectedProfileWithoutAssessmentCredit(string profile)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Server.Endpoint = "https://example.test/mcp";
+        configuration.Assurance.Profile = profile;
+        configuration.Execution!.DryRun = true;
+        var governance = new ExecutionGovernanceService();
+        var plan = governance.BuildValidationPlan(new CliSessionContext("profile-plan"), configuration, null);
+        var manifest = governance.BuildAuditManifest(plan, null, [], null);
+
+        plan.AssuranceProfile.Should().Be(profile);
+        manifest.AssuranceProfile.Should().Be(profile);
+        manifest.RecommendedExitCode.Should().BeNull();
+        manifest.RunTerminationOutcome.Should().BeNull();
+        manifest.ExecutedChecks.Should().BeEmpty();
+        manifest.CoreConformance.Should().Be(CoreConformanceStatus.Incomplete);
+    }
+
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"mcpval-audit-{Guid.NewGuid():N}");
 
     [Theory]

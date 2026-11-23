@@ -299,7 +299,7 @@ public class ValidationResult
     /// </summary>
     public ValidationResult CloneWithoutSecrets()
     {
-        return new ValidationResult
+        var clone = new ValidationResult
         {
             DocumentType = DocumentType,
             DocumentSchemaVersion = DocumentSchemaVersion,
@@ -351,6 +351,8 @@ public class ValidationResult
             Assurance = DeepCloneRequired(Assurance),
             BaselineComparison = DeepClone(BaselineComparison)
         };
+        Mcp.Benchmark.Core.Services.ControlledIdentitySecurityBaseline.VerifyRetainedRequirement(clone);
+        return clone;
     }
 
     private static T? DeepClone<T>(T? value)

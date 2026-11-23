@@ -4,14 +4,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
-using Mcp.Benchmark.Core.Utilities;
 
-namespace Mcp.Benchmark.Infrastructure.Services;
+namespace Mcp.Benchmark.Core.Utilities;
 
-internal static class SignedControlledEvidenceReader
+public static class SignedControlledEvidenceReader
 {
-    internal static T Read<T>(string json, string trustedPublicKeyPem, string documentType, string revision,
-        DateTimeOffset assessedAt, Func<T, bool> admit, CancellationToken cancellationToken) where T : class, ISignedControlledEvidence
+    public static T Read<T>(string json, string trustedPublicKeyPem, string documentType, string revision,
+        DateTimeOffset assessedAt, Func<T, bool> admit, CancellationToken cancellationToken, string? compatibleRevision = null) where T : class, ISignedControlledEvidence
     {
         ArgumentNullException.ThrowIfNull(json);
         ArgumentNullException.ThrowIfNull(trustedPublicKeyPem);
@@ -23,7 +22,7 @@ internal static class SignedControlledEvidenceReader
             using var parsed = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });
             RequireUniqueProperties(parsed.RootElement);
             RequireString(parsed.RootElement, "documentType", documentType);
-            RequireString(parsed.RootElement, "documentSchemaVersion", revision);
+            RequireString(parsed.RootElement, "documentSchemaVersion", revision, compatibleRevision);
             RequireString(parsed.RootElement, "signatureAlgorithm", P256ArtifactSignatures.Algorithm);
             cancellationToken.ThrowIfCancellationRequested();
             var options = new JsonSerializerOptions
@@ -49,10 +48,10 @@ internal static class SignedControlledEvidenceReader
         }
     }
 
-    private static void RequireString(JsonElement root, string name, string expected)
+    private static void RequireString(JsonElement root, string name, string expected, string? compatible = null)
     {
         if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty(name, out var value) ||
-            value.ValueKind != JsonValueKind.String || value.GetString() != expected) throw Invalid();
+            value.ValueKind != JsonValueKind.String || value.GetString() != expected && value.GetString() != compatible) throw Invalid();
     }
 
     private static void RequireUniqueProperties(JsonElement element)

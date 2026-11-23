@@ -706,8 +706,11 @@ internal static class CommandConnectionHelper
             auth.Type = string.IsNullOrWhiteSpace(auth.Type) || auth.Type == "none"
                 ? "bearer"
                 : auth.Type;
-            auth.Required = true;
-            sources?.Record(value => value.Server.Authentication!.Required, ConfigurationSourceKind.CommandLine, "--token", "Authentication required by CLI token.");
+            if (ValidationCalibration.RequiresStrictAuthentication(serverConfig.Profile) && !auth.Required)
+            {
+                auth.Required = true;
+                sources?.Record(value => value.Server.Authentication!.Required, ConfigurationSourceKind.Governance, "access-profile", "Authentication required by the selected protected profile.");
+            }
         }
 
         auth.AllowInteractive = interactive;

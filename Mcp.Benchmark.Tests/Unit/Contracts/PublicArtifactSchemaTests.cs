@@ -10,6 +10,83 @@ namespace Mcp.Benchmark.Tests.Unit.Contracts;
 
 public sealed class PublicArtifactSchemaTests
 {
+    [Fact]
+    public void OfficialCheckProvenance_ShouldRejectInvalidIndicesAndContradictoryApplicability()
+    {
+        var document = Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateDocument(
+            [Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateCheck("schema-check", OfficialConformanceCheckStatus.Success)]);
+        var imported = new Mcp.Benchmark.Infrastructure.Services.OfficialConformanceEvidenceImporter()
+            .Import(JsonSerializer.Serialize(document, OfficialConformanceContract.CreateJsonOptions()));
+        var result = new ValidationResult();
+        result.Assessments.OfficialConformance = imported.Assessment;
+        var serialized = Serialize(result);
+        var check = serialized["measurements"]!["officialConformance"]!["scenarios"]![0]!["checks"]![0]!;
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        check["sourceIndex"] = -1;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        check["sourceIndex"] = OfficialConformanceContract.MaximumChecksPerScenario;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        check["sourceIndex"] = OfficialConformanceContract.MaximumChecksPerScenario - 1;
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        check["applicability"] = "unknown";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        check["applicability"] = "notApplicable";
+        check["status"] = "failure";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        check["status"] = "info";
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        check["prerequisiteMissing"] = true;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        check["status"] = "failure";
+        check["applicability"] = "applicable";
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        check["status"] = "success";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+    }
+
+    [Fact]
+    public void SelectedSecurityBaseline_ShouldValidateAndReverifyAfterRoundTrip()
+    {
+        var result = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        var serialized = Serialize(result.CloneWithoutSecrets());
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        var restored = JsonSerializer.Deserialize<ValidationResult>(serialized.ToJsonString(), options)!;
+        var replay = Mcp.Benchmark.Core.Services.AssuranceAssessmentEngine.Evaluate(restored, AssuranceProfileCatalog.Comprehensive);
+        replay.Claims.Where(claim => claim.ClaimId.StartsWith("security-baseline:", StringComparison.Ordinal))
+            .Should().BeEquivalentTo(result.Assurance.Claims.Where(claim => claim.ClaimId.StartsWith("security-baseline:", StringComparison.Ordinal)));
+        replay.RequiredIdentityControls.Should().NotBeNull();
+        var selectedContract = serialized["assurance"]!["requiredIdentityControls"]!["contract"]!;
+        selectedContract["contractRevision"] = ControlledIdentityMatrixContract.LegacyRevision;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        selectedContract["contractRevision"] = ControlledIdentityMatrixContract.CurrentRevision;
+        serialized["assurance"]!["requiredIdentityControls"]!.AsObject().Remove("scopeEnforcementCaseId");
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+    }
+
+    [Theory]
+    [InlineData("timingSampleCount")]
+    [InlineData("peakInFlightRequests")]
+    [InlineData("observationDurationMs")]
+    public void LoadEvidenceProvenance_ShouldRejectInvalidValuesAndAllowHistoricalOmission(string property)
+    {
+        var result = new ValidationResult { PerformanceTesting = new PerformanceTestResult
+        {
+            LoadTesting = new LoadTestResult { TimingSampleCount = 2, PeakInFlightRequests = 2, ObservationDurationMs = 1.5 }
+        }};
+        var serialized = Serialize(result.CloneWithoutSecrets());
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var load = serialized["measurements"]!["performanceTesting"]!["loadTesting"]!.AsObject();
+        load[property] = -1;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        load[property] = "unknown";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        load.Remove(property);
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+    }
+
     private readonly JsonSchemaValidator _validator = new();
 
     [Fact]
@@ -82,6 +159,13 @@ public sealed class PublicArtifactSchemaTests
         };
 
         AssertConforms("mcpval-validation-result.schema.json", Serialize(result));
+
+        result.Assurance = Mcp.Benchmark.Core.Services.AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive);
+        var comprehensive = Serialize(result);
+        comprehensive["baselineComparison"]!["profileId"] = "comprehensive";
+        AssertConforms("mcpval-validation-result.schema.json", comprehensive);
+        comprehensive["assurance"]!["profile"]!["profileId"] = "unknown-profile";
+        AssertDoesNotConform("mcpval-validation-result.schema.json", comprehensive);
     }
 
     [Fact]
@@ -116,6 +200,9 @@ public sealed class PublicArtifactSchemaTests
 
         var serialized = Serialize(manifest);
         AssertConforms("mcpval-audit-manifest.schema.json", serialized);
+        serialized["assuranceProfile"] = "comprehensive";
+        AssertConforms("mcpval-audit-manifest.schema.json", serialized);
+        serialized["assuranceProfile"] = "inventory";
         serialized["documentSchemaVersion"] = "2.0.0";
         AssertConforms("mcpval-audit-manifest.schema.json", serialized);
         ArtifactContracts.IsCompatible(ArtifactContracts.AuditManifestDocumentType, "2.0.0").Should().BeTrue();
@@ -306,6 +393,10 @@ public sealed class PublicArtifactSchemaTests
         };
 
         AssertConforms("mcpval-client-profile-summary.schema.json", summary);
+        summary["assuranceProfile"] = "comprehensive";
+        AssertConforms("mcpval-client-profile-summary.schema.json", summary);
+        summary["assuranceProfile"] = "unknown-profile";
+        AssertDoesNotConform("mcpval-client-profile-summary.schema.json", summary);
     }
 
     [Fact]
@@ -328,6 +419,12 @@ public sealed class PublicArtifactSchemaTests
         };
 
         AssertConforms("mcpval-model-evaluation.schema.json", Serialize(artifact));
+        var comprehensive = Serialize(artifact);
+        comprehensive["assuranceProfile"] = "comprehensive";
+        comprehensive["certificateEligibility"] = "ineligible";
+        AssertConforms("mcpval-model-evaluation.schema.json", comprehensive);
+        comprehensive["assuranceProfile"] = "unknown-profile";
+        AssertDoesNotConform("mcpval-model-evaluation.schema.json", comprehensive);
     }
 
     [Fact]

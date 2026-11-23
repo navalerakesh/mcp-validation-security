@@ -243,6 +243,24 @@ internal static class BoundedArtifactReader
         }
     }
 
+    internal static async Task<ControlledIdentitySecurityRequirement> ReadIdentityBaselineAsync(FileInfo file, CancellationToken cancellationToken)
+    {
+        var json = await ReadTextAsync(file, MaximumConfigurationBytes, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });
+            if (document.RootElement.ValueKind != JsonValueKind.Object) throw new CliUsageException("Identity baseline must be an object.");
+            ValidateConfigurationValue(document.RootElement, typeof(ControlledIdentitySecurityRequirement), "$.identityBaseline", new NullabilityInfoContext());
+            return JsonSerializer.Deserialize<ControlledIdentitySecurityRequirement>(json,
+                ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
+                ?? throw new CliUsageException("Identity baseline is empty.");
+        }
+        catch (JsonException exception)
+        {
+            throw new CliUsageException("Identity baseline is not valid JSON for the supported contract.", exception);
+        }
+    }
+
     internal static async Task<ProviderHarnessManifest> ReadProviderHarnessAsync(
         FileInfo file,
         CancellationToken cancellationToken = default)
@@ -311,10 +329,19 @@ internal static class BoundedArtifactReader
         ValidateRecordedAssessmentTimes(root);
         ValidateRecordedRunTermination(root);
         ValidateRecordedRequestFailures(root);
-        return JsonSerializer.Deserialize<ValidationResult>(
+        var result = JsonSerializer.Deserialize<ValidationResult>(
             NormalizeSavedResult(json, version!),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
             ?? throw new CliUsageException("Validation artifact did not contain a validation result.");
+        try
+        {
+            Mcp.Benchmark.Core.Services.ControlledIdentitySecurityBaseline.VerifyRetainedRequirement(result);
+        }
+        catch (InvalidDataException)
+        {
+            throw new CliUsageException("Validation artifact contains invalid retained identity baseline evidence.");
+        }
+        return result;
     }
 
     private static void ValidateRecordedRequestFailures(JsonElement root)

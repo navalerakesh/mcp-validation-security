@@ -8,6 +8,577 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class AssuranceAssessmentEngineTests
 {
+    [Theory]
+    [InlineData(OfficialConformanceCheckStatus.Success, AssuranceApplicability.Applicable, false, true, true, AssuranceClaimOutcome.Satisfied)]
+    [InlineData(OfficialConformanceCheckStatus.Failure, AssuranceApplicability.Applicable, false, true, false, AssuranceClaimOutcome.Violated)]
+    [InlineData(OfficialConformanceCheckStatus.Failure, AssuranceApplicability.NotApplicable, false, true, true, AssuranceClaimOutcome.Violated)]
+    [InlineData(OfficialConformanceCheckStatus.Info, AssuranceApplicability.NotApplicable, false, true, true, AssuranceClaimOutcome.NotApplicable)]
+    [InlineData(OfficialConformanceCheckStatus.Info, AssuranceApplicability.NotApplicable, true, true, true, AssuranceClaimOutcome.Incomplete)]
+    [InlineData(OfficialConformanceCheckStatus.Warning, AssuranceApplicability.Applicable, true, true, true, AssuranceClaimOutcome.Incomplete)]
+    [InlineData(OfficialConformanceCheckStatus.Skipped, AssuranceApplicability.Applicable, false, true, true, AssuranceClaimOutcome.Incomplete)]
+    [InlineData(OfficialConformanceCheckStatus.Info, AssuranceApplicability.Applicable, false, true, true, AssuranceClaimOutcome.ReviewRequired)]
+    [InlineData(OfficialConformanceCheckStatus.Success, AssuranceApplicability.Applicable, false, false, true, AssuranceClaimOutcome.Incomplete)]
+    public void Project_OfficialCheck_ShouldRetainAuthorityAndApplicablePrerequisiteDebt(OfficialConformanceCheckStatus status,
+        AssuranceApplicability applicability, bool missing, bool verified, bool required, AssuranceClaimOutcome expected)
+    {
+        var assessment = CreateOfficialConformance(verified ? OfficialConformanceVerificationStatus.Verified : OfficialConformanceVerificationStatus.Unverified,
+        [new OfficialConformanceScenarioAssessment
+        {
+            ScenarioId = "owned.scenario", ScoringDisposition = required ? OfficialConformanceScoringDisposition.Required : OfficialConformanceScoringDisposition.NotScored,
+            Checks = [new OfficialConformanceCheckAssessment { Id = "original-id", SourceIndex = 3, Name = "Original check", Description = "Recorded official observation",
+                Status = status, Applicability = applicability, PrerequisiteMissing = missing }]
+        }]);
+        var result = new ValidationResult();
+        result.Assessments.OfficialConformance = assessment;
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+        claim.ClaimId.Should().Be("official:owned-scenario:check:3");
+        claim.Subject.Should().Be("owned.scenario");
+        claim.Dimension.Should().Be(AssuranceDimension.ExternalConformance);
+        claim.RequirementLevel.Should().Be(required ? AssuranceRequirementLevel.Must : AssuranceRequirementLevel.May);
+        claim.Authority.Should().Be(AssuranceAuthority.OfficialConformance);
+        claim.Outcome.Should().Be(expected);
+        claim.Applicability.Should().Be(status == OfficialConformanceCheckStatus.Info && !missing ? applicability : AssuranceApplicability.Applicable);
+        claim.Confidence.Should().Be(verified ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.None);
+        claim.Source.Revision.Should().Be(assessment.RequirementSet.Revision);
+        claim.Source.Sha256.Should().Be(assessment.RequirementSet.Sha256);
+        claim.EvidenceIds.Should().Equal("official-conformance/owned.scenario/check/3");
+        claim.Summary.Should().Be("Recorded official observation");
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Project_OfficialChecks_ShouldRejectAmbiguousInMemoryIdentities(bool indexed)
+    {
+        var result = new ValidationResult();
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified,
+        [new OfficialConformanceScenarioAssessment
+        {
+            ScenarioId = "required", Checks =
+            [
+                new() { Id = "rule-a", SourceIndex = indexed ? 0 : null, Name = "First", Description = "Success", Status = OfficialConformanceCheckStatus.Success },
+                new() { Id = "rule_a", SourceIndex = indexed ? 0 : null, Name = "Second", Description = "Failure", Status = OfficialConformanceCheckStatus.Failure }
+            ]
+        }]);
+        var project = () => AssuranceClaimProjector.Project(result);
+        project.Should().Throw<System.Text.Json.JsonException>();
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void Project_OfficialDecision_ShouldRetainConflictProvenance(bool verified, bool reject)
+    {
+        var assessment = CreateOfficialConformance(verified ? OfficialConformanceVerificationStatus.Verified : OfficialConformanceVerificationStatus.Unverified);
+        assessment.Decisions.Add(new DecisionRecord
+        {
+            DecisionId = "conflict.1", RuleId = "original-rule", RuleRevision = "decision-revision", Component = "owned-scenario",
+            Lane = EvaluationLane.ExternalConformance, Authority = ValidationRuleSource.Spec, Origin = EvidenceOrigin.ExternalConformanceCheck,
+            Gate = reject ? GateOutcome.Reject : GateOutcome.ReviewRequired, Severity = ValidationFindingSeverity.High,
+            Category = "EvidenceConflict", Summary = "Conflicting observed evidence", SpecReference = "https://example.test/official-spec",
+            RelatedEvidenceIds = ["native-observation", "official-observation"], Metadata = new() { ["nativeClaimId"] = "native-claim" }
+        });
+        var result = new ValidationResult();
+        result.Assessments.OfficialConformance = assessment;
+        var claim = AssuranceClaimProjector.Project(result).Single(claim => claim.ClaimId == "official-decision:conflict-1");
+        claim.Subject.Should().Be("owned-scenario");
+        claim.Dimension.Should().Be(AssuranceDimension.ExternalConformance);
+        claim.RequirementLevel.Should().Be(AssuranceRequirementLevel.Must);
+        claim.Authority.Should().Be(AssuranceAuthority.OfficialConformance);
+        claim.Outcome.Should().Be(reject ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.ReviewRequired);
+        claim.Confidence.Should().Be(verified ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.None);
+        claim.Source.Uri.Should().Be("https://example.test/official-spec");
+        claim.Source.Revision.Should().Be(assessment.RequirementSet.Revision);
+        claim.Source.Sha256.Should().Be(assessment.RequirementSet.Sha256);
+        claim.EvidenceIds.Should().Equal("native-observation", "official-observation");
+        claim.Summary.Should().Be("Conflicting observed evidence");
+        claim.Metadata.Should().BeEquivalentTo(new Dictionary<string, string> { ["nativeClaimId"] = "native-claim", ["category"] = "EvidenceConflict" });
+    }
+
+    [Theory]
+    [InlineData("clean", AssuranceClaimOutcome.Satisfied, "satisfies")]
+    [InlineData("review", AssuranceClaimOutcome.ReviewRequired, "review")]
+    [InlineData("spec-failure", AssuranceClaimOutcome.Violated, "failures")]
+    [InlineData("coverage-failure", AssuranceClaimOutcome.Violated, "failures")]
+    [InlineData("coverage-error", AssuranceClaimOutcome.Error, "failures")]
+    [InlineData("mixed-debt", AssuranceClaimOutcome.Incomplete, "incomplete")]
+    [InlineData("summary-debt", AssuranceClaimOutcome.Incomplete, "incomplete")]
+    [InlineData("not-applicable", AssuranceClaimOutcome.Satisfied, "satisfies")]
+    [InlineData("empty", AssuranceClaimOutcome.Incomplete, "incomplete")]
+    public void Project_ExtensionAssessment_ShouldKeepFailureDebtAndProvenance(string variant, AssuranceClaimOutcome expected, string explanation)
+    {
+        var outcome = variant switch
+        {
+            "coverage-failure" => ValidationOutcome.Failed, "coverage-error" => ValidationOutcome.Error,
+            "not-applicable" => ValidationOutcome.NotApplicable, _ => ValidationOutcome.Succeeded
+        };
+        var coverage = new List<ValidationCoverageDeclaration>();
+        if (variant != "empty") coverage.Add(ValidationCoverageFactory.FromOutcome("extension", "first", outcome));
+        if (variant == "mixed-debt") coverage.Add(ValidationCoverageFactory.FromOutcome("extension", "second", ValidationOutcome.Unavailable));
+        var summary = ValidationEvidenceSummarizer.Summarize(coverage);
+        if (variant == "summary-debt") summary = new EvidenceCoverageSummary { ApplicableDeclarations = 2, Covered = 1, ConfidenceLevel = EvidenceConfidenceLevel.Medium };
+        var result = new ValidationResult();
+        result.Assessments.Extensions.Add(new ExtensionAssessment
+        {
+            ExtensionId = "example.test/extension", Stage = ExtensionLifecycleStage.Beta,
+            SpecificationRevision = "extension-revision", SpecificationSha256 = new string('a', 64),
+            Coverage = coverage, EvidenceSummary = summary,
+            Findings = variant is "review" or "spec-failure" ? [new ValidationFinding
+            {
+                RuleId = "extension-rule", Component = "owned-tool", Source = variant == "review" ? ValidationRuleSource.Heuristic : ValidationRuleSource.Spec,
+                Severity = ValidationFindingSeverity.High, Summary = "Observed extension issue", Recommendation = "Repair extension control", SpecReference = "https://example.test/extension-spec"
+            }] : []
+        });
+        var claims = AssuranceClaimProjector.Project(result);
+        var assessment = claims.Single(claim => claim.ClaimId.EndsWith(":assessment", StringComparison.Ordinal));
+        assessment.ClaimId.Should().Be("extension:example-test-extension:assessment");
+        assessment.Subject.Should().Be("example.test/extension");
+        assessment.Dimension.Should().Be(AssuranceDimension.Extension);
+        assessment.RequirementLevel.Should().Be(AssuranceRequirementLevel.Policy);
+        assessment.Authority.Should().Be(AssuranceAuthority.ProviderPolicy);
+        assessment.Source.Revision.Should().Be("extension-revision");
+        assessment.Source.Sha256.Should().Be(new string('a', 64));
+        assessment.Confidence.Should().Be(summary.ConfidenceLevel);
+        assessment.Outcome.Should().Be(expected);
+        assessment.Summary.Should().Contain(explanation);
+        if (variant is "review" or "spec-failure")
+        {
+            var finding = claims.Single(claim => claim != assessment);
+            var normative = variant == "spec-failure";
+            finding.ClaimId.Should().Be("extension:example-test-extension:extension-rule:owned-tool");
+            finding.Subject.Should().Be("example.test/extension");
+            finding.Dimension.Should().Be(AssuranceDimension.Extension);
+            finding.RequirementLevel.Should().Be(normative ? AssuranceRequirementLevel.Must : AssuranceRequirementLevel.SecurityControl);
+            finding.Authority.Should().Be(normative ? AssuranceAuthority.OfficialSpecification : AssuranceAuthority.Heuristic);
+            finding.Outcome.Should().Be(normative ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.ReviewRequired);
+            finding.Confidence.Should().Be(normative ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.Medium);
+            finding.Source.Uri.Should().Be("https://example.test/extension-spec");
+            finding.Source.Revision.Should().Be("extension-revision");
+            finding.Source.Sha256.Should().Be(new string('a', 64));
+            finding.Summary.Should().Be("Observed extension issue");
+            finding.Remediation.Should().Be("Repair extension control");
+        }
+    }
+
+    [Theory]
+    [InlineData(ClientProfileCompatibilityStatus.Compatible, AssuranceClaimOutcome.Satisfied)]
+    [InlineData(ClientProfileCompatibilityStatus.Incompatible, AssuranceClaimOutcome.Violated)]
+    [InlineData(ClientProfileCompatibilityStatus.CompatibleWithWarnings, AssuranceClaimOutcome.ReviewRequired)]
+    public void Project_ClientCompatibility_ShouldRetainInterpretedLane(ClientProfileCompatibilityStatus status, AssuranceClaimOutcome expected)
+    {
+        var result = new ValidationResult { ClientCompatibility = new ClientCompatibilityReport { Assessments = [new ClientProfileAssessment
+        {
+            ProfileId = "owned-client", Revision = "client-revision", DocumentationUrl = "https://example.test/client",
+            Status = status, Summary = "Interpreted client requirements"
+        }] }};
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+        claim.ClaimId.Should().Be("client:owned-client");
+        claim.Subject.Should().Be("owned-client");
+        claim.Dimension.Should().Be(AssuranceDimension.ClientCompatibility);
+        claim.RequirementLevel.Should().Be(AssuranceRequirementLevel.Policy);
+        claim.Authority.Should().Be(AssuranceAuthority.ProviderPolicy);
+        claim.Outcome.Should().Be(expected);
+        claim.Confidence.Should().Be(EvidenceConfidenceLevel.Medium);
+        claim.Source.Uri.Should().Be("https://example.test/client");
+        claim.Source.Revision.Should().Be("client-revision");
+        claim.Summary.Should().Be("Interpreted client requirements");
+    }
+
+    [Theory]
+    [InlineData("SeCuRiTy", null, AssuranceDimension.Security)]
+    [InlineData("PeRfOrMaNcE", null, AssuranceDimension.Operations)]
+    [InlineData("ErRoR", null, AssuranceDimension.Operations)]
+    [InlineData("protocol", null, AssuranceDimension.CoreProtocol)]
+    [InlineData("security", EvaluationLane.ControlledApplication, AssuranceDimension.ControlledApplication)]
+    [InlineData("security", EvaluationLane.ExtensionReadiness, AssuranceDimension.Extension)]
+    [InlineData("security", EvaluationLane.ClientCompatibility, AssuranceDimension.ClientCompatibility)]
+    [InlineData("security", EvaluationLane.ExternalConformance, AssuranceDimension.ExternalConformance)]
+    public void Project_NotApplicableCoverage_ShouldPreserveLaneAndReason(string layer, EvaluationLane? lane, AssuranceDimension dimension)
+    {
+        var result = new ValidationResult();
+        var coverage = new ValidationCoverageDeclaration
+        {
+            LayerId = layer, Scope = "owned-check", Lane = lane, Status = ValidationCoverageStatus.NotApplicable,
+            Reason = "Not defined for this transport", Confidence = EvidenceConfidenceLevel.High
+        };
+        result.Evidence.Coverage.Add(coverage);
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+        claim.Dimension.Should().Be(dimension);
+        claim.RequirementLevel.Should().Be(dimension == AssuranceDimension.Security ? AssuranceRequirementLevel.SecurityControl :
+            dimension == AssuranceDimension.Operations ? AssuranceRequirementLevel.OperationalObjective : AssuranceRequirementLevel.Policy);
+        claim.Applicability.Should().Be(AssuranceApplicability.NotApplicable);
+        claim.ApplicabilityReason.Should().Be(coverage.Reason);
+        claim.Outcome.Should().Be(AssuranceClaimOutcome.NotApplicable);
+        claim.Summary.Should().Be(coverage.Reason);
+        claim.EvidenceIds.Should().Equal(ValidationEvidenceIdBuilder.ForCoverage(coverage));
+    }
+
+    [Theory]
+    [InlineData("ordinary", null, AssuranceDimension.CapabilityContract, AssuranceRequirementLevel.Must)]
+    [InlineData("SeCuRiTy", null, AssuranceDimension.Security, AssuranceRequirementLevel.SecurityControl)]
+    [InlineData("AuTh", null, AssuranceDimension.Security, AssuranceRequirementLevel.SecurityControl)]
+    [InlineData("security", ImpactArea.OperationalResilience, AssuranceDimension.Operations, AssuranceRequirementLevel.OperationalObjective)]
+    [InlineData("ordinary", ImpactArea.AuthenticationBoundary, AssuranceDimension.Security, AssuranceRequirementLevel.SecurityControl)]
+    [InlineData("ordinary", ImpactArea.DataExposure, AssuranceDimension.Security, AssuranceRequirementLevel.SecurityControl)]
+    [InlineData("ordinary", ImpactArea.UnsafeAutonomy, AssuranceDimension.Security, AssuranceRequirementLevel.SecurityControl)]
+    [InlineData("ordinary", ImpactArea.ProtocolInteroperability, AssuranceDimension.CoreProtocol, AssuranceRequirementLevel.Must)]
+    [InlineData("ordinary", ImpactArea.CapabilityContract, AssuranceDimension.CapabilityContract, AssuranceRequirementLevel.Must)]
+    public void Project_Finding_ShouldPreserveDeclaredScopeAndProvenance(string category, ImpactArea? impact,
+        AssuranceDimension dimension, AssuranceRequirementLevel requirement)
+    {
+        var finding = new ValidationFinding
+        {
+            RuleId = "RULE.ONE", Component = "owned-tool", Category = category, Source = ValidationRuleSource.Spec,
+            Severity = ValidationFindingSeverity.High, Summary = "Observed contract failure", Recommendation = "Repair the declared contract",
+            SpecReference = "https://example.test/dated-spec", ImpactAreas = impact.HasValue ? [impact.Value] : null,
+            Metadata = new() { ["ruleRevision"] = "fixture-revision", ["evidenceId"] = "observed-evidence" }
+        };
+        var result = new ValidationResult { ToolValidation = new ToolTestResult { Findings = [finding] } };
+
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+
+        claim.ClaimId.Should().Be("finding:rule-one:owned-tool");
+        claim.Subject.Should().Be("owned-tool");
+        claim.Dimension.Should().Be(dimension);
+        claim.RequirementLevel.Should().Be(requirement);
+        claim.Authority.Should().Be(AssuranceAuthority.OfficialSpecification);
+        claim.Outcome.Should().Be(AssuranceClaimOutcome.Violated);
+        claim.Confidence.Should().Be(EvidenceConfidenceLevel.High);
+        claim.Source.Uri.Should().Be(finding.SpecReference);
+        claim.Source.Revision.Should().Be("fixture-revision");
+        claim.EvidenceIds.Should().Equal("observed-evidence");
+        claim.Summary.Should().Be(finding.Summary);
+        claim.Remediation.Should().Be(finding.Recommendation);
+        claim.Metadata.Should().BeEquivalentTo(new Dictionary<string, string>(finding.Metadata)
+        { ["ruleId"] = "RULE.ONE", ["severity"] = "High" });
+    }
+
+    [Theory]
+    [InlineData("mAy", AssuranceRequirementLevel.May)]
+    [InlineData("unknown", AssuranceRequirementLevel.Must)]
+    [InlineData("999", AssuranceRequirementLevel.Must)]
+    public void Project_Finding_ShouldAcceptOnlyDefinedRequirementOverrides(string value, AssuranceRequirementLevel expected)
+    {
+        var result = new ValidationResult { ToolValidation = new ToolTestResult { Findings = [new ValidationFinding
+        {
+            RuleId = "", Component = "", Category = "Input Contract", Source = ValidationRuleSource.Spec,
+            Severity = ValidationFindingSeverity.High, Metadata = new() { ["requirementLevel"] = value }
+        }] }};
+
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+
+        claim.RequirementLevel.Should().Be(expected);
+        claim.ClaimId.Should().Be("finding:unidentified-input-contract-unknown:unknown");
+        claim.Subject.Should().Be(nameof(AssuranceDimension.CapabilityContract));
+        claim.Metadata["ruleId"].Should().Be("unidentified:input-contract:unknown");
+        claim.Source.Revision.Should().Be(ValidationFindingRuleIds.CatalogVersion);
+        claim.EvidenceIds.Should().BeEmpty();
+    }
+
+    public static IEnumerable<object[]> FindingProjectionCases()
+    {
+        foreach (var source in new[] { ValidationRuleSource.Spec, ValidationRuleSource.Guideline, ValidationRuleSource.Heuristic })
+            foreach (var severity in new[] { ValidationFindingSeverity.Medium, ValidationFindingSeverity.High })
+                foreach (var gate in new GateOutcome?[] { null, GateOutcome.Reject, GateOutcome.CoverageDebt })
+                    yield return [source, severity, gate!];
+    }
+
+    [Theory]
+    [MemberData(nameof(FindingProjectionCases))]
+    public void Project_Finding_ShouldSeparateNormativeFailureFromAdvisoryEvidence(ValidationRuleSource source, ValidationFindingSeverity severity, GateOutcome? gate)
+    {
+        var result = new ValidationResult { ToolValidation = new ToolTestResult { Findings = [new ValidationFinding
+        {
+            RuleId = "source-rule", Component = "tool", Source = source, Severity = severity, GateOverride = gate
+        }] }};
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+        var specification = source == ValidationRuleSource.Spec;
+        var mandatory = gate == GateOutcome.Reject || severity == ValidationFindingSeverity.High;
+
+        claim.Authority.Should().Be(specification ? AssuranceAuthority.OfficialSpecification :
+            source == ValidationRuleSource.Heuristic ? AssuranceAuthority.Heuristic : AssuranceAuthority.ProviderPolicy);
+        claim.Confidence.Should().Be(specification ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.Medium);
+        claim.RequirementLevel.Should().Be(specification ? mandatory ? AssuranceRequirementLevel.Must : AssuranceRequirementLevel.Should : AssuranceRequirementLevel.Policy);
+        claim.Outcome.Should().Be(gate == GateOutcome.CoverageDebt ? AssuranceClaimOutcome.Incomplete :
+            specification && mandatory ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.ReviewRequired);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Project_ProtocolViolation_ShouldRetainIdentityAndProvenance(bool identified)
+    {
+        var violation = new ComplianceViolation
+        {
+            CheckId = identified ? "Case.One" : null!,
+            Category = identified ? "JSON-RPC" : "",
+            Rule = identified ? "Required identifier" : null!,
+            Description = "Observed failure", Recommendation = "Supply the required identifier",
+            SpecReference = "https://example.test/spec", Severity = ViolationSeverity.High
+        };
+        var result = new ValidationResult
+        {
+            ProtocolVersion = identified ? "2026-07-28" : null,
+            ProtocolCompliance = new ComplianceTestResult { Violations = [violation] }
+        };
+
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+
+        claim.ClaimId.Should().Be(identified ? "protocol:case-one" : "protocol:unknown:observed-failure");
+        claim.Subject.Should().Be(identified ? "JSON-RPC" : "protocol");
+        claim.Dimension.Should().Be(AssuranceDimension.CoreProtocol);
+        claim.RequirementLevel.Should().Be(AssuranceRequirementLevel.Must);
+        claim.Authority.Should().Be(AssuranceAuthority.OfficialSpecification);
+        claim.Outcome.Should().Be(AssuranceClaimOutcome.Violated);
+        claim.Confidence.Should().Be(EvidenceConfidenceLevel.High);
+        claim.Source.Uri.Should().Be(violation.SpecReference);
+        claim.Source.Revision.Should().Be(identified ? "2026-07-28" : "unknown");
+        claim.EvidenceIds.Should().Equal(identified ? ["protocol/Case.One"] : Array.Empty<string>());
+        claim.Summary.Should().Be(violation.Description);
+        claim.Remediation.Should().Be(violation.Recommendation);
+        claim.Metadata.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["ruleId"] = identified ? "Case.One" : "protocol:unknown:observed-failure", ["severity"] = "High"
+        });
+    }
+
+    [Theory]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    public void Project_Vulnerability_ShouldSeparateExploitationFromHeuristicAdvice(bool exploitable, bool identified)
+    {
+        var result = new ValidationResult { SecurityTesting = new SecurityTestResult
+        {
+            Vulnerabilities = [new()
+            {
+                Id = identified ? "SEC.ONE" : "", Category = "Authorization", Name = "Object policy",
+                AffectedComponent = identified ? "owned-tool" : "", IsExploitable = exploitable,
+                Description = "Observed authorization evidence", Remediation = "Enforce object policy"
+            }]
+        }};
+        var source = result.SecurityTesting.Vulnerabilities[0];
+
+        var claim = AssuranceClaimProjector.Project(result).Should().ContainSingle().Subject;
+
+        claim.ClaimId.Should().Be(identified ? "vulnerability:sec-one:owned-tool" : "vulnerability:security-authorization-object-policy:unknown");
+        claim.Subject.Should().Be(identified ? "owned-tool" : "security");
+        claim.Dimension.Should().Be(AssuranceDimension.Security);
+        claim.RequirementLevel.Should().Be(AssuranceRequirementLevel.SecurityControl);
+        claim.Authority.Should().Be(exploitable ? AssuranceAuthority.DeterministicSecurity : AssuranceAuthority.Heuristic);
+        claim.Outcome.Should().Be(exploitable ? AssuranceClaimOutcome.Violated : AssuranceClaimOutcome.ReviewRequired);
+        claim.Confidence.Should().Be(exploitable ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.Medium);
+        claim.Source.Revision.Should().Be(ValidationFindingRuleIds.CatalogVersion);
+        claim.Summary.Should().Be(source.Description);
+        claim.Remediation.Should().Be(source.Remediation);
+        claim.Metadata["ruleId"].Should().Be(identified ? "SEC.ONE" : "security:authorization:object-policy");
+        claim.Metadata["severity"].Should().Be(source.Severity.ToString());
+        claim.Metadata["exploitable"].Should().Be(exploitable.ToString());
+    }
+
+    public static IEnumerable<object[]> AttackProjectionCases()
+    {
+        foreach (var authority in new[] { ValidationRuleSource.Spec, ValidationRuleSource.Guideline, ValidationRuleSource.Heuristic })
+            foreach (var entry in new[]
+            {
+                (ValidationOutcome.Succeeded, AssuranceClaimOutcome.Satisfied),
+                (ValidationOutcome.Failed, AssuranceClaimOutcome.Violated),
+                (ValidationOutcome.Error, AssuranceClaimOutcome.Error),
+                (ValidationOutcome.Inconclusive, AssuranceClaimOutcome.Incomplete),
+                (ValidationOutcome.Unavailable, AssuranceClaimOutcome.Incomplete),
+                (ValidationOutcome.Blocked, AssuranceClaimOutcome.Incomplete),
+                (ValidationOutcome.Skipped, AssuranceClaimOutcome.ReviewRequired),
+                (ValidationOutcome.NotApplicable, AssuranceClaimOutcome.ReviewRequired)
+            }) yield return [authority, entry.Item1, authority == ValidationRuleSource.Heuristic && entry.Item1 == ValidationOutcome.Failed
+                ? AssuranceClaimOutcome.ReviewRequired : entry.Item2];
+    }
+
+    [Theory]
+    [MemberData(nameof(AttackProjectionCases))]
+    public void Project_Attack_ShouldPreserveAuthorityOutcomeAndEvidence(ValidationRuleSource authority, ValidationOutcome outcome, AssuranceClaimOutcome expected)
+    {
+        var result = new ValidationResult { SecurityTesting = new SecurityTestResult
+        {
+            AttackSimulations = [new AttackSimulationResult
+            {
+                AttackVector = "owned-control", Description = "Recorded control observation", Authority = authority, Outcome = outcome,
+                ProbeContexts = [new() { ProbeId = "observed-probe" }, new() { ProbeId = " " }, new() { ProbeId = "" }, new() { ProbeId = null! }]
+            }]
+        }};
+        var claims = AssuranceClaimProjector.Project(result);
+        if (authority == ValidationRuleSource.Heuristic && outcome == ValidationOutcome.Succeeded)
+        {
+            claims.Should().BeEmpty();
+            return;
+        }
+        var claim = claims.Should().ContainSingle().Subject;
+        claim.ClaimId.Should().Be("attack:owned-control");
+        claim.Subject.Should().Be("owned-control");
+        claim.Summary.Should().Be("Recorded control observation");
+        claim.Dimension.Should().Be(AssuranceDimension.Security);
+        claim.RequirementLevel.Should().Be(AssuranceRequirementLevel.SecurityControl);
+        claim.Authority.Should().Be(authority == ValidationRuleSource.Spec ? AssuranceAuthority.OfficialSpecification :
+            authority == ValidationRuleSource.Heuristic ? AssuranceAuthority.Heuristic : AssuranceAuthority.DeterministicSecurity);
+        claim.Outcome.Should().Be(expected);
+        claim.Confidence.Should().Be(authority == ValidationRuleSource.Heuristic ? EvidenceConfidenceLevel.Medium : EvidenceConfidenceLevel.High);
+        claim.Source.Revision.Should().Be(ValidationFindingRuleIds.CatalogVersion);
+        claim.EvidenceIds.Should().Equal("observed-probe");
+    }
+
+    [Theory]
+    [InlineData(OfficialConformanceScoringDisposition.Required, AssuranceExitCodeMapper.Incomplete)]
+    [InlineData(OfficialConformanceScoringDisposition.NotScored, AssuranceExitCodeMapper.Satisfied)]
+    public void ComprehensiveUntestableOfficialCheck_ShouldGateOnlyRequiredEvidence(OfficialConformanceScoringDisposition disposition, int expected)
+    {
+        var result = CreateCompleteResult();
+        ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        var passed = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified);
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified,
+            passed.Scenarios.Concat([new OfficialConformanceScenarioAssessment
+            {
+                ScenarioId = "unavailable-fixture", ScoringDisposition = disposition,
+                Checks = [new OfficialConformanceCheckAssessment
+                {
+                    Id = "missing-prerequisite", Name = "Missing prerequisite", Description = "Required fixture was unavailable.",
+                    Status = OfficialConformanceCheckStatus.Failure, PrerequisiteMissing = true
+                }]
+            }]).ToArray(), failed: 1);
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive);
+
+        evaluation.Assessments.ExternalConformance.Status.Should().Be(ExternalConformanceStatus.Incomplete);
+        evaluation.Claims.Should().Contain(claim => claim.Subject == "unavailable-fixture" && claim.Outcome == AssuranceClaimOutcome.Incomplete);
+        AssuranceExitCodeMapper.Map(evaluation, null).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ComprehensiveWithoutSelectedIdentityBaseline_ShouldNotAcceptGenericSecurityClaims()
+    {
+        var result = CreateCompleteResult();
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive);
+
+        evaluation.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.Incomplete);
+        evaluation.Claims.Where(claim => claim.ClaimId.StartsWith("security-baseline:", StringComparison.Ordinal))
+            .Should().HaveCount(3).And.OnlyContain(claim => claim.Outcome == AssuranceClaimOutcome.Incomplete);
+        AssuranceExitCodeMapper.Map(evaluation, null).Should().NotBe(AssuranceExitCodeMapper.Satisfied);
+    }
+
+    [Theory]
+    [InlineData(true, ValidationOutcome.Succeeded, AssuranceExitCodeMapper.Incomplete)]
+    [InlineData(false, ValidationOutcome.NotEvaluated, AssuranceExitCodeMapper.Incomplete)]
+    [InlineData(false, ValidationOutcome.Failed, AssuranceExitCodeMapper.Failed)]
+    [InlineData(false, ValidationOutcome.Error, AssuranceExitCodeMapper.Failed)]
+    [InlineData(false, ValidationOutcome.Succeeded, AssuranceExitCodeMapper.Satisfied)]
+    public void SelectedExtension_ShouldRequireActualCoverageAndPreserveRecordedFailures(bool empty, ValidationOutcome outcome, int expected)
+    {
+        var result = CreateCompleteResult();
+        ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified);
+        const string extensionId = "example.test/required";
+        var coverage = empty ? Array.Empty<ValidationCoverageDeclaration>() : [new ValidationCoverageDeclaration
+        {
+            LayerId = "extension-fixture", Scope = "required-check", Lane = EvaluationLane.ExtensionReadiness,
+            Status = ValidationCoverageStatus.Covered, ObservedOutcome = outcome
+        }];
+        var summary = ValidationEvidenceSummarizer.Summarize(coverage);
+        result.Assessments.Extensions.Add(new ExtensionAssessment
+        {
+            ExtensionId = extensionId, Stage = ExtensionLifecycleStage.Stable,
+            SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64),
+            Coverage = coverage, EvidenceSummary = summary
+        });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive,
+            new AssuranceEvaluationContext { RequiredExtensionIds = [extensionId] });
+
+        AssuranceExitCodeMapper.Map(result.Assurance, null).Should().Be(expected);
+        if (outcome == ValidationOutcome.NotEvaluated)
+        {
+            var clone = () => result.CloneWithoutSecrets();
+            clone.Should().Throw<InvalidOperationException>();
+        }
+        else AssuranceExitCodeMapper.Map(result.CloneWithoutSecrets().Assurance, null).Should().Be(expected);
+        if (outcome == ValidationOutcome.Failed)
+            result.Assurance.Claims.Should().Contain(claim => claim.Subject == extensionId && claim.Outcome == AssuranceClaimOutcome.Violated);
+    }
+
+    [Theory]
+    [InlineData(OfficialConformanceScoringDisposition.Required, AssuranceExitCodeMapper.Failed)]
+    [InlineData(OfficialConformanceScoringDisposition.NotScored, AssuranceExitCodeMapper.Satisfied)]
+    public void ComprehensiveOfficialFailure_ShouldGateRequiredChecksWithoutHidingUnscoredFailures(
+        OfficialConformanceScoringDisposition disposition, int expected)
+    {
+        var result = CreateCompleteResult();
+        ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        var passed = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified);
+        var scenarios = passed.Scenarios.Concat([new OfficialConformanceScenarioAssessment
+        {
+            ScenarioId = "optional-fixture", ScoringDisposition = disposition,
+            Checks = [new OfficialConformanceCheckAssessment
+            {
+                Id = "failure", Name = "Failure", Description = "Recorded official failure.", Status = OfficialConformanceCheckStatus.Failure
+            }]
+        }]).ToArray();
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified, scenarios, failed: 1);
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive);
+
+        evaluation.Assessments.ExternalConformance.Status.Should().Be(ExternalConformanceStatus.Nonconformant);
+        evaluation.Claims.Should().Contain(claim => claim.Subject == "optional-fixture" && claim.Outcome == AssuranceClaimOutcome.Violated);
+        AssuranceExitCodeMapper.Map(evaluation, null).Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(true, AssuranceExitCodeMapper.Failed)]
+    [InlineData(false, AssuranceExitCodeMapper.Satisfied)]
+    public void ComprehensiveExtensionScope_ShouldSurviveCloneAndNotGateUnselectedFindings(bool required, int expected)
+    {
+        var result = CreateCompleteResult();
+        ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        result.Assessments.OfficialConformance = CreateOfficialConformance(OfficialConformanceVerificationStatus.Verified);
+        const string extensionId = "example.test/optional";
+        result.Assessments.Extensions.Add(new ExtensionAssessment
+        {
+            ExtensionId = extensionId, Stage = ExtensionLifecycleStage.Stable,
+            SpecificationRevision = "fixture-v1", SpecificationSha256 = new string('a', 64),
+            Findings = [new ValidationFinding
+            {
+                RuleId = "EXT.FIXTURE", Source = ValidationRuleSource.Spec, Component = "fixture",
+                Severity = ValidationFindingSeverity.High, Summary = "Fixture extension failed."
+            }]
+        });
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive,
+            new AssuranceEvaluationContext { RequiredExtensionIds = required ? [extensionId] : [] });
+
+        foreach (var evaluation in new[] { result.Assurance, result.CloneWithoutSecrets().Assurance })
+        {
+            evaluation.RequiredExtensionIds.Should().Equal(required ? [extensionId] : Array.Empty<string>());
+            evaluation.Claims.Should().Contain(claim => claim.Subject == extensionId && claim.Outcome == AssuranceClaimOutcome.Violated);
+            AssuranceExitCodeMapper.Map(evaluation, null).Should().Be(expected);
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void Evaluate_Comprehensive_ShouldDeclareMissingSelectedExtensionIndependentlyOfObservedRows(bool required)
+    {
+        var result = CreateCompleteResult();
+        const string extensionId = "example.test/required";
+        var evaluation = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Comprehensive,
+            new AssuranceEvaluationContext { RequiredExtensionIds = required ? [extensionId, extensionId] : [] });
+
+        if (required)
+        {
+            evaluation.Claims.Should().ContainSingle(claim => claim.Subject == extensionId &&
+                claim.Outcome == AssuranceClaimOutcome.Incomplete && claim.RequirementLevel == AssuranceRequirementLevel.Must &&
+                claim.Authority == AssuranceAuthority.ProviderPolicy && claim.EvidenceIds.Count == 0);
+            AssuranceExitCodeMapper.Map(evaluation, null).Should().Be(AssuranceExitCodeMapper.Incomplete);
+        }
+        else
+            evaluation.Claims.Should().NotContain(claim => claim.Subject == extensionId);
+    }
+
     [Fact]
     public void Evaluate_NullArguments_ShouldThrow()
     {
@@ -693,6 +1264,12 @@ public sealed class AssuranceAssessmentEngineTests
             SpecificationRevision = "2026-01-26",
             SpecificationSha256 = new string('e', 64),
             Verdict = extensionVerdict,
+            Coverage = [ValidationCoverageFactory.FromTestStatus("extension-fixture", "required-extension", extensionVerdict switch
+            {
+                ValidationVerdict.Trusted => TestStatus.Passed,
+                ValidationVerdict.Reject => TestStatus.Failed,
+                _ => TestStatus.Inconclusive
+            })],
             Findings = extensionVerdict switch
             {
                 ValidationVerdict.Reject =>

@@ -71,7 +71,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             configuration.ClientProfiles?.Profiles?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray() ?? Array.Empty<string>(),
             CollectPlannedChecks(categories),
             CollectPlannedArtifacts(configuration, outputDirectory),
-            ArtifactDigestUtility.ComputeObject(configuration.CloneWithoutSecrets()));
+            ArtifactDigestUtility.ComputeObject(configuration.CloneWithoutSecrets()),
+            AssuranceProfileCatalog.Resolve(configuration.Assurance?.Profile).ProfileId);
     }
 
     public ExecutionPlan BuildCommandPlan(
@@ -115,7 +116,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             RecommendedExitCode = result == null ? null : AssuranceExitCodeMapper.Map(result),
             ConfigurationSources = plan.ConfigurationSources,
             CommandName = plan.CommandName,
-            ValidationId = result?.ValidationId ?? plan.SessionId,
+            ValidationId = result?.ValidationId ?? plan.ValidationId,
             SessionId = plan.SessionId,
             Target = plan.Target,
             Transport = plan.Transport,
@@ -142,7 +143,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             ArtifactPaths = artifactPaths.Select(Path.GetFileName).Where(path => !string.IsNullOrWhiteSpace(path)).Cast<string>().ToArray(),
             Digests = BuildDigests(plan, result, artifactPaths),
             EvidenceCompleteness = result?.Assurance.EvidenceSummary,
-            AssuranceProfile = result?.Assurance.Profile.ProfileId ?? "inventory",
+            AssuranceProfile = result?.Assurance.Profile.ProfileId ?? plan.AssuranceProfile,
             CoreConformance = result?.Assurance.Assessments.CoreConformance.Status ?? CoreConformanceStatus.Incomplete,
             SecurityAssurance = result?.Assurance.Assessments.SecurityAssurance.Status ?? SecurityAssuranceStatus.Incomplete,
             OperationalReadiness = result?.Assurance.Assessments.OperationalReadiness.Status ?? OperationalReadinessStatus.Incomplete,
@@ -161,7 +162,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         IReadOnlyList<string> selectedClientProfiles,
         IReadOnlyList<string> plannedChecks,
         IReadOnlyList<string> plannedArtifacts,
-        string configDigest)
+        string configDigest,
+        string? assuranceProfile = null)
     {
         var allowedHosts = ResolveAllowedHosts(executionPolicy, serverConfig);
         IReadOnlyList<string> allowedOrigins;
@@ -194,6 +196,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         var safeTarget = serverConfig.CloneWithoutSecrets().Endpoint ?? string.Empty;
         return new ExecutionPlan
         {
+            ValidationId = sessionContext.SessionId,
+            AssuranceProfile = assuranceProfile ?? AssuranceProfileCatalog.Inventory.ProfileId,
             ValidatorDigest = GetValidatorDigest(),
             ConfigDigest = configDigest,
             TargetDigest = Mcp.Benchmark.Core.Services.ValidationTargetIdentity.ComputeDigest(serverConfig),
@@ -246,7 +250,7 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
     {
         var ruleCatalog = ValidationFindingRuleIds.GetVersionedRules()
             .Select(pair => $"{pair.Key}={pair.Value}")
-            .Append($"assurance-profile={AssuranceProfileCatalog.Revision}")
+            .Append($"assurance-profile={result?.Assurance.Profile.Revision ?? AssuranceProfileCatalog.Resolve(plan.AssuranceProfile).Revision}")
             .Append($"calibration-policy={RuleCalibrationPolicy.Revision}")
             .OrderBy(value => value, StringComparer.Ordinal);
         var profileCatalog = (result?.Evidence.AppliedPacks

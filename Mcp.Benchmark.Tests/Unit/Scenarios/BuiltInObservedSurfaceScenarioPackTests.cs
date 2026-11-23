@@ -7,6 +7,50 @@ namespace Mcp.Benchmark.Tests.Unit.Scenarios;
 
 public class BuiltInObservedSurfaceScenarioPackTests
 {
+    [Theory]
+    [InlineData(true, true, false, true)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, true, false)]
+    public async Task PublicAuthenticationInformation_ShouldNotBecomeProtectedScopeDebt(bool observed, bool secure, bool required, bool notApplicable)
+    {
+        var context = CreateContext(new SecurityTestResult
+        {
+            AuthenticationTestResult = new AuthenticationTestResult
+            {
+                Status = TestStatus.Passed,
+                TestScenarios = [new AuthenticationScenario
+                {
+                    ScenarioName = "Public discovery", Method = "tools/list", IsCompliant = true, IsSecure = secure,
+                    AssessmentDisposition = AuthenticationAssessmentDisposition.Informational,
+                    ProbeContext = observed ? new ProbeContext { ProbeId = "public-discovery", StatusCode = 200 } : null
+                }]
+            }
+        });
+        context.ServerConfig.Profile = McpServerProfile.Public;
+        context.ServerConfig.Authentication = new AuthenticationConfig { Required = required };
+        var scenario = new BuiltInObservedSurfaceScenarioPack().GetScenarios().Single(item => item.Descriptor.Key.Value == "security-authentication-challenge");
+
+        var execution = await scenario.ExecuteAsync(context, CancellationToken.None);
+
+        execution.Coverage.Single().Status.Should().Be(notApplicable ? ValidationCoverageStatus.NotApplicable : ValidationCoverageStatus.Skipped);
+        execution.Observations.Should().ContainSingle();
+        execution.Coverage.Single().ObservedOutcome.Should().NotBe(ValidationOutcome.Succeeded);
+    }
+
+    [Theory]
+    [InlineData("security-authentication-challenge")]
+    [InlineData("security-attack-simulations")]
+    public async Task EnabledSecurityScenario_WithNoResults_ShouldRemainUnavailable(string scenarioId)
+    {
+        var scenario = new BuiltInObservedSurfaceScenarioPack().GetScenarios()
+            .Single(candidate => candidate.Descriptor.Key.Value == scenarioId);
+        var result = await scenario.ExecuteAsync(CreateContext(new SecurityTestResult(), transport: "http"), CancellationToken.None);
+
+        result.Coverage.Should().ContainSingle(coverage => coverage.Status == ValidationCoverageStatus.Unavailable);
+        result.Scenario.Status.Should().Be(TestStatus.NotRun);
+    }
+
     [Fact]
     public async Task AttackScenario_ShouldPreserveProbeContextInObservation()
     {

@@ -12,6 +12,7 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Utilities;
+using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Compliance.Spec;
 using ModelContextProtocol;
 using ModelContextProtocol.Client;
@@ -200,8 +201,14 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         _logger.LogDebug("Making JSON-RPC call to {Endpoint}: {Method} with auth: {HasAuth}", endpoint, method, authentication != null);
 
         var json = JsonSerializer.Serialize(request, _jsonOptions);
+        IReadOnlyDictionary<string, string> parameterHeaders = new Dictionary<string, string>();
+        if (ProtocolEraVersions.IsModern(identity.ProtocolVersion) && method == ValidationConstants.Methods.ToolsCall && parameters is ToolCallParameters toolCall)
+        {
+            if (!new SchemaInspectionContext(toolCall.InputSchema).TryCreateParameterHeaders(toolCall.Arguments, out parameterHeaders))
+                throw new ArgumentException("Tool schema cannot produce valid bounded MCP parameter headers.", nameof(parameters));
+        }
 
-        return await ExecuteWithRetryAsync(endpoint, json, identity, cancellationToken);
+        return await ExecuteWithRetryAsync(endpoint, json, identity, cancellationToken, parameterHeaders);
     }
 
     private static readonly HttpRequestOptionsKey<bool> CapturedHeadersKey = new("mcpval.captured-request-headers");
@@ -250,7 +257,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     }
 
     private async Task<ValidatorJsonRpcResponse> ExecuteWithRetryAsync(string endpoint, string jsonPayload,
-        RpcRequestIdentity identity, CancellationToken cancellationToken)
+        RpcRequestIdentity identity, CancellationToken cancellationToken, IReadOnlyDictionary<string, string> parameterHeaders)
     {
         var method = identity.Method;
         var requestId = identity.RequestId;
@@ -300,6 +307,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
                 ApplyAuthenticationCustomHeaders(requestMessage, identity.HeaderConfiguration);
                 ApplyProtocolVersionHeader(requestMessage, identity.ProtocolVersion);
                 ApplyMethodHeader(requestMessage, method, identity.ProtocolVersion);
+                ApplyNameHeader(requestMessage, jsonPayload, method, identity.ProtocolVersion);
+                foreach (var header in parameterHeaders)
+                    requestMessage.Headers.TryAddWithoutValidation(header.Key, EncodeMirroredHeaderValue(header.Value));
                 ApplySessionIdHeader(requestMessage, ShouldIncludeSessionHeader(method), identity.SessionId);
 
                 if (!string.IsNullOrEmpty(identity.AuthorizationHeader))
@@ -452,8 +462,22 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         var results = new List<JsonRpcErrorTest>();
 
         // Test Parse Error (-32700) - Invalid JSON
-        var parseErrorResponse = selection.HasFlag(JsonRpcErrorProbeSelection.ParseError)
-            ? await SendRawJsonAsync(endpoint, "{ invalid json", cancellationToken) : null;
+        ValidatorJsonRpcResponse? parseErrorResponse = null;
+        if (selection.HasFlag(JsonRpcErrorProbeSelection.ParseError))
+        {
+            var headers = new Dictionary<string, string> { ["Accept"] = "application/json, text/event-stream" };
+            if (ProtocolEraVersions.IsModern(_protocolVersion)) headers[McpSpecConstants.MethodHeader] = ValidationConstants.Methods.ServerDiscover;
+            var probe = await SendHttpTransportProbeAsync(new HttpTransportProbeRequest
+            {
+                Endpoint = endpoint, Body = "{ invalid json", Headers = headers, IncludeMethodHeader = false,
+                IncludeSessionIdHeader = !ProtocolEraVersions.IsModern(_protocolVersion)
+            }, cancellationToken);
+            parseErrorResponse = new ValidatorJsonRpcResponse
+            {
+                StatusCode = probe.StatusCode, IsSuccess = probe.IsSuccess, RawJson = probe.Body, Error = probe.Error,
+                Headers = probe.Headers, ElapsedMs = probe.ElapsedMs, ProbeContext = probe.ProbeContext
+            };
+        }
         if (parseErrorResponse is not null) results.Add(new JsonRpcErrorTest
         {
             Name = "Parse Error",
@@ -513,7 +537,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     {
         var result = new TransportResilienceProbeResult
         {
-            ProbeId = "timeout-handling",
+            ProbeId = ValidationConstants.ProbeIds.TimeoutHandling,
             DisplayName = "Timeout Handling Recovery",
             ExpectedOutcome = "A validator-induced HTTP timeout should abort the request and the endpoint should still respond to a follow-up MCP probe."
         };
@@ -571,7 +595,7 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     {
         var result = new TransportResilienceProbeResult
         {
-            ProbeId = "connection-interruption",
+            ProbeId = ValidationConstants.ProbeIds.ConnectionInterruption,
             DisplayName = "Connection Interruption Recovery",
             ExpectedOutcome = "A validator-induced HTTP connection interruption should be observed and the endpoint should still respond to a follow-up MCP probe."
         };
@@ -1283,6 +1307,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         McpAuthenticationHelper.ApplyCustomHeaders(requestMessage.Headers, authentication);
         requestMessage.Headers.Remove(ProtocolVersionHeaderName);
         requestMessage.Headers.Remove(MethodHeaderName);
+        requestMessage.Headers.Remove(McpSpecConstants.NameHeader);
+        foreach (var header in requestMessage.Headers.Where(header => header.Key.StartsWith(McpSpecConstants.ParameterHeaderPrefix, StringComparison.OrdinalIgnoreCase)).Select(header => header.Key).ToArray())
+            requestMessage.Headers.Remove(header);
         requestMessage.Headers.Remove(SessionIdHeaderName);
     }
 
@@ -1297,6 +1324,31 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
     }
 
     private void ApplyMethodHeader(HttpRequestMessage requestMessage, string? method) => ApplyMethodHeader(requestMessage, method, _protocolVersion);
+
+    private static void ApplyNameHeader(HttpRequestMessage requestMessage, string jsonPayload, string? method, string? protocolVersion)
+    {
+        requestMessage.Headers.Remove(McpSpecConstants.NameHeader);
+        if (!ProtocolEraVersions.IsModern(protocolVersion)) return;
+        var parameterName = method switch
+        {
+            ValidationConstants.Methods.ToolsCall or ValidationConstants.Methods.PromptsGet => "name",
+            ValidationConstants.Methods.ResourcesRead => "uri",
+            _ => null
+        };
+        if (parameterName == null) return;
+        using var document = JsonDocument.Parse(jsonPayload);
+        if (!document.RootElement.TryGetProperty("params", out var parameters) || parameters.ValueKind != JsonValueKind.Object ||
+            !parameters.TryGetProperty(parameterName, out var value) || value.ValueKind != JsonValueKind.String) return;
+        var name = value.GetString()!;
+        requestMessage.Headers.TryAddWithoutValidation(McpSpecConstants.NameHeader, EncodeMirroredHeaderValue(name));
+    }
+
+    private static string EncodeMirroredHeaderValue(string name)
+    {
+        var encode = name.Length != name.Trim().Length || name.Any(character => character > 0x7e || character < 0x20 && character != '\t') ||
+            name.StartsWith("=?base64?", StringComparison.Ordinal) && name.EndsWith("?=", StringComparison.Ordinal);
+        return encode ? "=?base64?" + Convert.ToBase64String(Encoding.UTF8.GetBytes(name)) + "?=" : name;
+    }
 
     private static void ApplyMethodHeader(HttpRequestMessage requestMessage, string? method, string? protocolVersion)
     {
@@ -1384,7 +1436,9 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var header in request.Headers)
         {
-            if (!string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(header.Key, McpSpecConstants.NameHeader, StringComparison.OrdinalIgnoreCase) &&
+                !header.Key.StartsWith(McpSpecConstants.ParameterHeaderPrefix, StringComparison.OrdinalIgnoreCase))
             {
                 headers[header.Key] = string.Join(",", header.Value);
             }

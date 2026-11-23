@@ -98,7 +98,7 @@ async function main(): Promise<void> {
     "validate",
     {
       title: "Validate MCP Server",
-      description: "Evaluate an MCP server using typed claims and independent assurance assessments. Safe inventory mode reports active security and execution coverage as incomplete instead of treating it as passed.",
+      description: "Evaluate an MCP server using typed claims and independent assurance assessments. The comprehensive default requires admitted execution and conformance evidence; select inventory explicitly for Safe discovery with reported coverage gaps.",
       inputSchema: ValidateInputSchema.shape,
       outputSchema: toolOutputSchema,
       annotations: validateAnnotations,

@@ -5,6 +5,10 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class AssuranceClaimProjector
 {
+    internal static string GetExternalCheckClaimId(string scenarioId, string checkId, int? sourceIndex) => sourceIndex is { } index
+        ? $"official:{Normalize(scenarioId)}:check:{index}"
+        : $"official:{Normalize(scenarioId)}:{Normalize(checkId)}";
+
     public static IReadOnlyList<AssuranceClaim> Project(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -217,6 +221,7 @@ public static class AssuranceClaimProjector
     {
         var assessment = result.Assessments.OfficialConformance;
         if (assessment == null) return;
+        OfficialConformanceContract.ValidateCheckIdentities(assessment);
 
         foreach (var scenario in assessment.Scenarios)
         {
@@ -224,20 +229,24 @@ public static class AssuranceClaimProjector
             {
                 claims.Add(new AssuranceClaim
                 {
-                    ClaimId = $"official:{Normalize(scenario.ScenarioId)}:{Normalize(check.Id)}",
+                    ClaimId = GetExternalCheckClaimId(scenario.ScenarioId, check.Id, check.SourceIndex),
                     Subject = scenario.ScenarioId,
                     Dimension = AssuranceDimension.ExternalConformance,
                     RequirementLevel = scenario.ScoringDisposition == OfficialConformanceScoringDisposition.Required
                         ? AssuranceRequirementLevel.Must
                         : AssuranceRequirementLevel.May,
                     Authority = AssuranceAuthority.OfficialConformance,
+                    Applicability = check.Status == OfficialConformanceCheckStatus.Info && !check.PrerequisiteMissing
+                        ? check.Applicability : AssuranceApplicability.Applicable,
                     Source = new AssuranceSourceReference
                     {
                         Revision = assessment.RequirementSet.Revision,
                         Sha256 = assessment.RequirementSet.Sha256
                     },
-                    Outcome = assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified
+                    Outcome = assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified || check.PrerequisiteMissing
                         ? AssuranceClaimOutcome.Incomplete
+                        : check.Status == OfficialConformanceCheckStatus.Info && check.Applicability == AssuranceApplicability.NotApplicable
+                            ? AssuranceClaimOutcome.NotApplicable
                         : check.Status switch
                         {
                             OfficialConformanceCheckStatus.Success => AssuranceClaimOutcome.Satisfied,
@@ -248,7 +257,7 @@ public static class AssuranceClaimProjector
                     Confidence = assessment.VerificationStatus == OfficialConformanceVerificationStatus.Verified
                         ? EvidenceConfidenceLevel.High
                         : EvidenceConfidenceLevel.None,
-                    EvidenceIds = [$"official-conformance/{scenario.ScenarioId}/{check.Id}"],
+                    EvidenceIds = [OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex)],
                     Summary = check.Description
                 });
             }
@@ -272,7 +281,8 @@ public static class AssuranceClaimProjector
                 Outcome = decision.Gate == GateOutcome.Reject
                     ? AssuranceClaimOutcome.Violated
                     : AssuranceClaimOutcome.ReviewRequired,
-                Confidence = EvidenceConfidenceLevel.High,
+                Confidence = assessment.VerificationStatus == OfficialConformanceVerificationStatus.Verified
+                    ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.None,
                 EvidenceIds = decision.RelatedEvidenceIds,
                 Summary = decision.Summary,
                 Metadata = new Dictionary<string, string>(decision.Metadata, StringComparer.Ordinal)
@@ -287,11 +297,16 @@ public static class AssuranceClaimProjector
     {
         foreach (var extension in result.Assessments.Extensions)
         {
+            var coverageOutcomes = extension.Coverage.Select(CoverageOutcome).ToArray();
+            var hasCoverageFailure = coverageOutcomes.Contains(AssuranceClaimOutcome.Violated);
+            var hasCoverageError = coverageOutcomes.Contains(AssuranceClaimOutcome.Error);
             var hasSpecFailure = extension.Findings.Any(finding =>
                 finding.Source == ValidationRuleSource.Spec &&
                 finding.Severity >= ValidationFindingSeverity.High);
             var hasReviewFinding = extension.Findings.Count > 0;
-            var evidenceIncomplete = extension.EvidenceSummary.ApplicableDeclarations > 0 &&
+            var evidenceIncomplete = coverageOutcomes.Length == 0 ||
+                coverageOutcomes.Any(outcome => outcome is AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired) ||
+                extension.EvidenceSummary.ApplicableDeclarations > 0 &&
                 extension.EvidenceSummary.Covered < extension.EvidenceSummary.ApplicableDeclarations;
             claims.Add(new AssuranceClaim
             {
@@ -305,16 +320,18 @@ public static class AssuranceClaimProjector
                     Revision = extension.SpecificationRevision,
                     Sha256 = extension.SpecificationSha256
                 },
-                Outcome = hasSpecFailure
+                Outcome = hasSpecFailure || hasCoverageFailure
                     ? AssuranceClaimOutcome.Violated
+                    : hasCoverageError
+                        ? AssuranceClaimOutcome.Error
                     : evidenceIncomplete
                         ? AssuranceClaimOutcome.Incomplete
                         : hasReviewFinding
                             ? AssuranceClaimOutcome.ReviewRequired
                             : AssuranceClaimOutcome.Satisfied,
                 Confidence = extension.EvidenceSummary.ConfidenceLevel,
-                Summary = hasSpecFailure
-                    ? "Extension has specification failures."
+                Summary = hasSpecFailure || hasCoverageFailure || hasCoverageError
+                    ? "Extension has recorded assessment failures."
                     : evidenceIncomplete
                         ? "Extension evidence is incomplete."
                         : hasReviewFinding
@@ -421,7 +438,7 @@ public static class AssuranceClaimProjector
         AssuranceDimension dimension)
     {
         if (finding.Metadata.TryGetValue("requirementLevel", out var requirementLevel) &&
-            Enum.TryParse<AssuranceRequirementLevel>(requirementLevel, ignoreCase: true, out var parsed))
+            Enum.TryParse<AssuranceRequirementLevel>(requirementLevel, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
             return parsed;
         if (dimension == AssuranceDimension.Security) return AssuranceRequirementLevel.SecurityControl;
         if (dimension == AssuranceDimension.Operations) return AssuranceRequirementLevel.OperationalObjective;

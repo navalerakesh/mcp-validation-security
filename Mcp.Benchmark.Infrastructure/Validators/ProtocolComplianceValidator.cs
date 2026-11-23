@@ -120,17 +120,19 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 ? 1.0
                 : observableErrorTests.Count(t => t.IsValid) / (double)observableErrorTests.Count;
 
-            // Test 2: Request Format Compliance
-            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, ct);
-
-            // Test 3: Response Format Compliance
-            var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, ct);
-
             var applicabilityContext = _applicabilityResolver.Build(
                 serverConfig,
                 config.ProtocolVersion ?? serverConfig.ProtocolVersion,
                 Array.Empty<string>());
             var protocolFeatures = _protocolFeatureResolver.Resolve(applicabilityContext);
+            var formatProbeMethod = protocolFeatures.Era == McpProtocolEra.Modern
+                ? ValidationConstants.Methods.ServerDiscover : ValidationConstants.Methods.Ping;
+
+            // Test 2: Request Format Compliance
+            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, formatProbeMethod, ct);
+
+            // Test 3: Response Format Compliance
+            var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, formatProbeMethod, ct);
 
             // Test 4: Batch Processing Compliance
             var batchProbe = protocolFeatures.SupportsBatchJsonRpc
@@ -2363,15 +2365,15 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }, cancellationToken);
     }
 
-    private async Task<bool> ValidateRequestFormatAsync(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation, CancellationToken cancellationToken)
+    private async Task<bool> ValidateRequestFormatAsync(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation, string method, CancellationToken cancellationToken)
     {
         // Test 1: Valid request
-        var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, "ping", null, cancellationToken);
+        var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, method, null, cancellationToken);
 
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
         if (AuthenticationChallengeInterpreter.Inspect(validResponse).RequiresAuthentication) return true;
 
-        if (!validResponse.IsSuccess && validResponse.StatusCode != 404) return false; // 404 is fine for ping
+        if (!validResponse.IsSuccess && (method != ValidationConstants.Methods.Ping || validResponse.StatusCode != 404)) return false;
 
         var parseErrorTest = errorValidation.Tests.FirstOrDefault(test => test.ExpectedErrorCode == -32700);
         if (parseErrorTest is null)
@@ -2390,9 +2392,9 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                classification.ErrorCode == -32700;
     }
 
-    private async Task<bool> ValidateResponseFormatAsync(string endpoint, CancellationToken cancellationToken)
+    private async Task<bool> ValidateResponseFormatAsync(string endpoint, string method, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
+        var response = await _httpClient.CallAsync(endpoint, method, null, cancellationToken);
 
         // If auth failed, we can't validate response format, but we shouldn't fail the test
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;

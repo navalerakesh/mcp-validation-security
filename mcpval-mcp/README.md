@@ -162,6 +162,8 @@ On Windows, use the full path to `mcpval.exe`.
 
 `protocolEra` accepts `auto`, `legacy`, or `modern`; prefer `auto` unless the target requires an explicit protocol generation.
 
+`validate` defaults to `assurance: "comprehensive"`. Without operator-owned execution admission, conformance evidence, signed identity baseline and independently reserved validation ID, the CLI rejects the request before target contact. Use `assurance: "inventory"` explicitly for Safe discovery/static assessment. Comprehensive completeness qualification is still in progress; a successful inventory exit does not satisfy it.
+
 Auto health checks can establish legacy initialization after unavailable modern discovery; explicit `modern` does not fall back. Health output includes the observed protocol separately from the selected plan, with control characters escaped. A successful inventory exit does not imply complete active security, tool-execution, identity, state or relay coverage; inspect the canonical claims and gaps.
 
 ## Security Behavior
@@ -173,6 +175,7 @@ Auto health checks can establish legacy initialization after unavailable modern 
 - `structuredContent.exitCode` preserves the CLI's stable V2 exit contract (`0`, `1`, `2`, `64`, `70`, `75`, or `124`) and includes explicit untrusted-content metadata for target-derived evidence.
 - Remote endpoint validation is enabled by default. Local STDIO command execution is disabled because a command runs with the wrapper process's privileges.
 - The wrapper uses the CLI's default safe mode. Safe mode performs discovery and static metadata/schema analysis and does not call target tools.
+- Operators may admit standard comprehensive execution with `MCPVAL_COMPREHENSIVE_EXECUTION_MODE=standard`, `MCPVAL_OFFICIAL_CONFORMANCE_RESULTS`, `MCPVAL_IDENTITY_BASELINE`, and `MCPVAL_VALIDATION_ID` when starting this process. The file paths and independently reserved run ID are operator-owned; the CLI verifies target/protocol and signed control admission before active validation. Missing inputs do not enable admission. These inputs are not accepted from agent tool arguments, and `reportDetail` never grants execution authority. See the [CLI baseline contract](../Mcp.Benchmark.CLI/README.md#comprehensive-admission).
 - The wrapper never accepts provider evidence paths from agent tool arguments. Operators may enable provider assurance for the process with `MCPVAL_PROVIDER_HARNESS`, `MCPVAL_PROVIDER_AUTHORIZATION_KEY`, `MCPVAL_OFFICIAL_CONFORMANCE_RESULTS`, and `MCPVAL_ATTESTATION_PRIVATE_KEY_PEM`; all four are required. Provider assurance then selects standard mode, where the CLI verifies signed authorization and the admitted plan before target contact. The wrapper fails closed when any trust input is absent.
 - The MCP tool returns canonical JSON evidence, not generated HTML or Markdown bytes. `reportDetail` controls temporary CLI report generation only; use the CLI `report` command outside the wrapper when a durable human report is required.
 

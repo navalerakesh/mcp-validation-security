@@ -105,7 +105,7 @@ public class McpValidatorConfiguration
 public sealed class AssurancePolicyConfig
 {
     [JsonPropertyName("profile")]
-    public string Profile { get; set; } = "inventory";
+    public string Profile { get; set; } = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Comprehensive.ProfileId;
 }
 
 /// <summary>

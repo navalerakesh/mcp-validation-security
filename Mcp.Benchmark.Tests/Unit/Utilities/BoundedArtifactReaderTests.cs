@@ -16,6 +16,71 @@ public sealed class BoundedArtifactReaderTests : IDisposable
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"mcpval-artifact-reader-{Guid.NewGuid():N}");
 
     [Theory]
+    [InlineData("valid")]
+    [InlineData("tampered")]
+    [InlineData("wrong-run")]
+    public async Task SavedIdentityBaseline_ShouldVerifyBeforeReadOrClone(string variant)
+    {
+        var result = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        var options = ArtifactJsonOptions.Create(writeIndented: false);
+        var node = JsonSerializer.SerializeToNode(result, options)!;
+        const string canary = "synthetic-unverified-envelope-canary";
+        if (variant == "tampered")
+        {
+            var selection = node["assurance"]!["requiredIdentityControls"]!;
+            var envelope = JsonNode.Parse(selection["signedEvidenceJson"]!.GetValue<string>())!;
+            envelope["unknownField"] = canary;
+            selection["signedEvidenceJson"] = envelope.ToJsonString();
+        }
+        if (variant == "wrong-run") node["run"]!["validationId"] = "different-run";
+        var saved = node.Deserialize<ValidationResult>(options)!;
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "saved-baseline.json"));
+        await File.WriteAllTextAsync(file.FullName, node.ToJsonString());
+
+        if (variant == "valid")
+        {
+            saved.CloneWithoutSecrets().Assurance.RequiredIdentityControls.Should().NotBeNull();
+            (await BoundedArtifactReader.ReadValidationResultAsync(file)).Assurance.RequiredIdentityControls.Should().NotBeNull();
+        }
+        else
+        {
+            var clone = () => saved.CloneWithoutSecrets();
+            clone.Should().Throw<InvalidDataException>().Which.ToString().Should().NotContain(canary);
+            var read = () => BoundedArtifactReader.ReadValidationResultAsync(file);
+            (await read.Should().ThrowAsync<CliUsageException>()).Which.ToString().Should().NotContain(canary);
+        }
+    }
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("unknown")]
+    [InlineData("duplicate")]
+    [InlineData("null-contract")]
+    public async Task IdentityBaselineReader_ShouldRejectAmbiguousOrUnknownFields(string variant)
+    {
+        var result = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(result);
+        var node = JsonSerializer.SerializeToNode(result.Assurance.RequiredIdentityControls, ArtifactJsonOptions.Create(writeIndented: false))!.AsObject();
+        if (variant == "unknown") node["canary-unknown-field"] = "canary-value";
+        if (variant == "duplicate") node["ActorBindingCaseId"] = "canary-value";
+        if (variant == "null-contract") node["contract"] = null;
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "identity-baseline.json"));
+        await File.WriteAllTextAsync(file.FullName, node.ToJsonString());
+
+        if (variant == "valid")
+            (await BoundedArtifactReader.ReadIdentityBaselineAsync(file, CancellationToken.None)).ActorBindingCaseId.Should().Be("actor-probe");
+        else
+        {
+            var action = () => BoundedArtifactReader.ReadIdentityBaselineAsync(file, CancellationToken.None);
+            var error = await action.Should().ThrowAsync<CliUsageException>();
+            error.Which.Message.Should().NotContain("canary");
+        }
+    }
+
+    [Theory]
     [InlineData("valid", true)]
     [InlineData("absent", true)]
     [InlineData("method", false)]

@@ -177,6 +177,161 @@ public class McpValidatorServiceUnitTests
             resourceSampler);
 
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ComprehensiveLibraryAdmission_ShouldRejectBeforeAnyTargetSetup(bool captured, bool dryRun)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.DryRun = dryRun;
+        var action = () => captured
+            ? _validatorService.ValidateServerAsync(ValidationRunRequest.Capture(configuration))
+            : _validatorService.ValidateServerAsync(configuration);
+
+        await action.Should().ThrowAsync<ValidationSessionException>();
+        _httpClientMock.Invocations.Should().BeEmpty();
+        _sessionBuilderMock.Invocations.Should().BeEmpty();
+        _healthCheckServiceMock.Invocations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ComprehensiveLibraryAdmission_ShouldVerifySuppliedEvidenceBeforeTargetSetup()
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true).Should().BeEmpty();
+        var action = () => _validatorService.ValidateServerAsync(ValidationRunRequest.CaptureWithConformance(configuration, "{}"));
+
+        await action.Should().ThrowAsync<Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException>();
+        _httpClientMock.Invocations.Should().BeEmpty();
+        _sessionBuilderMock.Invocations.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("target")]
+    [InlineData("protocol")]
+    [InlineData("unpinned")]
+    [InlineData("missing-baseline")]
+    [InlineData("baseline-target")]
+    [InlineData("baseline-tampered")]
+    [InlineData("baseline-selection")]
+    public async Task ComprehensiveLibraryAdmission_ShouldBindVerifiedEvidenceBeforeBootstrap(string mode)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Server.Endpoint = "https://example.invalid/mcp";
+        configuration.Server.Transport = "http";
+        configuration.Server.ProtocolVersion = OfficialConformanceContract.RequirementSetRevision;
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        var document = Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateDocument(
+            [Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateCheck("fixture-pass", OfficialConformanceCheckStatus.Success)],
+            runnerVersion: mode == "unpinned" ? "untrusted-version" : null);
+        var node = JsonSerializer.SerializeToNode(document, OfficialConformanceContract.CreateJsonOptions())!;
+        node["target"]!["identitySha256"] = mode == "target" ? new string('b', 64) : ValidationTargetIdentity.ComputeDigest(configuration.Server);
+        if (mode == "protocol") node["target"]!["protocolVersion"] = "2025-11-25";
+        var request = ValidationRunRequest.CaptureWithConformance(configuration, node.ToJsonString());
+
+        if (mode.StartsWith("baseline-", StringComparison.Ordinal))
+        {
+            request = WithCurrentSecurityBaseline(request);
+            var controls = request.IdentityControls!;
+            controls = mode switch
+            {
+                "baseline-target" => controls with { Admission = controls.Admission with { TargetIdentitySha256 = new string('b', 64) } },
+                "baseline-tampered" => controls with { SignedEvidenceJson = "{}" },
+                _ => controls with { ScopeEnforcementCaseId = "absent" }
+            };
+            request = request.WithIdentityControls(controls);
+        }
+
+        if (mode == "valid")
+        {
+            request = WithCurrentSecurityBaseline(request);
+            var result = await _validatorService.ValidateServerAsync(request);
+            _sessionBuilderMock.Verify(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()), Times.Once);
+            result.Assessments.OfficialConformance.Should().NotBeNull();
+            result.Assessments.OfficialConformance!.VerificationStatus.Should().Be(OfficialConformanceVerificationStatus.Verified);
+            result.Evidence.Coverage.Should().Contain(entry => entry.Lane == EvaluationLane.ExternalConformance);
+            result.Run.ExecutionMode.Should().Be(ExecutionMode.Standard);
+            result.Assurance.Claims.Where(claim => claim.ClaimId.StartsWith("security-baseline:", StringComparison.Ordinal))
+                .Should().HaveCount(3).And.OnlyContain(claim => claim.Outcome == AssuranceClaimOutcome.Satisfied);
+        }
+        else
+        {
+            var action = () => _validatorService.ValidateServerAsync(request);
+            if (mode is "unpinned" or "missing-baseline" or "baseline-selection") await action.Should().ThrowAsync<ValidationSessionException>();
+            else if (mode is "baseline-target" or "baseline-tampered") await action.Should().ThrowAsync<InvalidDataException>();
+            else await action.Should().ThrowAsync<Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException>();
+            _httpClientMock.Invocations.Should().BeEmpty();
+            _sessionBuilderMock.Invocations.Should().BeEmpty();
+        }
+    }
+
+    [Theory]
+    [InlineData("bootstrap-failure")]
+    [InlineData("bootstrap-cancelled")]
+    [InlineData("negotiated-mismatch")]
+    [InlineData("inventory-negotiated")]
+    public async Task ConformanceAdmission_ShouldRequireSuccessfulNegotiatedBindingBeforeCredit(string mode)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var configuration = new McpValidatorConfiguration();
+        configuration.Server.Endpoint = "https://example.invalid/mcp";
+        configuration.Server.Transport = "http";
+        configuration.Server.ProtocolVersion = OfficialConformanceContract.RequirementSetRevision;
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        if (mode == "inventory-negotiated")
+        {
+            configuration.Assurance.Profile = "inventory";
+            configuration.Server.ProtocolVersion = "2025-11-25";
+        }
+        var document = Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateDocument(
+            [Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateCheck("fixture-pass", OfficialConformanceCheckStatus.Success)]);
+        var node = JsonSerializer.SerializeToNode(document, OfficialConformanceContract.CreateJsonOptions())!;
+        node["target"]!["identitySha256"] = ValidationTargetIdentity.ComputeDigest(configuration.Server);
+        _sessionBuilderMock.Setup(builder => builder.BuildAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((McpValidatorConfiguration captured, CancellationToken token) =>
+            {
+                if (mode == "bootstrap-failure") throw new ValidationSessionException("Fixture bootstrap unavailable.", ValidationStatus.Failed);
+                if (mode == "bootstrap-cancelled")
+                {
+                    cancellation.Cancel();
+                    token.ThrowIfCancellationRequested();
+                }
+                return new ValidationSessionContext(captured, captured.Server)
+                {
+                    ProtocolVersion = mode == "negotiated-mismatch" ? "2025-11-25" : OfficialConformanceContract.RequirementSetRevision
+                };
+            });
+
+        var request = ValidationRunRequest.CaptureWithConformance(configuration, node.ToJsonString());
+        if (mode != "inventory-negotiated") request = WithCurrentSecurityBaseline(request);
+        var result = await _validatorService.ValidateServerAsync(request, cancellation.Token);
+
+        if (mode == "inventory-negotiated")
+        {
+            result.ProtocolVersion.Should().Be(OfficialConformanceContract.RequirementSetRevision);
+            result.Assessments.OfficialConformance!.VerificationStatus.Should().Be(OfficialConformanceVerificationStatus.Verified);
+        }
+        else
+        {
+            result.Assessments.OfficialConformance.Should().BeNull();
+            result.Assurance.Claims.Should().NotContain(claim => claim.Authority == AssuranceAuthority.OfficialConformance && claim.Outcome == AssuranceClaimOutcome.Satisfied);
+            _protocolValidatorMock.Invocations.Should().BeEmpty();
+            _toolValidatorMock.Invocations.Should().BeEmpty();
+            result.Run.TerminationOutcome.Should().Be(mode == "bootstrap-cancelled" ? ValidationOutcome.Cancelled : ValidationOutcome.Inconclusive);
+        }
+    }
+
+    private static ValidationRunRequest WithCurrentSecurityBaseline(ValidationRunRequest request)
+    {
+        var result = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(result, runId: request.RequestId,
+            targetDigest: request.TargetIdentitySha256, assessedAt: DateTimeOffset.UtcNow);
+        return request.WithIdentityControls(result.Assurance.RequiredIdentityControls!);
+    }
+
+    [Theory]
     [InlineData("written", ValidationOutcome.Succeeded)]
     [InlineData("dropped", ValidationOutcome.Failed)]
     [InlineData("other-run", ValidationOutcome.Blocked)]
@@ -270,7 +425,7 @@ public class McpValidatorServiceUnitTests
             .Returns(new ValidatorProcessResourceSnapshot(TimeSpan.FromMilliseconds(mode == "valid" ? 25 : 5), 200));
 
         var result = await CreateService(_scenarioPackRegistry, sampler.Object).ValidateServerAsync(new McpValidatorConfiguration
-            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" }, Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
 
         result.CriticalErrors.Should().BeEmpty();
         result.Run.TerminationOutcome.Should().Be(ValidationOutcome.Succeeded,
@@ -287,7 +442,7 @@ public class McpValidatorServiceUnitTests
     public async Task ValidateServerAsync_ShouldAttributeMeasuredResourcesToValidatorProcess()
     {
         var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
-            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" }, Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
         var document = JsonSerializer.SerializeToNode(result.CloneWithoutSecrets(), new JsonSerializerOptions
             { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })!;
         var resources = document["run"]!["operationalMetrics"]!["validatorProcessResources"];
@@ -374,7 +529,7 @@ public class McpValidatorServiceUnitTests
         var registry = new Mock<IValidationPackRegistry<IValidationScenarioPack>>();
         registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(packs);
         var configuration = new McpValidatorConfiguration
-            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" }, Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
         if (beforeScenarioPhase)
         {
             configuration.TestExecution.EnableParallelExecution = false;
@@ -445,7 +600,7 @@ public class McpValidatorServiceUnitTests
         registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(packs);
 
         var result = await CreateService(registry.Object).ValidateServerAsync(new McpValidatorConfiguration
-            { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" }, Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } });
 
         result.OverallStatus.Should().Be(ValidationStatus.Error);
         result.Assessments.Extensions.Should().HaveCount(3).And.OnlyHaveUniqueItems(value => value.ExtensionId);
@@ -490,7 +645,7 @@ public class McpValidatorServiceUnitTests
         pack.Setup(value => value.GetScenarios()).Returns(new[] { first.Object, second.Object });
         var registry = new Mock<IValidationPackRegistry<IValidationScenarioPack>>();
         registry.Setup(value => value.Resolve(It.IsAny<ValidationApplicabilityContext>())).Returns(new[] { pack.Object });
-        var configuration = new McpValidatorConfiguration { Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
+        var configuration = new McpValidatorConfiguration { Assurance = new AssurancePolicyConfig { Profile = "inventory" }, Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" } };
 
         var result = await CreateService(registry.Object).ValidateServerAsync(configuration);
 
@@ -523,7 +678,7 @@ public class McpValidatorServiceUnitTests
                     return Task.FromException<ToolTestResult>(new OperationCanceledException(cancellation.Token));
                 });
             var configuration = new McpValidatorConfiguration
-            {
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
                 Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
             };
             configuration.TestExecution.EnableParallelExecution = parallel;
@@ -566,7 +721,7 @@ public class McpValidatorServiceUnitTests
             .Throws(new InvalidOperationException("synthetic-applicability-secret"));
 
         var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
         });
 
@@ -584,7 +739,7 @@ public class McpValidatorServiceUnitTests
             .ThrowsAsync(new InvalidOperationException("synthetic-bootstrap-secret"));
 
         var result = await _validatorService.ValidateServerAsync(new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
         });
 
@@ -632,7 +787,7 @@ public class McpValidatorServiceUnitTests
                 It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>()))
                 .Returns(() => { if (Interlocked.Increment(ref starts) == 2) bothStarted.SetResult(); return tools.Task; });
             var configuration = new McpValidatorConfiguration
-            {
+            { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
                 Server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }
             };
             configuration.TestExecution.EnableParallelExecution = true;
@@ -660,7 +815,7 @@ public class McpValidatorServiceUnitTests
     {
         // Arrange
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
             Validation = new ValidationConfig
             {
@@ -849,7 +1004,7 @@ public class McpValidatorServiceUnitTests
     public async Task ValidateServerAsync_WithAuthenticatedProfile_ShouldClampFunctionalProbeConcurrency()
     {
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig
             {
                 Endpoint = "https://test-server.com/mcp",
@@ -872,7 +1027,7 @@ public class McpValidatorServiceUnitTests
     {
         // Arrange
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
             Validation = new ValidationConfig
             {
@@ -927,7 +1082,7 @@ public class McpValidatorServiceUnitTests
         var protocolCompleted = false;
 
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
             Validation = new ValidationConfig
             {
@@ -970,7 +1125,7 @@ public class McpValidatorServiceUnitTests
     public async Task ValidateServerAsync_WithPublicTimeoutAndNoPerformanceMeasurements_ShouldCalibrateToAdvisory()
     {
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig
             {
                 Endpoint = "https://test-server.com/mcp",
@@ -1064,7 +1219,7 @@ public class McpValidatorServiceUnitTests
     public async Task ValidateServerAsync_ShouldKeepScoringNotesSeparateFromRecommendations()
     {
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
             Validation = new ValidationConfig
             {
@@ -1092,7 +1247,7 @@ public class McpValidatorServiceUnitTests
     public async Task ValidateServerAsync_ShouldGenerateEvidenceDerivedRecommendationsInsteadOfBoilerplate()
     {
         var config = new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig { Endpoint = "https://test-server.com/mcp" },
             Validation = new ValidationConfig
             {
@@ -1539,10 +1694,41 @@ public class McpValidatorServiceUnitTests
             policy.MaxRequests == 7 && policy.AllowedHosts.Contains("second.test"))), Times.Once);
     }
 
+    [Theory]
+    [InlineData(TestStatus.Skipped)]
+    [InlineData(TestStatus.AuthRequired)]
+    [InlineData(TestStatus.Inconclusive)]
+    public async Task ValidateServerAsync_ShouldIncludeRecordedToolOutcomesInSummary(TestStatus outcome)
+    {
+        var config = CreateFunctionalCategoryConfiguration();
+        var toolResult = new ToolTestResult
+        {
+            Status = TestStatus.Inconclusive,
+            ToolsDiscovered = 2,
+            ToolsTestPassed = 1,
+            DiscoveredToolNames = ["complete", "incomplete"],
+            ToolResults =
+            [
+                new IndividualToolResult { ToolName = "complete", Status = TestStatus.Passed, DiscoveredCorrectly = true },
+                new IndividualToolResult { ToolName = "incomplete", Status = outcome, DiscoveredCorrectly = true },
+                new IndividualToolResult { ToolName = "diagnostic-only", Status = outcome }
+            ]
+        };
+        _toolValidatorMock.Setup(validator => validator.ValidateToolDiscoveryAsync(
+            It.IsAny<McpServerConfig>(), It.IsAny<ToolTestingConfig>(), It.IsAny<CancellationToken>())).ReturnsAsync(toolResult);
+
+        var result = await _validatorService.ValidateServerAsync(config, CancellationToken.None);
+
+        result.ToolValidation.Should().NotBeNull();
+        result.Summary.SkippedTests.Should().Be(outcome == TestStatus.Skipped ? 1 : 0);
+        result.Summary.AuthRequiredTests.Should().Be(outcome == TestStatus.AuthRequired ? 1 : 0);
+        result.Summary.InconclusiveTests.Should().Be(outcome == TestStatus.Inconclusive ? 1 : 0);
+    }
+
     private static McpValidatorConfiguration CreateFunctionalCategoryConfiguration()
     {
         return new McpValidatorConfiguration
-        {
+        { Assurance = new AssurancePolicyConfig { Profile = "inventory" },
             Server = new McpServerConfig
             {
                 Endpoint = "https://example.test/mcp",

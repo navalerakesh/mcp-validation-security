@@ -53,6 +53,9 @@ process.exit(Number(process.env.MUTATION_FIXTURE_EXIT));
       assert.deepEqual(args.filter((value, index) => args[index - 1] === '--mutate'), [
         '**/AssuranceAssessmentEngine.cs', '**/ProviderHarnessEvaluator.cs', '**/RuleCalibrationEvaluator.cs',
         '**/ControlledStateEvaluator.cs', '**/ControlledIdentityEvaluator.cs', '**/ControlledEvidenceAdmission.cs',
+        '**/AssuranceExitCodeMapper.cs', '**/AssuranceClaimProjector.cs', '**/ComprehensiveAssessmentRequirements.cs',
+        '**/ControlledIdentitySecurityBaseline.cs', '**/ControlledIdentityEvidenceVerifier.cs',
+        '**/OfficialConformanceContract.cs', '**/OfficialConformanceReconciler.cs', '**/SignedControlledEvidenceReader.cs',
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

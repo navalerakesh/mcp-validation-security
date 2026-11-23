@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 
@@ -6,6 +7,7 @@ namespace Mcp.Benchmark.Infrastructure.Scenarios;
 
 public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
 {
+    private const string Revision = "2026-11-22.2";
     private readonly IReadOnlyList<IValidationScenario> _scenarios;
 
     public BuiltInObservedSurfaceScenarioPack()
@@ -19,7 +21,20 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             CreateScenario("prompt-catalog-smoke", "Prompt Catalog Smoke", "prompt-surface", ExecutePromptScenario),
             CreateScenario("security-authentication-challenge", "Authentication Challenge Matrix", "security-boundaries", ExecuteAuthenticationScenario),
             CreateScenario("security-attack-simulations", "Attack Simulation Matrix", "security-boundaries", ExecuteAttackScenario),
-            CreateScenario("error-handling-matrix", "Error Handling Matrix", "error-handling", ExecuteErrorHandlingScenario)
+            CreateScenario("error-handling-matrix", "Error Handling Matrix", "error-handling", ExecuteErrorHandlingScenario),
+            CreateErrorScenario(ValidationConstants.ProbeIds.TimeoutHandling, "Timeout Recovery", config => config.TestTimeoutHandling, requiresRecovery: true),
+            CreateErrorScenario(ValidationConstants.ProbeIds.ConnectionInterruption, "Connection Recovery", config => config.TestConnectionInterruption, requiresRecovery: true),
+            CreateErrorScenario(ValidationConstants.ProbeIds.InvalidMethod, "Invalid Method Handling", config => config.TestInvalidMethods),
+            CreateErrorScenario(ValidationConstants.ProbeIds.MalformedJson, "Malformed JSON Handling", config => config.TestMalformedJson),
+            CreateErrorScenario(ValidationConstants.ProbeIds.InvalidRequest, "Invalid Request Handling", config => config.TestGracefulDegradation),
+            CreatePerformanceScenario("performance-latency", "Catalog Latency Measurement", config => config.TestResponseTimes,
+                load => load.TimingSampleCount == load.TotalRequests && double.IsFinite(load.AverageResponseTimeMs) && load.AverageResponseTimeMs >= 0),
+            CreatePerformanceScenario("performance-concurrency", "Concurrent Catalog Measurement", config => config.TestConcurrentRequests,
+                load => load.PeakInFlightRequests is >= 2 && load.PeakInFlightRequests <= load.MaxConcurrentConnections &&
+                    load.TotalRequests >= load.PeakInFlightRequests),
+            CreatePerformanceScenario("performance-throughput", "Catalog Throughput Measurement", config => config.TestThroughput,
+                load => load.ObservationDurationMs is > 0 && double.IsFinite(load.ObservationDurationMs.Value) &&
+                    double.IsFinite(load.RequestsPerSecond) && load.RequestsPerSecond >= 0)
         ];
     }
 
@@ -27,7 +42,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
     {
         Key = new ValidationDescriptorKey("scenario-pack/observed-surface"),
         Kind = ValidationPackKind.ScenarioPack,
-        Revision = new ValidationRevision("2026-04"),
+        Revision = new ValidationRevision(Revision),
         DisplayName = "Built-in Observed Surface Scenario Pack",
         Stability = ValidationStability.Stable
     };
@@ -49,7 +64,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             new ValidationScenarioDescriptor
             {
                 Key = new ValidationDescriptorKey(key),
-                Revision = new ValidationRevision("2026-04"),
+                Revision = new ValidationRevision(Revision),
                 DisplayName = displayName,
                 LayerKey = layerKey,
                 Stability = ValidationStability.Stable,
@@ -382,13 +397,17 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
         var authenticationResult = context.ValidationResult.SecurityTesting?.AuthenticationTestResult;
         if (authenticationResult?.TestScenarios.Count > 0 != true)
         {
-            return CreateNotApplicableScenario("security-authentication-challenge", "Authentication Challenge Matrix", "security-boundaries", "No authentication challenge scenarios were recorded for this run.");
+            return CreateUnavailableScenario("security-authentication-challenge", "Authentication Challenge Matrix", "security-boundaries", "No authentication challenge scenarios were recorded for this run.");
         }
 
         var status = authenticationResult.TestScenarios
             .Select(MapAuthenticationScenarioStatus)
             .DefaultIfEmpty(TestStatus.NotRun)
             .Aggregate(TestStatus.Passed, AggregateScenarioStatus);
+        var publicInformational = context.ServerConfig.Profile == McpServerProfile.Public &&
+            context.ServerConfig.Authentication?.Required != true && authenticationResult.Status == TestStatus.Passed &&
+            authenticationResult.TestScenarios.All(scenario => scenario.AssessmentDisposition == AuthenticationAssessmentDisposition.Informational &&
+                scenario.IsCompliant && scenario.IsSecure && scenario.ProbeContext?.StatusCode is >= 100 and <= 599);
 
         return new ValidationScenarioExecutionResult
         {
@@ -405,9 +424,9 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "security-boundaries",
                     Scope = "security-authentication-challenge",
-                    Status = MapCoverageStatus(status),
-                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
-                    Reason = null
+                    Status = publicInformational ? ValidationCoverageStatus.NotApplicable : MapCoverageStatus(status),
+                    ObservedOutcome = publicInformational ? ValidationOutcome.NotApplicable : ValidationOutcomeTaxonomy.From(status),
+                    Reason = publicInformational ? "Protected-endpoint challenge requirements are not applicable to the explicitly public scope; observed informational evidence is retained." : null
                 }
             ],
             Observations = authenticationResult.TestScenarios
@@ -441,7 +460,7 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
         var attacks = context.ValidationResult.SecurityTesting?.AttackSimulations;
         if (attacks?.Count > 0 != true)
         {
-            return CreateNotApplicableScenario("security-attack-simulations", "Attack Simulation Matrix", "security-boundaries", "No attack simulation results were recorded for this run.");
+            return CreateUnavailableScenario("security-attack-simulations", "Attack Simulation Matrix", "security-boundaries", "No attack simulation results were recorded for this run.");
         }
 
         var attackStatuses = attacks
@@ -506,6 +525,54 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
     {
         var contexts = probeContexts.Where(context => context != null).Cast<ProbeContext>().ToList();
         return contexts.Count > 0 ? contexts : null;
+    }
+
+    private static IValidationScenario CreatePerformanceScenario(string scenarioId, string displayName,
+        Func<PerformanceTestingConfig, bool> isEnabled, Func<LoadTestResult, bool> hasMeasurement) =>
+        CreateScenario(scenarioId, displayName, "performance", context =>
+        {
+            var config = context.ValidationConfiguration.Validation?.Categories?.PerformanceTesting;
+            if (config != null && !isEnabled(config))
+                return CreateSkippedScenario(scenarioId, displayName, "performance", "Performance measurement disabled by configuration.");
+            var performance = context.ValidationResult.PerformanceTesting;
+            if (performance == null)
+                return CreateUnavailableScenario(scenarioId, displayName, "performance", "No performance observation was recorded.");
+            var load = performance.LoadTesting;
+            if (load.TotalRequests <= 0 || load.SuccessfulRequests < 0 || load.FailedRequests < 0 ||
+                (long)load.SuccessfulRequests + load.FailedRequests != load.TotalRequests || !hasMeasurement(load))
+                return CreateUnavailableScenario(scenarioId, displayName, "performance", "Required performance measurement evidence is missing or inconsistent.");
+            return CreatePassiveScenario(scenarioId, displayName, "performance", TestStatus.Passed,
+                ValidationCoverageStatus.Covered, "Recorded catalog-load measurement; this is not a workload SLA or capacity-limit assessment.");
+        });
+
+    private static IValidationScenario CreateErrorScenario(string scenarioId, string displayName,
+        Func<ErrorHandlingConfig, bool> isEnabled, bool requiresRecovery = false) =>
+        CreateScenario(scenarioId, displayName, "error-handling",
+            context => ExecuteErrorObservation(context, scenarioId, displayName, isEnabled, requiresRecovery));
+
+    private static ValidationScenarioExecutionResult ExecuteErrorObservation(ValidationScenarioContext context,
+        string scenarioId, string displayName, Func<ErrorHandlingConfig, bool> isEnabled, bool requiresRecovery)
+    {
+        const string layerId = "error-handling";
+        var config = context.ValidationConfiguration.Validation?.Categories?.ErrorHandling;
+        if (config != null && !isEnabled(config))
+            return CreateSkippedScenario(scenarioId, displayName, layerId, "Error-handling obligation disabled by configuration.");
+
+        var errors = context.ValidationResult.ErrorHandling?.ErrorScenarioResults
+            .Where(scenario => scenario.ErrorType == scenarioId).Take(2).ToArray() ?? [];
+        var recoveries = context.ValidationResult.ErrorHandling?.RecoveryResults
+            .Where(recovery => recovery.FailureType == scenarioId).Take(2).ToArray() ?? [];
+        if (errors.Length == 0 || requiresRecovery && recoveries.Length == 0)
+            return CreateUnavailableScenario(scenarioId, displayName, layerId, "Required error-handling observations were not recorded.");
+        if (errors.Length != 1 || requiresRecovery && (recoveries.Length != 1 ||
+            errors[0].GracefulRecovery != recoveries[0].RecoverySuccessful ||
+            errors[0].HandledCorrectly && !errors[0].GracefulRecovery))
+            return CreatePassiveScenario(scenarioId, displayName, layerId, TestStatus.Inconclusive,
+                ValidationCoverageStatus.Inconclusive, "Error-handling observations are ambiguous or inconsistent.");
+
+        return CreatePassiveScenario(scenarioId, displayName, layerId,
+            errors[0].HandledCorrectly && (!requiresRecovery || recoveries[0].RecoverySuccessful) ? TestStatus.Passed : TestStatus.Failed,
+            ValidationCoverageStatus.Covered, "Assessed the recorded error-handling observations.");
     }
 
     private static ValidationScenarioExecutionResult ExecuteErrorHandlingScenario(ValidationScenarioContext context)

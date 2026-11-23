@@ -5,6 +5,17 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class AssuranceProfileCatalog
 {
     public const string Revision = "2026-11-05.1";
+    public const string ComprehensiveRevision = "2026-11-22.3";
+
+    public static AssuranceProfileManifest Comprehensive { get; } = new()
+    {
+        ProfileId = "comprehensive",
+        Revision = ComprehensiveRevision,
+        MinimumExecutionMode = ExecutionMode.Standard,
+        MinimumEvidenceCoverageRatio = 1,
+        RequiresOfficialConformance = true,
+        CertificateEligible = false
+    };
 
     public static AssuranceProfileManifest Inventory { get; } = new()
     {
@@ -44,9 +55,10 @@ public static class AssuranceProfileCatalog
 
     public static AssuranceProfileManifest Resolve(string? profileId) => profileId?.Trim().ToLowerInvariant() switch
     {
-        null or "" or "inventory" => Inventory,
+        null or "" or "comprehensive" => Comprehensive,
+        "inventory" => Inventory,
         "ci" => Ci,
         "provider" => Provider,
-        _ => throw new ArgumentException($"Unknown assurance profile '{profileId}'. Supported profiles: inventory, ci, provider.", nameof(profileId))
+        _ => throw new ArgumentException($"Unknown assurance profile '{profileId}'. Supported profiles: comprehensive, inventory, ci, provider.", nameof(profileId))
     };
 }

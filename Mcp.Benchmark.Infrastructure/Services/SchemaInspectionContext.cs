@@ -2,6 +2,9 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using Json.Pointer;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
+using System.Globalization;
+using System.Numerics;
 
 namespace Mcp.Benchmark.Infrastructure.Services;
 
@@ -18,6 +21,7 @@ internal sealed class SchemaInspectionContext
     private const string SupportedDialect = "https://json-schema.org/draft/2020-12/schema";
     private readonly JsonElement _root;
     private readonly Dictionary<JsonElement, SchemaInspectionStatus> _schemas = new();
+    private readonly Dictionary<JsonElement, IReadOnlyList<string>> _staticPropertyPaths = new();
     private int _remainingIndexSteps = MaximumIndexSteps;
     private int _remainingSteps = MaximumInspectionSteps;
     private bool _indexExhausted;
@@ -27,7 +31,61 @@ internal sealed class SchemaInspectionContext
     internal SchemaInspectionContext(JsonElement root)
     {
         _root = root;
-        Index(root, 0, isRoot: true);
+        Index(root, 0, isRoot: true, staticPath: []);
+    }
+
+    internal ValidationOutcome InspectParameterHeaderSchema() => InspectParameterHeaderSchema(out _);
+
+    private ValidationOutcome InspectParameterHeaderSchema(
+        out Dictionary<JsonElement, (string HeaderName, IReadOnlyList<string> Path)> annotations)
+    {
+        annotations = new();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var schema in _schemas.Keys.Where(schema => schema.ValueKind == JsonValueKind.Object))
+        {
+            if (!schema.TryGetProperty("x-mcp-header", out var annotation)) continue;
+            if (annotation.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(annotation.GetString()) ||
+                !_staticPropertyPaths.TryGetValue(schema, out var path) || path.Count == 0 ||
+                !schema.TryGetProperty("type", out var type) || type.ValueKind != JsonValueKind.String ||
+                type.GetString() is not ("string" or "integer" or "boolean")) return ValidationOutcome.Failed;
+            var headerName = McpSpecConstants.ParameterHeaderPrefix + annotation.GetString();
+            if (!names.Add(headerName)) return ValidationOutcome.Failed;
+            using var validation = new HttpRequestMessage();
+            try { validation.Headers.Add(headerName, "validation"); }
+            catch (FormatException) { return ValidationOutcome.Failed; }
+            annotations.Add(schema, (headerName, path));
+        }
+        return _indexExhausted || _schemas.Values.Any(status => status != SchemaInspectionStatus.Complete)
+            ? ValidationOutcome.Inconclusive : ValidationOutcome.Succeeded;
+    }
+
+    internal bool TryCreateParameterHeaders(JsonElement arguments, out IReadOnlyDictionary<string, string> headers)
+    {
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        headers = values;
+        if (InspectParameterHeaderSchema(out var annotations) != ValidationOutcome.Succeeded) return false;
+        foreach (var annotation in annotations)
+        {
+            var type = annotation.Key.GetProperty("type");
+            var value = arguments;
+            var present = true;
+            foreach (var segment in annotation.Value.Path)
+            {
+                if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(segment, out value)) { present = false; break; }
+            }
+            if (!present || value.ValueKind == JsonValueKind.Null) continue;
+            string text;
+            if (type.ValueEquals("string") && value.ValueKind == JsonValueKind.String) text = value.GetString()!;
+            else if (type.ValueEquals("boolean") && value.ValueKind is JsonValueKind.True or JsonValueKind.False) text = value.GetBoolean() ? "true" : "false";
+            else if (type.ValueEquals("integer") && value.ValueKind == JsonValueKind.Number && value.TryGetDecimal(out var number) &&
+                number == decimal.Truncate(number) && number is >= -9007199254740991m and <= 9007199254740991m &&
+                value.GetRawText() is var numberText && numberText.Length <= MaximumGeneratedValueCharacters &&
+                BigInteger.TryParse(numberText, NumberStyles.Float, CultureInfo.InvariantCulture, out var integer))
+                text = integer.ToString(CultureInfo.InvariantCulture);
+            else return false;
+            values.Add(annotation.Value.HeaderName, text);
+        }
+        return true;
     }
 
     internal SchemaInspectionStatus InspectConjunction(JsonElement schema, out IReadOnlyList<JsonElement> clauses)
@@ -312,7 +370,7 @@ internal sealed class SchemaInspectionContext
         }
     }
 
-    private void Index(JsonElement schema, int depth, bool isRoot = false)
+    private void Index(JsonElement schema, int depth, bool isRoot = false, IReadOnlyList<string>? staticPath = null)
     {
         if (_remainingIndexSteps-- <= 0 || depth > MaximumSchemaDepth)
         {
@@ -325,6 +383,7 @@ internal sealed class SchemaInspectionContext
             return;
         }
         if (schema.ValueKind != JsonValueKind.Object) return;
+        if (staticPath != null) _staticPropertyPaths[schema] = staticPath;
         _schemas[schema] = SchemaInspectionStatus.Complete;
         if (schema.TryGetProperty("$id", out var identifier) && (!isRoot || identifier.ValueKind != JsonValueKind.String) ||
             schema.TryGetProperty("$dynamicRef", out _) || schema.TryGetProperty("$recursiveRef", out _) ||
@@ -364,7 +423,7 @@ internal sealed class SchemaInspectionContext
                 foreach (var child in keyword.Value.EnumerateObject())
                 {
                     if (!childNames.Add(child.Name)) _schemas[schema] = SchemaInspectionStatus.Unsupported;
-                    Index(child.Value, depth + 1);
+                    Index(child.Value, depth + 1, staticPath: keyword.Name == "properties" && staticPath != null ? staticPath.Append(child.Name).ToArray() : null);
                     if (_indexExhausted) return;
                 }
             }

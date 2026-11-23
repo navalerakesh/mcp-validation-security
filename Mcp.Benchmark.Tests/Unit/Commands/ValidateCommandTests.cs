@@ -10,6 +10,7 @@ using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
@@ -20,6 +21,72 @@ public sealed class ValidateCommandTests : IDisposable
     private readonly List<string> _sessionRoots = new();
     private readonly List<string> _tempFiles = new();
     private readonly int _originalExitCode = Environment.ExitCode;
+
+    [Theory]
+    [InlineData(McpServerProfile.Public, false, false)]
+    [InlineData(McpServerProfile.Public, true, true)]
+    [InlineData(McpServerProfile.Authenticated, false, true)]
+    [InlineData(McpServerProfile.Enterprise, false, true)]
+    public void SuppliedToken_ShouldNotRedefinePublicAuthenticationRequirements(McpServerProfile profile, bool configuredRequired, bool expected)
+    {
+        var server = new McpServerConfig { Profile = profile, Authentication = new AuthenticationConfig { Required = configuredRequired } };
+        CommandConnectionHelper.ApplyAuthenticationOverrides(server, "synthetic-fixture-credential", false);
+        server.Authentication.Required.Should().Be(expected);
+        server.Authentication.Token.Should().Be("synthetic-fixture-credential");
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("different-run", false)]
+    [InlineData("reserved-run", true)]
+    public async Task IdentityBaseline_ShouldMatchIndependentlyReservedPlanId(string? validationId, bool admitted)
+    {
+        const string endpoint = "https://example.invalid/mcp";
+        var holder = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(holder, runId: "reserved-run",
+            targetDigest: ValidationTargetIdentity.ComputeDigest(new McpServerConfig { Endpoint = endpoint, Transport = "http" }), assessedAt: DateTimeOffset.UtcNow);
+        var file = Path.Combine(Path.GetTempPath(), $"identity-baseline-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(file);
+        await File.WriteAllTextAsync(file, JsonSerializer.Serialize(holder.Assurance.RequiredIdentityControls, ArtifactJsonOptions.Create(writeIndented: false)));
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        validator.As<ICorrelatedMcpValidatorService>();
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var output = new Mock<IConsoleOutputService>();
+        var command = new ValidateCommand(validator.Object, output.Object, Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(endpoint, null, null, null, false, assuranceProfile: "inventory", dryRun: true,
+            identityBaselineFile: new FileInfo(file), validationId: validationId);
+
+        Environment.ExitCode.Should().Be(admitted ? 0 : AssuranceExitCodeMapper.UsageError);
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+        if (!admitted) output.Verify(value => value.WriteError(It.Is<string>(message => message.Contains("baseline could not be admitted"))), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("standard")]
+    public async Task ExecuteAsync_DefaultComprehensive_ShouldRejectMissingPrerequisitesBeforeContact(string? mode)
+    {
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var output = new Mock<IConsoleOutputService>();
+        var command = new ValidateCommand(validator.Object, output.Object, Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(server: "https://example.invalid/mcp", outputDirectory: null, specProfile: null,
+            configFile: null, verbose: false, executionMode: mode);
+
+        Environment.ExitCode.Should().Be(AssuranceExitCodeMapper.UsageError);
+        output.Verify(value => value.WriteError(It.Is<string>(message => message.Contains("Comprehensive assessment requires"))), Times.Once);
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+    }
 
     [Theory]
     [InlineData(null)]
@@ -108,6 +175,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         Environment.ExitCode.Should().Be(0, string.Join("; ", consoleOutput.Invocations
@@ -156,6 +224,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Strict);
 
         Environment.ExitCode.Should().Be(1);
@@ -228,6 +297,7 @@ public sealed class ValidateCommandTests : IDisposable
                         interactive: false,
                         serverProfile: null,
                         maxConcurrency: null,
+                        assuranceProfile: "inventory",
                         policyMode: null);
 
                 Environment.ExitCode.Should().Be(1);
@@ -319,6 +389,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             baselineFile: baselineFile,
             cancellationToken: cancellation.Token);
@@ -400,6 +471,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         capturedExecutionPolicy.Should().NotBeNull();
@@ -473,6 +545,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
@@ -553,6 +626,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
@@ -626,6 +700,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
@@ -709,6 +784,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             clientProfiles: new[] { "claude-code" });
 
@@ -749,6 +825,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             executionMode: null,
             dryRun: true);
@@ -923,6 +1000,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             enableModelEval: true);
 
@@ -988,6 +1066,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             enableModelEval: true);
 
@@ -1053,6 +1132,7 @@ public sealed class ValidateCommandTests : IDisposable
                 configFile: null,
                 verbose: false,
                 policyMode: ValidationPolicyModes.Advisory,
+                assuranceProfile: "inventory",
                 signAttestation: true);
 
             outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;

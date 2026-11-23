@@ -47,6 +47,36 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Theory]
+    [InlineData("2026-07-28", false, TestStatus.Failed)]
+    [InlineData("2026-07-28", true, TestStatus.Failed)]
+    [InlineData("2025-11-25", false, TestStatus.Passed)]
+    public async Task ValidateToolDiscovery_ShouldRejectInvalidParameterHeadersBeforeExecution(string version, bool execute, TestStatus expected)
+    {
+        SetupToolsList(_httpClient, """
+            [{"name":"invalid-header","description":"Reads a test value.","inputSchema":{"type":"object","properties":{"value":{"type":"string","x-mcp-header":"Bad Name"}}}},
+             {"name":"valid-neighbor","description":"Reads a test value.","inputSchema":{"type":"object"}}]
+            """, authenticated: false);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200 });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        {
+            Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = version
+        }, new ToolTestingConfig { TestToolExecution = execute, TestParameterValidation = false });
+
+        var invalid = result.ToolResults.Single(tool => tool.ToolName == "invalid-header");
+        invalid.Status.Should().Be(expected);
+        invalid.MetadataValid.Should().Be(expected == TestStatus.Passed);
+        invalid.ExecutionSuccessful.Should().BeFalse();
+        result.ToolResults.Single(tool => tool.ToolName == "valid-neighbor").Status.Should().Be(TestStatus.Passed);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(execute ? 1 : 0));
+        if (expected == TestStatus.Failed)
+            invalid.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolInputSchemaInvalid)
+                .Which.SpecReference.Should().Be("https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension");
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData(" ")]
     public async Task ValidateToolDiscovery_ShouldTreatPresentCursorAsOpaqueEvenWhenEmptyOrWhitespace(string cursor)

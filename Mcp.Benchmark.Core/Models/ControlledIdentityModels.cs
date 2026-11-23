@@ -4,10 +4,24 @@ public enum ControlledAuthorizationDecision { Unknown, Allowed, Denied }
 
 public enum ControlledIdentityRole { Unknown, CallerAssertion, ApproverAssertion, ResourceSelector, DisplayOnly, DelegationReference }
 
+public enum ControlledIdentityChallenge { ActorSubstitution, InsufficientScope, UnauthorizedActorOrObject }
+
 public sealed record ControlledIdentityAdmission(string RunId, string TargetIdentitySha256, string RouteIdentitySha256, string ObserverId);
+
+public sealed record ControlledIdentitySecurityRequirement(
+    ControlledIdentityMatrixContract Contract,
+    ControlledIdentityAdmission Admission,
+    string SignedEvidenceJson,
+    string TrustedObserverPublicKeyPem,
+    string ActorBindingCaseId,
+    string ScopeEnforcementCaseId,
+    string AuthorizationCaseId);
 
 public sealed record ControlledIdentityCase
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledIdentityChallenge? SecurityChallenge { get; init; }
+
     public required string CaseId { get; init; }
     public required ControlledOperationBinding Binding { get; init; }
     public required string ScopePredicateId { get; init; }
@@ -20,7 +34,9 @@ public sealed record ControlledIdentityCase
 
 public sealed record ControlledIdentityMatrixContract
 {
-    public const string CurrentRevision = "1.0.0";
+    public const string LegacyRevision = "1.0.0";
+    public const string CurrentRevision = "1.1.0";
+    public static bool IsSupportedRevision(string revision) => revision is LegacyRevision or CurrentRevision;
     public const int MaximumCases = 64;
     public string ContractRevision { get; init; } = CurrentRevision;
     public required string PolicyRevision { get; init; }

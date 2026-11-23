@@ -25,12 +25,13 @@ docker run --rm ghcr.io/navalerakesh/mcp-validation-security:latest --help
 
 ## 2. Validate A Remote MCP Server
 
-Start with a standard HTTP or HTTPS endpoint.
+Start with an HTTP or HTTPS endpoint in explicit Safe inventory mode. Comprehensive execution additionally requires the [signed security baseline and independent run admission](Mcp.Benchmark.CLI/README.md#comprehensive-admission); it fails closed without prerequisites.
 
 ```bash
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -40,6 +41,7 @@ Host-specific compatibility interpretation is included by default. Add `--client
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -51,6 +53,7 @@ Use `--access authenticated` when the target is expected to require credentials.
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
+  --assurance inventory \
   --token "$MCP_TOKEN" \
   --output ./mcp-reports
 ```
@@ -61,6 +64,7 @@ When a strategy supports it, you can use an interactive login flow instead of pa
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
+  --assurance inventory \
   --interactive \
   --output ./mcp-reports
 ```
@@ -73,6 +77,7 @@ mcpval validate \
 mcpval validate \
   --server "npx -y @modelcontextprotocol/server-everything" \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 

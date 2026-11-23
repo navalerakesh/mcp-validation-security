@@ -218,7 +218,7 @@ internal class Program
         validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
         validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
         validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
-        validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: inventory, ci, provider" });
+        validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: comprehensive (default), inventory, ci, provider" });
         validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
         validate.Options.Add(new Option<string>("--conformance-results") { Description = "Pinned official conformance evidence wrapper JSON" });
         validate.Options.Add(new Option<string>("--provider-harness") { Description = "Signed provider harness manifest JSON" });
@@ -716,10 +716,10 @@ internal class Program
 
         var assuranceProfileOption = new Option<string?>("--assurance")
         {
-            Description = "Assurance profile (inventory, ci, provider)",
-            DefaultValueFactory = _ => "inventory"
+            Description = "Assurance profile (comprehensive by default, inventory, ci, provider)",
+            DefaultValueFactory = _ => null
         };
-        assuranceProfileOption.AcceptOnlyFromAmong("inventory", "ci", "provider");
+        assuranceProfileOption.AcceptOnlyFromAmong("comprehensive", "inventory", "ci", "provider");
 
         var baselineOption = new Option<FileInfo?>("--baseline")
         {
@@ -729,6 +729,14 @@ internal class Program
         var conformanceResultsOption = new Option<FileInfo?>("--conformance-results")
         {
             Description = "Pinned official conformance evidence wrapper JSON"
+        };
+        var identityBaselineOption = new Option<FileInfo?>("--identity-baseline")
+        {
+            Description = "Operator-selected signed identity baseline and public observer trust inputs"
+        };
+        var validationIdOption = new Option<string?>("--validation-id")
+        {
+            Description = "Independently reserved validation ID for run-bound evidence admission"
         };
 
         var providerHarnessOption = new Option<FileInfo?>("--provider-harness")
@@ -806,6 +814,8 @@ internal class Program
         validateCommand.Options.Add(assuranceProfileOption);
         validateCommand.Options.Add(baselineOption);
         validateCommand.Options.Add(conformanceResultsOption);
+        validateCommand.Options.Add(identityBaselineOption);
+        validateCommand.Options.Add(validationIdOption);
         validateCommand.Options.Add(providerHarnessOption);
         validateCommand.Options.Add(providerAuthorizationKeyOption);
         validateCommand.Options.Add(extensionOption);
@@ -844,6 +854,8 @@ internal class Program
             var assuranceProfile = parseResult.GetValue(assuranceProfileOption);
             var baseline = parseResult.GetValue(baselineOption);
             var conformanceResults = parseResult.GetValue(conformanceResultsOption);
+            var identityBaseline = parseResult.GetValue(identityBaselineOption);
+            var validationId = parseResult.GetValue(validationIdOption);
             var providerHarness = parseResult.GetValue(providerHarnessOption);
             var providerAuthorizationKey = parseResult.GetValue(providerAuthorizationKeyOption);
             var extensions = parseResult.GetValue(extensionOption);
@@ -855,7 +867,7 @@ internal class Program
 
             await using var commandScope = serviceProvider.CreateAsyncScope();
             var command = commandScope.ServiceProvider.GetRequiredService<ValidateCommand>();
-            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, providerHarness, providerAuthorizationKey, cancellationToken);
+            await command.ExecuteAsync(server!, output, specProfile, config, verbose, token, interactive, serverProfile, maxConcurrency, policyMode, assuranceProfile, clientProfiles, reportDetail, executionMode, dryRun, allowedHosts, allowPrivateAddresses, maxRequests, timeoutSeconds, persistenceMode, redactLevel: redactionLevel, traceMode, confirmElevatedRisk, enableModelEval, contentSafetyContext, allowedOrigins, protocolEra, baseline, regressionOnly, outputFormat, signAttestation, conformanceResults, extensions, providerHarness, providerAuthorizationKey, cancellationToken, identityBaseline, validationId);
             return Environment.ExitCode;
         });
 

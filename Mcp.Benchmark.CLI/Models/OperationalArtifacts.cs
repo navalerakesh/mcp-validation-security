@@ -75,6 +75,10 @@ public sealed record ConfigurationSettingOrigin(
 
 public sealed class ExecutionPlan
 {
+    public string ValidationId { get; set; } = string.Empty;
+
+    public string AssuranceProfile { get; init; } = AssuranceProfileCatalog.Inventory.ProfileId;
+
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; set; }
 

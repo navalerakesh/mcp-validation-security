@@ -42,7 +42,7 @@
       }
     },
     "documentType": { "const": "mcpval.audit-manifest" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0"] },
     "runTerminationOutcome": { "enum": [null, "succeeded", "inconclusive", "cancelled", "error"] },
     "recommendedExitCode": { "type": ["integer", "null"], "minimum": 0 },
     "timestampUtc": { "type": "string", "format": "date-time" },
@@ -56,7 +56,7 @@
     "protocolEra": { "enum": ["legacy", "modern"] },
     "protocolEraSelection": { "enum": ["auto", "legacy", "modern"] },
     "executionMode": { "enum": ["safe", "standard", "elevated"] },
-    "assuranceProfile": { "enum": ["inventory", "ci", "provider"] },
+    "assuranceProfile": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
     "coreConformance": { "enum": ["conformant", "nonconformant", "incomplete"] },
     "securityAssurance": { "enum": ["verified", "issuesFound", "incomplete"] },
     "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },

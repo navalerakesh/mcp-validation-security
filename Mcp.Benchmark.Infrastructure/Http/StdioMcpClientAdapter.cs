@@ -397,7 +397,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         EnforceExecutionPolicy(activeProbe: true);
         var result = new TransportResilienceProbeResult
         {
-            ProbeId = "timeout-handling",
+            ProbeId = ValidationConstants.ProbeIds.TimeoutHandling,
             DisplayName = "Timeout Handling Recovery",
             ExpectedOutcome = "A validator-induced STDIO read timeout should be observed and a follow-up MCP request should still succeed."
         };
@@ -479,7 +479,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         EnforceExecutionPolicy(activeProbe: true);
         var result = new TransportResilienceProbeResult
         {
-            ProbeId = "connection-interruption",
+            ProbeId = ValidationConstants.ProbeIds.ConnectionInterruption,
             DisplayName = "Connection Interruption Recovery",
             ExpectedOutcome = "A validator-induced STDIO process interruption should be observed and the child process should restart cleanly for a follow-up MCP request."
         };

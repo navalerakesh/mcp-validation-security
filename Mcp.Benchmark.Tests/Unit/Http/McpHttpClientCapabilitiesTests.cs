@@ -21,6 +21,182 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 
 public class McpHttpClientCapabilitiesTests
 {
+    [Theory]
+    [InlineData("2026-07-28")]
+    [InlineData("2025-11-25")]
+    public async Task SchemaParameterHeaders_ShouldMirrorStaticPrimitiveValuesWithoutLeakingSchema(string version)
+    {
+        using var schema = JsonDocument.Parse("""{"type":"object","properties":{"region":{"type":"string","x-mcp-header":"Region"},"settings":{"type":"object","properties":{"enabled":{"type":"boolean","x-mcp-header":"Enabled"}}},"count":{"type":"integer","x-mcp-header":"Count"},"absent":{"type":"string","x-mcp-header":"Absent"},"nullable":{"type":"string","x-mcp-header":"Nullable"}}}""");
+        using var arguments = JsonDocument.Parse("""{"region":" padded ","settings":{"enabled":true},"count":42.0,"nullable":null}""");
+        var parameters = new ToolCallParameters("owned-tool", arguments.RootElement, schema.RootElement);
+        var observed = false;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            if (version == "2026-07-28")
+            {
+                request.Headers.GetValues("Mcp-Param-Region").Should().Equal("=?base64?IHBhZGRlZCA=?=");
+                request.Headers.GetValues("Mcp-Param-Enabled").Should().Equal("true");
+                request.Headers.GetValues("Mcp-Param-Count").Should().Equal("42");
+            }
+            else request.Headers.Should().NotContain(header => header.Key.StartsWith("Mcp-Param-", StringComparison.OrdinalIgnoreCase));
+            request.Headers.Contains("Mcp-Param-Absent").Should().BeFalse();
+            request.Headers.Contains("Mcp-Param-Nullable").Should().BeFalse();
+            request.Headers.Contains("Mcp-Param-Unselected").Should().BeFalse();
+            var json = await request.Content!.ReadAsStringAsync(token);
+            json.Should().NotContain("InputSchema").And.NotContain("inputSchema").And.NotContain("x-mcp-header");
+            using var body = JsonDocument.Parse(json);
+            body.RootElement.GetProperty("params").EnumerateObject().Select(property => property.Name).Should()
+                .BeEquivalentTo(version == "2026-07-28" ? new[] { "name", "arguments", "_meta" } : new[] { "name", "arguments" });
+            observed = true;
+            return CreateJsonResponse(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = body.RootElement.GetProperty("id"), result = new { resultType = "complete" } }));
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion(version);
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowPrivateAddresses = true, AllowedHosts = ["127.0.0.1"] });
+
+        var result = await client.CallAsync("https://127.0.0.1/mcp", "tools/call", parameters,
+            new AuthenticationConfig { CustomHeaders = new Dictionary<string, string> { ["Mcp-Param-Region"] = "auth-override-canary", ["Mcp-Param-Unselected"] = "auth-unselected-canary" } });
+
+        observed.Should().BeTrue(result.Error);
+        result.IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":"Region"},"b":{"type":"string","x-mcp-header":"region"}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"number","x-mcp-header":"Value"}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":"Bad Name"}}}""", "{}", false)]
+    [InlineData("""{"type":"object","allOf":[{"properties":{"a":{"type":"string","x-mcp-header":"Value"}}}]}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":9007199254740991}""", true)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":9007199254740992}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":"Value"}}}""", """{"a":null}""", true)]
+    [InlineData("""{"type":"object","examples":[{"x-mcp-header":"not-an-annotation"}]}""", "{}", true)]
+    [InlineData("""{"type":"object","const":{"x-mcp-header":"not-an-annotation"}}""", "{}", true)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":""}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":42}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":"Bad\r\nName"}}}""", "{}", false)]
+    [InlineData("""{"type":"string","x-mcp-header":"Root"}""", "{}", false)]
+    [InlineData("""{"type":"object","$defs":{"value":{"type":"string","x-mcp-header":"Value"}},"properties":{"a":{"$ref":"#/$defs/value"}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"array","items":{"type":"string","x-mcp-header":"Value"}}}}""", "{}", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":-9007199254740991}""", true)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":-9007199254740992}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":42.5}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":42.00000000000000000000000000001}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":9007199254740991.0000000000001}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":1e-1000}""", false)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"integer","x-mcp-header":"Value"}}}""", """{"a":42e1}""", true)]
+    [InlineData("""{"type":"object","properties":{"a":{"type":"string","x-mcp-header":"Value"}}}""", """{"a":42}""", false)]
+    public void ParameterHeaderSchema_ShouldRespectStaticPathsAndValueBounds(string schemaJson, string argumentsJson, bool expected)
+    {
+        using var schema = JsonDocument.Parse(schemaJson);
+        using var arguments = JsonDocument.Parse(argumentsJson);
+        new SchemaInspectionContext(schema.RootElement).TryCreateParameterHeaders(arguments.RootElement, out _).Should().Be(expected);
+    }
+
+    [Fact]
+    public void ParameterHeaderSchema_ShouldRejectExhaustedInspectionBudget()
+    {
+        var schema = JsonSerializer.SerializeToElement(new { type = "object", examples = Enumerable.Range(0, 4097).ToArray() });
+        var arguments = JsonSerializer.SerializeToElement(new { });
+        new SchemaInspectionContext(schema).TryCreateParameterHeaders(arguments, out _).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Region", ValidationOutcome.Inconclusive)]
+    [InlineData("Bad Name", ValidationOutcome.Failed)]
+    public void ParameterHeaderSchema_ShouldRetainKnownFailureWithUninspectableNeighbor(string header, ValidationOutcome expected)
+    {
+        using var schema = JsonDocument.Parse("""
+            {"type":"object","$defs":{"unused":{"$id":"https://example.invalid/schema","type":"string"}},"properties":{"region":{"type":"string","x-mcp-header":
+            """ + JsonSerializer.Serialize(header) + "}}}");
+
+        new SchemaInspectionContext(schema.RootElement).InspectParameterHeaderSchema().Should().Be(expected);
+    }
+
+    [Fact]
+    public async Task ParameterHeaderEvidence_ShouldOmitMirroredValues()
+    {
+        const string canary = "synthetic-parameter-canary";
+        using var http = new HttpClient(new RoutingHandler(request =>
+        {
+            request.Headers.GetValues("Mcp-Param-Tenant").Should().Equal(canary);
+            return CreateJsonResponse("{}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        var response = await client.SendHttpTransportProbeAsync(new HttpTransportProbeRequest
+        {
+            Endpoint = "https://example.test/mcp", Method = "POST", Body = "{}",
+            Headers = new() { ["Mcp-Param-Tenant"] = canary }
+        });
+
+        response.IsSuccess.Should().BeTrue();
+        response.RequestHeaders.Keys.Should().NotContain(name => name.StartsWith("Mcp-Param-", StringComparison.OrdinalIgnoreCase));
+        JsonSerializer.Serialize(response.RequestHeaders).Should().NotContain(canary);
+    }
+
+    [Theory]
+    [InlineData("2025-11-25")]
+    [InlineData("2026-07-28")]
+    public async Task ParseErrorProbe_ShouldPreserveValidTransportControlHeaders(string version)
+    {
+        var observed = false;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            (await request.Content!.ReadAsStringAsync(token)).Should().Be("{ invalid json");
+            request.Headers.Accept.Select(value => value.MediaType).Should().BeEquivalentTo("application/json", "text/event-stream");
+            request.Headers.GetValues("MCP-Protocol-Version").Should().Equal(version);
+            if (version == "2026-07-28") request.Headers.GetValues("Mcp-Method").Should().Equal("server/discover");
+            else request.Headers.Contains("Mcp-Method").Should().BeFalse();
+            observed = true;
+            var response = CreateJsonResponse("{\"jsonrpc\":\"2.0\",\"id\":null,\"error\":{\"code\":-32700,\"message\":\"Parse error\"}}");
+            response.StatusCode = HttpStatusCode.BadRequest;
+            return response;
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion(version);
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowedHosts = ["127.0.0.1"], AllowPrivateAddresses = true });
+
+        var result = await client.ValidateErrorCodesAsync("https://127.0.0.1/mcp", JsonRpcErrorProbeSelection.ParseError);
+
+        observed.Should().BeTrue();
+        result.Tests.Should().ContainSingle().Which.IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("2026-07-28", "tools/call", "plain-tool", false)]
+    [InlineData("2026-07-28", "prompts/get", " padded ", true)]
+    [InlineData("2026-07-28", "resources/read", "test://resource/\u00e9", true)]
+    [InlineData("2026-07-28", "tools/call", "=?base64?literal?=", true)]
+    [InlineData("2026-07-28", "tools/call", "line\r\nbreak", true)]
+    [InlineData("2025-11-25", "tools/call", "plain-tool", false)]
+    public async Task NamedRpcHeaders_ShouldMatchCapturedBodyAndIgnoreAuthOverrides(string version, string method, string name, bool encoded)
+    {
+        var observed = false;
+        using var http = new HttpClient(new AsyncRoutingHandler(async (request, token) =>
+        {
+            using var document = JsonDocument.Parse(await request.Content!.ReadAsStringAsync(token));
+            var root = document.RootElement;
+            var property = method == "resources/read" ? "uri" : "name";
+            root.GetProperty("params").GetProperty(property).GetString().Should().Be(name);
+            if (version == "2026-07-28")
+            {
+                var expected = encoded ? "=?base64?" + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(name)) + "?=" : name;
+                request.Headers.GetValues("Mcp-Name").Should().Equal(expected);
+            }
+            else request.Headers.Contains("Mcp-Name").Should().BeFalse();
+            observed = true;
+            return CreateJsonResponse(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = root.GetProperty("id"), result = new { resultType = "complete" } }));
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.SetProtocolVersion(version);
+        client.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, AllowedHosts = ["127.0.0.1"], AllowPrivateAddresses = true });
+        var parameters = new Dictionary<string, object> { [method == "resources/read" ? "uri" : "name"] = name };
+        var response = await client.CallAsync("https://127.0.0.1/mcp", method, parameters,
+            new AuthenticationConfig { CustomHeaders = new Dictionary<string, string> { ["Mcp-Name"] = "auth-override-canary" } });
+
+        observed.Should().BeTrue(response.Error);
+        response.IsSuccess.Should().BeTrue();
+    }
+
     [Fact]
     public async Task GovernedSdkHttp_SafeMode_ShouldPreserveDiscoveryAndSessionCleanup()
     {
@@ -773,6 +949,8 @@ public class McpHttpClientCapabilitiesTests
     [InlineData("MCP-Protocol-Version", "2024-11-05")]
     [InlineData("MCP-Session-Id", "ambient-session")]
     [InlineData("Mcp-Method", "tools/call")]
+    [InlineData("Mcp-Name", "ambient-name")]
+    [InlineData("mcp-param-Tenant", "ambient-tenant")]
     [InlineData("Authorization", "Bearer ambient-canary")]
     public async Task TransportProbe_ShouldRejectAmbientRuntimeHeadersBeforeContact(string name, string value)
     {

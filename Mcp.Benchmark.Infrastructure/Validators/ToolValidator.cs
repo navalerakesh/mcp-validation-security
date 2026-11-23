@@ -524,6 +524,30 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry));
         ValidateToolMetadata(tool, result, outputShape);
 
+        if (tool.HasInputSchema && string.Equals(serverConfig.Transport, "http", StringComparison.OrdinalIgnoreCase) &&
+            ProtocolEraVersions.IsModern(SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry)))
+        {
+            var headerInspection = new SchemaInspectionContext(tool.InputSchema).InspectParameterHeaderSchema();
+            if (headerInspection == ValidationOutcome.Failed)
+            {
+                AddToolSpecFinding(result, ValidationFindingRuleIds.ToolInputSchemaInvalid, ValidationFindingSeverity.High,
+                    "Tool inputSchema contains invalid x-mcp-header annotations; the tool is excluded from invocation.",
+                    "Use unique HTTP token names on string, integer, or boolean properties reached only through static properties paths.",
+                    specReference: "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension");
+                result.Status = TestStatus.Failed;
+                result.ExecutionSuccessful = false;
+                return result;
+            }
+            if (headerInspection != ValidationOutcome.Succeeded)
+            {
+                result.Status = result.MetadataValid ? TestStatus.Inconclusive : TestStatus.Failed;
+                result.MetadataValid = false;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool header annotation inspection is incomplete under the bounded schema policy; invocation was not attempted.");
+                return result;
+            }
+        }
+
         if (!config.TestToolExecution && !config.TestParameterValidation)
         {
             result.Status = result.Issues.Any(issue => issue.StartsWith("❌", StringComparison.Ordinal))
@@ -536,7 +560,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
         try
         {
-            if (!TryCreateToolCallParams(tool, out var toolCallParams))
+            if (!TryCreateToolCallParams(tool, serverConfig.ProtocolVersion, out var toolCallParams))
             {
                 result.Status = result.MetadataValid ? TestStatus.Inconclusive : TestStatus.Failed;
                 result.ExecutionSuccessful = false;
@@ -933,7 +957,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         string summary,
         string recommendation,
         IEnumerable<string>? details = null,
-        Dictionary<string, string>? metadata = null)
+        Dictionary<string, string>? metadata = null,
+        string? specReference = null)
     {
         var finding = new ValidationFinding
         {
@@ -944,7 +969,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             Summary = summary,
             Recommendation = recommendation,
             Source = ValidationRuleSource.Spec,
-            SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/server/tools"
+            SpecReference = specReference ?? "https://spec.modelcontextprotocol.io/specification/2025-11-25/server/tools"
         };
 
         if (metadata != null)
@@ -1364,7 +1389,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
                 try
                 {
-                    if (!TryCreateToolCallParams(tool, out var toolCallParams))
+                    if (!TryCreateToolCallParams(tool, serverConfig.ProtocolVersion, out var toolCallParams))
                     {
                         toolResult.Status = TestStatus.Inconclusive;
                         toolResult.ExecutionSuccessful = false;
@@ -1599,7 +1624,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             enumeration.IsComplete);
     }
 
-    private bool TryCreateToolCallParams(ToolInfo tool, out object? parameters)
+    private bool TryCreateToolCallParams(ToolInfo tool, string? protocolVersion, out object? parameters)
     {
         parameters = null;
         if (!tool.HasInputSchema) return false;
@@ -1607,11 +1632,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         if (!inspection.TryCreateObjectCandidate(out var arguments) || arguments is null) return false;
         var schema = System.Text.Json.Nodes.JsonNode.Parse(tool.InputSchema.GetRawText());
         if (schema is null || !_schemaValidator.Validate(arguments, schema).IsValid) return false;
-        parameters = new
-        {
-            name = tool.Name,
-            arguments
-        };
+        var capturedArguments = JsonSerializer.SerializeToElement(arguments);
+        if (ProtocolEraVersions.IsModern(protocolVersion) && !inspection.TryCreateParameterHeaders(capturedArguments, out _)) return false;
+        parameters = new ToolCallParameters(tool.Name, capturedArguments, tool.InputSchema);
         return true;
     }
 

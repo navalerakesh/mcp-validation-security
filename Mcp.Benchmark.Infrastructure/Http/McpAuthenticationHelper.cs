@@ -14,6 +14,8 @@ internal static class McpAuthenticationHelper
     public static bool IsRuntimeProtocolHeader(string name) =>
         string.Equals(name, McpSpecConstants.ProtocolVersionHeader, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, McpSpecConstants.MethodHeader, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(name, McpSpecConstants.NameHeader, StringComparison.OrdinalIgnoreCase) ||
+        name.StartsWith(McpSpecConstants.ParameterHeaderPrefix, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(name, McpSpecConstants.SessionIdHeader, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsRuntimeIdentityHeader(string name) =>

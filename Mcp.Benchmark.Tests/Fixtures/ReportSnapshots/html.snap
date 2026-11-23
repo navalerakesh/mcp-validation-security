@@ -2528,7 +2528,7 @@ a:hover {
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
           <p><strong>Authority:</strong> Heuristic · <strong>Recorded confidence:</strong> Medium</p>
-          <p><strong>Source revision:</strong> 2026-11-11.1 · —</p>
+          <p><strong>Source revision:</strong> 2026-11-22.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
@@ -2538,7 +2538,7 @@ a:hover {
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> Medium</p>
-          <p><strong>Source revision:</strong> 2026-11-11.1 · —</p>
+          <p><strong>Source revision:</strong> 2026-11-22.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
@@ -2548,7 +2548,7 @@ a:hover {
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Should</p>
           <p>One tool response omitted the outer result object.</p>
           <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
-          <p><strong>Source revision:</strong> 2026-11-11.1 · —</p>
+          <p><strong>Source revision:</strong> 2026-11-22.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> None recorded.</p>
@@ -2568,7 +2568,7 @@ a:hover {
           <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> SecurityControl</p>
           <p>Server reflected untrusted prompt content without sanitization.</p>
           <p><strong>Authority:</strong> DeterministicSecurity · <strong>Recorded confidence:</strong> High</p>
-          <p><strong>Source revision:</strong> 2026-11-11.1 · —</p>
+          <p><strong>Source revision:</strong> 2026-11-22.1 · —</p>
           <p><strong>Recorded correction:</strong> Sanitize and label untrusted content before returning it.</p>
           <p><strong>Action owner:</strong> Not recorded.</p>
           <p><strong>Evidence references:</strong> probe-prompt-get-reflection-200</p>

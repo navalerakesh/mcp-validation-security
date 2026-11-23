@@ -1,13 +1,17 @@
 const { createRequire } = require('node:module');
 const { join } = require('node:path');
+const { createOwnedIdentityPolicy } = require('./owned-identity-policy.cjs');
 
 async function main() {
   const packageRoot = process.env.MCPVAL_FIXTURE_PACKAGE_ROOT;
   const supplied = JSON.parse(process.env.MCPVAL_FIXTURE_CREDENTIALS ?? '{}');
   delete process.env.MCPVAL_FIXTURE_CREDENTIALS;
-  const names = ['actorA', 'actorB', 'readOnlyA', 'observer'];
-  if (!packageRoot || names.some(name => !/^[a-f0-9]{64}$/.test(supplied[name] ?? '')) || new Set(Object.values(supplied)).size !== 4)
-    throw new Error('Invalid fixture admission');
+  if (!packageRoot) throw new Error('Invalid fixture admission');
+  const identity = createOwnedIdentityPolicy(supplied, {
+    allowSpoof: process.env.MCPVAL_FIXTURE_ALLOW_SPOOF === 'true',
+    observerUnavailable: process.env.MCPVAL_FIXTURE_OBSERVER_UNAVAILABLE === 'true',
+    counterDrift: process.env.MCPVAL_FIXTURE_COUNTER_DRIFT === 'true',
+  });
   const load = createRequire(join(packageRoot, 'package.json'));
   const { McpServer } = load('@modelcontextprotocol/sdk/server/mcp.js');
   const { StreamableHTTPServerTransport } = load('@modelcontextprotocol/sdk/server/streamableHttp.js');
@@ -15,21 +19,11 @@ async function main() {
   const { requireBearerAuth } = load('@modelcontextprotocol/sdk/server/auth/middleware/bearerAuth.js');
   const { InvalidTokenError } = load('@modelcontextprotocol/sdk/server/auth/errors.js');
   const z = load('zod/v4');
-  const allowSpoof = process.env.MCPVAL_FIXTURE_ALLOW_SPOOF === 'true';
   const lifetimeMs = Number(process.env.MCPVAL_FIXTURE_LIFETIME_MS ?? 60000);
   if (!Number.isInteger(lifetimeMs) || lifetimeMs < 100 || lifetimeMs > 60000) throw new Error('Invalid fixture lifetime');
-  const expiresAt = Math.floor(Date.now() / 1000) + 120;
-  const grants = new Map([
-    [supplied.actorA, { actor: 'actor-a', scopes: ['write'], observer: false }],
-    [supplied.actorB, { actor: 'actor-b', scopes: ['write'], observer: false }],
-    [supplied.readOnlyA, { actor: 'actor-a', scopes: ['read'], observer: false }],
-    [supplied.observer, { actor: 'observer', scopes: ['observe'], observer: true }],
-  ]);
   let endpoint;
   let observerEndpoint;
-  let value = 0;
   let attempts = 0;
-  const ledger = [];
   const active = new Set();
   const app = createMcpExpressApp({ host: '127.0.0.1' });
   app.use((request, response, next) => {
@@ -40,17 +34,11 @@ async function main() {
     const port = listener.address().port;
     endpoint = new URL(`http://127.0.0.1:${port}/mcp`);
     observerEndpoint = new URL(`http://127.0.0.1:${port}/observer`);
-    const verifier = {
-      verifyAccessToken: async token => {
-        const grant = grants.get(token);
-        if (!grant) throw new InvalidTokenError('Unrecognized fixture credential');
-        return { token, clientId: 'owned-test-client', scopes: grant.scopes, expiresAt,
-          resource: grant.observer ? observerEndpoint : endpoint, extra: { actor: grant.actor } };
-      },
-    };
+    const verifier = identity.verifier(endpoint, observerEndpoint, () => new InvalidTokenError('Unrecognized fixture credential'));
     app.get('/observer', requireBearerAuth({ verifier, requiredScopes: ['observe'], expectedResource: observerEndpoint }), (request, response) => {
-      if (process.env.MCPVAL_FIXTURE_OBSERVER_UNAVAILABLE === 'true') return response.status(503).end();
-      response.json({ value: value + (process.env.MCPVAL_FIXTURE_COUNTER_DRIFT === 'true' && ledger.length === 4 ? 1 : 0), entries: ledger });
+      const observation = identity.observe();
+      if (observation === null) return response.status(503).end();
+      response.json(observation);
     });
     app.post('/mcp', requireBearerAuth({ verifier, expectedResource: endpoint }), async (request, response) => {
       const server = new McpServer({ name: 'owned-identity-fixture', version: '1.0.0' });
@@ -61,14 +49,7 @@ async function main() {
         inputSchema: { object: z.literal('object-a'), claimedActor: z.enum(['actor-a', 'actor-b']) },
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
       }, async (args, extra) => {
-        if (ledger.length >= 8) throw new Error('Fixture operation budget exceeded');
-        const actor = extra.authInfo?.extra?.actor;
-        const authenticated = actor === 'actor-a' || actor === 'actor-b';
-        const allowed = authenticated && actor === 'actor-a' && extra.authInfo.scopes.includes('write') && (allowSpoof || args.claimedActor === actor);
-        const before = value;
-        if (allowed) value++;
-        ledger.push({ requestId: String(extra.requestId), actor, object: args.object, authenticated, allowed, before, after: value });
-        return { isError: !allowed, content: [{ type: 'text', text: allowed ? 'Accepted' : 'Denied' }] };
+        return identity.call(args, extra.authInfo, extra.requestId);
       });
       response.on('close', () => { server.close().catch(() => {}); active.delete(server); });
       try {
@@ -89,7 +70,7 @@ async function main() {
     listener.close();
     listener.closeAllConnections();
     await Promise.allSettled([...active].map(server => server.close()));
-    grants.clear();
+    identity.close();
   })();
   process.stdin.resume();
   process.stdin.on('end', () => { stop().catch(() => {}); });

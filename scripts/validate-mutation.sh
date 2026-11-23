@@ -17,6 +17,14 @@ dotnet stryker \
   --mutate '**/ControlledStateEvaluator.cs' \
   --mutate '**/ControlledIdentityEvaluator.cs' \
   --mutate '**/ControlledEvidenceAdmission.cs' \
+  --mutate '**/AssuranceExitCodeMapper.cs' \
+  --mutate '**/AssuranceClaimProjector.cs' \
+  --mutate '**/ComprehensiveAssessmentRequirements.cs' \
+  --mutate '**/ControlledIdentitySecurityBaseline.cs' \
+  --mutate '**/ControlledIdentityEvidenceVerifier.cs' \
+  --mutate '**/OfficialConformanceContract.cs' \
+  --mutate '**/OfficialConformanceReconciler.cs' \
+  --mutate '**/SignedControlledEvidenceReader.cs' \
   --test-project Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj \
   --test-runner vstest \
   --configuration Debug \

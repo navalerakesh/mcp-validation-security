@@ -372,6 +372,35 @@ test("handleValidate uses standard mode for operator-enabled provider assurance"
   }
 });
 
+test("handleValidate forwards comprehensive admission only from operator configuration", async () => {
+  const cli = await createMockCli();
+  const previousCli = process.env[config.cliPathEnvVar];
+  const previousCapture = process.env.MOCK_CAPTURE_ARGS;
+  const admission = config.comprehensiveAssurance as unknown as { conformanceResultsPath?: string; identityBaselinePath?: string; validationId?: string; executionMode: "standard"; enabled: boolean };
+  const previous = { ...admission };
+  process.env[config.cliPathEnvVar] = cli;
+  process.env.MOCK_CAPTURE_ARGS = "1";
+  try {
+    for (const enabled of [false, true]) {
+      Object.assign(admission, { enabled, executionMode: "standard", conformanceResultsPath: "/operator/conformance.json", identityBaselinePath: "/operator/identity.json", validationId: "reserved-run" });
+      const result = await handleValidate({ server: "https://example.test/mcp", access: "public", interactive: false, verbose: false });
+      const args = JSON.parse(result.text.split("\n\n", 2)[1]) as string[];
+      assert.deepEqual(args.slice(0, 3), ["validate", "--assurance", "comprehensive"]);
+      assert.equal(args.includes("--mode"), enabled);
+      assert.equal(args.includes("--conformance-results"), enabled);
+      assert.equal(args.includes("--identity-baseline"), enabled);
+      assert.equal(args.includes("--validation-id"), enabled);
+      if (enabled) assert.equal(args[args.indexOf("--conformance-results") + 1], "/operator/conformance.json");
+      if (enabled) assert.equal(args[args.indexOf("--identity-baseline") + 1], "/operator/identity.json");
+      if (enabled) assert.equal(args[args.indexOf("--validation-id") + 1], "reserved-run");
+    }
+  } finally {
+    Object.assign(admission, previous);
+    if (previousCli) process.env[config.cliPathEnvVar] = previousCli; else delete process.env[config.cliPathEnvVar];
+    if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture; else delete process.env.MOCK_CAPTURE_ARGS;
+  }
+});
+
 test("handleValidate blocks local commands when local execution is disabled", async () => {
   assert.equal(config.localExecution.enabled, false);
 

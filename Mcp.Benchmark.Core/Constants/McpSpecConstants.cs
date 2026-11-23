@@ -8,6 +8,9 @@ namespace Mcp.Benchmark.Core.Constants;
 /// </summary>
 public static class McpSpecConstants
 {
+    public const string NameHeader = "Mcp-Name";
+    public const string ParameterHeaderPrefix = "Mcp-Param-";
+
     /// <summary>
     /// Current MCP protocol version as defined by the official specification.
     /// Reference: https://modelcontextprotocol.io/specification/basic/protocol
