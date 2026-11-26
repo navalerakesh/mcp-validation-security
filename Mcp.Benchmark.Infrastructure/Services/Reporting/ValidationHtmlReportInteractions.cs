@@ -4,17 +4,50 @@ internal static class ValidationHtmlReportInteractions
 {
     public static string BuildScript() => """
 (() => {
+    const theme = document.getElementById('report-theme');
+    if (theme) {
+        theme.addEventListener('change', () => {
+            if (theme.value === 'system') document.documentElement.removeAttribute('data-theme');
+            else if (theme.value === 'light' || theme.value === 'dark')
+                document.documentElement.dataset.theme = theme.value;
+        });
+        theme.closest('label').hidden = false;
+    }
+    document.addEventListener('toggle', event => {
+        const detail = event.target;
+        if (!(detail instanceof HTMLDetailsElement) || !detail.matches('.evidence-peek')) return;
+        const content = detail.querySelector('.peek-content');
+        content.querySelector('.evidence-preview')?.remove();
+        if (!detail.open) return;
+        const source = document.getElementById(detail.dataset.claimTarget);
+        if (!source) {
+            const error = document.createElement('p');
+            error.className = 'evidence-preview';
+            error.textContent = 'The referenced claim is unavailable. Consult the canonical JSON result.';
+            content.prepend(error);
+            return;
+        }
+        const preview = source.cloneNode(true);
+        for (const element of [preview, ...preview.querySelectorAll('[id]')]) element.removeAttribute('id');
+        preview.removeAttribute('data-claim-id');
+        preview.removeAttribute('data-claim-outcome');
+        preview.removeAttribute('hidden');
+        preview.classList.add('evidence-preview');
+        preview.querySelectorAll('details').forEach(element => { element.open = true; });
+        content.prepend(preview);
+    }, true);
+    const supportingDetails = () => document.querySelectorAll('details:not(.report-section):not(.evidence-peek)');
     const sectionControls = document.querySelector('.report-controls');
     if (sectionControls) {
         document.getElementById('expand-evidence').addEventListener('click', () =>
-            document.querySelectorAll('details').forEach(detail => { detail.open = true; }));
+            supportingDetails().forEach(detail => { detail.open = true; }));
         document.getElementById('collapse-evidence').addEventListener('click', () =>
-            document.querySelectorAll('details').forEach(detail => { detail.open = false; }));
+            supportingDetails().forEach(detail => { detail.open = false; }));
         sectionControls.hidden = false;
     }
     let printDetails = [];
     window.addEventListener('beforeprint', () => {
-        printDetails = Array.from(document.querySelectorAll('details:not([open])'));
+        printDetails = Array.from(document.querySelectorAll('details:not([open]):not(.evidence-peek)'));
         printDetails.forEach(element => { element.open = true; });
     });
     window.addEventListener('afterprint', () => {

@@ -22,10 +22,12 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Changed
 
+- Production reports support system/light/dark themes, default-open collapsible reading sections, leading disclosure controls, in-place action evidence and a glossary in both detail levels. Local previews reuse canonical records, release their DOM on close and do not duplicate printed claims. CI/provider headlines honor the selected gate; template enumeration, recorded request timings and client-comparison explanations retain their distinct evidence boundaries.
+- Report acceptance adds reproducible signed CI/comprehensive controls, including optional diagnostic failures and missing prerequisites. A single generated corpus manifest drives CLI/browser checks. Obsolete private report helpers were removed using Roslyn without changing live decisions.
 - Validation uses the configured invocation deadline instead of an undisclosed ten-minute CLI limit; target resolution and session startup consume that same host deadline. Authentication discovery stays in authentication evidence and no longer fabricates tool inventory or execution success.
 - Report actions preserve recorded severity, component/claim attribution and all distinct recommendations. Typed domains replace prose-based priority classification; optional outside-selected-scope findings remain visible separately. Comprehensive completion and non-issuing certificate profiles are framed independently.
 
-- Report disclosures distinguish bounded domain groups from flat supporting rows. Native keyboard behavior, right-aligned decorative chevrons, explicit capability labels and print evidence preservation reduce visual repetition without changing canonical results.
+- Report disclosures distinguish bounded domain groups from flat supporting rows. Native keyboard behavior, leading decorative chevrons, explicit capability labels and print evidence preservation reduce visual repetition without changing canonical results.
 
 - The production HTML opening is target-led, with a dominant split decision panel and up to two supporting cards for agent capability/execution and the next existing ranked action. Domain disclosures are clearly labeled and closed initially; all included evidence still prints. Screen and print checks require the target and next action on page one for the synthetic corpus.
 

@@ -18,7 +18,10 @@ const browser = await chromium.launch();
 const receipt = { browser: browser.version(), scale: 1, printBackground: false, browserHeaders: false, margins: '14mm CSS', reports: [] };
 const outcomes = ['Satisfied', 'Violated', 'Incomplete', 'ReviewRequired', 'NotApplicable', 'Error'];
 try {
-    for (const name of ['inventory', 'mixed', 'interrupted', 'dense', 'sparse']) {
+    const names = (await readFile(path.join(root, 'inputs', 'corpus.txt'), 'utf8')).trim().split(/\r?\n/);
+    assert(names.length && names.every(name => /^[a-z-]+$/.test(name)), 'Invalid synthetic corpus manifest');
+    assert.equal(new Set(names).size, names.length, 'Duplicate synthetic fixture names');
+    for (const name of names) {
         const canonical = JSON.parse(await readFile(path.join(root, 'inputs', `${name}.json`), 'utf8'));
         const expected = canonical.assurance.claims.map(claim => [claim.claimId, typeof claim.outcome === 'number'
             ? outcomes[claim.outcome] : outcomes.find(outcome => outcome.toLowerCase() === claim.outcome.toLowerCase())])
@@ -32,7 +35,7 @@ try {
             const activateLink = async locator => {
                 const hash = await locator.getAttribute('href');
                 await locator.focus();
-                assert.notEqual(await locator.evaluate(element => getComputedStyle(element).outlineStyle), 'none');
+                assert.notEqual(await locator.evaluate(element => getComputedStyle(element).outlineStyle), 'none', `Visible keyboard focus for ${hash}`);
                 await page.keyboard.press('Enter');
                 await page.waitForURL(url => url.hash === hash);
             };
@@ -41,6 +44,16 @@ try {
             page.on('request', request => { if (!request.url().startsWith('file:')) network.push(request.url()); });
             page.on('pageerror', error => errors.push(error.message));
             await page.goto(url);
+            await page.emulateMedia({ colorScheme: 'light' });
+            const lightCanvas = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+            await page.emulateMedia({ colorScheme: 'dark' });
+            const darkCanvas = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+            assert.notEqual(lightCanvas, darkCanvas, `${file}: system theme follows the OS`);
+            await page.locator('#report-theme').selectOption('light');
+            assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), lightCanvas, `${file}: explicit theme overrides OS`);
+            await page.locator('#report-theme').selectOption('system');
+            assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), darkCanvas, `${file}: System restores OS preference`);
+            await page.emulateMedia({ colorScheme: 'light' });
             const targetName = await page.locator('h1').textContent();
             const nextAction = await page.locator('.next-action-summary').allTextContents();
             for (const width of [1440, 768, 320]) {
@@ -50,8 +63,14 @@ try {
                 const facts = await page.locator('.decision-facts').boundingBox();
                 if (width === 1440) assert(facts.x >= narrative.x + narrative.width, `${file}: desktop fact column`);
                 if (width === 320) assert(facts.y >= narrative.y + narrative.height, `${file}: stacked fact column`);
-                const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-                assert.deepEqual(axe.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })), [], `${file}/${width}: accessibility`);
+                for (const theme of ['light', 'dark']) {
+                    await page.locator('#report-theme').selectOption(theme);
+                    const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+                    assert.deepEqual(axe.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => n.target) })), [], `${file}/${theme}/${width}: accessibility`);
+                    if (theme === 'dark' && width !== 768)
+                        await page.screenshot({ path: path.join(output, `${file}-dark-${width}.png`) });
+                }
+                await page.locator('#report-theme').selectOption('light');
                 if (width === 320) await page.screenshot({ path: path.join(output, `${file}-320.png`) });
             }
             await page.setViewportSize({ width: 1440, height: 1000 });
@@ -82,8 +101,8 @@ try {
                     const icon = await chevron.boundingBox();
                     const label = await summary.locator('.disclosure-label').boundingBox();
                     assert.equal(icon.width, 16, `${file}: 16px disclosure icon`);
-                    assert(label.x + label.width <= icon.x, `${file}: wrapping leaves room for chevron`);
-                    assert(icon.x > start.x + start.width / 2, `${file}: right-aligned chevron`);
+                    assert(icon.x + icon.width <= label.x, `${file}: leading chevron stays adjacent to label`);
+                    assert(icon.x < start.x + start.width / 2, `${file}: left-aligned disclosure affordance`);
                     const closedTransform = await chevron.evaluate(element => getComputedStyle(element, '::before').transform);
                     await page.screenshot({ path: path.join(output, `${file}-evidence-closed-${width}.png`) });
                     await page.keyboard.press('Enter');
@@ -104,7 +123,8 @@ try {
             }
             await page.locator('#expand-evidence').focus();
             await page.keyboard.press('Enter');
-            assert.equal(await page.locator('details:not([open])').count(), 0, `${file}: expand evidence`);
+            assert.equal(await page.locator('details:not(.evidence-peek):not(.report-section):not([open])').count(), 0, `${file}: expand supporting evidence`);
+            assert.equal(await page.locator('.evidence-preview').count(), 0, `${file}: bulk expansion does not duplicate claims`);
             const leaf = page.locator('article[data-claim-id] details > summary').first();
             const hasLeaf = await leaf.count() > 0;
             if (hasLeaf) {
@@ -116,11 +136,38 @@ try {
                 await leaf.scrollIntoViewIfNeeded();
                 await page.screenshot({ path: path.join(output, `${file}-supporting-record.png`) });
             }
-            const expandedAxe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
-            assert.deepEqual(expandedAxe.violations.map(v => v.id), [], `${file}: expanded accessibility`);
+            for (const theme of ['light', 'dark']) {
+                await page.locator('#report-theme').selectOption(theme);
+                const expandedAxe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa']).analyze();
+                assert.deepEqual(expandedAxe.violations.map(v => v.id), [], `${file}/${theme}: expanded accessibility`);
+            }
+            await page.locator('#report-theme').selectOption('light');
             await page.locator('#collapse-evidence').focus();
             await page.keyboard.press('Enter');
-            assert.equal(await page.locator('details[open]').count(), 0, `${file}: collapse evidence`);
+            assert.equal(await page.locator('details:not(.evidence-peek):not(.report-section)[open]').count(), 0, `${file}: collapse supporting evidence`);
+            assert.equal(await page.locator('.report-section:not([open])').count(), 0, `${file}: section overview remains open`);
+            const peek = page.locator('#priority-actions .evidence-peek').first();
+            if (await peek.count()) {
+                const summary = peek.locator(':scope > summary');
+                await summary.scrollIntoViewIfNeeded();
+                await summary.focus();
+                const start = await summary.boundingBox();
+                const hash = new URL(page.url()).hash;
+                const target = await peek.getAttribute('data-claim-target');
+                const claimId = await page.locator(`[id="${target}"]`).getAttribute('data-claim-id');
+                await page.keyboard.press('Enter');
+                await peek.locator('.evidence-preview').waitFor({ state: 'visible' });
+                assert((await peek.textContent()).includes(claimId), `${file}: local evidence is from the exact canonical claim`);
+                assert.equal(new URL(page.url()).hash, hash, `${file}: in-place evidence does not navigate`);
+                assert(Math.abs((await summary.boundingBox()).y - start.y) <= 2, `${file}: local summary stays in place`);
+                assert.equal(await page.locator('article[data-claim-id]').count(), expected.length, `${file}: previews do not duplicate canonical records`);
+                const previewIds = await page.locator('[id]').evaluateAll(elements => elements.map(element => element.id));
+                assert.equal(new Set(previewIds).size, previewIds.length, `${file}: preview has no duplicate IDs`);
+                await page.screenshot({ path: path.join(output, `${file}-local-evidence.png`) });
+                await summary.focus();
+                await page.keyboard.press('Space');
+                await page.waitForFunction(() => !document.querySelector('.evidence-preview'));
+            }
             if (nextAction.length) {
                 await activateLink(page.locator('.next-action-link'));
                 assert.equal(await page.locator('.action-row').first().getAttribute('id'), new URL(page.url()).hash.slice(1));
@@ -134,7 +181,7 @@ try {
                 const claimTarget = decodeURIComponent(new URL(page.url()).hash.slice(1));
                 await page.locator(`[id="${claimTarget}"] details[open]`).waitFor({ state: 'visible' });
                 await page.locator('#claim-search').fill('no-match-same-fragment');
-                await activateLink(page.locator(`#priority-actions a[href="#${claimTarget}"]`).first());
+                await activateLink(page.locator(`#priority-actions .ledger-body > p > a[href="#${claimTarget}"]`).first());
                 assert(await page.locator(`[id="${claimTarget}"]`).isVisible(), `${file}: repeated fragment reveals filtered claim`);
                 await page.screenshot({ path: path.join(output, `${file}-claim-path.png`) });
                 await activateLink(page.locator(`[id="${claimTarget}"] a[href="#method-and-provenance"]`));
@@ -154,6 +201,15 @@ try {
             }
             await page.locator('#claim-search').fill('no-match-synthetic-filter');
             await page.locator('details').evaluateAll(elements => elements.forEach(element => { element.open = false; }));
+            await page.locator('#report-theme').selectOption('dark');
+            if (await peek.count()) {
+                await peek.evaluate(element => { element.open = true; });
+                await page.waitForFunction(() => document.querySelector('.evidence-preview'));
+            }
+            await page.emulateMedia({ media: 'print' });
+            assert.equal(await page.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'light', `${file}: print is light even when Dark is selected`);
+            assert.equal(await page.locator('.evidence-preview:visible').count(), 0, `${file}: print omits open previews`);
+            await page.emulateMedia({ media: null });
             const disclosureHeadings = await page.locator('summary').allTextContents();
             const pdfs = [];
             for (const format of ['A4', 'Letter']) {
@@ -221,11 +277,14 @@ try {
             assert.equal(await plain.locator('article[data-claim-id]').count(), expected.length);
             assert(await plain.locator('#claim-filters').isHidden());
             assert(await plain.locator('#assessment-decision').isVisible());
+            assert(await plain.locator('.theme-control').isHidden());
+            await plain.emulateMedia({ colorScheme: 'dark' });
+            assert.equal(await plain.evaluate(() => getComputedStyle(document.body).backgroundColor), darkCanvas, `${file}: no-JS system theme`);
             await plain.locator('details summary').first().focus();
             await plain.keyboard.press('Enter');
             await noJs.close();
             receipt.reports.push({
-                name, detail, claims: expected.length, viewports: [1440, 768, 320], axeViolations: 0, noJavaScript: 'passed',
+                name, detail, claims: expected.length, viewports: [1440, 768, 320], themes: ['light', 'dark'], axeViolations: 0, noJavaScript: 'passed',
                 inputSha256: createHash('sha256').update(await readFile(path.join(root, 'inputs', `${name}.json`))).digest('hex'),
                 htmlSha256: createHash('sha256').update(await readFile(path.join(root, `${file}.html`))).digest('hex'),
                 evidencePath,

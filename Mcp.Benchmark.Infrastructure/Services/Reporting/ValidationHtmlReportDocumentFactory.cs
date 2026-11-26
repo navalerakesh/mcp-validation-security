@@ -128,7 +128,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var snapshot = result.CapabilitySnapshot?.Payload;
         return $"Recorded catalog — Tools: {Count(result.ToolValidation?.ToolsDiscovered, result.ToolValidation?.CatalogEnumeration, snapshot?.ToolListingSucceeded == true ? snapshot.DiscoveredToolsCount : null)}; " +
             $"Resources: {Count(result.ResourceTesting?.ResourcesDiscovered, result.ResourceTesting?.CatalogEnumeration, snapshot?.ResourceListingSucceeded == true ? snapshot.DiscoveredResourcesCount : null)}; " +
-            $"Prompts: {Count(result.PromptTesting?.PromptsDiscovered, result.PromptTesting?.CatalogEnumeration, snapshot?.PromptListingSucceeded == true ? snapshot.DiscoveredPromptsCount : null)}.";
+            $"Prompts: {Count(result.PromptTesting?.PromptsDiscovered, result.PromptTesting?.CatalogEnumeration, snapshot?.PromptListingSucceeded == true ? snapshot.DiscoveredPromptsCount : null)}; " +
+            $"Resource templates: {Count(result.ResourceTesting?.ResourceTemplatesDiscovered, result.ResourceTesting?.TemplateCatalogEnumeration, null)} (enumeration only; not resource reads).";
 
         static string Count(int? count, CatalogEnumerationEvidence? enumeration, int? snapshotCount)
         {
@@ -195,6 +196,20 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 AssuranceExitCodeMapper.Failed => "Selected comprehensive requirements not met",
                 _ => "Selected comprehensive assessment is incomplete"
             };
+        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Ci.ProfileId)
+            return AssuranceExitCodeMapper.Map(result) switch
+            {
+                AssuranceExitCodeMapper.Satisfied => "Selected CI requirements satisfied",
+                AssuranceExitCodeMapper.Failed => "Selected CI requirements not met",
+                _ => "Selected CI assessment is incomplete"
+            };
+        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Provider.ProfileId)
+            return AssuranceExitCodeMapper.Map(result) switch
+            {
+                AssuranceExitCodeMapper.Satisfied => "Provider certificate eligible; issuance not established",
+                AssuranceExitCodeMapper.Failed => "Provider certificate requirements not met",
+                _ => "Provider certificate assessment is incomplete"
+            };
         return result.Assurance.Assessments.CoreConformance.Status switch
         {
             CoreConformanceStatus.Conformant => "Core protocol conforms within assessed scope",
@@ -205,7 +220,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static string BuildDecisionReason(ValidationResult result)
     {
-        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId &&
+        if ((result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId ||
+             result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Ci.ProfileId) &&
             AssuranceExitCodeMapper.Map(result) == AssuranceExitCodeMapper.Satisfied)
             return $"Recorded core conformance: {result.Assurance.Assessments.CoreConformance.Status}; " +
                 $"security assurance: {result.Assurance.Assessments.SecurityAssurance.Status}; " +
@@ -216,6 +232,12 @@ internal sealed class ValidationHtmlReportDocumentFactory
             .Select(id => result.Assurance.Claims.FirstOrDefault(claim => claim.ClaimId == id)?.Summary)
             .FirstOrDefault(summary => !string.IsNullOrWhiteSpace(summary))
         ?? (result.PolicyOutcome is { Passed: false } policy && !string.IsNullOrWhiteSpace(policy.Summary) ? policy.Summary : null)
+        ?? (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Inventory.ProfileId &&
+            result.Run.TerminationOutcome == ValidationOutcome.Succeeded && result.Evidence.Coverage.Count > 0
+            ? result.Run.ExecutionMode == ExecutionMode.Safe
+                ? "This Safe inventory records discovery and static checks. It does not establish tool execution or active security assurance."
+                : "Inventory findings apply to the recorded execution scope; they do not establish comprehensive assurance."
+            : null)
         ?? result.Assurance.CertificateEligibility.Reasons.FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason))
         ?? ReportContextFormatter.FormatMissingEligibilityExplanation(result.Assurance.CertificateEligibility.Status);
     }
@@ -439,11 +461,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
                 (metrics.CatalogPayloadCharacterLimit != null || metrics.CatalogPayloadCharactersReserved != null ? $" · {ReportContextFormatter.FormatCatalogBudget(metrics)}" : string.Empty),
             Tone = HtmlReportTone.Info
         });
-    }
-
-    private static EvidenceCoverageSummary ResolveEvidenceSummary(ValidationResult result)
-    {
-        return result.Assurance.EvidenceSummary;
     }
 
     private static IReadOnlyList<ValidationHtmlDomainSummary> BuildDomainSummaries(ValidationResult result)
@@ -757,36 +774,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
-    private static IReadOnlyList<string> BuildReleaseHighlights(
-        ValidationResult result,
-        IReadOnlyList<string> priorityFindings,
-        IReadOnlyList<ValidationHtmlDecisionTraceItem> decisionTrace,
-        IReadOnlyList<ValidationHtmlCompatibilityTheme> compatibilityThemes)
-    {
-        var highlights = new List<string>();
-
-        if (result.PolicyOutcome is { Passed: false } policyOutcome)
-        {
-            highlights.Add($"{ResolveBlockingSignalCount(result)} blocking signal(s) remain under {FormatModeLabel(policyOutcome.Mode)} policy.");
-        }
-
-        highlights.AddRange(decisionTrace.Take(2).Select(item => item.Title));
-
-        if (result.ClientCompatibility?.IncompatibleCount > 0 && compatibilityThemes.Any(theme => theme.Tone == HtmlReportTone.Danger))
-        {
-            var blockingTheme = compatibilityThemes.First(theme => theme.Tone == HtmlReportTone.Danger);
-            highlights.Add($"Compatibility theme: {blockingTheme.Title} affects {blockingTheme.ProfileCount} profile(s).");
-        }
-
-        highlights.AddRange(priorityFindings.Take(2));
-
-        return highlights
-            .Where(item => !string.IsNullOrWhiteSpace(item))
-            .Distinct(StringComparer.Ordinal)
-            .Take(4)
-            .ToList();
-    }
-
     private static bool MatchesPolicySummary(string hint, string? policySummary)
     {
         if (string.IsNullOrWhiteSpace(policySummary))
@@ -845,16 +832,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         _ => HtmlReportTone.Neutral
     };
 
-    private static string BuildSignalLabel(int blockingCount, int totalCount)
-    {
-        if (totalCount == 0)
-        {
-            return "No escalated signals";
-        }
-
-        return $"{blockingCount} blocking / {totalCount} total";
-    }
-
     private static string FormatComponentSet(IReadOnlyList<string> components)
     {
         if (components.Count == 0)
@@ -912,22 +889,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return policyOutcome.Reasons.Count;
-    }
-
-    private static int ResolveTotalSignalCount(ValidationResult result)
-    {
-        var policyOutcome = result.PolicyOutcome;
-        if (policyOutcome == null)
-        {
-            return 0;
-        }
-
-        if (policyOutcome.TotalSignalCount > 0)
-        {
-            return policyOutcome.TotalSignalCount;
-        }
-
-        return ResolveUnsuppressedSignalCount(result) + Math.Max(policyOutcome.SuppressedSignalCount, 0);
     }
 
     private static int? TryParseSummarySignalCount(string? summary)

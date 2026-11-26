@@ -36,7 +36,8 @@ public sealed class ValidationHtmlAccessibilityTests
         document.QuerySelectorAll("article[data-claim-id] details").Should()
             .OnlyContain(element => !element.ClassList.Contains("disclosure-group"),
                 "routine claim references are flat supporting records, not major cards");
-        document.QuerySelectorAll("#technical-evidence > section > h2").Should().NotBeEmpty();
+        document.QuerySelectorAll("#technical-evidence > section > details[open] > summary > h2").Should().NotBeEmpty();
+        document.QuerySelectorAll(".report-section").Should().OnlyContain(section => section.HasAttribute("open"));
         if (verbose)
             document.QuerySelectorAll(".domain-disclosure > summary .disclosure-label")
                 .Should().Contain(element => element.TextContent.StartsWith("Tool catalog records", StringComparison.Ordinal));
@@ -77,7 +78,7 @@ public sealed class ValidationHtmlAccessibilityTests
         var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
         var document = new HtmlParser().ParseDocument(html);
         var overview = document.QuerySelectorAll("#evidence-and-actions details").Single(section =>
-            section.QuerySelector("summary")?.TextContent == "Independent assessment facts and measurements");
+            section.QuerySelector("summary > .disclosure-label")?.TextContent == "Independent assessment facts and measurements");
 
         document.QuerySelectorAll(".score-strip, .score-pill, .principle-rail, .principle-card").Should().BeEmpty();
         var facts = overview.QuerySelectorAll("dl").Should().ContainSingle().Subject;
@@ -95,7 +96,7 @@ public sealed class ValidationHtmlAccessibilityTests
         if (verbose)
         {
             var performance = document.QuerySelectorAll("section").Single(section =>
-                section.Children.Any(child => child.LocalName == "h2" && child.TextContent == "Performance Metrics"));
+                section.QuerySelector(":scope > details > summary > h2")?.TextContent == "Performance Metrics");
             var performanceFacts = performance.QuerySelector(".assessment-section__content > dl")!;
             var load = result.PerformanceTesting!.LoadTesting;
             performanceFacts.QuerySelectorAll("dt").Select(element => element.TextContent).Should().Equal(
@@ -362,8 +363,10 @@ public sealed class ValidationHtmlAccessibilityTests
         html.ToLowerInvariant().Should().NotContain("onclick=");
     }
 
-    [Fact]
-    public void ThemeTextTokens_ShouldMeetWcagAaContrast()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ThemeTextTokens_ShouldMeetWcagAaContrast(bool dark)
     {
         var result = ReportSnapshotTestData.CreateComprehensiveResult();
         var html = new ValidationReportRenderer().GenerateHtmlReport(
@@ -379,8 +382,8 @@ public sealed class ValidationHtmlAccessibilityTests
             ("success", "success-bg"), ("warning", "warning-bg"),
             ("danger", "danger-bg"), ("neutral", "neutral-bg"), ("error", "error-bg")
         })
-            Contrast(GetCssColor(html, foreground), GetCssColor(html, background)).Should().BeGreaterThanOrEqualTo(4.5);
-        Contrast(GetCssColor(html, "control"), GetCssColor(html, "surface")).Should().BeGreaterThanOrEqualTo(3);
+            Contrast(GetCssColor(html, foreground, dark), GetCssColor(html, background, dark)).Should().BeGreaterThanOrEqualTo(4.5);
+        Contrast(GetCssColor(html, "control", dark), GetCssColor(html, "surface", dark)).Should().BeGreaterThanOrEqualTo(3);
     }
 
     [Fact]
@@ -426,11 +429,11 @@ public sealed class ValidationHtmlAccessibilityTests
         document.Body!.TextContent.Should().Contain("<script>alert(2)</script>");
     }
 
-    private static (int Red, int Green, int Blue) GetCssColor(string html, string name)
+    private static (int Red, int Green, int Blue) GetCssColor(string html, string name, bool dark)
     {
-        var match = Regex.Match(html, $@"--{Regex.Escape(name)}:\s*#(?<hex>[0-9a-fA-F]{{6}})");
+        var match = Regex.Match(html, $@"--{Regex.Escape(name)}:\s*light-dark\(#(?<light>[0-9a-fA-F]{{6}}),\s*#(?<dark>[0-9a-fA-F]{{6}})\)");
         match.Success.Should().BeTrue($"CSS variable --{name} must be present");
-        var hex = match.Groups["hex"].Value;
+        var hex = match.Groups[dark ? "dark" : "light"].Value;
         return (
             Convert.ToInt32(hex[..2], 16),
             Convert.ToInt32(hex[2..4], 16),

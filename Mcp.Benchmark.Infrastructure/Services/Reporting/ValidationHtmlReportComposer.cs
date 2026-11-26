@@ -46,11 +46,11 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderOverview(document));
         sb.AppendLine(RenderRemediationOrder(document));
         sb.AppendLine("      <div id=\"technical-evidence\">");
-        sb.AppendLine("      <section class=\"assessment-section\" aria-labelledby=\"domain-evidence-title\"><h2 id=\"domain-evidence-title\">Domain evidence</h2><p>Discovery, configured permissions and observed runtime behavior are separate. Source authority stays attached to each claim.</p>");
+        sb.AppendLine($"      <section class=\"assessment-section\" aria-labelledby=\"domain-evidence-title\"><details class=\"report-section\" open>{RenderDisclosureSummary("Domain evidence", headingId: "domain-evidence-title")}<p>Discovery, configured permissions and observed runtime behavior are separate. Source authority stays attached to each claim.</p>");
         sb.AppendLine("<div class=\"report-controls\" hidden><button type=\"button\" id=\"expand-evidence\">Expand evidence sections</button><button type=\"button\" id=\"collapse-evidence\">Collapse evidence sections</button></div>");
         sb.AppendLine(RenderDomainClaimIndex(document.ClaimEntries));
         sb.AppendLine(RenderTestedScope(result));
-        sb.AppendLine("      </section>");
+        sb.AppendLine("      </details></section>");
         if (document.Bootstrap != null)
         {
             sb.AppendLine(RenderBootstrap(document.Bootstrap));
@@ -97,7 +97,7 @@ internal sealed class ValidationHtmlReportComposer
 
         sb.AppendLine("      </div>");
         sb.AppendLine("      <div id=\"method-and-provenance\">");
-        sb.AppendLine("      <section class=\"assessment-section\" aria-labelledby=\"run-provenance-title\"><h2 id=\"run-provenance-title\">Run provenance</h2>");
+        sb.AppendLine($"      <section class=\"assessment-section\" aria-labelledby=\"run-provenance-title\"><details class=\"report-section\" open>{RenderDisclosureSummary("Run provenance", headingId: "run-provenance-title")}");
         sb.AppendLine(RenderFactGrid(document.Hero.MetaItems, "provenance-facts"));
         sb.AppendLine($"      <p>Short run reference: <code>{document.RunReference}</code>. Canonical JSON and the audit manifest remain the machine record; HTML does not rerun validation.</p>");
         sb.AppendLine($"      <p>Profile revision: <code>{Encode(result.Assurance.Profile.Revision)}</code>. Source revisions, authority and evidence references appear with each claim.</p>");
@@ -107,8 +107,8 @@ internal sealed class ValidationHtmlReportComposer
         if (!string.IsNullOrWhiteSpace(result.Run.ExecutionPlanSha256))
             sb.AppendLine($"<div><dt>Execution plan SHA-256</dt><dd><code>{Encode(result.Run.ExecutionPlanSha256)}</code></dd></div>");
         sb.AppendLine("</dl>");
-        sb.AppendLine("      </section>");
-        if (document.Verbose) sb.AppendLine(RenderReaderKey());
+        sb.AppendLine("      </details></section>");
+        sb.AppendLine(RenderReaderKey());
         sb.AppendLine(RenderProducerSignature(result));
         sb.AppendLine("      </div>");
         sb.AppendLine(RenderRecordedClaims(document));
@@ -125,7 +125,7 @@ internal sealed class ValidationHtmlReportComposer
     {
         var sb = new StringBuilder();
         sb.AppendLine("      <section class=\"section\" aria-labelledby=\"official-conformance-title\">");
-        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">External Evidence</div><h2 id=\"official-conformance-title\">Official Conformance</h2></div></div>");
+        sb.AppendLine($"<details class=\"report-section\" open>{RenderDisclosureSummary("Official conformance", headingId: "official-conformance-title")}");
         sb.AppendLine("        <p>Imported official conformance evidence is provenance-verified separately and does not change the core score or trust level.</p>");
         sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th scope=\"col\">Verification</th><th scope=\"col\">Runner</th><th scope=\"col\">Requirement Set</th><th scope=\"col\">Runner Successes</th><th scope=\"col\">Credited Passes</th><th scope=\"col\">Failures</th><th scope=\"col\">Warnings</th><th scope=\"col\">Skipped</th><th scope=\"col\">Conflicts</th></tr></thead><tbody>");
         sb.AppendLine($"          <tr><td>{Encode(assessment.VerificationStatus.ToString())}</td><td><code>{Encode($"{assessment.Runner.PackageName}@{assessment.Runner.Version}")}</code></td><td><code>{Encode(assessment.RequirementSet.Revision)}</code></td><td>{assessment.Passed}</td><td>{assessment.CreditedPassed}</td><td>{assessment.Failed}</td><td>{assessment.Warnings}</td><td>{assessment.Skipped}</td><td>{assessment.Conflicts.Count}</td></tr>");
@@ -139,7 +139,7 @@ internal sealed class ValidationHtmlReportComposer
             }
             sb.AppendLine("        </ul>");
         }
-        sb.AppendLine("      </section>");
+        sb.AppendLine("      </details></section>");
         return sb.ToString();
     }
 
@@ -147,14 +147,14 @@ internal sealed class ValidationHtmlReportComposer
     {
         var sb = new StringBuilder();
         sb.AppendLine("      <section class=\"section\" aria-labelledby=\"extension-readiness-title\">");
-        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">Optional Specifications</div><h2 id=\"extension-readiness-title\">Extension Readiness</h2></div></div>");
+        sb.AppendLine($"<details class=\"report-section\" open>{RenderDisclosureSummary("Extension readiness", headingId: "extension-readiness-title")}");
         sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table\"><thead><tr><th scope=\"col\">Extension</th><th scope=\"col\">Stage</th><th scope=\"col\">Revision</th><th scope=\"col\">Verdict</th><th scope=\"col\">Evidence Coverage</th></tr></thead><tbody>");
         foreach (var extension in extensions.OrderBy(item => item.ExtensionId, StringComparer.Ordinal))
         {
             sb.AppendLine($"          <tr><td><code>{Encode(extension.ExtensionId)}</code></td><td>{Encode(extension.Stage.ToString())}</td><td><code>{Encode(extension.SpecificationRevision)}</code></td><td>{Encode(extension.Verdict.ToString())}</td><td>{extension.EvidenceSummary.EvidenceCoverageRatio:P1}</td></tr>");
         }
         sb.AppendLine("        </tbody></table></div>");
-        sb.AppendLine("      </section>");
+        sb.AppendLine("      </details></section>");
         return sb.ToString();
     }
 
@@ -162,12 +162,19 @@ internal sealed class ValidationHtmlReportComposer
     {
         var sb = new StringBuilder();
         sb.AppendLine("      <section class=\"section\">");
-        sb.AppendLine("        <div class=\"section-heading\"><div><div class=\"eyebrow\">Operations</div><h2>Validator And Target Timing</h2></div></div>");
+        sb.AppendLine($"<details class=\"report-section\" open>{RenderDisclosureSummary("Performance and request measurements", headingId: "request-measurements-title")}");
+        sb.AppendLine("        <p>Recorded request timings describe this run, including discovery where applicable. They are not a load-test result or a prediction of future server performance. Percentiles use the retained sample window.</p>");
         sb.AppendLine("        <div class=\"table-shell\"><table class=\"data-table data-table--operations\"><thead><tr><th>Metric</th><th>Value</th></tr></thead><tbody>");
         AddRow("Total run wall time", $"{metrics.TotalRunDurationMs:F1} ms");
         AddRow("Deterministic validator overhead", $"{metrics.ValidatorOverheadMs:F1} ms");
         AddRow("Requests started / completed / failed", $"{metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed}");
         AddRow("Retained latency / queue samples", $"{metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount}");
+        AddRow("Request latency P50 / P95 / P99", string.Join(" / ", new[] { metrics.TargetLatencyP50Ms, metrics.TargetLatencyP95Ms, metrics.TargetLatencyP99Ms }
+            .Select(value => ReportContextFormatter.FormatOperationalMetric(value, metrics.TargetLatencySampleCount > 0, "F2", "ms"))));
+        AddRow("Queue time P95", ReportContextFormatter.FormatOperationalMetric(metrics.QueueTimeP95Ms, metrics.QueueTimeSampleCount > 0, "F2", "ms"));
+        AddRow("Request throughput", ReportContextFormatter.FormatOperationalMetric(metrics.ThroughputRequestsPerSecond, metrics.RequestsCompleted > 0, "F2", "requests/s"));
+        AddRow("Retry attempts / delay", $"{metrics.RetryCount} / {metrics.RetryDelayMs:F1} ms");
+        AddRow("Native catalog payload budget", ReportContextFormatter.FormatCatalogBudget(metrics));
         AddRow("Latency sample window", ReportContextFormatter.FormatMetricWindow(metrics.TargetLatencyWindow));
         AddRow("Queue sample window", ReportContextFormatter.FormatMetricWindow(metrics.QueueTimeWindow));
         if (metrics.ValidatorProcessResources is { } resources)
@@ -184,7 +191,7 @@ internal sealed class ValidationHtmlReportComposer
             AddRow(stage.Key, $"{stage.Value:F3} ms");
         }
         sb.AppendLine("        </tbody></table></div>");
-        sb.AppendLine("      </section>");
+        sb.AppendLine("      </details></section>");
         return sb.ToString();
 
         void AddRow(string label, string value) =>
@@ -197,10 +204,11 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("      <header class=\"assessment-masthead\"><div class=\"masthead-brand\"><span class=\"wordmark\">MCPVal</span><span class=\"report-kind\">Server assessment</span></div>");
         sb.AppendLine($"        <h1 class=\"target-identity\">{Encode(document.TargetName)}</h1>");
         sb.AppendLine($"        <p class=\"target-endpoint\">{Encode(document.Result.ServerConfig.Endpoint ?? "Endpoint unavailable")}</p>");
-        sb.AppendLine($"        <p class=\"report-metadata\">{Encode(document.GeneratedAtLabel)} · Profile: {Encode(document.Result.Assurance.Profile.ProfileId)} · {Encode(document.DetailLabel)} detail</p></header>");
+        sb.AppendLine($"        <p class=\"report-metadata\">{Encode(document.GeneratedAtLabel)} · Profile: {Encode(document.Result.Assurance.Profile.ProfileId)} · {Encode(document.DetailLabel)} detail</p>");
+        sb.AppendLine("        <label class=\"theme-control\" hidden>Report theme <select id=\"report-theme\"><option value=\"system\">System</option><option value=\"light\">Light</option><option value=\"dark\">Dark</option></select></label></header>");
         sb.AppendLine("      <nav class=\"assessment-contents\" aria-label=\"Contents\"><ul>");
         sb.AppendLine("        <li><a href=\"#assessment-decision\">Decision</a></li><li><a href=\"#evidence-and-actions\">Coverage</a></li><li><a href=\"#priority-actions\">Actions</a></li>");
-        sb.AppendLine("        <li><a href=\"#technical-evidence\">Evidence</a></li><li><a href=\"#method-and-provenance\">Provenance</a></li><li><a href=\"#recorded-claims\">Claims appendix</a></li></ul></nav>");
+        sb.AppendLine("        <li><a href=\"#technical-evidence\">Evidence</a></li><li><a href=\"#method-and-provenance\">Provenance</a></li><li><a href=\"#report-glossary\">Terms</a></li><li><a href=\"#recorded-claims\">Claims appendix</a></li></ul></nav>");
         sb.AppendLine("      <section class=\"decision-panel\" id=\"assessment-decision\" aria-labelledby=\"assessment-decision-title\">");
         sb.AppendLine("        <div class=\"decision-grid\"><div class=\"decision-narrative\"><p class=\"section-kicker\">Assessment decision</p>");
         sb.AppendLine($"        <h2 id=\"assessment-decision-title\">{Encode(document.DecisionTitle)}</h2>");
@@ -272,35 +280,14 @@ internal sealed class ValidationHtmlReportComposer
     private static string RenderReaderKey()
     {
         var sb = new StringBuilder();
-        sb.AppendLine(RenderSectionCardOpen(
-            "Reference Appendix",
-            "Terms And Abbreviations",
-            "Definitions for report-specific codes, scales, protocol language, and measurement shorthand.",
-            new[] { ("Terms", ReportTerminology.Entries.Count.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Neutral) },
-            HtmlReportTone.Neutral));
-        sb.AppendLine("        <dl class=\"reader-key-grid\">");
+        sb.AppendLine($"<section class=\"assessment-section\" id=\"report-glossary\"><details class=\"report-section\" open>{RenderDisclosureSummary("Terms and abbreviations", headingId: "report-glossary-title")}");
+        sb.AppendLine("<p>Definitions explain the report; they do not add evidence or change the assessment.</p><div class=\"reader-key-grid\">");
         foreach (var entry in ReportTerminology.Entries)
         {
-            sb.AppendLine("          <div class=\"reader-key-item\">");
-            sb.AppendLine($"            <dt>{Encode(entry.Term)}</dt>");
-            sb.AppendLine($"            <dd>{Encode(entry.Meaning)}</dd>");
-            sb.AppendLine("          </div>");
+            sb.AppendLine($"<details class=\"assessment-reference glossary-term\">{RenderDisclosureSummary(entry.Term)}<dl><dt>{Encode(entry.Term)}</dt><dd>{Encode(entry.Meaning)}</dd></dl></details>");
         }
-        sb.AppendLine("        </dl>");
-        sb.AppendLine(RenderSectionCardClose());
+        sb.AppendLine("</div></details></section>");
         return sb.ToString();
-    }
-
-    private static string RenderStatusPanel(string title, string value, HtmlReportTone tone, string supportingText)
-    {
-        var toneCss = ValidationHtmlReportTheme.ToCssTone(tone);
-        return $"""
-                <div class="panel status-panel panel--soft panel--tone-{toneCss}">
-                    <span class="status-chip status-chip--{toneCss}">{Encode(title)}</span>
-                    <div class="focus-value">{Encode(value)}</div>
-                    <div class="focus-label">{Encode(supportingText)}</div>
-                </div>
-                """;
     }
 
     private static string RenderOverview(ValidationHtmlReportDocument document)
@@ -308,7 +295,7 @@ internal sealed class ValidationHtmlReportComposer
         var sb = new StringBuilder();
         var assurance = document.Result.Assurance;
         sb.AppendLine("      <section class=\"assessment-section\" id=\"evidence-and-actions\" aria-labelledby=\"evidence-and-actions-title\">");
-        sb.AppendLine("        <h2 id=\"evidence-and-actions-title\">Coverage</h2>");
+        sb.AppendLine($"        <details class=\"report-section\" open>{RenderDisclosureSummary("Coverage", headingId: "evidence-and-actions-title")}");
         sb.AppendLine($"        <p>Core required claims: {assurance.Assessments.CoreConformance.SatisfiedRequiredClaims} satisfied of {assurance.Assessments.CoreConformance.RequiredClaims} recorded.</p>");
         sb.AppendLine($"        <p>Recorded coverage declarations: {assurance.EvidenceSummary.Covered} covered of {assurance.EvidenceSummary.ApplicableDeclarations} applicable; {assurance.EvidenceSummary.TotalDeclarations} total.</p>");
         sb.AppendLine(RenderDomainEvidenceMatrix(document.DomainSummaries));
@@ -337,7 +324,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine($"        <details class=\"assessment-reference\">{RenderDisclosureSummary("Independent assessment facts and measurements")}");
         sb.AppendLine(RenderMetricFacts(document.OverviewMetrics));
         sb.AppendLine("        </details>");
-        sb.AppendLine("      </section>");
+        sb.AppendLine("      </details></section>");
 
         return sb.ToString();
 
@@ -358,10 +345,17 @@ internal sealed class ValidationHtmlReportComposer
     private static string ObservationAnchor(string id) =>
         "observation-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))).ToLowerInvariant();
 
-    private static string RenderDisclosureSummary(string title, string? context = null) =>
-        $"<summary><span class=\"disclosure-label\">{Encode(title)}" +
+    private static string RenderDisclosureSummary(string title, string? context = null, string? headingId = null) =>
+        $"<summary{(headingId == null ? "" : " class=\"section-summary\"")}><span class=\"disclosure-chevron\" aria-hidden=\"true\"></span>" +
+        (headingId == null ? $"<span class=\"disclosure-label\">{Encode(title)}" : $"<h2 class=\"disclosure-label\" id=\"{Encode(headingId)}\">{Encode(title)}") +
         (string.IsNullOrWhiteSpace(context) ? "" : $"<span class=\"disclosure-outcomes\">{Encode(context)}</span>") +
-        "</span><span class=\"disclosure-chevron\" aria-hidden=\"true\"></span></summary>";
+        (headingId == null ? "</span>" : "</h2>") +
+        "<span class=\"disclosure-state\" aria-hidden=\"true\"><span class=\"when-closed\">Expand</span><span class=\"when-open\">Collapse</span></span></summary>";
+
+    private static string RenderInlineEvidence(ValidationHtmlClaimEntry entry) =>
+        $"<details class=\"assessment-reference evidence-peek\" data-claim-target=\"{entry.Anchor}\">" +
+        RenderDisclosureSummary("Read evidence here") +
+        $"<div class=\"peek-content\"><p><a href=\"#{entry.Anchor}\">Navigate to canonical claim</a></p></div></details>";
 
     private static string RenderDomainClaimIndex(IReadOnlyList<ValidationHtmlClaimEntry> entries)
     {
@@ -390,7 +384,7 @@ internal sealed class ValidationHtmlReportComposer
     {
         var claims = document.Result.Assurance.Claims;
         var sb = new StringBuilder();
-        sb.AppendLine("      <section class=\"assessment-section\" id=\"recorded-claims\" aria-labelledby=\"recorded-claims-title\"><h2 id=\"recorded-claims-title\">Appendix: findings and recorded claims</h2>");
+        sb.AppendLine($"      <section class=\"assessment-section\" id=\"recorded-claims\" aria-labelledby=\"recorded-claims-title\"><details class=\"report-section\" open>{RenderDisclosureSummary("Appendix: findings and recorded claims", headingId: "recorded-claims-title")}");
         sb.AppendLine(document.Verbose
             ? "        <p>Complete recorded claims and supporting references. Source authority is not interchangeable with evidence confidence.</p>"
             : "        <p>Minimal detail retains every claim. Expand supporting references below; full detail also includes detailed measurement sections.</p>");
@@ -434,7 +428,7 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("          </ul><p><a href=\"#method-and-provenance\">Run method and provenance</a></p></details>");
             sb.AppendLine("        </article>");
         }
-        sb.AppendLine("      </details></section>");
+        sb.AppendLine("      </details></details></section>");
         return sb.ToString();
     }
 
@@ -442,37 +436,40 @@ internal sealed class ValidationHtmlReportComposer
     {
         if (document.PriorityActions.Count == 0)
         {
-            return "<section class=\"assessment-section\" id=\"priority-actions\"><h2>Priority actions</h2><p>No prioritized actions were recorded for the assessed scope. Unassessed operations are not implied safe.</p></section>";
+            return $"<section class=\"assessment-section\" id=\"priority-actions\"><details class=\"report-section\" open>{RenderDisclosureSummary("Priority actions", headingId: "priority-actions-title")}<p>No prioritized actions were recorded for the assessed scope. Unassessed operations are not implied safe.</p></details></section>";
         }
 
         var sb = new StringBuilder();
         sb.AppendLine("<div id=\"priority-actions\">");
-        sb.AppendLine("<section class=\"assessment-section\"><h2>Priority actions</h2><p class=\"assessment-context\">Remediation Roadmap</p>");
+        sb.AppendLine($"<section class=\"assessment-section\"><details class=\"report-section\" open>{RenderDisclosureSummary("Priority actions", headingId: "priority-actions-title")}");
         sb.AppendLine("<p>Address dependency gates in the recorded order. Remediation and collecting missing evidence are different tasks; neither changes an existing finding.</p>");
         sb.AppendLine("          <ol class=\"priority-list\">");
         foreach (var action in document.PriorityActions)
         {
             var item = action.Item;
-            sb.AppendLine($"            <li class=\"action-row\" id=\"{action.Anchor}\">");
+            sb.AppendLine($"            <li class=\"action-row\" id=\"{action.Anchor}\" data-action-kind=\"{Encode(action.Kind)}\">");
             sb.AppendLine("              <div class=\"ledger-rail\">");
             sb.AppendLine($"                <div class=\"ledger-kicker\">Priority {action.Priority}</div>");
             sb.AppendLine($"                <div class=\"action-category\">{Encode(action.Category)} · {Encode(action.Kind)}</div>");
             sb.AppendLine("              </div>");
             sb.AppendLine("              <div class=\"ledger-body\">");
             sb.AppendLine($"<h3 class=\"action-title\">{Encode(item.Remediation)}</h3><p>{Encode(item.Issue)}</p>");
-            sb.AppendLine($"<p class=\"ledger-copy\"><strong>Impact after fix:</strong> {Encode(action.Impact)}</p>");
+            sb.AppendLine($"<p class=\"ledger-copy\"><strong>Why this matters:</strong> {Encode(action.Impact)}</p>");
                 sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Component:</strong> <code>{Encode(item.Component)}</code> · <strong>Evidence:</strong> {Encode(item.Authority)} <code>{Encode(item.Evidence)}</code> · <strong>Severity:</strong> {Encode(item.Severity)}</div>");
                 if (!string.IsNullOrWhiteSpace(item.SpecReference))
                 {
                     sb.AppendLine($"                    <div class=\"ledger-links\"><strong>Specification:</strong> {BuildSpecCell(item.SpecReference)}</div>");
                 }
                 foreach (var entry in action.Claims)
+                {
+                    sb.AppendLine(RenderInlineEvidence(entry));
                     sb.AppendLine($"<p><a href=\"#domain-{entry.Anchor}\">Domain evidence: {Encode(entry.Claim.Subject)}</a> · <a href=\"#{entry.Anchor}\">Exact claim</a></p>");
+                }
             sb.AppendLine("              </div>");
             sb.AppendLine("            </li>");
         }
         sb.AppendLine("          </ol>");
-        sb.AppendLine("</section>");
+        sb.AppendLine("</details></section>");
         sb.AppendLine("</div>");
         return sb.ToString();
     }
@@ -487,11 +484,11 @@ internal sealed class ValidationHtmlReportComposer
     {
         var sb = new StringBuilder();
         sb.AppendLine("      <section class=\"assessment-section\">");
-        sb.AppendLine($"        <h2>{Encode(title)}</h2>");
-        sb.AppendLine($"        <p class=\"assessment-context\">{Encode(kicker)}</p>");
+        var headingId = "section-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(title))).ToLowerInvariant();
+        sb.AppendLine($"        <details class=\"report-section\" open>{RenderDisclosureSummary(title, headingId: headingId)}");
         sb.AppendLine($"        <p>{Encode(intro)}</p>");
         var summary = string.Join(" · ", abstractItems.Take(2).Select(item => $"{item.Label}: {item.Value}"));
-        sb.AppendLine($"<details class=\"assessment-reference disclosure-group domain-disclosure\">{RenderDisclosureSummary(disclosureLabel ?? title, summary)}<div class=\"assessment-section__content\">");
+        sb.AppendLine($"<details class=\"assessment-reference domain-disclosure\">{RenderDisclosureSummary(disclosureLabel ?? "Supporting records", summary)}<div class=\"assessment-section__content\">");
         if (abstractItems.Count > 0)
         {
             sb.AppendLine("        <dl class=\"assessment-facts\">");
@@ -506,51 +503,12 @@ internal sealed class ValidationHtmlReportComposer
 
     private static string RenderSectionCardClose()
     {
-        return "        </div></details></section>";
+        return "        </div></details></details></section>";
     }
 
     private static string RenderSectionAbstractCard(string label, string value, HtmlReportTone tone)
     {
         return $"          <div><dt class=\"section-abstract__label\">{Encode(label)}</dt><dd>{Encode(value)}</dd></div>";
-    }
-
-    private static string RenderReleaseDecision(ValidationHtmlReleaseDecision decision)
-    {
-        var toneCss = ValidationHtmlReportTheme.ToCssTone(decision.Tone);
-        var sb = new StringBuilder();
-        sb.AppendLine($"            <div class=\"decision-brief decision-brief--tone-{toneCss}\">");
-        sb.AppendLine($"              <div class=\"section-kicker\">{Encode(decision.Eyebrow)}</div>");
-        sb.AppendLine($"              <h3 class=\"decision-title\">{Encode(decision.Title)}</h3>");
-        sb.AppendLine($"              <p class=\"decision-summary\">{Encode(decision.Summary)}</p>");
-        sb.AppendLine("              <div class=\"summary-grid\">");
-        sb.AppendLine(RenderExecutiveSummaryCard("Certificate", decision.VerdictLabel));
-        sb.AppendLine(RenderExecutiveSummaryCard("Policy Mode", decision.PolicyModeLabel));
-        sb.AppendLine(RenderExecutiveSummaryCard("Recommended Exit", decision.ExitCodeLabel));
-        sb.AppendLine(RenderExecutiveSummaryCard("Blocking Signals", decision.BlockingSignalCount.ToString(CultureInfo.InvariantCulture)));
-        sb.AppendLine("              </div>");
-        if (decision.Highlights.Count > 0)
-        {
-            sb.AppendLine("              <ul class=\"compact-list\">");
-            for (var index = 0; index < decision.Highlights.Count; index++)
-            {
-                sb.AppendLine($"                <li>{Encode(decision.Highlights[index])}</li>");
-            }
-            sb.AppendLine("              </ul>");
-        }
-        sb.AppendLine("            </div>");
-        return sb.ToString();
-    }
-
-    private static string RenderDecisionSignalSummary(ValidationHtmlReleaseDecision decision)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"summary-grid\">");
-        sb.AppendLine(RenderExecutiveSummaryCard("Signals Evaluated", decision.TotalSignalCount.ToString(CultureInfo.InvariantCulture)));
-        sb.AppendLine(RenderExecutiveSummaryCard("Unsuppressed", decision.UnsuppressedSignalCount.ToString(CultureInfo.InvariantCulture)));
-        sb.AppendLine(RenderExecutiveSummaryCard("Suppressed", decision.SuppressedSignalCount.ToString(CultureInfo.InvariantCulture)));
-        sb.AppendLine(RenderExecutiveSummaryCard("Blocking", decision.BlockingSignalCount.ToString(CultureInfo.InvariantCulture)));
-        sb.AppendLine("          </div>");
-        return sb.ToString();
     }
 
     private static string RenderExecutiveSummaryCard(string label, string value)
@@ -667,24 +625,6 @@ internal sealed class ValidationHtmlReportComposer
         return sb.ToString();
     }
 
-    private static string RenderFindingStacks(ValidationHtmlReportDocument document)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("          <div class=\"stack-grid\">");
-        sb.AppendLine(RenderFindingStack(
-            "Priority Findings",
-            "Read these first",
-            document.PriorityFindings,
-            HtmlReportTone.Warning));
-        sb.AppendLine(RenderFindingStack(
-            "Action Hints",
-            "Next moves",
-            document.ActionHints.Count > 0 ? document.ActionHints : document.AdditionalRecommendations,
-            HtmlReportTone.Info));
-        sb.AppendLine("          </div>");
-        return sb.ToString();
-    }
-
     private static string RenderFindingStack(string title, string eyebrow, IReadOnlyList<string> items, HtmlReportTone tone)
     {
         var toneCss = ValidationHtmlReportTheme.ToCssTone(tone);
@@ -743,34 +683,6 @@ internal sealed class ValidationHtmlReportComposer
         return sb.ToString();
     }
 
-    private static string RenderMetricSection(string title, string intro, IReadOnlyList<ValidationHtmlMetricCard> cards)
-    {
-        var sb = new StringBuilder();
-        sb.AppendLine("      <section class=\"section\">");
-        sb.AppendLine("        <div class=\"section-shell\">");
-        sb.AppendLine($"          <div class=\"section-kicker\">Summary Surface</div>");
-        sb.AppendLine($"          <h2 class=\"section-title\">{Encode(title)}</h2>");
-        sb.AppendLine($"          <p class=\"section-intro\">{Encode(intro)}</p>");
-        sb.AppendLine("          <div class=\"panel-grid\">");
-        foreach (var card in cards)
-        {
-            var toneCss = ValidationHtmlReportTheme.ToCssTone(card.Tone);
-            sb.AppendLine($"            <div class=\"metric-card metric-card--{toneCss}\">");
-            sb.AppendLine($"              <div class=\"metric-eyebrow\">{Encode(card.Eyebrow)}</div>");
-            sb.AppendLine($"              <div class=\"metric-value\">{Encode(card.Value)}</div>");
-            sb.AppendLine($"              <div class=\"metric-label\">{Encode(card.Label)}</div>");
-            if (!string.IsNullOrWhiteSpace(card.SupportingText))
-            {
-                sb.AppendLine($"              <div class=\"metric-support\">{Encode(card.SupportingText!)}</div>");
-            }
-            sb.AppendLine("            </div>");
-        }
-        sb.AppendLine("          </div>");
-        sb.AppendLine("        </div>");
-        sb.AppendLine("      </section>");
-        return sb.ToString();
-    }
-
     private static string RenderBootstrap(ValidationHtmlBootstrapSummary bootstrap)
     {
         var toneCss = ValidationHtmlReportTheme.ToCssTone(bootstrap.Tone);
@@ -804,7 +716,7 @@ internal sealed class ValidationHtmlReportComposer
         var compatibility = document.Result.ClientCompatibility!;
         var abstractItems = new (string Label, string Value, HtmlReportTone Tone)[]
         {
-            ("Profiles", compatibility.Assessments.Count.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
+            ("Client comparisons", compatibility.Assessments.Count.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Info),
             ("Compatible", compatibility.CompatibleCount.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Success),
             ("Warnings", compatibility.WarningCount.ToString(CultureInfo.InvariantCulture), HtmlReportTone.Warning),
             ("Incompatible", compatibility.IncompatibleCount.ToString(CultureInfo.InvariantCulture), compatibility.IncompatibleCount > 0 ? HtmlReportTone.Danger : HtmlReportTone.Neutral)
@@ -813,7 +725,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderSectionCardOpen(
             "Host Compatibility",
             "Client Compatibility",
-            $"{compatibility.Assessments.Count} profiles evaluated. Shared requirement themes are summarized first so profile cards only need to explain host-specific differences.",
+            $"{compatibility.Assessments.Count} recorded client comparisons. Each compares collected evidence with a dated client requirement set; it is not a test run inside that client. The client name, revision and requirement results below explain each comparison.",
             abstractItems,
             compatibility.IncompatibleCount > 0 ? HtmlReportTone.Danger : compatibility.WarningCount > 0 ? HtmlReportTone.Warning : HtmlReportTone.Success));
         sb.AppendLine(RenderDistributionSummary(
@@ -863,7 +775,7 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine($"                <div class=\"ledger-title\">{Encode(assessment.DisplayName)}</div>");
             sb.AppendLine($"                <div class=\"ledger-subtle\">{Encode(assessment.ProfileId)} · {Encode(assessment.Revision)}</div>");
             sb.AppendLine($"                {RenderToneChip(assessment.StatusLabel, tone)}");
-            sb.AppendLine($"                <div class=\"check-summary\"><span>P {assessment.PassedRequirements.ToString(CultureInfo.InvariantCulture)}</span><span>W {assessment.WarningRequirements.ToString(CultureInfo.InvariantCulture)}</span><span>F {assessment.FailedRequirements.ToString(CultureInfo.InvariantCulture)}</span></div>");
+            sb.AppendLine($"                <div class=\"check-summary\"><span>Passed: {assessment.PassedRequirements.ToString(CultureInfo.InvariantCulture)}</span> · <span>Warnings: {assessment.WarningRequirements.ToString(CultureInfo.InvariantCulture)}</span> · <span>Failed: {assessment.FailedRequirements.ToString(CultureInfo.InvariantCulture)}</span></div>");
             sb.AppendLine("              </div>");
             sb.AppendLine("              <div class=\"ledger-body\">");
             sb.AppendLine($"                <p class=\"ledger-copy\">{Encode(assessment.Summary)}</p>");
@@ -1129,48 +1041,6 @@ internal sealed class ValidationHtmlReportComposer
             AiSafetyControlKind.HostServerResponsibilitySplit => "Host/server responsibility split",
             _ => controlKind.ToString()
         };
-    }
-
-    private static string RenderCapabilityCard(string title, int discovered, int? statusCode, double durationMs, bool succeeded, string? toolName, bool? invocationSucceeded)
-    {
-        var tone = succeeded ? HtmlReportTone.Success : HtmlReportTone.Warning;
-        var toneCss = ValidationHtmlReportTheme.ToCssTone(tone);
-        var status = succeeded ? "Healthy" : "Attention";
-        var note = succeeded ? "Listing responded cleanly." : "Listing needs review.";
-        var footnote = string.Empty;
-
-        if (!string.IsNullOrWhiteSpace(toolName))
-        {
-            footnote = invocationSucceeded switch
-            {
-                true => $"Primary tool <code>{Encode(toolName)}</code> responded successfully.",
-                false => $"Primary tool <code>{Encode(toolName)}</code> invocation failed.",
-                null => $"Primary tool <code>{Encode(toolName)}</code> was discovered; invocation was not attempted."
-            };
-        }
-
-        var httpStatus = statusCode.HasValue ? $"HTTP {statusCode.Value}" : "Not available";
-        var duration = durationMs > 0 ? $"{durationMs:F1} ms" : "Not available";
-        var sb = new StringBuilder();
-        sb.AppendLine("            <div class=\"evidence-card\">");
-        sb.AppendLine("              <div class=\"evidence-card__header\">");
-        sb.AppendLine("                <div>");
-        sb.AppendLine($"                  <div class=\"evidence-card__title\">{Encode(title)}</div>");
-        sb.AppendLine($"                  <div class=\"evidence-card__subtle\">{Encode(httpStatus)}</div>");
-        sb.AppendLine("                </div>");
-        sb.AppendLine($"                <span class=\"tone-chip tone-{toneCss}\">{Encode(status)}</span>");
-        sb.AppendLine("              </div>");
-        sb.AppendLine("              <div class=\"evidence-stats\">");
-        sb.AppendLine($"                <div class=\"evidence-stat\"><div class=\"evidence-stat__label\">Discovered</div><div class=\"evidence-stat__value\">{discovered}</div></div>");
-        sb.AppendLine($"                <div class=\"evidence-stat\"><div class=\"evidence-stat__label\">Duration</div><div class=\"evidence-stat__value\">{Encode(duration)}</div></div>");
-        sb.AppendLine("              </div>");
-        sb.AppendLine($"              <div class=\"evidence-note\">{Encode(note)}</div>");
-        if (!string.IsNullOrWhiteSpace(footnote))
-        {
-            sb.AppendLine($"              <div class=\"evidence-note\">{footnote}</div>");
-        }
-        sb.AppendLine("            </div>");
-        return sb.ToString();
     }
 
     private static string RenderDetailedEvidence(ValidationHtmlReportDocument document)
@@ -2167,32 +2037,6 @@ internal sealed class ValidationHtmlReportComposer
         return builder.ToString();
     }
 
-    private static string BuildDetailsCell(string description, string? recommendation)
-    {
-        if (string.IsNullOrWhiteSpace(recommendation))
-        {
-            return Encode(description);
-        }
-        return $"<div>{Encode(description)}</div><div class=\"evidence-note\"><strong>Remediation:</strong> {Encode(recommendation)}</div>";
-    }
-
-    private static string BuildCompatibilityNotes(ClientProfileAssessment assessment, IReadOnlyList<ClientProfileRequirementAssessment> noteworthyRequirements)
-    {
-        var sb = new StringBuilder();
-        sb.Append($"<div>{Encode(assessment.Summary)}</div>");
-        foreach (var requirement in noteworthyRequirements)
-        {
-            sb.Append($"<div class=\"table-subtle\"><strong>{Encode(requirement.Title)}</strong>: {Encode(requirement.Summary)}</div>");
-        }
-
-        if (!string.IsNullOrWhiteSpace(assessment.DocumentationUrl))
-        {
-            sb.Append($"<div class=\"table-subtle\">Reference: <a href=\"{Encode(assessment.DocumentationUrl)}\">Profile documentation</a></div>");
-        }
-
-        return sb.ToString();
-    }
-
     private static string RenderDistributionSummary(string title, IReadOnlyList<(string Label, int Count, HtmlReportTone Tone)> slices)
     {
         var relevantSlices = slices.Where(slice => slice.Count > 0).ToList();
@@ -2451,17 +2295,6 @@ internal sealed class ValidationHtmlReportComposer
     private static HtmlReportTone MapViolationTone(ViolationSeverity severity)
     {
         return MapReportSeverityTone(ReportSeverityNormalizer.From(severity));
-    }
-
-    private static HtmlReportTone MapRemediationTone(int priority)
-    {
-        return priority switch
-        {
-            1 => HtmlReportTone.Danger,
-            2 => HtmlReportTone.Warning,
-            3 => HtmlReportTone.Info,
-            _ => HtmlReportTone.Neutral
-        };
     }
 
     private static HtmlReportTone MapVulnerabilityTone(VulnerabilitySeverity severity)

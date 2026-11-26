@@ -11,6 +11,84 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 public class ReportQualityCorpusTests
 {
     [Fact]
+    public void InventoryReason_ShouldExplainRecordedScopeWithoutHidingPolicyFailure()
+    {
+        var result = ReportQualityTestData.Create("inventory");
+        result.PolicyOutcome = new() { Passed = true, RecommendedExitCode = 0 };
+        var factory = new ValidationHtmlReportDocumentFactory();
+        factory.Create(result, result.ValidationConfig.Reporting, false).DecisionReason.Should()
+            .Contain("discovery and static checks").And.NotContain("certificate");
+        result.PolicyOutcome = new() { Passed = false, Summary = "Recorded inventory policy failed.", RecommendedExitCode = 1 };
+        factory.Create(result, result.ValidationConfig.Reporting, false).DecisionReason.Should().Be("Recorded inventory policy failed.");
+    }
+
+    [Theory]
+    [InlineData(0, false, "unavailable")]
+    [InlineData(0, true, "0")]
+    [InlineData(5, false, "5")]
+    public void TemplateEnumeration_ShouldNotBeLostOrImplyResourceExecution(int count, bool complete, string expected)
+    {
+        var result = ReportQualityTestData.Create("sparse");
+        result.ResourceTesting = new ResourceTestResult
+        {
+            ResourceTemplatesDiscovered = count,
+            TemplateCatalogEnumeration = complete ? new() { IsComplete = true, Termination = CatalogEnumerationTermination.Complete } : null
+        };
+        var model = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, false);
+        model.CatalogSummary.Should().Contain($"Resource templates: {expected} (enumeration only; not resource reads)");
+    }
+
+    [Theory]
+    [InlineData(0, "Unavailable / Unavailable / Unavailable")]
+    [InlineData(5, "12.50 ms / 40.00 ms / Unavailable")]
+    public void MinimalReport_ShouldShowMeasuredRequestTiming_WithoutInventingMissingSamples(int samples, string expected)
+    {
+        var result = ReportQualityTestData.Create("sparse");
+        result.Run.OperationalMetrics = new()
+        {
+            TargetLatencySampleCount = samples, TargetLatencyP50Ms = 12.5, TargetLatencyP95Ms = 40
+        };
+        var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, false);
+        var document = new HtmlParser().ParseDocument(html);
+        document.QuerySelectorAll("tr").Single(row => row.TextContent.Contains("Request latency P50 / P95 / P99"))
+            .TextContent.Should().Contain(expected);
+        document.Body!.TextContent.Should().Contain("not a load-test result").And.Contain("Client comparison");
+    }
+
+    [Theory]
+    [InlineData("ci", "Selected CI requirements not met")]
+    public void Decision_ShouldNotPresentCoreSuccessAsPassingFailedPolicy(string profileId, string title)
+    {
+        var result = ReportQualityTestData.Create("sparse");
+        result.Assurance = new()
+        {
+            Profile = AssuranceProfileCatalog.Resolve(profileId),
+            Assessments = new() { CoreConformance = new() { Status = CoreConformanceStatus.Conformant } },
+            CertificateEligibility = new() { ProfileId = profileId, Status = CertificateEligibilityStatus.Eligible }
+        };
+        result.PolicyOutcome = new() { Passed = false, RecommendedExitCode = 1, Summary = "Recorded deployment policy failed." };
+        var model = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, false);
+        model.DecisionTitle.Should().Be(title);
+        model.DecisionReason.Should().Be("Recorded deployment policy failed.");
+    }
+
+    [Fact]
+    public void ProviderDecision_ShouldPreserveIndependentCertificateAndPolicyDispositions()
+    {
+        var result = ReportQualityTestData.Create("sparse");
+        result.Assurance = new()
+        {
+            Profile = AssuranceProfileCatalog.Provider,
+            CertificateEligibility = new() { ProfileId = "provider", Status = CertificateEligibilityStatus.Eligible }
+        };
+        result.PolicyOutcome = new() { Passed = false, RecommendedExitCode = 1, Summary = "Separate recorded policy failed." };
+        var model = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, false);
+        model.DecisionTitle.Should().Be("Provider certificate eligible; issuance not established");
+        model.DecisionFacts.Single(item => item.Label == "Policy disposition").Value.Should().Be("Failed");
+        model.DecisionReason.Should().Be("Separate recorded policy failed.");
+    }
+
+    [Fact]
     public void ActionAnchors_ShouldNotCollideWhenIdentityFieldsContainSeparators()
     {
         var result = ReportQualityTestData.Create("sparse");
@@ -391,7 +469,11 @@ public class ReportQualityCorpusTests
     public void SyntheticCorpus_IsDeterministic_AndCanBeExportedForCliReview()
     {
         var output = Environment.GetEnvironmentVariable("MCPVAL_REPORT_CORPUS");
-        if (output != null) Directory.CreateDirectory(output);
+        if (output != null)
+        {
+            Directory.CreateDirectory(output);
+            File.WriteAllText(Path.Combine(output, "corpus.txt"), string.Join("\n", ReportQualityTestData.Names) + "\n");
+        }
         var renderer = new ValidationReportRenderer();
         var options = Mcp.Benchmark.CLI.Utilities.ArtifactJsonOptions.Create();
         foreach (var name in ReportQualityTestData.Names)
@@ -408,6 +490,27 @@ public class ReportQualityCorpusTests
                 renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose)
                     .Should().Be(renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose));
             if (output != null) File.WriteAllText(Path.Combine(output, $"{name}.json"), json);
+        }
+
+    }
+
+    [Theory]
+    [InlineData("ci", 0)]
+    [InlineData("comprehensive", 0)]
+    [InlineData("comprehensive-failed", 1)]
+    [InlineData("comprehensive-missing", 2)]
+    public void SavedProfileControls_ShouldRetainDistinctGateAndDiagnosticRoles(string name, int exit)
+    {
+        var result = ReportQualityTestData.Create(name);
+        Mcp.Benchmark.Core.Services.AssuranceExitCodeMapper.Map(result).Should().Be(exit);
+        if (name == "comprehensive")
+        {
+            var renderer = new ValidationReportRenderer();
+            var junit = System.Xml.Linq.XDocument.Parse(renderer.GenerateJunitReport(result));
+            junit.Descendants("testsuite").Single(suite => (string?)suite.Attribute("name") == "assurance-externalconformance")
+                .Descendants("failure").Should().NotBeEmpty("optional diagnostic failures are not the selected-profile gate");
+            var html = renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, false);
+            html.Should().Contain("Selected comprehensive requirements satisfied").And.Contain("Optional review");
         }
     }
 }

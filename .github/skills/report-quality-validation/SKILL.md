@@ -7,7 +7,7 @@ description: "Use when changing MCPVal report rendering, HTML layout, print/PDF,
 
 Read the [quality and layout contract](../../../docs/Design/ReportQualityStandard.md), [shipped behavior](../../../docs/Reporting.md) and [repository instructions](../../copilot-instructions.md). Follow the existing factory/composer/theme pipeline; never reinterpret validation in a renderer.
 
-Run the ordinary [contributor report checks](../../../CONTRIBUTING.md#report-changes). They generate five synthetic CLI fixture families in minimal/full detail and run browser, parity, keyboard, offline, no-JavaScript and A4/Letter PDF checks. No Copilot tooling is required.
+Run the ordinary [contributor report checks](../../../CONTRIBUTING.md#report-changes). The fixture-owned manifest covers all assessment profiles in minimal/full detail, including failed and missing-evidence controls. Check light/dark, in-place investigation, parity, keyboard, offline, no-JavaScript and A4/Letter export. No Copilot tooling is required.
 
 Capture before/after artifacts using identical inputs and the appropriate renderer builds. Review focused tests and snapshot changes before approving a baseline. Check every affected machine/human output within its documented role.
 

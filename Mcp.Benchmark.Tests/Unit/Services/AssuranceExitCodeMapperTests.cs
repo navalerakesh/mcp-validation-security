@@ -296,10 +296,10 @@ public sealed class AssuranceExitCodeMapperTests
 
     internal static AssuranceEvaluation CreateEvaluation(
         AssuranceProfileManifest profile, AssuranceClaimOutcome outcome, AssuranceRequirementLevel requirement, bool extensionGap = false, string? omittedBaseline = null,
-        IReadOnlyList<AssuranceClaim>? coverageClaims = null, EvidenceCoverageSummary? coverageSummary = null)
+        IReadOnlyList<AssuranceClaim>? coverageClaims = null, EvidenceCoverageSummary? coverageSummary = null, ValidationResult? retainedBaseline = null)
     {
-        var baseline = new ValidationResult();
-        ControlledIdentityEvaluatorTests.AddSecurityBaseline(baseline);
+        var baseline = retainedBaseline ?? new ValidationResult();
+        if (retainedBaseline == null) ControlledIdentityEvaluatorTests.AddSecurityBaseline(baseline);
         return new AssuranceEvaluation
         {
             Profile = profile,

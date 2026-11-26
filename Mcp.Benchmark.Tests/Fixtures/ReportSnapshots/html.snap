@@ -3,31 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4V6ihdslBAAmqQZF+KA1XkRvPjMzJgDVbMcX6rKem+Y='; style-src 'sha256-DoZI8tR/NwGWuCM9NlC0tWJs4BY+mnTAlO4j4K232Hg='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-zxRTELgz5pjLgZfhRxuWVvEvU+JXMytSFUaaS1aKV+Y='; style-src 'sha256-ZZr9k7dPo2rRLlCzW6Vo7djNDx5px2Ke8TsgRkcAfqw='; img-src data:; font-src data:; base-uri 'none'; form-action 'none'">
     <title>MCPVal - snapshot.example.test - Full assessment</title>
     <link rel="icon" href="data:,">
     <style>:root {
-    color-scheme: light;
-    --canvas: #f5f7fa;
-    --surface: #ffffff;
-    --text: #172333;
-    --muted: #49586b;
-    --link: #174ea6;
-    --line: #d7dfe8;
-    --control: #66778a;
-    --success: #166534;
-    --success-bg: #eaf6ed;
-    --warning: #854d0e;
-    --warning-bg: #fff4d8;
-    --danger: #991b1b;
-    --danger-bg: #fdecec;
-    --neutral: #44546a;
-    --neutral-bg: #eef2f7;
-    --error: #6b217e;
-    --error-bg: #f7edf9;
-    --decision-bg: #edf3fa;
-    --decision-line: #c6d5e8;
+    color-scheme: light dark;
+    --canvas: light-dark(#f5f7fa, #0f1723);
+    --surface: light-dark(#ffffff, #182332);
+    --text: light-dark(#172333, #e6eef8);
+    --muted: light-dark(#49586b, #b7c5d8);
+    --link: light-dark(#174ea6, #9cc3ff);
+    --line: light-dark(#d7dfe8, #33445a);
+    --control: light-dark(#66778a, #8d9fb5);
+    --success: light-dark(#166534, #93e0ae);
+    --success-bg: light-dark(#eaf6ed, #143625);
+    --warning: light-dark(#854d0e, #f4d180);
+    --warning-bg: light-dark(#fff4d8, #3b2c11);
+    --danger: light-dark(#991b1b, #ffb4b4);
+    --danger-bg: light-dark(#fdecec, #441f27);
+    --neutral: light-dark(#44546a, #c7d4e5);
+    --neutral-bg: light-dark(#eef2f7, #243246);
+    --error: light-dark(#6b217e, #e0b4f0);
+    --error-bg: light-dark(#f7edf9, #382142);
+    --decision-bg: light-dark(#edf3fa, #192e47);
+    --decision-line: light-dark(#c6d5e8, #536f92);
 }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 * { box-sizing: border-box; }
 html { font-size: 16px; scroll-padding-top: 1rem; }
 body {
@@ -55,7 +57,7 @@ tr:target { outline: 2px solid var(--link); outline-offset: -2px; }
 code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: .875em; }
 pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 .skip-link { position: absolute; left: -10000px; }
-.skip-link:focus { left: 1rem; top: .25rem; z-index: 10; background: white; padding: .5rem; }
+.skip-link:focus { left: 1rem; top: .25rem; z-index: 10; background: var(--surface); padding: .5rem; }
 .masthead-brand { display: flex; align-items: baseline; gap: 1rem; }
 .wordmark { font-size: 1rem; font-weight: 800; letter-spacing: -.025em; color: var(--link); }
 .report-kind { border-left: 1px solid var(--line); padding-left: 1rem; color: var(--muted); font-size: .875rem; }
@@ -63,6 +65,8 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 .target-identity { margin: .75rem 0 .25rem; font-size: 2.25rem; font-weight: 750; line-height: 1.15; }
 .target-endpoint { color: var(--muted); font-size: .875rem; margin: 0 0 .625rem; }
 .report-metadata { margin: 0; font-size: .8125rem; color: var(--muted); }
+.theme-control { display: inline-flex; align-items: center; gap: .5rem; margin-top: 1rem; font-size: .8125rem; color: var(--muted); }
+.theme-control select { min-height: 2rem; padding: .25rem .5rem; }
 .assessment-contents ul { display: flex; flex-wrap: wrap; gap: .25rem 1.5rem; list-style: none; padding: 0; margin: 1rem 0 1.5rem; font-size: .875rem; }
 .assessment-contents a, .decision-forward { display: inline-block; padding: .25rem 0; min-height: 1.5rem; }
 .decision-panel { background: var(--decision-bg); border: 1px solid var(--decision-line); border-left: 4px solid var(--link); border-radius: .75rem; padding: 2rem; }
@@ -106,8 +110,8 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; }
 summary {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
+    justify-content: flex-start;
+    gap: .75rem;
     list-style: none;
     cursor: pointer;
     font-weight: 600;
@@ -122,7 +126,21 @@ summary::-webkit-details-marker { display: none; }
 summary::marker { content: ""; }
 summary:hover { background: var(--neutral-bg); }
 summary:focus-visible { outline-offset: -2px; }
-.disclosure-label { min-width: 0; }
+.disclosure-label { min-width: 0; flex: 1; }
+.disclosure-state { font-size: .75rem; font-weight: 400; color: var(--muted); white-space: nowrap; }
+.when-open { display: none; }
+details[open] > summary > .disclosure-state .when-open { display: inline; }
+details[open] > summary > .disclosure-state .when-closed { display: none; }
+.report-section { border: 2px solid var(--line); border-radius: .75rem; background: var(--surface); padding: 0 1rem; }
+.report-section[open] { padding-bottom: 1rem; }
+.section-summary { margin: 0 -1rem 1rem; padding: 1rem; }
+.section-summary h2 { margin: 0; }
+.report-section:not([open]) > .section-summary { margin-bottom: 0; }
+.report-section .disclosure-group { border-left: 0; border-right: 0; border-radius: 0; }
+.evidence-peek { margin-top: 1rem; }
+.evidence-preview { margin: .5rem 0; }
+.glossary-term dt { display: none; }
+.glossary-term dd { margin: .5rem 0; }
 .disclosure-chevron { flex: 0 0 16px; width: 16px; height: 16px; color: var(--muted); position: relative; }
 .disclosure-chevron::before {
     content: "";
@@ -161,7 +179,10 @@ th { font-weight: 600; }
 .priority-list { padding-left: 1.5rem; }
 .priority-list > li { padding-left: .5rem; }
 .priority-list > li::marker { font-weight: 700; }
-.action-row { padding: 1.25rem .5rem; border-top: 1px solid var(--line); }
+.action-row { padding: 1rem; margin: 1rem 0; border: 2px solid var(--line); border-left: 4px solid var(--control); border-radius: .5rem; background: var(--canvas); }
+.action-row[data-action-kind="Collect evidence"] { border-left-color: var(--link); }
+.action-row[data-action-kind="Review evidence"] { border-left-color: var(--warning); }
+.action-row[data-action-kind="Optional review"] { border-left-color: var(--neutral); }
 .action-title { font-size: 1.125rem; margin: .5rem 0; }
 .action-category { color: var(--muted); font-size: .8125rem; }
 .report-controls { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0; }
@@ -199,7 +220,7 @@ th { font-weight: 600; }
 .status-callout__title { font-weight: 600; }
 .claim-filters { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin: 1rem 0; }
 .claim-filters label { display: grid; gap: .25rem; flex: 1 1 12rem; min-width: 0; }
-input, select, button { font: inherit; color: var(--text); background: white; padding: .5rem; border: 1px solid var(--control); border-radius: .25rem; min-height: 2.75rem; max-width: 100%; }
+input, select, button { font: inherit; color: var(--text); background: var(--surface); padding: .5rem; border: 1px solid var(--control); border-radius: .25rem; min-height: 2.75rem; max-width: 100%; }
 button { cursor: pointer; }
 button:disabled { color: var(--muted); cursor: default; }
 #claim-filter-status { flex-basis: 100%; }
@@ -212,6 +233,9 @@ button:disabled { color: var(--muted); cursor: default; }
 @media (max-width: 760px) {
     body { padding: 0; }
     .report-content { padding: 1rem; }
+    .report-section { padding-left: .5rem; padding-right: .5rem; }
+    .section-summary { margin-left: -.5rem; margin-right: -.5rem; padding: .75rem .5rem; }
+    .disclosure-state { display: none; }
     h1, .target-identity { font-size: 1.625rem; }
     .decision-panel { padding: 1rem; }
     .decision-grid { grid-template-columns: 1fr; gap: 1rem; }
@@ -231,6 +255,7 @@ button:disabled { color: var(--muted); cursor: default; }
     @bottom-right { content: "Page " counter(page) " of " counter(pages); font: 8pt sans-serif; color: #49586b; }
 }
 @media print {
+    :root { color-scheme: light !important; }
     html { font-size: 10.5pt; }
     body { padding: 0; color: #172333; background: white; line-height: 1.4; }
     .report-shell { max-width: none; }
@@ -241,7 +266,7 @@ button:disabled { color: var(--muted); cursor: default; }
     h1, h2, h3, summary, caption { break-after: avoid; }
     p, li { orphans: 3; widows: 3; }
     .assessment-masthead { padding-bottom: .75rem; }
-    .assessment-contents, .skip-link, .claim-filters, #claim-filter-empty, .decision-forward { display: none !important; }
+    .assessment-contents, .skip-link, .claim-filters, #claim-filter-empty, .decision-forward, .theme-control, .evidence-peek { display: none !important; }
     .decision-panel { margin-top: .75rem; padding: 1rem; break-inside: avoid; background: white; border-color: #66778a; }
     .decision-grid { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 1rem; }
     .decision-panel h2 { font-size: 18pt; }
@@ -264,7 +289,11 @@ button:disabled { color: var(--muted); cursor: default; }
     .disclosure-group > .assessment-section__content { padding: 0; }
     .claims-disclosure > :not(summary) { margin-left: 0; margin-right: 0; }
     .disclosure-chevron { display: none; }
+    .disclosure-state { display: none; }
     summary { display: none; }
+    .section-summary { display: block; margin: 0; padding: 0; }
+    .section-summary h2 { margin-bottom: .5rem; }
+    .glossary-term dt { display: block; font-weight: 600; }
     summary::-webkit-details-marker { display: none; }
     .summary-grid, .card-grid, .panel-grid, .authority-summary-grid, .auth-scenario__detail-grid,
     .auth-scenario__comparison, .reader-key-grid, .appendix-grid { display: block; }
@@ -302,13 +331,14 @@ button:disabled { color: var(--muted); cursor: default; }
       <header class="assessment-masthead"><div class="masthead-brand"><span class="wordmark">MCPVal</span><span class="report-kind">Server assessment</span></div>
         <h1 class="target-identity">snapshot.example.test</h1>
         <p class="target-endpoint">https://snapshot.example.test/mcp</p>
-        <p class="report-metadata">Recorded run: 2026-04-20 10:00:12 UTC · Profile: provider · Full detail</p></header>
+        <p class="report-metadata">Recorded run: 2026-04-20 10:00:12 UTC · Profile: provider · Full detail</p>
+        <label class="theme-control" hidden>Report theme <select id="report-theme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></header>
       <nav class="assessment-contents" aria-label="Contents"><ul>
         <li><a href="#assessment-decision">Decision</a></li><li><a href="#evidence-and-actions">Coverage</a></li><li><a href="#priority-actions">Actions</a></li>
-        <li><a href="#technical-evidence">Evidence</a></li><li><a href="#method-and-provenance">Provenance</a></li><li><a href="#recorded-claims">Claims appendix</a></li></ul></nav>
+        <li><a href="#technical-evidence">Evidence</a></li><li><a href="#method-and-provenance">Provenance</a></li><li><a href="#report-glossary">Terms</a></li><li><a href="#recorded-claims">Claims appendix</a></li></ul></nav>
       <section class="decision-panel" id="assessment-decision" aria-labelledby="assessment-decision-title">
         <div class="decision-grid"><div class="decision-narrative"><p class="section-kicker">Assessment decision</p>
-        <h2 id="assessment-decision-title">Core protocol requirements not met</h2>
+        <h2 id="assessment-decision-title">Provider certificate requirements not met</h2>
         <p class="decision-reason">Server ignored the requested MCP protocol version.</p>
         <p class="scope-limit"><strong>Scope limit:</strong> prompt-surface / prompts/list: Skipped. Server does not advertise prompts capability.</p>
         </div><dl class="assessment-facts decision-facts">
@@ -331,7 +361,7 @@ button:disabled { color: var(--muted); cursor: default; }
 <div><dt>Advertised</dt><dd>Unavailable: capability advertisement was not recorded.</dd></div>
 <div><dt>Permitted</dt><dd>Safe mode: discovery and static analysis only.</dd></div>
 <div><dt>Observed</dt><dd>Runtime evidence unavailable; discovery alone does not establish execution.</dd></div>
-</dl><p class="catalog-summary">Recorded catalog — Tools: 2; Resources: 1; Prompts: unavailable.</p><a href="#technical-evidence">Explore capability evidence</a></section>
+</dl><p class="catalog-summary">Recorded catalog — Tools: 2; Resources: 1; Prompts: unavailable; Resource templates: unavailable (enumeration only; not resource reads).</p><a href="#technical-evidence">Explore capability evidence</a></section>
 <section class="support-card next-action-card" aria-labelledby="next-action-title"><div class="support-card-heading"><h2 id="next-action-title">Next priority action</h2>
 <span class="tone-chip tone-neutral">Priority 1</span></div>
 <h3 class="next-action-summary">Echo the negotiated protocol version in initialize.result.</h3><p class="action-component"><strong>Component:</strong> <code>Initialization</code></p>
@@ -340,7 +370,7 @@ button:disabled { color: var(--muted); cursor: default; }
 </div>
 
       <section class="assessment-section" id="evidence-and-actions" aria-labelledby="evidence-and-actions-title">
-        <h2 id="evidence-and-actions-title">Coverage</h2>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="evidence-and-actions-title">Coverage</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Core required claims: 0 satisfied of 1 recorded.</p>
         <p>Recorded coverage declarations: 7 covered of 8 applicable; 8 total.</p>
           <div class="table-shell table-shell--domain-evidence">
@@ -381,7 +411,7 @@ button:disabled { color: var(--muted); cursor: default; }
             </table>
           </div>
 
-        <details class="assessment-reference"><summary><span class="disclosure-label">Outcome counts and eligibility reasons</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+        <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Outcome counts and eligibility reasons</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <table class="data-table data-table--outcomes" id="claim-outcomes"><caption>Recorded claim outcomes</caption><thead><tr><th scope="col">Outcome</th><th scope="col">Count</th></tr></thead><tbody>
           <tr><th scope="row">Satisfied</th><td>7</td></tr>
           <tr><th scope="row">Violated</th><td>2</td></tr>
@@ -401,7 +431,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <li>Repeated-run consistency of at least 99.0% is required.</li>
         </ul>
         </details>
-        <details class="assessment-reference"><summary><span class="disclosure-label">Decision trace and affected components</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+        <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Decision trace and affected components</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <div class="decision-trace-layout">
             <div class="decision-trace-main">
               <h3 class="minor-title">Decision Themes</h3>
@@ -603,7 +633,7 @@ button:disabled { color: var(--muted); cursor: default; }
 
           </div>
         </details>
-        <details class="assessment-reference"><summary><span class="disclosure-label">Independent assessment facts and measurements</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+        <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Independent assessment facts and measurements</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <dl class="assessment-facts">
             <div>
               <dt>Certificate Outcome</dt>
@@ -628,93 +658,99 @@ button:disabled { color: var(--muted); cursor: default; }
           </dl>
 
         </details>
-      </section>
+      </details></section>
 
 <div id="priority-actions">
-<section class="assessment-section"><h2>Priority actions</h2><p class="assessment-context">Remediation Roadmap</p>
+<section class="assessment-section"><details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="priority-actions-title">Priority actions</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
 <p>Address dependency gates in the recorded order. Remediation and collecting missing evidence are different tasks; neither changes an existing finding.</p>
           <ol class="priority-list">
-            <li class="action-row" id="action-bc96e00c6dddc2f43706c99ffd6c7aee61544157fd04d7073d948a28f4545508">
+            <li class="action-row" id="action-bc96e00c6dddc2f43706c99ffd6c7aee61544157fd04d7073d948a28f4545508" data-action-kind="Remediation">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 1</div>
                 <div class="action-category">Bootstrap &amp; Protocol Version · Remediation</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Echo the negotiated protocol version in initialize.result.</h3><p>Server ignored the requested MCP protocol version.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>Initialization</code> · <strong>Evidence:</strong> [Spec] <code>MCP.INIT.VERSION_NEGOTIATION</code> · <strong>Severity:</strong> High</div>
                     <div class="ledger-links"><strong>Specification:</strong> <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a">Domain evidence: Initialization</a> · <a href="#claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a">Exact claim</a></p>
               </div>
             </li>
-            <li class="action-row" id="action-72954eca884f690bb84c30a97bf4bc1fdae53c60788af83bf4767a5836b2b051">
+            <li class="action-row" id="action-72954eca884f690bb84c30a97bf4bc1fdae53c60788af83bf4767a5836b2b051" data-action-kind="Review evidence">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 1</div>
                 <div class="action-category">Bootstrap &amp; Protocol Version · Review evidence</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Review the recorded finding and its source before deciding on a correction.</h3><p>One tool response omitted the outer result object.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>tools/call</code> · <strong>Evidence:</strong> [Spec] <code>MCP.TOOL.CALL.RESULT_OBJECT_MISSING</code> · <strong>Severity:</strong> Medium</div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f">Domain evidence: tools/call</a> · <a href="#claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f">Exact claim</a></p>
               </div>
             </li>
-            <li class="action-row" id="action-fd799fcd98789453f8e4b98140897a25ca252c537c92652c38bd2c5eb06bf97b">
+            <li class="action-row" id="action-fd799fcd98789453f8e4b98140897a25ca252c537c92652c38bd2c5eb06bf97b" data-action-kind="Collect evidence">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 1</div>
                 <div class="action-category">Bootstrap &amp; Protocol Version · Collect evidence</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Collect the missing admitted evidence; absence is not proof of a server defect.</h3><p>Server does not advertise prompts capability.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Establish trustworthy protocol and execution evidence before interpreting dependent results.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompts/list</code> · <strong>Evidence:</strong> [Guideline] <code>coverage:prompt-surface:prompts-list</code> · <strong>Severity:</strong> Not recorded</div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40">Domain evidence: prompts/list</a> · <a href="#claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40">Exact claim</a></p>
               </div>
             </li>
-            <li class="action-row" id="action-6c37dba3eb02f5f84efbb408a36ed90c7f8a95c7bfb772ff5a7242f4755d703d">
+            <li class="action-row" id="action-6c37dba3eb02f5f84efbb408a36ed90c7f8a95c7bfb772ff5a7242f4755d703d" data-action-kind="Review evidence">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 3</div>
                 <div class="action-category">Advertised Capabilities · Review evidence</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Review the recorded finding and its source before deciding on a correction.</h3><p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Align the recorded capability contracts and client expectations; preserve the distinction between discovery and execution.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Align the recorded capability contracts and client expectations; preserve the distinction between discovery and execution.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>delete_repo</code> · <strong>Evidence:</strong> [Guideline] <code>MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING</code> · <strong>Severity:</strong> High</div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445">Domain evidence: delete_repo</a> · <a href="#claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445">Exact claim</a></p>
               </div>
             </li>
-            <li class="action-row" id="action-e038b2cc80f09c7365a5f233855fd9de6e3d1ff0abe4e20e8c51a7769773a1cf">
+            <li class="action-row" id="action-e038b2cc80f09c7365a5f233855fd9de6e3d1ff0abe4e20e8c51a7769773a1cf" data-action-kind="Remediation">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 4</div>
                 <div class="action-category">AI Safety, Security, And Performance · Remediation</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Sanitize and label untrusted content before returning it.</h3><p>Server reflected untrusted prompt content without sanitization.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Review advisory safety findings and measured operational evidence within their declared scope.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Review advisory safety findings and measured operational evidence within their declared scope.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>prompt:get</code> · <strong>Evidence:</strong> [Heuristic] <code>MCP.SECURITY.PROMPT_INJECTION</code> · <strong>Severity:</strong> Critical</div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd">Domain evidence: prompt:get</a> · <a href="#claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd">Exact claim</a></p>
               </div>
             </li>
-            <li class="action-row" id="action-cef014a6aef5791c3de8cb53d849d1ce4a2761983ba00dcedd40c1a3b3841861">
+            <li class="action-row" id="action-cef014a6aef5791c3de8cb53d849d1ce4a2761983ba00dcedd40c1a3b3841861" data-action-kind="Review evidence">
               <div class="ledger-rail">
                 <div class="ledger-kicker">Priority 4</div>
                 <div class="action-category">AI Safety, Security, And Performance · Review evidence</div>
               </div>
               <div class="ledger-body">
 <h3 class="action-title">Review the recorded finding and its source before deciding on a correction.</h3><p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
-<p class="ledger-copy"><strong>Impact after fix:</strong> Review advisory safety findings and measured operational evidence within their declared scope.</p>
+<p class="ledger-copy"><strong>Why this matters:</strong> Review advisory safety findings and measured operational evidence within their declared scope.</p>
                     <div class="ledger-links"><strong>Component:</strong> <code>delete_repo</code> · <strong>Evidence:</strong> [Heuristic] <code>AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING</code> · <strong>Severity:</strong> Medium</div>
+<details class="assessment-reference evidence-peek" data-claim-target="claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Read evidence here</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="peek-content"><p><a href="#claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2">Navigate to canonical claim</a></p></div></details>
 <p><a href="#domain-claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2">Domain evidence: delete_repo</a> · <a href="#claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2">Exact claim</a></p>
               </div>
             </li>
           </ol>
-</section>
+</details></section>
 </div>
 
       <div id="technical-evidence">
-      <section class="assessment-section" aria-labelledby="domain-evidence-title"><h2 id="domain-evidence-title">Domain evidence</h2><p>Discovery, configured permissions and observed runtime behavior are separate. Source authority stays attached to each claim.</p>
+      <section class="assessment-section" aria-labelledby="domain-evidence-title"><details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="domain-evidence-title">Domain evidence</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><p>Discovery, configured permissions and observed runtime behavior are separate. Source authority stays attached to each claim.</p>
 <div class="report-controls" hidden><button type="button" id="expand-evidence">Expand evidence sections</button><button type="button" id="collapse-evidence">Collapse evidence sections</button></div>
-<details class="assessment-reference disclosure-group" id="domain-CoreProtocol"><summary><span class="disclosure-label">Core Protocol — 7 recorded claims<span class="disclosure-outcomes">4 satisfied &#183; 1 violated &#183; 1 incomplete &#183; 1 review required</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+<details class="assessment-reference disclosure-group" id="domain-CoreProtocol"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Core Protocol — 7 recorded claims<span class="disclosure-outcomes">4 satisfied &#183; 1 violated &#183; 1 incomplete &#183; 1 review required</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
 <table class="data-table"><caption>Core Protocol evidence index: 7 recorded claims</caption><thead><tr><th scope="col">Component</th><th scope="col">Outcome and authority</th><th scope="col">Exact record</th></tr></thead><tbody>
 <tr id="domain-claim-77367faa3ba63895bb9a0478cc1a37a8f2f315b3677da1d7b148b277571d95e4"><th scope="row">github-copilot-cli,github-copilot-cloud-agent</th><td>Satisfied<br>ProviderPolicy</td><td><a href="#claim-77367faa3ba63895bb9a0478cc1a37a8f2f315b3677da1d7b148b277571d95e4" aria-label="Claim coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent">Exact claim</a></td></tr>
 <tr id="domain-claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40"><th scope="row">prompts/list</th><td>Incomplete<br>ProviderPolicy</td><td><a href="#claim-a1307e0820b0c1f9c2e88b2e987b7de1a9646701f6b4ce573713f467240ccd40" aria-label="Claim coverage:prompt-surface:prompts-list">Exact claim</a></td></tr>
@@ -724,17 +760,17 @@ button:disabled { color: var(--muted); cursor: default; }
 <tr id="domain-claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f"><th scope="row">tools/call</th><td>Review required<br>OfficialSpecification</td><td><a href="#claim-45503e4309bf98666de62ad574dc1e6612d4e7dd3c65a8376807df9a31b2a02f" aria-label="Claim finding:mcp-tool-call-result-object-missing:tools-call">Exact claim</a></td></tr>
 <tr id="domain-claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a"><th scope="row">Initialization</th><td>Violated<br>OfficialSpecification</td><td><a href="#claim-25cb889136930b586b664b99a680a233e5f2cadfcf2e9bfd77d90213ccb0e41a" aria-label="Claim protocol:mcp-init-version-negotiation">Exact claim</a></td></tr>
 </tbody></table></details>
-<details class="assessment-reference disclosure-group" id="domain-CapabilityContract"><summary><span class="disclosure-label">Capability Contract — 2 recorded claims<span class="disclosure-outcomes">2 review required</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+<details class="assessment-reference disclosure-group" id="domain-CapabilityContract"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Capability Contract — 2 recorded claims<span class="disclosure-outcomes">2 review required</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
 <table class="data-table"><caption>Capability Contract evidence index: 2 recorded claims</caption><thead><tr><th scope="col">Component</th><th scope="col">Outcome and authority</th><th scope="col">Exact record</th></tr></thead><tbody>
 <tr id="domain-claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2"><th scope="row">delete_repo</th><td>Review required<br>Heuristic</td><td><a href="#claim-d1880d01df8e0d8df9f55056f5c65e627a8af173065b0a1c01d658982382edb2" aria-label="Claim finding:ai-tool-schema-parameter-description-missing:delete-repo">Exact claim</a></td></tr>
 <tr id="domain-claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445"><th scope="row">delete_repo</th><td>Review required<br>ProviderPolicy</td><td><a href="#claim-28f425f687d900d512f71682c70a8a50e3819148038f3768d4d0a8e59cca9445" aria-label="Claim finding:mcp-guideline-tool-destructive-hint-missing:delete-repo">Exact claim</a></td></tr>
 </tbody></table></details>
-<details class="assessment-reference disclosure-group" id="domain-Security"><summary><span class="disclosure-label">Security — 2 recorded claims<span class="disclosure-outcomes">1 satisfied &#183; 1 violated</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+<details class="assessment-reference disclosure-group" id="domain-Security"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Security — 2 recorded claims<span class="disclosure-outcomes">1 satisfied &#183; 1 violated</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
 <table class="data-table"><caption>Security evidence index: 2 recorded claims</caption><thead><tr><th scope="col">Component</th><th scope="col">Outcome and authority</th><th scope="col">Exact record</th></tr></thead><tbody>
 <tr id="domain-claim-44e61bfd9be12c70606bb0dd25efe36495eafcaf1fbe7cf9523f41b39e80f5a1"><th scope="row">security-authentication-challenge</th><td>Satisfied<br>ProviderPolicy</td><td><a href="#claim-44e61bfd9be12c70606bb0dd25efe36495eafcaf1fbe7cf9523f41b39e80f5a1" aria-label="Claim coverage:security-boundaries:security-authentication-challenge">Exact claim</a></td></tr>
 <tr id="domain-claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd"><th scope="row">prompt:get</th><td>Violated<br>DeterministicSecurity</td><td><a href="#claim-63830049494082045a8dc42beb26f764691723620b9c4f3ba831f69a01a727dd" aria-label="Claim vulnerability:mcp-security-prompt-injection:prompt-get">Exact claim</a></td></tr>
 </tbody></table></details>
-<details class="assessment-reference disclosure-group" id="domain-Operations"><summary><span class="disclosure-label">Operations — 2 recorded claims<span class="disclosure-outcomes">2 satisfied</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+<details class="assessment-reference disclosure-group" id="domain-Operations"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Operations — 2 recorded claims<span class="disclosure-outcomes">2 satisfied</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
 <table class="data-table"><caption>Operations evidence index: 2 recorded claims</caption><thead><tr><th scope="col">Component</th><th scope="col">Outcome and authority</th><th scope="col">Exact record</th></tr></thead><tbody>
 <tr id="domain-claim-c5b934f31c1e821dde9a515acb288ec2be556ab62ed06793e60d3c16808576ae"><th scope="row">error-handling</th><td>Satisfied<br>ProviderPolicy</td><td><a href="#claim-c5b934f31c1e821dde9a515acb288ec2be556ab62ed06793e60d3c16808576ae" aria-label="Claim coverage:error-handling:error-handling">Exact claim</a></td></tr>
 <tr id="domain-claim-e973727e1443ce592b51b0042be4df0280f72b033103bc95c23126facea88896"><th scope="row">error-handling-matrix</th><td>Satisfied<br>ProviderPolicy</td><td><a href="#claim-e973727e1443ce592b51b0042be4df0280f72b033103bc95c23126facea88896" aria-label="Claim coverage:error-handling:error-handling-matrix">Exact claim</a></td></tr>
@@ -752,12 +788,11 @@ button:disabled { color: var(--muted); cursor: default; }
               </div>
             </div>
 
-      </section>
+      </details></section>
       <section class="assessment-section">
-        <h2>Connectivity &amp; Session Bootstrap</h2>
-        <p class="assessment-context">Preflight Connectivity</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-8287e14c92e61b72c845edd48a5ab15174285eea6172b839737ff390fac70703">Connectivity &amp; Session Bootstrap</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>The endpoint was reachable but protected, so validation continued because the outcome indicated security boundaries rather than an unreachable server.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Connectivity &amp; Session Bootstrap<span class="disclosure-outcomes">Bootstrap State: Reachable (Protected) &#183; Deferred Validation: Yes</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Supporting records<span class="disclosure-outcomes">Bootstrap State: Reachable (Protected) &#183; Deferred Validation: Yes</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Bootstrap State</dt><dd>Reachable (Protected)</dd></div>
           <div><dt class="section-abstract__label">Deferred Validation</dt><dd>Yes</dd></div>
@@ -798,13 +833,12 @@ button:disabled { color: var(--muted); cursor: default; }
             </div>
 
           <div class="evidence-note"><strong>Bootstrap Note:</strong> 401 Unauthorized — bootstrap encountered an authentication challenge.</div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Layer Coverage &amp; Applied Packs</h2>
-        <p class="assessment-context">Structured Envelope</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-cce86a6fc531c2f712e62dd26be7cbf07977d2f3fe1165195392e9450b1582d1">Layer Coverage &amp; Applied Packs</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>This is the persisted validation envelope used to explain what ran, what was covered, and which validation packs were active.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Layer Coverage &amp; Applied Packs<span class="disclosure-outcomes">Layers: 4 &#183; Scenarios: 4</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Supporting records<span class="disclosure-outcomes">Layers: 4 &#183; Scenarios: 4</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Layers</dt><dd>4</dd></div>
           <div><dt class="section-abstract__label">Scenarios</dt><dd>4</dd></div>
@@ -918,13 +952,12 @@ button:disabled { color: var(--muted); cursor: default; }
                 <tr id="observation-3d6381eab4351d5bc55532eadf755194ba787086a42e4647d9e1235b17c45e83"><td data-label="Observation" class="table-cell--code"><code>obs-tool-delete-repo</code></td><td data-label="Layer" class="table-cell--code"><code>tool-surface</code></td><td data-label="Component" class="table-cell--code"><code>delete_repo</code></td><td data-label="Kind" class="table-cell--code"><code>tool-metadata</code></td><td data-label="Preview"><div class="cell-copy">Tool metadata missing annotations.destructiveHint.</div></td></tr>
               </tbody></table>
           </div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Rule &amp; Severity Insights</h2>
-        <p class="assessment-context">Structured Evidence</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-45cde39dddd5d69af5cba007dce0be279d14f833bb38e461f7b5f2d972406626">Rule &amp; Severity Insights</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Leadership summary comes first. Detailed findings are then rendered as evidence entries instead of narrow tables.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Rule &amp; Severity Insights<span class="disclosure-outcomes">Violations: 1 &#183; Vulnerabilities: 1</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Supporting records<span class="disclosure-outcomes">Violations: 1 &#183; Vulnerabilities: 1</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Violations</dt><dd>1</dd></div>
           <div><dt class="section-abstract__label">Vulnerabilities</dt><dd>1</dd></div>
@@ -975,13 +1008,12 @@ button:disabled { color: var(--muted); cursor: default; }
           </div>
           </div>
 
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Security Assessment Details</h2>
-        <p class="assessment-context">Security Evidence</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-0c853e69b9b1767fb254307711183e8db1fc9dd2bfea42b5e579602ef35cb206">Security Assessment Details</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Security score 69.0% with 1 recorded vulnerability finding(s).</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Authentication observations and security records<span class="disclosure-outcomes">Security Score: 69.0% &#183; Vulnerabilities: 1</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Authentication observations and security records<span class="disclosure-outcomes">Security Score: 69.0% &#183; Vulnerabilities: 1</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Security Score</dt><dd>69.0%</dd></div>
           <div><dt class="section-abstract__label">Vulnerabilities</dt><dd>1</dd></div>
@@ -1049,13 +1081,12 @@ button:disabled { color: var(--muted); cursor: default; }
               </article>
             </div>
           </div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Tool Validation Details</h2>
-        <p class="assessment-context">Tool Surface</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-86c2f72a36064737f2af5a64188a03c094112b1e9d7b49e80d0ad216e822903b">Tool Validation Details</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Tools discovered 2; passed 2; failed 0.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Tool catalog records<span class="disclosure-outcomes">Discovered: 2 &#183; Passed: 2</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Tool catalog records<span class="disclosure-outcomes">Discovered: 2 &#183; Passed: 2</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Discovered</dt><dd>2</dd></div>
           <div><dt class="section-abstract__label">Passed</dt><dd>2</dd></div>
@@ -1220,13 +1251,12 @@ button:disabled { color: var(--muted); cursor: default; }
                 <tr><td><code>list_repos</code></td><td><span class="tone-chip tone-success">Passed</span></td><td>80.00 ms</td><td>title</td></tr>
               </tbody></table>
           </div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Resource Capabilities</h2>
-        <p class="assessment-context">Resource Surface</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-92403bef2e99c2a2b97faf3b1357e12e11809726d42de207e5c8a25871acef46">Resource Capabilities</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Resources discovered 1; accessible 1.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Resource catalog and read observations<span class="disclosure-outcomes">Discovered: 1 &#183; Accessible: 1</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Resource catalog and read observations<span class="disclosure-outcomes">Discovered: 1 &#183; Accessible: 1</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Discovered</dt><dd>1</dd></div>
           <div><dt class="section-abstract__label">Accessible</dt><dd>1</dd></div>
@@ -1239,13 +1269,12 @@ button:disabled { color: var(--muted); cursor: default; }
                 <tr><td>repo://snapshot/README.md</td><td><code>repo://snapshot/README.md</code></td><td>text/markdown</td><td>—</td><td><span class="tone-chip tone-success">Passed</span></td></tr>
               </tbody></table>
           </div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Prompt Capabilities</h2>
-        <p class="assessment-context">Prompt Surface</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-f1309241e435496a9c79506789b4af863cc9f71e9a5229cedc87b5a453a5afa8">Prompt Capabilities</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Prompt catalog and execution observations<span class="disclosure-outcomes">Discovered: 0 &#183; Passed: 0</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Prompt catalog and execution observations<span class="disclosure-outcomes">Discovered: 0 &#183; Passed: 0</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Discovered</dt><dd>0</dd></div>
           <div><dt class="section-abstract__label">Passed</dt><dd>0</dd></div>
@@ -1257,13 +1286,12 @@ button:disabled { color: var(--muted); cursor: default; }
             <div class="status-callout__body">Prompts capability was not advertised during initialize; prompts/list and prompts/get probes were skipped; no prompt executions were required.</div>
           </div>
 
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Performance Metrics</h2>
-        <p class="assessment-context">Runtime Evidence</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-f34186f67a38a5980dc0d9e431c0544e3f02959b161774c0609d9ef5af80dace">Performance Metrics</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Observed values from the completed runtime probe.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Runtime measurements and sample context</span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Runtime measurements and sample context</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
 
           <dl class="assessment-facts">
             <div>
@@ -1285,13 +1313,12 @@ button:disabled { color: var(--muted); cursor: default; }
           </dl>
 
           <div class="evidence-note">Requests: 120/120 successful.</div>
-        </div></details></section>
+        </div></details></details></section>
 
       <section class="assessment-section">
-        <h2>Method &amp; Deferred Notes</h2>
-        <p class="assessment-context">Appendix</p>
+        <details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="section-3d771a81dfb5e14dd545c51d49d47d15f43ed206dbf5aeadac706fc9567d8471">Method &amp; Deferred Notes</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Background scoring notes and non-blocking follow-up are retained here so the main report stays focused.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Method &amp; Deferred Notes<span class="disclosure-outcomes">Method Notes: 0 &#183; Deferred: 2</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
+<details class="assessment-reference domain-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Supporting records<span class="disclosure-outcomes">Method Notes: 0 &#183; Deferred: 2</span></span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><div class="assessment-section__content">
         <dl class="assessment-facts">
           <div><dt class="section-abstract__label">Method Notes</dt><dd>0</dd></div>
           <div><dt class="section-abstract__label">Deferred</dt><dd>2</dd></div>
@@ -1306,12 +1333,12 @@ button:disabled { color: var(--muted); cursor: default; }
               </ul>
             </div>
           </div>
-        </div></details></section>
+        </div></details></details></section>
 
 
       </div>
       <div id="method-and-provenance">
-      <section class="assessment-section" aria-labelledby="run-provenance-title"><h2 id="run-provenance-title">Run provenance</h2>
+      <section class="assessment-section" aria-labelledby="run-provenance-title"><details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="run-provenance-title">Run provenance</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
             <div class="provenance-facts">
               <div class="fact-item">
                 <div class="fact-item__label">Configured endpoint</div>
@@ -1343,75 +1370,28 @@ button:disabled { color: var(--muted); cursor: default; }
       <p>Profile revision: <code>2026-11-05.1</code>. Source revisions, authority and evidence references appear with each claim.</p>
       <dl class="assessment-facts"><div><dt>Result schema</dt><dd>3.8.0</dd></div><div><dt>Assurance contract</dt><dd>2.0.0</dd></div>
 </dl>
-      </section>
-      <section class="assessment-section">
-        <h2>Terms And Abbreviations</h2>
-        <p class="assessment-context">Reference Appendix</p>
-        <p>Definitions for report-specific codes, scales, protocol language, and measurement shorthand.</p>
-<details class="assessment-reference disclosure-group domain-disclosure"><summary><span class="disclosure-label">Terms And Abbreviations<span class="disclosure-outcomes">Terms: 14</span></span><span class="disclosure-chevron" aria-hidden="true"></span></summary><div class="assessment-section__content">
-        <dl class="assessment-facts">
-          <div><dt class="section-abstract__label">Terms</dt><dd>14</dd></div>
-        </dl>
-
-        <dl class="reader-key-grid">
-          <div class="reader-key-item">
-            <dt>MCP</dt>
-            <dd>Model Context Protocol, the communication protocol evaluated by this report.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>MCP specification profile</dt>
-            <dd>The dated MCP rules and schema version selected for validation.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Priority 1-4</dt>
-            <dd>Remediation dependency order: Priority 1 should be addressed first and Priority 4 later. Priority is not severity.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Certificate eligibility</dt>
-            <dd>A deterministic decision that states whether every requirement of the selected assurance profile is satisfied.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Typed claim</dt>
-            <dd>A conclusion bound to authority, requirement level, applicability, confidence, and immutable evidence references.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Independent assessments</dt>
-            <dd>Core conformance, security assurance, and operational readiness are reduced separately and never averaged into one score.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Authority labels</dt>
-            <dd>Specification means a protocol requirement; Guideline means recommended practice; Heuristic means deterministic advisory analysis; Operational means runtime or infrastructure evidence.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>JSON-RPC / HTTP</dt>
-            <dd>JSON-RPC is JavaScript Object Notation (JSON) for remote procedure call (RPC) messages used by MCP. HTTP is the Hypertext Transfer Protocol used to transport messages in this run.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>RFC 2119: MUST / SHOULD / MAY</dt>
-            <dd>Requirement strength: MUST is required, SHOULD is recommended unless a justified exception exists, and MAY is optional.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>P50 / P95 / P99</dt>
-            <dd>Latency percentiles: 50%, 95%, or 99% of measured requests completed at or below the reported value.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Units and time</dt>
-            <dd>ms means milliseconds, req/s means requests per second, and UTC means Coordinated Universal Time.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>AI / LLM / CLI / UX</dt>
-            <dd>Artificial intelligence; large language model; command-line interface; and user experience.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>VS Code</dt>
-            <dd>Visual Studio Code, a supported client profile named in compatibility results.</dd>
-          </div>
-          <div class="reader-key-item">
-            <dt>Identifiers: ID / UUID</dt>
-            <dd>ID means identifier. UUID means Universally Unique Identifier. Validation and rule identifiers are stable machine references, not scores.</dd>
-          </div>
-        </dl>
-        </div></details></section>
+      </details></section>
+<section class="assessment-section" id="report-glossary"><details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="report-glossary-title">Terms and abbreviations</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
+<p>Definitions explain the report; they do not add evidence or change the assessment.</p><div class="reader-key-grid">
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">MCP</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>MCP</dt><dd>Model Context Protocol, the communication protocol evaluated by this report.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">MCP specification profile</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>MCP specification profile</dt><dd>The dated MCP rules and schema version selected for validation.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Priority and severity</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Priority and severity</dt><dd>Priority is not severity. Priority orders follow-up work by its dependency group; optional, outside-selected-scope review comes last. Severity is the recorded finding&#39;s impact, not a value inferred from priority.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Assessment profile</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Assessment profile</dt><dd>Inventory, CI, comprehensive and provider select different assessment requirements. Minimal and full are report detail levels, not assessment profiles or execution permissions.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">CI and diagnostic formats</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>CI and diagnostic formats</dt><dd>CI means continuous integration. JUnit test cases and SARIF diagnostics describe findings; their failure counts are not the selected-profile gate. Automation should read the canonical policy disposition and recommended exit.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Client comparison</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Client comparison</dt><dd>Recorded evidence interpreted against a named, dated client&#39;s requirements. Compatibility is not proof that the validator ran inside the client.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Evidence confidence</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Evidence confidence</dt><dd>The recorded strength and completeness of evidence within the assessed scope. High confidence or a ratio of 1.0 is not a statistical guarantee of correctness or security.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Certificate eligibility</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Certificate eligibility</dt><dd>Whether the recorded provider evidence satisfies the certificate-eligibility requirements. Eligibility is not issuance or accreditation; non-issuing profiles are not failed certificate attempts.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Typed claim</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Typed claim</dt><dd>A conclusion bound to authority, requirement level, applicability, confidence, and immutable evidence references.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Independent assessments</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Independent assessments</dt><dd>Core conformance, security assurance, and operational readiness are reduced separately and never averaged into one score.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Authority labels</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Authority labels</dt><dd>Specification means a protocol requirement; Guideline means recommended practice; Heuristic means deterministic advisory analysis; Operational means runtime or infrastructure evidence.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">JSON-RPC / HTTP</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>JSON-RPC / HTTP</dt><dd>JSON-RPC is JavaScript Object Notation (JSON) for remote procedure call (RPC) messages used by MCP. HTTP is the Hypertext Transfer Protocol used to transport messages in this run.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">RFC 2119: MUST / SHOULD / MAY</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>RFC 2119: MUST / SHOULD / MAY</dt><dd>Requirement strength: MUST is required, SHOULD is recommended unless a justified exception exists, and MAY is optional.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">P50 / P95 / P99</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>P50 / P95 / P99</dt><dd>Latency percentiles: 50%, 95%, or 99% of measured requests completed at or below the reported value.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Units and time</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Units and time</dt><dd>ms means milliseconds, req/s means requests per second, and UTC means Coordinated Universal Time.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">AI / LLM / CLI / UX</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>AI / LLM / CLI / UX</dt><dd>Artificial intelligence; large language model; command-line interface; and user experience.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">VS Code</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>VS Code</dt><dd>Visual Studio Code, a supported client profile named in compatibility results.</dd></dl></details>
+<details class="assessment-reference glossary-term"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Identifiers: ID / UUID</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary><dl><dt>Identifiers: ID / UUID</dt><dd>ID means identifier. UUID means Universally Unique Identifier. Validation and rule identifiers are stable machine references, not scores.</dd></dl></details>
+</div></details></section>
 
 <div class="producer-signature">
   <span>Produced with <a href="https://github.com/navalerakesh/mcp-validation-security">MCP Validator</a></span>
@@ -1419,9 +1399,9 @@ button:disabled { color: var(--muted); cursor: default; }
   <a href="https://www.nuget.org/packages/McpVal#versions-body-tab">McpVal on NuGet</a>
 </div>
       </div>
-      <section class="assessment-section" id="recorded-claims" aria-labelledby="recorded-claims-title"><h2 id="recorded-claims-title">Appendix: findings and recorded claims</h2>
+      <section class="assessment-section" id="recorded-claims" aria-labelledby="recorded-claims-title"><details class="report-section" open><summary class="section-summary"><span class="disclosure-chevron" aria-hidden="true"></span><h2 class="disclosure-label" id="recorded-claims-title">Appendix: findings and recorded claims</h2><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <p>Complete recorded claims and supporting references. Source authority is not interchangeable with evidence confidence.</p>
-<details class="assessment-reference disclosure-group claims-disclosure"><summary><span class="disclosure-label">All 13 recorded claims and their sources</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+<details class="assessment-reference disclosure-group claims-disclosure"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">All 13 recorded claims and their sources</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
         <div class="claim-filters" id="claim-filters" role="search" aria-label="Recorded claims" hidden>
           <label for="claim-search">Search claims<input id="claim-search" type="search" maxlength="512" autocomplete="off"></label>
           <label for="claim-outcome">Outcome<select id="claim-outcome"><option value="">All outcomes</option><option value="Satisfied">Satisfied</option><option value="Violated">Violated</option><option value="Error">Error</option><option value="Incomplete">Incomplete</option><option value="ReviewRequired">Review required</option><option value="NotApplicable">Not applicable</option></select></label>
@@ -1432,7 +1412,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>github-copilot-cli,github-copilot-cloud-agent</h3><p><code>coverage:client-profiles:github-copilot-cli-github-copilot-cloud-agent</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1444,7 +1424,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>error-handling</h3><p><code>coverage:error-handling:error-handling</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1456,7 +1436,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>error-handling-matrix</h3><p><code>coverage:error-handling:error-handling-matrix</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> OperationalObjective</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1468,7 +1448,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>prompts/list</h3><p><code>coverage:prompt-surface:prompts-list</code></p>
           <p><strong>Outcome:</strong> Incomplete · <strong>Requirement:</strong> Policy</p>
           <p>Server does not advertise prompts capability.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1480,7 +1460,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>json-rpc</h3><p><code>coverage:protocol-core:json-rpc</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1492,7 +1472,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>security-authentication-challenge</h3><p><code>coverage:security-boundaries:security-authentication-challenge</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> SecurityControl</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1504,7 +1484,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>tool-catalog-smoke</h3><p><code>coverage:tool-surface:tool-catalog-smoke</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1516,7 +1496,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>tools/list</h3><p><code>coverage:tool-surface:tools-list</code></p>
           <p><strong>Outcome:</strong> Satisfied · <strong>Requirement:</strong> Policy</p>
           <p>Coverage outcome: Succeeded.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> None</p>
           <p><strong>Source revision:</strong> 2026-11-05.1 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1528,7 +1508,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>delete_repo</h3><p><code>finding:ai-tool-schema-parameter-description-missing:delete-repo</code></p>
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; has parameters without descriptions.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> Heuristic · <strong>Recorded confidence:</strong> Medium</p>
           <p><strong>Source revision:</strong> 2026-11-24.2 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1540,7 +1520,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>delete_repo</h3><p><code>finding:mcp-guideline-tool-destructive-hint-missing:delete-repo</code></p>
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Policy</p>
           <p>Tool &#39;delete_repo&#39; does not declare annotations.destructiveHint.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> ProviderPolicy · <strong>Recorded confidence:</strong> Medium</p>
           <p><strong>Source revision:</strong> 2026-11-24.2 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1552,7 +1532,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>tools/call</h3><p><code>finding:mcp-tool-call-result-object-missing:tools-call</code></p>
           <p><strong>Outcome:</strong> Review required · <strong>Requirement:</strong> Should</p>
           <p>One tool response omitted the outer result object.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
           <p><strong>Source revision:</strong> 2026-11-24.2 · —</p>
           <p><strong>Recorded correction:</strong> Not recorded.</p>
@@ -1564,7 +1544,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>Initialization</h3><p><code>protocol:mcp-init-version-negotiation</code></p>
           <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> Must</p>
           <p>Server ignored the requested MCP protocol version.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> OfficialSpecification · <strong>Recorded confidence:</strong> High</p>
           <p><strong>Source revision:</strong> 2025-11-25 · <a href="https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle">https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle</a></p>
           <p><strong>Recorded correction:</strong> Echo the negotiated protocol version in initialize.result.</p>
@@ -1576,7 +1556,7 @@ button:disabled { color: var(--muted); cursor: default; }
           <h3>prompt:get</h3><p><code>vulnerability:mcp-security-prompt-injection:prompt-get</code></p>
           <p><strong>Outcome:</strong> Violated · <strong>Requirement:</strong> SecurityControl</p>
           <p>Server reflected untrusted prompt content without sanitization.</p>
-          <details class="assessment-reference"><summary><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-chevron" aria-hidden="true"></span></summary>
+          <details class="assessment-reference"><summary><span class="disclosure-chevron" aria-hidden="true"></span><span class="disclosure-label">Source, correction and evidence references</span><span class="disclosure-state" aria-hidden="true"><span class="when-closed">Expand</span><span class="when-open">Collapse</span></span></summary>
           <p><strong>Authority:</strong> DeterministicSecurity · <strong>Recorded confidence:</strong> High</p>
           <p><strong>Source revision:</strong> 2026-11-24.2 · —</p>
           <p><strong>Recorded correction:</strong> Sanitize and label untrusted content before returning it.</p>
@@ -1584,23 +1564,56 @@ button:disabled { color: var(--muted); cursor: default; }
 <li><code>probe-prompt-get-reflection-200</code> (canonical reference; see the JSON evidence record)</li>
           </ul><p><a href="#method-and-provenance">Run method and provenance</a></p></details>
         </article>
-      </details></section>
+      </details></details></section>
 
       <footer class="footer">MCPVal 2.0.1 · Run <code>e2a02c699e24</code> · Full report · <a href="#method-and-provenance">Provenance</a></footer>
     </main>
   </div>
   <script>(() => {
+    const theme = document.getElementById('report-theme');
+    if (theme) {
+        theme.addEventListener('change', () => {
+            if (theme.value === 'system') document.documentElement.removeAttribute('data-theme');
+            else if (theme.value === 'light' || theme.value === 'dark')
+                document.documentElement.dataset.theme = theme.value;
+        });
+        theme.closest('label').hidden = false;
+    }
+    document.addEventListener('toggle', event => {
+        const detail = event.target;
+        if (!(detail instanceof HTMLDetailsElement) || !detail.matches('.evidence-peek')) return;
+        const content = detail.querySelector('.peek-content');
+        content.querySelector('.evidence-preview')?.remove();
+        if (!detail.open) return;
+        const source = document.getElementById(detail.dataset.claimTarget);
+        if (!source) {
+            const error = document.createElement('p');
+            error.className = 'evidence-preview';
+            error.textContent = 'The referenced claim is unavailable. Consult the canonical JSON result.';
+            content.prepend(error);
+            return;
+        }
+        const preview = source.cloneNode(true);
+        for (const element of [preview, ...preview.querySelectorAll('[id]')]) element.removeAttribute('id');
+        preview.removeAttribute('data-claim-id');
+        preview.removeAttribute('data-claim-outcome');
+        preview.removeAttribute('hidden');
+        preview.classList.add('evidence-preview');
+        preview.querySelectorAll('details').forEach(element => { element.open = true; });
+        content.prepend(preview);
+    }, true);
+    const supportingDetails = () => document.querySelectorAll('details:not(.report-section):not(.evidence-peek)');
     const sectionControls = document.querySelector('.report-controls');
     if (sectionControls) {
         document.getElementById('expand-evidence').addEventListener('click', () =>
-            document.querySelectorAll('details').forEach(detail => { detail.open = true; }));
+            supportingDetails().forEach(detail => { detail.open = true; }));
         document.getElementById('collapse-evidence').addEventListener('click', () =>
-            document.querySelectorAll('details').forEach(detail => { detail.open = false; }));
+            supportingDetails().forEach(detail => { detail.open = false; }));
         sectionControls.hidden = false;
     }
     let printDetails = [];
     window.addEventListener('beforeprint', () => {
-        printDetails = Array.from(document.querySelectorAll('details:not([open])'));
+        printDetails = Array.from(document.querySelectorAll('details:not([open]):not(.evidence-peek)'));
         printDetails.forEach(element => { element.open = true; });
     });
     window.addEventListener('afterprint', () => {

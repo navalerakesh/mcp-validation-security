@@ -39,6 +39,7 @@
 
   <ItemGroup>
     <None Include="Fixtures\ReportSnapshots\**\*.snap" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="Fixtures\Reports\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\Calibration\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\Servers\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

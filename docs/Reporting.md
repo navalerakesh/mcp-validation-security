@@ -27,17 +27,23 @@ The HTML report is ordered for decision review:
 3. **Priority actions:** verb-led ordered remediation or evidence-collection rows, affected components, impact and links to domain/claim records where available. The opening card links to the first row using the same ranking. Owners and deadlines are not invented.
 4. **Domain evidence:** visible summaries with named, bounded native disclosures for the claim index and existing bootstrap, protocol, authorization, tool/resource/prompt, extension, compatibility and runtime evidence. Expand/collapse controls are an optional local-script enhancement.
 5. **Method and provenance:** run identity, profile/spec/source revisions and producer information.
-6. **Claims appendix:** every recorded claim with its stable ID, outcome, authority and references, behind a clearly labeled disclosure after provenance. Full detail includes detailed measurement sections and the glossary; minimal omits them. Detail level controls included content, not whether all sections start expanded.
+6. **Claims appendix:** every recorded claim with its stable ID, outcome, authority and references, behind a clearly labeled disclosure after provenance. Both detail levels include a collapsible glossary; full adds detailed measurement sections. Main review sections start open and can be collapsed independently; supporting records start closed.
 
 Inventory is an assessment product, not a failed certificate attempt. Its report says that the assessment completed and that a provider certificate was not issued by the selected profile. Missing or skipped active evidence remains incomplete and never earns pass credit.
 
-The light theme uses system fonts, white supporting cards, a cool-gray canvas, restrained status accents and text labels that remain meaningful in grayscale. A CSP-hash-allowlisted local script provides filtering and deep-link disclosure. There is no external active content. All claims remain in the static document without JavaScript. Links reveal the relevant disclosure, not every unrelated section. Links to included observations reach their exact rows; references without included payload are labeled as canonical references, not fabricated observations.
+When inventory evidence is recorded, the opening reason explains that scope rather than repeating certificate non-issuance. Recorded interruptions, blocking findings and failed policy still take precedence; an empty artifact does not acquire a fabricated completion explanation.
 
-Domain groups have a fine boundary; routine source/reference disclosures are flat rows separated by quiet rules, not individual cards. The full row opens with a click, Enter or Space. A right-aligned chevron indicates closed/open state without contributing to its accessible name. Section headings and key limits remain visible; print removes the decorative controls while retaining captions, headings and all included evidence.
+The report follows the system light/dark preference and offers a local System/Light/Dark selector without browser storage. One shared palette governs cards, tables, text, controls and statuses. A CSP-hash-allowlisted local script provides filtering, in-place action evidence and deliberate deep-link navigation. There is no external active content. All claims remain in the static document without JavaScript. Links reveal the relevant disclosure, not every unrelated section. Links to included observations reach their exact rows; references without included payload are labeled as canonical references, not fabricated observations.
+
+Main review sections have a consistent boundary, default-open native headings and flat supporting disclosures rather than repeated nested cards. The full row opens with a click, Enter or Space. A leading chevron and desktop Expand/Collapse hint clarify the affordance without contributing to its accessible name. Ordinary toggles do not navigate. Print retains the real section headings and all included evidence.
+
+Action rows offer **Read evidence here**. This displays the existing canonical claim locally, without changing the URL, clearing filters or creating a second claim projection. The preview is removed on close and omitted from print; the canonical appendix remains complete. Without JavaScript, the same disclosure provides an explicit canonical-record link. Bulk supporting-evidence controls do not collapse the main reading path or instantiate every action preview.
 
 The capability card labels **Advertised**, **Permitted** and **Observed** separately. Advertisement is not inferred from a nonempty catalog. Safe mode is discovery/static scope; Standard/Elevated mode indicates policy-gated active checks, not blanket tool permission. Snapshot-specific execution remains labeled with that scope, and missing runtime evidence is not converted into a successful invocation.
 
 Zero catalog counts require a completed enumeration or a successful snapshot listing; an unpopulated default counter remains unavailable. Later successful execution records and a separate snapshot failure can both appear, without one hiding the other.
+
+Recorded resource-template counts are shown as enumeration evidence, not successful resource reads or invented per-template records. Client comparisons name their dated requirement sets and explain that interpretation is not execution inside the client. Recorded request percentiles, sample windows, queue time, throughput and retry context are available even in minimal detail; discovery timings are not relabeled as load-test measurements.
 
 The short run reference in the footer is the first 12 hexadecimal characters of SHA-256 over the recorded validation ID. It is a convenience identifier, not an artifact integrity digest; retain the full run identity and audit manifest.
 
@@ -61,6 +67,10 @@ Authentication discovery is retained as authentication evidence, not as a discov
 | `notApplicable` | The requirement does not apply to the observed target/profile |
 
 A descriptive category score cannot override these outcomes or the independent assessments.
+
+### Automation and diagnostic counts
+
+Use the canonical selected-profile/policy disposition and recommended exit to decide whether a gate passed. JUnit cases and SARIF results are diagnostic projections, not alternative gate calculators. For example, a comprehensive assessment can satisfy its selected requirements while JUnit retains failures from optional external MAY checks. Runner checks, claims and diagnostics have different denominators; their counts must not be equated or genuine optional failures discarded.
 
 ## Offline Rendering
 
@@ -91,7 +101,7 @@ node scripts/report-quality/export-pdf.mjs ./report.html ./report-Letter.pdf Let
 
 Use the [contributor environment](ContributorEnvironment.md) and Node 24. On Linux install browser dependencies with `playwright install --with-deps chromium`.
 
-The verified configuration is Playwright **1.65.1**, Chromium **159.0.8154.6**, A4 or US Letter, scale **1**, backgrounds **off**, browser headers/footers **off**, and **14 mm CSS margins**. The export disables JavaScript and blocks HTTP(S) loading. CSS expands included disclosures and restores filtered claims for print. Disclosure controls are omitted; domain names/counts remain in captions and supporting records retain their labeled fields. The page margins contain the short run reference and **Page X of Y**; the in-content footer retains producer/version and reference.
+The verified configuration is Playwright **1.65.1**, Chromium **159.0.8154.6**, A4 or US Letter, scale **1**, backgrounds **off**, browser headers/footers **off**, and **14 mm CSS margins**. The export disables JavaScript and blocks HTTP(S) loading. CSS forces a light print palette, expands included disclosures and restores filtered claims. Decorative disclosure controls and transient previews are omitted; real section headings, domain captions and supporting fields remain. The page margins contain the short run reference and **Page X of Y**; the in-content footer retains producer/version and reference.
 
 The [report checks](../CONTRIBUTING.md#report-changes) generate both papers and detail levels, reconcile printed claim IDs with canonical JSON, extract selectable page text, verify every numbered footer, and retain representative rasterized pages. Geometry/page totals are browser, font and platform dependent; the receipt records the actual totals.
 

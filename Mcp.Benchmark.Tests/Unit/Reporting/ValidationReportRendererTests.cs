@@ -895,7 +895,7 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Terms And Abbreviations");
+        html.Should().Contain("Terms and abbreviations");
         html.Should().Contain("Model Context Protocol, the communication protocol evaluated by this report.");
         html.Should().Contain("Priority is not severity.");
         html.Should().Contain("Certificate eligibility");
@@ -945,11 +945,12 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        Regex.Matches(html, @"<details class=""section-card[^""]*"" open>").Count.Should().Be(0);
+        var document = new AngleSharp.Html.Parser.HtmlParser().ParseDocument(html);
+        document.QuerySelectorAll("details.report-section[open]").Should().NotBeEmpty();
         var decisionPosition = html.IndexOf("id=\"assessment-decision\"", StringComparison.Ordinal);
         decisionPosition.Should().BeGreaterThanOrEqualTo(0);
-        decisionPosition.Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
-        html.Should().Contain("<h2>Terms And Abbreviations</h2>");
+        decisionPosition.Should().BeLessThan(html.IndexOf("id=\"report-glossary\"", StringComparison.Ordinal));
+        document.GetElementById("report-glossary-title")!.TextContent.Should().Be("Terms and abbreviations");
         html.IndexOf("id=\"method-and-provenance\"", StringComparison.Ordinal).Should()
             .BeLessThan(html.IndexOf("id=\"recorded-claims\"", StringComparison.Ordinal));
         html.Should().Contain("<details class=\"assessment-reference\"");
@@ -1079,10 +1080,10 @@ public class ValidationReportRendererTests
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().Contain("Priority actions");
-        html.Should().Contain("Remediation Roadmap");
+        html.Should().Contain("Read evidence here");
         html.Should().Contain("Priority 1");
         html.Should().Contain("Bootstrap &amp; Protocol Version");
-        html.Should().Contain("Impact after fix");
+        html.Should().Contain("Why this matters");
         html.Should().Contain("Echo the negotiated protocol version in initialize.result.");
     }
 

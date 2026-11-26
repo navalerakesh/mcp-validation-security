@@ -6,7 +6,11 @@ namespace Mcp.Benchmark.Tests.Fixtures;
 
 public static class ReportQualityTestData
 {
-    public static readonly string[] Names = ["inventory", "mixed", "interrupted", "dense", "sparse"];
+    public static readonly string[] Names =
+    [
+        "inventory", "mixed", "interrupted", "dense", "sparse", "ci",
+        "comprehensive", "comprehensive-failed", "comprehensive-missing"
+    ];
 
     public static ValidationResult Create(string name)
     {
@@ -21,11 +25,13 @@ public static class ReportQualityTestData
         result.EndTime = result.StartTime.AddSeconds(12);
         result.ServerConfig.Endpoint = $"https://{name}.example.invalid/mcp";
         result.ServerConfig.Transport = "http";
-        result.Run.ExecutionMode = name is "mixed" or "dense" ? ExecutionMode.Standard : ExecutionMode.Safe;
+        result.Run.ExecutionMode = name is "inventory" or "interrupted" or "sparse" ? ExecutionMode.Safe : ExecutionMode.Standard;
         result.Run.TerminationOutcome = ValidationOutcome.Succeeded;
         result.ProtocolVersion = name == "sparse" ? null : "2025-11-25";
         result.Run.SchemaVersion = result.ProtocolVersion;
-        var profile = name is "mixed" or "dense" ? AssuranceProfileCatalog.Provider : AssuranceProfileCatalog.Inventory;
+        var profile = name.StartsWith("comprehensive", StringComparison.Ordinal) ? AssuranceProfileCatalog.Comprehensive
+            : name == "ci" ? AssuranceProfileCatalog.Ci
+            : name is "mixed" or "dense" ? AssuranceProfileCatalog.Provider : AssuranceProfileCatalog.Inventory;
         result.ValidationConfig.Assurance.Profile = profile.ProfileId;
         if (result.Run.ExecutionMode == ExecutionMode.Safe)
         {
@@ -72,6 +78,24 @@ public static class ReportQualityTestData
 
         result.Assurance = AssuranceAssessmentEngine.Evaluate(result, profile,
             new AssuranceEvaluationContext { ExecutionMode = result.Run.ExecutionMode });
+        if (name == "ci" || name.StartsWith("comprehensive", StringComparison.Ordinal))
+        {
+            var baseline = System.Text.Json.JsonSerializer.Deserialize<ValidationResult>(
+                File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Reports", "controlled-identity-seed.json")),
+                Mcp.Benchmark.CLI.Utilities.ArtifactJsonOptions.Create())
+                ?? throw new InvalidDataException("The signed report fixture must contain a canonical result.");
+            result.ValidationId = baseline.ValidationId;
+            result.StartTime = baseline.StartTime;
+            result.EndTime = baseline.EndTime;
+            result.Run.TargetIdentitySha256 = baseline.Run.TargetIdentitySha256;
+            result.Assessments.Scenarios.AddRange(baseline.Assessments.Scenarios);
+            result.Evidence.Coverage.Add(ValidationCoverageFactory.FromOutcome(
+                "protocol", "synthetic-required-evidence", ValidationOutcome.Succeeded, "Synthetic saved assessment control."));
+            result.Assurance = Unit.Services.AssuranceExitCodeMapperTests.CreateEvaluation(profile,
+                name == "ci" ? AssuranceClaimOutcome.Satisfied : AssuranceClaimOutcome.Violated,
+                name == "comprehensive-failed" ? AssuranceRequirementLevel.Must : AssuranceRequirementLevel.May,
+                omittedBaseline: name == "comprehensive-missing" ? "selection" : null, retainedBaseline: baseline);
+        }
         result.OverallStatus = name == "interrupted"
             ? ValidationStatus.Cancelled : AssuranceAssessmentEngine.DetermineValidationStatus(result.Assurance);
         result.Run.TerminationOutcome = name == "interrupted" ? ValidationOutcome.Cancelled : ValidationOutcome.Succeeded;
