@@ -45,6 +45,8 @@ Zero catalog counts require a completed enumeration or a successful snapshot lis
 
 Recorded resource-template counts are shown as enumeration evidence, not successful resource reads or invented per-template records. Client comparisons name their dated requirement sets and explain that interpretation is not execution inside the client. Recorded request percentiles, sample windows, queue time, throughput and retry context are available even in minimal detail; discovery timings are not relabeled as load-test measurements.
 
+Performance facts describe the recorded workload. The renderer does not invent a universal latency/error-rate service target or derive a new score from those measurements. Recorded calibration overrides and findings remain available with their own context.
+
 The short run reference in the footer is the first 12 hexadecimal characters of SHA-256 over the recorded validation ID. It is a convenience identifier, not an artifact integrity digest; retain the full run identity and audit manifest.
 
 ### Action and scope interpretation

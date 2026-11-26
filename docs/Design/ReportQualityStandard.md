@@ -7,6 +7,7 @@ This is the single product/design authority for reports. Shipped formats and exp
 Reports help maintainers find the next action, reviewers understand the supported conclusion, investigators locate exact evidence, and auditors reconcile a run. Agents and CI consume canonical JSON or MCP structured content, not HTML summaries.
 
 - Project saved canonical evidence through the existing factory, composer, theme and interactions. Renderers never contact targets or recompute assurance.
+- Keep one current decision projection. Provenance facts and governance notes have their own fields; do not retain obsolete hero/release verdict objects merely to carry metadata or allow competing decision wording to return.
 - Keep execution, assurance, policy and certificate eligibility/issuance independent. Missing, skipped, blocked, unavailable, inconclusive and not-applicable evidence never earn pass credit.
 - Distinguish discovered capabilities, configured/permitted operations and observed runtime behavior. Identify imported conformance, client interpretation, deterministic checks, heuristics and model advice by their recorded authority and revision.
 - Preserve redaction, inert untrusted text, CSP, offline operation, exact IDs and outcome semantics. Identical saved inputs and options produce byte-stable HTML, including across cultures.

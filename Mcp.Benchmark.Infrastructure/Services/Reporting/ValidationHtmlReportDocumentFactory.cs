@@ -1,7 +1,6 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
@@ -53,14 +52,13 @@ internal sealed class ValidationHtmlReportDocumentFactory
             AgentFacts = BuildAgentFacts(result),
             CatalogSummary = BuildCatalogSummary(result),
             PriorityActions = BuildPriorityActions(remediationOrder, claimEntries),
-            Hero = BuildHero(result, reportConfig),
-            ReleaseDecision = BuildReleaseDecision(result),
+            ProvenanceFacts = BuildProvenanceFacts(result, reportConfig),
+            GovernanceNotes = BuildGovernanceNotes(result),
             OverviewMetrics = BuildOverviewMetrics(result),
             DomainSummaries = BuildDomainSummaries(result),
             DecisionTrace = decisionTrace,
             Hotspots = BuildHotspots(result),
             CompatibilityThemes = compatibilityThemes,
-            PriorityFindings = priorityFindings,
             ActionHints = actionHints,
             RemediationOrder = remediationOrder,
             AdditionalRecommendations = recommendations,
@@ -289,17 +287,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return facts;
     }
 
-    private static ValidationHtmlHero BuildHero(ValidationResult result, ReportingConfig reportConfig)
+    private static IReadOnlyList<ValidationHtmlMetaItem> BuildProvenanceFacts(ValidationResult result, ReportingConfig reportConfig)
     {
-        var releaseTone = ResolveReleaseTone(result);
-        var inventoryProfile = string.Equals(result.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
-        var title = result.Assurance.CertificateEligibility.Status switch
-        {
-            CertificateEligibilityStatus.Eligible => "Provider Certificate Eligible",
-            CertificateEligibilityStatus.Ineligible when inventoryProfile => "Inventory assessment evidence",
-            CertificateEligibilityStatus.Ineligible => "Assurance Requirements Not Met",
-            _ => "Assurance Review Required"
-        };
         var protocolVersion = result.ProtocolVersion
             ?? result.InitializationHandshake?.Payload?.ProtocolVersion
             ?? result.ServerConfig.ProtocolVersion
@@ -312,64 +301,28 @@ internal sealed class ValidationHtmlReportDocumentFactory
             ?? result.Run.ApplicabilityContext?.SchemaVersion
             ?? (string.IsNullOrWhiteSpace(reportConfig.SpecProfile) ? "latest" : reportConfig.SpecProfile);
 
-        return new ValidationHtmlHero
-        {
-            Eyebrow = "Model Context Protocol (MCP) Assurance Report",
-            Title = title,
-            Subtitle = BuildHeroSubtitle(result),
-            StatusLabel = ResolveReleaseStatusLabel(result),
-            StatusTone = releaseTone,
-            VerdictLabel = result.Assurance.Assessments.CoreConformance.Status.ToString(),
-            VerdictTone = MapCoreTone(result.Assurance.Assessments.CoreConformance.Status),
-            SecurityStatusLabel = result.Assurance.Assessments.SecurityAssurance.Status.ToString(),
-            SecurityStatusDetail = $"Operational readiness: {result.Assurance.Assessments.OperationalReadiness.Status}",
-            SecurityStatusTone = MapSecurityTone(result.Assurance.Assessments.SecurityAssurance.Status),
-            MetaItems = new List<ValidationHtmlMetaItem>
-            {
-                new() { Label = "Configured endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
-                new() { Label = "Validation Identifier", Value = result.ValidationId },
-                new() { Label = "Duration", Value = duration },
-                new() { Label = "MCP Specification Profile", Value = schemaVersion },
-                new() { Label = "Server Profile", Value = $"{result.ServerProfile} ({result.ServerProfileSource})" },
-                new() { Label = "Protocol Version", Value = protocolVersion }
-            }
-        };
+        return
+        [
+            new() { Label = "Configured endpoint", Value = result.ServerConfig.Endpoint ?? "Not available" },
+            new() { Label = "Validation Identifier", Value = result.ValidationId },
+            new() { Label = "Duration", Value = duration },
+            new() { Label = "MCP Specification Profile", Value = schemaVersion },
+            new() { Label = "Server Profile", Value = $"{result.ServerProfile} ({result.ServerProfileSource})" },
+            new() { Label = "Protocol Version", Value = protocolVersion }
+        ];
     }
 
     private static string HumanizeStatus(string value) => ReportContextFormatter.HumanizeKey(value);
 
-    private static ValidationHtmlReleaseDecision BuildReleaseDecision(ValidationResult result)
+    private static IReadOnlyList<string> BuildGovernanceNotes(ValidationResult result)
     {
         var assurance = result.Assurance;
-        var exitCode = AssuranceExitCodeMapper.Map(result);
-        var eligible = assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Eligible;
-        var inventoryProfile = string.Equals(assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase);
         var assuranceHighlights = assurance.CertificateEligibility.Reasons.Take(4).ToList();
         if (result.PolicyOutcome?.AppliedWaivers.Count > 0)
         {
             assuranceHighlights.Add($"{result.PolicyOutcome.AppliedWaivers.Count} governed waiver(s) applied.");
         }
-        return new ValidationHtmlReleaseDecision
-        {
-            Eyebrow = "Assurance Decision",
-            Title = eligible
-                ? "Selected assurance profile satisfied"
-                : inventoryProfile
-                    ? "Recorded evidence for the inventory profile"
-                    : "Selected assurance profile is not satisfied",
-            Summary = assurance.CertificateEligibility.Reasons.Count == 0
-                ? ReportContextFormatter.FormatMissingEligibilityExplanation(assurance.CertificateEligibility.Status)
-                : string.Join(" ", assurance.CertificateEligibility.Reasons.Take(3)),
-            Tone = ResolveReleaseTone(result),
-            Highlights = assuranceHighlights,
-            PolicyModeLabel = assurance.Profile.ProfileId,
-            ExitCodeLabel = exitCode.ToString(),
-            VerdictLabel = inventoryProfile && !eligible ? "Not issued" : assurance.CertificateEligibility.Status.ToString(),
-            TotalSignalCount = assurance.Claims.Count,
-            UnsuppressedSignalCount = assurance.Claims.Count(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)),
-            BlockingSignalCount = assurance.Claims.Count(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error),
-            SuppressedSignalCount = result.PolicyOutcome?.SuppressedSignalCount ?? 0
-        };
+        return assuranceHighlights;
     }
 
     private static IReadOnlyList<ValidationHtmlMetricCard> BuildOverviewMetrics(ValidationResult result)
@@ -740,16 +693,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
-    private static string BuildHeroSubtitle(ValidationResult result)
-    {
-        if (result.Assurance.CertificateEligibility.Reasons.Count > 0)
-        {
-            return string.Join(" ", result.Assurance.CertificateEligibility.Reasons.Take(2));
-        }
-
-        return "All requirements for the selected assurance profile are satisfied.";
-    }
-
     private static HealthCheckResult? ResolveBootstrapHealth(ValidationResult validationResult)
     {
         if (validationResult.BootstrapHealth != null)
@@ -782,17 +725,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return string.Equals(hint.TrimEnd('.'), policySummary.TrimEnd('.'), StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static string ResolveReleaseStatusLabel(ValidationResult result)
-    {
-        if (result.Assurance.CertificateEligibility.Status == CertificateEligibilityStatus.Ineligible &&
-            string.Equals(result.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Inventory.ProfileId, StringComparison.OrdinalIgnoreCase))
-        {
-            return "Not issued by inventory profile";
-        }
-
-        return result.Assurance.CertificateEligibility.Status.ToString();
     }
 
     private static HtmlReportTone ResolveReleaseTone(ValidationResult result)
@@ -845,76 +777,6 @@ internal sealed class ValidationHtmlReportDocumentFactory
         }
 
         return $"{string.Join(", ", components.Take(3))} +{components.Count - 3} more";
-    }
-
-    private static int ResolveBlockingSignalCount(ValidationResult result)
-    {
-        var policyOutcome = result.PolicyOutcome;
-        if (policyOutcome == null)
-        {
-            return 0;
-        }
-
-        if (policyOutcome.BlockingSignalCount > 0)
-        {
-            return policyOutcome.BlockingSignalCount;
-        }
-
-        var parsedFromSummary = TryParseSummarySignalCount(policyOutcome.Summary);
-        if (parsedFromSummary.HasValue && !policyOutcome.Passed)
-        {
-            return parsedFromSummary.Value;
-        }
-
-        return policyOutcome.Reasons.Count;
-    }
-
-    private static int ResolveUnsuppressedSignalCount(ValidationResult result)
-    {
-        var policyOutcome = result.PolicyOutcome;
-        if (policyOutcome == null)
-        {
-            return 0;
-        }
-
-        if (policyOutcome.UnsuppressedSignalCount > 0)
-        {
-            return policyOutcome.UnsuppressedSignalCount;
-        }
-
-        var parsedFromSummary = TryParseSummarySignalCount(policyOutcome.Summary);
-        if (parsedFromSummary.HasValue)
-        {
-            return parsedFromSummary.Value;
-        }
-
-        return policyOutcome.Reasons.Count;
-    }
-
-    private static int? TryParseSummarySignalCount(string? summary)
-    {
-        if (string.IsNullOrWhiteSpace(summary))
-        {
-            return null;
-        }
-
-        var match = Regex.Match(summary, @"with\s+(\d+)\s+unsuppressed\s+signal", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        return int.TryParse(match.Groups[1].Value, out var parsedCount) ? parsedCount : null;
-    }
-
-    private static string FormatModeLabel(string? mode)
-    {
-        if (string.IsNullOrWhiteSpace(mode))
-        {
-            return "Validation";
-        }
-
-        return $"{char.ToUpperInvariant(mode[0])}{mode[1..]}";
     }
 
     private static HtmlReportTone MapScoreTone(double score)

@@ -108,10 +108,12 @@ public sealed class ValidationHtmlAccessibilityTests
                 FormattableString.Invariant($"{load.RequestsPerSecond:F2}"),
                 FormattableString.Invariant($"{load.ErrorRate:F2}%"));
             var performanceDescriptions = performanceFacts.QuerySelectorAll("dd");
-            performanceDescriptions[0].TextContent.Should().Contain("Target \u2264 300 ms");
-            performanceDescriptions[1].TextContent.Should().Contain("Tail latency under pressure");
-            performanceDescriptions[2].TextContent.Should().Contain("Sustained throughput during probe");
-            performanceDescriptions[3].TextContent.Should().Contain("Target \u2264 1%");
+            performanceDescriptions[0].TextContent.Should().Contain("Observed request mean");
+            performanceDescriptions[1].TextContent.Should().Contain("Recorded 95th percentile");
+            performanceDescriptions[2].TextContent.Should().Contain("Recorded requests per second");
+            performanceDescriptions[3].TextContent.Should().Contain("Observed failure percentage");
+            string.Join(" ", performanceDescriptions.Select(description => description.TextContent)).Should().NotContain("Target \u2264");
+            performance.TextContent.Should().Contain("No latency or error-rate service target is inferred");
         }
     }
 

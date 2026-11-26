@@ -34,9 +34,9 @@ internal sealed class ValidationHtmlReportDocument
 
     public required IReadOnlyList<ValidationHtmlPriorityAction> PriorityActions { get; init; }
 
-    public required ValidationHtmlHero Hero { get; init; }
+    public required IReadOnlyList<ValidationHtmlMetaItem> ProvenanceFacts { get; init; }
 
-    public required ValidationHtmlReleaseDecision ReleaseDecision { get; init; }
+    public required IReadOnlyList<string> GovernanceNotes { get; init; }
 
     public required IReadOnlyList<ValidationHtmlMetricCard> OverviewMetrics { get; init; }
 
@@ -48,8 +48,6 @@ internal sealed class ValidationHtmlReportDocument
     public required IReadOnlyList<ValidationHtmlHotspot> Hotspots { get; init; }
 
     public required IReadOnlyList<ValidationHtmlCompatibilityTheme> CompatibilityThemes { get; init; }
-
-    public required IReadOnlyList<string> PriorityFindings { get; init; }
 
     public required IReadOnlyList<string> ActionHints { get; init; }
 
@@ -65,58 +63,6 @@ internal sealed record ValidationHtmlClaimEntry(AssuranceClaim Claim, string Anc
 internal sealed record ValidationHtmlPriorityAction(
     int Priority, string Category, string Impact, RemediationOrderItem Item,
     string Anchor, string Kind, IReadOnlyList<ValidationHtmlClaimEntry> Claims);
-
-internal sealed class ValidationHtmlHero
-{
-    public required string Eyebrow { get; init; }
-
-    public required string Title { get; init; }
-
-    public required string Subtitle { get; init; }
-
-    public required string StatusLabel { get; init; }
-
-    public required HtmlReportTone StatusTone { get; init; }
-
-    public required string VerdictLabel { get; init; }
-
-    public required HtmlReportTone VerdictTone { get; init; }
-
-    public required string SecurityStatusLabel { get; init; }
-
-    public required string SecurityStatusDetail { get; init; }
-
-    public required HtmlReportTone SecurityStatusTone { get; init; }
-
-    public required IReadOnlyList<ValidationHtmlMetaItem> MetaItems { get; init; }
-}
-
-internal sealed class ValidationHtmlReleaseDecision
-{
-    public required string Eyebrow { get; init; }
-
-    public required string Title { get; init; }
-
-    public required string Summary { get; init; }
-
-    public required HtmlReportTone Tone { get; init; }
-
-    public required IReadOnlyList<string> Highlights { get; init; }
-
-    public required string PolicyModeLabel { get; init; }
-
-    public required string ExitCodeLabel { get; init; }
-
-    public required string VerdictLabel { get; init; }
-
-    public required int TotalSignalCount { get; init; }
-
-    public required int UnsuppressedSignalCount { get; init; }
-
-    public required int BlockingSignalCount { get; init; }
-
-    public required int SuppressedSignalCount { get; init; }
-}
 
 internal sealed class ValidationHtmlMetricCard
 {

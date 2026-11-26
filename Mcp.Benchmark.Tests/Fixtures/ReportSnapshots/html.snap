@@ -1296,22 +1296,23 @@ button:disabled { color: var(--muted); cursor: default; }
           <dl class="assessment-facts">
             <div>
               <dt>Average Latency</dt>
-              <dd><strong>120.5 ms</strong><br>Target ≤ 300 ms</dd>
+              <dd><strong>120.5 ms</strong><br>Observed request mean</dd>
             </div>
             <div>
               <dt>95th-Percentile Latency</dt>
-              <dd><strong>210.4 ms</strong><br>Tail latency under pressure</dd>
+              <dd><strong>210.4 ms</strong><br>Recorded 95th percentile</dd>
             </div>
             <div>
               <dt>Requests / Second</dt>
-              <dd><strong>18.20</strong><br>Sustained throughput during probe</dd>
+              <dd><strong>18.20</strong><br>Recorded requests per second</dd>
             </div>
             <div>
               <dt>Error Rate</dt>
-              <dd><strong>0.00%</strong><br>Target ≤ 1%</dd>
+              <dd><strong>0.00%</strong><br>Observed failure percentage</dd>
             </div>
           </dl>
 
+<p class="evidence-note">These measurements describe the recorded workload. No latency or error-rate service target is inferred by this report.</p>
           <div class="evidence-note">Requests: 120/120 successful.</div>
         </div></details></details></section>
 

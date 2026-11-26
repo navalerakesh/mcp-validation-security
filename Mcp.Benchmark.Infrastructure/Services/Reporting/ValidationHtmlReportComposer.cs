@@ -101,7 +101,7 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("      </div>");
         sb.AppendLine("      <div id=\"method-and-provenance\">");
         sb.AppendLine($"      <section class=\"assessment-section\" aria-labelledby=\"run-provenance-title\"><details class=\"report-section\" open>{RenderDisclosureSummary("Run provenance", headingId: "run-provenance-title")}");
-        sb.AppendLine(RenderFactGrid(document.Hero.MetaItems, "provenance-facts"));
+        sb.AppendLine(RenderFactGrid(document.ProvenanceFacts, "provenance-facts"));
         sb.AppendLine($"      <p>Short run reference: <code>{document.RunReference}</code>. Canonical JSON and the audit manifest remain the machine record; HTML does not rerun validation.</p>");
         sb.AppendLine($"      <p>Profile revision: <code>{Encode(result.Assurance.Profile.Revision)}</code>. Source revisions, authority and evidence references appear with each claim.</p>");
         sb.AppendLine($"      <dl class=\"assessment-facts\"><div><dt>Result schema</dt><dd>{Encode(result.DocumentSchemaVersion)}</dd></div><div><dt>Assurance contract</dt><dd>{Encode(result.Assurance.ContractVersion)}</dd></div>");
@@ -311,7 +311,7 @@ internal sealed class ValidationHtmlReportComposer
         AddList("Recorded eligibility reasons", assurance.CertificateEligibility.Reasons);
         if (assurance.CertificateEligibility.Reasons.Count == 0)
             sb.AppendLine($"<p>{Encode(ReportContextFormatter.FormatMissingEligibilityExplanation(assurance.CertificateEligibility.Status))}</p>");
-        var governanceNotes = document.ReleaseDecision.Highlights
+        var governanceNotes = document.GovernanceNotes
             .Except(assurance.CertificateEligibility.Reasons, StringComparer.Ordinal).ToArray();
         if (governanceNotes.Length > 0) AddList("Governance", governanceNotes);
         sb.AppendLine("        </details>");
@@ -514,11 +514,6 @@ internal sealed class ValidationHtmlReportComposer
         return $"          <div><dt class=\"section-abstract__label\">{Encode(label)}</dt><dd>{Encode(value)}</dd></div>";
     }
 
-    private static string RenderExecutiveSummaryCard(string label, string value)
-    {
-        return $"                <div class=\"summary-card\"><div class=\"summary-card__label\">{Encode(label)}</div><div class=\"summary-card__value\">{Encode(value)}</div></div>";
-    }
-
     private static string RenderDecisionTraceLedger(IReadOnlyList<ValidationHtmlDecisionTraceItem> items)
     {
         var sb = new StringBuilder();
@@ -625,34 +620,6 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine("              </tbody>");
         sb.AppendLine("            </table>");
         sb.AppendLine("          </div>");
-        return sb.ToString();
-    }
-
-    private static string RenderFindingStack(string title, string eyebrow, IReadOnlyList<string> items, HtmlReportTone tone)
-    {
-        var toneCss = ValidationHtmlReportTheme.ToCssTone(tone);
-        var sb = new StringBuilder();
-        sb.AppendLine($"              <section class=\"report-note report-note--{toneCss}\">");
-        sb.AppendLine($"                <div class=\"report-note__eyebrow\">{Encode(eyebrow)}</div>");
-        sb.AppendLine($"                <h3 class=\"report-note__title\">{Encode(title)}</h3>");
-        if (string.Equals(title, "Priority Findings", StringComparison.Ordinal))
-        {
-            sb.AppendLine($"                <p class=\"evidence-note\">{Encode(ValidationAuthorityHierarchy.Legend)}</p>");
-        }
-        if (items.Count == 0)
-        {
-            sb.AppendLine($"                <p class=\"report-note__empty\">{Encode("No elevated signals were recorded for this lane.")}</p>");
-        }
-        else
-        {
-            sb.AppendLine("                <ul class=\"compact-list\">");
-            foreach (var item in items.Take(3))
-            {
-                sb.AppendLine($"                  <li>{Encode(item)}</li>");
-            }
-            sb.AppendLine("                </ul>");
-        }
-        sb.AppendLine("              </section>");
         return sb.ToString();
     }
 
@@ -1885,12 +1852,13 @@ internal sealed class ValidationHtmlReportComposer
         {
             var cards = new List<ValidationHtmlMetricCard>
             {
-                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.AverageResponseTimeMs:F1} ms", Label = "Average Latency", SupportingText = "Target ≤ 300 ms", Tone = MapScoreTone(InvertLatencyToScore(perf.LoadTesting.AverageResponseTimeMs, 300, 800)) },
-                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", Label = "95th-Percentile Latency", SupportingText = "Tail latency under pressure", Tone = MapScoreTone(InvertLatencyToScore(perf.LoadTesting.P95ResponseTimeMs, 800, 1500)) },
-                new() { Eyebrow = "Throughput", Value = $"{perf.LoadTesting.RequestsPerSecond:F2}", Label = "Requests / Second", SupportingText = "Sustained throughput during probe", Tone = HtmlReportTone.Info },
-                new() { Eyebrow = "Failures", Value = $"{perf.LoadTesting.ErrorRate:F2}%", Label = "Error Rate", SupportingText = "Target ≤ 1%", Tone = MapErrorRateTone(perf.LoadTesting.ErrorRate) }
+                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.AverageResponseTimeMs:F1} ms", Label = "Average Latency", SupportingText = "Observed request mean", Tone = HtmlReportTone.Neutral },
+                new() { Eyebrow = "Latency", Value = $"{perf.LoadTesting.P95ResponseTimeMs:F1} ms", Label = "95th-Percentile Latency", SupportingText = "Recorded 95th percentile", Tone = HtmlReportTone.Neutral },
+                new() { Eyebrow = "Throughput", Value = $"{perf.LoadTesting.RequestsPerSecond:F2}", Label = "Requests / Second", SupportingText = "Recorded requests per second", Tone = HtmlReportTone.Neutral },
+                new() { Eyebrow = "Failures", Value = $"{perf.LoadTesting.ErrorRate:F2}%", Label = "Error Rate", SupportingText = "Observed failure percentage", Tone = HtmlReportTone.Neutral }
             };
             sb.AppendLine(RenderMetricFacts(cards));
+            sb.AppendLine("<p class=\"evidence-note\">These measurements describe the recorded workload. No latency or error-rate service target is inferred by this report.</p>");
             sb.AppendLine($"          <div class=\"evidence-note\">Requests: {perf.LoadTesting.SuccessfulRequests}/{perf.LoadTesting.TotalRequests} successful.</div>");
             if (perf.LoadTesting.PressureSignalsObserved)
             {
@@ -2372,35 +2340,5 @@ internal sealed class ValidationHtmlReportComposer
         }
 
         return char.ToUpperInvariant(authority[0]) + authority[1..].ToLowerInvariant();
-    }
-
-    private static HtmlReportTone MapErrorRateTone(double errorRate)
-    {
-        if (errorRate <= 1)
-        {
-            return HtmlReportTone.Success;
-        }
-
-        if (errorRate <= 5)
-        {
-            return HtmlReportTone.Warning;
-        }
-
-        return HtmlReportTone.Danger;
-    }
-
-    private static double InvertLatencyToScore(double latencyMs, double idealThreshold, double softThreshold)
-    {
-        if (latencyMs <= idealThreshold)
-        {
-            return 95;
-        }
-
-        if (latencyMs <= softThreshold)
-        {
-            return 72;
-        }
-
-        return 38;
     }
 }
