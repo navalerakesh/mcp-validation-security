@@ -63,6 +63,8 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {ReportContextFormatter.FormatOperationalMetric(operations.ThroughputRequestsPerSecond, operations.TotalRunDurationMs > 0, "F2", "requests/second")} |");
             sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {ReportContextFormatter.FormatOperationalMetric(operations.ErrorRate, operations.RequestsCompleted > 0, "P1")} aggregate failure rate |");
             sb.AppendLine($"| **Budget / Rejected Responses** | {operations.RequestBudgetLimit} / {operations.TruncatedResponseCount} |");
+            if (operations.CatalogPayloadCharacterLimit != null || operations.CatalogPayloadCharactersReserved != null)
+                sb.AppendLine($"| **Catalog Payload Budget** | {ReportContextFormatter.FormatCatalogBudget(operations)} |");
             sb.AppendLine($"| **Operational Evidence Coverage** | {operations.EvidenceCoverageRatio:P1} |");
         }
         sb.AppendLine($"| **Transport** | {result.ServerConfig.Transport?.ToUpper() ?? "HTTP"} |");

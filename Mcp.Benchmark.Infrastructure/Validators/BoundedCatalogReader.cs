@@ -43,6 +43,12 @@ internal static class BoundedCatalogReader
                 yield break;
             }
             var raw = response.RawJson;
+            if (!ValidationCatalogBudget.TryReserve(raw?.Length ?? 0))
+            {
+                evidence.Termination = CatalogEnumerationTermination.BudgetExceeded;
+                issues.Add("Run-wide catalog payload budget exhausted; previously collected evidence remains available.");
+                yield break;
+            }
             payloadCharacters += raw?.Length ?? 0;
             evidence.PayloadCharactersObserved = payloadCharacters;
             if (payloadCharacters > CatalogEnumerationLimits.MaximumPayloadCharacters)

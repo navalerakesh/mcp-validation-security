@@ -11,6 +11,11 @@ public sealed class ValidationOperationalMetrics
 
     public int RequestBudgetLimit { get; init; }
 
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? CatalogPayloadCharactersReserved { get; set; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public long? CatalogPayloadCharacterLimit { get; set; }
+
     public int RequestsStarted { get; init; }
 
     public int RequestsCompleted { get; init; }
@@ -51,6 +56,10 @@ public sealed class ValidationOperationalMetrics
     public ValidatorProcessResourceMetrics? ValidatorProcessResources { get; set; }
 
     public IReadOnlyDictionary<string, double> StageDurationMs { get; init; } = new SortedDictionary<string, double>(StringComparer.Ordinal);
+
+    public static bool IsValidCatalogBudget(long? reserved, long? limit) =>
+        reserved == null && limit == null || reserved is >= 0 &&
+        limit is > 0 and <= Constants.ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters && reserved <= limit;
 
     public ValidationOperationalMetrics CloneWithoutSecrets()
     {

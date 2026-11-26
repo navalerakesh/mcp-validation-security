@@ -9,6 +9,38 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public sealed class AssuranceAssessmentEngineTests
 {
     [Theory]
+    [InlineData(true, false, false, AssuranceRequirementLevel.May)]
+    [InlineData(true, true, false, AssuranceRequirementLevel.Policy)]
+    [InlineData(false, false, false, AssuranceRequirementLevel.Policy)]
+    [InlineData(true, false, true, AssuranceRequirementLevel.Policy)]
+    public void Project_ExternalCoverage_ShouldPreserveVerifiedScoringDisposition(bool verified, bool required, bool unknownScope,
+        AssuranceRequirementLevel expected)
+    {
+        var result = new ValidationResult();
+        result.Assessments.OfficialConformance = CreateOfficialConformance(
+            verified ? OfficialConformanceVerificationStatus.Verified : OfficialConformanceVerificationStatus.Unverified,
+            [new OfficialConformanceScenarioAssessment
+            {
+                ScenarioId = "fixture", ScoringDisposition = required ? OfficialConformanceScoringDisposition.Required : OfficialConformanceScoringDisposition.NotScored,
+                Checks = [new OfficialConformanceCheckAssessment
+                {
+                    Id = "check", SourceIndex = 0, Name = "Fixture", Description = "Observed failure", Status = OfficialConformanceCheckStatus.Failure
+                }]
+            }]);
+        result.Evidence.Coverage.Add(new ValidationCoverageDeclaration
+        {
+            LayerId = "official-conformance",
+            Scope = OfficialConformanceContract.GetCheckEvidenceId(unknownScope ? "unknown" : "fixture", "check", 0),
+            Lane = EvaluationLane.ExternalConformance, Origin = EvidenceOrigin.ExternalConformanceCheck,
+            Status = ValidationCoverageStatus.Covered, ObservedOutcome = ValidationOutcome.Failed
+        });
+        var claim = AssuranceClaimProjector.Project(result).Single(claim => claim.ClaimId.StartsWith("coverage:", StringComparison.Ordinal));
+        claim.RequirementLevel.Should().Be(expected);
+        claim.Outcome.Should().Be(AssuranceClaimOutcome.Violated);
+        result.Evidence.Coverage.Single().ObservedOutcome.Should().Be(ValidationOutcome.Failed);
+    }
+
+    [Theory]
     [InlineData(OfficialConformanceCheckStatus.Success, AssuranceApplicability.Applicable, false, true, true, AssuranceClaimOutcome.Satisfied)]
     [InlineData(OfficialConformanceCheckStatus.Failure, AssuranceApplicability.Applicable, false, true, false, AssuranceClaimOutcome.Violated)]
     [InlineData(OfficialConformanceCheckStatus.Failure, AssuranceApplicability.NotApplicable, false, true, true, AssuranceClaimOutcome.Violated)]

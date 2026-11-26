@@ -13,6 +13,43 @@ namespace Mcp.Benchmark.Tests.Unit.Core;
 /// </summary>
 public class CoreModelTests
 {
+    [Theory]
+    [InlineData(1)]
+    [InlineData(4)]
+    [InlineData(32)]
+    public void RequestBudget_ShouldAdmitExactlyTheConfiguredNumberAcrossConcurrentCallers(int limit)
+    {
+        var admitted = 0;
+        var rejected = 0;
+        Parallel.For(0, 256, _ =>
+        {
+            try { Mcp.Benchmark.Core.Services.ValidationRequestBudget.Admit(ref admitted, limit); }
+            catch (Mcp.Benchmark.Core.Exceptions.OperationAdmissionException) { Interlocked.Increment(ref rejected); }
+        });
+        admitted.Should().Be(limit);
+        rejected.Should().Be(256 - limit);
+    }
+
+    [Fact]
+    public void RequestBudget_ShouldNotOverflowOrIncrementAfterExhaustion()
+    {
+        var admitted = int.MaxValue - 1;
+        Mcp.Benchmark.Core.Services.ValidationRequestBudget.Admit(ref admitted, int.MaxValue);
+        var exhausted = () => Mcp.Benchmark.Core.Services.ValidationRequestBudget.Admit(ref admitted, int.MaxValue);
+        exhausted.Should().Throw<Mcp.Benchmark.Core.Exceptions.OperationAdmissionException>();
+        admitted.Should().Be(int.MaxValue);
+        foreach (var invalid in new[] { 0, -1 })
+        {
+            var reject = () => Mcp.Benchmark.Core.Services.ValidationRequestBudget.Admit(ref admitted, invalid);
+            reject.Should().Throw<ArgumentOutOfRangeException>();
+            admitted.Should().Be(int.MaxValue);
+        }
+        admitted = -1;
+        var invalidCount = () => Mcp.Benchmark.Core.Services.ValidationRequestBudget.Admit(ref admitted, 1);
+        invalidCount.Should().Throw<InvalidOperationException>();
+        admitted.Should().Be(-1);
+    }
+
     // ─── ValidationResult ────────────────────────────────────────────
     [Fact]
     public void ValidationResult_Duration_ShouldCalculateFromStartEnd()
@@ -124,9 +161,14 @@ public class CoreModelTests
                     {
                         RawJson = canary,
                         Error = canary,
+                        RequestState = canary,
+                        InputRequestCount = 2,
+                        ResultType = McpResultType.InputRequired,
                         Headers = new Dictionary<string, string> { ["Authorization"] = canary },
                         ProbeContext = new ProbeContext { Reason = canary, Metadata = new Dictionary<string, string> { ["raw"] = canary } }
-                    }
+                    },
+                    ResourceListResponse = new Mcp.Benchmark.Core.Models.JsonRpcResponse { RequestState = canary },
+                    PromptListResponse = new Mcp.Benchmark.Core.Models.JsonRpcResponse { RequestState = canary }
                 }
             },
             BootstrapHealth = new HealthCheckResult
@@ -194,11 +236,20 @@ public class CoreModelTests
             }
         };
 
-        var serialized = JsonSerializer.Serialize(result.CloneWithoutSecrets());
+        var clone = result.CloneWithoutSecrets();
+        var serialized = JsonSerializer.Serialize(clone);
 
         serialized.Should().NotContain(canary);
         serialized.Should().NotContain("Set-Cookie");
         serialized.Should().NotContain("Authorization");
+        clone.CapabilitySnapshot!.Payload!.ToolListResponse!.RequestState.Should().BeNull();
+        clone.CapabilitySnapshot.Payload.ResourceListResponse!.RequestState.Should().BeNull();
+        clone.CapabilitySnapshot.Payload.PromptListResponse!.RequestState.Should().BeNull();
+        clone.CapabilitySnapshot.Payload.ToolListResponse.InputRequestCount.Should().Be(2);
+        clone.CapabilitySnapshot.Payload.ToolListResponse.ResultType.Should().Be(McpResultType.InputRequired);
+        result.CapabilitySnapshot!.Payload!.ToolListResponse!.RequestState.Should().Be(canary);
+        result.CapabilitySnapshot.Payload.ResourceListResponse!.RequestState.Should().Be(canary);
+        result.CapabilitySnapshot.Payload.PromptListResponse!.RequestState.Should().Be(canary);
     }
 
     [Fact]
@@ -276,6 +327,64 @@ public class CoreModelTests
             captured.Should().ContainSingle();
             captured["owned-tool"].GetProperty("value").GetString().Should().Be("original");
         }
+    }
+
+    [Theory]
+    [InlineData("valid", true)]
+    [InlineData("state-only", true)]
+    [InlineData("missing-response", false)]
+    [InlineData("extra-response", false)]
+    [InlineData("unsupported-method", false)]
+    [InlineData("duplicate-request", false)]
+    [InlineData("empty-plan", false)]
+    [InlineData("too-many-rounds", false)]
+    [InlineData("undefined", false)]
+    [InlineData("null-round", false)]
+    [InlineData("request-array", false)]
+    [InlineData("response-array", false)]
+    public void SyntheticToolInputCapture_ShouldRequireFiniteExactPrivatePlans(string variation, bool valid)
+    {
+        var requests = """{"roots":{"method":"roots/list"}}""";
+        var responses = """{"roots":{"roots":[{"uri":"file:///synthetic-private-root"}]}}""";
+        if (variation == "state-only") { requests = "{}"; responses = "{}"; }
+        if (variation == "missing-response") responses = "{}";
+        if (variation == "extra-response") responses = """{"roots":{},"extra":{}}""";
+        if (variation == "unsupported-method") requests = """{"roots":{"method":"tools/call"}}""";
+        if (variation == "duplicate-request") requests = """{"roots":{"method":"roots/list"},"roots":{"method":"roots/list"}}""";
+        if (variation == "request-array") requests = "[]";
+        if (variation == "response-array") responses = "[]";
+        var round = new ToolClientInputRound
+        {
+            ExpectedRequests = JsonDocument.Parse(requests).RootElement.Clone(),
+            Responses = JsonDocument.Parse(responses).RootElement.Clone()
+        };
+        if (variation == "undefined") round.Responses = default;
+        var scenario = new ToolTestScenario { ToolName = "owned", ClientInputRounds = [round] };
+        if (variation == "null-round") scenario.ClientInputRounds = [null!];
+        if (variation == "empty-plan") scenario.ClientInputRounds.Clear();
+        if (variation == "too-many-rounds") scenario.ClientInputRounds = Enumerable.Repeat(round, 9).ToList();
+        var config = new ToolTestingConfig { CustomScenarios = [scenario] };
+        var capture = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CaptureScenarios(config);
+        if (!valid) { capture.Should().Throw<ArgumentException>().Which.Message.Should().NotBeNullOrWhiteSpace(); return; }
+        var captured = capture()["owned"];
+        round.Responses = JsonDocument.Parse("{}").RootElement.Clone();
+        scenario.ClientInputRounds.Clear();
+        captured.ClientInputRounds.Should().ContainSingle();
+        captured.ClientInputRounds[0].Responses.GetRawText().Should().Be(responses);
+        var configuration = new McpValidatorConfiguration();
+        configuration.Validation.Categories.ToolTesting.CustomScenarios.Add(new ToolTestScenario
+        {
+            ToolName = "owned", ClientInputRounds = [new ToolClientInputRound
+            { ExpectedRequests = captured.ClientInputRounds[0].ExpectedRequests, Responses = captured.ClientInputRounds[0].Responses }]
+        });
+        configuration.CloneWithoutSecrets().Validation.Categories.ToolTesting.CustomScenarios[0].ClientInputRounds.Should().BeNull();
+        JsonSerializer.Serialize(configuration.CloneWithoutSecrets()).Should().NotContain("synthetic-private-root");
+        var run = ValidationRunRequest.Capture(configuration);
+        configuration.Validation.Categories.ToolTesting.CustomScenarios[0].ClientInputRounds!.Clear();
+        run.CreateConfiguration().Validation.Categories.ToolTesting.CustomScenarios[0].ClientInputRounds.Should().ContainSingle();
+        configuration = run.CreateConfiguration();
+        var unsupportedDispatch = () => Mcp.Benchmark.Core.Services.ToolScenarioInputs.CapturePositiveScenarios(configuration.Validation.Categories.ToolTesting);
+        unsupportedDispatch.Should().Throw<ArgumentException>().WithMessage("*Argument-only capture cannot discard*");
     }
 
     [Fact]

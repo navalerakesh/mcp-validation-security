@@ -208,6 +208,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 await SendInitializedNotificationCoreAsync(cancellationToken);
             }
 
+            AdmitOutboundMessage(method, cancellationToken);
             ValidationObservability.RecordRequestStarted(method);
             requestStopwatch = Stopwatch.StartNew();
             await serverProcess.StandardInput.WriteLineAsync(json.AsMemory(), cancellationToken);
@@ -275,6 +276,15 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 requestRecorded = true;
                 ModernResultSemantics.Apply(rpcResponse, protocolVersion, method);
                 return rpcResponse;
+        }
+        catch (OperationAdmissionException ex) when (requestStopwatch == null)
+        {
+            return new ValidatorJsonRpcResponse
+            {
+                StatusCode = -1, IsSuccess = false, Error = ex.Message,
+                ProbeContext = CreateProbeContext(method, requestId, -1, false, ex.Message, protocolVersion,
+                    ProbeResponseClassification.PolicyBlocked)
+            };
         }
         catch (OperationCanceledException)
         {
@@ -427,6 +437,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 result.ActualOutcome = "STDIO session requires an explicit restart after an incomplete or replaced exchange.";
                 return result;
             }
+            AdmitOutboundMessage("rpc.timeout.probe", cancellationToken, activeProbe: true);
             ValidationObservability.RecordRequestStarted("timeout-probe");
             result.Executed = true;
             var sw = Stopwatch.StartNew();
@@ -459,7 +470,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         catch
         {
-            _sessionUncertain = true;
+            if (result.Executed) _sessionUncertain = true;
             throw;
         }
         finally
@@ -669,7 +680,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         await WaitForObservedLockAsync(cancellationToken);
         var requestStopwatch = Stopwatch.StartNew();
         var requestSucceeded = false;
-        ValidationObservability.RecordRequestStarted("raw-json");
+        var requestStarted = false;
         try
         {
             if (_sessionUncertain || !ReferenceEquals(serverProcess, _serverProcess))
@@ -679,6 +690,9 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                     Error = "STDIO session requires an explicit restart after an incomplete or replaced exchange.",
                     ProbeContext = CreateProbeContext(method, requestId, -1, false, "STDIO session is not available for this request.", protocolVersion)
                 };
+            AdmitOutboundMessage(method, cancellationToken, activeProbe: true);
+            ValidationObservability.RecordRequestStarted("raw-json");
+            requestStarted = true;
             await serverProcess.StandardInput.WriteLineAsync(rawJson.AsMemory(), cancellationToken);
             await serverProcess.StandardInput.FlushAsync();
 
@@ -696,13 +710,14 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         catch
         {
-            _sessionUncertain = true;
+            if (requestStarted) _sessionUncertain = true;
             throw;
         }
         finally
         {
             requestStopwatch.Stop();
-            ValidationObservability.RecordRequestCompleted("raw-json", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
+            if (requestStarted)
+                ValidationObservability.RecordRequestCompleted("raw-json", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
             _lock.Release();
         }
     }
@@ -772,12 +787,15 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         await WaitForObservedLockAsync(cancellationToken);
         var requestStopwatch = Stopwatch.StartNew();
         var requestSucceeded = false;
-        ValidationObservability.RecordRequestStarted("message-exchange");
+        var requestStarted = false;
         try
         {
             if (_sessionUncertain || !ReferenceEquals(serverProcess, _serverProcess))
                 return CreateUnavailableStdioProbeResponse(request, "STDIO session requires an explicit restart after an incomplete or replaced exchange.");
             var sw = Stopwatch.StartNew();
+            AdmitOutboundMessage(method, cancellationToken, activeProbe: true);
+            ValidationObservability.RecordRequestStarted("message-exchange");
+            requestStarted = true;
             await serverProcess.StandardInput.WriteLineAsync(request.RawMessage.AsMemory(), cancellationToken);
             await serverProcess.StandardInput.FlushAsync();
 
@@ -816,13 +834,14 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         catch
         {
-            _sessionUncertain = true;
+            if (requestStarted) _sessionUncertain = true;
             throw;
         }
         finally
         {
             requestStopwatch.Stop();
-            ValidationObservability.RecordRequestCompleted("message-exchange", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
+            if (requestStarted)
+                ValidationObservability.RecordRequestCompleted("message-exchange", requestStopwatch.Elapsed.TotalMilliseconds, requestSucceeded);
             _lock.Release();
         }
     }
@@ -953,12 +972,14 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         if (_executionPolicy.Mode == ExecutionMode.Safe && activeProbe || !McpOperationAdmission.IsAllowed(_executionPolicy, method))
             throw new OperationAdmissionException("Execution policy did not admit this operation; request was not sent.");
+    }
 
-        var requestNumber = Interlocked.Increment(ref _requestCount);
-        if (requestNumber > _executionPolicy.MaxRequests)
-        {
-            throw new OperationAdmissionException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
-        }
+    private void AdmitOutboundMessage(string? method, CancellationToken cancellationToken, bool activeProbe = false)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        EnforceExecutionPolicy(method, activeProbe);
+        if (_executionPolicy == null) return;
+        ValidationRequestBudget.Admit(ref _requestCount, _executionPolicy.MaxRequests);
     }
 
     private async Task<(ValidatorJsonRpcResponse? Response, double Duration)> ProbeJsonRpcAsync(string endpoint, string method, CancellationToken cancellationToken)
@@ -1105,8 +1126,21 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             method = McpSpecConstants.InitializedNotification
         }, _jsonOptions);
 
-        await _serverProcess.StandardInput.WriteLineAsync(notificationJson.AsMemory(), cancellationToken);
-        await _serverProcess.StandardInput.FlushAsync();
+        AdmitOutboundMessage(McpSpecConstants.InitializedNotification, cancellationToken);
+        ValidationObservability.RecordRequestStarted(McpSpecConstants.InitializedNotification);
+        var stopwatch = Stopwatch.StartNew();
+        var written = false;
+        try
+        {
+            await _serverProcess.StandardInput.WriteLineAsync(notificationJson.AsMemory(), cancellationToken);
+            await _serverProcess.StandardInput.FlushAsync();
+            written = true;
+        }
+        finally
+        {
+            stopwatch.Stop();
+            ValidationObservability.RecordRequestCompleted(McpSpecConstants.InitializedNotification, stopwatch.Elapsed.TotalMilliseconds, written);
+        }
 
         var unexpectedResponse = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromMilliseconds(100), cancellationToken);
         if (!string.IsNullOrWhiteSpace(unexpectedResponse))
@@ -1468,6 +1502,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
 
     private async Task<string?> ReadLineWithTimeoutAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
+        if (timeout <= TimeSpan.Zero) return null;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
 

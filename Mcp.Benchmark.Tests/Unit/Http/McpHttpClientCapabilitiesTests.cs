@@ -609,6 +609,32 @@ public class McpHttpClientCapabilitiesTests
         ValidationOutcomeTaxonomy.From(context!.ResponseClassification).Should().Be(ValidationOutcome.Blocked);
     }
 
+    [Fact]
+    public async Task RejectedTarget_ShouldNotConsumeTheDirectClientOutboundBudget()
+    {
+        var requests = 0;
+        using var http = new HttpClient(new RoutingHandler(request =>
+        {
+            requests++;
+            return CreateCorrelatedJsonResponse(request, "{\"jsonrpc\":\"2.0\",\"result\":{}}");
+        }));
+        using var client = new McpHttpClient(http, Mock.Of<ILogger<McpHttpClient>>(), Mock.Of<IMcpClient>());
+        client.ConfigureExecutionPolicy(new ExecutionPolicy
+        {
+            Mode = ExecutionMode.Standard, AllowedHosts = ["example.test"], AllowPrivateAddresses = true, MaxRequests = 1
+        });
+        using var telemetry = Mcp.Benchmark.Core.Services.ValidationObservability.BeginRun("direct-budget", 1);
+        var denied = await client.CallAsync("https://outside.test/mcp", "tools/list");
+        denied.ProbeContext!.ResponseClassification.Should().Be(ProbeResponseClassification.PolicyBlocked);
+        var admitted = await client.CallAsync("https://example.test/mcp", "tools/list");
+        admitted.IsSuccess.Should().BeTrue();
+        requests.Should().Be(1);
+        var metrics = telemetry.Complete(1);
+        metrics.RequestsStarted.Should().Be(1);
+        metrics.RequestsCompleted.Should().Be(1);
+        metrics.RequestsFailed.Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

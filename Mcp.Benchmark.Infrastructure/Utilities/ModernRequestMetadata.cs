@@ -2,6 +2,7 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Utilities;
@@ -30,7 +31,9 @@ internal static class ModernRequestMetadata
               ?? throw new InvalidOperationException("Modern MCP request parameters must serialize as a JSON object.");
         var metadata = root["_meta"] as JsonObject ?? new JsonObject();
         metadata[ProtocolVersionKey] = protocolVersion;
-        metadata[ClientCapabilitiesKey] = new JsonObject();
+        metadata[ClientCapabilitiesKey] = parameters is IClientInputCapabilities { ClientCapabilities: { } capabilities }
+            ? JsonSerializer.SerializeToNode(capabilities, serializerOptions)
+            : new JsonObject();
         metadata[ClientInfoKey] = new JsonObject
         {
             ["name"] = ValidationConstants.Product.ClientName,

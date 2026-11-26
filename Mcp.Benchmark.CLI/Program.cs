@@ -69,7 +69,7 @@ internal class Program
                     ShowCliName();
                     ShowCliDescriptionText();
                 }
-                return await CreateLightweightRootCommand().Parse(args).InvokeAsync();
+                return await CreateRootCommand(new InvocationServiceProvider()).Parse(args.Length == 0 ? ["--help"] : args).InvokeAsync();
             }
 
             if (args.Length == 1 && args[0] == "--version")
@@ -79,7 +79,7 @@ internal class Program
             }
 
             if (args.FirstOrDefault() == "config-schema")
-                return await CreateLightweightRootCommand().Parse(args).InvokeAsync();
+                return await CreateRootCommand(new InvocationServiceProvider()).Parse(args.Length == 0 ? ["--help"] : args).InvokeAsync();
 
             // Full path: build DI container only when actually running a command
             var sessionContext = McpHost.CreateSession();
@@ -202,88 +202,50 @@ internal class Program
         CliTheme.ShowDescription();
     }
 
-    /// <summary>
-    /// Creates a lightweight root command for --help rendering only.
-    /// No DI container, no service registration — just the command tree with descriptions.
-    /// </summary>
-    private static RootCommand CreateLightweightRootCommand()
-    {
-        var root = new RootCommand("MCP Validator — validate MCP servers for compliance, security, and AI safety");
-
-        var validate = new Command("validate", "Validate an MCP server for compliance, security, and AI safety");
-        validate.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint (URL or STDIO command)" });
-        validate.Options.Add(new Option<string>("--output", "-o") { Description = "Output directory for reports" });
-        validate.Options.Add(new Option<string>("--mcpspec") { Description = "Target MCP spec profile (e.g., latest, 2025-11-25)" });
-        validate.Options.Add(new Option<string>("--protocol-era") { Description = "Protocol era selection: auto, legacy, modern" });
-        validate.Options.Add(new Option<string>("--access") { Description = "Access intent: public, authenticated, enterprise" });
-        validate.Options.Add(new Option<string>("--risk-context") { Description = "Content safety context: public-unauthenticated, public-authenticated, enterprise-governed, local-developer, ci-only, internal" });
-        validate.Options.Add(new Option<string>("--policy") { Description = "Validation policy mode: advisory, balanced, strict" });
-        validate.Options.Add(new Option<string>("--assurance") { Description = "Assurance profile: comprehensive (default), inventory, ci, provider" });
-        validate.Options.Add(new Option<string>("--baseline") { Description = "Prior canonical result JSON used for regression comparison" });
-        validate.Options.Add(new Option<string>("--conformance-results") { Description = "Pinned official conformance evidence wrapper JSON" });
-        validate.Options.Add(new Option<string>("--provider-harness") { Description = "Signed provider harness manifest JSON" });
-        validate.Options.Add(new Option<string>("--provider-authorization-key") { Description = "Operator-trusted provider authorization public key PEM" });
-        var extensionOption = new Option<string[]>("--extension") { Description = "MCP extension ID to assess. Repeat to select more than one extension." };
-        extensionOption.AllowMultipleArgumentsPerToken = true;
-        validate.Options.Add(extensionOption);
-        validate.Options.Add(new Option<bool>("--regression-only") { Description = "Block only regressions relative to --baseline" });
-        validate.Options.Add(new Option<string>("--output-format") { Description = "Console output format: human, json" });
-        validate.Options.Add(new Option<bool>("--sign-attestation") { Description = "Sign canonical JSON using MCPVAL_ATTESTATION_PRIVATE_KEY_PEM" });
-        var clientProfileOption = new Option<string[]>("--client-profile", "--client-profiles") { Description = BuildClientProfileOptionDescription() };
-        clientProfileOption.AllowMultipleArgumentsPerToken = true;
-        validate.Options.Add(clientProfileOption);
-        validate.Options.Add(new Option<string>("--mode") { Description = "Execution mode: safe, standard, elevated" });
-        validate.Options.Add(new Option<bool>("--dry-run") { Description = "Print the execution plan and exit without contacting the target" });
-        var allowHostOption = new Option<string[]>("--allow-host") { Description = "Allowed outbound host. Repeat to permit more than one host." };
-        allowHostOption.AllowMultipleArgumentsPerToken = true;
-        validate.Options.Add(allowHostOption);
-        var allowOriginOption = new Option<string[]>("--allow-origin") { Description = "Allowed HTTP origin (scheme, host, and optional port). Repeat to permit more than one origin." };
-        allowOriginOption.AllowMultipleArgumentsPerToken = true;
-        validate.Options.Add(allowOriginOption);
-        validate.Options.Add(new Option<bool>("--allow-private-addresses") { Description = "Allow loopback or private network addresses" });
-        validate.Options.Add(new Option<int?>("--max-requests") { Description = $"Maximum outbound requests allowed for the run (default: {ExecutionPolicyDefaults.DefaultMaxRequests})" });
-        validate.Options.Add(new Option<int?>("--timeout") { Description = "Per-request timeout budget in seconds" });
-        validate.Options.Add(new Option<string>("--persistence-mode") { Description = "Persistence mode: ephemeral, explicit-output, session" });
-        validate.Options.Add(new Option<string>("--redact-level") { Description = "Operational redaction level: strict, standard" });
-        validate.Options.Add(new Option<string>("--trace") { Description = "Trace mode: off, redacted, full" });
-        validate.Options.Add(new Option<bool>("--confirm-elevated-risk") { Description = "Acknowledge elevated-risk execution before the run starts" });
-        validate.Options.Add(new Option<bool>("--enable-model-eval") { Description = "Emit an advisory model-evaluation companion artifact when configured" });
-        validate.Options.Add(new Option<string>("--token", "-t") { Description = "Bearer token for authentication" });
-        validate.Options.Add(new Option<bool>("--interactive", "-i") { Description = "Allow interactive authentication" });
-        validate.Options.Add(new Option<int?>("--max-concurrency") { Description = $"Maximum in-flight HTTP requests (default: {ExecutionPolicyDefaults.DefaultMaxConcurrency}, maximum: {ExecutionPolicyDefaults.MaximumConcurrency})" });
-
-        var health = new Command("health-check", "Quick connectivity check on an MCP server");
-        health.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint" });
-
-        var discover = new Command("discover", "Discover MCP server capabilities and features");
-        discover.Options.Add(new Option<string>("--server", "-s") { Description = "MCP server endpoint" });
-
-        var report = new Command("report", "Generate reports from previous validation results");
-        report.Options.Add(new Option<string>("--input", "-i") { Description = "Input validation results file" });
-        report.Options.Add(new Option<string>("--format", "-f") { Description = "Report format: html, xml, sarif, junit" });
-
-        root.Subcommands.Add(validate);
-        root.Subcommands.Add(health);
-        root.Subcommands.Add(discover);
-        root.Subcommands.Add(report);
-        root.Subcommands.Add(CreateConfigurationSchemaCommand());
-
-        var verboseOpt = new Option<bool>("--verbose", "-v") { Description = "Enable verbose output", Recursive = true };
-        var configOpt = new Option<string>("--config", "-c") { Description = "Path to configuration file", Recursive = true };
-        var listSpecOpt = new Option<bool>("--list-spec-profiles") { Description = "List supported MCP spec profiles", Recursive = true };
-        root.Options.Add(verboseOpt);
-        root.Options.Add(configOpt);
-        root.Options.Add(listSpecOpt);
-
-        return root;
-    }
-
     private static Command CreateConfigurationSchemaCommand()
     {
         var command = new Command("config-schema", "Write the supported configuration JSON schema without contacting a target");
-        command.SetAction(_ =>
+        var commandsOption = new Option<bool>("--commands") { Description = "Write the generated CLI option manifest instead of the configuration schema" };
+        command.Options.Add(commandsOption);
+        command.SetAction(parseResult =>
         {
-            Console.WriteLine(BoundedArtifactReader.CreateConfigurationSchema().ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+            if (parseResult.GetValue(commandsOption))
+            {
+                var root = CreateRootCommand(new InvocationServiceProvider());
+                object DescribeOption(Option option, ParseResult defaults) => new
+                {
+                    name = option.Name,
+                    aliases = option.Aliases.Order(StringComparer.Ordinal).ToArray(),
+                    type = option.ValueType.FullName,
+                    required = option.Required,
+                    allowMultipleArgumentsPerToken = option.AllowMultipleArgumentsPerToken,
+                    arity = new { minimum = option.Arity.MinimumNumberOfValues, maximum = option.Arity.MaximumNumberOfValues },
+                    hasCommandDefault = option.HasDefaultValue,
+                    defaultValue = option.Name == "--token" || !option.HasDefaultValue ? null : defaults.GetResult(option)?.GetValueOrDefault<object>(),
+                    secrecy = option.Name == "--token" ? "transient-secret" : "operator-input",
+                    description = option.Description
+                };
+                var commands = root.Subcommands.Select(item =>
+                {
+                    var defaults = root.Parse([item.Name]);
+                    return new
+                    {
+                        name = item.Name,
+                        description = item.Description,
+                        options = item.Options.Concat(root.Options.Where(option => option.Recursive)).DistinctBy(option => option.Name)
+                            .Select(option => DescribeOption(option, defaults)).ToArray()
+                    };
+                }).ToArray();
+                Console.WriteLine(JsonSerializer.Serialize(new
+                {
+                    documentType = ArtifactContracts.CommandManifestDocumentType, documentSchemaVersion = ArtifactContracts.CommandManifestSchemaVersion,
+                    precedence = "Explicit CLI input overrides configuration/profile/default values; invocation governance can further restrict authority.",
+                    validation = "The execution command parser and configuration admission remain authoritative.",
+                    rootOptions = root.Options.Select(option => DescribeOption(option, root.Parse([]))).ToArray(),
+                    commands
+                }, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            else Console.WriteLine(BoundedArtifactReader.CreateConfigurationSchema().ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
             return 0;
         });
         return command;

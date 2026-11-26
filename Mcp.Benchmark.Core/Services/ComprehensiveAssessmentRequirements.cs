@@ -34,8 +34,13 @@ public static class ComprehensiveAssessmentRequirements
                     errors.Add("Target-memory assessment requires an operator-owned observer; this build has no target-memory observer admission contract.");
                 if (category is ToolTestingConfig tools)
                 {
-                    try { ToolScenarioInputs.CapturePositiveScenarios(tools); }
+                    try { ToolScenarioInputs.CaptureScenarios(tools); }
                     catch (ArgumentException exception) { errors.Add($"ToolTesting.CustomScenarios cannot be executed: {exception.Message}"); }
+                }
+                if (category is PromptTestingConfig prompts)
+                {
+                    try { ToolScenarioInputs.CapturePromptScenarios(prompts); }
+                    catch (ArgumentException exception) { errors.Add($"PromptTesting.CustomScenarios cannot be executed: {exception.Message}"); }
                 }
                 if (category is PerformanceTestingConfig { CustomScenarios.Count: > 0 })
                     errors.Add($"{categoryProperty.Name}.CustomScenarios cannot be executed by this build; comprehensive assessment cannot silently omit explicit requests.");

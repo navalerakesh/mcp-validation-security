@@ -68,6 +68,9 @@ jobs:
         working-directory: mcpval-mcp
         run: npm test
 
+      - name: Test artifact publication contracts
+        run: node --test scripts/tests/publish-action-artifacts.test.mjs
+
       - name: Build npm package
         working-directory: mcpval-mcp
         run: npm run build

@@ -20,7 +20,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
     private readonly ISchemaRegistry _schemaRegistry;
     private readonly IContentSafetyAnalyzer _contentSafetyAnalyzer;
 
-    public ResourceValidator(ILogger<ResourceValidator> logger, IMcpHttpClient httpClient, ISchemaValidator schemaValidator, ISchemaRegistry schemaRegistry, IContentSafetyAnalyzer contentSafetyAnalyzer) 
+    public ResourceValidator(ILogger<ResourceValidator> logger, IMcpHttpClient httpClient, ISchemaValidator schemaValidator, ISchemaRegistry schemaRegistry, IContentSafetyAnalyzer contentSafetyAnalyzer)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -53,7 +53,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesList, null, ct);
             }
-            
+
             // MCP spec allows both public and auth-protected servers
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
             if (authChallenge.RequiresAuthentication)
@@ -61,7 +61,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 result.Status = TestStatus.AuthRequired;
                 result.ResourcesDiscovered = 0;
                 result.Score = 0;
-                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
+                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader
                     ? "Auth required: server returned an authentication challenge; resource contents were not validated."
                     : "Auth required: server rejected resource discovery but did not include WWW-Authenticate metadata.");
                 return result;
@@ -75,7 +75,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 result.Issues.Add("✅ COMPLIANT: No resources were advertised; no resource reads were required");
                 return result;
             }
-            
+
             if (!response.IsSuccess)
             {
                 result.Status = TestStatus.Failed;
@@ -85,6 +85,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
             var rawJson = response.RawJson ?? "{}";
             result.CatalogEnumeration = new CatalogEnumerationEvidence();
+            result.DiscoveredResourceUris = [];
             var catalogTruncated = false;
             var maxResources = Math.Clamp(config.MaxResources, 1, CatalogEnumerationLimits.MaximumItems);
             {
@@ -124,6 +125,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     if (resource.TryGetProperty("uri", out var uriElement))
                     {
                         resourceResult.ResourceUri = uriElement.GetString() ?? "";
+                        result.DiscoveredResourceUris.Add(resourceResult.ResourceUri);
                     }
                     else
                     {
@@ -178,71 +180,102 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     }
 
                     // EXECUTION VALIDATION: resources/read
-                    if (config.TestResourceReading && resourceResult.MetadataValid && !string.IsNullOrEmpty(resourceResult.ResourceUri)) 
+                    if (config.TestResourceReading && resourceResult.MetadataValid && !string.IsNullOrEmpty(resourceResult.ResourceUri))
                     {
-                        try 
+                        try
                         {
                             var readStart = DateTime.UtcNow;
                             var readResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesRead, new { uri = resourceResult.ResourceUri }, serverConfig.Authentication, ct);
                             resourceResult.AccessTimeMs = (DateTime.UtcNow - readStart).TotalMilliseconds;
 
-                            if (readResponse.IsSuccess)
+                            resourceResult.Status = ContentExecutionEvidence.Assess(readResponse, serverConfig.ProtocolVersion, "contents");
+                            if (resourceResult.Status == TestStatus.Passed)
                             {
-                                resourceResult.AccessSuccessful = true;
-                                result.ResourcesAccessible++;
-                                
+
                                 // MCP Spec Compliance: Validate resources/read response structure
                                 using var readDoc = JsonDocument.Parse(readResponse.RawJson ?? "{}");
                                 if (readDoc.RootElement.TryGetProperty("result", out var readRes) &&
                                     readRes.TryGetProperty("contents", out var contents) &&
-                                    contents.ValueKind == JsonValueKind.Array && 
-                                    contents.GetArrayLength() > 0)
+                                    contents.ValueKind == JsonValueKind.Array)
                                 {
                                     resourceResult.Issues.Add("✅ Resource read: contents[] array present");
-                                    var firstContent = contents[0];
-
-                                    // Validate uri field (MUST per spec)
-                                    if (firstContent.TryGetProperty("uri", out var uriVal))
+                                    foreach (var firstContent in contents.EnumerateArray())
                                     {
-                                        if (string.IsNullOrEmpty(uriVal.GetString()))
-                                            resourceResult.Issues.Add("❌ MCP Compliance: contents[0].uri is empty (MUST be valid URI)");
-                                    }
-                                    else
-                                    {
-                                        resourceResult.AddFinding(new ValidationFinding
-                                        {
-                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
-                                            Category = "ProtocolCompliance",
-                                            Component = resourceResult.ResourceUri,
-                                            Severity = ValidationFindingSeverity.Critical,
-                                            Summary = "resources/read contents[0] missing 'uri' field",
-                                            Recommendation = "Return uri on each resource content item."
-                                        }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
-                                    }
 
-                                    if (firstContent.TryGetProperty("mimeType", out var mime)) 
-                                        resourceResult.MimeType = mime.GetString();
-
-                                    ValidateResourceReadContentItem(result, resourceResult, firstContent);
-                                    
-                                    // MUST have text OR blob
-                                    if (firstContent.TryGetProperty("text", out var text))
-                                        resourceResult.ContentSize = text.GetString()?.Length ?? 0;
-                                    else if (firstContent.TryGetProperty("blob", out var blob))
-                                        resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
-                                    else
-                                        resourceResult.AddFinding(new ValidationFinding
+                                        // Validate uri field (MUST per spec)
+                                        if (firstContent.TryGetProperty("uri", out var uriVal))
                                         {
-                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
-                                            Category = "ProtocolCompliance",
-                                            Component = resourceResult.ResourceUri,
-                                            Severity = ValidationFindingSeverity.Critical,
-                                            Summary = "resources/read contents[0] missing both text and blob",
-                                            Recommendation = "Return either text or blob in each resource content item."
-                                        }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                            if (uriVal.ValueKind != JsonValueKind.String || !HasAbsoluteUriScheme(uriVal.GetString() ?? string.Empty))
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource content URI is invalid.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            resourceResult.Status = TestStatus.Failed;
+                                            resourceResult.AddFinding(new ValidationFinding
+                                            {
+                                                RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
+                                                Category = "ProtocolCompliance",
+                                                Component = resourceResult.ResourceUri,
+                                                Severity = ValidationFindingSeverity.Critical,
+                                                Summary = "resources/read contents[0] missing 'uri' field",
+                                                Recommendation = "Return uri on each resource content item."
+                                            }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
+                                        }
+
+                                        if (firstContent.TryGetProperty("mimeType", out var mime))
+                                        {
+                                            if (mime.ValueKind == JsonValueKind.String) resourceResult.MimeType = mime.GetString();
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource content MIME type must be a string.");
+                                            }
+                                        }
+
+                                        ValidateResourceReadContentItem(result, resourceResult, firstContent);
+
+                                        // MUST have text OR blob
+                                        if (firstContent.TryGetProperty("text", out var text))
+                                        {
+                                            if (text.ValueKind == JsonValueKind.String) resourceResult.ContentSize = text.GetString()?.Length ?? 0;
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource text content must be a string.");
+                                            }
+                                        }
+                                        else if (firstContent.TryGetProperty("blob", out var blob))
+                                        {
+                                            if (blob.ValueKind == JsonValueKind.String) resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource blob content must be a string.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            resourceResult.Status = TestStatus.Failed;
+                                            resourceResult.AddFinding(new ValidationFinding
+                                            {
+                                                RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
+                                                Category = "ProtocolCompliance",
+                                                Component = resourceResult.ResourceUri,
+                                                Severity = ValidationFindingSeverity.Critical,
+                                                Summary = "resources/read contents[0] missing both text and blob",
+                                                Recommendation = "Return either text or blob in each resource content item."
+                                            }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                        }
+                                    }
+                                    resourceResult.AccessSuccessful = resourceResult.Status == TestStatus.Passed;
+                                    if (resourceResult.AccessSuccessful) result.ResourcesAccessible++;
                                 }
                                 else
                                 {
+                                    resourceResult.Status = TestStatus.Failed;
                                     resourceResult.AddFinding(new ValidationFinding
                                     {
                                         RuleId = ValidationFindingRuleIds.ResourceReadMissingContentArray,
@@ -258,13 +291,34 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             else
                             {
                                 resourceResult.AccessSuccessful = false;
-                                resourceResult.Issues.Add($"⚠️ Resource read failed: {readResponse.Error ?? readResponse.StatusCode.ToString()}");
+                                resourceResult.Issues.Add($"Resource retrieval did not establish completed content evidence ({resourceResult.Status}).");
                             }
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            resourceResult.Status = TestStatus.Cancelled;
+                            resourceResult.AccessSuccessful = false;
+                            throw;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            resourceResult.Status = TestStatus.Inconclusive;
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Issues.Add("Resource retrieval timed out before completed content evidence was available.");
+                        }
+                        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException)
+                        {
+                            resourceResult.Status = ex is JsonException ? TestStatus.Failed : TestStatus.Error;
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Issues.Add("Resource retrieval or content processing failed; private response details are not retained.");
+                            Logger.LogWarning("Resource content processing ended with {ExceptionType}", ex.GetType().Name);
                         }
                         catch (Exception ex)
                         {
-                            resourceResult.AccessSuccessful = false; 
-                            resourceResult.Issues.Add($"❌ Resource read exception: {ex.Message}");
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Status = TestStatus.Error;
+                            resourceResult.Issues.Add("Resource retrieval failed; private exception details are not retained.");
+                            Logger.LogError("Resource retrieval failed with {ExceptionType}", ex.GetType().Name);
                         }
                     }
                 }
@@ -295,18 +349,18 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} observed entries.");
             }
 
-                    // Schema-based validation of resources/list response shape (best-effort)
-                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
-                    if (SchemaValidationHelpers.TryValidateListResult(
-                    _schemaRegistry,
-                    _schemaValidator,
-                    protocolVersion,
-                    SchemaValidationHelpers.ListResourcesResultDefinition,
-                    rawJson,
-                    Logger,
-                    out var schemaValidationResult) &&
-                schemaValidationResult is not null &&
-                !schemaValidationResult.IsValid)
+            // Schema-based validation of resources/list response shape (best-effort)
+            var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
+            if (SchemaValidationHelpers.TryValidateListResult(
+            _schemaRegistry,
+            _schemaValidator,
+            protocolVersion,
+            SchemaValidationHelpers.ListResourcesResultDefinition,
+            rawJson,
+            Logger,
+            out var schemaValidationResult) &&
+        schemaValidationResult is not null &&
+        !schemaValidationResult.IsValid)
             {
                 var schemaErrors = schemaValidationResult.Errors ?? new List<string>();
                 var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(schemaValidationResult);
@@ -321,10 +375,10 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     result.Issues.Add($"   • {error}");
                 }
             }
-            
+
             if (result.Status != TestStatus.Failed)
             {
-                result.Status = result.ResourceResults.All(r => r.Status == TestStatus.Passed) ? TestStatus.Passed : TestStatus.Failed;
+                result.Status = ContentExecutionEvidence.Aggregate(result.ResourceResults.Select(resource => resource.Status));
             }
             if (!result.CatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
             {
@@ -485,7 +539,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Status = TestStatus.Failed;
             }
-            
+
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
@@ -497,7 +551,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Issues.Add($"⚠️ Resource validation found {result.Findings.Count} structured finding(s) across resources and templates");
             }
-            
+
             return result;
         }, cancellationToken);
     }

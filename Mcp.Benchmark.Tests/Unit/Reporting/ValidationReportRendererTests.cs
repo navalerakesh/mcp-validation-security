@@ -780,9 +780,9 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain(">Certificate Outcome</span>");
-        html.Should().Contain(">Core Conformance</span>");
-        html.Should().Contain(">Security Assurance</span>");
+        html.Should().Contain(">Certificate</span>");
+        html.Should().Contain(">Execution</span>");
+        html.Should().Contain(">Assurance</span>");
         html.Should().Contain("aria-label=\"Configured scope\"");
         html.Should().Contain(result.Assurance.CertificateEligibility.Status.ToString());
         html.Should().NotContain(">Trust Level</span>");
@@ -808,8 +808,8 @@ public class ValidationReportRendererTests
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
         html.Should().Contain("Inventory assessment evidence");
-        html.Should().Contain("Not issued by inventory profile");
-        html.Should().Contain("Selected profile: <strong>inventory</strong>");
+        html.Should().Contain("Profile does not issue certificates");
+        html.Should().Contain("inventory / " + AssuranceProfileCatalog.Inventory.Revision);
         html.Should().Contain("<div class=\"fact-item__value\">2025-06-18</div>");
         html.Should().NotContain("Assurance Requirements Not Met");
         html.Should().NotContain("Selected assurance profile is not satisfied");
@@ -902,7 +902,7 @@ public class ValidationReportRendererTests
         html.Should().Contain("Typed claim");
         html.Should().Contain("RFC 2119: MUST / SHOULD / MAY");
         html.Should().Contain("P50 / P95 / P99");
-        html.Should().Contain("section-abstract__label\">Priority 1</dt>");
+        html.Should().Contain("ledger-kicker\">Priority 1</div>");
         html.Should().NotContain("section-abstract__label\">P1</dt>");
     }
 
@@ -950,7 +950,9 @@ public class ValidationReportRendererTests
         decisionPosition.Should().BeGreaterThanOrEqualTo(0);
         decisionPosition.Should().BeLessThan(html.IndexOf("Terms And Abbreviations", StringComparison.Ordinal));
         html.Should().Contain("<h2>Terms And Abbreviations</h2>");
-        html.Should().NotContain("<details");
+        html.IndexOf("id=\"method-and-provenance\"", StringComparison.Ordinal).Should()
+            .BeLessThan(html.IndexOf("id=\"recorded-claims\"", StringComparison.Ordinal));
+        html.Should().Contain("<details class=\"assessment-reference\"");
     }
 
     [Fact]
@@ -1076,7 +1078,7 @@ public class ValidationReportRendererTests
 
         var html = _renderer.GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose: true);
 
-        html.Should().Contain("Recommended Remediation Order");
+        html.Should().Contain("Priority actions");
         html.Should().Contain("Remediation Roadmap");
         html.Should().Contain("Priority 1");
         html.Should().Contain("Bootstrap &amp; Protocol Version");

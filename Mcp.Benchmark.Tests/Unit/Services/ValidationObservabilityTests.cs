@@ -7,6 +7,78 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ValidationObservabilityTests
 {
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    [InlineData("HEAD")]
+    [InlineData("OPTIONS")]
+    [InlineData("CONNECT")]
+    [InlineData("TRACE")]
+    [InlineData("OTHER")]
+    public void FailureAttribution_ShouldPreserveOnlyTheCanonicalMethodVocabulary(string method)
+    {
+        RequestFailureCount.NormalizeMethod(method).Should().Be(method);
+        RequestFailureCount.NormalizeMethod(method.ToLowerInvariant()).Should().Be("OTHER");
+        RequestFailureCount.NormalizeMethod("private-method-canary").Should().Be("OTHER");
+        RequestFailureCount.NormalizeMethod(null).Should().Be("OTHER");
+    }
+
+    [Fact]
+    public void CatalogMeasurements_ShouldAcceptThePublishedMaximumWithoutInventingCorrelation()
+    {
+        var maximum = Mcp.Benchmark.Core.Constants.ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters;
+        ValidationOperationalMetrics.IsValidCatalogBudget(maximum, maximum).Should().BeTrue();
+        ValidationOperationalMetrics.IsValidCatalogBudget(0, maximum).Should().BeTrue();
+        ValidationOperationalMetrics.IsValidCatalogBudget(maximum + 1L, maximum).Should().BeFalse();
+        new ValidationOperationalMetrics().RunCorrelationId.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(100)]
+    [InlineData(599)]
+    public void FailureAttribution_ShouldAcceptHttpStatusBoundaries(int status)
+    {
+        RequestFailureCount.IsValidCollection([new("GET", status, RequestFailureKind.HttpStatus, 1)], 1).Should().BeTrue();
+        RequestFailureCount.IsValidCollection([new("GET", status, RequestFailureKind.RequestException, 1)], 1).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(RequestFailureKind.Unspecified)]
+    [InlineData(RequestFailureKind.RequestException)]
+    [InlineData(RequestFailureKind.ResponseRejected)]
+    [InlineData(RequestFailureKind.RequestCancelled)]
+    public void FailureAttribution_ShouldPreserveNonHttpFailureKindsWithoutAStatus(RequestFailureKind kind)
+    {
+        RequestFailureCount.IsValidCollection([new("POST", null, kind, 2)], 2).Should().BeTrue();
+        RequestFailureCount.IsValidCollection([new("POST", 200, kind, 2)], 2).Should().BeFalse();
+        RequestFailureCount.IsValidCollection([new("POST", null, kind, 0)], 0).Should().BeFalse();
+    }
+
+    [Fact]
+    public void FailureAttribution_ShouldPreserveMissingnessAndRejectOversizedOrOverflowingCollections()
+    {
+        RequestFailureCount.IsValidCollection(null, 3).Should().BeTrue("a historical absent breakdown is unknown, not an empty measured breakdown");
+        RequestFailureCount.IsValidCollection([], 3).Should().BeFalse();
+        var methods = new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE", "OTHER" };
+        var entries = new List<RequestFailureCount>();
+        foreach (var method in methods)
+        {
+            for (var status = 100; status <= 599; status++) entries.Add(new(method, status, RequestFailureKind.HttpStatus, 1));
+            foreach (var kind in new[] { RequestFailureKind.Unspecified, RequestFailureKind.RequestException, RequestFailureKind.ResponseRejected, RequestFailureKind.RequestCancelled })
+                entries.Add(new(method, null, kind, 1));
+        }
+        entries.Should().HaveCount(RequestFailureCount.MaximumBuckets);
+        RequestFailureCount.IsValidCollection(entries, entries.Count).Should().BeTrue();
+        entries.Add(entries[0]);
+        RequestFailureCount.IsValidCollection(entries, entries.Count).Should().BeFalse();
+        RequestFailureCount.IsValidCollection(
+            [new("GET", null, RequestFailureKind.RequestException, int.MaxValue), new("POST", null, RequestFailureKind.RequestException, int.MaxValue)],
+            -2).Should().BeFalse("failure totals are accumulated without signed integer overflow");
+    }
+
     [Fact]
     public void CanonicalClone_ShouldRemoveInvalidAttributionAndIsolateValidEntries()
     {

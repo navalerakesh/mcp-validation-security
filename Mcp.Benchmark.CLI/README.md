@@ -52,6 +52,8 @@ The CLI verifies target, independently planned run ID, signature, observer, case
 
 ## Explicit Positive Tool Inputs
 
+Interactive authentication requires explicit `--interactive` on the invocation, even if a configuration file enables `AllowInteractive`. Without that invocation authority the command remains noninteractive and preserves configured noninteractive credentials. The GitHub Action never admits interactive authentication.
+
 Supply positive arguments through the existing configuration record and `--config`. Names match the observed catalog exactly and case-sensitively; an absent or ambiguous match remains unexecuted evidence.
 
 ```json
@@ -70,9 +72,59 @@ Supply positive arguments through the existing configuration record and `--confi
 
 Arguments are not execution permission: Safe mode remains non-executing. Standard/elevated policy and all selected assurance prerequisites still apply. One positive scenario per tool is supported, with at most 64 scenarios, 64 JSON values and 16 nesting levels per argument object, 64 KiB serialized arguments per scenario and 1 MiB in aggregate. Values must be JSON-compatible. Unsupported or schema-invalid explicit inputs never fall back to synthetic arguments. Bounded conditional schemas and supported local references are evaluated against the original schema; regex-dependent, cyclic, external and ambiguous-resource evaluation remains unavailable.
 
-Non-null `ExpectedResult`, `ExpectError: true`, unavailable/null `Parameters`, duplicate names, and combining custom inputs with `SpecificTools` are rejected. Custom performance scenarios remain unsupported. Positive success requires a completed, schema-valid, non-error response; protocol-valid errors do not satisfy a positive scenario. Client input requests remain incomplete rather than receiving automatic sampling, elicitation or roots responses.
+Non-null `ExpectedResult`, `ExpectError: true`, unavailable/null `Parameters`, duplicate names, and combining custom inputs with `SpecificTools` are rejected. Custom performance scenarios remain unsupported. Positive success requires a completed, schema-valid, non-error response; protocol-valid errors do not satisfy a positive scenario. Unplanned client input requests remain incomplete.
 
-Use nonsecret fixture inputs where possible. Public configuration/result clones omit argument values and expected-result text; redacted `Parameters: null` cannot be replayed as an empty argument object. Target response content and value-bearing exception diagnostics are not retained for explicit positive scenarios. Keep the operator configuration private.
+For authorized modern (`2026-07-28`) targets, an explicit scenario may include `ClientInputRounds`:
+
+```json
+{
+  "ToolName": "owned-tool",
+  "Parameters": {},
+  "ClientInputRounds": [{
+    "ExpectedRequests": { "roots": { "method": "roots/list" } },
+    "Responses": { "roots": { "roots": [] } }
+  }]
+}
+```
+
+Each round must exactly match the observed input-request map, including server-assigned IDs, methods and parameters. Only operator-supplied roots, form elicitation and synthetic sampling results are supported. Sampling results must use model identifier `mcpval-synthetic-fixture`; no model is invoked. Sampling requests containing `tools` or `toolChoice` are rejected because the synthetic client does not advertise sampling-tool support. Elicitation acceptance/decline/cancellation is explicit fixture data, not automatic user consent. Root URIs are supplied data; the validator does not enumerate or read the filesystem. Empty request/response maps admit a state-only continuation.
+
+Limits are eight rounds per tool, eight inputs per round, 128 characters per input ID, 1,024 JSON values per round, 64 KiB serialized data per round and 1 MiB across captured arguments/rounds. Each interaction has a 30-second deadline and a 1 MiB aggregate response budget, subordinate to caller cancellation and transport budgets. Only required client capabilities are declared, on this tool's requests alone. Opaque state is echoed unchanged, never interpreted, and removed on the next continuation if absent from its response. Every continuation has a fresh JSON-RPC ID. Unexpected requests, extra/missing rounds and exhausted limits never earn completed execution credit. Legacy server-initiated callbacks remain unsupported.
+
+Use nonsecret fixture inputs where possible. Public configuration/result clones omit argument values, client-input rounds, opaque request state and expected-result text; redacted `Parameters: null` cannot be replayed as an empty argument object. Target response content and value-bearing exception diagnostics are not retained for explicit positive scenarios. Keep the operator configuration private.
+
+## Explicit Prompt Inputs And Run Budgets
+
+Prompt scenarios use `validation.categories.prompts.CustomScenarios`, with `PromptName`, string-valued `Arguments` and optional `ClientInputRounds`. Rounds use the same exact request matching, finite limits, synthetic model marker and private capture as explicit tool scenarios. The collector completes bounded catalog enumeration before dispatching an explicit prompt, rejects ambiguous names, retains missing/disabled obligations, and does not synthesize missing required arguments. Modern HTTP and STDIO share the same continuation implementation. Legacy callbacks and automatic elicitation consent remain unsupported.
+
+```json
+{
+  "validation": {
+    "categories": {
+      "prompts": {
+        "CustomScenarios": [{
+          "PromptName": "owned-prompt",
+          "Arguments": {},
+          "ClientInputRounds": [{
+            "ExpectedRequests": { "roots": { "method": "roots/list" } },
+            "Responses": { "roots": { "roots": [] } }
+          }]
+        }]
+      }
+    }
+  },
+  "testExecution": { "GlobalTimeoutMinutes": 10 },
+  "execution": { "maxCatalogPayloadCharacters": 16777216 }
+}
+```
+
+`GlobalTimeoutMinutes` is one total engine deadline, including bootstrap and execution; it does not restart for a category or retry. Cancellation retains collected evidence and returns the timeout/cancellation contract. It does not impose a deadline on an independent external conformance runner.
+
+`maxCatalogPayloadCharacters` bounds cumulative native catalog payload admitted for parsing across tool, resource, resource-template and prompt collectors. The default reuses the existing 16 Mi-character per-catalog ceiling as a shared run ceiling; the configurable maximum is 64 Mi characters (four native catalog ceilings). This is a conservative retained-payload work bound, not a byte-accurate whole-process memory guarantee. Per-response, item/page/depth and actual outbound-attempt limits still apply. Exhaustion retains earlier evidence and declares incomplete catalog coverage.
+
+Execution plans and audits distinguish stage-level known request demand from unknown target-dependent expansion and the enforced actual-attempt limit. Explicit argument/reply rounds provide known work; auth, pagination, retries, extension reads and load generation are not assigned invented totals.
+
+`config-schema --commands` emits versioned command metadata from the same definitions used by execution and help, without reading target configuration or constructing a host. It separates root-only and inherited options, includes argument arity and multiple-values-per-token behavior, and never exports secret defaults. The parser remains authoritative; see the [command manifest schema](../docs/Schemas/mcpval-command-manifest.schema.json).
 
 ## Local Development
 
@@ -88,6 +140,7 @@ Example commands:
 dotnet run --project Mcp.Benchmark.CLI -- validate --server https://example.test/mcp --access public --output ./reports
 dotnet run --project Mcp.Benchmark.CLI -- health-check --server https://example.test/mcp --access public
 dotnet run --project Mcp.Benchmark.CLI -- discover --server https://example.test/mcp --format json
+dotnet run --project Mcp.Benchmark.CLI -- config-schema --commands
 dotnet run --project Mcp.Benchmark.CLI -- report --input "./reports/<run-directory>/<base-name>-result.json" --format junit
 ```
 

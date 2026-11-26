@@ -21,7 +21,7 @@ inputs:
     description: Optional bearer token for authenticated servers. Passed through a masked environment variable, not command arguments.
     required: false
   interactive:
-    description: Whether to allow interactive authentication.
+    description: Compatibility input. Must be false; CI never admits interactive authentication.
     required: false
     default: "false"
   output-dir:
@@ -36,11 +36,42 @@ inputs:
     required: false
     default: balanced
   assurance:
-    description: Assurance profile (inventory, ci, provider).
+    description: Assurance profile (inventory, ci, comprehensive, provider). Active comprehensive requires admitted mode, conformance-results, identity-baseline and validation-id.
     required: false
     default: inventory
   max-concurrency:
     description: Optional max in-flight request count.
+    required: false
+  max-requests:
+    description: Optional actual outbound-attempt limit, validated by the CLI.
+    required: false
+  timeout:
+    description: Optional per-request timeout in seconds. Total-run deadline remains configuration-owned.
+    required: false
+  protocol-era:
+    description: Optional auto, legacy or modern selection.
+    required: false
+  client-profiles:
+    description: Optional comma-separated client profile IDs for interpretation.
+    required: false
+  allowed-hosts:
+    description: Optional comma-separated approved outbound hosts.
+    required: false
+  allowed-origins:
+    description: Optional comma-separated approved HTTP origins.
+    required: false
+  allow-private-addresses:
+    description: Explicitly permit private/loopback targets in the approved environment.
+    required: false
+    default: "false"
+  persistence-mode:
+    description: Optional ephemeral, explicit-output or session persistence.
+    required: false
+  redact-level:
+    description: Optional strict or standard redaction.
+    required: false
+  trace:
+    description: Optional off, redacted or full trace setting, subject to CLI admission.
     required: false
   version:
     description: Optional exact McpVal NuGet version. Defaults to the version declared by this Action revision.
@@ -69,6 +100,12 @@ inputs:
     required: false
   conformance-results:
     description: Optional pinned official conformance evidence wrapper JSON.
+    required: false
+  identity-baseline:
+    description: Operator-approved signed identity baseline selection for comprehensive assurance.
+    required: false
+  validation-id:
+    description: Independently reserved run ID bound to the identity baseline. Required for active comprehensive assurance.
     required: false
   provider-harness:
     description: Signed provider harness manifest JSON. Required for active provider assurance.
@@ -106,10 +143,57 @@ outputs:
   exit-code:
     description: Actual mcpval collector exit code when invoked and published. Does not imply assurance success or artifact completeness; publication failure makes the step exit 70.
     value: ${{ steps.mcpval-validation.outputs.exit-code }}
+  artifact-state:
+    description: Published, partial, plan-only, missing, or corrupt artifact receipt; not an assurance verdict.
+    value: ${{ steps.mcpval-validation.outputs.artifact-state }}
+  artifact-directory:
+    description: Isolated current-invocation artifact directory.
+    value: ${{ steps.mcpval-validation.outputs.artifact-directory }}
+  invocation-directory:
+    description: Current isolated collection directory, retained even if artifact verification fails.
+    value: ${{ steps.mcpval-validation.outputs.invocation-directory }}
+  result-path:
+    description: Digest-checked canonical result path, empty when unavailable.
+    value: ${{ steps.mcpval-validation.outputs.result-path }}
+  audit-path:
+    description: Matching audit manifest path, empty when unavailable.
+    value: ${{ steps.mcpval-validation.outputs.audit-path }}
+  artifact-paths:
+    description: JSON array of digest-checked subjects and their audit manifest.
+    value: ${{ steps.mcpval-validation.outputs.artifact-paths }}
+  validation-id:
+    description: Recorded current run identity, empty when unavailable.
+    value: ${{ steps.mcpval-validation.outputs.validation-id }}
+  run-termination:
+    description: Recorded execution termination, not an assurance verdict.
+    value: ${{ steps.mcpval-validation.outputs.run-termination }}
+  target-identity-sha256:
+    description: Matching recorded target digest from the result and audit; not independent target authentication.
+    value: ${{ steps.mcpval-validation.outputs.target-identity-sha256 }}
+  policy-passed:
+    description: Canonical recorded policy decision; never recomputed by the Action.
+    value: ${{ steps.mcpval-validation.outputs.policy-passed }}
+  assurance-profile:
+    description: Recorded assurance profile.
+    value: ${{ steps.mcpval-validation.outputs.assurance-profile }}
+  core-conformance:
+    description: Recorded core conformance assessment.
+    value: ${{ steps.mcpval-validation.outputs.core-conformance }}
+  security-assurance:
+    description: Recorded security assurance assessment.
+    value: ${{ steps.mcpval-validation.outputs.security-assurance }}
+  operational-readiness:
+    description: Recorded operational readiness assessment.
+    value: ${{ steps.mcpval-validation.outputs.operational-readiness }}
 
 runs:
   using: composite
   steps:
+    - name: Setup artifact receipt runtime
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      with:
+        node-version: 24.19.0
+
     - name: Setup .NET
       uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
       with:
@@ -178,8 +262,20 @@ runs:
         INPUT_POLICY: ${{ inputs.policy }}
         INPUT_ASSURANCE: ${{ inputs.assurance }}
         INPUT_MAX_CONCURRENCY: ${{ inputs.max-concurrency }}
+        INPUT_MAX_REQUESTS: ${{ inputs.max-requests }}
+        INPUT_TIMEOUT: ${{ inputs.timeout }}
+        INPUT_PROTOCOL_ERA: ${{ inputs.protocol-era }}
+        INPUT_CLIENT_PROFILES: ${{ inputs.client-profiles }}
+        INPUT_ALLOWED_HOSTS: ${{ inputs.allowed-hosts }}
+        INPUT_ALLOWED_ORIGINS: ${{ inputs.allowed-origins }}
+        INPUT_ALLOW_PRIVATE_ADDRESSES: ${{ inputs.allow-private-addresses }}
+        INPUT_PERSISTENCE_MODE: ${{ inputs.persistence-mode }}
+        INPUT_REDACT_LEVEL: ${{ inputs.redact-level }}
+        INPUT_TRACE: ${{ inputs.trace }}
         INPUT_BASELINE: ${{ inputs.baseline }}
         INPUT_CONFORMANCE_RESULTS: ${{ inputs.conformance-results }}
+        INPUT_IDENTITY_BASELINE: ${{ inputs.identity-baseline }}
+        INPUT_VALIDATION_ID: ${{ inputs.validation-id }}
         INPUT_PROVIDER_HARNESS: ${{ inputs.provider-harness }}
         INPUT_PROVIDER_AUTHORIZATION_KEY: ${{ inputs.provider-authorization-key }}
         MCPVAL_ATTESTATION_PRIVATE_KEY_PEM: ${{ inputs.attestation-private-key }}
@@ -206,12 +302,19 @@ runs:
           exit 1
         fi
 
-        mkdir -p "$INPUT_OUTPUT_DIR"
+        if [[ "$INPUT_INTERACTIVE" != "false" ]]; then
+          echo "'interactive' must be 'false'; CI requires an approved noninteractive credential source." >&2
+          exit 1
+        fi
+        if [[ -z "$INPUT_OUTPUT_DIR" || "$INPUT_OUTPUT_DIR" == *$'\n'* || "$INPUT_OUTPUT_DIR" == *$'\r'* ]]; then
+          echo "'output-dir' must be a non-empty path without line breaks." >&2
+          exit 1
+        fi
 
-        cmd=(mcpval validate --output "$INPUT_OUTPUT_DIR" --policy "$INPUT_POLICY")
+        cmd=(mcpval validate --policy "$INPUT_POLICY")
 
-        if [[ "$INPUT_ASSURANCE" != "inventory" && "$INPUT_ASSURANCE" != "ci" && "$INPUT_ASSURANCE" != "provider" ]]; then
-          echo "'assurance' must be 'inventory', 'ci', or 'provider'." >&2
+        if [[ "$INPUT_ASSURANCE" != "inventory" && "$INPUT_ASSURANCE" != "ci" && "$INPUT_ASSURANCE" != "comprehensive" && "$INPUT_ASSURANCE" != "provider" ]]; then
+          echo "'assurance' must be 'inventory', 'ci', 'comprehensive', or 'provider'." >&2
           exit 1
         fi
         cmd+=(--assurance "$INPUT_ASSURANCE")
@@ -228,16 +331,63 @@ runs:
           cmd+=(--access "$INPUT_ACCESS")
         fi
 
-        if [[ "$INPUT_INTERACTIVE" == "true" ]]; then
-          cmd+=(--interactive)
-        fi
-
         if [[ -n "$INPUT_MCPSPEC" ]]; then
           cmd+=(--mcpspec "$INPUT_MCPSPEC")
         fi
 
         if [[ -n "$INPUT_MAX_CONCURRENCY" ]]; then
           cmd+=(--max-concurrency "$INPUT_MAX_CONCURRENCY")
+        fi
+        append_value() {
+          local value="$1"
+          local option="$2"
+          if [[ -z "$value" ]]; then return; fi
+          if [[ "$value" == -* || "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+            echo "Invalid typed Action option value; collector was not launched." >&2
+            exit 1
+          fi
+          cmd+=("$option" "$value")
+        }
+        append_list() {
+          local input="$1"
+          local option="$2"
+          local pattern="${3:-}"
+          local values=()
+          local value
+          if [[ -z "$input" ]]; then return; fi
+          if [[ "$input" == *, || "$input" == *$'\n'* || "$input" == *$'\r'* ]]; then
+            echo "Typed list inputs must not contain empty entries." >&2
+            exit 1
+          fi
+          IFS=',' read -r -a values <<< "$input"
+          for value in "${values[@]}"; do
+            value="${value#"${value%%[![:space:]]*}"}"
+            value="${value%"${value##*[![:space:]]}"}"
+            if [[ -z "$value" ]]; then
+              echo "Typed list inputs must not contain empty entries." >&2
+              exit 1
+            fi
+            if [[ -n "$pattern" && ! "$value" =~ $pattern ]]; then
+              echo "Typed list input contains an invalid identifier." >&2
+              exit 1
+            fi
+            append_value "$value" "$option"
+          done
+        }
+        append_value "$INPUT_MAX_REQUESTS" --max-requests
+        append_value "$INPUT_TIMEOUT" --timeout
+        append_value "$INPUT_PROTOCOL_ERA" --protocol-era
+        append_value "$INPUT_PERSISTENCE_MODE" --persistence-mode
+        append_value "$INPUT_REDACT_LEVEL" --redact-level
+        append_value "$INPUT_TRACE" --trace
+        append_list "$INPUT_CLIENT_PROFILES" --client-profile
+        append_list "$INPUT_ALLOWED_HOSTS" --allow-host
+        append_list "$INPUT_ALLOWED_ORIGINS" --allow-origin
+        if [[ "$INPUT_ALLOW_PRIVATE_ADDRESSES" == "true" ]]; then
+          cmd+=(--allow-private-addresses)
+        elif [[ "$INPUT_ALLOW_PRIVATE_ADDRESSES" != "false" ]]; then
+          echo "'allow-private-addresses' must be 'true' or 'false'." >&2
+          exit 1
         fi
 
         if [[ -n "$INPUT_BASELINE" ]]; then
@@ -246,6 +396,19 @@ runs:
 
         if [[ -n "$INPUT_CONFORMANCE_RESULTS" ]]; then
           cmd+=(--conformance-results "$INPUT_CONFORMANCE_RESULTS")
+        fi
+
+        if [[ "$INPUT_ASSURANCE" == "comprehensive" && "$INPUT_DRY_RUN" != "true" ]]; then
+          if [[ "$INPUT_MODE" == "safe" || -z "$INPUT_IDENTITY_BASELINE" || -z "$INPUT_VALIDATION_ID" || -z "$INPUT_CONFORMANCE_RESULTS" ]]; then
+            echo "Active comprehensive assurance requires standard/elevated admission, identity-baseline, validation-id, and conformance-results." >&2
+            exit 1
+          fi
+        fi
+        if [[ -n "$INPUT_IDENTITY_BASELINE" ]]; then
+          cmd+=(--identity-baseline "$INPUT_IDENTITY_BASELINE")
+        fi
+        if [[ -n "$INPUT_VALIDATION_ID" ]]; then
+          cmd+=(--validation-id "$INPUT_VALIDATION_ID")
         fi
 
         if [[ "$INPUT_ASSURANCE" == "provider" && "$INPUT_DRY_RUN" != "true" ]]; then
@@ -274,18 +437,7 @@ runs:
           exit 1
         fi
 
-        if [[ -n "$INPUT_EXTENSIONS" ]]; then
-          IFS=',' read -r -a extension_values <<< "$INPUT_EXTENSIONS"
-          for extension_value in "${extension_values[@]}"; do
-            extension_value="${extension_value#"${extension_value%%[![:space:]]*}"}"
-            extension_value="${extension_value%"${extension_value##*[![:space:]]}"}"
-            if [[ -z "$extension_value" || ! "$extension_value" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
-              echo "'extensions' contains an invalid MCP extension ID." >&2
-              exit 1
-            fi
-            cmd+=(--extension "$extension_value")
-          done
-        fi
+        append_list "$INPUT_EXTENSIONS" --extension '^[A-Za-z0-9][A-Za-z0-9._/-]*$'
 
         if [[ "$INPUT_REGRESSION_ONLY" == "true" ]]; then
           if [[ -z "$INPUT_BASELINE" ]]; then
@@ -313,6 +465,12 @@ runs:
           cmd+=(--output-format "$INPUT_OUTPUT_FORMAT")
         fi
 
+        typed_artifacts() {
+          env -u MCPVAL_TOKEN -u MCPVAL_ATTESTATION_PRIVATE_KEY_PEM node "$GITHUB_ACTION_PATH/scripts/publish-action-artifacts.mjs" "$@"
+        }
+        # A previous bundle must never satisfy this invocation's output contract.
+        invocation_output="$(typed_artifacts prepare "$INPUT_OUTPUT_DIR")"
+        cmd+=(--output "$invocation_output")
         echo "Running mcpval validation with redacted input values."
 
         if "${cmd[@]}"; then
@@ -320,15 +478,19 @@ runs:
         else
           collector_exit=$?
         fi
-        if [[ -z "${GITHUB_OUTPUT:-}" ]] || ! { printf 'exit-code=%s\n' "$collector_exit" >> "$GITHUB_OUTPUT"; } 2>/dev/null; then
+        if [[ -z "${GITHUB_OUTPUT:-}" ]] || ! { printf 'exit-code=%s\ninvocation-directory=%s\n' "$collector_exit" "$invocation_output" >> "$GITHUB_OUTPUT"; } 2>/dev/null; then
           echo "::error::Unable to publish collector exit status (collector exit: $collector_exit)."
+          exit 70
+        fi
+        if ! typed_artifacts publish "$invocation_output" "$collector_exit" "$INPUT_DRY_RUN"; then
           exit 70
         fi
         exit "$collector_exit"
 
     - name: Upload validation artifacts
-      if: ${{ always() && inputs.upload-artifacts == 'true' && inputs.output-dir != '' }}
+      if: ${{ always() && inputs.upload-artifacts == 'true' && steps.mcpval-validation.outputs.invocation-directory != '' }}
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: ${{ inputs.artifact-name }}
-        path: ${{ inputs.output-dir }}
+        path: ${{ steps.mcpval-validation.outputs.invocation-directory }}
+        if-no-files-found: error

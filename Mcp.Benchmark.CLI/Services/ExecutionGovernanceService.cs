@@ -72,7 +72,9 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             CollectPlannedChecks(categories),
             CollectPlannedArtifacts(configuration, outputDirectory),
             ArtifactDigestUtility.ComputeObject(configuration.CloneWithoutSecrets()),
-            AssuranceProfileCatalog.Resolve(configuration.Assurance?.Profile).ProfileId);
+            AssuranceProfileCatalog.Resolve(configuration.Assurance?.Profile).ProfileId,
+            configuration.TestExecution?.GlobalTimeoutMinutes ?? new TestExecutionConfig().GlobalTimeoutMinutes,
+            Mcp.Benchmark.Core.Services.ValidationRequestDemand.Estimate(configuration));
     }
 
     public ExecutionPlan BuildCommandPlan(
@@ -136,6 +138,9 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             MaxConcurrency = plan.MaxConcurrency,
             TimeoutSeconds = plan.TimeoutSeconds,
             MaxResponseBytes = plan.MaxResponseBytes,
+            MaxCatalogPayloadCharacters = plan.MaxCatalogPayloadCharacters,
+            GlobalTimeoutMinutes = plan.GlobalTimeoutMinutes,
+            RequestDemand = plan.RequestDemand,
             AllowedHosts = plan.AllowedHosts,
             AllowedOrigins = plan.AllowedOrigins,
             PlannedChecks = plan.PlannedChecks,
@@ -163,7 +168,9 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         IReadOnlyList<string> plannedChecks,
         IReadOnlyList<string> plannedArtifacts,
         string configDigest,
-        string? assuranceProfile = null)
+        string? assuranceProfile = null,
+        int? globalTimeoutMinutes = null,
+        Mcp.Benchmark.Core.Services.RequestDemandEstimate? requestDemand = null)
     {
         var allowedHosts = ResolveAllowedHosts(executionPolicy, serverConfig);
         IReadOnlyList<string> allowedOrigins;
@@ -179,6 +186,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         }
         var validationErrors = Validate(serverConfig, executionPolicy, outputDirectory, allowedHosts, allowedOrigins, modelEvaluationEnabled).ToList();
         validationErrors.AddRange(originErrors);
+        if (globalTimeoutMinutes is <= 0 || globalTimeoutMinutes > ExecutionPolicyDefaults.MaximumTimeoutSeconds / 60)
+            validationErrors.Add("GlobalTimeoutMinutes must be a positive, supported total-run deadline.");
         var requestedProfile = string.IsNullOrWhiteSpace(requestedProtocolProfile) ? "latest" : requestedProtocolProfile.Trim();
         var resolvedSchemaVersion = ResolveRequestedProtocolVersion(requestedProfile, serverConfig.ProtocolEra);
         var protocolEra = ProtocolEraVersions.IsModern(resolvedSchemaVersion)
@@ -214,10 +223,10 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
             PersistenceMode = executionPolicy.PersistenceMode,
             RedactionLevel = executionPolicy.RedactLevel,
             TraceMode = executionPolicy.TraceMode,
-            MaxRequests = Math.Clamp(
-                executionPolicy.MaxRequests,
-                ExecutionPolicyDefaults.MinimumPositiveValue,
-                ExecutionPolicyDefaults.MaximumRequests),
+            GlobalTimeoutMinutes = globalTimeoutMinutes,
+            RequestDemand = requestDemand,
+            MaxCatalogPayloadCharacters = executionPolicy.MaxCatalogPayloadCharacters,
+            MaxRequests = Mcp.Benchmark.Core.Services.ValidationRequestBudget.NormalizeLimit(executionPolicy.MaxRequests),
             MaxConcurrency = Math.Clamp(
                 executionPolicy.MaxConcurrency,
                 ExecutionPolicyDefaults.MinimumPositiveValue,
@@ -357,6 +366,8 @@ public sealed class ExecutionGovernanceService : IExecutionGovernanceService
         {
             errors.Add($"Execution maxResponseBytes must be between 1 and {ExecutionPolicyDefaults.MaximumResponseBytes}.");
         }
+        if (execution.MaxCatalogPayloadCharacters is < 1 or > ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters)
+            errors.Add($"Execution maxCatalogPayloadCharacters must be between 1 and {ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters}.");
 
         if (execution.PersistenceMode == PersistenceMode.ExplicitOutput && string.IsNullOrWhiteSpace(outputDirectory))
         {

@@ -123,7 +123,7 @@ One tool response omitted the outer result object.
 - Outcome: **ReviewRequired**; dimension: CoreProtocol; requirement: Should
 - Authority: OfficialSpecification; recorded confidence: High
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-23.1`; source: `Not recorded`
+- Source revision: `2026-11-24.2`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -147,7 +147,7 @@ Tool 'delete_repo' has parameters without descriptions.
 - Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
 - Authority: Heuristic; recorded confidence: Medium
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-23.1`; source: `Not recorded`
+- Source revision: `2026-11-24.2`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -159,7 +159,7 @@ Tool 'delete_repo' does not declare annotations.destructiveHint.
 - Outcome: **ReviewRequired**; dimension: CapabilityContract; requirement: Policy
 - Authority: ProviderPolicy; recorded confidence: Medium
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-23.1`; source: `Not recorded`
+- Source revision: `2026-11-24.2`; source: `Not recorded`
 - Recorded correction: Not recorded.
 - Evidence references: none recorded.
 
@@ -183,7 +183,7 @@ Server reflected untrusted prompt content without sanitization.
 - Outcome: **Violated**; dimension: Security; requirement: SecurityControl
 - Authority: DeterministicSecurity; recorded confidence: High
 - Applicability: Applicable; No reason recorded.
-- Source revision: `2026-11-23.1`; source: `Not recorded`
+- Source revision: `2026-11-24.2`; source: `Not recorded`
 - Recorded correction: Sanitize and label untrusted content before returning it.
 - Evidence reference: `probe-prompt-get-reflection-200`
 
@@ -257,28 +257,30 @@ Fix blocking dependencies in this order so later validation evidence becomes tru
 
 ### Priority 1: Bootstrap & Protocol Version
 
-**Impact after fix:** Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.
+**Impact after fix:** Establish trustworthy protocol and execution evidence before interpreting dependent results.
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
 | Server ignored the requested MCP protocol version. | Echo the negotiated protocol version in initialize.result. | `Initialization` | [Spec] · `MCP.INIT.VERSION_NEGOTIATION` · High |
+| One tool response omitted the outer result object. | Review the recorded finding and its source before deciding on a correction. | `tools/call` | [Spec] · `MCP.TOOL.CALL.RESULT_OBJECT_MISSING` · Medium |
+| Server does not advertise prompts capability. | Collect the missing admitted evidence; absence is not proof of a server defect. | `prompts/list` | [Guideline] · `coverage:prompt-surface:prompts-list` · Not recorded |
 
 ### Priority 3: Advertised Capabilities
 
-**Impact after fix:** Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.
+**Impact after fix:** Align the recorded capability contracts and client expectations; preserve the distinction between discovery and execution.
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
-| One tool response omitted the outer result object. | Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable. | `tools/call` | [Spec] · `MCP.TOOL.CALL.RESULT_OBJECT_MISSING` · Medium |
+| Tool 'delete_repo' does not declare annotations.destructiveHint. | Review the recorded finding and its source before deciding on a correction. | `delete_repo` | [Guideline] · `MCP.GUIDELINE.TOOL.DESTRUCTIVE_HINT_MISSING` · High |
 
 ### Priority 4: AI Safety, Security, And Performance
 
-**Impact after fix:** After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.
+**Impact after fix:** Review advisory safety findings and measured operational evidence within their declared scope.
 
 | Issue | Fix | Component | Evidence |
 | :--- | :--- | :--- | :--- |
 | Server reflected untrusted prompt content without sanitization. | Sanitize and label untrusted content before returning it. | `prompt:get` | [Heuristic] · `MCP.SECURITY.PROMPT_INJECTION` · Critical |
-| Tool 'delete_repo' has parameters without descriptions. | Address advisory safety, security, and performance evidence after the core validation contract is trustworthy. | `delete_repo` | [Heuristic] · `AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING` · Medium |
+| Tool 'delete_repo' has parameters without descriptions. | Review the recorded finding and its source before deciding on a correction. | `delete_repo` | [Heuristic] · `AI.TOOL.SCHEMA.PARAMETER_DESCRIPTION_MISSING` · Medium |
 
 ## 7. Validation Envelope
 

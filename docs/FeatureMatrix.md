@@ -10,6 +10,7 @@ This document summarizes the current product surface for the public `mcpval` CLI
 | `mcpval health-check` | Fast connectivity and initialization probe | Stable |
 | `mcpval discover` | Capability discovery output for debugging and documentation | Stable for HTTP transport |
 | `mcpval report` | Offline rendering from saved validation results | Stable |
+| `mcpval config-schema` | Configuration schema; `--commands` emits execution-owned CLI option metadata | Unreleased command manifest |
 | `mcpval --list-spec-profiles` | Show embedded MCP spec profiles supported by the current build | Stable |
 
 ## Transport Support
@@ -65,7 +66,7 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
 | Performance | Latency, throughput, concurrency handling, and execution stability |
 | Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, JUnit, audit manifests, and optional client-profile/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML opens with profile-aware framing, tested scope, independent assessments, and an accessible claim distribution. |
-| CI gating | Inventory, CI, and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`) |
+| CI gating | Inventory, CI, comprehensive and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`). Unreleased Action typed outputs distinguish verified publication/partial/planning/missing/corrupt artifacts while retaining the human-readable default. |
 
 ## Execution Modes
 

@@ -15,9 +15,15 @@ public sealed class McpClientFactorySecurityTests
     public async Task GovernedCancellation_ShouldRequireCancelledRequestToken(bool cancelToken, RequestFailureKind expected)
     {
         using var cancellation = new CancellationTokenSource();
-        var observer = (DelegatingHandler)Activator.CreateInstance(typeof(McpHttpClient).Assembly
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy { MaxRequests = 1 }));
+        var assembly = typeof(McpHttpClient).Assembly;
+        var observer = (DelegatingHandler)Activator.CreateInstance(assembly
             .GetType("Mcp.Benchmark.Infrastructure.Http.GovernedRequestObservabilityHandler")!, nonPublic: true)!;
-        observer.InnerHandler = new CancellationResponseHandler(cancellation, cancelToken);
+        var policy = (DelegatingHandler)Activator.CreateInstance(assembly
+            .GetType("Mcp.Benchmark.Infrastructure.Http.GovernedRequestPolicyHandler")!, context)!;
+        observer.InnerHandler = policy;
+        policy.InnerHandler = new CancellationResponseHandler(cancellation, cancelToken);
         using var client = new HttpClient(observer);
         using var run = Mcp.Benchmark.Core.Services.ValidationObservability.BeginRun("cancel-attribution", 1);
 
@@ -25,6 +31,7 @@ public sealed class McpClientFactorySecurityTests
             .Should().ThrowAsync<OperationCanceledException>();
 
         var metrics = run.Complete(10);
+        metrics.RequestsStarted.Should().Be(1);
         metrics.RequestsFailed.Should().Be(1);
         metrics.RequestFailures.Should().ContainSingle(entry => entry.Kind == expected && entry.Count == 1);
     }

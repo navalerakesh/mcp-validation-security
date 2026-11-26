@@ -1251,15 +1251,6 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
             return;
         }
 
-        if (_networkPolicyContext == null)
-        {
-            var requestNumber = Interlocked.Increment(ref _requestCount);
-            if (requestNumber > _executionPolicy.MaxRequests)
-            {
-                throw new OperationAdmissionException($"Execution request budget exceeded ({_executionPolicy.MaxRequests}).");
-            }
-        }
-
         if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
         {
             return;
@@ -1602,6 +1593,11 @@ public class McpHttpClient : IMcpHttpClient, IDisposable
         var observeLocally = _networkPolicyContext == null;
         if (observeLocally)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_executionPolicy != null)
+            {
+                ValidationRequestBudget.Admit(ref _requestCount, _executionPolicy.MaxRequests);
+            }
             ValidationObservability.RecordRequestStarted(request.Method.Method);
         }
         var stopwatch = System.Diagnostics.Stopwatch.StartNew();

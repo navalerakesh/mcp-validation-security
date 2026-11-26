@@ -354,6 +354,9 @@ public sealed class ValidationScenarioResult
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
     public ControlledIdentityMatrixAssessment? ControlledIdentity { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledRelayAssessment? ControlledRelay { get; init; }
+
     public List<ValidationFinding> Findings { get; init; } = new();
 }
 
@@ -379,6 +382,9 @@ public sealed class ValidationScenarioContext
 
 public sealed class ValidationObservation
 {
+    public const string CoverageConflictKind = "scenario-coverage-conflict";
+    public const string CoverageScopeMetadataKey = "scope";
+
     public required string Id { get; init; }
 
     public required string LayerId { get; init; }

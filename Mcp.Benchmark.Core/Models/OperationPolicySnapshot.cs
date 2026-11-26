@@ -19,10 +19,7 @@ public sealed class OperationPolicySnapshot
             .Select(NetworkTargetPolicy.NormalizeOrigin)
             .ToFrozenSet(StringComparer.OrdinalIgnoreCase);
         AllowPrivateAddresses = policy.AllowPrivateAddresses;
-        MaxRequests = Math.Clamp(
-            policy.MaxRequests,
-            ExecutionPolicyDefaults.MinimumPositiveValue,
-            ExecutionPolicyDefaults.MaximumRequests);
+        MaxRequests = ValidationRequestBudget.NormalizeLimit(policy.MaxRequests);
         MaxConcurrency = Math.Clamp(
             policy.MaxConcurrency,
             ExecutionPolicyDefaults.MinimumPositiveValue,
@@ -32,6 +29,9 @@ public sealed class OperationPolicySnapshot
             policy.MaxResponseBytes,
             ExecutionPolicyDefaults.MinimumPositiveValue,
             ExecutionPolicyDefaults.MaximumResponseBytes);
+        MaxCatalogPayloadCharacters = policy.MaxCatalogPayloadCharacters;
+        if (MaxCatalogPayloadCharacters is < 1 or > ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters)
+            throw new ArgumentOutOfRangeException(nameof(policy), "Catalog payload budget is outside its supported range.");
     }
 
     public ExecutionMode Mode { get; }
@@ -51,6 +51,7 @@ public sealed class OperationPolicySnapshot
     public int TimeoutSeconds { get; }
 
     public int MaxResponseBytes { get; }
+    public int MaxCatalogPayloadCharacters { get; }
 
     public static OperationPolicySnapshot From(ExecutionPolicy policy)
     {

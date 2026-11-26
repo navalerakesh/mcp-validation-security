@@ -690,7 +690,7 @@ internal static class CommandConnectionHelper
 
     public static void ApplyAuthenticationOverrides(McpServerConfig serverConfig, string? token, bool interactive, ConfigurationSourceTracker? sources = null)
     {
-        if (string.IsNullOrWhiteSpace(token) && !interactive)
+        if (serverConfig.Authentication == null && string.IsNullOrWhiteSpace(token) && !interactive)
         {
             return;
         }

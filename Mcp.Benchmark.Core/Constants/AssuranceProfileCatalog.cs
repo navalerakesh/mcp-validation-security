@@ -5,7 +5,7 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class AssuranceProfileCatalog
 {
     public const string Revision = "2026-11-05.1";
-    public const string ComprehensiveRevision = "2026-11-23.1";
+    public const string ComprehensiveRevision = "2026-11-24.2";
 
     public static AssuranceProfileManifest Comprehensive { get; } = new()
     {

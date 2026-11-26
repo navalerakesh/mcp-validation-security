@@ -26,10 +26,18 @@ dotnet stryker \
   --mutate '**/OfficialConformanceReconciler.cs' \
   --mutate '**/SignedControlledEvidenceReader.cs' \
   --mutate '**/ToolScenarioInputs.cs' \
+  --mutate '**/ValidationPolicyEvaluator.cs' \
+  --mutate '**/ValidationBaselineEvaluator.cs' \
+  --mutate '**/ValidationRequestBudget.cs' \
+  --mutate '**/ValidationCatalogBudget.cs' \
+  --mutate '**/ValidationRequestDemand.cs' \
+  --mutate '**/ValidationOperationalMetrics.cs' \
+  --mutate '**/ControlledRelayEvaluator.cs' \
   --test-project Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj \
   --test-runner vstest \
   --configuration Debug \
   --concurrency "${MUTATION_CONCURRENCY:-2}" \
+  --reporter Dots \
   --reporter ClearText \
   --reporter Json \
   --output "$output_dir" \

@@ -346,8 +346,8 @@ public class PromptValidatorUnitTests
         var validator = new PromptValidator(
             new Mock<ILogger<PromptValidator>>().Object,
             httpClient.Object,
-            new Mock<ISchemaValidator>().Object,
-            new Mock<ISchemaRegistry>().Object,
+            new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(),
             contentSafety.Object);
 
         var result = await validator.ValidatePromptDiscoveryAsync(

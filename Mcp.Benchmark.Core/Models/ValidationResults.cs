@@ -577,7 +577,6 @@ public class ValidationResult
             ResultType = source.ResultType,
             ProtocolSemanticsValid = source.ProtocolSemanticsValid,
             ProtocolSemanticError = source.ProtocolSemanticsValid == false ? "Protocol semantics were invalid." : null,
-            RequestState = source.RequestState,
             InputRequestCount = source.InputRequestCount,
             ProbeContext = SanitizeProbeContext(source.ProbeContext),
             ElapsedMs = source.ElapsedMs

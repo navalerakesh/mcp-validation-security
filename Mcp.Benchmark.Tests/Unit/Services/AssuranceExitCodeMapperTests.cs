@@ -294,7 +294,7 @@ public sealed class AssuranceExitCodeMapperTests
         AssuranceExitCodeMapper.Map(result).Should().Be(AssuranceExitCodeMapper.Incomplete);
     }
 
-    private static AssuranceEvaluation CreateEvaluation(
+    internal static AssuranceEvaluation CreateEvaluation(
         AssuranceProfileManifest profile, AssuranceClaimOutcome outcome, AssuranceRequirementLevel requirement, bool extensionGap = false, string? omittedBaseline = null,
         IReadOnlyList<AssuranceClaim>? coverageClaims = null, EvidenceCoverageSummary? coverageSummary = null)
     {

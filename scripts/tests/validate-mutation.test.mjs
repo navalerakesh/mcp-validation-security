@@ -50,13 +50,16 @@ process.exit(Number(process.env.MUTATION_FIXTURE_EXIT));
       const args = JSON.parse(readFileSync(argsFile, 'utf8'));
       assert.equal(args[args.indexOf('--break-at') + 1], '90');
       assert.equal(args[args.indexOf('--threshold-low') + 1], '90');
+      assert.deepEqual(args.filter((value, index) => args[index - 1] === '--reporter'), ['Dots', 'ClearText', 'Json']);
       assert.deepEqual(args.filter((value, index) => args[index - 1] === '--mutate'), [
         '**/AssuranceAssessmentEngine.cs', '**/ProviderHarnessEvaluator.cs', '**/RuleCalibrationEvaluator.cs',
         '**/ControlledStateEvaluator.cs', '**/ControlledIdentityEvaluator.cs', '**/ControlledEvidenceAdmission.cs',
         '**/AssuranceExitCodeMapper.cs', '**/AssuranceClaimProjector.cs', '**/ComprehensiveAssessmentRequirements.cs',
         '**/ControlledIdentitySecurityBaseline.cs', '**/ControlledIdentityEvidenceVerifier.cs',
         '**/OfficialConformanceContract.cs', '**/OfficialConformanceReconciler.cs', '**/SignedControlledEvidenceReader.cs',
-        '**/ToolScenarioInputs.cs',
+        '**/ToolScenarioInputs.cs', '**/ValidationPolicyEvaluator.cs', '**/ValidationBaselineEvaluator.cs',
+        '**/ValidationRequestBudget.cs', '**/ValidationCatalogBudget.cs', '**/ValidationRequestDemand.cs',
+        '**/ValidationOperationalMetrics.cs', '**/ControlledRelayEvaluator.cs',
       ]);
     } finally {
       rmSync(root, { recursive: true, force: true });

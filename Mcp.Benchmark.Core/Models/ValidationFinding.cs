@@ -58,7 +58,7 @@ public enum ValidationFindingSeverity
 
 public static class ValidationFindingRuleIds
 {
-    public const string CatalogVersion = "2026-11-23.1";
+    public const string CatalogVersion = "2026-11-24.2";
 
     private static readonly IReadOnlyDictionary<string, string> VersionedRules = BuildVersionedRules();
 
@@ -244,6 +244,7 @@ public static class ValidationFindingRuleIds
     public const string PromptArgumentsNotArray = "MCP.PROMPT.LIST.ARGUMENTS_NOT_ARRAY";
     public const string PromptArgumentMissingName = "MCP.PROMPT.LIST.ARGUMENT_NAME_MISSING";
     public const string PromptGetMissingMessagesArray = "MCP.PROMPT.GET.MESSAGES_MISSING";
+    public const string PromptGetResultInvalid = "MCP.PROMPT.GET.RESULT_INVALID";
     public const string PromptMessageMissingRole = "MCP.PROMPT.GET.MESSAGE_ROLE_MISSING";
     public const string PromptMessageInvalidRole = "MCP.PROMPT.GET.MESSAGE_ROLE_INVALID";
     public const string PromptMessageMissingContent = "MCP.PROMPT.GET.MESSAGE_CONTENT_MISSING";
@@ -358,6 +359,7 @@ public static class ValidationRuleCatalog
         descriptors[ValidationFindingRuleIds.PromptArgumentsNotArray] = SpecRule(ValidationFindingRuleIds.PromptArgumentsNotArray);
         descriptors[ValidationFindingRuleIds.PromptArgumentMissingName] = SpecRule(ValidationFindingRuleIds.PromptArgumentMissingName);
         descriptors[ValidationFindingRuleIds.PromptGetMissingMessagesArray] = SpecRule(ValidationFindingRuleIds.PromptGetMissingMessagesArray);
+        descriptors[ValidationFindingRuleIds.PromptGetResultInvalid] = SpecRule(ValidationFindingRuleIds.PromptGetResultInvalid);
         descriptors[ValidationFindingRuleIds.PromptMessageMissingRole] = SpecRule(ValidationFindingRuleIds.PromptMessageMissingRole);
         descriptors[ValidationFindingRuleIds.PromptMessageInvalidRole] = SpecRule(ValidationFindingRuleIds.PromptMessageInvalidRole);
         descriptors[ValidationFindingRuleIds.PromptMessageMissingContent] = SpecRule(ValidationFindingRuleIds.PromptMessageMissingContent);

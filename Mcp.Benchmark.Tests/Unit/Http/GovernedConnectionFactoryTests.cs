@@ -9,6 +9,84 @@ namespace Mcp.Benchmark.Tests.Unit.Http;
 
 public sealed class GovernedConnectionFactoryTests
 {
+    [Theory]
+    [InlineData("host")]
+    [InlineData("mode")]
+    [InlineData("budget")]
+    [InlineData("cancelled")]
+    public async Task GovernedObserver_ShouldCountOnlyAdmittedOutboundAttempts(string rejectedBy)
+    {
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy
+        {
+            Mode = rejectedBy == "mode" ? ExecutionMode.Safe : ExecutionMode.Standard,
+            AllowedHosts = ["example.test"], MaxRequests = 1
+        }));
+        var receiver = new RecordingHttpHandler();
+        using var policy = new GovernedRequestPolicyHandler(context) { InnerHandler = receiver };
+        using var observer = new GovernedRequestObservabilityHandler { InnerHandler = policy };
+        using var invoker = new HttpMessageInvoker(observer);
+        using var telemetry = ValidationObservability.BeginRun("governed-admission", 1);
+        if (rejectedBy == "budget")
+        {
+            using var first = new HttpRequestMessage(HttpMethod.Get, "https://example.test/first");
+            using var response = await invoker.SendAsync(first, CancellationToken.None);
+        }
+        using var request = new HttpRequestMessage(rejectedBy == "mode" ? HttpMethod.Post : HttpMethod.Get,
+            rejectedBy == "host" ? "https://outside.test/mcp" : "https://example.test/mcp");
+        using var cancellation = new CancellationTokenSource();
+        if (rejectedBy == "cancelled") cancellation.Cancel();
+        var send = () => invoker.SendAsync(request, cancellation.Token);
+        if (rejectedBy == "cancelled") await send.Should().ThrowAsync<OperationCanceledException>();
+        else await send.Should().ThrowAsync<InvalidOperationException>();
+        var metrics = telemetry.Complete(1);
+        var expected = rejectedBy == "budget" ? 1 : 0;
+        receiver.RequestCount.Should().Be(expected);
+        metrics.RequestsStarted.Should().Be(expected);
+        metrics.RequestsCompleted.Should().Be(expected);
+        metrics.RequestsFailed.Should().Be(0);
+        metrics.TargetLatencySampleCount.Should().Be(expected);
+        if (rejectedBy != "budget")
+        {
+            using var valid = new HttpRequestMessage(HttpMethod.Get, "https://example.test/valid");
+            using var response = await invoker.SendAsync(valid, CancellationToken.None);
+            receiver.RequestCount.Should().Be(1);
+        }
+    }
+
+    [Fact]
+    public async Task GovernedBudget_ShouldRemainSharedAcrossConcurrentClientInstances()
+    {
+        const int limit = 4;
+        var context = new RunNetworkPolicyContext();
+        context.Configure(OperationPolicySnapshot.From(new ExecutionPolicy
+        { Mode = ExecutionMode.Standard, AllowedHosts = ["example.test"], MaxRequests = limit }));
+        var receivers = new[] { new RecordingHttpHandler(), new RecordingHttpHandler() };
+        using var firstPolicy = new GovernedRequestPolicyHandler(context) { InnerHandler = receivers[0] };
+        using var secondPolicy = new GovernedRequestPolicyHandler(context) { InnerHandler = receivers[1] };
+        using var firstObserver = new GovernedRequestObservabilityHandler { InnerHandler = firstPolicy };
+        using var secondObserver = new GovernedRequestObservabilityHandler { InnerHandler = secondPolicy };
+        using var first = new HttpMessageInvoker(firstObserver);
+        using var second = new HttpMessageInvoker(secondObserver);
+        using var telemetry = ValidationObservability.BeginRun("shared-budget", limit);
+        var rejected = 0;
+        await Task.WhenAll(Enumerable.Range(0, 32).Select(index => Task.Run(async () =>
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://example.test/mcp");
+            try
+            {
+                using var response = await (index % 2 == 0 ? first : second).SendAsync(request, CancellationToken.None);
+            }
+            catch (Mcp.Benchmark.Core.Exceptions.OperationAdmissionException) { Interlocked.Increment(ref rejected); }
+        })));
+        receivers.Sum(receiver => receiver.RequestCount).Should().Be(limit);
+        rejected.Should().Be(32 - limit);
+        var metrics = telemetry.Complete(1);
+        metrics.RequestsStarted.Should().Be(limit);
+        metrics.RequestsCompleted.Should().Be(limit);
+        metrics.RequestsFailed.Should().Be(0);
+    }
+
     [Fact]
     public async Task ConnectAsync_RestrictedResolution_ShouldRejectWithoutOpeningSocket()
     {

@@ -33,6 +33,7 @@ This directory contains the durable product, architecture, and contributor docum
 | --- | --- |
 | [Design/Architecture.md](Design/Architecture.md) | High-level system boundaries, runtime flow, run-state diagram, and artifact model |
 | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
+| [Design/ReportQualityStandard.md](Design/ReportQualityStandard.md) | Report evidence semantics, visual tokens, fixed layout and print acceptance contract |
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
 | [Design/ExtensionIntegrationProposal.md](Design/ExtensionIntegrationProposal.md) | Official-source assessment and gated roadmap for conformance, Apps, Skills, and Tasks integration |

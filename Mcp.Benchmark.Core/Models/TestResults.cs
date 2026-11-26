@@ -314,6 +314,9 @@ public class ResourceTestResult : TestResultBase
     /// </summary>
     public int ResourcesDiscovered { get; set; } = 0;
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? DiscoveredResourceUris { get; set; }
+
     /// <summary>
     /// Gets or sets the number of resources successfully accessed.
     /// </summary>
@@ -360,6 +363,9 @@ public class PromptTestResult : TestResultBase
     /// Gets or sets the number of prompts discovered.
     /// </summary>
     public int PromptsDiscovered { get; set; } = 0;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? DiscoveredPromptNames { get; set; }
 
     /// <summary>
     /// Gets or sets the number of prompts successfully tested.

@@ -1,15 +1,16 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { access, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { access, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join, parse, resolve } from "node:path";
+import { delimiter, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { config } from "../src/config.js";
+import { parse as parseYaml } from "yaml";
 
 const packageRoot = dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
 
@@ -30,6 +31,116 @@ function isAlive(pid: unknown): boolean {
     if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
     throw error;
   }
+}
+
+test("Actual CLI help uses the execution command surface without reading config or launching targets", async () => {
+  const cli = process.env.MCPVAL_INTEGRATION_CLI;
+  assert.ok(cli, "A freshly built CLI is required.");
+  const root = await mkdtemp(join(tmpdir(), "mcpval-help-contract-"));
+  try {
+    const manifestOutput = await promisify(execFile)(cli, ["config-schema", "--commands"],
+      { cwd: root, timeout: 10_000, maxBuffer: 128 * 1024 });
+    const manifest = record(JSON.parse(manifestOutput.stdout));
+    assert.equal(manifest.documentType, "mcpval.command-manifest");
+    assert.ok(Array.isArray(manifest.commands));
+    assert.ok(Array.isArray(manifest.rootOptions));
+    const rootHelp = await promisify(execFile)(cli, ["--help"], { cwd: root, timeout: 10_000 });
+    for (const item of manifest.rootOptions) {
+      const option = record(item);
+      assert.ok(typeof option.name === "string" && rootHelp.stdout.includes(option.name));
+    }
+    assert.ok(manifest.rootOptions.some(item => record(item).name === "--version"));
+    for (const [command, options] of [
+      ["validate", ["--identity-baseline", "--validation-id", "--max-requests", "--allow-origin"]],
+      ["health-check", ["--protocol-era", "--max-requests", "--allow-origin"]],
+      ["discover", ["--protocol-era", "--max-requests", "--allow-origin"]],
+      ["report", ["--output", "--report-detail"]],
+      ["config-schema", ["--commands"]]
+    ] as const) {
+      const { stdout } = await promisify(execFile)(cli, [command, "--config", join(root, "does-not-exist.json"), "--help"],
+        { cwd: root, timeout: 10_000, maxBuffer: 128 * 1024 });
+      for (const option of options) assert.ok(stdout.includes(option), `${command} help omitted ${option}`);
+      const description = record(manifest.commands.find(item => record(item).name === command));
+      assert.ok(Array.isArray(description.options));
+      for (const item of description.options) {
+        const option = record(item);
+        assert.ok(typeof option.name === "string" && stdout.includes(option.name), `${command} manifest advertises an absent help option`);
+        assert.notEqual(option.name, "--version", "Root-only version must not be advertised on subcommands");
+        if (option.name === "--token") {
+          assert.equal(option.secrecy, "transient-secret");
+          assert.equal(option.defaultValue, null);
+        }
+      }
+    }
+    assert.deepEqual(await readdir(root), []);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
+
+for (const dryRun of [false, true]) {
+test(`Actual Action publishes typed ${dryRun ? "plan-only" : "collected"} outputs while preserving default human output`, { timeout: 60_000 }, async () => {
+  const cli = process.env.MCPVAL_INTEGRATION_CLI;
+  assert.ok(cli, "A freshly built CLI is required.");
+  const actionRoot = resolve(packageRoot, "..");
+  const action = record(parseYaml(await readFile(join(actionRoot, "action.yml"), "utf8")));
+  const steps = record(action.runs).steps;
+  assert.ok(Array.isArray(steps));
+  const validation = record(steps.find(item => record(item).name === "Run MCP validation"));
+  const root = await mkdtemp(join(tmpdir(), "mcpval-action-real-cli-"));
+  try {
+    const bin = join(root, "bin");
+    await mkdir(bin);
+    await writeFile(join(bin, "mcpval"), '#!/usr/bin/env bash\nexec "$MCPVAL_ACTUAL_CLI" "$@"\n', { mode: 0o755 });
+    const script = join(root, "validate.sh");
+    assert.equal(typeof validation.run, "string");
+    await writeFile(script, String(validation.run));
+    const fixture = resolve(actionRoot, "Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-compliant.cjs");
+    const auditMethods = join(root, "fixture-methods.jsonl");
+    const inputs: Record<string, string> = Object.fromEntries(Object.entries(record(action.inputs))
+      .map(([name, value]) => [name, String(record(value).default ?? "")]));
+    Object.assign(inputs, {
+      server: `${JSON.stringify(process.execPath)} ${JSON.stringify(fixture)} --audit-methods ${JSON.stringify(auditMethods)}`,
+      "output-dir": join(root, "artifacts"), "protocol-era": "legacy", "github-summary": "false", "github-annotations": "false",
+      "dry-run": String(dryRun)
+    });
+    const environment: NodeJS.ProcessEnv = {
+      PATH: `${bin}${delimiter}${process.env.PATH ?? ""}`, HOME: root, DOTNET_CLI_HOME: root,
+      TMPDIR: root, TEMP: root, TMP: root, DOTNET_NOLOGO: "1", DOTNET_CLI_TELEMETRY_OPTOUT: "1",
+      GITHUB_OUTPUT: join(root, "github-output"), GITHUB_ACTION_PATH: actionRoot, MCPVAL_ACTUAL_CLI: resolve(cli)
+    };
+    for (const name of ["SYSTEMROOT", "WINDIR", "PATHEXT"]) if (process.env[name]) environment[name] = process.env[name];
+    for (const [name, expression] of Object.entries(record(validation.env))) {
+      const match = /^\$\{\{\s*inputs\.([a-z-]+)\s*\}\}$/.exec(String(expression));
+      assert.ok(match);
+      environment[name] = inputs[match[1]];
+    }
+    const bash = process.platform === "win32" ? join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe") : "bash";
+    const execution = await promisify(execFile)(bash, [script.replaceAll("\\", "/")],
+      { cwd: root, env: environment, timeout: 45_000, maxBuffer: 1024 * 1024 });
+    assert.ok(execution.stdout.includes("Running mcpval validation"));
+    assert.ok(!execution.stdout.includes('"documentType":"mcpval.cli-result"'));
+    if (dryRun) assert.ok(execution.stdout.includes("Dry run complete. No requests were sent."));
+    else {
+      assert.match(execution.stdout, /Assurance INVENTORY: core=[A-Za-z]+, security=[A-Za-z]+, operations=[A-Za-z]+/);
+    }
+    const outputs = Object.fromEntries((await readFile(environment.GITHUB_OUTPUT!, "utf8")).trim().split("\n").map(line => {
+      const separator = line.indexOf("=");
+      return [line.slice(0, separator), line.slice(separator + 1)];
+    }));
+    assert.equal(outputs["exit-code"], "0");
+    assert.equal(outputs["artifact-state"], dryRun ? "plan-only" : "published");
+    if (dryRun) {
+      assert.equal(outputs["result-path"], "");
+      await assert.rejects(access(auditMethods), { code: "ENOENT" });
+      assert.ok((await readdir(outputs["invocation-directory"])).some(name => name.endsWith("-audit.json")));
+      return;
+    }
+    const result = record(JSON.parse(await readFile(outputs["result-path"], "utf8")));
+    assert.equal(outputs["validation-id"], record(result.run).validationId);
+    assert.equal(outputs["target-identity-sha256"], record(result.run).targetIdentitySha256);
+    assert.equal(outputs["policy-passed"], String(record(result.policyDecision).passed));
+    assert.equal(record(record(record(result.run).capabilitySnapshot).payload).toolInvocationAttempted, false);
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 }
 
 for (const termination of ["request-cancellation", "host-shutdown"] as const) {
@@ -110,7 +221,7 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     assert.match(JSON.stringify(envelope.contentTrust), /untrusted-target-derived/);
     const result = record(envelope.result);
     assert.equal(result.documentType, "mcpval.assurance-result");
-    assert.equal(result.documentSchemaVersion, "3.6.0");
+    assert.equal(result.documentSchemaVersion, "3.8.0");
     assert.equal(record(result.run).executionMode, "safe");
     assert.equal(record(result.serverConfig).protocolEra, "legacy");
     const tools = record(record(result.measurements).toolValidation);

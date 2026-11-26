@@ -28,7 +28,10 @@ public class PromptValidatorIntegrationTests
 
         _schemaRegistry
             .Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), It.IsAny<string>(), It.IsAny<string>()))
-            .Throws(new FileNotFoundException("Schema not found"));
+            .Returns((ProtocolVersion version, string area, string name) => new EmbeddedSchemaRegistry().GetSchema(version, area, name));
+        _schemaValidator
+            .Setup(validator => validator.Validate(It.IsAny<System.Text.Json.Nodes.JsonNode>(), It.IsAny<System.Text.Json.Nodes.JsonNode>()))
+            .Returns((System.Text.Json.Nodes.JsonNode? instance, System.Text.Json.Nodes.JsonNode schema) => new JsonSchemaValidator().Validate(instance, schema));
 
         _validator = new PromptValidator(
             new Mock<ILogger<PromptValidator>>().Object,

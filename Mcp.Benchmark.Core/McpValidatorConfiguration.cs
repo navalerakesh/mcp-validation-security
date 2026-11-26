@@ -91,6 +91,13 @@ public class McpValidatorConfiguration
             if (scenario == null) continue;
             scenario.Parameters = null;
             scenario.ExpectedResult = null;
+            scenario.ClientInputRounds = null;
+        }
+        foreach (var scenario in clone.Validation?.Categories?.PromptTesting?.CustomScenarios ?? [])
+        {
+            if (scenario == null) continue;
+            scenario.Arguments = null;
+            scenario.ClientInputRounds = null;
         }
         return clone;
     }

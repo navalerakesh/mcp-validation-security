@@ -124,6 +124,12 @@ public sealed class ExecutionPlan
 
     public int MaxResponseBytes { get; init; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
 
+    public int MaxCatalogPayloadCharacters { get; init; } = ExecutionPolicyDefaults.DefaultMaxCatalogPayloadCharacters;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GlobalTimeoutMinutes { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Mcp.Benchmark.Core.Services.RequestDemandEstimate? RequestDemand { get; init; }
+
     public bool AllowPrivateAddresses { get; init; }
 
     public bool RequiresElevatedRiskAcknowledgement { get; init; }
@@ -210,6 +216,12 @@ public sealed class AuditManifest
     public int TimeoutSeconds { get; init; }
 
     public int MaxResponseBytes { get; init; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
+
+    public int MaxCatalogPayloadCharacters { get; init; } = ExecutionPolicyDefaults.DefaultMaxCatalogPayloadCharacters;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GlobalTimeoutMinutes { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Mcp.Benchmark.Core.Services.RequestDemandEstimate? RequestDemand { get; init; }
 
     public IReadOnlyList<string> AllowedHosts { get; init; } = Array.Empty<string>();
 

@@ -14,6 +14,26 @@ internal sealed class ValidationHtmlReportDocument
 
     public required bool Verbose { get; init; }
 
+    public required string DecisionTitle { get; init; }
+
+    public required string DecisionReason { get; init; }
+
+    public required string ScopeLimit { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlMetaItem> DecisionFacts { get; init; }
+
+    public required string RunReference { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlClaimEntry> ClaimEntries { get; init; }
+
+    public required string TargetName { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlMetaItem> AgentFacts { get; init; }
+
+    public required string CatalogSummary { get; init; }
+
+    public required IReadOnlyList<ValidationHtmlPriorityAction> PriorityActions { get; init; }
+
     public required ValidationHtmlHero Hero { get; init; }
 
     public required ValidationHtmlReleaseDecision ReleaseDecision { get; init; }
@@ -39,6 +59,12 @@ internal sealed class ValidationHtmlReportDocument
 
     public ValidationHtmlBootstrapSummary? Bootstrap { get; init; }
 }
+
+internal sealed record ValidationHtmlClaimEntry(AssuranceClaim Claim, string Anchor);
+
+internal sealed record ValidationHtmlPriorityAction(
+    int Priority, string Category, string Impact, RemediationOrderItem Item,
+    string Anchor, string Kind, IReadOnlyList<ValidationHtmlClaimEntry> Claims);
 
 internal sealed class ValidationHtmlHero
 {
@@ -107,6 +133,8 @@ internal sealed class ValidationHtmlMetricCard
 
 internal sealed class ValidationHtmlDomainSummary
 {
+    public string AnchorId { get; init; } = "technical-evidence";
+
     public required string Domain { get; init; }
 
     public required string StatusLabel { get; init; }

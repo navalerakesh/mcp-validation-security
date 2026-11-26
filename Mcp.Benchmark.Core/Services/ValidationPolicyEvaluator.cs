@@ -114,8 +114,10 @@ public static class ValidationPolicyEvaluator
 
         foreach (var change in result.BaselineComparison.NewNonSuccessClaims)
         {
+            var currentClaims = result.Assurance.Claims.Where(claim => claim.ClaimId == change.ClaimId).ToArray();
             signals.Add(new PolicySignal(
-                PolicySignalKind.BaselineRegression,
+                currentClaims.Length == 1 && IsOutsideSelectedScope(result.Assurance, currentClaims[0])
+                    ? PolicySignalKind.OutsideSelectedScope : PolicySignalKind.BaselineRegression,
             "POLICY.BASELINE.NEW_CLAIM",
             change.ClaimId,
             change.Authority.ToString(),
@@ -126,7 +128,9 @@ public static class ValidationPolicyEvaluator
                 true));
         }
 
-        if (result.BaselineComparison.IsRegression && result.BaselineComparison.NewNonSuccessClaims.Count == 0)
+        if (result.BaselineComparison.IsRegression && result.BaselineComparison.NewNonSuccessClaims.Count == 0 ||
+            ValidationBaselineEvaluator.HasAssessmentDegradation(result.BaselineComparison) &&
+            !signals.Any(signal => signal.Kind == PolicySignalKind.BaselineRegression))
         {
             signals.Add(new PolicySignal(
                 PolicySignalKind.BaselineRegression,
@@ -260,21 +264,22 @@ public static class ValidationPolicyEvaluator
         var nonSuccessClaims = result.Assurance.Claims.Where(claim =>
             claim.Applicability == AssuranceApplicability.Applicable &&
             claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)).ToArray();
-        if (!nonSuccessClaims.Any(claim => claim.Dimension is AssuranceDimension.CoreProtocol or AssuranceDimension.CapabilityContract or AssuranceDimension.ExternalConformance)) AddAssessmentSignal(
+        var selectedClaims = nonSuccessClaims.Where(claim => !IsOutsideSelectedScope(result.Assurance, claim)).ToArray();
+        if (!selectedClaims.Any(claim => claim.Dimension is AssuranceDimension.CoreProtocol or AssuranceDimension.CapabilityContract or AssuranceDimension.ExternalConformance)) AddAssessmentSignal(
             signals,
             "POLICY.ASSURANCE.CORE",
             AssuranceDimension.CoreProtocol,
             result.Assurance.Assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant,
             result.Assurance.Assessments.CoreConformance.Status == CoreConformanceStatus.Incomplete,
             $"Core conformance is {result.Assurance.Assessments.CoreConformance.Status}.");
-        if (!nonSuccessClaims.Any(claim => claim.Dimension == AssuranceDimension.Security)) AddAssessmentSignal(
+        if (!selectedClaims.Any(claim => claim.Dimension == AssuranceDimension.Security)) AddAssessmentSignal(
             signals,
             "POLICY.ASSURANCE.SECURITY",
             AssuranceDimension.Security,
             result.Assurance.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound,
             result.Assurance.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.Incomplete,
             $"Security assurance is {result.Assurance.Assessments.SecurityAssurance.Status}.");
-        if (!nonSuccessClaims.Any(claim => claim.Dimension == AssuranceDimension.Operations)) AddAssessmentSignal(
+        if (!selectedClaims.Any(claim => claim.Dimension == AssuranceDimension.Operations)) AddAssessmentSignal(
             signals,
             "POLICY.ASSURANCE.OPERATIONS",
             AssuranceDimension.Operations,
@@ -302,7 +307,7 @@ public static class ValidationPolicyEvaluator
             };
             claim.Metadata.TryGetValue("ruleId", out var ruleId);
             signals.Add(new PolicySignal(
-                kind,
+                IsOutsideSelectedScope(result.Assurance, claim) ? PolicySignalKind.OutsideSelectedScope : kind,
                 $"POLICY.CLAIM.{NormalizeToken(claim.ClaimId)}",
                 string.IsNullOrWhiteSpace(ruleId) ? claim.ClaimId : ruleId,
                 claim.Authority.ToString(),
@@ -377,6 +382,7 @@ public static class ValidationPolicyEvaluator
 
     private static bool Blocks(string mode, PolicySignal signal)
     {
+        if (signal.Kind == PolicySignalKind.OutsideSelectedScope) return false;
         if (signal.Kind is PolicySignalKind.ExecutionIntegrity or PolicySignalKind.CriticalError or PolicySignalKind.BaselineUnavailable)
         {
             return true;
@@ -392,6 +398,17 @@ public static class ValidationPolicyEvaluator
             _ => signal.Kind is PolicySignalKind.GateReject
                 || signal.Severity >= SeverityBand.Critical
         };
+    }
+
+    public static bool IsOutsideSelectedScope(AssuranceEvaluation assurance, AssuranceClaim claim)
+    {
+        ArgumentNullException.ThrowIfNull(assurance);
+        ArgumentNullException.ThrowIfNull(claim);
+        return assurance.Profile.ProfileId == Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Comprehensive.ProfileId &&
+        (claim.Dimension == AssuranceDimension.ExternalConformance && claim.RequirementLevel == AssuranceRequirementLevel.May &&
+            claim.Authority is AssuranceAuthority.OfficialConformance or AssuranceAuthority.ProviderPolicy ||
+         claim.Dimension == AssuranceDimension.Extension && assurance.RequiredExtensionIds is { } selected &&
+            !selected.Contains(claim.Subject, StringComparer.Ordinal));
     }
 
     private static bool IsExecutionIntegrityFailure(ValidationStatus status)
@@ -459,7 +476,8 @@ public static class ValidationPolicyEvaluator
         CoverageDebt,
         StructuredFinding,
         BaselineRegression,
-        BaselineUnavailable
+        BaselineUnavailable,
+        OutsideSelectedScope
     }
 
     private sealed record PolicySignal(

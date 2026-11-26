@@ -121,7 +121,7 @@ internal static class ModernResultSemantics
         var inputRequestCount = result.TryGetProperty("inputRequests", out var requests) && requests.ValueKind == JsonValueKind.Object
             ? requests.EnumerateObject().Count()
             : 0;
-        if (string.IsNullOrWhiteSpace(requestState) && inputRequestCount == 0)
+        if (requestState is null && inputRequestCount == 0)
         {
             return new ModernResultAssessment(
                 McpResultType.InputRequired,

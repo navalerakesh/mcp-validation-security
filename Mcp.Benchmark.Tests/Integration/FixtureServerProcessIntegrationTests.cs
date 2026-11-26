@@ -19,6 +19,156 @@ namespace Mcp.Benchmark.Tests.Integration;
 public class FixtureServerProcessIntegrationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitPrompt_ShouldCompleteBoundedRepliesOverRealStdio(bool mismatch)
+    {
+        var command = BuildFixtureCommand("client-input");
+        await using var adapter = await StartFixtureServerAsync(command);
+        adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = 5 });
+        adapter.SetProtocolVersion("2026-07-28");
+        using var requests = JsonDocument.Parse(mismatch ? """{"other":{"method":"roots/list"}}""" : """{"roots":{"method":"roots/list"}}""");
+        using var responses = JsonDocument.Parse(mismatch ? """{"other":{"roots":[]}}""" : """{"roots":{"roots":[]}}""");
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(analyzer => analyzer.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<int>())).Returns([]);
+        var validator = new PromptValidator(Mock.Of<ILogger<PromptValidator>>(), adapter, new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(), safety.Object);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var result = await validator.ValidatePromptDiscoveryAsync(new McpServerConfig
+        { Endpoint = command, Transport = "stdio", ProtocolVersion = "2026-07-28" }, new PromptTestingConfig
+        {
+            CustomScenarios = [new PromptTestScenario { PromptName = "owned-client-input",
+                Arguments = new() { ["value"] = "private-client-input-canary" },
+                ClientInputRounds = [new() { ExpectedRequests = requests.RootElement, Responses = responses.RootElement }] }]
+        }, deadline.Token);
+        result.Status.Should().Be(mismatch ? TestStatus.Inconclusive : TestStatus.Passed);
+        JsonSerializer.Serialize(result).Should().NotContain("client-input-canary");
+        var stats = await adapter.CallAsync(command, "fixture/stats", null, deadline.Token);
+        stats.IsSuccess.Should().BeTrue();
+        using var document = JsonDocument.Parse(stats.RawJson!);
+        document.RootElement.GetProperty("result").GetProperty("calls").GetInt32().Should().Be(mismatch ? 1 : 2);
+    }
+
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(3, true)]
+    public async Task StdioBudget_ShouldIncludeImplicitInitializationNotification(int budget, bool toolAdmitted)
+    {
+        var root = Path.Combine(Path.GetTempPath(), "mcpval-stdio-budget-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        var audit = Path.Combine(root, "methods.jsonl");
+        var command = BuildFixtureCommand("compliant") + $" --audit-methods \"{audit}\"";
+        try
+        {
+            await using var adapter = await StartFixtureServerAsync(command);
+            adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = budget });
+            adapter.SetProtocolVersion("2025-11-25");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            using var telemetry = ValidationObservability.BeginRun("stdio-budget", budget);
+            (await adapter.ValidateInitializeAsync(command, deadline.Token)).IsSuccessful.Should().BeTrue();
+            var tool = await adapter.CallAsync(command, "tools/list", null, deadline.Token);
+            tool.IsSuccess.Should().Be(toolAdmitted);
+            var blocked = await adapter.CallAsync(command, "ping", null, deadline.Token);
+            blocked.IsSuccess.Should().BeFalse();
+            blocked.ProbeContext!.ResponseClassification.Should().Be(ProbeResponseClassification.PolicyBlocked);
+            var metrics = telemetry.Complete(1);
+            metrics.RequestsStarted.Should().Be(budget);
+            metrics.RequestsCompleted.Should().Be(budget);
+            metrics.RequestsFailed.Should().Be(0);
+            var observed = await File.ReadAllTextAsync(audit, deadline.Token);
+            observed.Should().Contain("initialize").And.Contain("notifications/initialized").And.NotContain("ping");
+            if (toolAdmitted) observed.Should().Contain("tools/list");
+            else observed.Should().NotContain("tools/list");
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("rpc")]
+    [InlineData("raw")]
+    [InlineData("probe")]
+    public async Task StdioBudget_ShouldNotChargeCancellationBeforeDispatch(string surface)
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+        adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = 1 });
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        const string body = """{"jsonrpc":"2.0","id":"cancelled","method":"tools/list"}""";
+        async Task Send()
+        {
+            if (surface == "rpc") await adapter.CallAsync(command, "tools/list", null, cancelled.Token);
+            else if (surface == "raw") await adapter.SendRawJsonAsync(command, body, cancelled.Token);
+            else await adapter.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
+            { Endpoint = command, Kind = StdioTransportProbeKind.MessageExchange, ProbeId = "cancelled", RawMessage = body }, cancelled.Token);
+        }
+        await FluentActions.Awaiting(Send).Should().ThrowAsync<OperationCanceledException>();
+        var response = await adapter.CallAsync(command, "tools/list");
+        response.IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("rpc")]
+    [InlineData("raw")]
+    [InlineData("probe")]
+    public async Task StdioBudget_ShouldNotChargeAnUnavailableProcessOrRecordAnAttempt(string surface)
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = new StdioMcpClientAdapter(Mock.Of<ILogger<StdioMcpClientAdapter>>());
+        adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = 1 });
+        using var telemetry = ValidationObservability.BeginRun("stdio-unavailable-budget", 1);
+        const string body = """{"jsonrpc":"2.0","id":"unavailable","method":"tools/list"}""";
+        if (surface == "rpc") (await adapter.CallAsync(command, "tools/list")).IsSuccess.Should().BeFalse();
+        else if (surface == "raw") (await adapter.SendRawJsonAsync(command, body, CancellationToken.None)).IsSuccess.Should().BeFalse();
+        else (await adapter.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
+        { Endpoint = command, Kind = StdioTransportProbeKind.MessageExchange, ProbeId = "unavailable", RawMessage = body })).Executed.Should().BeFalse();
+        await adapter.StartProcessAsync(command);
+        (await adapter.CallAsync(command, "tools/list")).IsSuccess.Should().BeTrue();
+        var metrics = telemetry.Complete(1);
+        metrics.RequestsStarted.Should().Be(1);
+        metrics.RequestsCompleted.Should().Be(1);
+        metrics.RequestsFailed.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task SyntheticClientInputs_ShouldUseTheRealStdioTransportWithoutLeakingOrReusingPrivateState(bool executionOnly, bool mismatch)
+    {
+        var command = BuildFixtureCommand("client-input");
+        await using var adapter = await StartFixtureServerAsync(command);
+        adapter.ConfigureExecutionPolicy(new ExecutionPolicy { Mode = ExecutionMode.Standard, MaxRequests = 5 });
+        adapter.SetProtocolVersion("2026-07-28");
+        var validator = new ToolValidator(Mock.Of<ILogger<ToolValidator>>(), adapter, new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(), Mock.Of<IAuthenticationService>(), Mock.Of<IContentSafetyAnalyzer>(), new ToolAiReadinessAnalyzer());
+        using var requests = JsonDocument.Parse(mismatch ? """{"other":{"method":"roots/list"}}""" : """{"roots":{"method":"roots/list"}}""");
+        using var responses = JsonDocument.Parse(mismatch ? """{"other":{"roots":[]}}""" : """{"roots":{"roots":[]}}""");
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        {
+            ToolName = "owned-client-input", Parameters = new() { ["value"] = "private-client-input-canary" },
+            ClientInputRounds = [new ToolClientInputRound { ExpectedRequests = requests.RootElement, Responses = responses.RootElement }]
+        }] };
+        var server = new McpServerConfig { Endpoint = command, Transport = "stdio", ProtocolVersion = "2026-07-28" };
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var result = executionOnly
+            ? await validator.ValidateToolExecutionAsync(server, config, deadline.Token)
+            : await validator.ValidateToolDiscoveryAsync(server, config, deadline.Token);
+        var tool = result.ToolResults.Single(entry => entry.ToolName == "owned-client-input");
+        tool.Status.Should().Be(mismatch ? TestStatus.Inconclusive : TestStatus.Passed, string.Join("; ", tool.Issues));
+        tool.ExecutionSuccessful.Should().Be(!mismatch);
+        JsonSerializer.Serialize(result).Should().NotContain("client-input-canary");
+        var stats = await adapter.CallAsync(command, "fixture/stats", null, deadline.Token);
+        stats.IsSuccess.Should().BeTrue();
+        using var document = JsonDocument.Parse(stats.RawJson!);
+        document.RootElement.GetProperty("result").GetProperty("calls").GetInt32().Should().Be(mismatch ? 1 : 2);
+        using var process = System.Diagnostics.Process.GetProcessById(document.RootElement.GetProperty("result").GetProperty("pid").GetInt32());
+        await adapter.DisposeAsync();
+        process.HasExited.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(false, false, false, ValidationOutcome.Succeeded)]
     [InlineData(true, false, false, ValidationOutcome.Failed)]
     [InlineData(false, true, false, ValidationOutcome.Inconclusive)]
@@ -907,6 +1057,20 @@ public class FixtureServerProcessIntegrationTests
     }
 
     [Fact]
+    public async Task StdioZeroReadDeadline_ShouldNotConsumeBufferedResponseBytes()
+    {
+        await using var adapter = new StdioMcpClientAdapter(Mock.Of<ILogger<StdioMcpClientAdapter>>());
+        const string line = """{"jsonrpc":"2.0","id":"pending","result":{}}""";
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(line + "\n"));
+        using var reader = new StreamReader(stream);
+        var read = typeof(StdioMcpClientAdapter).GetMethod("ReadLineWithTimeoutAsync",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+        var expired = (Task<string?>)read.Invoke(adapter, [reader, TimeSpan.Zero, CancellationToken.None])!;
+        (await expired).Should().BeNull();
+        (await reader.ReadLineAsync()).Should().Be(line);
+    }
+
+    [Fact]
     public async Task StdioJsonRpcErrors_ShouldCompleteTransportAcrossStructuredAndRawPaths()
     {
         var command = BuildFixtureCommand("compliant");
@@ -1003,8 +1167,8 @@ public class FixtureServerProcessIntegrationTests
         return new PromptValidator(
             new Mock<ILogger<PromptValidator>>().Object,
             client,
-            new Mock<ISchemaValidator>().Object,
-            new Mock<ISchemaRegistry>().Object,
+            new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(),
             contentSafetyAnalyzer.Object);
     }
 

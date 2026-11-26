@@ -15,7 +15,7 @@
   ],
   "properties": {
     "documentType": { "const": "mcpval.assurance-result" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0", "3.7.0", "3.8.0"] },
     "startTime": { "type": "string", "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "endTime": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "producer": {
@@ -49,11 +49,20 @@
             {
               "type": "object",
               "required": ["runCorrelationId", "validatorOverheadMs", "totalRunDurationMs", "requestBudgetLimit", "requestsStarted", "requestsCompleted", "requestsFailed", "retryCount", "retryDelayMs", "truncatedResponseCount", "targetLatencyP50Ms", "targetLatencyP95Ms", "targetLatencyP99Ms", "queueTimeP95Ms", "targetLatencySampleCount", "queueTimeSampleCount", "throughputRequestsPerSecond", "errorRate", "evidenceCoverageRatio", "stageDurationMs"],
+              "anyOf": [
+                { "properties": { "catalogPayloadCharactersReserved": { "type": "null" }, "catalogPayloadCharacterLimit": { "type": "null" } } },
+                {
+                  "required": ["catalogPayloadCharactersReserved", "catalogPayloadCharacterLimit"],
+                  "properties": { "catalogPayloadCharactersReserved": { "type": "integer" }, "catalogPayloadCharacterLimit": { "type": "integer" } }
+                }
+              ],
               "properties": {
                 "runCorrelationId": { "type": "string", "minLength": 1 },
                 "validatorOverheadMs": { "type": "number", "minimum": 0 },
                 "totalRunDurationMs": { "type": "number", "minimum": 0 },
                 "requestBudgetLimit": { "type": "integer", "minimum": 0 },
+                "catalogPayloadCharactersReserved": { "type": ["integer", "null"], "minimum": 0, "maximum": 67108864 },
+                "catalogPayloadCharacterLimit": { "type": ["integer", "null"], "minimum": 1, "maximum": 67108864 },
                 "requestsStarted": { "type": "integer", "minimum": 0 },
                 "requestsCompleted": { "type": "integer", "minimum": 0 },
                 "requestsFailed": { "type": "integer", "minimum": 0 },
@@ -134,7 +143,8 @@
             "type": "object",
             "properties": {
               "controlledState": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateAssessment" }] },
-              "controlledIdentity": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledIdentityAssessment" }] }
+              "controlledIdentity": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledIdentityAssessment" }] },
+              "controlledRelay": { "$ref": "#/$defs/controlledRelayAssessment" }
             },
             "additionalProperties": true
           }
@@ -164,7 +174,7 @@
     "baselineComparison": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/baselineComparison" }] }
   },
   "allOf": [{
-    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0"] } }, "required": ["documentSchemaVersion"] },
+    "if": { "properties": { "documentSchemaVersion": { "enum": ["2.3.0", "3.0.0", "3.1.0", "3.2.0", "3.3.0", "3.4.0", "3.5.0", "3.6.0", "3.7.0", "3.8.0"] } }, "required": ["documentSchemaVersion"] },
     "then": { "required": ["startTime"] }
   }],
   "$defs": {
@@ -285,6 +295,100 @@
       "enum": ["notEvaluated", "running", "succeeded", "failed", "skipped", "authRequired", "inconclusive", "notApplicable", "unavailable", "blocked", "cancelled", "error", 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     },
     "controlledStateIdentifier": { "type": "string", "minLength": 1, "maxLength": 512 },
+    "controlledRelayAssessment": {
+      "type": ["object", "null"],
+      "required": ["outcome", "checks", "reason", "assessedAt"],
+      "properties": {
+        "outcome": { "$ref": "#/$defs/validationOutcome" },
+        "reason": { "type": "string", "maxLength": 4096 },
+        "assessedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "sourceEvidenceSha256": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateDigest" }] },
+        "verifiedObserverKeyId": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateDigest" }] },
+        "checks": {
+          "type": "array", "minItems": 1, "maxItems": 32,
+          "items": {
+            "type": "object", "required": ["boundaryId", "checkId", "outcome"],
+            "properties": {
+              "boundaryId": { "$ref": "#/$defs/controlledStateIdentifier" },
+              "checkId": { "$ref": "#/$defs/controlledStateIdentifier" },
+              "outcome": { "$ref": "#/$defs/validationOutcome" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "observations": { "type": ["array", "null"], "maxItems": 2, "items": { "$ref": "#/$defs/controlledRelayObservation" } },
+        "admittedContract": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledRelayContract" }] },
+        "effect": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateAssessment" }] }
+      },
+      "additionalProperties": false
+    },
+    "controlledRelayBoundary": {
+      "type": "object",
+      "required": ["binding", "protocolVersion", "transport", "method", "subject", "capabilityDigest", "responseDigest", "expectedApplicationError", "expectedCancellation", "maximumAttempts"],
+      "properties": {
+        "binding": { "$ref": "#/$defs/controlledOperationBinding" },
+        "parentRequestId": { "type": ["string", "null"], "maxLength": 512 },
+        "protocolVersion": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "transport": { "enum": ["http", "stdio"] },
+        "method": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "subject": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "capabilityDigest": { "$ref": "#/$defs/controlledStateDigest" },
+        "responseDigest": { "$ref": "#/$defs/controlledStateDigest" },
+        "expectedHttpStatus": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+        "expectedProtocolError": { "type": ["integer", "null"] },
+        "expectedApplicationError": { "type": "boolean" },
+        "expectedCancellation": { "type": "boolean" },
+        "maximumAttempts": { "type": "integer", "minimum": 1, "maximum": 100000 }
+      },
+      "additionalProperties": false
+    },
+    "controlledRelayContract": {
+      "type": "object",
+      "required": ["contractRevision", "scenarioId", "policyRevision", "observerId", "boundaries", "maximumDuration", "maximumEvidenceAge", "maximumObserverReads"],
+      "properties": {
+        "contractRevision": { "const": "1.0.0" },
+        "scenarioId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "policyRevision": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "observerId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "boundaries": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/controlledRelayBoundary" } },
+        "maximumDuration": { "$ref": "#/$defs/controlledStateDuration" },
+        "maximumEvidenceAge": { "$ref": "#/$defs/controlledStateDuration" },
+        "maximumObserverReads": { "type": "integer", "minimum": 1 },
+        "effectContract": { "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/controlledStateScenarioContract" }] }
+      },
+      "additionalProperties": false
+    },
+    "controlledRelayObservation": {
+      "type": "object",
+      "required": ["binding", "observerId", "protocolVersion", "transport", "method", "subject", "capabilityDigest", "responseDigest", "attempts", "observerReads", "observerOutcome", "complete", "cleanupOutcome"],
+      "properties": {
+        "binding": { "$ref": "#/$defs/controlledOperationBinding" },
+        "parentRequestId": { "type": ["string", "null"], "maxLength": 512 },
+        "responseRequestId": { "type": ["string", "null"], "maxLength": 512 },
+        "observerId": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "protocolVersion": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "transport": { "enum": ["http", "stdio"] },
+        "method": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "subject": { "$ref": "#/$defs/controlledStateIdentifier" },
+        "capabilityDigest": { "$ref": "#/$defs/controlledStateDigest" },
+        "responseDigest": { "$ref": "#/$defs/controlledStateDigest" },
+        "httpStatus": { "type": ["integer", "null"], "minimum": 100, "maximum": 599 },
+        "protocolError": { "type": ["integer", "null"] },
+        "applicationError": { "type": ["boolean", "null"] },
+        "effectiveActorMatched": { "type": ["boolean", "null"] },
+        "audienceMatched": { "type": ["boolean", "null"] },
+        "cancellationObserved": { "type": ["boolean", "null"] },
+        "attempts": { "type": "integer", "minimum": 0 },
+        "observerReads": { "type": "integer", "minimum": 0 },
+        "startedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "completedAt": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "observedThrough": { "$ref": "#/$defs/controlledStateTimestamp" },
+        "observerOutcome": { "$ref": "#/$defs/validationOutcome" },
+        "complete": { "type": "boolean" },
+        "cleanupOutcome": { "$ref": "#/$defs/validationOutcome" }
+      },
+      "additionalProperties": false
+    },
     "controlledStateDigest": { "type": "string", "minLength": 64, "maxLength": 64, "pattern": "^[a-f0-9]{64}$" },
     "controlledStateTimestamp": { "type": ["string", "null"], "format": "date-time", "pattern": "(Z|[+-][0-9]{2}:[0-9]{2})$" },
     "controlledStateDuration": { "type": "string", "pattern": "^-?([0-9]+\\.)?[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,7})?$" },
@@ -460,6 +564,8 @@
       "properties": {
         "catalogEnumeration": { "$ref": "#/$defs/catalogEnumeration" },
         "templateCatalogEnumeration": { "$ref": "#/$defs/catalogEnumeration" },
+        "discoveredResourceUris": { "type": ["array", "null"], "maxItems": 4096, "items": { "type": "string" } },
+        "discoveredPromptNames": { "type": ["array", "null"], "maxItems": 4096, "items": { "type": "string" } },
         "aiReadinessAnalyzedSchemaCount": { "type": "integer", "minimum": 0 },
         "aiReadinessInspectionIssues": {
           "type": "array",

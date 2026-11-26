@@ -41,6 +41,28 @@ On Windows PowerShell:
 
 When using GitHub Copilot agents, run the workspace `repo-precommit-review` skill before committing, followed by `repo-build-release-gate`. The first performs repository-contextual semantic review; the second runs mandatory and change-specific executable gates. See [.github/copilot-instructions.md](.github/copilot-instructions.md) for the governing agent workflow. These local skills supplement rather than replace required GitHub checks.
 
+## Report changes
+
+Read the [report quality and layout contract](docs/Design/ReportQualityStandard.md). From the repository root:
+
+```bash
+dotnet test Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj --filter 'FullyQualifiedName~Unit.Reporting|FullyQualifiedName~ReportCommandTests|FullyQualifiedName~PublicArtifactSchemaTests'
+bash scripts/generate-report-corpus.sh ./artifacts/report-quality
+npm ci --prefix scripts/report-quality --ignore-scripts
+cd scripts/report-quality
+PLAYWRIGHT_SKIP_BROWSER_GC=1 npx playwright install chromium
+cd ../..
+node scripts/report-quality/check.mjs ./artifacts/report-quality
+```
+
+On Linux, use `playwright install --with-deps chromium` to supply browser OS dependencies. The browser tooling is development-only; it is not shipped in the CLI or MCP wrapper.
+
+The corpus uses five deterministic synthetic inputs (inventory, mixed, interrupted, dense, sparse), both HTML detail levels, and the actual CLI. The browser check produces screenshots, A4/Letter PDFs, extracted page text and a machine-readable receipt under the ignored output directory. It checks exact claim parity, local anchors, page reflow, accessibility, keyboard navigation, offline/no-JavaScript reading, print scope and every numbered footer.
+
+Before modifying the renderer, retain the generated baseline. Render the same input bytes with the new build and compare them. Review HTML snapshots only after inspecting generated output; use `UPDATE_SNAPSHOTS=1` with the single HTML snapshot selector, not the entire snapshot suite.
+
+The path-triggered Report Quality workflow runs these commands independently of Copilot. Attach the receipt and representative screens/PDFs to the review, not to tracked source. Human review remains required for reading order, hierarchy and pagination. Native screen-reader and second-engine print acceptance must be reported separately.
+
 ## Pull Requests
 
 1. Create a branch from `main`.

@@ -11,6 +11,43 @@ namespace Mcp.Benchmark.Tests.Unit.Contracts;
 public sealed class PublicArtifactSchemaTests
 {
     [Fact]
+    public void ReportQualityCorpus_ShouldConformToPublicResultSchema()
+    {
+        foreach (var name in Mcp.Benchmark.Tests.Fixtures.ReportQualityTestData.Names)
+            AssertConforms("mcpval-validation-result.schema.json",
+                Serialize(Mcp.Benchmark.Tests.Fixtures.ReportQualityTestData.Create(name).CloneWithoutSecrets()));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CatalogIdentityInventory_ShouldRoundTripAndPreserveUnknownHistoricalState(bool resources)
+    {
+        var result = new ValidationResult
+        {
+            ResourceTesting = new() { DiscoveredResourceUris = ["https://example.invalid/item"] },
+            PromptTesting = new() { DiscoveredPromptNames = ["fixture"] }
+        };
+        var clone = result.CloneWithoutSecrets();
+        clone.ResourceTesting!.DiscoveredResourceUris!.Clear();
+        result.ResourceTesting.DiscoveredResourceUris.Should().ContainSingle();
+        var serialized = Serialize(result.CloneWithoutSecrets());
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var measurement = serialized["measurements"]![resources ? "resourceTesting" : "promptTesting"]!;
+        var property = resources ? "discoveredResourceUris" : "discoveredPromptNames";
+        measurement[property] = new JsonArray(42);
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        measurement.AsObject().Remove(property);
+        serialized["documentSchemaVersion"] = "3.7.0";
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+        var restored = serialized.Deserialize<ValidationResult>(options)!;
+        if (resources) restored.ResourceTesting!.DiscoveredResourceUris.Should().BeNull();
+        else restored.PromptTesting!.DiscoveredPromptNames.Should().BeNull();
+    }
+
+    [Fact]
     public void OfficialCheckProvenance_ShouldRejectInvalidIndicesAndContradictoryApplicability()
     {
         var document = Mcp.Benchmark.Tests.Unit.Services.OfficialConformanceEvidenceImporterTests.CreateDocument(
@@ -88,6 +125,25 @@ public sealed class PublicArtifactSchemaTests
     }
 
     private readonly JsonSchemaValidator _validator = new();
+
+    [Fact]
+    public void CatalogBudgetSchema_ShouldRequirePairedMeasurementsWhilePreservingHistoricalMissingness()
+    {
+        var result = new ValidationResult();
+        result.Run.OperationalMetrics = new() { RunCorrelationId = result.ValidationId, CatalogPayloadCharactersReserved = 0, CatalogPayloadCharacterLimit = 100 };
+        var serialized = Serialize(result);
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        var metrics = serialized["run"]!["operationalMetrics"]!.AsObject();
+        metrics.Remove("catalogPayloadCharacterLimit");
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        metrics["catalogPayloadCharacterLimit"] = null;
+        AssertDoesNotConform("mcpval-validation-result.schema.json", serialized);
+        metrics["catalogPayloadCharactersReserved"] = null;
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+        metrics.Remove("catalogPayloadCharactersReserved");
+        metrics.Remove("catalogPayloadCharacterLimit");
+        AssertConforms("mcpval-validation-result.schema.json", serialized);
+    }
 
     [Fact]
     public void RequestFailureBreakdown_ShouldRoundTripAndRejectInvalidAttribution()
@@ -595,6 +651,8 @@ public sealed class PublicArtifactSchemaTests
     [InlineData(ArtifactContracts.ValidationResultDocumentType, "1.99.0", false)]
     [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "1.0.0", false)]
     [InlineData(ArtifactContracts.ModelEvaluationDocumentType, "2.0.0", true)]
+    [InlineData(ArtifactContracts.CommandManifestDocumentType, "1.0.0", true)]
+    [InlineData(ArtifactContracts.CommandManifestDocumentType, "2.0.0", false)]
     [InlineData("mcpval.unknown", "1.0.0", false)]
     [InlineData(ArtifactContracts.AuditManifestDocumentType, "invalid", false)]
     [InlineData(ArtifactContracts.AuditManifestDocumentType, "1.-1.0", false)]
@@ -636,6 +694,39 @@ public sealed class PublicArtifactSchemaTests
 
         JsonNode.DeepEquals(published, generated).Should().BeTrue();
         AssertConforms(schemaName, JsonSerializer.SerializeToNode(new McpValidatorConfiguration())!);
+    }
+
+    [Fact]
+    public async Task CommandManifest_ShouldValidateActualCommandMetadataAgainstPublishedContract()
+    {
+        var start = new System.Diagnostics.ProcessStartInfo("dotnet")
+        {
+            RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false
+        };
+        start.ArgumentList.Add(typeof(Mcp.Benchmark.CLI.Services.ExecutionGovernanceService).Assembly.Location);
+        start.ArgumentList.Add("config-schema");
+        start.ArgumentList.Add("--commands");
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        using var process = System.Diagnostics.Process.Start(start)!;
+        try
+        {
+            var output = process.StandardOutput.ReadToEndAsync(deadline.Token);
+            var errors = process.StandardError.ReadToEndAsync(deadline.Token);
+            await process.WaitForExitAsync(deadline.Token);
+            process.ExitCode.Should().Be(0, await errors);
+            var manifest = JsonNode.Parse(await output)!;
+            AssertConforms("mcpval-command-manifest.schema.json", manifest);
+            manifest.AsObject().Remove("rootOptions");
+            AssertDoesNotConform("mcpval-command-manifest.schema.json", manifest);
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+                await process.WaitForExitAsync();
+            }
+        }
     }
 
     private void AssertConforms(string schemaName, JsonNode instance)

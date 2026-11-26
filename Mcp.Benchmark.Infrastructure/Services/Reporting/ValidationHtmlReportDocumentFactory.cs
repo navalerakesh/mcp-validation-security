@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
@@ -22,6 +25,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var compatibilityThemes = BuildCompatibilityThemes(result);
         var priorityFindings = ExecutiveFindingSummaryBuilder.BuildPriorityFindings(result);
         var remediationOrder = RemediationOrderBuilder.Build(result);
+        var claimEntries = BuildClaimEntries(result.Assurance.Claims);
         var actionHints = ReportActionHintBuilder.Build(result)
             .Where(hint => !MatchesPolicySummary(hint, result.PolicyOutcome?.Summary))
             .ToList();
@@ -35,9 +39,20 @@ internal sealed class ValidationHtmlReportDocumentFactory
         {
             Result = result,
             ReportConfig = reportConfig,
-            GeneratedAtLabel = $"Generated on {ResolveArtifactTime(result):yyyy-MM-dd HH:mm:ss UTC}",
+            GeneratedAtLabel = result.EndTime.HasValue || result.StartTime != default
+                ? $"Recorded run: {ResolveArtifactTime(result):yyyy-MM-dd HH:mm:ss UTC}" : "Recorded run: unavailable",
             DetailLabel = detailLabel,
             Verbose = verbose,
+            DecisionTitle = BuildDecisionTitle(result),
+            DecisionReason = BuildDecisionReason(result),
+            ScopeLimit = BuildScopeLimit(result),
+            DecisionFacts = BuildDecisionFacts(result),
+            RunReference = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(result.ValidationId)))[..12].ToLowerInvariant(),
+            ClaimEntries = claimEntries,
+            TargetName = BuildTargetName(result),
+            AgentFacts = BuildAgentFacts(result),
+            CatalogSummary = BuildCatalogSummary(result),
+            PriorityActions = BuildPriorityActions(remediationOrder, claimEntries),
             Hero = BuildHero(result, reportConfig),
             ReleaseDecision = BuildReleaseDecision(result),
             OverviewMetrics = BuildOverviewMetrics(result),
@@ -55,6 +70,202 @@ internal sealed class ValidationHtmlReportDocumentFactory
 
     private static DateTime ResolveArtifactTime(ValidationResult result) =>
         (result.EndTime ?? (result.StartTime == default ? DateTime.UnixEpoch : result.StartTime)).ToUniversalTime();
+
+    private static string BuildTargetName(ValidationResult result)
+    {
+        var name = result.InitializationHandshake is { IsSuccessful: true, Payload: { } payload }
+            ? payload.ServerInfo?.Name : null;
+        if (!string.IsNullOrWhiteSpace(name)) return name;
+        return Uri.TryCreate(result.ServerConfig.Endpoint, UriKind.Absolute, out var uri) && !string.IsNullOrEmpty(uri.Host)
+            ? uri.Host : result.ServerConfig.Endpoint ?? "Target identity unavailable";
+    }
+
+    private static IReadOnlyList<ValidationHtmlMetaItem> BuildAgentFacts(ValidationResult result)
+    {
+        IReadOnlyList<string>? advertised = null;
+        if (result.CapabilitySnapshot?.Payload is { CapabilityDeclarationsAvailable: true } snapshot)
+            advertised = snapshot.AdvertisedCapabilities;
+        else if (result.ModernDiscovery is { IsSuccessful: true, Payload: { IsValid: true } discovery })
+            advertised = discovery.CapabilityNames;
+        else if (result.InitializationHandshake is { IsSuccessful: true, Payload.Capabilities: { } capabilities })
+            advertised = JsonSerializer.SerializeToElement(capabilities).EnumerateObject()
+                .Where(property => property.Value.ValueKind != JsonValueKind.Null).Select(property => property.Name).ToArray();
+
+        var observations = new List<string>();
+        var invocationCoverage = result.Evidence.Coverage.Where(item => item.Scope == McpSpecConstants.ToolMethods.Call).ToArray();
+        if (invocationCoverage.Length == 1)
+            observations.Add($"tools/call coverage: {invocationCoverage[0].Status}; observed outcome: {invocationCoverage[0].ObservedOutcome?.ToString() ?? "unavailable"}.");
+        else if (invocationCoverage.Length > 1)
+            observations.Add($"{invocationCoverage.Length} tools/call declarations; individual outcomes remain in domain evidence.");
+        if (result.ToolValidation?.ToolResults.Count(tool => tool.ExecutionSuccessful &&
+            tool.WwwAuthenticateHeader == null && tool.AuthMetadata == null && tool.Status != TestStatus.AuthRequired) is > 0 and var executed)
+            observations.Add($"Successful tool-execution result records: {executed}. See domain evidence for other outcomes.");
+        if (result.CapabilitySnapshot?.Payload is { } observedSnapshot &&
+            (observedSnapshot.ToolInvocationAttempted || observations.Count == 0))
+            observations.Add(!observedSnapshot.ToolInvocationAttempted ? "No tool invocation in the capability snapshot."
+                : observedSnapshot.ToolInvocationSucceeded ? "Tool invocation succeeded in the capability snapshot."
+                : "Tool invocation failed in the capability snapshot.");
+
+        return
+        [
+            new() { Label = "Advertised", Value = advertised == null ? "Unavailable: capability advertisement was not recorded."
+                : advertised.Count == 0 ? "No capabilities advertised in the recorded declaration."
+                : string.Join(", ", advertised.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)) },
+            new() { Label = "Permitted", Value = result.Run.ExecutionMode switch
+            {
+                ExecutionMode.Safe => "Safe mode: discovery and static analysis only.",
+                ExecutionMode.Standard or ExecutionMode.Elevated => $"{result.Run.ExecutionMode} mode: active checks are policy-gated, not blanket permission to invoke tools.",
+                _ => "Unavailable: execution mode is not recognized."
+            } },
+            new() { Label = "Observed", Value = observations.Count == 0
+                ? "Runtime evidence unavailable; discovery alone does not establish execution."
+                : string.Join(" ", observations) }
+        ];
+    }
+
+    private static string BuildCatalogSummary(ValidationResult result)
+    {
+        var snapshot = result.CapabilitySnapshot?.Payload;
+        return $"Recorded catalog — Tools: {Count(result.ToolValidation?.ToolsDiscovered, result.ToolValidation?.CatalogEnumeration, snapshot?.ToolListingSucceeded == true ? snapshot.DiscoveredToolsCount : null)}; " +
+            $"Resources: {Count(result.ResourceTesting?.ResourcesDiscovered, result.ResourceTesting?.CatalogEnumeration, snapshot?.ResourceListingSucceeded == true ? snapshot.DiscoveredResourcesCount : null)}; " +
+            $"Prompts: {Count(result.PromptTesting?.PromptsDiscovered, result.PromptTesting?.CatalogEnumeration, snapshot?.PromptListingSucceeded == true ? snapshot.DiscoveredPromptsCount : null)}.";
+
+        static string Count(int? count, CatalogEnumerationEvidence? enumeration, int? snapshotCount)
+        {
+            if (count < 0 || snapshotCount < 0) return "invalid recorded count";
+            if (count is { } recorded && (recorded > 0 || enumeration is { IsComplete: true, Termination: CatalogEnumerationTermination.Complete }))
+                return recorded.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            return snapshotCount.HasValue
+                ? $"{snapshotCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)} (snapshot)" : "unavailable";
+        }
+    }
+
+    private static IReadOnlyList<ValidationHtmlPriorityAction> BuildPriorityActions(
+        IReadOnlyList<RemediationOrderGroup> groups, IReadOnlyList<ValidationHtmlClaimEntry> claims)
+    {
+        var byId = claims.ToLookup(entry => entry.Claim.ClaimId, StringComparer.Ordinal);
+        var byRuleAndSubject = claims.Where(entry => entry.Claim.Metadata.ContainsKey("ruleId"))
+            .ToLookup(entry => (entry.Claim.Metadata["ruleId"], entry.Claim.Subject));
+        return groups.SelectMany(group => group.Items.Select(item =>
+        {
+            var related = item.ClaimId != null ? byId[item.ClaimId].Where(entry => entry.Claim.Subject == item.Component).ToArray()
+                : byId[item.Evidence].Where(entry => entry.Claim.Subject == item.Component)
+                    .Concat(byRuleAndSubject[(item.Evidence, item.Component)]).Distinct().ToArray();
+            var kind = item.OutsideSelectedScope ? "Optional review"
+                : related.Any(entry => entry.Claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error) ? "Remediation"
+                : related.Any(entry => entry.Claim.Outcome == AssuranceClaimOutcome.Incomplete) ? "Collect evidence"
+                : related.Any(entry => entry.Claim.Outcome == AssuranceClaimOutcome.ReviewRequired) ? "Review evidence" : "Remediation";
+            var key = JsonSerializer.Serialize(new[]
+            {
+                group.Priority.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                item.ClaimId, item.Evidence, item.Component, item.Remediation
+            });
+            var anchor = "action-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))).ToLowerInvariant();
+            return new ValidationHtmlPriorityAction(group.Priority, group.Title, group.Impact, item, anchor, kind, related);
+        })).ToArray();
+    }
+
+    private static IReadOnlyList<ValidationHtmlClaimEntry> BuildClaimEntries(IReadOnlyList<AssuranceClaim> claims)
+    {
+        var occurrences = new Dictionary<string, int>(StringComparer.Ordinal);
+        return claims.OrderBy(claim => claim.ClaimId, StringComparer.Ordinal).ThenBy(claim => claim.Subject, StringComparer.Ordinal)
+            .Select(claim =>
+            {
+                var anchor = "claim-" + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(claim.ClaimId))).ToLowerInvariant();
+                occurrences.TryGetValue(anchor, out var occurrence);
+                occurrences[anchor] = occurrence + 1;
+                return new ValidationHtmlClaimEntry(claim, occurrence == 0 ? anchor : $"{anchor}-{occurrence}");
+            }).ToArray();
+    }
+
+    private static bool IsInterrupted(ValidationResult result) =>
+        result.Run.TerminationOutcome is ValidationOutcome.Cancelled or ValidationOutcome.Error or ValidationOutcome.Inconclusive;
+
+    private static string BuildDecisionTitle(ValidationResult result)
+    {
+        if (IsInterrupted(result)) return "Execution interrupted; assessment is limited";
+        if (result.Run.TerminationOutcome == null) return "Execution outcome not recorded";
+        if (result.Run.TerminationOutcome != ValidationOutcome.Succeeded) return "Execution not completed; assessment is limited";
+        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Inventory.ProfileId)
+            return "Inventory assessment evidence";
+        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId)
+            return AssuranceExitCodeMapper.Map(result) switch
+            {
+                AssuranceExitCodeMapper.Satisfied => "Selected comprehensive requirements satisfied",
+                AssuranceExitCodeMapper.Failed => "Selected comprehensive requirements not met",
+                _ => "Selected comprehensive assessment is incomplete"
+            };
+        return result.Assurance.Assessments.CoreConformance.Status switch
+        {
+            CoreConformanceStatus.Conformant => "Core protocol conforms within assessed scope",
+            CoreConformanceStatus.Nonconformant => "Core protocol requirements not met",
+            _ => "Core protocol assessment is incomplete"
+        };
+    }
+
+    private static string BuildDecisionReason(ValidationResult result)
+    {
+        if (result.Assurance.Profile.ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId &&
+            AssuranceExitCodeMapper.Map(result) == AssuranceExitCodeMapper.Satisfied)
+            return $"Recorded core conformance: {result.Assurance.Assessments.CoreConformance.Status}; " +
+                $"security assurance: {result.Assurance.Assessments.SecurityAssurance.Status}; " +
+                $"operational readiness: {result.Assurance.Assessments.OperationalReadiness.Status}. " +
+                $"{result.Assurance.EvidenceSummary.Covered} of {result.Assurance.EvidenceSummary.ApplicableDeclarations} applicable baseline evidence declarations are covered.";
+        return (IsInterrupted(result) ? result.CriticalErrors.FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason)) : null)
+        ?? result.Assurance.Assessments.CoreConformance.BlockingClaimIds
+            .Select(id => result.Assurance.Claims.FirstOrDefault(claim => claim.ClaimId == id)?.Summary)
+            .FirstOrDefault(summary => !string.IsNullOrWhiteSpace(summary))
+        ?? (result.PolicyOutcome is { Passed: false } policy && !string.IsNullOrWhiteSpace(policy.Summary) ? policy.Summary : null)
+        ?? result.Assurance.CertificateEligibility.Reasons.FirstOrDefault(reason => !string.IsNullOrWhiteSpace(reason))
+        ?? ReportContextFormatter.FormatMissingEligibilityExplanation(result.Assurance.CertificateEligibility.Status);
+    }
+
+    private static string BuildScopeLimit(ValidationResult result)
+    {
+        var baseline = result.Evidence.Coverage.Where(ValidationEvidenceLaneClassifier.IsBaseline).ToArray();
+        if (baseline.Length == 0)
+            return "No coverage declarations were recorded; missing evidence earns no pass credit.";
+        var limitation = baseline
+            .Where(item => item.Status is not (ValidationCoverageStatus.Covered or ValidationCoverageStatus.NotApplicable))
+            .OrderBy(item => item.Status switch
+            {
+                ValidationCoverageStatus.Blocked => 0,
+                ValidationCoverageStatus.AuthRequired => 1,
+                ValidationCoverageStatus.Unavailable => 2,
+                ValidationCoverageStatus.Inconclusive => 3,
+                _ => 4
+            })
+            .ThenBy(item => item.LayerId, StringComparer.Ordinal).ThenBy(item => item.Scope, StringComparer.Ordinal)
+            .FirstOrDefault();
+        if (limitation != null)
+            return $"{limitation.LayerId} / {limitation.Scope}: {limitation.Status}. {limitation.Reason ?? "Supporting evidence is unavailable."}";
+        return result.Run.ExecutionMode == ExecutionMode.Safe
+            ? "Discovery and static analysis do not establish runtime behavior."
+            : "Conclusions apply only to the recorded target, admitted operations and evidence window.";
+    }
+
+    private static IReadOnlyList<ValidationHtmlMetaItem> BuildDecisionFacts(ValidationResult result)
+    {
+        var facts = new List<ValidationHtmlMetaItem>
+        {
+            new() { Label = "Execution", Value = result.Run.TerminationOutcome == ValidationOutcome.Succeeded
+                ? "Completed" : ReportContextFormatter.FormatRunTermination(result.Run.TerminationOutcome) },
+            new() { Label = "Assurance", Value = $"Core: {result.Assurance.Assessments.CoreConformance.Status}; security: {HumanizeStatus(result.Assurance.Assessments.SecurityAssurance.Status.ToString())}; operations: {HumanizeStatus(result.Assurance.Assessments.OperationalReadiness.Status.ToString())}" },
+            new() { Label = "Policy disposition", Value = result.PolicyOutcome is { } policy ? policy.Passed ? "Passed" : "Failed" : "Not evaluated" },
+            new() { Label = "Certificate", Value = result.Assurance.Profile.CertificateEligible
+                ? $"Eligibility: {result.Assurance.CertificateEligibility.Status}; issuance is not established by this report"
+                : "Profile does not issue certificates" },
+            new() { Label = "Profile and revision", Value = $"{result.Assurance.Profile.ProfileId} / {result.Assurance.Profile.Revision}" },
+            new() { Label = "Execution scope", Value = result.Run.ExecutionMode.ToString() }
+        };
+        if (!string.IsNullOrWhiteSpace(result.ServerConfig.Transport))
+            facts.Add(new() { Label = "Transport", Value = result.ServerConfig.Transport });
+        var protocol = result.ProtocolVersion ?? result.InitializationHandshake?.Payload?.ProtocolVersion;
+        if (!string.IsNullOrWhiteSpace(protocol))
+            facts.Add(new() { Label = "Negotiated protocol", Value = protocol });
+        facts.Add(new() { Label = "Recommended exit", Value = AssuranceExitCodeMapper.Map(result).ToString(System.Globalization.CultureInfo.InvariantCulture) });
+        return facts;
+    }
 
     private static ValidationHtmlHero BuildHero(ValidationResult result, ReportingConfig reportConfig)
     {
@@ -103,6 +314,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
         };
     }
 
+    private static string HumanizeStatus(string value) => ReportContextFormatter.HumanizeKey(value);
+
     private static ValidationHtmlReleaseDecision BuildReleaseDecision(ValidationResult result)
     {
         var assurance = result.Assurance;
@@ -146,8 +359,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
             new()
             {
                 Eyebrow = "Certificate",
-                Value = inventoryProfile && assurance.CertificateEligibility.Status != CertificateEligibilityStatus.Eligible
-                    ? "Not issued"
+                Value = !assurance.Profile.CertificateEligible
+                    ? "Not issued by this profile"
                     : assurance.CertificateEligibility.Status.ToString(),
                 Label = "Certificate Outcome",
                 SupportingText = $"Profile: {assurance.Profile.ProfileId}",
@@ -222,7 +435,8 @@ internal sealed class ValidationHtmlReportDocumentFactory
             Eyebrow = "Operations",
             Value = $"{metrics.RequestsCompleted}/{metrics.RequestsStarted}",
             Label = "Requests Completed",
-            SupportingText = $"Budget {metrics.RequestBudgetLimit} · {metrics.TruncatedResponseCount} rejected responses · evidence {metrics.EvidenceCoverageRatio:P1}",
+            SupportingText = $"Budget {metrics.RequestBudgetLimit} · {metrics.TruncatedResponseCount} rejected responses · evidence {metrics.EvidenceCoverageRatio:P1}" +
+                (metrics.CatalogPayloadCharacterLimit != null || metrics.CatalogPayloadCharactersReserved != null ? $" · {ReportContextFormatter.FormatCatalogBudget(metrics)}" : string.Empty),
             Tone = HtmlReportTone.Info
         });
     }
@@ -255,11 +469,14 @@ internal sealed class ValidationHtmlReportDocumentFactory
         var nonSuccess = claims.Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)).ToList();
         return new ValidationHtmlDomainSummary
         {
+            AnchorId = claims.Count > 0 ? $"domain-{dimension}" : "technical-evidence",
             Domain = domain,
-            StatusLabel = status,
+            StatusLabel = HumanizeStatus(status),
             SignalLabel = $"{nonSuccess.Count} non-success claim(s)",
-            EvidenceLabel = $"{claims.Count} applicable/projected claim(s)",
-            Summary = nonSuccess.FirstOrDefault()?.Summary ?? "No non-success claims were projected for this dimension.",
+            EvidenceLabel = $"{claims.Count(claim => claim.Outcome == AssuranceClaimOutcome.Satisfied)} satisfied of {claims.Count} recorded claims",
+            Summary = nonSuccess.FirstOrDefault()?.Summary ?? (claims.Count == 0
+                ? "No claims recorded; this domain was not established."
+                : "No non-success claims were projected for this dimension."),
             ActionLabel = nonSuccess.FirstOrDefault()?.Remediation ?? "Preserve evidence and monitor for drift.",
             Tone = tone
         };
@@ -312,6 +529,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
     private static ValidationHtmlDomainSummary BuildCoverageDomainSummary(ValidationResult result)
     {
         var coverageDeclarations = result.Evidence.Coverage;
+        var applicableCount = coverageDeclarations.Count(item => item.Status != ValidationCoverageStatus.NotApplicable);
         var blockedCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Blocked);
         var skippedCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Skipped);
         var coveredCount = coverageDeclarations.Count(item => item.Status == ValidationCoverageStatus.Covered);
@@ -320,16 +538,18 @@ internal sealed class ValidationHtmlReportDocumentFactory
         return new ValidationHtmlDomainSummary
         {
             Domain = "Coverage",
-            StatusLabel = incompleteCount == 0 ? "Complete" : "Incomplete",
+            StatusLabel = coverageDeclarations.Count == 0 ? "Not recorded" : applicableCount == 0 ? "Not applicable" : incompleteCount == 0 ? "Complete" : "Incomplete",
             SignalLabel = blockedCount > 0 ? $"{blockedCount} blocked scope(s)" : $"{coveredCount} covered scope(s)",
             EvidenceLabel = $"{coveredCount} covered · {skippedCount} skipped · {blockedCount} blocked declaration(s)",
-            Summary = incompleteCount == 0
+            Summary = coverageDeclarations.Count == 0 ? "No coverage declarations were recorded."
+                : applicableCount == 0 ? "All recorded declarations are not applicable; no pass credit is implied."
+                : incompleteCount == 0
                 ? "All applicable baseline coverage declarations produced evidence."
                 : $"{incompleteCount} applicable coverage declaration(s) remain incomplete.",
             ActionLabel = blockedCount > 0
                 ? "Resolve blocked scopes or document why the affected evidence cannot be collected safely."
                 : "Keep skipped and not-applicable reasons explicit so downstream readers can trust the scope of the run.",
-            Tone = incompleteCount == 0 ? HtmlReportTone.Success : HtmlReportTone.Warning
+            Tone = applicableCount == 0 || incompleteCount > 0 ? HtmlReportTone.Neutral : HtmlReportTone.Success
         };
     }
 
@@ -608,21 +828,21 @@ internal sealed class ValidationHtmlReportDocumentFactory
     {
         CoreConformanceStatus.Conformant => HtmlReportTone.Success,
         CoreConformanceStatus.Nonconformant => HtmlReportTone.Danger,
-        _ => HtmlReportTone.Warning
+        _ => HtmlReportTone.Neutral
     };
 
     private static HtmlReportTone MapSecurityTone(SecurityAssuranceStatus status) => status switch
     {
         SecurityAssuranceStatus.Verified => HtmlReportTone.Success,
         SecurityAssuranceStatus.IssuesFound => HtmlReportTone.Danger,
-        _ => HtmlReportTone.Warning
+        _ => HtmlReportTone.Neutral
     };
 
     private static HtmlReportTone MapOperationsTone(OperationalReadinessStatus status) => status switch
     {
         OperationalReadinessStatus.Ready => HtmlReportTone.Success,
         OperationalReadinessStatus.NotReady => HtmlReportTone.Danger,
-        _ => HtmlReportTone.Warning
+        _ => HtmlReportTone.Neutral
     };
 
     private static string BuildSignalLabel(int blockingCount, int totalCount)

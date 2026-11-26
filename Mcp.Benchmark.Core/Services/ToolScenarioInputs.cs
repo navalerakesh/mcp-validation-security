@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Buffers;
 using System.Text.Json;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 
 namespace Mcp.Benchmark.Core.Services;
@@ -13,39 +14,109 @@ public static class ToolScenarioInputs
     public const int MaximumArgumentValues = 64;
     public const int MaximumArgumentDepth = 16;
     public const int MaximumToolNameCharacters = 4096;
+    public const int MaximumClientInputRounds = 8;
+    public const int MaximumClientInputsPerRound = 8;
+    public const int MaximumClientInputIdCharacters = 128;
+    public const int MaximumClientInputValues = 1024;
 
     public static IReadOnlyDictionary<string, JsonElement> CapturePositiveScenarios(ToolTestingConfig configuration)
+    {
+        var scenarios = CaptureScenarios(configuration);
+        if (scenarios.Values.Any(scenario => scenario.ClientInputRounds.Count > 0))
+            throw Invalid("Argument-only capture cannot discard an explicit client input plan; capture the complete scenario instead.");
+        return new ReadOnlyDictionary<string, JsonElement>(scenarios.ToDictionary(pair => pair.Key, pair => pair.Value.Arguments, StringComparer.Ordinal));
+    }
+
+    public static IReadOnlyDictionary<string, CapturedToolScenario> CapturePromptScenarios(PromptTestingConfig configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        if (configuration.CustomScenarios is null || configuration.CustomScenarios.Count > MaximumScenarios ||
+            configuration.CustomScenarios.Count > 0 && configuration.SpecificPrompts is not { Count: 0 })
+            throw Invalid("Prompt scenario inventory exceeds its bounds or conflicts with a separate prompt selection.");
+        var toolInputs = new ToolTestingConfig();
+        foreach (var scenario in configuration.CustomScenarios)
+        {
+            if (scenario?.Arguments is not { Count: <= MaximumArgumentValues } ||
+                scenario.Arguments.Values.Any(value => value is null))
+                throw Invalid("Prompt scenarios require available bounded string arguments.");
+            toolInputs.CustomScenarios.Add(new ToolTestScenario
+            {
+                ToolName = scenario.PromptName,
+                Parameters = scenario.Arguments.ToDictionary(pair => pair.Key, pair => (object)pair.Value, StringComparer.Ordinal),
+                ClientInputRounds = scenario.ClientInputRounds
+            });
+        }
+        return CaptureScenarios(toolInputs);
+    }
+
+    public static IReadOnlyDictionary<string, CapturedToolScenario> CaptureScenarios(ToolTestingConfig configuration)
     {
         ArgumentNullException.ThrowIfNull(configuration);
         if (configuration.CustomScenarios is null || configuration.CustomScenarios.Count > MaximumScenarios)
             throw Invalid("Tool scenario inventory exceeds its admitted bounds.");
         if (configuration.CustomScenarios.Count > 0 && configuration.SpecificTools is not { Count: 0 })
             throw Invalid("Custom tool arguments cannot be combined with a separate tool selection in this build.");
-        var captured = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        var captured = new Dictionary<string, CapturedToolScenario>(StringComparer.Ordinal);
         var bytes = 0;
         foreach (var scenario in configuration.CustomScenarios)
         {
             if (scenario is null || string.IsNullOrWhiteSpace(scenario.ToolName) || scenario.ToolName.Length > MaximumToolNameCharacters ||
                 scenario.ExpectedResult is not null || scenario.ExpectError || scenario.Parameters is null || captured.ContainsKey(scenario.ToolName))
                 throw Invalid("Tool scenarios require one unique exact name and available positive arguments; result patterns and expected errors are unsupported.");
-            var values = MaximumArgumentValues;
-            ValidateValue(scenario.Parameters, 0, ref values, inspectJsonElements: false);
-            var buffer = new ArgumentBuffer(Math.Min(MaximumArgumentBytes, MaximumAggregateArgumentBytes - bytes));
-            try
+            var arguments = CaptureJson(scenario.Parameters, MaximumArgumentValues, ref bytes);
+            var rounds = new List<CapturedToolClientInputRound>();
+            if (scenario.ClientInputRounds is { } planned)
             {
-                using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { MaxDepth = MaximumArgumentDepth + 1 });
-                JsonSerializer.Serialize(writer, scenario.Parameters, new JsonSerializerOptions { MaxDepth = MaximumArgumentDepth + 1 });
-                writer.Flush();
+                if (planned.Count is 0 or > MaximumClientInputRounds) throw Invalid("Synthetic client input rounds exceed their admitted bounds.");
+                foreach (var round in planned)
+                {
+                    if (round is null) throw Invalid("Synthetic client input rounds must be available.");
+                    var capturedRound = CaptureJson(new Dictionary<string, object>
+                    {
+                        ["requests"] = round.ExpectedRequests,
+                        ["responses"] = round.Responses
+                    }, MaximumClientInputValues, ref bytes);
+                    var requests = capturedRound.GetProperty("requests");
+                    var responses = capturedRound.GetProperty("responses");
+                    if (requests.ValueKind != JsonValueKind.Object || responses.ValueKind != JsonValueKind.Object ||
+                        requests.EnumerateObject().Count() > MaximumClientInputsPerRound ||
+                        requests.EnumerateObject().Count() != responses.EnumerateObject().Count())
+                        throw Invalid("Synthetic client inputs require matching bounded request and response maps.");
+                    foreach (var request in requests.EnumerateObject())
+                    {
+                        if (string.IsNullOrWhiteSpace(request.Name) || request.Name.Length > MaximumClientInputIdCharacters ||
+                            request.Value.ValueKind != JsonValueKind.Object || !request.Value.TryGetProperty("method", out var method) ||
+                            method.ValueKind != JsonValueKind.String || method.GetString() is not
+                                (ValidationConstants.Methods.RootsList or ValidationConstants.Methods.SamplingCreateMessage or ValidationConstants.Methods.ElicitationCreate) ||
+                            !responses.TryGetProperty(request.Name, out var response) || response.ValueKind != JsonValueKind.Object)
+                            throw Invalid("Synthetic client inputs require exact supported requests and explicit object results.");
+                    }
+                    rounds.Add(new CapturedToolClientInputRound(requests, responses));
+                }
             }
-            catch (Exception exception) when (exception is JsonException or ArgumentException or NotSupportedException or InvalidOperationException)
-            { throw Invalid("Tool scenario arguments must be bounded JSON values."); }
-            bytes += buffer.Written.Length;
-            using var document = JsonDocument.Parse(buffer.Written);
-            values = MaximumArgumentValues;
-            ValidateValue(document.RootElement, 0, ref values, inspectJsonElements: true);
-            captured.Add(scenario.ToolName, document.RootElement.Clone());
+            captured.Add(scenario.ToolName, new CapturedToolScenario(arguments, rounds.AsReadOnly()));
         }
-        return new ReadOnlyDictionary<string, JsonElement>(captured);
+        return new ReadOnlyDictionary<string, CapturedToolScenario>(captured);
+    }
+
+    private static JsonElement CaptureJson(object value, int maximumValues, ref int bytes)
+    {
+        var remaining = maximumValues;
+        ValidateValue(value, 0, ref remaining, inspectJsonElements: false);
+        var buffer = new ArgumentBuffer(Math.Min(MaximumArgumentBytes, MaximumAggregateArgumentBytes - bytes));
+        try
+        {
+            using var writer = new Utf8JsonWriter(buffer, new JsonWriterOptions { MaxDepth = MaximumArgumentDepth + 1 });
+            JsonSerializer.Serialize(writer, value, new JsonSerializerOptions { MaxDepth = MaximumArgumentDepth + 1 });
+            writer.Flush();
+        }
+        catch (Exception exception) when (exception is JsonException or ArgumentException or NotSupportedException or InvalidOperationException)
+        { throw Invalid("Tool scenario inputs must be bounded JSON values."); }
+        bytes += buffer.Written.Length;
+        using var document = JsonDocument.Parse(buffer.Written);
+        remaining = maximumValues;
+        ValidateValue(document.RootElement, 0, ref remaining, inspectJsonElements: true);
+        return document.RootElement.Clone();
     }
 
     private static void ValidateValue(object? value, int depth, ref int remaining, bool inspectJsonElements)
@@ -119,3 +190,7 @@ public static class ToolScenarioInputs
         public Span<byte> GetSpan(int sizeHint = 0) => GetMemory(sizeHint).Span;
     }
 }
+
+public sealed record CapturedToolScenario(JsonElement Arguments, IReadOnlyList<CapturedToolClientInputRound> ClientInputRounds);
+
+public sealed record CapturedToolClientInputRound(JsonElement ExpectedRequests, JsonElement Responses);

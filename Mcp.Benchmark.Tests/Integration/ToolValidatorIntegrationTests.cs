@@ -258,35 +258,50 @@ public class ToolValidatorIntegrationTests : IClassFixture<McpServerTestFixture>
     [Fact]
     public async Task ValidateToolDiscoveryAsync_WithEmptyToolList_ShouldReturnValidResult()
     {
-        // Arrange - Server returns empty tool list
-        _testFixture.MockServer
-            .Given(Request.Create().WithPath("/mcp"))
-            .RespondWith(Response.Create()
-                .WithStatusCode(200)
-                .WithHeader("Content-Type", "application/json")
-                .WithBody("""
+        using var fixture = new McpServerTestFixture();
+        fixture.HttpClient.Timeout = TimeSpan.FromSeconds(10);
+        fixture.McpClient.SetProtocolVersion("2025-11-25");
+        fixture.MockServer
+            .Given(Request.Create().WithPath("/mcp").UsingPost())
+            .RespondWith(Response.Create().WithCallback(request =>
+            {
+                using var body = System.Text.Json.JsonDocument.Parse(request.Body!);
+                return new WireMock.ResponseMessage
                 {
-                    "jsonrpc": "2.0",
-                    "result": {
-                        "tools": []
-                    },
-                    "id": "empty-tools"
-                }
-                """));
+                    StatusCode = 200,
+                    Headers = new Dictionary<string, WireMock.Types.WireMockList<string>> { ["Content-Type"] = new("application/json") },
+                    BodyData = new WireMock.Util.BodyData
+                    {
+                        DetectedBodyType = WireMock.Types.BodyType.String,
+                        BodyAsString = System.Text.Json.JsonSerializer.Serialize(new
+                        {
+                            jsonrpc = "2.0", id = body.RootElement.GetProperty("id"),
+                            result = new { tools = Array.Empty<object>() }
+                        })
+                    }
+                };
+            }));
 
-        var serverConfig = _testFixture.CreateTestServerConfig();
+        var serverConfig = fixture.CreateTestServerConfig(timeoutMs: 10_000);
+        serverConfig.ProtocolVersion = "2025-11-25";
+        var validator = new ToolValidator(_loggerMock.Object, fixture.McpClient, new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(), _authServiceMock.Object, _contentSafetyAnalyzerMock.Object, new ToolAiReadinessAnalyzer());
         var toolConfig = new ToolTestingConfig
         {
             TestToolDiscovery = true
         };
 
         // Act
-        var result = await _validator.ValidateToolDiscoveryAsync(serverConfig, toolConfig);
+        var result = await validator.ValidateToolDiscoveryAsync(serverConfig, toolConfig);
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
-        result.ToolsDiscovered.Should().BeGreaterThanOrEqualTo(0);
+        result.Status.Should().Be(TestStatus.Passed, string.Join("; ", result.Issues));
+        result.ToolsDiscovered.Should().Be(0);
+        result.DiscoveredToolNames.Should().BeEmpty();
+        result.ToolResults.Should().ContainSingle(item => item.ToolName == "tools/list" &&
+            item.Status == TestStatus.Passed && !item.ExecutionSuccessful);
+        fixture.GetRequestCount().Should().BeGreaterThan(0);
     }
 
     public void Dispose()

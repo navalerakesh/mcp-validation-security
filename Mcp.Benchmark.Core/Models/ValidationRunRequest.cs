@@ -13,7 +13,9 @@ public sealed class ValidationRunRequest
         ControlledIdentitySecurityRequirement? identityControls = null)
     {
         if (configuration.Validation?.Categories?.ToolTesting is { } tools)
-            ToolScenarioInputs.CapturePositiveScenarios(tools);
+            ToolScenarioInputs.CaptureScenarios(tools);
+        if (configuration.Validation?.Categories?.PromptTesting is { } prompts)
+            ToolScenarioInputs.CapturePromptScenarios(prompts);
         if (conformanceEvidenceJson != null && (conformanceEvidenceJson.Length > OfficialConformanceContract.MaximumEvidenceBytes ||
             Encoding.UTF8.GetByteCount(conformanceEvidenceJson) > OfficialConformanceContract.MaximumEvidenceBytes))
             throw new ArgumentException("Conformance evidence exceeds the admitted byte limit.", nameof(conformanceEvidenceJson));

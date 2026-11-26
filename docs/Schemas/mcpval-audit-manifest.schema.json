@@ -42,7 +42,7 @@
       }
     },
     "documentType": { "const": "mcpval.audit-manifest" },
-    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0"] },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"] },
     "runTerminationOutcome": { "enum": [null, "succeeded", "inconclusive", "cancelled", "error"] },
     "recommendedExitCode": { "type": ["integer", "null"], "minimum": 0 },
     "timestampUtc": { "type": "string", "format": "date-time" },
@@ -62,6 +62,29 @@
     "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },
     "certificateEligibility": { "enum": ["eligible", "ineligible", "reviewRequired"] },
     "maxResponseBytes": { "type": "integer", "minimum": 1 },
+    "maxCatalogPayloadCharacters": { "type": "integer", "minimum": 1, "maximum": 67108864 },
+    "globalTimeoutMinutes": { "type": ["integer", "null"], "minimum": 1, "maximum": 35791 },
+    "requestDemand": {
+      "type": ["object", "null"],
+      "required": ["stages", "enforcedAttemptLimit", "knownMinimumAttempts", "hasUnknownExpansion"],
+      "properties": {
+        "enforcedAttemptLimit": { "type": "integer", "minimum": 1 },
+        "knownMinimumAttempts": { "type": "integer", "minimum": 0 },
+        "hasUnknownExpansion": { "type": "boolean" },
+        "stages": {
+          "type": "array", "maxItems": 16,
+          "items": {
+            "type": "object", "required": ["stage", "knownMinimumAttempts", "estimatedMaximumAttempts", "basis"],
+            "properties": {
+              "stage": { "type": "string" }, "knownMinimumAttempts": { "type": "integer", "minimum": 0 },
+              "estimatedMaximumAttempts": { "type": ["integer", "null"], "minimum": 0 }, "basis": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "allowedOrigins": { "type": "array", "items": { "type": "string", "format": "uri" } },
     "plannedChecks": { "type": "array", "items": { "type": "string" } },
     "executedChecks": { "type": "array", "items": { "type": "string" } },

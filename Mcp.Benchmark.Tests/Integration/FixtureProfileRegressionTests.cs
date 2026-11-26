@@ -175,8 +175,8 @@ public class FixtureProfileRegressionTests
         return new PromptValidator(
             new Mock<ILogger<PromptValidator>>().Object,
             httpClient.Object,
-            new Mock<ISchemaValidator>().Object,
-            new Mock<ISchemaRegistry>().Object,
+            new JsonSchemaValidator(),
+            new EmbeddedSchemaRegistry(),
             contentSafetyAnalyzer.Object);
     }
 

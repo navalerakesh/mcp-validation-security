@@ -190,14 +190,26 @@ public static class AssuranceClaimProjector
 
     private static void ProjectCoverage(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
+        var conflicts = result.Evidence.Observations.Where(observation =>
+            observation?.ObservationKind == ValidationObservation.CoverageConflictKind).ToArray();
+        var unscoredExternalScopes = new HashSet<string>(StringComparer.Ordinal);
+        if (result.Assessments.OfficialConformance is { VerificationStatus: OfficialConformanceVerificationStatus.Verified } external)
+        {
+            OfficialConformanceContract.ValidateCheckIdentities(external);
+            foreach (var scenario in external.Scenarios.Where(scenario => scenario.ScoringDisposition == OfficialConformanceScoringDisposition.NotScored))
+                foreach (var check in scenario.Checks)
+                    unscoredExternalScopes.Add(OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex));
+        }
         foreach (var coverage in result.Evidence.Coverage)
         {
+            var dimension = DimensionForLayer(coverage.LayerId, coverage.Lane);
             claims.Add(new AssuranceClaim
             {
                 ClaimId = $"coverage:{Normalize(coverage.LayerId)}:{Normalize(coverage.Scope)}",
                 Subject = coverage.Scope,
-                Dimension = DimensionForLayer(coverage.LayerId, coverage.Lane),
-                RequirementLevel = DimensionForLayer(coverage.LayerId, coverage.Lane) switch
+                Dimension = dimension,
+                RequirementLevel = dimension == AssuranceDimension.ExternalConformance && unscoredExternalScopes.Contains(coverage.Scope)
+                    ? AssuranceRequirementLevel.May : dimension switch
                 {
                     AssuranceDimension.Operations => AssuranceRequirementLevel.OperationalObjective,
                     AssuranceDimension.Security => AssuranceRequirementLevel.SecurityControl,
@@ -211,11 +223,23 @@ public static class AssuranceClaimProjector
                 ApplicabilityReason = coverage.Status == ValidationCoverageStatus.NotApplicable ? coverage.Reason : null,
                 Outcome = CoverageOutcome(coverage),
                 Confidence = coverage.Confidence,
-                EvidenceIds = [ValidationEvidenceIdBuilder.ForCoverage(coverage)],
+                EvidenceIds = conflicts.Length == 0 ? [ValidationEvidenceIdBuilder.ForCoverage(coverage)]
+                    : new[] { ValidationEvidenceIdBuilder.ForCoverage(coverage) }
+                        .Concat(ConflictEvidenceIds(coverage, conflicts)).ToArray(),
                 Summary = coverage.Reason ?? $"Coverage outcome: {coverage.Outcome}."
             });
         }
     }
+
+    private static IEnumerable<string> ConflictEvidenceIds(
+        ValidationCoverageDeclaration coverage, IReadOnlyList<ValidationObservation> conflicts) =>
+        conflicts.Where(observation =>
+            string.Equals(observation.LayerId, coverage.LayerId, StringComparison.OrdinalIgnoreCase) &&
+            observation.Metadata is { } metadata &&
+            metadata.TryGetValue(ValidationObservation.CoverageScopeMetadataKey, out var scope) &&
+            string.Equals(scope, coverage.Scope, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(observation.Id))
+        .Select(observation => observation.Id).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
 
     private static void ProjectExternalConformance(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
@@ -295,6 +319,8 @@ public static class AssuranceClaimProjector
 
     private static void ProjectExtensions(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
+        var conflicts = result.Evidence.Observations.Where(observation =>
+            observation?.ObservationKind == ValidationObservation.CoverageConflictKind).ToArray();
         foreach (var extension in result.Assessments.Extensions)
         {
             var coverageOutcomes = extension.Coverage.Select(CoverageOutcome).ToArray();
@@ -330,6 +356,9 @@ public static class AssuranceClaimProjector
                             ? AssuranceClaimOutcome.ReviewRequired
                             : AssuranceClaimOutcome.Satisfied,
                 Confidence = extension.EvidenceSummary.ConfidenceLevel,
+                EvidenceIds = conflicts.Length == 0 ? [] :
+                    extension.Coverage.SelectMany(coverage => ConflictEvidenceIds(coverage, conflicts))
+                        .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
                 Summary = hasSpecFailure || hasCoverageFailure || hasCoverageError
                     ? "Extension has recorded assessment failures."
                     : evidenceIncomplete

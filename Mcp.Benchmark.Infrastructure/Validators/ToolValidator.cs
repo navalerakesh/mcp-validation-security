@@ -50,7 +50,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolDiscoveryAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        var explicitArguments = ToolScenarioInputs.CapturePositiveScenarios(config);
+        var explicitArguments = ToolScenarioInputs.CaptureScenarios(config);
         var completed = await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Discovery", async (result, ct) =>
         {
             var capabilitySnapshot = config.CapabilitySnapshot;
@@ -76,18 +76,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     authIssues.Add("ℹ️  Auth enforced correctly (discovered during pre-validation)");
                 }
 
-                result.ToolResults.Add(new IndividualToolResult
-                {
-                    ToolName = "Authentication Discovery",
-                    Status = TestStatus.Passed,
-                    DiscoveredCorrectly = true,
-                    MetadataValid = !string.IsNullOrEmpty(authInfo.WwwAuthenticateHeader),
-                    ExecutionSuccessful = true,
-                    ExecutionTimeMs = authInfo.DiscoveryTimeMs,
-                    Issues = authIssues,
-                    WwwAuthenticateHeader = authInfo.WwwAuthenticateHeader,
-                    AuthMetadata = authInfo.Metadata
-                });
+                AppendAuthFindings(authSecurity!, authIssues);
             }
 
             if (CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools))
@@ -201,20 +190,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         {
                             authIssues.Add("✅ Successfully authenticated via strategy-based flow");
 
-                            // Add the auth discovery result so it's preserved in the report
-                            result.ToolResults.Add(new IndividualToolResult
-                            {
-                                ToolName = "Authentication Discovery",
-                                Status = TestStatus.Passed,
-                                DiscoveredCorrectly = true,
-                                MetadataValid = hasWwwAuth,
-                                ExecutionSuccessful = true,
-                                ExecutionTimeMs = toolsListDuration,
-                                Issues = new List<string>(authIssues),
-                                WwwAuthenticateHeader = authHeaderValue,
-                                AuthMetadata = authMetadata
-                            });
-
                             // Fall through to normal processing below...
                         }
                         else
@@ -239,25 +214,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         result.ToolsTestPassed = 0;
                         result.Issues.Add("Tool validation requires authentication: interactive authentication failed or was not completed.");
 
-                        result.ToolResults.Add(new IndividualToolResult
-                        {
-                            ToolName = "tools/list (Auth Check)",
-                            Status = TestStatus.AuthRequired,
-                            DiscoveredCorrectly = true,
-                            MetadataValid = hasWwwAuth,
-                            ExecutionSuccessful = true,
-                            ExecutionTimeMs = toolsListDuration,
-                            Issues = authIssues,
-                            WwwAuthenticateHeader = authHeaderValue,
-                            AuthMetadata = authMetadata
-                        });
                         if (authSecurity != null)
                         {
                             AppendAuthFindings(authSecurity, authIssues);
                             result.AuthenticationSecurity = authSecurity;
                             result.AuthenticationProperlyEnforced = authSecurity.AuthenticationRequired && authSecurity.HasProperAuthHeaders;
                         }
-                        NormalizeToolDiscoveryMetrics(result);
                         return result;
                     }
 
@@ -265,20 +227,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     result.Score = 0.0;
                     result.ToolsTestPassed = 0;
 
-                    result.ToolResults.Add(new IndividualToolResult
-                    {
-                        ToolName = "tools/list (Auth Check)",
-                        Status = TestStatus.AuthRequired,
-                        DiscoveredCorrectly = true,
-                        MetadataValid = hasWwwAuth,
-                        ExecutionSuccessful = true,
-                        ExecutionTimeMs = toolsListDuration,
-                        Issues = authIssues,
-                        WwwAuthenticateHeader = authHeaderValue,
-                        AuthMetadata = authMetadata
-                    });
-
-                    NormalizeToolDiscoveryMetrics(result);
+                    if (authSecurity != null) AppendAuthFindings(authSecurity, authIssues);
                     return result;
                 }
 
@@ -514,7 +463,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     }
 
     private async Task<IndividualToolResult> ValidateIndividualToolAsync(McpServerConfig serverConfig, ToolInfo tool, ToolTestingConfig config,
-        IReadOnlyDictionary<string, JsonElement> explicitArguments, CancellationToken ct)
+        IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments, CancellationToken ct)
     {
         var result = new IndividualToolResult
         {
@@ -586,7 +535,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 return result;
             }
             var toolCallStartTime = DateTime.UtcNow;
-            var toolCallResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsCall, toolCallParams, ct);
+            var toolCallResponse = await ExecuteToolCallAsync(serverConfig, toolCallParams, explicitArguments, false, ct);
             var toolCallDuration = (DateTime.UtcNow - toolCallStartTime).TotalMilliseconds;
             result.ExecutionTimeMs = toolCallDuration;
 
@@ -1358,7 +1307,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolExecutionAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        var explicitArguments = ToolScenarioInputs.CapturePositiveScenarios(config);
+        var explicitArguments = ToolScenarioInputs.CaptureScenarios(config);
         var completed = await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Execution", async (result, ct) =>
         {
             // Discover tools first
@@ -1444,12 +1393,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         continue;
                     }
                     var sw = System.Diagnostics.Stopwatch.StartNew();
-                    var callResponse = await _httpClient.CallAsync(
-                        serverConfig.Endpoint!,
-                        ValidationConstants.Methods.ToolsCall,
-                        toolCallParams,
-                        serverConfig.Authentication,
-                        ct);
+                    var callResponse = await ExecuteToolCallAsync(serverConfig, toolCallParams, explicitArguments, true, ct);
                     sw.Stop();
                     toolResult.ExecutionTimeMs = sw.ElapsedMilliseconds;
 
@@ -1520,7 +1464,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         return completed;
     }
 
-    private static void RetainExplicitScenarioObligations(ToolTestResult result, IReadOnlyDictionary<string, JsonElement> explicitArguments)
+    private static void RetainExplicitScenarioObligations(ToolTestResult result, IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments)
     {
         foreach (var name in explicitArguments.Keys)
             if (!result.DiscoveredToolNames.Contains(name, StringComparer.Ordinal) || !result.ToolResults.Any(tool => tool.ToolName == name))
@@ -1695,7 +1639,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             enumeration.IsComplete);
     }
 
-    private bool TryCreateToolCallParams(ToolInfo tool, McpServerConfig server, IReadOnlyDictionary<string, JsonElement> explicitArguments, out object? parameters)
+    private bool TryCreateToolCallParams(ToolInfo tool, McpServerConfig server, IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ToolCallParameters? parameters)
     {
         parameters = null;
         if (!tool.HasInputSchema) return false;
@@ -1704,7 +1649,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         if (explicitArguments.TryGetValue(tool.Name, out var supplied))
         {
             if (!inspection.CanEvaluateSuppliedArguments()) return false;
-            arguments = System.Text.Json.Nodes.JsonNode.Parse(supplied.GetRawText());
+            arguments = System.Text.Json.Nodes.JsonNode.Parse(supplied.Arguments.GetRawText());
         }
         else
         {
@@ -1716,8 +1661,26 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         var capturedArguments = JsonSerializer.SerializeToElement(arguments);
         if (string.Equals(server.Transport, "http", StringComparison.OrdinalIgnoreCase) && ProtocolEraVersions.IsModern(server.ProtocolVersion) &&
             !inspection.TryCreateParameterHeaders(capturedArguments, out _)) return false;
-        parameters = new ToolCallParameters(tool.Name, capturedArguments, tool.InputSchema);
+        JsonElement? capabilities = null;
+        if (supplied is { ClientInputRounds.Count: > 0 })
+        {
+            if (!ProtocolEraVersions.IsModern(server.ProtocolVersion)) return false;
+            capabilities = SyntheticToolClientInputs.CreateCapabilities(supplied, server.ProtocolVersion!, _schemaRegistry, _schemaValidator);
+        }
+        parameters = new ToolCallParameters(tool.Name, capturedArguments, tool.InputSchema) { ClientCapabilities = capabilities };
         return true;
+    }
+
+    private Task<JsonRpcResponse> ExecuteToolCallAsync(McpServerConfig server, ToolCallParameters parameters,
+        IReadOnlyDictionary<string, CapturedToolScenario> scenarios, bool includeAuthentication, CancellationToken cancellationToken)
+    {
+        Task<JsonRpcResponse> Send(ToolCallParameters request, CancellationToken token) => includeAuthentication
+            ? _httpClient.CallAsync(server.Endpoint!, ValidationConstants.Methods.ToolsCall, request, server.Authentication, token)
+            : _httpClient.CallAsync(server.Endpoint!, ValidationConstants.Methods.ToolsCall, request, token);
+
+        return scenarios.TryGetValue(parameters.Name, out var scenario) && scenario.ClientInputRounds.Count > 0
+            ? SyntheticToolClientInputs.ExecuteAsync(parameters, scenario, server.ProtocolVersion!, _schemaRegistry, _schemaValidator, Send, cancellationToken)
+            : Send(parameters, cancellationToken);
     }
 
     private void ValidatePositiveScenarioResponse(JsonRpcResponse response, ToolInfo tool, IndividualToolResult result,
@@ -1725,6 +1688,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     {
         result.ExecutionSuccessful = false;
         result.Status = TestStatus.Inconclusive;
+        if (response.ResultType == McpResultType.InputRequired)
+            result.Issues.Add("The explicit tool interaction did not complete within its admitted client-input plan; execution remains unverified.");
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
         {
             result.Status = TestStatus.AuthRequired;
@@ -2077,27 +2042,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 authSecurity.Findings.Add(note);
             }
         }
-    }
-
-    private static void NormalizeToolDiscoveryMetrics(ToolTestResult result)
-    {
-        if (result.ToolsDiscovered == 0 &&
-            result.DiscoveredToolNames.Count == 0 &&
-            result.ToolResults.Count > 0 &&
-            result.ToolResults.All(IsSyntheticAuthEntry))
-        {
-            result.ToolsDiscovered = result.ToolResults.Count;
-        }
-    }
-
-    private static bool IsSyntheticAuthEntry(IndividualToolResult toolResult)
-    {
-        if (toolResult == null)
-        {
-            return false;
-        }
-
-        return toolResult.ToolName?.Contains("auth", StringComparison.OrdinalIgnoreCase) == true;
     }
 
     private static List<string> BuildSchemaIssueList(string header, IEnumerable<string> details)

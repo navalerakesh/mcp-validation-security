@@ -105,6 +105,9 @@ public sealed class ExecutionPolicy
     [JsonPropertyName("maxResponseBytes")]
     public int MaxResponseBytes { get; set; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
 
+    [JsonPropertyName("maxCatalogPayloadCharacters")]
+    public int MaxCatalogPayloadCharacters { get; set; } = ExecutionPolicyDefaults.DefaultMaxCatalogPayloadCharacters;
+
     /// <summary>
     /// Gets or sets the operational persistence mode.
     /// </summary>
@@ -145,6 +148,7 @@ public sealed class ExecutionPolicy
             MaxConcurrency = MaxConcurrency,
             TimeoutSeconds = TimeoutSeconds,
             MaxResponseBytes = MaxResponseBytes,
+            MaxCatalogPayloadCharacters = MaxCatalogPayloadCharacters,
             PersistenceMode = PersistenceMode,
             RedactLevel = RedactLevel,
             TraceMode = TraceMode,

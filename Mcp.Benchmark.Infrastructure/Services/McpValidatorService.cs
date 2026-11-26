@@ -7,6 +7,7 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Utilities;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Benchmark.Infrastructure.Utilities;
@@ -38,6 +39,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     private readonly ITelemetryService _telemetryService;
     private readonly ILogger<McpValidatorService> _logger;
     private readonly IValidatorProcessResourceSampler _processResourceSampler;
+    private readonly TimeProvider _timeProvider;
     private static readonly IOfficialConformanceEvidenceImporter ConformanceImporter = new OfficialConformanceEvidenceImporter();
 
     /// <summary>
@@ -61,7 +63,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         IHealthCheckService healthCheckService,
         ITelemetryService telemetryService,
         ILogger<McpValidatorService> logger,
-        IValidatorProcessResourceSampler? processResourceSampler = null)
+        IValidatorProcessResourceSampler? processResourceSampler = null,
+        TimeProvider? timeProvider = null)
     {
         _protocolValidator = protocolValidator ?? throw new ArgumentNullException(nameof(protocolValidator));
         _toolValidator = toolValidator ?? throw new ArgumentNullException(nameof(toolValidator));
@@ -81,6 +84,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _processResourceSampler = processResourceSampler ?? new ValidatorProcessResourceSampler();
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -99,6 +103,13 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         ArgumentNullException.ThrowIfNull(request);
         var configuration = request.CreateConfiguration();
         cancellationToken.ThrowIfCancellationRequested();
+        var globalTimeout = configuration.TestExecution?.GlobalTimeoutMinutes ?? new TestExecutionConfig().GlobalTimeoutMinutes;
+        if (globalTimeout <= 0 || globalTimeout > ExecutionPolicyDefaults.MaximumTimeoutSeconds / 60)
+            throw new ValidationSessionException("GlobalTimeoutMinutes must be a positive, supported total-run deadline.", ValidationStatus.Failed);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(globalTimeout), _timeProvider);
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = runCancellation.Token;
+        using var catalogBudget = ValidationCatalogBudget.BeginRun(request.OperationPolicy.MaxCatalogPayloadCharacters);
         var admissionErrors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, request.ConformanceEvidenceJson != null);
         if (admissionErrors.Count > 0)
             throw new ValidationSessionException(string.Join(" ", admissionErrors), ValidationStatus.Failed);
@@ -217,6 +228,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             runStopwatch.Stop();
             result.Summary.CriticalIssues = result.CriticalErrors.Count;
             result.Run.OperationalMetrics = runTelemetry.Complete(runStopwatch.Elapsed.TotalMilliseconds);
+            result.Run.OperationalMetrics.CatalogPayloadCharactersReserved = catalogBudget.Reserved;
+            result.Run.OperationalMetrics.CatalogPayloadCharacterLimit = catalogBudget.Limit;
             var processorTimeDelta = processResourcesAtStart != null && processResourcesAtEnd != null &&
                 processResourcesAtStart.TotalProcessorTime >= TimeSpan.Zero &&
                 processResourcesAtEnd.TotalProcessorTime >= processResourcesAtStart.TotalProcessorTime
@@ -335,6 +348,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 .Concat(identityBaselinePack == null ? [] : new IValidationScenarioPack[] { identityBaselinePack }).ToArray();
             scenarioPlans = resolvedScenarioPacks.Select(pack => new ScenarioPackExecutionPlan(pack.Descriptor)).ToArray();
             var planningFailed = false;
+            var plannedScenarioIdentities = new HashSet<(string Layer, string Scope)>();
             for (var packIndex = 0; packIndex < resolvedScenarioPacks.Length; packIndex++)
             {
                 try
@@ -343,6 +357,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     {
                         if (scenario?.Descriptor is not { } descriptor)
                             throw new InvalidOperationException("Scenario planning returned an invalid descriptor.");
+                        if (string.IsNullOrWhiteSpace(descriptor.Key.Value) || string.IsNullOrWhiteSpace(descriptor.LayerKey) ||
+                            !plannedScenarioIdentities.Add(ScenarioCoverageIdentity(descriptor.LayerKey, descriptor.Key.Value)))
+                            throw new InvalidOperationException("Scenario planning returned an empty or ambiguous obligation identity.");
                         scenarioPlans[packIndex].Pending.Enqueue(new PlannedScenario(scenario, descriptor));
                     }
                     scenarioPlans[packIndex].Prepared = true;
@@ -841,6 +858,13 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
 
     private sealed record PlannedScenario(IValidationScenario Scenario, ValidationScenarioDescriptor Descriptor);
 
+    private sealed record EmittedScenarioCoverage(
+        ValidationCoverageDeclaration Coverage, ICollection<ValidationCoverageDeclaration> Destination,
+        ValidationPackDescriptor Pack, ValidationScenarioDescriptor Scenario);
+
+    private static (string Layer, string Scope) ScenarioCoverageIdentity(string layer, string scope) =>
+        (layer.ToUpperInvariant(), scope.ToUpperInvariant());
+
     private sealed class ScenarioPackExecutionPlan(ValidationPackDescriptor descriptor)
     {
         public ValidationPackDescriptor Descriptor { get; } = descriptor;
@@ -861,6 +885,10 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         result.Assessments.Scenarios.Clear();
         result.Assessments.Extensions.Clear();
         result.Evidence.Observations.Clear();
+        var reservedScopes = plans.SelectMany(plan => plan.Pending).ToDictionary(
+            scenario => ScenarioCoverageIdentity(scenario.Descriptor.LayerKey, scenario.Descriptor.Key.Value));
+        var categoryScopes = result.Evidence.Coverage.Select(item => ScenarioCoverageIdentity(item.LayerId, item.Scope)).ToHashSet();
+        var emittedScopes = new Dictionary<(string Layer, string Scope), EmittedScenarioCoverage>();
 
         var scenarioContext = new ValidationScenarioContext
         {
@@ -882,6 +910,49 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     execution.Coverage.Any(coverage => coverage == null || !Enum.IsDefined(coverage.Status)) ||
                     execution.Observations.Any(observation => observation == null))
                     throw new InvalidOperationException("Scenario returned malformed evidence.");
+                var containerLane = plan.Descriptor.ExtensionId == null ? EvaluationLane.Baseline : EvaluationLane.ExtensionReadiness;
+                var expectedLane = scenario.Descriptor.Lane ?? plan.Descriptor.Lane ?? containerLane;
+                var coverageIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!string.Equals(execution.Scenario.ScenarioId, scenario.Descriptor.Key.Value, StringComparison.Ordinal) ||
+                    !execution.Coverage.Any(coverage => string.Equals(coverage.Scope, scenario.Descriptor.Key.Value, StringComparison.Ordinal)) ||
+                    execution.Coverage.Any(coverage =>
+                        !string.Equals(coverage.LayerId, scenario.Descriptor.LayerKey, StringComparison.Ordinal) ||
+                        (coverage.Lane ?? containerLane) != expectedLane ||
+                        string.IsNullOrWhiteSpace(coverage.Scope) || !coverageIdentities.Add(coverage.Scope) ||
+                        categoryScopes.Contains(ScenarioCoverageIdentity(coverage.LayerId, coverage.Scope)) ||
+                        reservedScopes.TryGetValue(ScenarioCoverageIdentity(coverage.LayerId, coverage.Scope), out var owner) &&
+                            !ReferenceEquals(owner, scenario)))
+                    throw new InvalidOperationException("Scenario evidence does not account for its planned obligation identity and lane.");
+                var collisions = execution.Coverage.Select(item => ScenarioCoverageIdentity(item.LayerId, item.Scope))
+                    .Where(emittedScopes.ContainsKey).ToArray();
+                if (collisions.Length > 0)
+                {
+                    foreach (var identity in collisions)
+                    {
+                        var existing = emittedScopes[identity];
+                        var incoming = execution.Coverage.Single(item => ScenarioCoverageIdentity(item.LayerId, item.Scope) == identity);
+                        AddObservations(result.Evidence.Observations,
+                        [
+                            CreateCoverageConflictObservation(existing.Coverage, existing.Pack, existing.Scenario),
+                            CreateCoverageConflictObservation(incoming, plan.Descriptor, scenario.Descriptor)
+                        ]);
+                        existing.Destination.Remove(existing.Coverage);
+                        existing.Destination.Add(new ValidationCoverageDeclaration
+                        {
+                            LayerId = existing.Coverage.LayerId, Scope = existing.Coverage.Scope,
+                            Lane = existing.Coverage.Lane, Origin = existing.Coverage.Origin, ProbeContext = existing.Coverage.ProbeContext,
+                            Status = ValidationCoverageStatus.Blocked, ObservedOutcome = ValidationOutcome.Blocked,
+                            Confidence = EvidenceConfidenceLevel.None,
+                            Reason = "Multiple scenarios claimed this coverage identity; no positive evidence credit is retained."
+                        });
+                    }
+                    throw new InvalidOperationException("Scenario results contain conflicting coverage ownership.");
+                }
+                ICollection<ValidationCoverageDeclaration> destination = plan.Descriptor.ExtensionId == null
+                    ? result.Evidence.Coverage : plan.ExtensionCoverage;
+                foreach (var item in execution.Coverage)
+                    emittedScopes.Add(ScenarioCoverageIdentity(item.LayerId, item.Scope),
+                        new EmittedScenarioCoverage(item, destination, plan.Descriptor, scenario.Descriptor));
                 result.Assessments.Scenarios.Add(execution.Scenario);
                 if (plan.Descriptor.ExtensionId == null)
                 {
@@ -972,6 +1043,34 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                 .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
                 .ToArray()
         };
+    }
+
+    private static ValidationObservation CreateCoverageConflictObservation(
+        ValidationCoverageDeclaration coverage, ValidationPackDescriptor pack, ValidationScenarioDescriptor scenario)
+    {
+        var observation = new ValidationObservation
+        {
+            Id = "coverage-conflict-" + CanonicalJsonDigest.ComputeObject(new
+            {
+                Pack = pack.Key.Value, Scenario = scenario.Key.Value, coverage.LayerId, coverage.Scope
+            }),
+            LayerId = coverage.LayerId, Component = "scenario-framework", ObservationKind = ValidationObservation.CoverageConflictKind,
+            ScenarioId = scenario.Key.Value, Lane = coverage.Lane, Origin = EvidenceOrigin.DeterministicAggregation,
+            ProbeContexts = coverage.ProbeContext is { } probe ? [probe] : null,
+            Metadata =
+            {
+                ["attribution"] = "validator-framework", ["creditEligible"] = "false",
+                ["packId"] = pack.Key.Value, ["packRevision"] = pack.Revision.Value,
+                ["scenarioRevision"] = scenario.Revision.Value, [ValidationObservation.CoverageScopeMetadataKey] = coverage.Scope,
+                ["returnedStatus"] = coverage.Status.ToString(), ["returnedConfidence"] = coverage.Confidence.ToString(),
+                ["returnedBlocker"] = coverage.Blocker.ToString()
+            }
+        };
+        if (coverage.ObservedOutcome is { } outcome) observation.Metadata["returnedOutcome"] = outcome.ToString();
+        if (coverage.Reason is { } reason) observation.Metadata["returnedReason"] = reason;
+        if (coverage.Lane is { } lane) observation.Metadata["returnedLane"] = lane.ToString();
+        if (coverage.Origin is { } origin) observation.Metadata["returnedOrigin"] = origin.ToString();
+        return observation;
     }
 
     private static void AddCoverageDeclarations(
@@ -1419,6 +1518,23 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             skippedTests += recordedTools.Count(tool => tool.Status == TestStatus.Skipped);
             authRequiredTests += recordedTools.Count(tool => tool.Status == TestStatus.AuthRequired);
             inconclusiveTests += recordedTools.Count(tool => tool.Status == TestStatus.Inconclusive);
+        }
+
+        if (result.ResourceTesting is { } resources)
+            AddCatalogOutcomes(resources.ResourcesDiscovered, resources.ResourceResults.Select(resource => resource.Status), resources.Status);
+        if (result.PromptTesting is { } prompts)
+            AddCatalogOutcomes(prompts.PromptsDiscovered, prompts.PromptResults.Select(prompt => prompt.Status), prompts.Status);
+
+        void AddCatalogOutcomes(int discovered, IEnumerable<TestStatus> statuses, TestStatus catalogStatus)
+        {
+            var observed = statuses.ToArray();
+            if (observed.Length == 0 && discovered == 0) observed = [catalogStatus];
+            totalTests += Math.Max(discovered, observed.Length);
+            passedTests += observed.Count(status => status == TestStatus.Passed);
+            failedTests += observed.Count(status => status == TestStatus.Failed);
+            skippedTests += observed.Count(status => status == TestStatus.Skipped);
+            authRequiredTests += observed.Count(status => status == TestStatus.AuthRequired);
+            inconclusiveTests += observed.Count(status => status == TestStatus.Inconclusive);
         }
 
         // Aggregate security testing results

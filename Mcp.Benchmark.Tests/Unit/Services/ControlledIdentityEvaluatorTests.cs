@@ -762,7 +762,10 @@ public sealed class ControlledIdentityEvaluatorTests
         executed.Coverage.Should().OnlyContain(entry => entry.Lane == EvaluationLane.ControlledApplication);
         after.Assessments.CoreConformance.Should().BeEquivalentTo(before.Assessments.CoreConformance);
         after.CertificateEligibility.Should().BeEquivalentTo(before.CertificateEligibility);
-        if (!wrongRun) executed.Coverage.Should().HaveCount(2);
+        executed.Coverage.Should().ContainSingle(entry => entry.Scope == executed.Scenario.ScenarioId &&
+            entry.ObservedOutcome == executed.Scenario.ControlledIdentity.Outcome);
+        if (!wrongRun)
+            executed.Coverage.Where(entry => entry.Scope != executed.Scenario.ScenarioId).Should().HaveCount(2);
         result.Assurance = after;
         var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         options.Converters.Add(new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
@@ -953,9 +956,12 @@ public sealed class ControlledIdentityEvaluatorTests
         var claims = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory).Claims
             .Where(claim => claim.Dimension == AssuranceDimension.ControlledApplication).ToArray();
 
-        result.Evidence.Coverage.Should().HaveCount(2);
-        claims.Should().HaveCount(2);
-        claims.Select(claim => claim.Outcome).Should().BeEquivalentTo([AssuranceClaimOutcome.Satisfied, AssuranceClaimOutcome.Violated]);
+        result.Evidence.Coverage.Should().HaveCount(3);
+        result.Evidence.Coverage.Where(entry => entry.Scope != executed.Scenario.ScenarioId)
+            .Select(entry => entry.ObservedOutcome).Should().BeEquivalentTo([ValidationOutcome.Succeeded, ValidationOutcome.Failed]);
+        claims.Should().HaveCount(3);
+        claims.Select(claim => claim.Outcome).Should().BeEquivalentTo(
+            [AssuranceClaimOutcome.Satisfied, AssuranceClaimOutcome.Violated, AssuranceClaimOutcome.Violated]);
     }
 
     private static ControlledIdentityEvidenceDocument SignedDocument(ECDsa key, bool violation)

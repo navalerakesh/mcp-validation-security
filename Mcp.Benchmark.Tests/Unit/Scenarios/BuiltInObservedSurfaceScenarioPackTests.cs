@@ -7,6 +7,118 @@ namespace Mcp.Benchmark.Tests.Unit.Scenarios;
 
 public class BuiltInObservedSurfaceScenarioPackTests
 {
+    public static IEnumerable<object[]> CatalogCases() =>
+        from resource in new[] { false, true }
+        from variant in new[] { "complete", "empty", "missing-result", "wrong-identity", "duplicate-result", "missing-inventory",
+            "unknown-inventory", "unfinished", "wrong-count", "skipped", "unexecuted", "metadata-only", "failed", "error", "auth-required" }
+        select new object[] { resource, variant };
+
+    [Theory]
+    [MemberData(nameof(CatalogCases))]
+    public async Task ContentCatalog_ShouldRequireIndependentIdentitiesAndConfiguredExecution(bool resource, string variant)
+    {
+        var count = variant == "empty" ? 0 : 2;
+        var identities = Enumerable.Range(0, count).Select(i => resource ? $"https://example.invalid/{i}" : $"prompt-{i}").ToList();
+        var retained = identities.ToList();
+        if (variant == "missing-result") retained.RemoveAt(1);
+        if (variant == "duplicate-result") retained[1] = retained[0];
+        if (variant == "wrong-identity") retained[1] = resource ? "https://example.invalid/unrelated" : "unrelated";
+        if (variant == "missing-inventory") identities.RemoveAt(1);
+        var catalog = new CatalogEnumerationEvidence
+        {
+            IsComplete = variant != "unfinished", Termination = variant == "unfinished" ? CatalogEnumerationTermination.Cancelled : CatalogEnumerationTermination.Complete,
+            RawItemsObserved = count, RecoveredItems = variant == "wrong-count" ? 1 : count
+        };
+        var aggregate = variant switch { "failed" => TestStatus.Failed, "error" => TestStatus.Error, "auth-required" => TestStatus.AuthRequired, _ => TestStatus.Passed };
+        var context = CreateContext(new SecurityTestResult());
+        var executionRequired = variant != "metadata-only";
+        context.ValidationConfiguration.Validation.Categories.ResourceTesting.TestResourceReading = executionRequired;
+        context.ValidationConfiguration.Validation.Categories.PromptTesting.TestPromptExecution = executionRequired;
+        if (resource)
+            context.ValidationResult.ResourceTesting = new()
+            {
+                Status = aggregate, ResourcesDiscovered = count, DiscoveredResourceUris = variant == "unknown-inventory" ? null : identities,
+                CatalogEnumeration = catalog,
+                ResourceResults = retained.Select(identity => new IndividualResourceResult
+                {
+                    ResourceUri = identity, Status = variant == "skipped" ? TestStatus.Skipped : TestStatus.Passed,
+                    AccessSuccessful = variant is not ("unexecuted" or "metadata-only")
+                }).ToList()
+            };
+        else
+            context.ValidationResult.PromptTesting = new()
+            {
+                Status = aggregate, PromptsDiscovered = count, DiscoveredPromptNames = variant == "unknown-inventory" ? null : identities,
+                CatalogEnumeration = catalog,
+                PromptResults = retained.Select(identity => new IndividualPromptResult
+                {
+                    PromptName = identity, Status = variant == "skipped" ? TestStatus.Skipped : TestStatus.Passed,
+                    ExecutionSuccessful = variant is not ("unexecuted" or "metadata-only")
+                }).ToList()
+            };
+        var scenario = new BuiltInObservedSurfaceScenarioPack().GetScenarios().Single(item =>
+            item.Descriptor.Key.Value == (resource ? "resource-catalog-smoke" : "prompt-catalog-smoke"));
+        var execution = await scenario.ExecuteAsync(context, CancellationToken.None);
+        var expected = aggregate != TestStatus.Passed ? aggregate :
+            variant is "complete" or "empty" or "metadata-only" ? TestStatus.Passed : TestStatus.Inconclusive;
+        execution.Scenario.Status.Should().Be(expected);
+        context.ValidationResult.Evidence.Coverage.AddRange(execution.Coverage);
+        var clone = context.ValidationResult.CloneWithoutSecrets();
+        clone.Evidence.Coverage.Single().ObservedOutcome.Should().Be(execution.Coverage.Single().ObservedOutcome);
+        if (resource)
+            clone.ResourceTesting!.DiscoveredResourceUris.Should().BeEquivalentTo(variant == "unknown-inventory" ? null : identities);
+        else
+            clone.PromptTesting!.DiscoveredPromptNames.Should().BeEquivalentTo(variant == "unknown-inventory" ? null : identities);
+    }
+
+    [Theory]
+    [InlineData("complete", TestStatus.Passed)]
+    [InlineData("missing-result", TestStatus.Inconclusive)]
+    [InlineData("wrong-name", TestStatus.Inconclusive)]
+    [InlineData("duplicate-result", TestStatus.Inconclusive)]
+    [InlineData("missing-inventory", TestStatus.Inconclusive)]
+    [InlineData("unfinished-catalog", TestStatus.Inconclusive)]
+    [InlineData("skipped-result", TestStatus.Inconclusive)]
+    [InlineData("unexecuted-result", TestStatus.Inconclusive)]
+    [InlineData("metadata-only", TestStatus.Passed)]
+    [InlineData("wrong-recovered-count", TestStatus.Inconclusive)]
+    [InlineData("rejected-items", TestStatus.Inconclusive)]
+    [InlineData("known-failure", TestStatus.Failed)]
+    public async Task ToolScenario_ShouldRequireEvidenceForEveryDiscoveredTool(string variant, TestStatus expected)
+    {
+        var tools = new ToolTestResult
+        {
+            Status = variant == "known-failure" ? TestStatus.Failed : TestStatus.Passed,
+            ToolsDiscovered = 2, DiscoveredToolNames = ["first", "second"],
+            CatalogEnumeration = new() { IsComplete = variant != "unfinished-catalog", Termination = CatalogEnumerationTermination.Complete,
+                RecoveredItems = variant == "wrong-recovered-count" ? 1 : 2, RejectedItems = variant == "rejected-items" ? 1 : 0 },
+            ToolResults =
+            [
+                new() { ToolName = "first", Status = TestStatus.Passed, ExecutionSuccessful = true },
+                new() { ToolName = "second", Status = TestStatus.Passed, ExecutionSuccessful = true }
+            ]
+        };
+        if (variant is "missing-result" or "known-failure") tools.ToolResults.RemoveAt(1);
+        if (variant == "wrong-name") tools.ToolResults[1].ToolName = "unrelated";
+        if (variant == "duplicate-result") tools.ToolResults[1].ToolName = "first";
+        if (variant == "missing-inventory") tools.DiscoveredToolNames.RemoveAt(1);
+        if (variant == "skipped-result") tools.ToolResults[1].Status = TestStatus.Skipped;
+        if (variant is "unexecuted-result" or "metadata-only") tools.ToolResults[1].ExecutionSuccessful = false;
+        var context = CreateContext(new SecurityTestResult());
+        context.ValidationResult.ToolValidation = tools;
+        if (variant == "metadata-only")
+        {
+            context.ValidationConfiguration.Validation.Categories.ToolTesting.TestToolExecution = false;
+            context.ValidationConfiguration.Validation.Categories.ToolTesting.TestParameterValidation = false;
+        }
+        var scenario = new BuiltInObservedSurfaceScenarioPack().GetScenarios().Single(item => item.Descriptor.Key.Value == "tool-catalog-smoke");
+        var result = await scenario.ExecuteAsync(context, CancellationToken.None);
+        result.Scenario.Status.Should().Be(expected);
+        result.Coverage.Single().ObservedOutcome.Should().Be(expected == TestStatus.Passed ? ValidationOutcome.Succeeded :
+            expected == TestStatus.Failed ? ValidationOutcome.Failed : ValidationOutcome.Inconclusive);
+        tools.Status.Should().Be(variant == "known-failure" ? TestStatus.Failed : TestStatus.Passed);
+    }
+
     [Theory]
     [InlineData(true, true, false, true)]
     [InlineData(false, true, false, false)]

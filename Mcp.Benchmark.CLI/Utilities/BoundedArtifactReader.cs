@@ -328,7 +328,7 @@ internal static class BoundedArtifactReader
 
         ValidateRecordedAssessmentTimes(root);
         ValidateRecordedRunTermination(root);
-        ValidateRecordedRequestFailures(root);
+        ValidateRecordedOperationalMetrics(root);
         var result = JsonSerializer.Deserialize<ValidationResult>(
             NormalizeSavedResult(json, version!),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true))
@@ -344,14 +344,20 @@ internal static class BoundedArtifactReader
         return result;
     }
 
-    private static void ValidateRecordedRequestFailures(JsonElement root)
+    private static void ValidateRecordedOperationalMetrics(JsonElement root)
     {
+        var diagnostic = "Validation artifact contains invalid operational metrics.";
         try
         {
             var run = Unique(root, "run");
             if (run == null) return;
             var metrics = Unique(run.Value, "operationalMetrics");
             if (metrics == null || metrics.Value.ValueKind == JsonValueKind.Null) return;
+            diagnostic = "Validation artifact contains an invalid catalog payload budget.";
+            var reserved = NullableInteger(Unique(metrics.Value, "catalogPayloadCharactersReserved"));
+            var limit = NullableInteger(Unique(metrics.Value, "catalogPayloadCharacterLimit"));
+            if (!ValidationOperationalMetrics.IsValidCatalogBudget(reserved, limit)) throw Invalid();
+            diagnostic = "Validation artifact contains invalid request failure attribution.";
             var failures = Unique(metrics.Value, "requestFailures");
             if (failures == null || failures.Value.ValueKind == JsonValueKind.Null) return;
             if (failures.Value.ValueKind != JsonValueKind.Array || failures.Value.GetArrayLength() > RequestFailureCount.MaximumBuckets)
@@ -380,8 +386,14 @@ internal static class BoundedArtifactReader
             throw Invalid();
         }
 
-        static CliUsageException Invalid() => new("Validation artifact contains invalid request failure attribution.");
-        static JsonElement? Unique(JsonElement parent, string name)
+        CliUsageException Invalid() => new(diagnostic);
+        long? NullableInteger(JsonElement? element)
+        {
+            if (element == null || element.Value.ValueKind == JsonValueKind.Null) return null;
+            if (element.Value.ValueKind != JsonValueKind.Number || !element.Value.TryGetInt64(out var value)) throw Invalid();
+            return value;
+        }
+        JsonElement? Unique(JsonElement parent, string name)
         {
             if (parent.ValueKind != JsonValueKind.Object) throw Invalid();
             var matches = parent.EnumerateObject().Where(property => string.Equals(property.Name, name, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();

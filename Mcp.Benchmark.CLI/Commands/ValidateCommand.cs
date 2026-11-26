@@ -42,6 +42,7 @@ public class ValidateCommand
     private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
     private readonly IOfficialConformanceEvidenceImporter _officialConformanceEvidenceImporter;
+    private readonly TimeProvider _timeProvider;
 
     public ValidateCommand(
         IMcpValidatorService validatorService,
@@ -57,7 +58,8 @@ public class ValidateCommand
         ISessionArtifactStore artifactStore,
         IMcpHttpClient httpClient,
         CliSessionContext sessionContext,
-        IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null)
+        IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null,
+        TimeProvider? timeProvider = null)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
@@ -73,6 +75,7 @@ public class ValidateCommand
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
         _officialConformanceEvidenceImporter = officialConformanceEvidenceImporter ?? UnavailableOfficialConformanceEvidenceImporter.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     private sealed class UnavailableOfficialConformanceEvidenceImporter : IOfficialConformanceEvidenceImporter
@@ -363,7 +366,11 @@ public class ValidateCommand
                 return;
             }
 
-            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan);
+            var deadlineMinutes = executionPlan.GlobalTimeoutMinutes
+                ?? throw new InvalidOperationException("Validation execution plan is missing the configured total-run deadline.");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(deadlineMinutes), _timeProvider);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan, cts.Token);
             if (targetResolutionErrors.Count > 0)
             {
                 throw new CliUsageException(BuildExecutionErrorMessage(targetResolutionErrors));
@@ -375,8 +382,6 @@ public class ValidateCommand
             _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
             configuration.Server.ProtocolVersion = executionPlan.ResolvedSchemaVersion;
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMinutes(10));
             await _httpClient.StartSessionAsync(configuration.Server.Endpoint!, configuration.Server.Environment, cts.Token);
 
             _consoleOutput.ShowProgress(ValidationMessages.Progress.Initializing);
@@ -1281,6 +1286,10 @@ public class ValidateCommand
         Console.WriteLine($"Timeout: {executionPlan.TimeoutSeconds}s per request");
         Console.WriteLine($"Response Limit: {executionPlan.MaxResponseBytes} bytes");
         Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
+        Console.WriteLine($"Catalog Payload Budget: {executionPlan.MaxCatalogPayloadCharacters} characters across native catalogs");
+        Console.WriteLine($"Total Run Deadline: {executionPlan.GlobalTimeoutMinutes} minutes");
+        if (executionPlan.RequestDemand is { } demand)
+            Console.WriteLine($"Planned Request Demand: at least {demand.KnownMinimumAttempts} for successful admitted scope; upper estimate {(demand.HasUnknownExpansion ? "unknown" : demand.KnownMinimumAttempts.ToString(System.Globalization.CultureInfo.InvariantCulture))}. Actual limit: {demand.EnforcedAttemptLimit}.");
         Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
         Console.WriteLine($"Provider Plan SHA-256: {executionPlan.ProviderExecutionPlanSha256}");
         Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
@@ -1322,6 +1331,8 @@ public class ValidateCommand
             plan.MaxConcurrency,
             plan.TimeoutSeconds,
             plan.MaxResponseBytes,
+            plan.MaxCatalogPayloadCharacters,
+            plan.GlobalTimeoutMinutes,
             AllowedHosts = plan.AllowedHosts.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
             AllowedOrigins = plan.AllowedOrigins.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
             PlannedChecks = plan.PlannedChecks.OrderBy(value => value, StringComparer.Ordinal).ToArray()

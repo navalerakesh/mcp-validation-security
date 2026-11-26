@@ -18,10 +18,7 @@ public static class ControlledStateEvaluator
         var application = ValidationOutcome.Inconclusive;
         var audit = contract.AuditRequired ? ValidationOutcome.Inconclusive : ValidationOutcome.NotApplicable;
         if (!ValidBinding(admittedBinding) ||
-            !new[] { contract.ScenarioId, contract.PolicyRevision, contract.ToolName, contract.ObserverId, contract.PredicateId, contract.PreconditionId, contract.CleanupOwner }
-                .All(ValidIdentifier) ||
-            contract.AuditRequired && !ValidIdentifier(contract.AuditPredicateId) ||
-            contract.AuditPredicateId != null && !ValidIdentifier(contract.AuditPredicateId) ||
+            !HasValidContractIdentity(contract) ||
             evidence.AuditPredicateId != null && !ValidIdentifier(evidence.AuditPredicateId) ||
             contract.Binding != admittedBinding || evidence.Binding != admittedBinding ||
             string.IsNullOrWhiteSpace(trustedIndependentObserverId) ||
@@ -32,13 +29,9 @@ public static class ControlledStateEvaluator
             contract.AuditRequired && !string.Equals(evidence.AuditPredicateId, contract.AuditPredicateId, StringComparison.Ordinal))
             return Gap(ValidationOutcome.Blocked, "Evidence does not match the admitted operation and independent observer.");
 
-        if (contract.ContractRevision != ControlledStateScenarioContract.CurrentRevision ||
-            !Enum.IsDefined(contract.StateExpectation) || contract.StateExpectation == ControlledStateExpectation.Unspecified ||
-            contract.ExpectedApplicationOutcome is not (ControlledApplicationOutcome.Succeeded or ControlledApplicationOutcome.Rejected) ||
+        if (!HasValidContractExpectations(contract) ||
             !Enum.IsDefined(evidence.ApplicationOutcome) || !Enum.IsDefined(evidence.ObserverOutcome) || !Enum.IsDefined(evidence.CleanupOutcome) || !Enum.IsDefined(evidence.AuditObserverOutcome) ||
-            contract.ConsistencyWindow <= TimeSpan.Zero || contract.MaximumBaselineAge <= TimeSpan.Zero ||
-            contract.MaximumEvidenceAge <= TimeSpan.Zero ||
-            contract.MaximumObserverReads <= 0 || evidence.ObserverReads < 0 || evidence.ObserverReads > contract.MaximumObserverReads)
+            evidence.ObserverReads < 0 || evidence.ObserverReads > contract.MaximumObserverReads)
             return Gap(ValidationOutcome.Blocked, "Scenario expectations or observation budget are not admitted.");
 
         inputsAdmitted = true;
@@ -120,6 +113,22 @@ public static class ControlledStateEvaluator
             Reason = reason
         };
     }
+
+    internal static bool IsValidContract(ControlledStateScenarioContract contract) =>
+        ControlledEvidenceAdmission.IsValidBinding(contract.Binding) && HasValidContractIdentity(contract) && HasValidContractExpectations(contract);
+
+    private static bool HasValidContractIdentity(ControlledStateScenarioContract contract) =>
+        new[] { contract.ScenarioId, contract.PolicyRevision, contract.ToolName, contract.ObserverId, contract.PredicateId, contract.PreconditionId, contract.CleanupOwner }
+            .All(ValidIdentifier) &&
+        (!contract.AuditRequired || ValidIdentifier(contract.AuditPredicateId)) &&
+        (contract.AuditPredicateId == null || ValidIdentifier(contract.AuditPredicateId));
+
+    private static bool HasValidContractExpectations(ControlledStateScenarioContract contract) =>
+        contract.ContractRevision == ControlledStateScenarioContract.CurrentRevision &&
+        Enum.IsDefined(contract.StateExpectation) && contract.StateExpectation != ControlledStateExpectation.Unspecified &&
+        contract.ExpectedApplicationOutcome is ControlledApplicationOutcome.Succeeded or ControlledApplicationOutcome.Rejected &&
+        contract.ConsistencyWindow > TimeSpan.Zero && contract.MaximumBaselineAge > TimeSpan.Zero &&
+        contract.MaximumEvidenceAge > TimeSpan.Zero && contract.MaximumObserverReads > 0;
 
     private static bool ValidBinding(ControlledOperationBinding binding) => ControlledEvidenceAdmission.IsValidBinding(binding);
 

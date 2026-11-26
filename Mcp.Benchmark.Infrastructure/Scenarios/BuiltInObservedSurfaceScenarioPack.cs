@@ -7,7 +7,7 @@ namespace Mcp.Benchmark.Infrastructure.Scenarios;
 
 public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
 {
-    private const string Revision = "2026-11-22.2";
+    private const string Revision = "2026-11-24.2";
     private readonly IReadOnlyList<IValidationScenario> _scenarios;
 
     public BuiltInObservedSurfaceScenarioPack()
@@ -215,6 +215,13 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             .Concat(toolResult.ToolResults.SelectMany(tool => tool.Findings))
             .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
             .ToList();
+        var status = toolResult.Status;
+        var executionRequired = categories?.ToolTesting is not { TestToolExecution: false, TestParameterValidation: false };
+        if (status == TestStatus.Passed && !HasCompleteToolInventory(toolResult, executionRequired))
+            status = TestStatus.Inconclusive;
+        var summary = status != toolResult.Status
+            ? "Tool assessment evidence does not account for the complete discovered inventory."
+            : FirstNonEmpty(toolResult.Message, toolResult.ToolResults.Count > 0 ? "Tool validation completed." : "No tools were discovered during validation.");
 
         return new ValidationScenarioExecutionResult
         {
@@ -222,8 +229,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             {
                 ScenarioId = "tool-catalog-smoke",
                 DisplayName = "Tool Catalog Smoke",
-                Status = toolResult.Status,
-                Summary = FirstNonEmpty(toolResult.Message, toolResult.ToolResults.Count > 0 ? "Tool validation completed." : "No tools were discovered during validation."),
+                Status = status,
+                Summary = summary,
                 Findings = findings
             },
             Coverage =
@@ -232,9 +239,9 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "tool-surface",
                     Scope = "tool-catalog-smoke",
-                    Status = MapCoverageStatus(toolResult.Status),
-                    ObservedOutcome = ValidationOutcomeTaxonomy.From(toolResult.Status),
-                    Reason = toolResult.Status is TestStatus.Passed or TestStatus.Failed ? null : toolResult.Message
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
+                    Reason = status is TestStatus.Passed or TestStatus.Failed ? null : summary
                 }
             ],
             Observations = toolResult.ToolResults
@@ -257,6 +264,23 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
         };
     }
 
+    private static bool HasCompleteToolInventory(ToolTestResult result, bool executionRequired)
+        => HasCompleteCatalog(result.CatalogEnumeration, result.ToolsDiscovered, result.DiscoveredToolNames,
+            result.ToolResults.Select(tool => (tool.ToolName, tool.Status, tool.ExecutionSuccessful)), executionRequired);
+
+    private static bool HasCompleteCatalog(CatalogEnumerationEvidence? catalog, int discovered,
+        IReadOnlyList<string>? identities, IEnumerable<(string Identity, TestStatus Status, bool Executed)> results, bool executionRequired)
+    {
+        if (catalog is not { IsComplete: true, Termination: CatalogEnumerationTermination.Complete, RejectedItems: 0, RejectedPages: 0 } ||
+            discovered < 0 || catalog.RecoveredItems != discovered || identities == null || identities.Count != discovered ||
+            identities.Any(string.IsNullOrWhiteSpace) || identities.Distinct(StringComparer.Ordinal).Count() != discovered)
+            return false;
+        var observed = results.GroupBy(item => item.Identity, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        return identities.All(identity => observed.TryGetValue(identity, out var matches) &&
+            matches.Length == 1 && matches[0].Status == TestStatus.Passed && (!executionRequired || matches[0].Executed));
+    }
+
     private static ValidationScenarioExecutionResult ExecuteResourceScenario(ValidationScenarioContext context)
     {
         var enabled = context.ValidationConfiguration.Validation?.Categories?.ResourceTesting.TestResourceDiscovery != false;
@@ -275,6 +299,16 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             .Concat(resourceResult.ResourceResults.SelectMany(resource => resource.Findings))
             .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
             .ToList();
+        var status = resourceResult.Status;
+        if (status == TestStatus.Passed && !HasCompleteCatalog(resourceResult.CatalogEnumeration,
+            resourceResult.ResourcesDiscovered, resourceResult.DiscoveredResourceUris,
+            resourceResult.ResourceResults.Select(resource => (resource.ResourceUri, resource.Status, resource.AccessSuccessful)),
+            context.ValidationConfiguration.Validation?.Categories?.ResourceTesting.TestResourceReading != false))
+            status = TestStatus.Inconclusive;
+        var summary = status != resourceResult.Status
+            ? "Resource assessment evidence does not account for the complete discovered inventory."
+            : FirstNonEmpty(resourceResult.Message, status == TestStatus.Passed
+                ? "Resource assessment completed for the recorded inventory." : "Resource assessment retained non-success or incomplete evidence.");
 
         return new ValidationScenarioExecutionResult
         {
@@ -282,8 +316,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             {
                 ScenarioId = "resource-catalog-smoke",
                 DisplayName = "Resource Catalog Smoke",
-                Status = resourceResult.Status,
-                Summary = FirstNonEmpty(resourceResult.Message, resourceResult.ResourceResults.Count > 0 ? "Resource validation completed." : "No resources were discovered during validation."),
+                Status = status,
+                Summary = summary,
                 Findings = findings
             },
             Coverage =
@@ -292,9 +326,9 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "resource-surface",
                     Scope = "resource-catalog-smoke",
-                    Status = MapCoverageStatus(resourceResult.Status),
-                    ObservedOutcome = ValidationOutcomeTaxonomy.From(resourceResult.Status),
-                    Reason = resourceResult.Status is TestStatus.Passed or TestStatus.Failed ? null : resourceResult.Message
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
+                    Reason = status is TestStatus.Passed or TestStatus.Failed ? null : summary
                 }
             ],
             Observations = resourceResult.ResourceResults
@@ -335,6 +369,16 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             .Concat(promptResult.PromptResults.SelectMany(prompt => prompt.Findings))
             .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
             .ToList();
+        var status = promptResult.Status;
+        if (status == TestStatus.Passed && !HasCompleteCatalog(promptResult.CatalogEnumeration,
+            promptResult.PromptsDiscovered, promptResult.DiscoveredPromptNames,
+            promptResult.PromptResults.Select(prompt => (prompt.PromptName, prompt.Status, prompt.ExecutionSuccessful)),
+            context.ValidationConfiguration.Validation?.Categories?.PromptTesting.TestPromptExecution != false))
+            status = TestStatus.Inconclusive;
+        var summary = status != promptResult.Status
+            ? "Prompt assessment evidence does not account for the complete discovered inventory."
+            : FirstNonEmpty(promptResult.Message, status == TestStatus.Passed
+                ? "Prompt assessment completed for the recorded inventory." : "Prompt assessment retained non-success or incomplete evidence.");
 
         return new ValidationScenarioExecutionResult
         {
@@ -342,8 +386,8 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
             {
                 ScenarioId = "prompt-catalog-smoke",
                 DisplayName = "Prompt Catalog Smoke",
-                Status = promptResult.Status,
-                Summary = FirstNonEmpty(promptResult.Message, promptResult.PromptResults.Count > 0 ? "Prompt validation completed." : "No prompts were discovered during validation."),
+                Status = status,
+                Summary = summary,
                 Findings = findings
             },
             Coverage =
@@ -352,9 +396,9 @@ public sealed class BuiltInObservedSurfaceScenarioPack : IValidationScenarioPack
                 {
                     LayerId = "prompt-surface",
                     Scope = "prompt-catalog-smoke",
-                    Status = MapCoverageStatus(promptResult.Status),
-                    ObservedOutcome = ValidationOutcomeTaxonomy.From(promptResult.Status),
-                    Reason = promptResult.Status is TestStatus.Passed or TestStatus.Failed ? null : promptResult.Message
+                    Status = MapCoverageStatus(status),
+                    ObservedOutcome = ValidationOutcomeTaxonomy.From(status),
+                    Reason = status is TestStatus.Passed or TestStatus.Failed ? null : summary
                 }
             ],
             Observations = promptResult.PromptResults

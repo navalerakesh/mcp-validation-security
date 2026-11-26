@@ -66,11 +66,7 @@ internal sealed class RunNetworkPolicyContext
     public void AdmitRequest()
     {
         var policy = Snapshot;
-        var requestNumber = Interlocked.Increment(ref _requestCount);
-        if (requestNumber > policy.MaxRequests)
-        {
-            throw new OperationAdmissionException($"Execution request budget exceeded ({policy.MaxRequests}).");
-        }
+        ValidationRequestBudget.Admit(ref _requestCount, policy.MaxRequests);
     }
 }
 
@@ -165,24 +161,37 @@ internal sealed class GovernedHttpClientProvider : IDisposable
 internal sealed class GovernedRequestObservabilityHandler : DelegatingHandler
 {
     internal static readonly HttpRequestOptionsKey<int?> ResponseLimitRejected = new("McpVal.ResponseLimitRejected");
+    private static readonly HttpRequestOptionsKey<System.Diagnostics.Stopwatch> DispatchClock = new("McpVal.DispatchClock");
+
+    internal static void RecordDispatch(HttpRequestMessage request)
+    {
+        if (!request.Options.TryGetValue(DispatchClock, out var stopwatch)) return;
+        ValidationObservability.RecordRequestStarted(request.Method.Method);
+        stopwatch.Start();
+    }
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
         request.Options.Set(ResponseLimitRejected, null);
-        ValidationObservability.RecordRequestStarted(request.Method.Method);
-        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        request.Options.Set(DispatchClock, new System.Diagnostics.Stopwatch());
         try
         {
             var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
-            ValidationObservability.RecordRequestCompleted(
-                request.Method.Method,
-                stopwatch.Elapsed.TotalMilliseconds,
-                response.IsSuccessStatusCode,
-                (int)response.StatusCode);
+            if (request.Options.TryGetValue(DispatchClock, out var stopwatch) && stopwatch.IsRunning)
+            {
+                stopwatch.Stop();
+                ValidationObservability.RecordRequestCompleted(
+                    request.Method.Method,
+                    stopwatch.Elapsed.TotalMilliseconds,
+                    response.IsSuccessStatusCode,
+                    (int)response.StatusCode);
+            }
             return response;
         }
         catch (Exception exception)
         {
+            if (!request.Options.TryGetValue(DispatchClock, out var stopwatch) || !stopwatch.IsRunning) throw;
+            stopwatch.Stop();
             request.Options.TryGetValue(ResponseLimitRejected, out var rejectedStatus);
             ValidationObservability.RecordRequestCompleted(
                 request.Method.Method,
@@ -237,7 +246,9 @@ internal sealed class GovernedRequestPolicyHandler(RunNetworkPolicyContext polic
         }
         else if (policy.Mode is not (ExecutionMode.Safe or ExecutionMode.Standard) && !McpOperationAdmission.IsAllowed(policy, null))
             throw new OperationAdmissionException("Execution policy did not admit this operation; request was not sent.");
+        cancellationToken.ThrowIfCancellationRequested();
         policyContext.AdmitRequest();
+        GovernedRequestObservabilityHandler.RecordDispatch(request);
         var response = await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
         var maxResponseBytes = policy.MaxResponseBytes;
         if (response.Content.Headers.ContentLength is { } declaredLength && declaredLength > maxResponseBytes)

@@ -13,6 +13,36 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 public sealed class ValidationHtmlAccessibilityTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Disclosures_ShouldSeparateGroupsFromFlatRecordsAndKeepIconsDecorative(bool verbose)
+    {
+        var result = ReportSnapshotTestData.CreateComprehensiveResult();
+        var document = new HtmlParser().ParseDocument(
+            new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose));
+
+        foreach (var summary in document.QuerySelectorAll("summary"))
+        {
+            summary.ParentElement!.LocalName.Should().Be("details");
+            summary.QuerySelectorAll(":scope > .disclosure-label").Should().ContainSingle()
+                .Which.TextContent.Should().NotBeNullOrWhiteSpace();
+            var chevron = summary.QuerySelectorAll(":scope > .disclosure-chevron").Should().ContainSingle().Subject;
+            chevron.GetAttribute("aria-hidden").Should().Be("true");
+            chevron.TextContent.Should().BeEmpty("decoration must not change disclosure labels or printed evidence");
+            chevron.HasAttribute("tabindex").Should().BeFalse();
+        }
+        document.QuerySelectorAll("details[id^='domain-']").Should()
+            .OnlyContain(element => element.ClassList.Contains("disclosure-group"));
+        document.QuerySelectorAll("article[data-claim-id] details").Should()
+            .OnlyContain(element => !element.ClassList.Contains("disclosure-group"),
+                "routine claim references are flat supporting records, not major cards");
+        document.QuerySelectorAll("#technical-evidence > section > h2").Should().NotBeEmpty();
+        if (verbose)
+            document.QuerySelectorAll(".domain-disclosure > summary .disclosure-label")
+                .Should().Contain(element => element.TextContent.StartsWith("Tool catalog records", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(false, true)]
@@ -46,8 +76,8 @@ public sealed class ValidationHtmlAccessibilityTests
         var projection = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, verbose);
         var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
         var document = new HtmlParser().ParseDocument(html);
-        var overview = document.QuerySelectorAll("section").Single(section =>
-            section.Children.Any(child => child.LocalName == "h2" && child.TextContent == "Compliance & Domain Evidence"));
+        var overview = document.QuerySelectorAll("#evidence-and-actions details").Single(section =>
+            section.QuerySelector("summary")?.TextContent == "Independent assessment facts and measurements");
 
         document.QuerySelectorAll(".score-strip, .score-pill, .principle-rail, .principle-card").Should().BeEmpty();
         var facts = overview.QuerySelectorAll("dl").Should().ContainSingle().Subject;
@@ -70,6 +100,7 @@ public sealed class ValidationHtmlAccessibilityTests
             var load = result.PerformanceTesting!.LoadTesting;
             performanceFacts.QuerySelectorAll("dt").Select(element => element.TextContent).Should().Equal(
                 "Average Latency", "95th-Percentile Latency", "Requests / Second", "Error Rate");
+            performance.QuerySelectorAll("dt").Should().HaveCount(4, "observed metrics must not be repeated in a second summary");
             performanceFacts.QuerySelectorAll("dd strong").Select(element => element.TextContent).Should().Equal(
                 FormattableString.Invariant($"{load.AverageResponseTimeMs:F1} ms"),
                 FormattableString.Invariant($"{load.P95ResponseTimeMs:F1} ms"),
@@ -168,8 +199,8 @@ public sealed class ValidationHtmlAccessibilityTests
         var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, verbose);
         var document = new HtmlParser().ParseDocument(html);
 
-        document.QuerySelectorAll("#recorded-incomplete-claims li").Select(element => element.TextContent).Should().Equal(expected);
-        document.GetElementById("recorded-incomplete-claims")!.TextContent.Should().NotContain("None recorded.");
+        document.QuerySelectorAll("#recorded-claims article[data-claim-outcome='Incomplete']")
+            .Select(element => element.GetAttribute("data-claim-id")).Should().Equal(expected);
     }
 
     [Theory]
@@ -238,21 +269,22 @@ public sealed class ValidationHtmlAccessibilityTests
         var document = new HtmlParser().ParseDocument(html);
         var facts = document.QuerySelectorAll("#assessment-decision .assessment-facts > div");
 
-        facts.Single(row => row.QuerySelector("dt")!.TextContent == "Policy outcome").QuerySelector("dd")!.TextContent.Should().Be("Failed");
+        facts.Single(row => row.QuerySelector("dt")!.TextContent == "Policy disposition").QuerySelector("dd")!.TextContent.Should().Be("Failed");
         facts.Single(row => row.QuerySelector("dt")!.TextContent == "Recommended exit").QuerySelector("dd")!.TextContent.Should().Be(exit);
         document.GetElementById("assessment-decision")!.TextContent.Should().Contain(result.PolicyOutcome.Summary);
         var counts = document.QuerySelectorAll("#claim-outcomes tbody tr");
         counts.Single(row => row.QuerySelector("th")!.TextContent == "Error").QuerySelector("td")!.TextContent.Should().Be("9");
         counts.Single(row => row.QuerySelector("th")!.TextContent == "Violated").QuerySelector("td")!.TextContent.Should().Be("1");
         counts.Single(row => row.QuerySelector("th")!.TextContent == "Incomplete").QuerySelector("td")!.TextContent.Should().Be("0");
-        document.GetElementById("claim-outcomes")!.Closest("details").Should().BeNull();
+        document.GetElementById("claim-outcomes")!.Closest("details")!.QuerySelector("summary")!.TextContent.Should().Contain("Outcome counts");
         var claims = document.QuerySelectorAll("article[data-claim-id]");
         claims.Should().HaveCount(result.Assurance.Claims.Count);
         foreach (var claim in result.Assurance.Claims)
         {
             var entry = claims.Single(element => element.GetAttribute("data-claim-id") == claim.ClaimId);
             entry.Id.Should().NotBeNullOrWhiteSpace();
-            entry.Closest("details").Should().BeNull();
+            entry.Closest("details")!.ClassList.Should().Contain("claims-disclosure");
+            entry.HasAttribute("hidden").Should().BeFalse("native disclosure must not remove canonical records");
             entry.TextContent.Should().Contain(claim.Summary);
             entry.TextContent.Should().Contain(claim.Outcome.ToString());
         }
@@ -268,7 +300,8 @@ public sealed class ValidationHtmlAccessibilityTests
         var document = new HtmlParser().ParseDocument(html);
 
         document.QuerySelectorAll("main").Should().ContainSingle();
-        document.QuerySelector("h1")!.TextContent.Should().Be("MCPVal assessment");
+        document.QuerySelector("h1")!.TextContent.Should().Be(new Uri(result.ServerConfig.Endpoint!).Host);
+        document.QuerySelector(".report-kind")!.TextContent.Should().Be("Server assessment");
         foreach (var id in new[] { "assessment-decision", "evidence-and-actions" })
         {
             var section = document.GetElementById(id);
@@ -281,8 +314,8 @@ public sealed class ValidationHtmlAccessibilityTests
         document.QuerySelector("nav[aria-label='Contents']").Should().NotBeNull();
         foreach (var link in document.QuerySelectorAll("nav[aria-label='Contents'] a"))
             document.GetElementById(link.GetAttribute("href")![1..]).Should().NotBeNull();
-        document.Body!.TextContent.Should().Contain("Backend verification not recorded");
-        document.Body.TextContent.Should().Contain("Configured scope");
+        document.QuerySelector(".target-endpoint")!.TextContent.Should().Be(result.ServerConfig.Endpoint);
+        document.Body!.TextContent.Should().Contain("Configured scope");
         document.Body.TextContent.Should().NotContain("Tested scope");
     }
 
@@ -309,7 +342,8 @@ public sealed class ValidationHtmlAccessibilityTests
             }
         }
 
-        document.QuerySelectorAll("details,article[hidden]").Should().BeEmpty("all claim content must exist in the static document");
+        document.QuerySelectorAll("article[hidden]").Should().BeEmpty("all claim content must exist in the static document");
+        document.QuerySelectorAll("details").Should().OnlyContain(element => element.QuerySelector("summary") != null);
         document.QuerySelectorAll("table").Should().NotBeEmpty();
         document.QuerySelectorAll("table").Should().OnlyContain(table => table.QuerySelectorAll("th").Length > 0);
         document.QuerySelectorAll("a[href]").All(link =>
@@ -337,12 +371,16 @@ public sealed class ValidationHtmlAccessibilityTests
             result.ValidationConfig.Reporting,
             verbose: true);
 
-        Contrast(GetCssColor(html, "text-soft"), GetCssColor(html, "surface-strong"))
-            .Should().BeGreaterThanOrEqualTo(4.5);
-        Contrast(GetCssColor(html, "text-soft"), GetCssColor(html, "surface-muted"))
-            .Should().BeGreaterThanOrEqualTo(4.5);
-        Contrast(GetCssColor(html, "tone-warning"), GetCssColor(html, "tone-warning-soft"))
-            .Should().BeGreaterThanOrEqualTo(4.5);
+        foreach (var (foreground, background) in new[]
+        {
+            ("text", "surface"), ("muted", "canvas"), ("link", "surface"),
+            ("text", "decision-bg"), ("muted", "decision-bg"), ("link", "decision-bg"),
+            ("text", "neutral-bg"), ("muted", "surface"),
+            ("success", "success-bg"), ("warning", "warning-bg"),
+            ("danger", "danger-bg"), ("neutral", "neutral-bg"), ("error", "error-bg")
+        })
+            Contrast(GetCssColor(html, foreground), GetCssColor(html, background)).Should().BeGreaterThanOrEqualTo(4.5);
+        Contrast(GetCssColor(html, "control"), GetCssColor(html, "surface")).Should().BeGreaterThanOrEqualTo(3);
     }
 
     [Fact]

@@ -22,6 +22,70 @@ public sealed class ValidateCommandTests : IDisposable
     private readonly List<string> _tempFiles = new();
     private readonly int _originalExitCode = Environment.ExitCode;
 
+    [Fact]
+    public async Task ConfiguredInvocationDeadline_ShouldIncludeStartupWithoutRestartingAtValidation()
+    {
+        var clock = new InvocationClock();
+        var path = Path.Combine(Path.GetTempPath(), $"deadline-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(path);
+        await File.WriteAllTextAsync(path, """{"testExecution":{"globalTimeoutMinutes":20}}""");
+        var transport = new Mock<IMcpHttpClient>();
+        transport.Setup(client => client.StartSessionAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .Returns((string _, IReadOnlyDictionary<string, string>? _, CancellationToken token) =>
+            {
+                clock.Advance(TimeSpan.FromMinutes(8));
+                token.IsCancellationRequested.Should().BeFalse();
+                return Task.CompletedTask;
+            });
+        var validator = new Mock<IMcpValidatorService>();
+        validator.Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .Returns((McpValidatorConfiguration _, CancellationToken token) =>
+            {
+                clock.Advance(TimeSpan.FromMinutes(2));
+                token.IsCancellationRequested.Should().BeFalse("there is no hidden ten-minute host limit");
+                clock.Advance(TimeSpan.FromMinutes(10));
+                token.IsCancellationRequested.Should().BeTrue("startup and validation share the invocation deadline");
+                return Task.FromCanceled<ValidationResult>(token);
+            });
+        var command = new ValidateCommand(validator.Object, Mock.Of<IConsoleOutputService>(), Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext(),
+            timeProvider: clock);
+        await command.ExecuteAsync("https://1.1.1.1/mcp", null, null, new FileInfo(path), false, assuranceProfile: "inventory");
+        Environment.ExitCode.Should().Be(AssuranceExitCodeMapper.TimeoutOrCancellation);
+        clock.CreatedTimers.Should().Be(1);
+        clock.DueTime.Should().Be(TimeSpan.FromMinutes(20));
+        clock.Disposed.Should().BeTrue();
+        validator.Verify(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private sealed class InvocationClock : TimeProvider
+    {
+        private TimerCallback? _callback;
+        private object? _state;
+        private TimeSpan _elapsed;
+        public int CreatedTimers { get; private set; }
+        public TimeSpan DueTime { get; private set; }
+        public bool Disposed { get; private set; }
+        public void Advance(TimeSpan duration)
+        {
+            _elapsed += duration;
+            if (_elapsed >= DueTime && !Disposed) _callback!(_state);
+        }
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _callback = callback; _state = state; DueTime = dueTime; CreatedTimers++;
+            return new Timer(this);
+        }
+        private sealed class Timer(InvocationClock clock) : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => throw new InvalidOperationException("Invocation deadline must not restart.");
+            public void Dispose() => clock.Disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
+    }
+
     [Theory]
     [InlineData(McpServerProfile.Public, false, false)]
     [InlineData(McpServerProfile.Public, true, true)]

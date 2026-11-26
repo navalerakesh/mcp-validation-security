@@ -38,6 +38,7 @@ nupkg/
 mcpval-mcp/node_modules/
 mcpval-mcp/dist/
 mcpval-mcp/dist-pack/
+scripts/report-quality/node_modules/
 
 # Build results
 [Dd]ebug/

@@ -567,6 +567,28 @@
                           "null"
                         ]
                       },
+                      "ClientInputRounds": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "ExpectedRequests": true,
+                            "Responses": true
+                          },
+                          "additionalProperties": false,
+                          "patternProperties": {
+                            "^[eE][xX][pP][eE][cC][tT][eE][dD][rR][eE][qQ][uU][eE][sS][tT][sS]$(?![\\s\\S])": {
+                              "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ClientInputRounds/items/properties/ExpectedRequests"
+                            },
+                            "^[rR][eE][sS][pP][oO][nN][sS][eE][sS]$(?![\\s\\S])": {
+                              "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ClientInputRounds/items/properties/Responses"
+                            }
+                          }
+                        }
+                      },
                       "ExpectedResult": {
                         "type": [
                           "string",
@@ -584,6 +606,9 @@
                       },
                       "^[pP][aA][rR][aA][mM][eE][tT][eE][rR][sS]$(?![\\s\\S])": {
                         "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/Parameters"
+                      },
+                      "^[cC][lL][iI][eE][nN][tT][iI][nN][pP][uU][tT][rR][oO][uU][nN][dD][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ClientInputRounds"
                       },
                       "^[eE][xX][pP][eE][cC][tT][eE][dD][rR][eE][sS][uU][lL][tT]$(?![\\s\\S])": {
                         "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ExpectedResult"
@@ -681,6 +706,47 @@
                   "items": {
                     "type": "string"
                   }
+                },
+                "CustomScenarios": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "PromptName": {
+                        "type": "string"
+                      },
+                      "Arguments": {
+                        "type": [
+                          "object",
+                          "null"
+                        ],
+                        "additionalProperties": {
+                          "type": "string"
+                        }
+                      },
+                      "ClientInputRounds": {
+                        "type": [
+                          "array",
+                          "null"
+                        ],
+                        "items": {
+                          "$ref": "#/properties/validation/properties/categories/properties/tools/properties/CustomScenarios/items/properties/ClientInputRounds/items"
+                        }
+                      }
+                    },
+                    "additionalProperties": false,
+                    "patternProperties": {
+                      "^[pP][rR][oO][mM][pP][tT][nN][aA][mM][eE]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/CustomScenarios/items/properties/PromptName"
+                      },
+                      "^[aA][rR][gG][uU][mM][eE][nN][tT][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/CustomScenarios/items/properties/Arguments"
+                      },
+                      "^[cC][lL][iI][eE][nN][tT][iI][nN][pP][uU][tT][rR][oO][uU][nN][dD][sS]$(?![\\s\\S])": {
+                        "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/CustomScenarios/items/properties/ClientInputRounds"
+                      }
+                    }
+                  }
                 }
               },
               "additionalProperties": false,
@@ -696,6 +762,9 @@
                 },
                 "^[sS][pP][eE][cC][iI][fF][iI][cC][pP][rR][oO][mM][pP][tT][sS]$(?![\\s\\S])": {
                   "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/SpecificPrompts"
+                },
+                "^[cC][uU][sS][tT][oO][mM][sS][cC][eE][nN][aA][rR][iI][oO][sS]$(?![\\s\\S])": {
+                  "$ref": "#/properties/validation/properties/categories/properties/prompts/properties/CustomScenarios"
                 }
               }
             },
@@ -1354,6 +1423,9 @@
         "maxResponseBytes": {
           "type": "integer"
         },
+        "maxCatalogPayloadCharacters": {
+          "type": "integer"
+        },
         "persistenceMode": {
           "anyOf": [
             {
@@ -1454,6 +1526,9 @@
         },
         "^[mM][aA][xX][rR][eE][sS][pP][oO][nN][sS][eE][bB][yY][tT][eE][sS]$(?![\\s\\S])": {
           "$ref": "#/properties/execution/properties/maxResponseBytes"
+        },
+        "^[mM][aA][xX][cC][aA][tT][aA][lL][oO][gG][pP][aA][yY][lL][oO][aA][dD][cC][hH][aA][rR][aA][cC][tT][eE][rR][sS]$(?![\\s\\S])": {
+          "$ref": "#/properties/execution/properties/maxCatalogPayloadCharacters"
         },
         "^[pP][eE][rR][sS][iI][sS][tT][eE][nN][cC][eE][mM][oO][dD][eE]$(?![\\s\\S])": {
           "$ref": "#/properties/execution/properties/persistenceMode"

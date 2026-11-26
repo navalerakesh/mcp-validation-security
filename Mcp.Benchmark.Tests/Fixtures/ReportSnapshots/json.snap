@@ -1,6 +1,6 @@
 {
   "documentType": "mcpval.assurance-result",
-  "documentSchemaVersion": "3.6.0",
+  "documentSchemaVersion": "3.8.0",
   "producer": {
     "name": "MCP Validator",
     "version": "2.0.1",
@@ -1257,7 +1257,8 @@
           "testPromptDiscovery": true,
           "testPromptExecution": true,
           "testArgumentValidation": true,
-          "specificPrompts": []
+          "specificPrompts": [],
+          "customScenarios": []
         },
         "security": {
           "testInputValidation": true,
@@ -1573,7 +1574,7 @@
         "authority": 5,
         "source": {
           "uri": null,
-          "revision": "2026-11-23.1",
+          "revision": "2026-11-24.2",
           "sha256": null
         },
         "applicability": 0,
@@ -1596,7 +1597,7 @@
         "authority": 4,
         "source": {
           "uri": null,
-          "revision": "2026-11-23.1",
+          "revision": "2026-11-24.2",
           "sha256": null
         },
         "applicability": 0,
@@ -1619,7 +1620,7 @@
         "authority": 0,
         "source": {
           "uri": null,
-          "revision": "2026-11-23.1",
+          "revision": "2026-11-24.2",
           "sha256": null
         },
         "applicability": 0,
@@ -1667,7 +1668,7 @@
         "authority": 2,
         "source": {
           "uri": null,
-          "revision": "2026-11-23.1",
+          "revision": "2026-11-24.2",
           "sha256": null
         },
         "applicability": 0,

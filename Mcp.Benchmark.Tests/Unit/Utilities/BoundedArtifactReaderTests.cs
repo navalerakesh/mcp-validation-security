@@ -122,6 +122,44 @@ public sealed class BoundedArtifactReaderTests : IDisposable
     }
 
     [Theory]
+    [InlineData("valid", true)]
+    [InlineData("unknown", true)]
+    [InlineData("exhausted", true)]
+    [InlineData("over-limit", false)]
+    [InlineData("over-maximum", false)]
+    [InlineData("missing-limit", false)]
+    [InlineData("missing-reserved", false)]
+    [InlineData("negative", false)]
+    [InlineData("zero-limit", false)]
+    [InlineData("alias", false)]
+    [InlineData("text", false)]
+    public async Task SavedCatalogBudget_ShouldRejectContradictoryOrAmbiguousMeasurements(string variant, bool valid)
+    {
+        var result = new ValidationResult();
+        result.Run.OperationalMetrics = new() { CatalogPayloadCharactersReserved = 0, CatalogPayloadCharacterLimit = 100 };
+        var node = JsonSerializer.SerializeToNode(result, ArtifactJsonOptions.Create(writeIndented: false))!;
+        var metrics = node["run"]!["operationalMetrics"]!.AsObject();
+        if (variant is "unknown" or "missing-limit") metrics.Remove("catalogPayloadCharacterLimit");
+        if (variant is "unknown" or "missing-reserved") metrics.Remove("catalogPayloadCharactersReserved");
+        if (variant == "over-limit") metrics["catalogPayloadCharactersReserved"] = 101;
+        if (variant == "over-maximum") metrics["catalogPayloadCharacterLimit"] = (long)Mcp.Benchmark.Core.Constants.ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters + 1;
+        if (variant == "exhausted") metrics["catalogPayloadCharactersReserved"] = 100;
+        if (variant == "negative") metrics["catalogPayloadCharactersReserved"] = -1;
+        if (variant == "zero-limit") metrics["catalogPayloadCharacterLimit"] = 0;
+        if (variant == "alias") metrics["CatalogPayloadCharactersReserved"] = 99;
+        if (variant == "text") metrics["catalogPayloadCharactersReserved"] = "private-budget-canary";
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "catalog-budget.json"));
+        await File.WriteAllTextAsync(file.FullName, node.ToJsonString());
+        if (valid) (await BoundedArtifactReader.ReadValidationResultAsync(file)).Should().NotBeNull();
+        else
+        {
+            var read = () => BoundedArtifactReader.ReadValidationResultAsync(file);
+            (await read.Should().ThrowAsync<CliUsageException>()).Which.Message.Should().Contain("catalog payload budget").And.NotContain("canary");
+        }
+    }
+
+    [Theory]
     [InlineData("{}", true)]
     [InlineData("{\"schemaVersion\":\"1.0.0\"}", true)]
     [InlineData("{\"SchemaVersion\":\"1.0.0\",\"Server\":{\"Headers\":{\"X-Route\":\"route\"}}}", true)]
@@ -233,6 +271,25 @@ public sealed class BoundedArtifactReaderTests : IDisposable
 
         result.Server.Should().NotBeNull();
         result.Validation.Categories.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task ReadConfigurationAsync_ShouldPreserveExplicitClientInputMapsAndRemoveThemFromPublicClones()
+    {
+        Directory.CreateDirectory(_root);
+        var file = new FileInfo(Path.Combine(_root, "client-inputs.json"));
+        await File.WriteAllTextAsync(file.FullName, """
+            {"validation":{"categories":{"tools":{"CustomScenarios":[{
+              "ToolName":"owned","Parameters":{},"ClientInputRounds":[{
+                "ExpectedRequests":{"RootID":{"method":"roots/list"}},
+                "Responses":{"RootID":{"roots":[]}}
+              }]
+            }]}}}}
+            """);
+        var configuration = await BoundedArtifactReader.ReadConfigurationAsync(file);
+        var captured = Mcp.Benchmark.Core.Services.ToolScenarioInputs.CaptureScenarios(configuration.Validation.Categories.ToolTesting);
+        captured["owned"].ClientInputRounds.Single().ExpectedRequests.TryGetProperty("RootID", out _).Should().BeTrue();
+        JsonSerializer.Serialize(configuration.CloneWithoutSecrets()).Should().NotContain("RootID");
     }
 
     [Fact]

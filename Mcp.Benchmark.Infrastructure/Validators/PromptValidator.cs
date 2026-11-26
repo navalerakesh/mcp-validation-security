@@ -9,6 +9,7 @@ using Mcp.Benchmark.Core.Services;
 using Mcp.Benchmark.Infrastructure.Strategies.Scoring;
 using Mcp.Compliance.Spec;
 using Mcp.Benchmark.Infrastructure.Utilities;
+using Mcp.Benchmark.Infrastructure.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Validators;
 
@@ -116,7 +117,8 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
 
     public async Task<PromptTestResult> ValidatePromptDiscoveryAsync(McpServerConfig serverConfig, PromptTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync<PromptTestResult>(serverConfig, "Prompt Discovery", async (result, ct) =>
+        var explicitInputs = ToolScenarioInputs.CapturePromptScenarios(config);
+        var completed = await ExecuteValidationAsync<PromptTestResult>(serverConfig, "Prompt Discovery", async (result, ct) =>
         {
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.PromptListResponse);
@@ -136,7 +138,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
             {
                 response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsList, null, ct);
             }
-            
+
             // MCP spec allows both public and auth-protected servers
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
             if (authChallenge.RequiresAuthentication)
@@ -144,7 +146,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                 result.Status = TestStatus.AuthRequired;
                 result.PromptsDiscovered = 0;
                 result.Score = 0;
-                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
+                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader
                     ? "Auth required: server returned an authentication challenge; prompt contents were not validated."
                     : "Auth required: server rejected prompt discovery but did not include WWW-Authenticate metadata.");
                 return result;
@@ -158,7 +160,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                 result.Issues.Add("✅ COMPLIANT: No prompts were advertised; no prompt executions were required");
                 return result;
             }
-            
+
             if (!response.IsSuccess)
             {
                 result.Status = TestStatus.Failed;
@@ -168,11 +170,14 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
 
             var rawJson = response.RawJson ?? "{}";
             result.CatalogEnumeration = new CatalogEnumerationEvidence();
+            result.DiscoveredPromptNames = [];
+            var ambiguousNames = new HashSet<string>(StringComparer.Ordinal);
             {
-                await foreach (var prompt in BoundedCatalogReader.ReadAsync(response, "prompts", CatalogEnumerationLimits.MaximumItems,
+                var catalog = BoundedCatalogReader.ReadAsync(response, "prompts", CatalogEnumerationLimits.MaximumItems,
                     result.CatalogEnumeration, result.Issues,
                     (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsList,
-                        new { cursor }, serverConfig.Authentication, token), ct))
+                        new { cursor }, serverConfig.Authentication, token), ct);
+                await foreach (var prompt in PreparePromptCatalogAsync(catalog, explicitInputs.Count > 0, ambiguousNames, ct))
                 {
                     result.PromptsDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
                     ct.ThrowIfCancellationRequested();
@@ -205,6 +210,7 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     if (prompt.TryGetProperty("name", out var nameElement))
                     {
                         promptResult.PromptName = nameElement.GetString() ?? "";
+                        result.DiscoveredPromptNames.Add(promptResult.PromptName);
                     }
                     else
                     {
@@ -311,6 +317,13 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     {
                         try
                         {
+                            explicitInputs.TryGetValue(promptResult.PromptName, out var supplied);
+                            if (supplied != null && (!result.CatalogEnumeration.IsComplete || ambiguousNames.Contains(promptResult.PromptName)))
+                            {
+                                promptResult.Status = TestStatus.Inconclusive;
+                                promptResult.Issues.Add("Explicit prompt inputs require a complete, unambiguous catalog before dispatch.");
+                                continue;
+                            }
                             var getParams = new Dictionary<string, object> { { "name", promptResult.PromptName } };
 
                             // If the prompt has required arguments, supply dummy values
@@ -330,16 +343,66 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                 }
                             }
 
+                            object parameters = getParams;
+                            if (supplied != null)
+                            {
+                                if (prompt.TryGetProperty("arguments", out var declared) && declared.EnumerateArray().Any(argument =>
+                                    argument.TryGetProperty("required", out var required) && required.ValueKind == JsonValueKind.True &&
+                                    !supplied.Arguments.TryGetProperty(argument.GetProperty("name").GetString()!, out _)))
+                                {
+                                    promptResult.Status = TestStatus.Inconclusive;
+                                    promptResult.Issues.Add("Explicit prompt arguments do not include every required catalog argument.");
+                                    continue;
+                                }
+                                if (supplied.ClientInputRounds.Count > 0 && !ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
+                                {
+                                    promptResult.Status = TestStatus.Inconclusive;
+                                    promptResult.Issues.Add("Synthetic client reply plans require the admitted modern protocol revision.");
+                                    continue;
+                                }
+                                parameters = new PromptCallParameters(promptResult.PromptName, supplied.Arguments)
+                                {
+                                    ClientCapabilities = supplied.ClientInputRounds.Count == 0 ? null :
+                                        SyntheticToolClientInputs.CreateCapabilities(supplied, serverConfig.ProtocolVersion!, _schemaRegistry, _schemaValidator)
+                                };
+                            }
                             var getStart = DateTime.UtcNow;
-                            var getResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsGet, getParams, serverConfig.Authentication, ct);
+                            var getResponse = supplied is { ClientInputRounds.Count: > 0 } && parameters is PromptCallParameters initial
+                                ? await SyntheticToolClientInputs.ExecuteAsync(initial, supplied, serverConfig.ProtocolVersion!, _schemaRegistry, _schemaValidator,
+                                    (next, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsGet, next, serverConfig.Authentication, token), ct)
+                                : await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.PromptsGet, parameters, serverConfig.Authentication, ct);
                             promptResult.ExecutionTimeMs = (DateTime.UtcNow - getStart).TotalMilliseconds;
 
-                            if (getResponse.IsSuccess)
+                            promptResult.Status = ContentExecutionEvidence.Assess(getResponse, serverConfig.ProtocolVersion, "messages");
+                            var inspectContent = promptResult.Status == TestStatus.Passed;
+                            if (promptResult.Status == TestStatus.Passed)
                             {
-                                promptResult.ExecutionSuccessful = true;
+                                var selectedVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
+                                var payload = JsonNode.Parse(getResponse.RawJson!)!["result"]!;
+                                var validation = SchemaValidationHelpers.ValidateDefinition(_schemaRegistry, _schemaValidator,
+                                    selectedVersion, "GetPromptResult", payload);
+                                if (!validation.IsValid)
+                                {
+                                    var unavailable = SchemaValidationHelpers.HasSchemaProcessingError(validation);
+                                    promptResult.Status = unavailable ? TestStatus.Inconclusive : TestStatus.Failed;
+                                    inspectContent = !unavailable;
+                                    if (unavailable)
+                                        promptResult.Issues.Add("The selected prompt result schema could not be evaluated; execution is not credited.");
+                                    else
+                                        AddPromptFinding(result, promptResult, new ValidationFinding
+                                        {
+                                            RuleId = ValidationFindingRuleIds.PromptGetResultInvalid,
+                                            Category = "ProtocolCompliance", Component = promptResult.PromptName,
+                                            Severity = ValidationFindingSeverity.High,
+                                            Summary = "Completed prompts/get content does not satisfy the selected GetPromptResult schema.",
+                                            Recommendation = "Return messages with valid roles and schema-valid content blocks for the negotiated protocol revision."
+                                        }, "Completed prompt content violates its dated response contract; private content is not retained.");
+                                }
+                            }
+                            if (inspectContent)
+                            {
 
-                                // MCP Spec Compliance: Validate prompts/get response structure
-                                // Response MUST have result.messages[] with role + content
+                                // Preserve specific diagnostics even when the concrete schema already rejected the payload.
                                 if (!string.IsNullOrEmpty(getResponse.RawJson))
                                 {
                                     try
@@ -351,12 +414,13 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                             if (getResult.TryGetProperty("messages", out var messages) && messages.ValueKind == JsonValueKind.Array)
                                             {
                                                 promptResult.Issues.Add($"✅ prompts/get: messages[] array present ({messages.GetArrayLength()} messages)");
-                                                
+
                                                 foreach (var msg in messages.EnumerateArray())
                                                 {
                                                     // Each message MUST have 'role' (user|assistant)
                                                     if (!msg.TryGetProperty("role", out var role))
                                                     {
+                                                        promptResult.Status = TestStatus.Failed;
                                                         promptResult.AddFinding(new ValidationFinding
                                                         {
                                                             RuleId = ValidationFindingRuleIds.PromptMessageMissingRole,
@@ -372,6 +436,8 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                                     {
                                                         var roleStr = role.GetString();
                                                         if (roleStr is not ("user" or "assistant"))
+                                                        {
+                                                            promptResult.Status = TestStatus.Failed;
                                                             promptResult.AddFinding(new ValidationFinding
                                                             {
                                                                 RuleId = ValidationFindingRuleIds.PromptMessageInvalidRole,
@@ -382,11 +448,13 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                                                 Recommendation = "Use valid MCP prompt roles such as user or assistant.",
                                                                 Metadata = { ["role"] = roleStr ?? string.Empty }
                                                             }, $"❌ MCP Compliance: message role '{roleStr}' invalid (MUST be 'user' or 'assistant')");
+                                                        }
                                                     }
 
-                                                    // Each message MUST have 'content' (object with type+text or array)
+                                                    // Invalid arrays can still contain useful block-level diagnostics.
                                                     if (!msg.TryGetProperty("content", out var content))
                                                     {
+                                                        promptResult.Status = TestStatus.Failed;
                                                         promptResult.Issues.Add("❌ MCP Compliance: message missing 'content' field");
                                                         promptResult.MetadataValid = false;
                                                     }
@@ -401,7 +469,13 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                                             ValidatePromptContentBlock(result, promptResult, contentBlock);
                                                         }
                                                     }
+                                                    else
+                                                    {
+                                                        promptResult.Status = TestStatus.Failed;
+                                                        promptResult.Issues.Add("Prompt message content has an invalid shape.");
+                                                    }
                                                 }
+                                                promptResult.ExecutionSuccessful = promptResult.Status == TestStatus.Passed;
                                             }
                                             else
                                             {
@@ -418,9 +492,11 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                             }
                                         }
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException)
                                     {
-                                        promptResult.Issues.Add($"⚠️ Failed to validate prompts/get response: {ex.Message}");
+                                        promptResult.ExecutionSuccessful = false;
+                                        promptResult.Status = TestStatus.Failed;
+                                        promptResult.Issues.Add("Prompt response content is malformed; private response details are not retained.");
                                     }
                                 }
                                 else
@@ -428,22 +504,43 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                                     promptResult.Issues.Add("✅ prompts/get returned successfully");
                                 }
                             }
-                            else if (getResponse.StatusCode == 400)
-                            {
-                                // 400 is acceptable when we send dummy arguments that don't match real constraints
-                                promptResult.ExecutionSuccessful = true;
-                                promptResult.Issues.Add("⚠️ prompts/get returned 400 (expected with dummy arguments)");
-                            }
                             else
                             {
                                 promptResult.ExecutionSuccessful = false;
-                                promptResult.Issues.Add($"❌ prompts/get failed: {getResponse.Error ?? getResponse.StatusCode.ToString()}");
+                                promptResult.Issues.Add($"Prompt retrieval did not establish completed content evidence ({promptResult.Status}).");
                             }
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            promptResult.Status = TestStatus.Cancelled;
+                            promptResult.ExecutionSuccessful = false;
+                            throw;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            promptResult.Status = TestStatus.Inconclusive;
+                            promptResult.ExecutionSuccessful = false;
+                            promptResult.Issues.Add("Prompt retrieval timed out before completed content evidence was available.");
                         }
                         catch (Exception ex)
                         {
                             promptResult.ExecutionSuccessful = false;
-                            promptResult.Issues.Add($"❌ prompts/get exception: {ex.Message}");
+                            promptResult.Status = TestStatus.Error;
+                            promptResult.Issues.Add("Prompt retrieval failed; private exception details are not retained.");
+                            Logger.LogError("Prompt retrieval failed with {ExceptionType}", ex.GetType().Name);
+                        }
+                        finally
+                        {
+                            if (explicitInputs.ContainsKey(promptResult.PromptName))
+                            {
+                                promptResult.Issues.Clear();
+                                promptResult.Issues.Add($"Explicit prompt retrieval outcome: {promptResult.Status}; private response details are not retained.");
+                                foreach (var finding in promptResult.Findings)
+                                {
+                                    finding.Summary = "Explicit prompt evidence did not satisfy the declared response contract.";
+                                    finding.Metadata.Clear();
+                                }
+                            }
                         }
                     }
 
@@ -469,18 +566,18 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
 
             result.PromptsDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
 
-                    // Schema-based validation of prompts/list response shape (best-effort)
-                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
-                    if (SchemaValidationHelpers.TryValidateListResult(
-                    _schemaRegistry,
-                    _schemaValidator,
-                    protocolVersion,
-                    SchemaValidationHelpers.ListPromptsResultDefinition,
-                    rawJson,
-                    Logger,
-                    out var schemaValidationResult) &&
-                schemaValidationResult is not null &&
-                !schemaValidationResult.IsValid)
+            // Schema-based validation of prompts/list response shape (best-effort)
+            var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
+            if (SchemaValidationHelpers.TryValidateListResult(
+            _schemaRegistry,
+            _schemaValidator,
+            protocolVersion,
+            SchemaValidationHelpers.ListPromptsResultDefinition,
+            rawJson,
+            Logger,
+            out var schemaValidationResult) &&
+        schemaValidationResult is not null &&
+        !schemaValidationResult.IsValid)
             {
                 var schemaErrors = schemaValidationResult.Errors ?? new List<string>();
                 var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(schemaValidationResult);
@@ -495,12 +592,12 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     result.Issues.Add($"   • {error}");
                 }
             }
-            
+
             if (result.Status != TestStatus.Failed)
             {
                 result.PromptsTestPassed = result.PromptResults.Count(r => r.Status == TestStatus.Passed);
                 result.PromptsTestFailed = result.PromptResults.Count(r => r.Status == TestStatus.Failed);
-                result.Status = result.PromptsTestFailed == 0 ? TestStatus.Passed : TestStatus.Failed;
+                result.Status = ContentExecutionEvidence.Aggregate(result.PromptResults.Select(prompt => prompt.Status));
             }
             if (!result.CatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
             {
@@ -508,18 +605,61 @@ public class PromptValidator : BaseValidator<PromptValidator>, IPromptValidator
                     ? TestStatus.AuthRequired : TestStatus.Inconclusive;
                 result.Message = "Prompt catalog enumeration is incomplete; retained results cover the observed portion.";
             }
-            
+
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
-            result.Issues.Add(result.PromptsDiscovered == 0
+            result.Issues.Add(result.Status != TestStatus.Passed
+                ? $"Prompt assessment retained {result.PromptsDiscovered} observed entries with outcome {result.Status}; not all execution evidence is complete."
+                : result.PromptsDiscovered == 0
                 ? CapabilitySnapshotUtils.IsCapabilityAdvertised(config.CapabilitySnapshot, McpSpecConstants.Capabilities.Prompts)
                     ? "✅ COMPLIANT: Prompts capability was advertised and prompts/list returned an empty catalog; no prompt executions were required"
                     : "✅ COMPLIANT: Prompts capability was not advertised and prompts/list returned an empty catalog; no prompt executions were required"
                 : $"✅ COMPLIANT: {result.PromptsDiscovered} prompts discovered and validated");
-            
+
             return result;
         }, cancellationToken);
+        foreach (var name in explicitInputs.Keys)
+        {
+            var matching = completed.PromptResults.Where(prompt => prompt.PromptName == name).ToArray();
+            if (matching.Length == 0)
+                completed.PromptResults.Add(new IndividualPromptResult
+                {
+                    PromptName = name, Status = completed.Status is TestStatus.Cancelled or TestStatus.Error or TestStatus.AuthRequired
+                        ? completed.Status : TestStatus.Inconclusive,
+                    Issues = ["The explicit prompt request has no completed catalog/execution evidence."]
+                });
+            else if (!config.TestPromptExecution)
+                foreach (var prompt in matching.Where(prompt => prompt.Status == TestStatus.Passed))
+                {
+                    prompt.Status = TestStatus.Skipped;
+                    prompt.ExecutionSuccessful = false;
+                }
+        }
+        if (explicitInputs.Count > 0 && completed.Status == TestStatus.Passed)
+            completed.Status = ContentExecutionEvidence.Aggregate(completed.PromptResults.Select(prompt => prompt.Status));
+        return completed;
+    }
+
+    private static async IAsyncEnumerable<JsonElement> PreparePromptCatalogAsync(IAsyncEnumerable<JsonElement> source,
+        bool explicitInputs, HashSet<string> ambiguousNames,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (!explicitInputs)
+        {
+            await foreach (var item in source.WithCancellation(cancellationToken)) yield return item;
+            yield break;
+        }
+        var entries = new List<JsonElement>();
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        await foreach (var item in source.WithCancellation(cancellationToken))
+        {
+            entries.Add(item.Clone());
+            if (item.ValueKind == JsonValueKind.Object && item.TryGetProperty("name", out var name) &&
+                name.ValueKind == JsonValueKind.String && !names.Add(name.GetString()!))
+                ambiguousNames.Add(name.GetString()!);
+        }
+        foreach (var item in entries) yield return item;
     }
 
     public async Task<PromptTestResult> ValidatePromptExecutionAsync(McpServerConfig serverConfig, PromptTestingConfig config, CancellationToken cancellationToken = default)

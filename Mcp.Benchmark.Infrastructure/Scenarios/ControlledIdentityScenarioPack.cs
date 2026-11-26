@@ -7,6 +7,7 @@ namespace Mcp.Benchmark.Infrastructure.Scenarios;
 
 public sealed class ControlledIdentityScenarioPack : IValidationScenarioPack
 {
+    private const string PackRevision = "1.2.0";
     private readonly IReadOnlyList<IValidationScenario> _scenarios;
 
     internal ControlledIdentityScenarioPack(ControlledIdentityMatrixAssessment assessment, ControlledIdentityAdmission admission)
@@ -19,7 +20,7 @@ public sealed class ControlledIdentityScenarioPack : IValidationScenarioPack
     public ValidationPackDescriptor Descriptor => new()
     {
         Key = new ValidationDescriptorKey("scenario-pack/controlled-identity"), Kind = ValidationPackKind.ScenarioPack,
-        Revision = new ValidationRevision(ControlledIdentityMatrixContract.CurrentRevision), DisplayName = "Controlled Identity Policy Evidence",
+        Revision = new ValidationRevision(PackRevision), DisplayName = "Controlled Identity Policy Evidence",
         Stability = ValidationStability.Experimental, Lane = EvaluationLane.ControlledApplication
     };
 
@@ -35,7 +36,7 @@ public sealed class ControlledIdentityScenarioPack : IValidationScenarioPack
 
         public ValidationScenarioDescriptor Descriptor => new()
         {
-            Key = new ValidationDescriptorKey(_instanceId), Revision = new ValidationRevision(ControlledIdentityMatrixContract.CurrentRevision),
+            Key = new ValidationDescriptorKey(_instanceId), Revision = new ValidationRevision(PackRevision),
             DisplayName = "Controlled Identity Matrix", LayerKey = "controlled-application-identity", Lane = EvaluationLane.ControlledApplication,
             Stability = ValidationStability.Experimental, MutatesState = false
         };
@@ -51,6 +52,7 @@ public sealed class ControlledIdentityScenarioPack : IValidationScenarioPack
             };
             var coverage = assessment.Cases.Select(entry => Coverage($"{_instanceId}:case:{CanonicalJsonDigest.ComputeText(entry.CaseId)}", entry.Outcome,
                 $"Identity case '{entry.CaseId}': observation={entry.ObservationOutcome}; decision={entry.DecisionOutcome}; actor={entry.EffectiveActorOutcome}; authentication={entry.AuthenticationBindingOutcome}; scope={entry.ScopeOutcome}; role={entry.RoleBindingOutcome}; control={entry.PositiveControlOutcome}.")).ToList();
+            coverage.Add(Coverage(_instanceId, assessment.Outcome, assessment.Reason));
             if (assessment.EvidenceIntegrityOutcome != ValidationOutcome.Succeeded || coverage.Count == 0)
                 coverage.Add(Coverage($"{_instanceId}:integrity", ValidationOutcome.Blocked, "Identity evidence integrity or active run/target admission is incomplete."));
             return Task.FromResult(new ValidationScenarioExecutionResult

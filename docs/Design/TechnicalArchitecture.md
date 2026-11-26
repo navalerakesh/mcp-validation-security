@@ -77,6 +77,8 @@ Execution plans persist the requested protocol profile, resolved embedded schema
 
 ## Observability And Reproducibility
 
+- The CLI applies the configured global validation deadline before target resolution and session startup. The library independently enforces its configured deadline while honoring the caller's earlier cancellation; entering the library cannot extend the invocation deadline.
+- The existing HTTP run context, direct HTTP client and STDIO adapter use one shared atomic request-budget reservation primitive. Each retains run-scoped state and reserves at actual dispatch, after policy/cancellation checks. STDIO includes implicit initialized notifications; rejected admission is not recorded as an outbound attempt.
 - The explicit output directory stores the user-facing artifact set intended for people, CI systems, and downstream tooling.
 - The saved JSON result is the canonical record for offline rendering and post-run analysis.
 - Audit manifests are explicit operational artifacts that describe the execution plan and saved outputs, but they stay outside the deterministic evidence envelope.
@@ -99,6 +101,10 @@ Execution plans persist the requested protocol profile, resolved embedded schema
 - Reuse the existing neutral result model where possible
 - Register deterministic rule metadata through the decision rule-pack registry instead of growing one monolithic descriptor table
 - Add unit and integration coverage before exposing it in reports
+
+Scenario execution binds returned results to the descriptor captured during planning. Scenario IDs must match exactly; coverage must include the planned scenario scope and remain in its declared layer and evidence lane. Empty or ambiguous planned identities, duplicate coverage identities and unrelated returned evidence fail as framework-integrity errors, leaving explicit unavailable obligations. Composite scenarios retain their individual evidence alongside a scenario-level coverage declaration derived from the same assessment.
+
+The optional controlled-relay pack imports a signed, operator-admitted two-boundary contract through the existing scenario registry. It compares each boundary's declared protocol, capability and request/response transformations, correlation, identity predicates, attempt/deadline limits and cleanup. Optional state effects reuse the controlled-state evaluator. The pack does not discover internal endpoints or inherit upstream identity/negotiation for a downstream hop; its evidence remains in the controlled-application lane. No default activation or production observer deployment is implied.
 
 ### Add a new authentication flow
 

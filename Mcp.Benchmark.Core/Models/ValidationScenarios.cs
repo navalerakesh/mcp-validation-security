@@ -150,6 +150,8 @@ public class ToolTestScenario
     /// </summary>
     public Dictionary<string, object>? Parameters { get; set; } = new();
 
+    public List<ToolClientInputRound>? ClientInputRounds { get; set; }
+
     /// <summary>
     /// Gets or sets the expected result type or pattern.
     /// </summary>
@@ -159,6 +161,13 @@ public class ToolTestScenario
     /// Gets or sets whether this scenario should expect an error.
     /// </summary>
     public bool ExpectError { get; set; } = false;
+}
+
+public sealed class ToolClientInputRound
+{
+    public System.Text.Json.JsonElement ExpectedRequests { get; set; }
+
+    public System.Text.Json.JsonElement Responses { get; set; }
 }
 
 /// <summary>
@@ -229,9 +238,18 @@ public class PromptTestingConfig
     /// </summary>
     public List<string> SpecificPrompts { get; set; } = new();
 
+    public List<PromptTestScenario> CustomScenarios { get; set; } = new();
+
     /// <summary>
     /// Gets or sets the cached capability snapshot captured before validators execute.
     /// </summary>
     [JsonIgnore]
     public TransportResult<CapabilitySummary>? CapabilitySnapshot { get; set; }
+}
+
+public sealed class PromptTestScenario
+{
+    public string PromptName { get; set; } = string.Empty;
+    public Dictionary<string, string>? Arguments { get; set; } = new();
+    public List<ToolClientInputRound>? ClientInputRounds { get; set; }
 }

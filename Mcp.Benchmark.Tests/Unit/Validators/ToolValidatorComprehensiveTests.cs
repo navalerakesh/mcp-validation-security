@@ -24,6 +24,71 @@ namespace Mcp.Benchmark.Tests.Unit.Validators;
 /// </summary>
 public class ToolValidatorComprehensiveTests
 {
+    [Fact]
+    public async Task AuthenticationDiscovery_ShouldRemainAuthEvidence_NotInventToolExecution()
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, "[]", authenticated: false);
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ToolTestingConfig
+            {
+                TestToolExecution = false, TestParameterValidation = false,
+                PreDiscoveredAuth = new AuthDiscoveryInfo { WwwAuthenticateHeader = "Bearer", DiscoveryTimeMs = 12 }
+            });
+        result.ToolResults.Should().BeEmpty();
+        result.ToolsDiscovered.Should().Be(0);
+        result.AuthenticationSecurity.Should().NotBeNull();
+        result.AuthenticationSecurity!.AuthenticationRequired.Should().BeTrue();
+        result.AuthenticationSecurity.ChallengeDurationMs.Should().Be(12);
+        var report = new ValidationReportRenderer().GenerateHtmlReport(
+            new ValidationResult { ToolValidation = result }, new ReportingConfig(), false);
+        report.Should().NotContain("Successful tool-execution result records:");
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ExplicitClientInputs_ShouldCompleteBothToolPathsOnlyForMatchingRequests(bool executionOnly, bool mismatch)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        using var requests = System.Text.Json.JsonDocument.Parse("""{"roots":{"method":"roots/list"}}""");
+        using var responses = System.Text.Json.JsonDocument.Parse("""{"roots":{"roots":[]}}""");
+        var calls = 0;
+        JsonRpcResponse Reply(object? parameters)
+        {
+            calls++;
+            var call = parameters.Should().BeOfType<ToolCallParameters>().Subject;
+            call.ClientCapabilities!.Value.GetProperty("roots").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object);
+            if (calls == 1)
+                return new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                    RawJson = $$$"""{"jsonrpc":"2.0","id":"first","result":{"resultType":"input_required","inputRequests":{"{{{(mismatch ? "other" : "roots")}}}":{"method":"roots/list"}},"requestState":"private-round-canary"}}""" };
+            call.RequestState.Should().Be("private-round-canary");
+            System.Text.Json.JsonElement.DeepEquals(call.InputResponses!.Value, responses.RootElement).Should().BeTrue();
+            return new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":"second","result":{"resultType":"complete","content":[{"type":"text","text":"private-round-canary"}]}}""" };
+        }
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, object? parameters, CancellationToken _) => Reply(parameters));
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, object? parameters, AuthenticationConfig? _, CancellationToken _) => Reply(parameters));
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        {
+            ToolName = "owned-tool",
+            ClientInputRounds = [new ToolClientInputRound { ExpectedRequests = requests.RootElement, Responses = responses.RootElement }]
+        }] };
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, config) : await _validator.ValidateToolDiscoveryAsync(server, config);
+        var tool = result.ToolResults.Single(entry => entry.ToolName == "owned-tool");
+        tool.Status.Should().Be(mismatch ? TestStatus.Inconclusive : TestStatus.Passed);
+        tool.ExecutionSuccessful.Should().Be(!mismatch);
+        calls.Should().Be(mismatch ? 1 : 2);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-round-canary");
+    }
+
     [Theory]
     [InlineData("exception", TestStatus.Error)]
     [InlineData("metadata", TestStatus.Failed)]
@@ -734,7 +799,9 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.Status.Should().Be(TestStatus.AuthRequired);
-        result.ToolResults.Should().OnlyContain(tool => tool.Status != TestStatus.Failed);
+        result.ToolResults.Should().BeEmpty("an authentication challenge is not a discovered or executed tool");
+        result.ToolsDiscovered.Should().Be(0);
+        result.AuthenticationSecurity!.AuthenticationRequired.Should().BeTrue();
         result.Issues.Should().Contain(issue => issue.Contains("requires authentication", StringComparison.OrdinalIgnoreCase));
         _authService.Verify(service => service.GetTokenAsync(
             It.IsAny<AuthMetadata>(),
