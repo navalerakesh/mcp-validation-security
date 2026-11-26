@@ -1,6 +1,6 @@
 # Enterprise Recovery Implementation Status
 
-Updated: 2026-11-24
+Updated: 2026-11-25
 
 Status: implementation in progress; not release-ready. The approved technical plan contains eight delivery slices. Passing foundation gates do not establish milestone acceptance. Local milestone commits are now authorized only after all applicable acceptance gates; pushing, publication and live enterprise probing remain unauthorized.
 
@@ -25,6 +25,20 @@ For the current assessment milestone, completion means all mandatory checks in t
 Target-memory observers and buffer-overflow/resource-exhaustion harnesses are explicit additions, not prerequisites for default-scope completion. They remain unavailable when explicitly requested until implemented and admitted. No new platform, inference feature, protocol expansion, universal security guarantee or additional live target is introduced by this checklist. Newly discovered defects are handled within the owning listed work item; new feature requirements require separate approval. External evidence gaps do not prevent local implementation, but they prevent claiming the corresponding external qualification. Push, publish, tags and releases remain separately unauthorized.
 
 ## Authoritative Checkpoint
+
+The local qualified foundation is `524c2c0`: reviewed execution/evidence repairs, 2,998 .NET passes with 23 platform skips, and the complete 22-owner mutation gate at 91.83%. That result belongs to its exact source, not to later changes.
+
+The reporting integration is committed locally as `8a45f83`. It brings system/light/dark themes, default-open native reading sections, in-place canonical action evidence and glossary guidance into the production renderer. Nine manifest-owned fixture cases cover all four assessment profiles in minimal/full detail, including comprehensive failure and missing-prerequisite controls. The 18 generated reports passed browser, offline, keyboard, theme and artifact checks; the full suite passed 3,011 .NET tests with 23 platform skips. Saved GitHub, Learn and owned comprehensive replays retained 65, 34 and 593 claims respectively; these are not new live validations.
+
+The subsequent efficiency repair preserves all 18 HTML outputs byte-for-byte while reducing the measured 10,000-claim allocation from about 302 MiB to 238 MiB. The benchmark and a new 256 MiB Release guard share one fixture source. The guard fails against the unchanged pre-optimization renderer and passes after repair. [Benchmark scope and limitations](BenchmarkBaseline.md) distinguish allocations from elapsed time and browser performance; variable timing samples are not promoted into a universal speed claim.
+
+No mutation rerun, push or publication was performed for these reporting/efficiency changes. Core validation contracts, policy, scoring, protocol packs and schemas remain unchanged. [Reporting](Reporting.md) owns shipped behavior; this ledger records qualification scope rather than duplicating the UI contract.
+
+**Still open:** human/operator acceptance of the revised reports, native client/platform/assistive-technology receipts, independently governed enterprise/security/AI-safety evidence and protected release checks. The broader quality program is not universally 9+/10 or release-qualified. Unsupported selected observers/harnesses remain explicit unavailable prerequisites, not waived or converted into pass credit.
+
+## Historical Implementation Sequence
+
+The checkpoints below preserve prior investigations and their original outcomes. Their statements about uncommitted work, deferred gates or unintegrated UI describe those earlier source states; the authoritative checkpoint above supersedes them only within its stated local scope.
 
 ### Reviewed Non-UI Commit Candidate
 

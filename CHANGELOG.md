@@ -51,6 +51,7 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- HTML generation shares static disclosure markup, indexes observation references and appends the canonical claim ledger into the report buffer without changing output bytes. The scale benchmark now measures HTML separately from Markdown; a shared-fixture Release allocation guard detects the observed 10,000-claim regression without omitting evidence. Historical timing measurements are no longer described as CI elapsed-time ceilings.
 - Canonical summary counters now include resource and prompt leaf outcomes, including authentication-required, skipped and inconclusive results; these can no longer disappear behind a tools-only summary pass rate.
 - Resource reads and prompt retrievals require completed content evidence, not just HTTP success or metadata validity. Authentication-required, unavailable, input-required, cancellation and framework errors retain distinct non-success outcomes; generated-argument HTTP 400 no longer earns prompt execution credit. All resource content entries are checked, and private exception details are not emitted.
 - Observed tool coverage requires a complete recovered catalog, one matching result per discovered tool and success evidence for configured invocation. Missing or inconsistent leaf evidence cannot inherit an aggregate pass; metadata-only Safe scope and known failures retain their distinct meanings. Extension-container lanes remain separate when validating planned scenario evidence.

@@ -10,6 +10,22 @@ namespace Mcp.Benchmark.Tests.Unit.Performance;
 
 public sealed class ValidatorOverheadBudgetTests
 {
+    private const long LargeHtmlAllocationBudgetBytes = 256L * 1024 * 1024;
+
+    [Fact]
+    public void LargeHtmlReport_ShouldRemainWithinReviewedAllocationBudget()
+    {
+        var result = Benchmarks.ScaleBenchmarkFixture.CreateResult(1000);
+        var renderer = new ValidationReportRenderer();
+        var configuration = new McpValidatorConfiguration().Reporting;
+        renderer.GenerateHtmlReport(result, configuration, verbose: true);
+
+        var allocated = AverageAllocatedBytes(3, () => renderer.GenerateHtmlReport(result, configuration, verbose: true));
+
+        allocated.Should().BeLessThan(LargeHtmlAllocationBudgetBytes,
+            "the shared 1,000-item / 10,000-claim workload must not reintroduce duplicate report buffers");
+    }
+
     [Fact]
     public void ProductionHostStartupAndPlanning_ShouldRemainWithinAllocationBudgets()
     {

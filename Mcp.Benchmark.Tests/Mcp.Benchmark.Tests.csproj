@@ -38,6 +38,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Mcp.Benchmark.Benchmarks\ScaleBenchmarkFixture.cs" Link="Fixtures\ScaleBenchmarkFixture.cs" />
     <None Include="Fixtures\ReportSnapshots\**\*.snap" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\Reports\**\*.json" CopyToOutputDirectory="PreserveNewest" />
     <None Include="Fixtures\Calibration\**\*.json" CopyToOutputDirectory="PreserveNewest" />

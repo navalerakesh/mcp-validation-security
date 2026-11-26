@@ -9,6 +9,9 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal sealed class ValidationHtmlReportComposer
 {
+    private static readonly string ClaimSourceSummary = RenderDisclosureSummary("Source, correction and evidence references");
+    private static readonly string InlineEvidenceSummary = RenderDisclosureSummary("Read evidence here");
+
     private static readonly AssuranceClaimOutcome[] ClaimOutcomeDisplayOrder =
     [
         AssuranceClaimOutcome.Satisfied, AssuranceClaimOutcome.Violated,
@@ -111,7 +114,8 @@ internal sealed class ValidationHtmlReportComposer
         sb.AppendLine(RenderReaderKey());
         sb.AppendLine(RenderProducerSignature(result));
         sb.AppendLine("      </div>");
-        sb.AppendLine(RenderRecordedClaims(document));
+        AppendRecordedClaims(sb, document);
+        sb.AppendLine();
         sb.AppendLine($"      <footer class=\"footer\">MCPVal {Encode(result.Producer.Version)} · Run <code>{document.RunReference}</code> · {Encode(document.DetailLabel)} report · <a href=\"#method-and-provenance\">Provenance</a></footer>");
         sb.AppendLine("    </main>");
         sb.AppendLine("  </div>");
@@ -354,7 +358,7 @@ internal sealed class ValidationHtmlReportComposer
 
     private static string RenderInlineEvidence(ValidationHtmlClaimEntry entry) =>
         $"<details class=\"assessment-reference evidence-peek\" data-claim-target=\"{entry.Anchor}\">" +
-        RenderDisclosureSummary("Read evidence here") +
+        InlineEvidenceSummary +
         $"<div class=\"peek-content\"><p><a href=\"#{entry.Anchor}\">Navigate to canonical claim</a></p></div></details>";
 
     private static string RenderDomainClaimIndex(IReadOnlyList<ValidationHtmlClaimEntry> entries)
@@ -380,10 +384,10 @@ internal sealed class ValidationHtmlReportComposer
         return sb.ToString();
     }
 
-    private static string RenderRecordedClaims(ValidationHtmlReportDocument document)
+    private static void AppendRecordedClaims(StringBuilder sb, ValidationHtmlReportDocument document)
     {
         var claims = document.Result.Assurance.Claims;
-        var sb = new StringBuilder();
+        var observationsById = document.Result.Evidence.Observations.ToLookup(item => item.Id, StringComparer.Ordinal);
         sb.AppendLine($"      <section class=\"assessment-section\" id=\"recorded-claims\" aria-labelledby=\"recorded-claims-title\"><details class=\"report-section\" open>{RenderDisclosureSummary("Appendix: findings and recorded claims", headingId: "recorded-claims-title")}");
         sb.AppendLine(document.Verbose
             ? "        <p>Complete recorded claims and supporting references. Source authority is not interchangeable with evidence confidence.</p>"
@@ -406,7 +410,7 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine($"          <h3>{Encode(claim.Subject)}</h3><p><code>{Encode(claim.ClaimId)}</code></p>");
             sb.AppendLine($"          <p><strong>Outcome:</strong> {Encode(ReportContextFormatter.FormatClaimOutcome(claim.Outcome))} · <strong>Requirement:</strong> {Encode(claim.RequirementLevel.ToString())}</p>");
             sb.AppendLine($"          <p>{Encode(claim.Summary)}</p>");
-            sb.AppendLine($"          <details class=\"assessment-reference\">{RenderDisclosureSummary("Source, correction and evidence references")}");
+            sb.AppendLine($"          <details class=\"assessment-reference\">{ClaimSourceSummary}");
             sb.AppendLine($"          <p><strong>Authority:</strong> {Encode(claim.Authority.ToString())} · <strong>Recorded confidence:</strong> {Encode(claim.Confidence.ToString())}</p>");
             sb.AppendLine($"          <p><strong>Source revision:</strong> {Encode(claim.Source.Revision)} · {BuildSpecCell(claim.Source.Uri)}</p>");
             if (!string.IsNullOrWhiteSpace(claim.Source.Sha256))
@@ -417,7 +421,7 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("          <p><strong>Evidence references:</strong></p><ul>");
             foreach (var id in claim.EvidenceIds.Order(StringComparer.Ordinal))
             {
-                var observationCount = document.Result.Evidence.Observations.Count(item => item.Id == id);
+                var observationCount = observationsById[id].Count();
                 sb.AppendLine(observationCount > 1
                     ? $"<li><code>{Encode(id)}</code> (ambiguous observation reference: {observationCount} records)</li>"
                     : observationCount == 0
@@ -429,7 +433,6 @@ internal sealed class ValidationHtmlReportComposer
             sb.AppendLine("        </article>");
         }
         sb.AppendLine("      </details></details></section>");
-        return sb.ToString();
     }
 
     private static string RenderRemediationOrder(ValidationHtmlReportDocument document)

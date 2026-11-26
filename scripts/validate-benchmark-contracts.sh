@@ -23,6 +23,7 @@ required_benchmarks=(
   AssuranceReduction
   Scoring
   MarkdownRendering
+  ScaleBenchmarks.HtmlReportRendering
 )
 
 for benchmark in "${required_benchmarks[@]}"; do
@@ -32,4 +33,4 @@ for benchmark in "${required_benchmarks[@]}"; do
   fi
 done
 
-echo "Benchmark contracts verified (${#required_benchmarks[@]} workloads)."
+echo "Benchmark contracts verified (${#required_benchmarks[@]} required entries)."
