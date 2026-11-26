@@ -18,7 +18,11 @@ Heuristic rules are review-only unless a versioned labeled corpus demonstrates a
 
 `RuleCalibrationEvaluator` retains whole-rule diagnostics in `Metrics` and uses only `HoldoutMetrics` for eligibility. Every submitted row must declare its partition and provenance, including rows for other rules; unknown partitions cannot establish source isolation. `Partition` is explicit (`Unspecified`, `Tuning`, `Holdout`); `SourceGroupId` and `ScenarioFamily` are required provenance, along with protocol and transport labels. Group/family identity is trimmed and compared ordinally without case sensitivity. Empty, undersized, unpartitioned, concentrated, leaked or class-confounded evidence fails closed. Admission is bounded to 100,000 total samples and 512 characters per identifier. Official specification failures and directly demonstrated deterministic security control failures remain authority-based evidence.
 
-The initial `rule-quality-v2.json` corpus documents known behavior of `MCP.CONTENT.SystemImpact`, including benign destructive names and dangerous operations missed by name matching. It intentionally does not meet the minimum sample count, so the rule remains review-only.
+The initial `rule-quality-v2.json` corpus documents known behavior of `MCP.CONTENT.SystemImpact`, including bounded operations with destructive names and higher-impact operations missed by name matching. Each row now contains an explicit `toolName` input. The test-owned corpus observer runs the production analyzer in its default metadata-only context, checks stored golden observations for drift, and supplies actual observations to the calibration evaluator.
+
+Connecting the corpus to executable behavior exposed four stale observation labels. With the original expected labels preserved, the twelve examples produce 4 true positives, 3 false positives, 3 true negatives and 2 false negatives. These illustrate why name-only signals cannot establish default-blocking safety decisions; they do not prove whether a real operation is safe. Transport/protocol labels provide context, not evidence that a transport was exercised. No tools are invoked by this corpus.
+
+The examples remain explicitly unpartitioned and have no reviewed independent source groups. They do not meet the minimum sample count or holdout/provenance requirements, so the rule remains review-only. Do not duplicate these examples or relabel them as holdout data to cross the quality gate.
 
 Calibration policy revision `2026-11-10.1` adds holdout, provenance, diversity and abstention admission to the class/identity protections introduced in `2026-11-09.1`. Each decision records its policy revision. Earlier `2026-11-05.1` could accept a positive-only corpus. Declared groups do not prove real-world independence or trustworthy labels: provenance still requires review. Synthetic tests qualify the gate implementation, not a heuristic rule's production accuracy; the original small corpus remains non-blocking.
 
@@ -69,6 +73,8 @@ The committed secret-free corpora cover two different questions:
 
 `CalibrationTargetIntegrationTests` runs six target classes against deterministic local WireMock HTTP targets through production protocol, authentication, and security components. Live endpoints are unsuitable as goldens because deployment and policy change independently of validator code.
 
+The protected-target controls keep one server configuration throughout protocol and security assessment. The fixture configures the transport's run-scoped authentication just as session bootstrap does; explicit no-credential and invalid-credential security probes remain independent of that default. Four combinations of credential availability and invalid-token acceptance verify that protocol success cannot conceal a security failure, and missing credentials remain incomplete. Receiver-side request records verify whether protocol probes carried authorization. This is component integration evidence, not a complete CLI comprehensive-profile certificate or an OAuth authorization-server test.
+
 | Case | Purpose | Expected effect |
 | --- | --- | --- |
 | compliant | Complete high-confidence evidence with no blockers | Satisfied claims in evaluated dimensions |
@@ -87,7 +93,7 @@ The targets are deterministic local fixtures. Live endpoints are unsuitable as g
 - Rule-quality tests assert confusion matrices, threshold boundaries, and fail-closed empty/undersized/one-class corpora and repeated or missing sample IDs.
 - Focused authority-lane tests verify specification, guideline, heuristic, and model decisions remain separate.
 - Synthetic metamorphic tests prove adding blocking evidence cannot improve an assurance assessment; they are not golden calibration evidence.
-- Stryker.NET 4.16.0 mutates the production `AssuranceAssessmentEngine`; CI enforces a 90% break threshold. The current score is recorded by the local readiness receipt rather than hard-coded in this document.
+- The production mutation scope and thresholds are owned by [the mutation gate](../scripts/validate-mutation.sh). Scores are source-bound qualification evidence, not an inference from corpus size or ordinary test counts.
 - Snapshot tests certify stable human and machine representations.
 
 ## False-Positive Review
@@ -110,9 +116,9 @@ Known residual risks include:
 - metadata-only AI-safety analysis cannot prove runtime consent or policy enforcement;
 - local application egress controls do not replace hosted network enforcement;
 - a synthetic corpus cannot represent every provider, proxy, or deployment topology.
-- the vulnerable calibration class uses separate deterministic protocol-conformance and credential-bypass phases because authenticated active protocol probes do not yet forward target credentials;
+- authenticated calibration targets now retain the same configuration across protocol and credential-bypass checks, but the harness does not qualify a complete OAuth deployment or full same-target comprehensive-profile execution;
 - the harness owns only deterministic WireMock behavior and direct HTTP availability classification; category findings, vulnerabilities, verdicts, and scores are production-owned;
-- production mutation scope currently covers the pure verdict reducer, while projection and scoring remain protected by focused, golden, differential, and monotonicity tests.
+- corpus replay protects against stale predictions, but synthetic labels and declared provenance cannot replace independent real-world calibration or source-specific mutation qualification.
 
 These limits produce explicit unevaluated dimensions or coverage debt rather than implicit passes.
 

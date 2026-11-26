@@ -19,6 +19,17 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+async function assertSafeMethodAudit(path: string): Promise<unknown[]> {
+  const observed = (await readFile(path, "utf8")).trim().split("\n").map(line => record(JSON.parse(line)).method);
+  assert.ok(observed.includes("initialize") && observed.includes("tools/list"));
+  assert.ok(!observed.some(method => ["tools/call", "resources/read", "prompts/get"].includes(String(method))),
+    "Safe-mode non-execution must be proven by the target-side method audit, not only reported booleans.");
+  const allowedMethods = new Set(["initialize", "notifications/initialized", "notifications/cancelled", "ping",
+    "tools/list", "resources/list", "resources/templates/list", "prompts/list"]);
+  assert.ok(observed.every(method => allowedMethods.has(String(method))), "Safe fixture received an unexpected method or malformed probe.");
+  return observed;
+}
+
 async function waitFor(check: () => Promise<boolean>, signal?: AbortSignal): Promise<void> {
   const deadline = AbortSignal.any([AbortSignal.timeout(10_000), ...(signal ? [signal] : [])]);
   while (!(await check())) await delay(20, undefined, { signal: deadline });
@@ -139,6 +150,7 @@ test(`Actual Action publishes typed ${dryRun ? "plan-only" : "collected"} output
     assert.equal(outputs["target-identity-sha256"], record(result.run).targetIdentitySha256);
     assert.equal(outputs["policy-passed"], String(record(result.policyDecision).passed));
     assert.equal(record(record(record(result.run).capabilitySnapshot).payload).toolInvocationAttempted, false);
+    await assertSafeMethodAudit(auditMethods);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 }
@@ -232,13 +244,7 @@ test(`SDK wrapper actual CLI and owned fixture: ${termination}`, { timeout: 120_
     assert.equal(record(assurance.profile).profileId, "inventory");
     assert.ok(Array.isArray(assurance.claims) && assurance.claims.length > 0);
     assert.ok(!JSON.stringify(result).includes("MCPVAL_TOKEN"));
-    const observed = (await readFile(audit, "utf8")).trim().split("\n").map(line => record(JSON.parse(line)).method);
-    assert.ok(observed.includes("initialize") && observed.includes("tools/list"));
-    assert.ok(!observed.some(method => ["tools/call", "resources/read", "prompts/get"].includes(String(method))),
-      "Safe-mode non-execution must be proven by the target-side method audit, not only reported booleans.");
-    const allowedMethods = new Set(["initialize", "notifications/initialized", "notifications/cancelled", "ping",
-      "tools/list", "resources/list", "resources/templates/list", "prompts/list"]);
-    assert.ok(observed.every(method => allowedMethods.has(String(method))), "Safe fixture received an unexpected method or malformed probe.");
+    const observed = await assertSafeMethodAudit(audit);
     assert.ok(!(await readdir(root)).some(name => name.startsWith("mcpval-mcp-")), "Wrapper temporary artifacts must be removed after returning canonical data.");
     const cancel = new AbortController();
     const pending = client.callTool({ name: "validate", arguments: {

@@ -6,6 +6,10 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## Unreleased
 
+## 3.0.0 - 2026-11-25
+
+Release preparation: this entry does not establish publication or completion of required release gates.
+
 ### Added
 
 - GitHub Action typed run/artifact outputs preserve the human-readable console default. Each invocation uses isolated artifacts; bounded local inspection checks subject digests and run/target/exit consistency without recomputing policy. Missing/corrupt output cannot turn collector exit zero into acceptance, and only the current invocation is uploaded.
@@ -22,6 +26,8 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Changed
 
+- **Breaking release:** CLI and npm wrapper versions advance together to `3.0.0`; published `2.0.1` artifacts and their tag remain unchanged. Emitted assurance-result `3.8.0` includes the documented breaking nullable-measurement shape and stricter evidence/configuration admission. Historical `2.x` results remain readable through the explicit migration path; package versions and artifact schema versions are separate contracts.
+- The wrapper requires a stable CLI from its own major release family before launching validation, health or discovery. Older/future majors, prereleases and malformed version responses fail with a structured upgrade error; the expected major derives from the package metadata rather than a second version constant.
 - Production reports support system/light/dark themes, default-open collapsible reading sections, leading disclosure controls, in-place action evidence and a glossary in both detail levels. Local previews reuse canonical records, release their DOM on close and do not duplicate printed claims. CI/provider headlines honor the selected gate; template enumeration, recorded request timings and client-comparison explanations retain their distinct evidence boundaries.
 - Report acceptance adds reproducible signed CI/comprehensive controls, including optional diagnostic failures and missing prerequisites. A single generated corpus manifest drives CLI/browser checks. Obsolete private report helpers were removed using Roslyn without changing live decisions.
 - Validation uses the configured invocation deadline instead of an undisclosed ten-minute CLI limit; target resolution and session startup consume that same host deadline. Authentication discovery stays in authentication evidence and no longer fabricates tool inventory or execution success.
@@ -51,6 +57,11 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ### Fixed
 
+- Release review closes three client evidence gaps: call/read contracts require completed per-item operations, snapshot first-page success cannot prove catalog absence, and rejected template entries cannot establish an interactive surface or hide structured template failures. Interpretation revision is `2026-11-26.1`; neutral assurance and findings are unchanged.
+- Client compatibility now distinguishes undiscovered surfaces from confirmed absence, retains known contract failures even with zero recovered components, and does not credit partial catalogs as complete metadata. Recorded snapshot and resource-template counts establish presence only, not successful call/read contracts; an empty static resource list does not hide templates.
+- Protected calibration targets now retain the same server configuration across protocol and security checks. Receiver-side controls verify admitted protocol credentials, isolated no-credential probes, invalid-token acceptance and missing-credential outcomes without changing production authentication or golden scores.
+- Client interpretation preserves exact catalog tool identities instead of hiding names containing `auth` or `schema compliance`. Missing metadata and uncompleted contract checks no longer receive satisfied credit; summaries retain required verification gaps. Applied interpretation revisions are replaced idempotently, separately from dated client requirement documents.
+- The illustrative SystemImpact corpus now supplies explicit analyzer inputs and checks actual production observations rather than trusting stale stored predictions. Four stale observations were corrected without changing expected labels, qualification thresholds or review-only status.
 - HTML generation shares static disclosure markup, indexes observation references and appends the canonical claim ledger into the report buffer without changing output bytes. The scale benchmark now measures HTML separately from Markdown; a shared-fixture Release allocation guard detects the observed 10,000-claim regression without omitting evidence. Historical timing measurements are no longer described as CI elapsed-time ceilings.
 - The internal HTML model no longer carries obsolete alternative hero/release decisions. Provenance facts and governance notes remain explicit, with unchanged rendered output and one current decision narrative.
 - Performance facts no longer invent universal 300 ms latency and 1% error-rate targets. Recorded measurements remain unchanged and are described as workload observations, not unrecorded service guarantees.

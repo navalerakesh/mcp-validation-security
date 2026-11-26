@@ -57,7 +57,7 @@ node scripts/report-quality/check.mjs ./artifacts/report-quality
 
 On Linux, use `playwright install --with-deps chromium` to supply browser OS dependencies. The browser tooling is development-only; it is not shipped in the CLI or MCP wrapper.
 
-The corpus uses nine saved/synthetic cases: inventory, mixed/provider, interrupted, dense, sparse, CI and comprehensive satisfied/failed/missing-prerequisite controls. Both HTML detail levels use the actual CLI. A generated manifest owns the case list for shell and browser checks. The public-only signed identity seed was generated with an ephemeral key that was discarded; it supports recorded-time replay, not live-target certification. Do not relax signature, run/target binding or redaction checks to make a rendering fixture pass.
+The fixture-owned corpus covers inventory, mixed/provider, interrupted, dense, sparse, CI, comprehensive satisfied/failed/missing-prerequisite controls and unverified client requirements. Both HTML detail levels use the actual CLI. A generated manifest owns the case list for shell and browser checks. The public-only signed identity seed was generated with an ephemeral key that was discarded; it supports recorded-time replay, not live-target certification. Do not relax signature, run/target binding or redaction checks to make a rendering fixture pass.
 
 The browser check produces screenshots, A4/Letter PDFs, extracted page text and a machine-readable receipt under the ignored output directory. It checks exact claim parity, local anchors, light/dark reflow and accessibility, in-place evidence without navigation or duplicate IDs, keyboard operation, offline/no-JavaScript reading, print scope and every numbered footer.
 

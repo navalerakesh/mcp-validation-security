@@ -4,6 +4,7 @@ namespace Mcp.Benchmark.ClientProfiles;
 public static class ClientProfileCatalog
 {
     public const string AllProfilesToken = "all";
+    public const string InterpretationRevision = "2026-11-26.1";
 
     private static readonly IReadOnlyList<ClientProfileDescriptor> Profiles = new[]
     {

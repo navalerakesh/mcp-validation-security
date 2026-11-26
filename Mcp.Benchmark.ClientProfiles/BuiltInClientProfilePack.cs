@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Abstractions;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
 
@@ -6,6 +7,8 @@ namespace Mcp.Benchmark.ClientProfiles;
 
 public sealed class BuiltInClientProfilePack : IClientProfilePack
 {
+    private const string MissingCatalogRecommendation =
+        "Complete authorized discovery, including resource templates where supported, then rerun client interpretation. Supply the required credentials when discovery is blocked by authentication.";
     private const string ClaudeCodeToolSearchDocsUrl = "https://code.claude.com/docs/en/mcp#scale-with-mcp-tool-search";
     private const string ClaudeCodeListChangedDocsUrl = "https://code.claude.com/docs/en/mcp#dynamic-tool-updates";
     private const string ClaudeCodeOutputBudgetDocsUrl = "https://code.claude.com/docs/en/mcp#raise-the-limit-for-a-specific-tool";
@@ -61,7 +64,9 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
         ValidationFindingRuleIds.ResourceReadMissingContentArray,
         ValidationFindingRuleIds.ResourceReadMissingContentUri,
         ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
-        ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate
+        ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate,
+        ValidationFindingRuleIds.ResourceTemplateListItemInvalid,
+        ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing
     };
 
     private static readonly IReadOnlyDictionary<string, ClientProfileDefinition> Definitions = BuildDefinitions();
@@ -70,7 +75,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
     {
         Key = new ValidationDescriptorKey("client-profile-pack/built-in"),
         Kind = ValidationPackKind.ClientProfilePack,
-        Revision = new ValidationRevision("2026-04"),
+        Revision = new ValidationRevision(ClientProfileCatalog.InterpretationRevision),
         DisplayName = "Built-in Client Profile Pack",
         Stability = ValidationStability.Stable
     };
@@ -119,7 +124,9 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             DocumentationUrl = definition.Profile.DocumentationUrl,
             EvidenceBasis = definition.Profile.EvidenceBasis,
             Status = status,
-            Summary = BuildProfileSummary(status, passed, warnings, failed),
+            Summary = BuildProfileSummary(status, passed, warnings, failed,
+                requirements.Count(requirement => requirement.Level == ClientProfileRequirementLevel.Required &&
+                    requirement.Outcome == ClientProfileRequirementOutcome.Warning)),
             PassedRequirements = passed,
             WarningRequirements = warnings,
             FailedRequirements = failed,
@@ -130,6 +137,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
     private static ClientProfileRequirementAssessment EvaluateRequirement(ClientProfileRuleDefinition rule, ClientProfileContext context)
     {
         var observation = rule.Evaluate(context);
+        if (rule.RequiresToolMetadata && !context.ToolsKnownAbsent && !context.HasCompleteToolMetadata &&
+            observation.Outcome is ClientProfileRequirementOutcome.Satisfied or ClientProfileRequirementOutcome.NotApplicable)
+        {
+            observation = ClientProfileRuleObservation.Warning(
+                "The complete tool metadata inventory was not recorded; this requirement cannot be established from a catalog count alone.",
+                recommendation: "Collect complete tool metadata before relying on this compatibility requirement.");
+        }
 
         return new ClientProfileRequirementAssessment
         {
@@ -146,11 +160,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
         };
     }
 
-    private static string BuildProfileSummary(ClientProfileCompatibilityStatus status, int passed, int warnings, int failed)
+    private static string BuildProfileSummary(ClientProfileCompatibilityStatus status, int passed, int warnings, int failed, int unverifiedRequired)
     {
         return status switch
         {
             ClientProfileCompatibilityStatus.Compatible => $"All applicable compatibility checks passed ({passed} satisfied).",
+            ClientProfileCompatibilityStatus.CompatibleWithWarnings when unverifiedRequired > 0 =>
+                $"{unverifiedRequired} required compatibility check(s) remain unverified; no native-client execution is established by this interpretation.",
             ClientProfileCompatibilityStatus.CompatibleWithWarnings => warnings == 1
                 ? "Required compatibility checks passed; 1 advisory requirement still needs follow-up."
                 : $"Required compatibility checks passed; {warnings} advisory requirements still need follow-up.",
@@ -269,9 +285,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             context =>
             {
                 var surfaces = context.GetSurfaceLabels();
-                return surfaces.Count > 0
-                    ? ClientProfileRuleObservation.Satisfied($"Server exposes {string.Join(", ", surfaces)}.")
-                    : ClientProfileRuleObservation.Failed("No tools, prompts, or resources were discovered for this profile.");
+                if (surfaces.Count > 0)
+                    return ClientProfileRuleObservation.Satisfied($"Server exposes {string.Join(", ", surfaces)}.");
+                return context.ToolsKnownAbsent && context.PromptsKnownAbsent && context.ResourcesKnownAbsent
+                    ? ClientProfileRuleObservation.Failed("No tools, prompts, or resources were discovered for this profile.")
+                    : ClientProfileRuleObservation.Warning(
+                        "Discovery did not establish which interactive surfaces are available; compatibility remains unverified.",
+                        recommendation: MissingCatalogRecommendation);
             });
     }
 
@@ -285,7 +305,11 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             documentationUrl,
             context => context.ToolCount > 0
                 ? ClientProfileRuleObservation.Satisfied($"Observed {context.ToolCount} tool(s) for this client profile.")
-                : ClientProfileRuleObservation.Failed("No tools were discovered, but this client profile currently depends on the tool surface."));
+                : context.ToolsKnownAbsent
+                    ? ClientProfileRuleObservation.Failed("No tools were discovered, but this client profile currently depends on the tool surface.")
+                    : ClientProfileRuleObservation.Warning(
+                        "Tool discovery was not established; this client's required tool surface remains unverified.",
+                        recommendation: MissingCatalogRecommendation));
     }
 
     private static ClientProfileRuleDefinition RequireToolContract(string suffix, string documentationUrl)
@@ -299,11 +323,14 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             context => EvaluateContractRule(
                 context,
                 context.ToolCount,
+                context.ToolsKnownAbsent,
                 "tool",
                 ToolContractRuleIds,
                 context.Result.ToolValidation?.Status,
+                context.HasCompletedToolCalls,
                 "No tools were discovered, so tool contract validation was not applicable.",
-                "Observed tools without blocking tool-call contract gaps."));
+                "Observed tools without blocking tool-call contract gaps."),
+            RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RequirePromptContract(string suffix, string documentationUrl)
@@ -317,9 +344,11 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             context => EvaluateContractRule(
                 context,
                 context.PromptCount,
+                context.PromptsKnownAbsent,
                 "prompt",
                 PromptContractRuleIds,
                 context.Result.PromptTesting?.Status,
+                context.HasCompletedPromptGets,
                 "No prompts were discovered, so prompt contract validation was not applicable.",
                 "Observed prompts without blocking prompt contract gaps."));
     }
@@ -335,9 +364,11 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             context => EvaluateContractRule(
                 context,
                 context.ResourceCount,
+                context.ResourcesKnownAbsent,
                 "resource",
                 ResourceContractRuleIds,
                 context.Result.ResourceTesting?.Status,
+                context.HasCompletedResourceReads,
                 "No resources were discovered, so resource contract validation was not applicable.",
                 "Observed resources without blocking resource contract gaps."));
     }
@@ -421,7 +452,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"Claude Code truncates tool descriptions and server instructions at 2KB; {string.Join(", ", notes)}.",
                     exampleComponents: oversizedTools.Take(3).ToList(),
                     recommendation: "Trim tool descriptions and initialize.instructions below 2,048 UTF-8 bytes; place critical disambiguation in the first sentence so it survives truncation.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     // ─── Cross-cutting recommended checks (each profile registers individually
@@ -450,7 +481,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"{missing.Count}/{context.ToolCount} tool(s) are missing a `description`. {clientReason}",
                     exampleComponents: missing.Take(3).ToList(),
                     recommendation: "Add a one-line `description` to every tool in tools/list. Per MCP §5.1 this is SHOULD; downstream clients use it to drive tool selection.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RecommendToolDisplayTitles(string suffix, string documentationUrl, string clientReason)
@@ -476,7 +507,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"{missing.Count}/{context.ToolCount} tool(s) are missing `title` (or annotations.title). {clientReason}",
                     exampleComponents: missing.Take(3).ToList(),
                     recommendation: "Add a UI-friendly `title` to each tool. Per MCP §5.1 display precedence is title → annotations.title → name; without title, clients fall back to the programmatic name.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RecommendToolAnnotations(string suffix, string documentationUrl, string clientReason)
@@ -502,7 +533,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"{missing.Count}/{context.ToolCount} tool(s) declare no behavioural annotations. {clientReason}",
                     exampleComponents: missing.Take(3).ToList(),
                     recommendation: "Add `annotations` to every tool: at minimum `readOnlyHint` for read-only tools, `destructiveHint` for write-capable tools, plus `idempotentHint` and `openWorldHint` where applicable. These are hints (untrusted by spec), but every documented client uses them for safety UX.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RecommendDestructiveHintForWriteTools(string suffix, string documentationUrl, string clientName)
@@ -528,7 +559,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"{missing.Count}/{context.ToolCount} write-capable tool(s) do not declare an explicit destructiveHint. {clientName} surfaces this hint in its consent flow.",
                     exampleComponents: missing.Take(3).ToList(),
                     recommendation: "For each tool that mutates external state, set `annotations.destructiveHint: true` (or `destructiveHint: false` if the operation is reversible/additive only). The MCP spec defaults destructiveHint to true when readOnlyHint is false, but explicit declaration produces accurate consent UI in every documented client.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     /// <summary>
@@ -561,7 +592,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     $"{missing.Count}/{context.ToolCount} write-capable tool(s) rely on the MCP destructiveHint default instead of declaring it explicitly. GitHub Copilot Cloud Agent invokes enabled tools autonomously without per-call approval, so explicit metadata improves configuration review.",
                     exampleComponents: missing.Take(5).ToList(),
                     recommendation: "Set `annotations.destructiveHint` explicitly for write-capable tools, or mark read-only tools with `readOnlyHint: true`. GitHub recommends allowlisting specific read-only tools for autonomous use.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RecommendServerIdentity(string suffix, string documentationUrl, string clientName)
@@ -645,7 +676,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
 
                 return ClientProfileRuleObservation.NotApplicable(
                     "No discovered tools declared _meta[\"anthropic/maxResultSizeChars\"]. Claude Code uses this override only for tools that need larger-than-default text outputs.");
-            });
+            }, RequiresToolMetadata: true);
     }
 
     private static ClientProfileRuleDefinition RequireRemoteOAuthCompatibility(string suffix, string documentationUrl)
@@ -683,9 +714,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             documentationUrl,
             context =>
             {
-                if (context.PromptCount == 0 && context.ResourceCount == 0)
+                if (context.PromptCount == 0 && context.ResourceCount == 0 && context.ResourceTemplateCount == 0)
                 {
-                    return ClientProfileRuleObservation.Satisfied("Server exposes tools only, which aligns cleanly with this profile's current surface support.");
+                    return context.PromptsKnownAbsent && context.ResourcesKnownAbsent
+                        ? ClientProfileRuleObservation.Satisfied("Server exposes tools only, which aligns cleanly with this profile's current surface support.")
+                        : ClientProfileRuleObservation.Warning(
+                            "Prompt and resource discovery was not established; a tools-only inventory cannot be confirmed.",
+                            recommendation: MissingCatalogRecommendation);
                 }
 
                 var ignoredSurfaces = new List<string>();
@@ -697,6 +732,10 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 if (context.ResourceCount > 0)
                 {
                     ignoredSurfaces.Add($"{context.ResourceCount} resource(s)");
+                }
+                if (context.ResourceTemplateCount > 0)
+                {
+                    ignoredSurfaces.Add($"{context.ResourceTemplateCount} resource template(s)");
                 }
 
                 return ClientProfileRuleObservation.Warning(
@@ -788,24 +827,43 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
     private static ClientProfileRuleObservation EvaluateContractRule(
         ClientProfileContext context,
         int totalComponents,
+        bool knownAbsent,
         string componentLabel,
         IReadOnlyList<string> ruleIds,
         TestStatus? categoryStatus,
+        bool operationsCompleted,
         string notApplicableSummary,
         string successSummary)
     {
-        if (totalComponents <= 0)
-        {
-            return ClientProfileRuleObservation.NotApplicable(notApplicableSummary);
-        }
-
         var findings = context.GetFindings(ruleIds);
         if (findings.Count == 0)
         {
+            if (totalComponents <= 0)
+            {
+                return knownAbsent
+                    ? ClientProfileRuleObservation.NotApplicable(notApplicableSummary)
+                    : ClientProfileRuleObservation.Warning(
+                        $"The {componentLabel} inventory was not established; an empty recovered count does not prove this contract is not applicable.",
+                        recommendation: MissingCatalogRecommendation);
+            }
+
             if (categoryStatus == TestStatus.Failed)
             {
                 return ClientProfileRuleObservation.Warning(
                     $"The {componentLabel} validation category reported a non-contract failure, but no blocking structured rule matched this profile. Inspect the detailed validation output.");
+            }
+
+            if (categoryStatus != TestStatus.Passed)
+            {
+                return ClientProfileRuleObservation.Warning(
+                    $"The {componentLabel} contract evidence is {categoryStatus?.ToString() ?? "not recorded"}; absence of a blocking finding does not establish a completed check.");
+            }
+
+            if (!operationsCompleted)
+            {
+                return ClientProfileRuleObservation.Warning(
+                    $"Completed {componentLabel} operation evidence was not recorded for every observed item; metadata or listing success does not establish a call/read contract.",
+                    recommendation: "Collect authorized per-item execution evidence in standard mode on an owned or explicitly approved target before relying on this contract.");
             }
 
             return ClientProfileRuleObservation.Satisfied(successSummary);
@@ -851,18 +909,29 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
         ClientProfileRequirementLevel Level,
         ClientProfileEvidenceBasis EvidenceBasis,
         string DocumentationUrl,
-        Func<ClientProfileContext, ClientProfileRuleObservation> Evaluate);
+        Func<ClientProfileContext, ClientProfileRuleObservation> Evaluate,
+        bool RequiresToolMetadata = false);
 
     private sealed class ClientProfileContext
     {
         private readonly IReadOnlyList<ValidationFinding> _findings;
+        private readonly HashSet<string> _catalogToolNames;
+        private readonly HashSet<string> _metadataToolNames;
 
         public ClientProfileContext(ValidationResult result)
         {
             Result = result;
-            ToolCount = DetermineToolCount(result.ToolValidation);
-            PromptCount = DeterminePromptCount(result.PromptTesting);
-            ResourceCount = DetermineResourceCount(result.ResourceTesting);
+            _catalogToolNames = (result.ToolValidation?.DiscoveredToolNames ?? [])
+                .Where(name => !string.IsNullOrWhiteSpace(name)).ToHashSet(StringComparer.Ordinal);
+            var snapshot = result.CapabilitySnapshot?.Payload;
+            ToolCount = Math.Max(DetermineToolCount(result.ToolValidation),
+                snapshot?.ToolListingSucceeded == true ? snapshot.DiscoveredToolsCount : 0);
+            _metadataToolNames = (result.ToolValidation?.ToolResults ?? [])
+                .Select(tool => tool.ToolName).Where(IsRealToolName).ToHashSet(StringComparer.Ordinal);
+            PromptCount = Math.Max(DeterminePromptCount(result.PromptTesting),
+                snapshot?.PromptListingSucceeded == true ? snapshot.DiscoveredPromptsCount : 0);
+            ResourceCount = Math.Max(DetermineResourceCount(result.ResourceTesting),
+                snapshot?.ResourceListingSucceeded == true ? snapshot.DiscoveredResourcesCount : 0);
             _findings = CollectFindings(result);
         }
 
@@ -870,9 +939,79 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
 
         public int ToolCount { get; }
 
+        public bool HasCompleteToolMetadata => ToolCount > 0 && _metadataToolNames.Count == ToolCount &&
+            (_catalogToolNames.Count == 0 || _catalogToolNames.SetEquals(_metadataToolNames)) &&
+            (Result.ToolValidation?.CatalogEnumeration is not { } catalog ||
+                (IsCompleteCatalog(catalog) && catalog.RecoveredItems == ToolCount));
+
         public int PromptCount { get; }
 
         public int ResourceCount { get; }
+
+        public int ResourceTemplateCount => Result.ResourceTesting?.TemplateCatalogEnumeration is { } catalog
+            ? (int)Math.Clamp(catalog.RecoveredItems, 0, int.MaxValue)
+            : 0;
+
+        public bool HasCompletedToolCalls => HasCompletedOperations(
+            (Result.ToolValidation?.ToolResults ?? []).Where(tool => IsRealToolName(tool.ToolName))
+                .Select(tool => (tool.ToolName, tool.Status == TestStatus.Passed && tool.ExecutionSuccessful)),
+            ToolCount, Result.ToolValidation?.CatalogEnumeration, _catalogToolNames.Count > 0 ? _catalogToolNames : null);
+
+        public bool HasCompletedPromptGets => HasCompletedOperations(
+            (Result.PromptTesting?.PromptResults ?? [])
+                .Select(prompt => (prompt.PromptName, prompt.Status == TestStatus.Passed && prompt.ExecutionSuccessful)),
+            PromptCount, Result.PromptTesting?.CatalogEnumeration, Result.PromptTesting?.DiscoveredPromptNames);
+
+        public bool HasCompletedResourceReads => ResourceTemplatesKnownAbsent &&
+            HasCompletedOperations(
+                (Result.ResourceTesting?.ResourceResults ?? [])
+                    .Select(resource => (resource.ResourceUri, resource.Status == TestStatus.Passed && resource.AccessSuccessful)),
+                ResourceCount, Result.ResourceTesting?.CatalogEnumeration, Result.ResourceTesting?.DiscoveredResourceUris);
+
+        private static bool HasCompletedOperations(
+            IEnumerable<(string Identity, bool Completed)> operations, int count,
+            CatalogEnumerationEvidence? catalog, IEnumerable<string>? expectedNames)
+        {
+            if (count <= 0 || catalog is not null &&
+                (!IsCompleteCatalog(catalog) || catalog.RecoveredItems != count || catalog.RawItemsObserved != count))
+                return false;
+            var observed = operations.ToArray();
+            if (observed.Length != count || observed.Any(item => !item.Completed || string.IsNullOrWhiteSpace(item.Identity)))
+                return false;
+            var identities = observed.Select(item => item.Identity).ToHashSet(StringComparer.Ordinal);
+            return identities.Count == count && (expectedNames is null || identities.SetEquals(expectedNames));
+        }
+
+        public bool ToolsKnownAbsent => ToolCount == 0 && IsKnownAbsent(
+            Result.ToolValidation?.CatalogEnumeration, Result.CapabilitySnapshot?.Payload?.ToolListingSucceeded == true,
+            McpSpecConstants.Capabilities.Tools);
+
+        public bool PromptsKnownAbsent => PromptCount == 0 && IsKnownAbsent(
+            Result.PromptTesting?.CatalogEnumeration, Result.CapabilitySnapshot?.Payload?.PromptListingSucceeded == true,
+            McpSpecConstants.Capabilities.Prompts);
+
+        private bool ResourceTemplatesKnownAbsent =>
+            (Result.ResourceTesting?.ResourceTemplatesDiscovered ?? 0) == 0 && ResourceTemplateCount == 0 && IsKnownAbsent(
+                Result.ResourceTesting?.TemplateCatalogEnumeration, false, McpSpecConstants.Capabilities.Resources);
+
+        public bool ResourcesKnownAbsent => ResourceCount == 0 && ResourceTemplatesKnownAbsent && IsKnownAbsent(
+            Result.ResourceTesting?.CatalogEnumeration, Result.CapabilitySnapshot?.Payload?.ResourceListingSucceeded == true,
+            McpSpecConstants.Capabilities.Resources);
+
+        private bool IsKnownAbsent(CatalogEnumerationEvidence? catalog, bool listingSucceeded, string capability)
+        {
+            if (catalog is not null)
+                return IsCompleteCatalog(catalog) && catalog.RawItemsObserved == 0 && catalog.RecoveredItems == 0;
+            if (listingSucceeded) return false;
+            return Result.CapabilitySnapshot?.Payload is { CapabilityDeclarationsAvailable: true } snapshot &&
+                !snapshot.AdvertisedCapabilities.Contains(capability, StringComparer.Ordinal);
+        }
+
+        private static bool IsCompleteCatalog(CatalogEnumerationEvidence catalog) => catalog is
+        {
+            IsComplete: true, Termination: CatalogEnumerationTermination.Complete,
+            PageAttempts: > 0, ParsedPages: > 0, RejectedItems: 0, RejectedPages: 0
+        };
 
         public bool HasInitializationPayload => Result.InitializationHandshake?.Payload != null;
 
@@ -887,7 +1026,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             return Result.ToolValidation?.ToolResults
                 .Where(tool => IsRealToolName(tool.ToolName) && tool.AnthropicMaxResultSizeChars is > 0)
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -899,7 +1038,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     && !string.IsNullOrEmpty(tool.Description)
                     && System.Text.Encoding.UTF8.GetByteCount(tool.Description) > byteCeiling)
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -909,7 +1048,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             return Result.ToolValidation?.ToolResults
                 .Where(tool => IsRealToolName(tool.ToolName) && string.IsNullOrWhiteSpace(tool.Description))
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -919,7 +1058,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             return Result.ToolValidation?.ToolResults
                 .Where(tool => IsRealToolName(tool.ToolName) && string.IsNullOrWhiteSpace(tool.DisplayTitle))
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -933,7 +1072,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     && tool.IdempotentHint is null
                     && tool.OpenWorldHint is null)
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -951,7 +1090,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                     && tool.ReadOnlyHint != true
                     && tool.DestructiveHint is null)
                 .Select(tool => tool.ToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList()
                 ?? new List<string>();
         }
@@ -970,7 +1109,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             {
                 "tools" => ToolCount > 0,
                 "prompts" => PromptCount > 0,
-                "resources" => ResourceCount > 0,
+                "resources" => ResourceCount > 0 || ResourceTemplateCount > 0,
                 _ => false
             };
         }
@@ -1009,6 +1148,10 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             {
                 labels.Add($"{ResourceCount} resource(s)");
             }
+            if (ResourceTemplateCount > 0)
+            {
+                labels.Add($"{ResourceTemplateCount} resource template(s)");
+            }
 
             return labels;
         }
@@ -1023,9 +1166,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             var ruleSet = new HashSet<string>(ruleIds, StringComparer.OrdinalIgnoreCase);
             return _findings
                 .Where(finding => ruleSet.Contains(finding.RuleId))
-                .GroupBy(
-                    finding => $"{finding.RuleId}|{finding.Component}|{finding.Summary}",
-                    StringComparer.OrdinalIgnoreCase)
+                .GroupBy(finding => (finding.RuleId, finding.Component, finding.Summary))
                 .Select(group => group.First())
                 .ToList();
         }
@@ -1034,7 +1175,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
         {
             return GetFindings(ruleIds)
                 .Select(finding => string.IsNullOrWhiteSpace(finding.Component) ? "unknown" : finding.Component)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .ToList();
         }
 
@@ -1099,7 +1240,7 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
             return findings;
         }
 
-        private static int DetermineToolCount(ToolTestResult? toolValidation)
+        private int DetermineToolCount(ToolTestResult? toolValidation)
         {
             if (toolValidation == null)
             {
@@ -1113,16 +1254,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
 
             if (toolValidation.DiscoveredToolNames.Count > 0)
             {
-                return toolValidation.DiscoveredToolNames
-                    .Where(IsRealToolName)
-                    .Distinct(StringComparer.OrdinalIgnoreCase)
-                    .Count();
+                return _catalogToolNames.Count;
             }
 
             return toolValidation.ToolResults
                 .Select(tool => tool.ToolName)
                 .Where(IsRealToolName)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Distinct(StringComparer.Ordinal)
                 .Count();
         }
 
@@ -1164,12 +1302,13 @@ public sealed class BuiltInClientProfilePack : IClientProfilePack
                 .Count();
         }
 
-        private static bool IsRealToolName(string? toolName)
+        private bool IsRealToolName(string? toolName)
         {
-            return !string.IsNullOrWhiteSpace(toolName)
-                && !toolName.Equals("tools/list", StringComparison.OrdinalIgnoreCase)
-                && !toolName.Contains("schema compliance", StringComparison.OrdinalIgnoreCase)
-                && !toolName.Contains("auth", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(toolName)) return false;
+            if (_catalogToolNames.Count > 0) return _catalogToolNames.Contains(toolName);
+            return !toolName.Equals("tools/list", StringComparison.OrdinalIgnoreCase)
+                && !toolName.Equals("Authentication Discovery", StringComparison.OrdinalIgnoreCase)
+                && !toolName.Equals("tools/list (Auth Check)", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsRemoteTransportValue(string? transport)

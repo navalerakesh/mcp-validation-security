@@ -10,6 +10,16 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public class ContentSafetyAnalyzerTests
 {
+    [Fact]
+    public void SystemImpactCorpus_ShouldReplayItsGoldenObservationsThroughTheProductionAnalyzer()
+    {
+        var observations = Fixtures.RuleQualityCorpus.ObserveSystemImpact();
+        using var scope = new FluentAssertions.Execution.AssertionScope();
+        foreach (var sample in observations)
+            sample.Observed.ObservedPositive.Should().Be(sample.Expected.ObservedPositive,
+                "stored calibration observation {0} must match executable analyzer behavior", sample.Expected.SampleId);
+    }
+
     private readonly ContentSafetyAnalyzer _analyzer;
 
     public ContentSafetyAnalyzerTests()

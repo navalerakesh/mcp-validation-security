@@ -23,6 +23,16 @@ The scale harness uses the same canonical fixtures at 10/100/1,000 catalog items
 
 The HTML allocation guard uses the benchmark's fixture source directly, not a second approximation. A local .NET 8/macOS ARM64 comparison measured approximately 253.7 MiB before report integration, 301.9 MiB after integration, and 238.0 MiB after preserving identical output while sharing static disclosure markup and appending the claim ledger into the report buffer. The 256 MiB guard detects the observed regression without deleting evidence. These measurements are workload-specific managed allocations, not peak process memory or a universal report-size limit.
 
+### Timing stability follow-up
+
+Two sequential local repetitions with 12 warmups and 12 measured iterations stabilized the planning workloads (raw-sample coefficient of variation below 3.5%). The schema-catalog workload remained variable (approximately 34-50% across the observed cases). These observations do not establish a universal latency baseline or justify silently discarding slow samples.
+
+```bash
+dotnet run --project Mcp.Benchmark.Benchmarks -c Release -- --job short --filter '*ConfigPlanning*' '*SchemaCatalog*' '*.Planning' --warmupCount 12 --iterationCount 12 --exporters JSON
+```
+
+Inspect every raw `Workload/Actual` sample, not only the outlier-filtered summary. Planning and schema validation are different workloads; stable planning does not qualify schema timing. The shared-host schema timing limitation remains open rather than being hidden by a cache, relaxed threshold or unsupported speed claim.
+
 Reproduce with:
 
 ```bash

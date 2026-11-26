@@ -21,7 +21,7 @@ This starts the MCP server via stdio. Any MCP-compatible AI agent can connect to
 npm install -g mcpval-localmcp
 ```
 
-**Prerequisite:** The `mcpval` CLI must be installed:
+**Prerequisite:** Install a stable `mcpval` CLI from the same major release family as this wrapper (3.x for this codebase). Upgrade both packages together:
 
 ```bash
 # Option 1: NuGet global tool (cross-platform, requires .NET 8)
@@ -32,6 +32,8 @@ dotnet tool install --global McpVal
 ```
 
 If the CLI is installed outside your default `PATH`, set `MCPVAL_CLI_PATH` to the full executable path in your MCP client configuration.
+
+Before launching a target command, the wrapper checks the CLI's bounded `--version` response. Older or future major versions, prerelease versions and malformed responses produce a structured `CLI_VERSION_INCOMPATIBLE` error with exit `70`; no target command is launched. Matching stable minor/patch releases remain accepted. This release-family check is separate from reading historical artifact schemas; see [schema compatibility](../docs/SchemaCompatibility.md).
 
 ## Configure Your MCP Client
 

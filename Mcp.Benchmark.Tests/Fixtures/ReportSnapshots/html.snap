@@ -1567,7 +1567,7 @@ button:disabled { color: var(--muted); cursor: default; }
         </article>
       </details></details></section>
 
-      <footer class="footer">MCPVal 2.0.1 · Run <code>e2a02c699e24</code> · Full report · <a href="#method-and-provenance">Provenance</a></footer>
+      <footer class="footer">MCPVal 3.0.0 · Run <code>e2a02c699e24</code> · Full report · <a href="#method-and-provenance">Provenance</a></footer>
     </main>
   </div>
   <script>(() => {

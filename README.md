@@ -25,6 +25,10 @@
 
 ## Install
 
+### Upgrading from 2.x
+
+This codebase targets the 3.x release family. Upgrade the CLI and local MCP wrapper together. The current canonical assurance-result schema is `3.8.0`; consumers must handle unavailable measurements as null and use recorded artifact paths rather than assume a flat output directory. Historical `2.x` results remain readable through the documented migration path. See [schema compatibility](docs/SchemaCompatibility.md) and [available releases](https://github.com/navalerakesh/mcp-validation-security/releases); local qualification does not establish publication.
+
 Install from NuGet:
 
 ```bash

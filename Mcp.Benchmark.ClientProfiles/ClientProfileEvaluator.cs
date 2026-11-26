@@ -118,11 +118,15 @@ public sealed class ClientProfileEvaluator : IClientProfileEvaluator
             .Select(pack => pack.Descriptor)
             .DistinctBy(descriptor => (descriptor.Key, descriptor.Revision)))
         {
-            if (validationResult.Evidence.AppliedPacks.Any(existing => existing.Key.Equals(descriptor.Key) && existing.Revision.Equals(descriptor.Revision)))
+            var prior = validationResult.Evidence.AppliedPacks.Where(existing =>
+                existing.Kind == ValidationPackKind.ClientProfilePack && existing.Key.Equals(descriptor.Key)).ToArray();
+            if (prior.Length == 1 && prior[0].Revision.Equals(descriptor.Revision))
             {
                 continue;
             }
 
+            validationResult.Evidence.AppliedPacks.RemoveAll(existing =>
+                existing.Kind == ValidationPackKind.ClientProfilePack && existing.Key.Equals(descriptor.Key));
             validationResult.Evidence.AppliedPacks.Add(descriptor);
         }
     }

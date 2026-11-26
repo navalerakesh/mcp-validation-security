@@ -1,6 +1,7 @@
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.ClientProfiles;
 
 namespace Mcp.Benchmark.Tests.Fixtures;
 
@@ -9,7 +10,7 @@ public static class ReportQualityTestData
     public static readonly string[] Names =
     [
         "inventory", "mixed", "interrupted", "dense", "sparse", "ci",
-        "comprehensive", "comprehensive-failed", "comprehensive-missing"
+        "comprehensive", "comprehensive-failed", "comprehensive-missing", "client-unverified", "client-undiscovered"
     ];
 
     public static ValidationResult Create(string name)
@@ -25,7 +26,7 @@ public static class ReportQualityTestData
         result.EndTime = result.StartTime.AddSeconds(12);
         result.ServerConfig.Endpoint = $"https://{name}.example.invalid/mcp";
         result.ServerConfig.Transport = "http";
-        result.Run.ExecutionMode = name is "inventory" or "interrupted" or "sparse" ? ExecutionMode.Safe : ExecutionMode.Standard;
+        result.Run.ExecutionMode = name is "inventory" or "interrupted" or "sparse" or "client-unverified" or "client-undiscovered" ? ExecutionMode.Safe : ExecutionMode.Standard;
         result.Run.TerminationOutcome = ValidationOutcome.Succeeded;
         result.ProtocolVersion = name == "sparse" ? null : "2025-11-25";
         result.Run.SchemaVersion = result.ProtocolVersion;
@@ -74,6 +75,31 @@ public static class ReportQualityTestData
                     "synthetic-layout", $"long-scope-{index:D3}-{new string('x', 90)}",
                     ValidationOutcome.Unavailable,
                     "Synthetic layout evidence is unavailable. Literal untrusted text: <script>alert('inert')</script> & \"quoted\"."));
+        }
+
+        if (name == "client-unverified")
+        {
+            result.ToolValidation = new()
+            {
+                Status = TestStatus.Inconclusive, ToolsDiscovered = 2,
+                DiscoveredToolNames = ["author_search", "AUTHOR_SEARCH"],
+                ToolResults = [new()
+                {
+                    ToolName = "author_search", Description = "Recorded synthetic metadata.",
+                    DisplayTitle = "Author search", ReadOnlyHint = true, DestructiveHint = false,
+                    IdempotentHint = true, OpenWorldHint = false, MetadataValid = true
+                }]
+            };
+            result.ClientCompatibility = new ClientProfileEvaluator().Evaluate(result, new() { Profiles = ["github-copilot-cli"] });
+        }
+        if (name == "client-undiscovered")
+        {
+            result.ToolValidation = new() { Status = TestStatus.AuthRequired };
+            result.PromptTesting = new() { Status = TestStatus.AuthRequired };
+            result.ResourceTesting = new() { Status = TestStatus.AuthRequired };
+            result.InitializationHandshake = null;
+            result.CapabilitySnapshot = null;
+            result.ClientCompatibility = new ClientProfileEvaluator().Evaluate(result, new() { Profiles = ["claude-code"] });
         }
 
         result.Assurance = AssuranceAssessmentEngine.Evaluate(result, profile,

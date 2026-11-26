@@ -237,6 +237,11 @@ async function checkCliAvailability(command: string, signal?: AbortSignal): Prom
     return commandError(command, "CLI_CANCELLED_OR_TIMED_OUT", "CLI availability probing was cancelled or timed out.", 124);
   if (availability.exitCode !== 0)
     return commandError(command, "CLI_NOT_AVAILABLE", cliNotInstalledMessage(), 70);
+  const requiredMajor = config.server.version.split(".")[0];
+  const cliVersion = /^mcpval ([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(availability.stdout.trim());
+  if (!/^[1-9][0-9]*$/.test(requiredMajor) || cliVersion?.[1] !== requiredMajor)
+    return commandError(command, "CLI_VERSION_INCOMPATIBLE",
+      "The selected CLI must be a stable release from the same major release family as this wrapper. Upgrade both packages together or correct MCPVAL_CLI_PATH. No target command was launched.", 70);
   return undefined;
 }
 

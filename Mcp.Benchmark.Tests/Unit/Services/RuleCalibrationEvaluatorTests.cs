@@ -405,22 +405,21 @@ public sealed class RuleCalibrationEvaluatorTests
     [Fact]
     public void Evaluate_InitialSystemImpactCorpus_ShouldRemainNonBlocking()
     {
-        var samples = JsonSerializer.Deserialize<List<RuleCalibrationSample>>(
-            File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Fixtures", "Calibration", "rule-quality-v2.json")),
-            new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+        var samples = Fixtures.RuleQualityCorpus.ObserveSystemImpact().Select(sample => sample.Observed).ToArray();
 
         var decision = RuleCalibrationEvaluator.Evaluate("MCP.CONTENT.SystemImpact", samples);
 
         decision.DefaultBlockingEligible.Should().BeFalse();
         decision.Metrics.LabeledSampleCount.Should().Be(12);
-        decision.Metrics.TruePositive.Should().Be(5);
-        decision.Metrics.FalsePositive.Should().Be(2);
-        decision.Metrics.TrueNegative.Should().Be(4);
-        decision.Metrics.FalseNegative.Should().Be(1);
-        decision.Metrics.Precision.Should().Be(0.7143);
-        decision.Metrics.Recall.Should().Be(0.8333);
-        decision.Metrics.FalsePositiveRate.Should().Be(0.3333);
-        decision.Metrics.FalseNegativeRate.Should().Be(0.1667);
+        decision.HoldoutMetrics.Should().BeNull("these illustrative examples are not independent held-out evidence");
+        decision.Metrics.TruePositive.Should().Be(4);
+        decision.Metrics.FalsePositive.Should().Be(3);
+        decision.Metrics.TrueNegative.Should().Be(3);
+        decision.Metrics.FalseNegative.Should().Be(2);
+        decision.Metrics.Precision.Should().Be(0.5714);
+        decision.Metrics.Recall.Should().Be(0.6667);
+        decision.Metrics.FalsePositiveRate.Should().Be(0.5);
+        decision.Metrics.FalseNegativeRate.Should().Be(0.3333);
         decision.Reasons.Should().Contain(reason => reason.Contains("sample count", StringComparison.OrdinalIgnoreCase));
     }
 

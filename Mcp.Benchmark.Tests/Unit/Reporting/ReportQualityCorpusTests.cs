@@ -10,6 +10,27 @@ namespace Mcp.Benchmark.Tests.Unit.Reporting;
 
 public class ReportQualityCorpusTests
 {
+    [Theory]
+    [InlineData("client-unverified")]
+    [InlineData("client-undiscovered")]
+    public void UnverifiedClientRequirements_ShouldRemainVisibleThroughCanonicalReplay(string name)
+    {
+        var result = ReportQualityTestData.Create(name);
+        var options = Mcp.Benchmark.CLI.Utilities.ArtifactJsonOptions.Create();
+        var saved = JsonSerializer.Deserialize<ValidationResult>(JsonSerializer.Serialize(result.CloneWithoutSecrets(), options), options)!;
+        var assessment = saved.ClientCompatibility!.Assessments.Single();
+        assessment.FailedRequirements.Should().Be(0, "missing inventory is not demonstrated client incompatibility");
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-contract")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+        foreach (var verbose in new[] { false, true })
+        {
+            var html = new ValidationReportRenderer().GenerateHtmlReport(saved, saved.ValidationConfig.Reporting, verbose);
+            var text = new HtmlParser().ParseDocument(html).Body!.TextContent;
+            text.Should().Contain("required compatibility check(s) remain unverified")
+                .And.NotContain("Required compatibility checks passed");
+        }
+    }
+
     [Fact]
     public void InventoryReason_ShouldExplainRecordedScopeWithoutHidingPolicyFailure()
     {
