@@ -17,6 +17,7 @@ internal sealed class ValidationHtmlReportDocumentFactory
     {
         ArgumentNullException.ThrowIfNull(result);
         ArgumentNullException.ThrowIfNull(reportConfig);
+        using var culture = InvariantCultureScope.Enter();
 
         var bootstrap = ResolveBootstrapHealth(result);
         var detailLabel = verbose ? "Full" : "Minimal";

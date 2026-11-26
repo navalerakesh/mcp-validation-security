@@ -8,6 +8,7 @@ Reports help maintainers find the next action, reviewers understand the supporte
 
 - Project saved canonical evidence through the existing factory, composer, theme and interactions. Renderers never contact targets or recompute assurance.
 - Keep one current decision projection. Provenance facts and governance notes have their own fields; do not retain obsolete hero/release verdict objects merely to carry metadata or allow competing decision wording to return.
+- The shared projection enters the same artifact-culture scope as public rendering and restores its caller's culture. Do not rely on an ambient OS locale when preparing formatted facts for another renderer.
 - Keep execution, assurance, policy and certificate eligibility/issuance independent. Missing, skipped, blocked, unavailable, inconclusive and not-applicable evidence never earn pass credit.
 - Distinguish discovered capabilities, configured/permitted operations and observed runtime behavior. Identify imported conformance, client interpretation, deterministic checks, heuristics and model advice by their recorded authority and revision.
 - Preserve redaction, inert untrusted text, CSP, offline operation, exact IDs and outcome semantics. Identical saved inputs and options produce byte-stable HTML, including across cultures.

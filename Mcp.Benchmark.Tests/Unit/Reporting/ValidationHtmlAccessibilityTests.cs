@@ -7,11 +7,43 @@ using Mcp.Benchmark.Tests.Fixtures;
 using System.Text.RegularExpressions;
 using System.Security.Cryptography;
 using System.Text;
+using System.Globalization;
 
 namespace Mcp.Benchmark.Tests.Unit.Reporting;
 
 public sealed class ValidationHtmlAccessibilityTests
 {
+    [Theory]
+    [InlineData("")]
+    [InlineData("fr-FR")]
+    public void Projection_ShouldUseArtifactCultureAndRestoreItsCaller(string cultureName)
+    {
+        var originalCulture = CultureInfo.CurrentCulture;
+        var originalUiCulture = CultureInfo.CurrentUICulture;
+        var callerCulture = CultureInfo.GetCultureInfo(cultureName);
+        try
+        {
+            CultureInfo.CurrentCulture = callerCulture;
+            CultureInfo.CurrentUICulture = callerCulture;
+            var result = ReportSnapshotTestData.CreateComprehensiveResult();
+            var projection = new ValidationHtmlReportDocumentFactory().Create(result, result.ValidationConfig.Reporting, false);
+            CultureInfo.CurrentCulture.Should().BeSameAs(callerCulture);
+            CultureInfo.CurrentUICulture.Should().BeSameAs(callerCulture);
+            var html = new ValidationReportRenderer().GenerateHtmlReport(result, result.ValidationConfig.Reporting, false);
+            var overview = new HtmlParser().ParseDocument(html).GetElementById("evidence-and-actions")!;
+
+            foreach (var metric in projection.OverviewMetrics)
+                overview.TextContent.Should().Contain(metric.Value);
+            CultureInfo.CurrentCulture.Should().BeSameAs(callerCulture);
+            CultureInfo.CurrentUICulture.Should().BeSameAs(callerCulture);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = originalCulture;
+            CultureInfo.CurrentUICulture = originalUiCulture;
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

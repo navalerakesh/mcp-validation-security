@@ -34,7 +34,9 @@ The subsequent efficiency repair preserves all 18 HTML outputs byte-for-byte whi
 
 No mutation rerun, push or publication was performed for these reporting/efficiency changes. Core validation contracts, policy, scoring, protocol packs and schemas remain unchanged. [Reporting](Reporting.md) owns shipped behavior; this ledger records qualification scope rather than duplicating the UI contract.
 
-**Still open:** human/operator acceptance of the revised reports, native client/platform/assistive-technology receipts, independently governed enterprise/security/AI-safety evidence and protected release checks. The broader quality program is not universally 9+/10 or release-qualified. Unsupported selected observers/harnesses remain explicit unavailable prerequisites, not waived or converted into pass credit.
+Linux ARM64 qualification now includes a case-sensitive Linux filesystem, a non-root user, disabled networking during tests, dropped capabilities and bounded container resources. The full Linux suite passed 3,020 .NET tests with 23 Windows-only skips, all 245 Node/SDK integration checks, and three Release allocation guards. It exposed an ambient-culture projection mismatch, repaired through the existing artifact-culture owner. The shipped container also exposed a dependency failure missed by a version-only smoke; the globalization-capable runtime now renders real HTML, and CI checks that path. These are Linux-container receipts, not bare-metal, Windows or native-client certification.
+
+**Still open:** human/operator acceptance of the revised reports, Windows/additional-RID/native-client/assistive-technology receipts, independently governed enterprise/security/AI-safety evidence and protected release checks. The broader quality program is not universally 9+/10 or release-qualified. Unsupported selected observers/harnesses remain explicit unavailable prerequisites, not waived or converted into pass credit.
 
 ## Historical Implementation Sequence
 

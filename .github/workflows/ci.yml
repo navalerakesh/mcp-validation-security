@@ -936,12 +936,12 @@ jobs:
 
       - name: Smoke Exact Docker Image
         shell: bash
+        env:
+          DOCKER_DEFAULT_PLATFORM: ${{ matrix.platform }}
         run: |
-          output=$(docker run --rm --platform "${{ matrix.platform }}" mcpval-release-smoke:${{ needs.build-and-test.outputs.version }}-${{ matrix.architecture }} --version)
-          [[ "$output" == "mcpval ${{ needs.build-and-test.outputs.version }}" ]] || {
-            echo "Docker version mismatch: $output" >&2
-            exit 1
-          }
+          scripts/smoke-distribution.sh \
+            --version "${{ needs.build-and-test.outputs.version }}" \
+            --container "mcpval-release-smoke:${{ needs.build-and-test.outputs.version }}-${{ matrix.architecture }}"
 
       - name: Generate Container SBOM
         uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
