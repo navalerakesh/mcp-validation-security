@@ -8,6 +8,45 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 public sealed class AssuranceExitCodeMapperTests
 {
     [Theory]
+    [InlineData(0, true)]
+    [InlineData(1, false)]
+    public void ComprehensivePreflight_ShouldEnforceThePromptScenarioCountBoundary(int excess, bool admitted)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        var prompts = configuration.Validation.Categories.PromptTesting;
+        for (var index = 0; index < ToolScenarioInputs.MaximumScenarios + excess; index++)
+            prompts.CustomScenarios.Add(new() { PromptName = $"owned-prompt-{index}", Arguments = new() { ["query"] = "fixture" } });
+
+        var errors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true);
+
+        if (admitted)
+        {
+            errors.Should().BeEmpty();
+            ToolScenarioInputs.CapturePromptScenarios(prompts).Should().HaveCount(ToolScenarioInputs.MaximumScenarios);
+        }
+        else
+            errors.Should().ContainSingle().Which.Should().Contain("PromptTesting.CustomScenarios cannot be executed");
+    }
+
+    [Fact]
+    public void ComprehensivePreflight_ShouldRejectConflictingPromptSelectionWithoutEchoingInput()
+    {
+        const string canary = "private-prompt-fixture-canary";
+        var configuration = new McpValidatorConfiguration();
+        configuration.Execution!.Mode = ExecutionMode.Standard;
+        var prompts = configuration.Validation.Categories.PromptTesting;
+        prompts.CustomScenarios.Add(new() { PromptName = canary, Arguments = new() { ["query"] = canary } });
+        prompts.SpecificPrompts.Add(canary);
+
+        var errors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, true);
+
+        errors.Should().ContainSingle().Which.Should()
+            .Contain("PromptTesting.CustomScenarios cannot be executed").And.NotContain(canary);
+        prompts.CustomScenarios.Single().Arguments!["query"].Should().Be(canary);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void ComprehensivePreflight_ShouldNotTreatRequiredChecksAsOptionalStressOrMemoryScope(bool security)
