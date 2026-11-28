@@ -36,6 +36,8 @@ dotnet test --filter Category=Unit
 dotnet test --filter Category=Integration
 ```
 
+Native Windows supervision tests require Windows job objects and the freshly built CLI selected by `MCPVAL_WINDOWS_TEST_CLI`. The nested-job test identifies the controller and supervisor by retained process handles and executable paths rather than assuming they are the only active job members. Runtime or console descendants may also be counted; successful cleanup still requires the entire outer job to reach and remain at zero active processes, alongside the inner supervisor's zero-process receipt.
+
 ## Adding Coverage
 
 - Add unit tests under `Unit/` when the behavior is deterministic and dependency boundaries can be isolated.

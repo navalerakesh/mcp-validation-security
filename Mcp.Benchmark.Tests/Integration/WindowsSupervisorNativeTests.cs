@@ -357,7 +357,12 @@ public sealed class WindowsSupervisorNativeTests
         tracked.Items.Add(await CaptureAsync(workspace, "leader"));
         tracked.Items.Add(await CaptureAsync(workspace, "host"));
         await AssertHelloAsync(output);
-        Assert.Equal(2u, outer.ActiveProcessCount);
+        Assert.Equal(2, tracked.Items.Select(process => process.Id).Distinct().Count());
+        Assert.Equal(NodePath(), tracked.Items[0].MainModule!.FileName, ignoreCase: true);
+        Assert.Equal(CliPath(), tracked.Items[1].MainModule!.FileName, ignoreCase: true);
+        Assert.All(tracked.Items, process => Assert.False(process.HasExited));
+        // Job accounting includes runtime/console descendants, not only the two fixture roles.
+        Assert.True(outer.ActiveProcessCount >= tracked.Items.Count);
         var frames = ReadFramesAsync(output);
         File.WriteAllText(workspace.File("release"), "release");
         await tracked.AssertExitedAndReleaseAsync();

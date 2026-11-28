@@ -8,6 +8,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { createCanvas } from '@napi-rs/canvas';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { exportReportPdf } from './export-pdf.mjs';
+import { extractPageText } from './pdf-text.mjs';
 
 const directory = process.argv[2];
 assert(directory, 'Usage: node scripts/report-quality/check.mjs <CLI-corpus-directory>');
@@ -229,7 +230,7 @@ try {
                         assert(item.transform[5] >= -1 && item.transform[5] <= paper.height + 1,
                             `${file}/${format}: vertically clipped text on page ${number}`);
                     }
-                    const text = content.items.map(item => item.str ?? '').join(' ').replace(/\s+/g, ' ');
+                    const text = extractPageText(content.items);
                     texts.push(text);
                     assert(text.includes(reference), `${file}/${format}: run reference on page ${number}`);
                     assert(text.includes(`Page ${number} of ${document.numPages}`), `${file}/${format}: footer ${number}`);

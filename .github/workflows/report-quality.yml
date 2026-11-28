@@ -45,6 +45,8 @@ jobs:
           node-version: '24.19.0'
           cache: npm
           cache-dependency-path: scripts/report-quality/package-lock.json
+      - name: PDF text extraction regressions
+        run: node --test scripts/report-quality/pdf-text.test.mjs
       - run: dotnet restore --locked-mode
       - name: Renderer, CLI and schema checks
         run: dotnet test Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj --no-restore --filter 'FullyQualifiedName~Unit.Reporting|FullyQualifiedName~ReportCommandTests|FullyQualifiedName~PublicArtifactSchemaTests'
