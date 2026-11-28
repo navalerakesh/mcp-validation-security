@@ -39,6 +39,28 @@ Default performance scope is client-observable catalog latency, concurrent reque
 
 The current comprehensive policy revision is `2026-11-24.2`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
 
+### Choose Report Detail And Assessment Scope Separately
+
+| Goal | Selection | What it establishes |
+| --- | --- | --- |
+| Inspect all recorded detail | `--report-detail full` or offline `report` | Renders existing evidence; does not execute missing checks |
+| First assessment of a public target | `--assurance inventory --mode safe` | Discovery and static analysis; no active conformance, tool execution or load assurance |
+| Active checks on an owned test target | `--assurance ci --mode standard` | Admitted active checks and measurements; failures and unavailable evidence remain visible |
+| Comprehensive assurance | `--assurance comprehensive --mode standard` plus the prerequisites below | Evaluates the selected required evidence; starting the run does not guarantee acceptance |
+
+Public endpoint availability, a PAT, or permission to call a read-only tool does not establish authorization for malformed requests, writes or load. Before active testing, agree on permitted methods/arguments, target data, credentials, request/concurrency limits and cleanup. Do not run an unrestricted active scan against Microsoft Learn, GitHub MCP or a production wrapper merely to eliminate skipped rows.
+
+### Prepare The Evidence
+
+1. Select an owned or explicitly authorized endpoint, supported protocol revision and execution limits. Review the dry-run plan before contact.
+2. Collect pinned official conformance evidence with the [existing companion](../docs/OfficialConformanceAndExtensions.md#official-conformance-import). Its current runner targets the pinned `2026-07-28` HTTP requirement set; do not relabel it for another protocol or STDIO. The companion strips ambient credentials and has no credential-forwarding CLI option; protected targets need an appropriate authorized setup, not a token embedded in the URL.
+3. Reserve the validation ID independently before collecting identity observations. Have an operator-selected observer measure a valid positive control and the required actor-binding, scope and actor/action/object denial cases on the same target/run/route.
+4. Produce the bounded signed identity evidence and selection described below, using the independently trusted observer public key. The repository supplies evidence contracts/import verification, **not a turnkey identity collector for arbitrary servers**. A locally generated signing key or copied example cannot prove an external server enforced authorization.
+5. Supply any required tool/prompt arguments privately through the existing explicit-input configuration. The arguments do not grant execution permission. Keep target-memory and isolated-stress requirements unselected unless their actual observer/harness exists.
+6. Run comprehensive validation, then inspect the selected policy, required coverage and recommended exit. Retain the canonical result and audit bundle. Missing/blocked prerequisites must remain incomplete; never edit observations or weaken thresholds to force acceptance.
+
+If you do not control the target or its observer, request the required evidence from its operator or use an honestly scoped inventory/CI assessment. Offline rendering cannot fill the gap.
+
 Reserve the validation ID independently before collecting the controlled observations. `--identity-baseline` reads a bounded JSON selection containing `contract`, `admission`, `signedEvidenceJson`, `trustedObserverPublicKeyPem`, `actorBindingCaseId`, `scopeEnforcementCaseId`, and `authorizationCaseId`. It uses the existing identity contract and original signed envelope, not a second observation format. The three selected denial cases must declare the corresponding signed challenges and reference successful positive controls. Supply only nonsecret run-local aliases and an independently trusted public key, never a private key or credentials.
 
 ```bash
@@ -51,6 +73,38 @@ mcpval validate --server https://example.test/mcp \
 ```
 
 The CLI verifies target, independently planned run ID, signature, observer, case selection and freshness before transport setup. Evidence cannot choose its own run ID. Use a fresh reserved ID for a new independent assessment; replaying the same evidence is not a new observation or repeated-run certificate. Correlated library callers reserve `ValidationRunRequest`, collect the approved observations, then attach the selection with `WithIdentityControls`. Canonical results retain verified selection for signature-checked replay; rejected or quarantined raw envelopes are not retained as baseline inputs. Missing or failed observations never gain credit.
+
+### Reproduce Owned Examples
+
+From a repository checkout with the [contributor prerequisites](../docs/ContributorEnvironment.md) installed, build the solution and wrapper before running examples. Use a fresh private output directory; exported evidence is not committed.
+
+The existing local fixture permits active diagnostic testing without probing a third-party service:
+
+```bash
+dotnet run --project Mcp.Benchmark.CLI -- validate \
+  --server "node Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-compliant.cjs" \
+  --assurance ci --mode standard --access public \
+  --protocol-era legacy --mcpspec 2025-11-25 \
+  --max-requests 200 --max-concurrency 2 --timeout 10 \
+  --report-detail full --output ./artifacts/owned-active
+```
+
+This is an active **diagnostic** example, not a comprehensive-success fixture. An observed run returned incomplete exit `2`: an active protocol probe timed out, subsequent STDIO execution remained unverified, and some transport fault probes were unavailable. Preserve those outcomes; fixture naming does not guarantee that the entire assessment passes. Safe reports and category-level tests are not substitutes for a complete active end-to-end result.
+
+For reproducible identity evidence, the owned HTTP pilot exercises real issued fixture credentials and a separately credentialed observer:
+
+```bash
+MCPVAL_IDENTITY_PILOT_OUTPUT="$PWD/artifacts/identity-pilot" \
+  dotnet test Mcp.Benchmark.Tests/Mcp.Benchmark.Tests.csproj \
+  --filter 'FullyQualifiedName~OwnedHttpIdentityPilot_ShouldObserveIssuedPrincipalsAndPolicy'
+
+dotnet run --project Mcp.Benchmark.CLI -- report \
+  --input ./artifacts/identity-pilot/correct-policy.canonical.json \
+  --format html --report-detail full \
+  --output ./artifacts/identity-pilot/correct-policy.html
+```
+
+The test also exports `broken-policy`, `observer-unavailable` and `counter-drift` variants. Render their `.canonical.json` files the same way. They demonstrate verified identity controls, known failures and incomplete observation separately; they do not contain complete protocol/performance evidence or qualify an independent production observer. The ephemeral fixture stops after collection. Do not reuse its signed envelope, run ID or target digest as prerequisites for a different target or a later live run.
 
 ## Explicit Positive Tool Inputs
 

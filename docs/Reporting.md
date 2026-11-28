@@ -35,6 +35,8 @@ The HTML report is ordered for decision review:
 
 Inventory is an assessment product, not a failed certificate attempt. Its report says that the assessment completed and that a provider certificate was not issued by the selected profile. Missing or skipped active evidence remains incomplete and never earns pass credit.
 
+Full detail is not full execution: `--report-detail full` exposes recorded evidence but cannot turn Safe inventory into comprehensive assurance. For prerequisite collection, active owned examples and signed identity-control reports, follow [assessment setup](../Mcp.Benchmark.CLI/README.md#choose-report-detail-and-assessment-scope-separately).
+
 When inventory evidence is recorded, the opening reason explains that scope rather than repeating certificate non-issuance. Recorded interruptions, blocking findings and failed policy still take precedence; an empty artifact does not acquire a fabricated completion explanation.
 
 The report follows the system light/dark preference and offers a local System/Light/Dark selector without browser storage. One shared palette governs cards, tables, text, controls and statuses. A CSP-hash-allowlisted local script provides filtering, in-place action evidence and deliberate deep-link navigation. There is no external active content. All claims remain in the static document without JavaScript. Links reveal the relevant disclosure, not every unrelated section. Links to included observations reach their exact rows; references without included payload are labeled as canonical references, not fabricated observations.

@@ -350,6 +350,7 @@ public class FixtureServerProcessIntegrationTests
             canonical.Run.TargetIdentitySha256 = targetDigest;
             canonical.Run.ProtocolVersion = protocol;
             canonical.Run.SchemaVersion = protocol;
+            canonical.Run.ExecutionMode = ExecutionMode.Standard;
             canonical.Run.TerminationOutcome = ValidationOutcome.Succeeded;
             var execution = await pack.GetScenarios().Single().ExecuteAsync(new ValidationScenarioContext
             {
@@ -395,6 +396,8 @@ public class FixtureServerProcessIntegrationTests
             signedEnvelope = serialized;
             observerPublicKey = key.ExportSubjectPublicKeyInfoPem();
             canonicalArtifact = JsonSerializer.Serialize(canonical.CloneWithoutSecrets(), options);
+            using (var recorded = JsonDocument.Parse(canonicalArtifact))
+                recorded.RootElement.GetProperty("run").GetProperty("executionMode").GetString().Should().Be("standard");
             var schemaPath = Path.Combine(packageRoot, "..", "docs", "Schemas", "mcpval-validation-result.schema.json");
             var schemaResult = new JsonSchemaValidator().Validate(System.Text.Json.Nodes.JsonNode.Parse(canonicalArtifact)!,
                 System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllTextAsync(schemaPath, deadline.Token))!);
