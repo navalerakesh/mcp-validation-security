@@ -86,6 +86,14 @@ The protected-target controls keep one server configuration throughout protocol 
 
 The targets are deterministic local fixtures. Live endpoints are unsuitable as golden fixtures because availability, deployment, and policy change independently of validator code.
 
+## Owned Same-Target Comprehensive Qualification
+
+The [2026-11-28 local reference receipt](Resources/Acceptance/comprehensive-reference-local-receipt.json) records complete end-to-end CLI assessment against one owned live HTTP deployment per run: all 50 pinned official scenarios, signed identity controls, native tool/prompt/resource execution and operational evidence were collected for matching target/run identities.
+
+Two independently collected positive runs returned `0`; a deliberately broken actor policy returned `1`, an unavailable observer returned `2`, and missing admission returned `64` before target contact. Each accepted run executed all 26 advertised tools and five prompts. The official error-response scenario remained intact; a separately declared positive argument exercised the fault-control tool's successful operation. Optional external findings stayed visible without being promoted into required core credit.
+
+This used an explicitly adapted reference server, exact positive arguments and finite synthetic client replies. The receipt identifies source/dependency hashes and adaptations; it is not a claim about the untouched upstream server, production providers, model accuracy or an independent observer. Earlier failed configurations were retained. No verdict threshold, required scenario or validator admission boundary was weakened.
+
 ## Test Strategy
 
 - Golden tests assert exact typed claims and independent assessment outcomes for V2 fixtures.

@@ -1,8 +1,14 @@
 # Enterprise Recovery Implementation Status
 
-Updated: 2026-11-25
+Updated: 2026-11-28
 
-Status: implementation in progress; not release-ready. The approved technical plan contains eight delivery slices. Passing foundation gates do not establish milestone acceptance. Local milestone commits are now authorized only after all applicable acceptance gates; pushing, publication and live enterprise probing remain unauthorized.
+Current assessment-path status: the [owned same-target comprehensive controls](Resources/Acceptance/comprehensive-reference-local-receipt.json) now include two accepted runs, a broken identity-policy rejection, unavailable-observer incompleteness and no-contact prerequisite rejection. Modern automatic tool-response handling was corrected from that live evidence. Final source review, local gates and protected PR checks remain release prerequisites; external enterprise/model/human certifications are not implied.
+
+The sections below preserve historical milestone scope and receipts. Their counts, source revisions and operational permissions describe those checkpoints, not the current branch or a current authorization to publish.
+
+## Historical Checkpoint — 2026-11-25
+
+The approved technical plan contains eight delivery slices. Passing foundation gates did not establish milestone acceptance. At this checkpoint, local milestone commits required all applicable gates; pushing, publication and live enterprise probing were not authorized.
 
 ## Agreed Completion Boundary
 

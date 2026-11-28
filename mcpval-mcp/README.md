@@ -166,7 +166,7 @@ On Windows, use the full path to `mcpval.exe`.
 
 `protocolEra` accepts `auto`, `legacy`, or `modern`; prefer `auto` unless the target requires an explicit protocol generation.
 
-`validate` defaults to `assurance: "comprehensive"`. Without operator-owned execution admission, conformance evidence, signed identity baseline and independently reserved validation ID, the CLI rejects the request before target contact. Use `assurance: "inventory"` explicitly for Safe discovery/static assessment. Comprehensive completeness qualification is still in progress; a successful inventory exit does not satisfy it.
+`validate` defaults to `assurance: "comprehensive"`. Without operator-owned execution admission, conformance evidence, signed identity baseline and independently reserved validation ID, the CLI rejects the request before target contact. Use `assurance: "inventory"` explicitly for Safe discovery/static assessment. A successful inventory exit does not satisfy comprehensive requirements. The [owned same-target reference receipt](../docs/Resources/Acceptance/comprehensive-reference-local-receipt.json) qualifies the stated local path, not arbitrary external providers or native-client behavior.
 
 Auto health checks can establish legacy initialization after unavailable modern discovery; explicit `modern` does not fall back. Health output includes the observed protocol separately from the selected plan, with control characters escaped. A successful inventory exit does not imply complete active security, tool-execution, identity, state or relay coverage; inspect the canonical claims and gaps.
 

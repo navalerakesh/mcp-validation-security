@@ -1,0 +1,64 @@
+{
+  "status": "owned-same-target-comprehensive-controls-verified",
+  "observedDate": "2026-11-28",
+  "baseCommit": "374f8b54a5684178eb3d5efc5d94971d5d098484",
+  "implementationSource": {
+    "path": "Mcp.Benchmark.Infrastructure/Validators/ToolValidator.cs",
+    "sha256": "50d062f2eb8401fd2a59ddc25a5ef9b29083f36dc1b9d2247e9fab8413effd61"
+  },
+  "reference": {
+    "origin": "modelcontextprotocol/conformance",
+    "sourceCommit": "f44482ba17df816d3176962a11cdf36aec9bda00",
+    "sourcePath": "examples/servers/typescript/everything-server.ts",
+    "originalSourceSha256": "4502608417f4cde36e50689ba272e46159a14b40f8e64fbf429fbd3fe265bcc4",
+    "adaptedSourceSha256": "7b9f90836f853d42125e3992faf2adcd8d2e7eb78279ff7d693ca58eaa56fb2c",
+    "identityExtensionSha256": "db5b28ccae2fd85b4307155d510c1d2badbf474cc9600ea63efb7bf11e985333",
+    "dependencyLockSha256": "a7d193f173badbe791fd1304d7351313945dcb3dc2169b682a5de9cf4b92cd80",
+    "collectorSourceSha256": "6cc8eaa8a686eeadd089f7884d5647871d7b1d7dcf9cd7102f33bec0b00a44c1",
+    "driverSourceSha256": "cd3ab15db57854285b593bf5fb24b82b4acbc452f26aea9e09cb25f3654ff3bb",
+    "adaptations": [
+      "Loopback-only listener, bounded request count/lifetime and explicit process cleanup.",
+      "Repository-audited SDK/runtime lock instead of the upstream example's historical dependency lock.",
+      "Existing owned identity policy and a separately credentialed observer on the same deployment.",
+      "Explicit JSON Schema 2020-12 conversion, valid SSE framing, JSON-RPC notification silence and malformed-request rejection.",
+      "The error test keeps its default failure behavior and exposes fail=false as a genuine positive operation control.",
+      "Capability-dependent sampling performs a real bounded client-input workflow after capability admission."
+    ],
+    "scope": "Locally adapted synthetic reference deployment. This does not certify the untouched upstream example, external providers, an independent enterprise observer, or native MCP clients.",
+    "reproducibility": "Source and raw qualification artifacts were retained outside the repository with the hashes above. This receipt is a summary, not a turnkey reference-server distribution."
+  },
+  "inputs": {
+    "profile": "comprehensive",
+    "executionMode": "standard",
+    "protocol": "2026-07-28",
+    "maximumRequests": 512,
+    "maximumConcurrency": 2,
+    "timeoutSeconds": 30,
+    "globalTimeoutMinutes": 2,
+    "officialCompanion": "scripts/run-official-conformance.mjs",
+    "officialPin": "Mcp.Benchmark.Core/Resources/official-conformance-pin.json",
+    "scenarioCountPerRun": 50,
+    "identityCasesPerRun": 4,
+    "binding": "Each run used official evidence for its endpoint and a signed identity selection for the same independently reserved run, target and route.",
+    "positiveInputs": "Explicit tool/prompt arguments and finite exact-match roots, synthetic sampling and form-reply plans. No real model, filesystem discovery or automatic user consent.",
+    "faultControl": "The unchanged official tools-call-error scenario passed while native positive execution used the separately declared fail=false argument."
+  },
+  "controls": [
+    { "case": "accepted", "exitCode": 0, "core": "conformant", "security": "verified", "operations": "ready", "toolsExecuted": 26, "promptsExecuted": 5 },
+    { "case": "independent-positive-repeat", "exitCode": 0, "core": "conformant", "security": "verified", "operations": "ready", "toolsExecuted": 26, "promptsExecuted": 5 },
+    { "case": "broken-actor-policy", "exitCode": 1, "core": "conformant", "security": "issuesFound", "operations": "ready", "failedIdentityControl": "actor-binding" },
+    { "case": "observer-unavailable", "exitCode": 2, "core": "conformant", "security": "incomplete", "operations": "ready" },
+    { "case": "missing-admission", "exitCode": 64, "targetContact": false, "evidence": "Receiver-side request counters before and after the rejected CLI invocation." }
+  ],
+  "verification": {
+    "requiredCoreClaimsPerRun": 120,
+    "satisfiedRequiredCoreClaimsPerRun": 120,
+    "artifactSubjectHashesCheckedPerRun": 6,
+    "credentialRedaction": "Ephemeral target/observer credentials and signing private keys were absent from retained artifacts.",
+    "cleanup": "All owned server/collector processes exited.",
+    "suppressionOrThresholdChanges": false,
+    "conformanceRunnerChanges": false,
+    "priorFailures": "Earlier malformed reference responses, insufficient time budgets and mismatched reply plans were retained as diagnostics rather than relabeled passing."
+  },
+  "releaseBoundary": "This qualifies the stated local assessment path. Final repository checks, protected PR checks, review resolution and publication approvals remain separate prerequisites."
+}

@@ -539,9 +539,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             var toolCallDuration = (DateTime.UtcNow - toolCallStartTime).TotalMilliseconds;
             result.ExecutionTimeMs = toolCallDuration;
 
-            if (explicitArguments.ContainsKey(tool.Name))
+            if (explicitArguments.ContainsKey(tool.Name) || ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
             {
-                ValidatePositiveScenarioResponse(toolCallResponse, tool, result, outputShape, serverConfig.ProtocolVersion);
+                ValidatePositiveToolResponse(toolCallResponse, tool, result, outputShape, serverConfig.ProtocolVersion);
                 return result;
             }
 
@@ -1397,9 +1397,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     sw.Stop();
                     toolResult.ExecutionTimeMs = sw.ElapsedMilliseconds;
 
-                    if (explicitArguments.ContainsKey(tool.Name))
+                    if (explicitArguments.ContainsKey(tool.Name) || ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
                     {
-                        ValidatePositiveScenarioResponse(callResponse, tool, toolResult,
+                        ValidatePositiveToolResponse(callResponse, tool, toolResult,
                             BuiltInProtocolFeaturePack.GetToolStructuredOutputShape(SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry)),
                             serverConfig.ProtocolVersion);
                     }
@@ -1683,13 +1683,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             : Send(parameters, cancellationToken);
     }
 
-    private void ValidatePositiveScenarioResponse(JsonRpcResponse response, ToolInfo tool, IndividualToolResult result,
+    private void ValidatePositiveToolResponse(JsonRpcResponse response, ToolInfo tool, IndividualToolResult result,
         ToolStructuredOutputShape outputShape, string? protocolVersion)
     {
         result.ExecutionSuccessful = false;
         result.Status = TestStatus.Inconclusive;
         if (response.ResultType == McpResultType.InputRequired)
-            result.Issues.Add("The explicit tool interaction did not complete within its admitted client-input plan; execution remains unverified.");
+            result.Issues.Add("The tool interaction did not complete within its admitted client-input plan; execution remains unverified.");
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
         {
             result.Status = TestStatus.AuthRequired;
@@ -1708,7 +1708,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             if (root.TryGetProperty("error", out _)) { result.Status = TestStatus.Failed; return; }
             if (!root.TryGetProperty("result", out var payload) || payload.ValueKind != JsonValueKind.Object) return;
             if (ProtocolEraVersions.IsModern(protocolVersion) && (!payload.TryGetProperty("resultType", out var resultType) ||
-                resultType.ValueKind != JsonValueKind.String || !resultType.ValueEquals("complete"))) return;
+                resultType.ValueKind != JsonValueKind.String || !resultType.ValueEquals("complete")))
+            {
+                if (response.ResultType != McpResultType.InputRequired && resultType.ValueKind == JsonValueKind.String &&
+                    resultType.ValueEquals("input_required"))
+                    result.Issues.Add("The tool requested client input that was not completed; execution remains unverified.");
+                return;
+            }
             if (payload.TryGetProperty("isError", out var error))
             {
                 if (error.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return;
@@ -1720,14 +1726,14 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 out var envelopeValidation, fallbackDefinitionName: "JSONRPCResponse") || envelopeValidation == null) return;
             if (!envelopeValidation.IsValid)
             {
-                result.Status = SchemaValidationHelpers.HasSchemaProcessingError(envelopeValidation) ? TestStatus.Inconclusive : TestStatus.Failed;
+                RecordSchemaFailure(envelopeValidation);
                 return;
             }
             var payloadValidation = SchemaValidationHelpers.ValidateDefinition(_schemaRegistry, _schemaValidator, selectedVersion,
                 "CallToolResult", JsonNode.Parse(payload.GetRawText())!);
             if (!payloadValidation.IsValid)
             {
-                result.Status = SchemaValidationHelpers.HasSchemaProcessingError(payloadValidation) ? TestStatus.Inconclusive : TestStatus.Failed;
+                RecordSchemaFailure(payloadValidation);
                 return;
             }
             if (tool.HasOutputSchema && !new SchemaInspectionContext(tool.OutputSchema).CanEvaluateSuppliedArguments()) return;
@@ -1741,12 +1747,27 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 {
                     RuleId = finding.RuleId, Category = finding.Category, Component = tool.Name, Severity = finding.Severity,
                     Source = finding.Source, SpecReference = finding.SpecReference,
-                    Summary = "The explicit positive scenario response did not satisfy the declared response contract.",
+                    Summary = "The positive tool response did not satisfy the declared response contract.",
                     Recommendation = "Inspect the target response privately and correct the declared response contract."
-                }, "The explicit positive scenario response did not satisfy the declared response contract.");
+                }, "The positive tool response did not satisfy the declared response contract.");
         }
         catch (JsonException) { }
-        result.Issues.Add("Explicit positive scenario response assessed; argument values and response content are not retained.");
+        result.Issues.Add("Positive tool response assessed; argument values and response content are not retained.");
+
+        void RecordSchemaFailure(SchemaValidationResult validation)
+        {
+            var unavailable = SchemaValidationHelpers.HasSchemaProcessingError(validation);
+            result.Status = unavailable ? TestStatus.Inconclusive : TestStatus.Failed;
+            if (unavailable) return;
+            result.AddFinding(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolCallResponseValidationFailed,
+                Category = "ProtocolCompliance", Component = tool.Name, Severity = ValidationFindingSeverity.High,
+                Source = ValidationRuleSource.Spec,
+                Summary = "The completed tool response does not satisfy the selected protocol schema.",
+                Recommendation = "Return a valid tools/call response for the negotiated protocol; inspect response content privately."
+            }, "The completed tool response failed protocol schema validation; response content is not retained.");
+        }
     }
 
     private static List<string> GetInputParameterNames(ToolInfo tool)

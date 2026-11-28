@@ -24,6 +24,68 @@ namespace Mcp.Benchmark.Tests.Unit.Validators;
 /// </summary>
 public class ToolValidatorComprehensiveTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticModernInputRequired_ShouldRemainIncompleteWithoutInventingContentFailures(bool executionOnly)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        var response = new JsonRpcResponse
+        {
+            IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"input_required","inputRequests":{"roots":{"method":"roots/list"}},"requestState":"private-continuation"}}"""
+        };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly
+            ? await _validator.ValidateToolExecutionAsync(server, new ToolTestingConfig())
+            : await _validator.ValidateToolDiscoveryAsync(server, new ToolTestingConfig());
+        var tool = result.ToolResults.Single(item => item.ToolName == "owned-tool");
+        tool.Status.Should().Be(TestStatus.Inconclusive);
+        tool.ExecutionSuccessful.Should().BeFalse();
+        tool.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallMissingContentArray);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-continuation");
+    }
+
+    [Theory]
+    [InlineData(false, "complete", TestStatus.Passed)]
+    [InlineData(true, "complete", TestStatus.Passed)]
+    [InlineData(false, "tool-error", TestStatus.Failed)]
+    [InlineData(true, "tool-error", TestStatus.Failed)]
+    [InlineData(false, "malformed", TestStatus.Failed)]
+    [InlineData(true, "malformed", TestStatus.Failed)]
+    public async Task AutomaticModernCompletion_ShouldUseTheSamePositiveResponseContract(
+        bool executionOnly, string variant, TestStatus expected)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        var payload = variant switch
+        {
+            "tool-error" => """{"resultType":"complete","isError":true,"content":[{"type":"text","text":"private-result-canary"}]}""",
+            "malformed" => """{"resultType":"complete","content":[{"type":"text","text":42}]}""",
+            _ => """{"resultType":"complete","content":[{"type":"text","text":"private-result-canary"}]}"""
+        };
+        var response = new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":""" + payload + "}" };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, new ToolTestingConfig())
+            : await _validator.ValidateToolDiscoveryAsync(server, new ToolTestingConfig());
+        var tool = result.ToolResults.Single(item => item.ToolName == "owned-tool");
+        tool.Status.Should().Be(expected);
+        tool.ExecutionSuccessful.Should().Be(expected == TestStatus.Passed);
+        if (variant == "malformed")
+            tool.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallResponseValidationFailed);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-result-canary");
+    }
+
     [Fact]
     public async Task AuthenticationDiscovery_ShouldRemainAuthEvidence_NotInventToolExecution()
     {
@@ -290,12 +352,14 @@ public class ToolValidatorComprehensiveTests
     [InlineData("2025-11-25", false, TestStatus.Passed)]
     public async Task ValidateToolDiscovery_ShouldRejectInvalidParameterHeadersBeforeExecution(string version, bool execute, TestStatus expected)
     {
+        UseEmbeddedSchemas();
         SetupToolsList(_httpClient, """
             [{"name":"invalid-header","description":"Reads a test value.","inputSchema":{"type":"object","properties":{"value":{"type":"string","x-mcp-header":"Bad Name"}}}},
              {"name":"valid-neighbor","description":"Reads a test value.","inputSchema":{"type":"object"}}]
             """, authenticated: false);
         _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200 });
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[{"type":"text","text":"ok"}]}}""" });
 
         var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
         {
@@ -1235,6 +1299,7 @@ public class ToolValidatorComprehensiveTests
     public async Task ValidateToolDiscovery_StructuredContent_ShouldFollowSelectedRevision(
         string revision, string outputType, string content, bool expectedPass)
     {
+        UseEmbeddedSchemas();
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"},\"outputSchema\":{\"type\":\"" + outputType + "\"}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":" + content + "}}");
 
@@ -1258,6 +1323,7 @@ public class ToolValidatorComprehensiveTests
     [InlineData("2026-07-28", true)]
     public async Task ValidateToolDiscovery_StructuredContentWithoutOutputSchema_ShouldStillFollowWireShape(string revision, bool expectedPass)
     {
+        UseEmbeddedSchemas();
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":[]}}");
 

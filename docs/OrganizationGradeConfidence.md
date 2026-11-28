@@ -13,6 +13,7 @@ The product decision surface is V2 assurance only. Typed evidence projects into 
 | Owned or explicitly authorized HTTP target | Supported with execution policy, outbound origin/address controls, bounded evidence, stable exits, and canonical reports |
 | Reviewed local STDIO target | Supported with shell-free structured launch, environment allowlisting, bounded streams, cancellation, and process-tree cleanup; use a disposable sandbox for untrusted commands |
 | CI change gate | Supported with `inventory`, `ci`, or `provider` assurance, baseline comparison, SARIF/JUnit/JSON, and deterministic exit semantics |
+| Comprehensive owned assessment | Same-target official, identity, native and operational evidence exercised through the real CLI with accepted, rejected and unavailable controls; see the [local reference receipt](Resources/Acceptance/comprehensive-reference-local-receipt.json). This does not establish external-provider certification. |
 | Provider evidence | Supported when signed authorization, signed prior-run harness, exact plan/target/protocol binding, verified official conformance, current-run evidence, and final attestation all pass |
 | Offline governance/reporting | Supported from canonical JSON without target contact or decision recomputation |
 
