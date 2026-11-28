@@ -18,6 +18,67 @@ namespace Mcp.Benchmark.Tests.Integration;
 
 public class FixtureServerProcessIntegrationTests
 {
+    [Fact]
+    public async Task RawNotification_ShouldObserveSilenceWithoutTimingOutOrPoisoningTheSession()
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+        await adapter.ValidateInitializeAsync(command);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+
+        var response = await adapter.SendRawJsonAsync(command,
+            """{"jsonrpc":"2.0","method":"notifications/initialized"}""", deadline.Token);
+
+        response.StatusCode.Should().Be(202);
+        response.RawJson.Should().BeNullOrEmpty();
+        (await adapter.CallAsync(command, "ping", null, deadline.Token)).IsSuccess.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("""{"jsonrpc":"2.0","id":null,"method":"ping"}""")]
+    [InlineData("""{"jsonrpc":"invalid","method":"notifications/initialized"}""")]
+    [InlineData("""{"jsonrpc":"2.0","method":"ping"}""")]
+    public async Task RawNotificationObservation_ShouldRetainUnexpectedAndRequiredResponses(string message)
+    {
+        var command = BuildFixtureCommand("compliant");
+        await using var adapter = await StartFixtureServerAsync(command);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        (await adapter.CallAsync(command, "ping", null, deadline.Token)).IsSuccess.Should().BeTrue();
+        var response = await adapter.SendRawJsonAsync(command, message, deadline.Token);
+        response.StatusCode.Should().Be(200);
+        response.RawJson.Should().NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task RawNotification_PartialResponse_ShouldNotCountAsSilenceOrPermitSessionReuse()
+    {
+        var command = BuildFixtureCommand("compliant") + " --partial-notification-response";
+        await using var adapter = await StartFixtureServerAsync(command);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        (await adapter.CallAsync(command, "ping", null, deadline.Token)).IsSuccess.Should().BeTrue();
+        var observe = async () => await adapter.SendRawJsonAsync(command,
+            """{"jsonrpc":"2.0","method":"notifications/initialized"}""", deadline.Token);
+
+        await observe.Should().ThrowAsync<InvalidDataException>().WithMessage("*incomplete stdout frame*");
+        var subsequent = await adapter.CallAsync(command, "ping", null, deadline.Token);
+        subsequent.IsSuccess.Should().BeFalse();
+        subsequent.Error.Should().Contain("restart");
+    }
+
+    [Fact]
+    public async Task RawNotification_ClosedStdout_ShouldNotCountAsObservedSilence()
+    {
+        var command = BuildFixtureCommand("compliant") + " --close-notification-stdout";
+        await using var adapter = await StartFixtureServerAsync(command);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(2));
+        (await adapter.CallAsync(command, "ping", null, deadline.Token)).IsSuccess.Should().BeTrue();
+        var observe = async () => await adapter.SendRawJsonAsync(command,
+            """{"jsonrpc":"2.0","method":"notifications/initialized"}""", deadline.Token);
+
+        await observe.Should().ThrowAsync<EndOfStreamException>();
+        (await adapter.CallAsync(command, "ping", null, deadline.Token)).IsSuccess.Should().BeFalse();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -1068,7 +1129,7 @@ public class FixtureServerProcessIntegrationTests
         using var reader = new StreamReader(stream);
         var read = typeof(StdioMcpClientAdapter).GetMethod("ReadLineWithTimeoutAsync",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
-        var expired = (Task<string?>)read.Invoke(adapter, [reader, TimeSpan.Zero, CancellationToken.None])!;
+        var expired = (Task<string?>)read.Invoke(adapter, [reader, TimeSpan.Zero, CancellationToken.None, false])!;
         (await expired).Should().BeNull();
         (await reader.ReadLineAsync()).Should().Be(line);
     }

@@ -16,6 +16,7 @@ using Moq;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
 
+[Collection("Console output")]
 public sealed class ValidateCommandTests : IDisposable
 {
     private readonly List<string> _sessionRoots = new();

@@ -23,6 +23,7 @@ namespace Mcp.Benchmark.Infrastructure.Http;
 public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposable
 {
     private const int MaximumInterleavedNotifications = 64;
+    private static readonly TimeSpan NotificationObservationWindow = TimeSpan.FromMilliseconds(100);
     private static readonly string[] InheritedEnvironmentAllowlist =
     [
         "PATH", "PATHEXT", "SYSTEMROOT", "WINDIR", "TMP", "TEMP", "TMPDIR", "LANG", "LC_ALL"
@@ -662,7 +663,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     public async Task<ValidatorJsonRpcResponse> SendRawJsonAsync(string endpoint, string rawJson, CancellationToken cancellationToken, bool setContentType = true)
     {
         var protocolVersion = _protocolVersion;
-        var (method, requestId) = TryReadProbeIdentity(rawJson);
+        var (method, requestId, isNotification) = TryReadProbeIdentity(rawJson);
         EnforceExecutionPolicy(method, activeProbe: true);
 
         var serverProcess = _serverProcess;
@@ -696,16 +697,22 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             await serverProcess.StandardInput.WriteLineAsync(rawJson.AsMemory(), cancellationToken);
             await serverProcess.StandardInput.FlushAsync();
 
-            var responseLine = await ReadLineWithTimeoutAsync(serverProcess.StandardOutput, TimeSpan.FromSeconds(10), cancellationToken);
-            requestSucceeded = !string.IsNullOrEmpty(responseLine);
-            if (!requestSucceeded && (requestId != null || method == null)) _sessionUncertain = true;
+            var responseLine = await ReadLineWithTimeoutAsync(serverProcess.StandardOutput,
+                isNotification ? NotificationObservationWindow : TimeSpan.FromSeconds(10), cancellationToken,
+                requireOpenStreamOnSilence: isNotification);
+            var observedSilence = isNotification && responseLine is null && !serverProcess.HasExited;
+            requestSucceeded = !string.IsNullOrEmpty(responseLine) || observedSilence;
+            if (!requestSucceeded) _sessionUncertain = true;
+            var statusCode = observedSilence ? 202 : string.IsNullOrEmpty(responseLine) ? 500 : 200;
+            var error = requestSucceeded ? null : "No response";
             return new ValidatorJsonRpcResponse
             {
-                StatusCode = string.IsNullOrEmpty(responseLine) ? 500 : 200,
-                IsSuccess = !string.IsNullOrEmpty(responseLine),
+                StatusCode = statusCode,
+                IsSuccess = requestSucceeded,
                 RawJson = responseLine,
-                Error = string.IsNullOrEmpty(responseLine) ? "No response" : null,
-                ProbeContext = CreateProbeContext(method, requestId, string.IsNullOrEmpty(responseLine) ? 500 : 200, !string.IsNullOrEmpty(responseLine), string.IsNullOrEmpty(responseLine) ? "No response" : null, protocolVersion)
+                Error = error,
+                ElapsedMs = requestStopwatch.Elapsed.TotalMilliseconds,
+                ProbeContext = CreateProbeContext(method, requestId, statusCode, requestSucceeded, error, protocolVersion)
             };
         }
         catch
@@ -781,7 +788,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             return CreateUnavailableStdioProbeResponse(request, "STDIO message exchange probe requires a raw message.");
         }
 
-        var (method, requestId) = TryReadProbeIdentity(request.RawMessage);
+        var (method, requestId, _) = TryReadProbeIdentity(request.RawMessage);
         var timeout = TimeSpan.FromMilliseconds(Math.Max(1, request.ResponseTimeoutMs));
 
         await WaitForObservedLockAsync(cancellationToken);
@@ -1142,7 +1149,7 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
             ValidationObservability.RecordRequestCompleted(McpSpecConstants.InitializedNotification, stopwatch.Elapsed.TotalMilliseconds, written);
         }
 
-        var unexpectedResponse = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, TimeSpan.FromMilliseconds(100), cancellationToken);
+        var unexpectedResponse = await ReadLineWithTimeoutAsync(_serverProcess.StandardOutput, NotificationObservationWindow, cancellationToken);
         if (!string.IsNullOrWhiteSpace(unexpectedResponse))
         {
             _logger.LogWarning(
@@ -1248,12 +1255,13 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
     }
 
-    private static (string? Method, string? RequestId) TryReadProbeIdentity(string rawJson)
+    private static (string? Method, string? RequestId, bool IsNotification) TryReadProbeIdentity(string rawJson)
     {
         try
         {
             using var document = JsonDocument.Parse(rawJson);
             var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return (null, null, false);
             var method = root.TryGetProperty("method", out var methodElement) && methodElement.ValueKind == JsonValueKind.String
                 ? methodElement.GetString()
                 : null;
@@ -1265,11 +1273,11 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                     _ => null
                 }
                 : null;
-            return (method, requestId);
+            return (method, requestId, IsNotification(root));
         }
         catch (JsonException)
         {
-            return (null, null);
+            return (null, null, false);
         }
     }
 
@@ -1470,6 +1478,13 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
     private static bool HasMatchingResponseId(JsonElement response, string requestId) =>
         Mcp.Benchmark.Infrastructure.Utilities.JsonRpcResponseIdentity.Matches(response, requestId);
 
+    private static bool IsNotification(JsonElement root) =>
+        root.ValueKind == JsonValueKind.Object && !root.TryGetProperty("id", out _) &&
+        root.TryGetProperty("jsonrpc", out var version) && version.ValueKind == JsonValueKind.String && version.ValueEquals("2.0") &&
+        root.TryGetProperty("method", out var method) && method.ValueKind == JsonValueKind.String &&
+        !root.TryGetProperty("result", out _) && !root.TryGetProperty("error", out _) &&
+        (!root.TryGetProperty("params", out var parameters) || parameters.ValueKind == JsonValueKind.Object);
+
     private async Task<string?> ReadResponseLineAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -1487,30 +1502,26 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 throw new OperationAdmissionException("STDIO response and notification bytes exceeded the response budget.");
             }
             using var document = JsonDocument.Parse(line);
-            var root = document.RootElement;
-            var notification = root.ValueKind == JsonValueKind.Object && !root.TryGetProperty("id", out _) &&
-                root.TryGetProperty("jsonrpc", out var version) && version.ValueKind == JsonValueKind.String && version.ValueEquals("2.0") &&
-                root.TryGetProperty("method", out var method) && method.ValueKind == JsonValueKind.String &&
-                !root.TryGetProperty("result", out _) && !root.TryGetProperty("error", out _) &&
-                (!root.TryGetProperty("params", out var parameters) || parameters.ValueKind == JsonValueKind.Object);
-            if (!notification) return line;
+            if (!IsNotification(document.RootElement)) return line;
             if (++notifications > MaximumInterleavedNotifications)
                 throw new OperationAdmissionException("STDIO notification count exceeded the response preparation budget.");
         }
         return null;
     }
 
-    private async Task<string?> ReadLineWithTimeoutAsync(StreamReader reader, TimeSpan timeout, CancellationToken ct)
+    private async Task<string?> ReadLineWithTimeoutAsync(
+        StreamReader reader, TimeSpan timeout, CancellationToken ct, bool requireOpenStreamOnSilence = false)
     {
         ct.ThrowIfCancellationRequested();
         if (timeout <= TimeSpan.Zero) return null;
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         cts.CancelAfter(timeout);
+        var builder = new StringBuilder();
 
         try
         {
             var maxResponseBytes = _executionPolicy?.MaxResponseBytes ?? ExecutionPolicyDefaults.DefaultMaxResponseBytes;
-            var builder = new StringBuilder(Math.Min(maxResponseBytes, 4096));
+            builder.EnsureCapacity(Math.Min(maxResponseBytes, 4096));
             var encoder = Encoding.UTF8.GetEncoder();
             var character = new char[1];
             var encodedBytes = new byte[4];
@@ -1521,6 +1532,8 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
                 var read = await reader.ReadAsync(character.AsMemory(0, 1), cts.Token).ConfigureAwait(false);
                 if (read == 0)
                 {
+                    if (requireOpenStreamOnSilence)
+                        throw new EndOfStreamException("STDIO stdout closed during notification observation.");
                     return builder.Length == 0 ? null : builder.ToString();
                 }
 
@@ -1554,6 +1567,11 @@ public class StdioMcpClientAdapter : IMcpHttpClient, IDisposable, IAsyncDisposab
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
+            if (builder.Length > 0)
+            {
+                _sessionUncertain = true;
+                throw new InvalidDataException("STDIO observation ended with an incomplete stdout frame.");
+            }
             return null;
         }
     }

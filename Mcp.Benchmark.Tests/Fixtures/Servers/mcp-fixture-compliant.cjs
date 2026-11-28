@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const { startFixtureServer } = require("./mcp-fixture-runtime.cjs");
-const { appendFileSync } = require("node:fs");
+const { appendFileSync, closeSync } = require("node:fs");
 const { isAbsolute } = require("node:path");
 
 const auditArgument = process.argv.indexOf("--audit-methods");
@@ -19,6 +19,12 @@ const notificationArgument = process.argv.indexOf("--notifications-before-respon
 const notificationCount = notificationArgument < 0 ? 0 : Number(process.argv[notificationArgument + 1]);
 if (!Number.isInteger(notificationCount) || notificationCount < 0 || notificationCount > 65) throw new Error("Invalid fixture notification count.");
 startFixtureServer("compliant", method => {
+	if (method === "notifications/initialized" && process.argv.includes("--close-notification-stdout")) {
+		closeSync(1);
+	}
+	if (method === "notifications/initialized" && process.argv.includes("--partial-notification-response")) {
+		process.stdout.write('{"jsonrpc":"2.0"');
+	}
 	if (!auditFile) return;
 	if (++recorded > 256 || method.length > 128) throw new Error("Fixture method audit budget exceeded.");
 	appendFileSync(auditFile, `${JSON.stringify({ method })}\n`, { mode: 0o600 });

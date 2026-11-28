@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { access, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdtemp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, parse, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +43,57 @@ function isAlive(pid: unknown): boolean {
     throw error;
   }
 }
+
+test("Actual active CLI run preserves the STDIO session after notification observation", { timeout: 60_000 }, async () => {
+  const cli = process.env.MCPVAL_INTEGRATION_CLI;
+  assert.ok(cli, "A freshly built CLI is required.");
+  const root = await mkdtemp(join(tmpdir(), "mcpval-active-"));
+  try {
+    for (const file of ["mcp-fixture-compliant.cjs", "mcp-fixture-runtime.cjs"])
+      await copyFile(resolve(packageRoot, "../Mcp.Benchmark.Tests/Fixtures/Servers", file), join(root, file));
+    const audit = join(root, "methods.jsonl");
+    const server = `${JSON.stringify(process.execPath)} mcp-fixture-compliant.cjs --audit-methods ${JSON.stringify(audit)}`;
+    await assert.rejects(promisify(execFile)(cli,
+      ["validate", "--server", server, "--assurance", "comprehensive", "--mode", "standard"],
+      { cwd: root, timeout: 10_000, maxBuffer: 128 * 1024 }),
+    error => record(error).code === 64);
+    await assert.rejects(access(audit), { code: "ENOENT" });
+    try {
+      await promisify(execFile)(cli, ["validate", "--server", server, "--assurance", "ci", "--mode", "standard",
+        "--access", "public", "--protocol-era", "legacy", "--mcpspec", "2025-11-25",
+        "--max-requests", "200", "--max-concurrency", "2", "--timeout", "10", "--output", join(root, "reports")],
+      { cwd: root, timeout: 45_000, maxBuffer: 1024 * 1024 });
+    } catch (error) {
+      if (record(error).code !== 2) throw error;
+    }
+    const bundles = (await readdir(join(root, "reports"), { withFileTypes: true })).filter(entry => entry.isDirectory());
+    assert.equal(bundles.length, 1);
+    const bundle = join(root, "reports", bundles[0].name);
+    const resultFile = (await readdir(bundle)).find(name => name.endsWith("-result.json"));
+    assert.ok(resultFile);
+    const result = record(JSON.parse(await readFile(join(bundle, resultFile), "utf8")));
+    const measurements = record(result.measurements);
+    assert.equal(record(measurements.protocolCompliance).status, "passed");
+    const tools = record(measurements.toolValidation);
+    assert.equal(tools.toolsDiscovered, 2);
+    assert.equal(record(tools.catalogEnumeration).isComplete, true);
+    assert.ok(Array.isArray(tools.toolResults) && tools.toolResults.length === 2);
+    assert.ok(tools.toolResults.every(tool => record(tool).executionSuccessful === true));
+    for (const [category, collection, success] of [
+      ["resourceTesting", "resourceResults", "accessSuccessful"],
+      ["promptTesting", "promptResults", "executionSuccessful"],
+    ]) {
+      const items = record(measurements[category])[collection];
+      assert.ok(Array.isArray(items) && items.length > 0 && items.every(item => record(item)[success] === true));
+    }
+    const methods = (await readFile(audit, "utf8")).trim().split("\n").map(line => record(JSON.parse(line)).method);
+    for (const method of ["notifications/initialized", "tools/call", "resources/read", "prompts/get"])
+      assert.ok(methods.includes(method), `The owned target did not observe ${method}`);
+    assert.equal(record(result.run).terminationOutcome, "succeeded");
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test("Actual CLI help uses the execution command surface without reading config or launching targets", async () => {
   const cli = process.env.MCPVAL_INTEGRATION_CLI;

@@ -89,7 +89,7 @@ dotnet run --project Mcp.Benchmark.CLI -- validate \
   --report-detail full --output ./artifacts/owned-active
 ```
 
-This is an active **diagnostic** example, not a comprehensive-success fixture. An observed run returned incomplete exit `2`: an active protocol probe timed out, subsequent STDIO execution remained unverified, and some transport fault probes were unavailable. Preserve those outcomes; fixture naming does not guarantee that the entire assessment passes. Safe reports and category-level tests are not substitutes for a complete active end-to-end result.
+This is an active **diagnostic** example, not a comprehensive-success fixture. The owned run exercises real tool calls, prompt retrieval, resource reads and bounded catalog load. Native category success can still produce incomplete exit `2` because official core-conformance and identity-control evidence were not supplied. Preserve that distinction; fixture naming does not guarantee that the entire selected assessment passes. Safe reports and category-level tests are not substitutes for a complete comprehensive end-to-end result.
 
 For reproducible identity evidence, the owned HTTP pilot exercises real issued fixture credentials and a separately credentialed observer:
 

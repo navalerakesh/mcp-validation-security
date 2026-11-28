@@ -16,6 +16,7 @@ using Moq;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
 
+[Collection("Console output")]
 public sealed class ProviderCertificationCommandTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"mcpval-provider-command-{Guid.NewGuid():N}");

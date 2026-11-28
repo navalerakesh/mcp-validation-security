@@ -41,6 +41,7 @@ Native Windows supervision tests require Windows job objects and the freshly bui
 ## Adding Coverage
 
 - Add unit tests under `Unit/` when the behavior is deterministic and dependency boundaries can be isolated.
+- Command tests that read or mutate process-wide console state or `Environment.ExitCode` use the existing nonparallel `Console output` collection. Retaining/restoring a value alone does not isolate concurrent tests.
 - Add integration tests under `Integration/` when transport behavior, serialization, or orchestration matters.
 - Add architecture tests under `Architecture/` when a dependency rule or boundary must stay enforced.
 - Update snapshots when a report change is intentional and reviewed, not as a shortcut around a regression.
