@@ -2,6 +2,7 @@ using Mcp.Benchmark.CLI.Abstractions;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.CLI;
+using Mcp.Benchmark.CLI.Utilities;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
@@ -73,6 +74,9 @@ public sealed class ReportCommandTests : IDisposable
         var tempDirectory = CreateTempDirectory();
         var inputPath = Path.Combine(tempDirectory, "validation-result.json");
         var outputPath = Path.Combine(tempDirectory, "validation-report.html");
+        var configPath = Path.Combine(tempDirectory, "configuration.json");
+        await File.WriteAllTextAsync(configPath,
+            "{\"schemaVersion\":\"1.0.0\",\"server\":{\"Headers\":{\"canary-header\":\"canary-value\"}},\"reporting\":{\"specProfile\":\"2026-07-28\"}}");
 
         var result = new ValidationResult
         {
@@ -102,19 +106,20 @@ public sealed class ReportCommandTests : IDisposable
             .Setup(reportRenderer => reportRenderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>()))
             .Returns("<html></html>");
 
+        var artifactStore = new Mock<ISessionArtifactStore>(MockBehavior.Loose);
         var command = new ReportCommand(
             consoleOutput.Object,
             NullLogger<ReportCommand>.Instance,
             renderer.Object,
             new Mock<IGitHubActionsReporter>(MockBehavior.Loose).Object,
             new Mock<INextStepAdvisor>(MockBehavior.Loose).Object,
-            new Mock<ISessionArtifactStore>(MockBehavior.Loose).Object);
+            artifactStore.Object);
 
         await command.ExecuteAsync(
             new FileInfo(inputPath),
             "html",
             new FileInfo(outputPath),
-            configFile: null,
+            configFile: new FileInfo(configPath),
             verbose: false,
             reportDetail: "minimal");
 
@@ -122,6 +127,16 @@ public sealed class ReportCommandTests : IDisposable
             It.IsAny<ValidationResult>(),
             It.IsAny<ReportingConfig>(),
             false), Times.Once);
+
+        var saved = artifactStore.Invocations.Single(invocation => invocation.Method.Name == nameof(ISessionArtifactStore.TrySaveJson));
+        var receipt = System.Text.Json.JsonSerializer.SerializeToElement(saved.Arguments[1], ArtifactJsonOptions.Create(writeIndented: false));
+        var origins = receipt.GetProperty("configurationSources");
+        origins.GetRawText().Should().NotContain("canary");
+        origins.EnumerateArray().Should().OnlyContain(origin => origin.GetProperty("setting").GetString()!.StartsWith("$.reporting.", StringComparison.Ordinal));
+        origins.EnumerateArray().Single(origin => origin.GetProperty("setting").GetString() == "$.reporting.detailLevel")
+            .GetProperty("source").GetString().Should().Be("commandLine");
+        origins.EnumerateArray().Single(origin => origin.GetProperty("setting").GetString() == "$.reporting.specProfile")
+            .GetProperty("source").GetString().Should().Be("file");
     }
 
     public void Dispose()

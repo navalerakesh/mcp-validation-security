@@ -20,7 +20,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
     private readonly ISchemaRegistry _schemaRegistry;
     private readonly IContentSafetyAnalyzer _contentSafetyAnalyzer;
 
-    public ResourceValidator(ILogger<ResourceValidator> logger, IMcpHttpClient httpClient, ISchemaValidator schemaValidator, ISchemaRegistry schemaRegistry, IContentSafetyAnalyzer contentSafetyAnalyzer) 
+    public ResourceValidator(ILogger<ResourceValidator> logger, IMcpHttpClient httpClient, ISchemaValidator schemaValidator, ISchemaRegistry schemaRegistry, IContentSafetyAnalyzer contentSafetyAnalyzer)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
@@ -32,9 +32,8 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
     public async Task<ResourceTestResult> ValidateResourceDiscoveryAsync(McpServerConfig serverConfig, ResourceTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Resource Discovery", async (ct) =>
+        return await ExecuteValidationAsync<ResourceTestResult>(serverConfig, "Resource Discovery", async (result, ct) =>
         {
-            var result = new ResourceTestResult();
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedResponse = CapabilitySnapshotUtils.CloneResponse(capabilitySnapshot?.Payload?.ResourceListResponse);
             var templateSpecFailure = false;
@@ -54,7 +53,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesList, null, ct);
             }
-            
+
             // MCP spec allows both public and auth-protected servers
             var authChallenge = AuthenticationChallengeInterpreter.Inspect(response);
             if (authChallenge.RequiresAuthentication)
@@ -62,7 +61,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 result.Status = TestStatus.AuthRequired;
                 result.ResourcesDiscovered = 0;
                 result.Score = 0;
-                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader 
+                result.Issues.Add(authChallenge.HasWwwAuthenticateHeader
                     ? "Auth required: server returned an authentication challenge; resource contents were not validated."
                     : "Auth required: server rejected resource discovery but did not include WWW-Authenticate metadata.");
                 return result;
@@ -76,7 +75,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 result.Issues.Add("✅ COMPLIANT: No resources were advertised; no resource reads were required");
                 return result;
             }
-            
+
             if (!response.IsSuccess)
             {
                 result.Status = TestStatus.Failed;
@@ -85,47 +84,48 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             }
 
             var rawJson = response.RawJson ?? "{}";
-            var jsonDoc = JsonDocument.Parse(rawJson);
+            result.CatalogEnumeration = new CatalogEnumerationEvidence();
+            result.DiscoveredResourceUris = [];
             var catalogTruncated = false;
-            if (jsonDoc.RootElement.TryGetProperty("result", out var resultElement) &&
-                resultElement.TryGetProperty("resources", out var resourcesElement) &&
-                resourcesElement.ValueKind == JsonValueKind.Array)
+            var maxResources = Math.Clamp(config.MaxResources, 1, CatalogEnumerationLimits.MaximumItems);
             {
-                result.ResourcesDiscovered = resourcesElement.GetArrayLength();
-                var maxResources = Math.Max(1, config.MaxResources);
-                catalogTruncated = result.ResourcesDiscovered > maxResources;
-                if (catalogTruncated)
+                await foreach (var resource in BoundedCatalogReader.ReadAsync(response, "resources", maxResources,
+                    result.CatalogEnumeration, result.Issues,
+                    (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesList,
+                        new { cursor }, serverConfig.Authentication, token), ct))
                 {
-                    result.Findings.Add(new ValidationFinding
-                    {
-                        RuleId = ValidationFindingRuleIds.ResourceCatalogTruncated,
-                        Category = "Coverage",
-                        Component = ValidationConstants.Methods.ResourcesList,
-                        Severity = ValidationFindingSeverity.Medium,
-                        Source = ValidationRuleSource.Heuristic,
-                        Summary = $"Resource catalog processing was limited to {maxResources} of {result.ResourcesDiscovered} entries.",
-                        Recommendation = "Raise validation.resources.maxResources only within a reviewed run budget, or validate catalog partitions separately.",
-                        Metadata = new Dictionary<string, string>
-                        {
-                            ["observedCount"] = result.ResourcesDiscovered.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            ["processedLimit"] = maxResources.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                            ["truncated"] = "true"
-                        }
-                    });
-                    result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} entries.");
-                }
-
-                foreach (var resource in resourcesElement.EnumerateArray().Take(maxResources))
-                {
+                    result.ResourcesDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
+                    ct.ThrowIfCancellationRequested();
                     var resourceResult = new IndividualResourceResult
                     {
                         DiscoveredCorrectly = true,
                         MetadataValid = true
                     };
 
+                    if (CatalogMetadataGuard.HasMalformedText(resource, "uri", "name", "description", "mimeType"))
+                    {
+                        result.CatalogEnumeration.RejectedItems++;
+                        resourceResult.MetadataValid = false;
+                        resourceResult.Status = TestStatus.Failed;
+                        resourceResult.AddFinding(new ValidationFinding
+                        {
+                            RuleId = ValidationFindingRuleIds.ResourceListItemInvalid,
+                            Category = "ProtocolCompliance",
+                            Component = ValidationConstants.Methods.ResourcesList,
+                            Severity = ValidationFindingSeverity.High,
+                            Summary = "Resource catalog item has an invalid object or metadata field type.",
+                            Recommendation = "Return resource metadata objects with string uri, name and optional descriptive fields."
+                        }, "Malformed resource catalog item; neighboring entries remain available.");
+                        result.ResourceResults.Add(resourceResult);
+                        continue;
+                    }
+                    result.CatalogEnumeration.RecoveredItems++;
+                    result.ResourceResults.Add(resourceResult);
+
                     if (resource.TryGetProperty("uri", out var uriElement))
                     {
                         resourceResult.ResourceUri = uriElement.GetString() ?? "";
+                        result.DiscoveredResourceUris.Add(resourceResult.ResourceUri);
                     }
                     else
                     {
@@ -179,74 +179,103 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                         }
                     }
 
-                    result.ResourceResults.Add(resourceResult);
-
                     // EXECUTION VALIDATION: resources/read
-                    if (config.TestResourceReading && resourceResult.MetadataValid && !string.IsNullOrEmpty(resourceResult.ResourceUri)) 
+                    if (config.TestResourceReading && resourceResult.MetadataValid && !string.IsNullOrEmpty(resourceResult.ResourceUri))
                     {
-                        try 
+                        try
                         {
                             var readStart = DateTime.UtcNow;
                             var readResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesRead, new { uri = resourceResult.ResourceUri }, serverConfig.Authentication, ct);
                             resourceResult.AccessTimeMs = (DateTime.UtcNow - readStart).TotalMilliseconds;
 
-                            if (readResponse.IsSuccess)
+                            resourceResult.Status = ContentExecutionEvidence.Assess(readResponse, serverConfig.ProtocolVersion, "contents");
+                            if (resourceResult.Status == TestStatus.Passed)
                             {
-                                resourceResult.AccessSuccessful = true;
-                                result.ResourcesAccessible++;
-                                
+
                                 // MCP Spec Compliance: Validate resources/read response structure
                                 using var readDoc = JsonDocument.Parse(readResponse.RawJson ?? "{}");
                                 if (readDoc.RootElement.TryGetProperty("result", out var readRes) &&
                                     readRes.TryGetProperty("contents", out var contents) &&
-                                    contents.ValueKind == JsonValueKind.Array && 
-                                    contents.GetArrayLength() > 0)
+                                    contents.ValueKind == JsonValueKind.Array)
                                 {
                                     resourceResult.Issues.Add("✅ Resource read: contents[] array present");
-                                    var firstContent = contents[0];
-
-                                    // Validate uri field (MUST per spec)
-                                    if (firstContent.TryGetProperty("uri", out var uriVal))
+                                    foreach (var firstContent in contents.EnumerateArray())
                                     {
-                                        if (string.IsNullOrEmpty(uriVal.GetString()))
-                                            resourceResult.Issues.Add("❌ MCP Compliance: contents[0].uri is empty (MUST be valid URI)");
-                                    }
-                                    else
-                                    {
-                                        resourceResult.AddFinding(new ValidationFinding
-                                        {
-                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
-                                            Category = "ProtocolCompliance",
-                                            Component = resourceResult.ResourceUri,
-                                            Severity = ValidationFindingSeverity.Critical,
-                                            Summary = "resources/read contents[0] missing 'uri' field",
-                                            Recommendation = "Return uri on each resource content item."
-                                        }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
-                                    }
 
-                                    if (firstContent.TryGetProperty("mimeType", out var mime)) 
-                                        resourceResult.MimeType = mime.GetString();
-
-                                    ValidateResourceReadContentItem(result, resourceResult, firstContent);
-                                    
-                                    // MUST have text OR blob
-                                    if (firstContent.TryGetProperty("text", out var text))
-                                        resourceResult.ContentSize = text.GetString()?.Length ?? 0;
-                                    else if (firstContent.TryGetProperty("blob", out var blob))
-                                        resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
-                                    else
-                                        resourceResult.AddFinding(new ValidationFinding
+                                        // Validate uri field (MUST per spec)
+                                        if (firstContent.TryGetProperty("uri", out var uriVal))
                                         {
-                                            RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
-                                            Category = "ProtocolCompliance",
-                                            Component = resourceResult.ResourceUri,
-                                            Severity = ValidationFindingSeverity.Critical,
-                                            Summary = "resources/read contents[0] missing both text and blob",
-                                            Recommendation = "Return either text or blob in each resource content item."
-                                        }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                            if (uriVal.ValueKind != JsonValueKind.String || !HasAbsoluteUriScheme(uriVal.GetString() ?? string.Empty))
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource content URI is invalid.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            resourceResult.Status = TestStatus.Failed;
+                                            resourceResult.AddFinding(new ValidationFinding
+                                            {
+                                                RuleId = ValidationFindingRuleIds.ResourceReadMissingContentUri,
+                                                Category = "ProtocolCompliance",
+                                                Component = resourceResult.ResourceUri,
+                                                Severity = ValidationFindingSeverity.Critical,
+                                                Summary = "resources/read contents[0] missing 'uri' field",
+                                                Recommendation = "Return uri on each resource content item."
+                                            }, "❌ MCP Compliance: contents[0] missing 'uri' field (MUST per spec)");
+                                        }
+
+                                        if (firstContent.TryGetProperty("mimeType", out var mime))
+                                        {
+                                            if (mime.ValueKind == JsonValueKind.String) resourceResult.MimeType = mime.GetString();
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource content MIME type must be a string.");
+                                            }
+                                        }
+
+                                        ValidateResourceReadContentItem(result, resourceResult, firstContent);
+
+                                        // MUST have text OR blob
+                                        if (firstContent.TryGetProperty("text", out var text))
+                                        {
+                                            if (text.ValueKind == JsonValueKind.String) resourceResult.ContentSize = text.GetString()?.Length ?? 0;
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource text content must be a string.");
+                                            }
+                                        }
+                                        else if (firstContent.TryGetProperty("blob", out var blob))
+                                        {
+                                            if (blob.ValueKind == JsonValueKind.String) resourceResult.ContentSize = blob.GetString()?.Length ?? 0;
+                                            else
+                                            {
+                                                resourceResult.Status = TestStatus.Failed;
+                                                resourceResult.Issues.Add("Resource blob content must be a string.");
+                                            }
+                                        }
+                                        else
+                                        {
+                                            resourceResult.Status = TestStatus.Failed;
+                                            resourceResult.AddFinding(new ValidationFinding
+                                            {
+                                                RuleId = ValidationFindingRuleIds.ResourceReadMissingTextOrBlob,
+                                                Category = "ProtocolCompliance",
+                                                Component = resourceResult.ResourceUri,
+                                                Severity = ValidationFindingSeverity.Critical,
+                                                Summary = "resources/read contents[0] missing both text and blob",
+                                                Recommendation = "Return either text or blob in each resource content item."
+                                            }, "❌ MCP Compliance: contents[0] missing both 'text' and 'blob' (MUST have one)");
+                                        }
+                                    }
+                                    resourceResult.AccessSuccessful = resourceResult.Status == TestStatus.Passed;
+                                    if (resourceResult.AccessSuccessful) result.ResourcesAccessible++;
                                 }
                                 else
                                 {
+                                    resourceResult.Status = TestStatus.Failed;
                                     resourceResult.AddFinding(new ValidationFinding
                                     {
                                         RuleId = ValidationFindingRuleIds.ResourceReadMissingContentArray,
@@ -262,13 +291,34 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             else
                             {
                                 resourceResult.AccessSuccessful = false;
-                                resourceResult.Issues.Add($"⚠️ Resource read failed: {readResponse.Error ?? readResponse.StatusCode.ToString()}");
+                                resourceResult.Issues.Add($"Resource retrieval did not establish completed content evidence ({resourceResult.Status}).");
                             }
+                        }
+                        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                        {
+                            resourceResult.Status = TestStatus.Cancelled;
+                            resourceResult.AccessSuccessful = false;
+                            throw;
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            resourceResult.Status = TestStatus.Inconclusive;
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Issues.Add("Resource retrieval timed out before completed content evidence was available.");
+                        }
+                        catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException)
+                        {
+                            resourceResult.Status = ex is JsonException ? TestStatus.Failed : TestStatus.Error;
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Issues.Add("Resource retrieval or content processing failed; private response details are not retained.");
+                            Logger.LogWarning("Resource content processing ended with {ExceptionType}", ex.GetType().Name);
                         }
                         catch (Exception ex)
                         {
-                            resourceResult.AccessSuccessful = false; 
-                            resourceResult.Issues.Add($"❌ Resource read exception: {ex.Message}");
+                            resourceResult.AccessSuccessful = false;
+                            resourceResult.Status = TestStatus.Error;
+                            resourceResult.Issues.Add("Resource retrieval failed; private exception details are not retained.");
+                            Logger.LogError("Resource retrieval failed with {ExceptionType}", ex.GetType().Name);
                         }
                     }
                 }
@@ -276,18 +326,41 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
             await ValidateResourceSubscriptionsIfAdvertisedAsync(serverConfig, config, result, capabilitySnapshot, ct);
 
-                    // Schema-based validation of resources/list response shape (best-effort)
-                    var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
-                    if (SchemaValidationHelpers.TryValidateListResult(
-                    _schemaRegistry,
-                    _schemaValidator,
-                    protocolVersion,
-                    SchemaValidationHelpers.ListResourcesResultDefinition,
-                    rawJson,
-                    Logger,
-                    out var schemaValidationResult) &&
-                schemaValidationResult is not null &&
-                !schemaValidationResult.IsValid)
+            result.ResourcesDiscovered = checked((int)result.CatalogEnumeration.RawItemsObserved);
+            catalogTruncated = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.BudgetExceeded;
+            if (catalogTruncated)
+            {
+                result.Findings.Add(new ValidationFinding
+                {
+                    RuleId = ValidationFindingRuleIds.ResourceCatalogTruncated,
+                    Category = "Coverage",
+                    Component = ValidationConstants.Methods.ResourcesList,
+                    Severity = ValidationFindingSeverity.Medium,
+                    Source = ValidationRuleSource.Heuristic,
+                    Summary = $"Resource catalog processing was limited to {maxResources} of {result.ResourcesDiscovered} observed entries.",
+                    Recommendation = "Validate catalog partitions within a reviewed run budget.",
+                    Metadata = new Dictionary<string, string>
+                    {
+                        ["observedCount"] = result.ResourcesDiscovered.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["processedLimit"] = maxResources.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        ["truncated"] = "true"
+                    }
+                });
+                result.Issues.Add($"Resource catalog processing truncated at {maxResources} of {result.ResourcesDiscovered} observed entries.");
+            }
+
+            // Schema-based validation of resources/list response shape (best-effort)
+            var protocolVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, serverConfig.ProtocolVersion);
+            if (SchemaValidationHelpers.TryValidateListResult(
+            _schemaRegistry,
+            _schemaValidator,
+            protocolVersion,
+            SchemaValidationHelpers.ListResourcesResultDefinition,
+            rawJson,
+            Logger,
+            out var schemaValidationResult) &&
+        schemaValidationResult is not null &&
+        !schemaValidationResult.IsValid)
             {
                 var schemaErrors = schemaValidationResult.Errors ?? new List<string>();
                 var hasProcessingError = SchemaValidationHelpers.HasSchemaProcessingError(schemaValidationResult);
@@ -302,14 +375,15 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     result.Issues.Add($"   • {error}");
                 }
             }
-            
+
             if (result.Status != TestStatus.Failed)
             {
-                result.Status = result.ResourceResults.All(r => r.Status == TestStatus.Passed) ? TestStatus.Passed : TestStatus.Failed;
+                result.Status = ContentExecutionEvidence.Aggregate(result.ResourceResults.Select(resource => resource.Status));
             }
-            if (catalogTruncated && result.Status == TestStatus.Passed)
+            if (!result.CatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
             {
-                result.Status = TestStatus.Inconclusive;
+                result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                    ? TestStatus.AuthRequired : TestStatus.Inconclusive;
                 result.Message = $"Resource validation processed a bounded subset of {result.ResourcesDiscovered} catalog entries.";
             }
 
@@ -319,25 +393,37 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                 var templatesResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesTemplatesList, null, serverConfig.Authentication, ct);
                 if (templatesResponse.IsSuccess && !string.IsNullOrEmpty(templatesResponse.RawJson))
                 {
-                    using var templatesDoc = JsonDocument.Parse(templatesResponse.RawJson);
-                    if (templatesDoc.RootElement.TryGetProperty("result", out var templatesResult) &&
-                        templatesResult.TryGetProperty("resourceTemplates", out var templates) &&
-                        templates.ValueKind == JsonValueKind.Array)
+                    result.TemplateCatalogEnumeration = new CatalogEnumerationEvidence();
                     {
-                        var templateCount = templates.GetArrayLength();
-                        result.ResourceTemplatesDiscovered = templateCount;
-                        result.Issues.Add($"✅ Resource templates: {templateCount} templates discovered");
-                        
                         // Validate each template has uriTemplate and name
-                        foreach (var template in templates.EnumerateArray())
+                        await foreach (var template in BoundedCatalogReader.ReadAsync(templatesResponse, "resourceTemplates",
+                            CatalogEnumerationLimits.MaximumItems, result.TemplateCatalogEnumeration, result.Issues,
+                            (cursor, token) => _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ResourcesTemplatesList,
+                                new { cursor }, serverConfig.Authentication, token), ct))
                         {
+                            result.ResourceTemplatesDiscovered = checked((int)result.TemplateCatalogEnumeration.RawItemsObserved);
+                            if (CatalogMetadataGuard.HasMalformedText(template, "uriTemplate", "name", "description", "mimeType"))
+                            {
+                                result.TemplateCatalogEnumeration.RejectedItems++;
+                                templateSpecFailure = true;
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateListItemInvalid,
+                                    Category = "ProtocolCompliance",
+                                    Component = ValidationConstants.Methods.ResourcesTemplatesList,
+                                    Severity = ValidationFindingSeverity.High,
+                                    Summary = "Resource template item has an invalid object or metadata field type.",
+                                    Recommendation = "Return template metadata objects with string identifiers and descriptive fields."
+                                });
+                                continue;
+                            }
+                            result.TemplateCatalogEnumeration.RecoveredItems++;
                             var component = GetTemplateComponent(template);
                             var hasUriTemplate = template.TryGetProperty("uriTemplate", out var uriTemplateElement) &&
                                 uriTemplateElement.ValueKind == JsonValueKind.String &&
                                 !string.IsNullOrWhiteSpace(uriTemplateElement.GetString());
                             var hasName = template.TryGetProperty("name", out var nameElement) &&
-                                nameElement.ValueKind == JsonValueKind.String &&
-                                !string.IsNullOrWhiteSpace(nameElement.GetString());
+                                nameElement.ValueKind == JsonValueKind.String;
                             var hasDescription = template.TryGetProperty("description", out var descriptionElement) &&
                                 descriptionElement.ValueKind == JsonValueKind.String &&
                                 !string.IsNullOrWhiteSpace(descriptionElement.GetString());
@@ -359,14 +445,27 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
 
                             if (!hasName)
                             {
-                                result.Issues.Add("⚠️ MCP Compliance: Resource template missing 'name' field");
+                                templateSpecFailure = true;
+                                result.Issues.Add("Resource template is missing its required name field.");
+                                result.Findings.Add(new ValidationFinding
+                                {
+                                    RuleId = ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing,
+                                    Category = "ProtocolCompliance",
+                                    Component = component,
+                                    Severity = ValidationFindingSeverity.High,
+                                    Summary = $"Resource template '{component}' is missing the required name property.",
+                                    Recommendation = "Return the required string name for every resource template."
+                                });
+                            }
+                            else if (string.IsNullOrWhiteSpace(nameElement.GetString()))
+                            {
                                 result.Findings.Add(new ValidationFinding
                                 {
                                     RuleId = ValidationFindingRuleIds.ResourceTemplateNameMissing,
                                     Category = "McpGuideline",
                                     Component = component,
                                     Severity = ValidationFindingSeverity.Low,
-                                    Summary = $"Resource template '{component}' does not include a name.",
+                                    Summary = $"Resource template '{component}' does not include a readable non-blank name.",
                                     Recommendation = "Add a stable name so clients can present resource templates clearly."
                                 });
                             }
@@ -412,6 +511,11 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                             }
                         }
                     }
+                    result.ResourceTemplatesDiscovered = checked((int)result.TemplateCatalogEnumeration.RawItemsObserved);
+                    result.Issues.Add($"Resource templates: {result.ResourceTemplatesDiscovered} entries observed.");
+                    if (!result.TemplateCatalogEnumeration.IsComplete && result.Status == TestStatus.Passed)
+                        result.Status = result.TemplateCatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                            ? TestStatus.AuthRequired : TestStatus.Inconclusive;
                 }
                 else if (AuthenticationChallengeInterpreter.Inspect(templatesResponse).RequiresAuthentication)
                 {
@@ -422,6 +526,10 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
                     result.Issues.Add("ℹ️ Resource templates: Not supported by server (MethodNotFound)");
                 }
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 Logger.LogWarning(ex, "Resource templates validation failed");
@@ -431,7 +539,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Status = TestStatus.Failed;
             }
-            
+
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
 
@@ -443,7 +551,7 @@ public class ResourceValidator : BaseValidator<ResourceValidator>, IResourceVali
             {
                 result.Issues.Add($"⚠️ Resource validation found {result.Findings.Count} structured finding(s) across resources and templates");
             }
-            
+
             return result;
         }, cancellationToken);
     }

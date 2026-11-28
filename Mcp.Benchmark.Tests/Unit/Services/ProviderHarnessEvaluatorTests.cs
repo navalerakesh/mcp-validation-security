@@ -9,6 +9,31 @@ public sealed class ProviderHarnessEvaluatorTests
     private static readonly DateTimeOffset Now = new(2026, 11, 5, 12, 0, 0, TimeSpan.Zero);
     private static readonly string TargetDigest = new('a', 64);
 
+    [Theory]
+    [InlineData("valid", true)]
+    [InlineData("short", false)]
+    [InlineData("nonhex", false)]
+    public void Evaluate_AdmittedPlanDigest_ShouldBeValidatedIndependentlyOfValidReceipts(string variant, bool admitted)
+    {
+        var manifest = CreateManifest([CreateRun("run-1"), CreateRun("run-2"), CreateRun("run-3")]);
+        var planDigest = variant == "valid" ? new string('e', 64) : variant == "short" ? "short" : new string('z', 64);
+
+        var assessment = Mcp.Benchmark.Core.Services.ProviderHarnessEvaluator.Evaluate(
+            manifest, Verification(manifest), TargetDigest, manifest.ProtocolRevision, planDigest,
+            ExecutionMode.Standard, Now, manifest.Authorization.AllowedProbeClasses);
+
+        if (admitted)
+        {
+            assessment.Status.Should().Be(ProviderHarnessStatus.Verified);
+            assessment.AcceptedRunCount.Should().Be(3);
+        }
+        else
+        {
+            assessment.Status.Should().Be(ProviderHarnessStatus.Invalid);
+            assessment.Reasons.Should().Contain("Admitted provider execution-plan digest is invalid.");
+        }
+    }
+
     [Fact]
     public void Evaluate_InvalidArguments_ShouldThrow()
     {

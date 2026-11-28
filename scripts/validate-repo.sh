@@ -136,6 +136,11 @@ if $run_audits && $run_dotnet; then
   require_command python3
 fi
 
+if $run_node; then
+  echo "==> Installing npm dependencies for SDK-backed fixtures"
+  npm --prefix ./mcpval-mcp ci
+fi
+
 if $run_dotnet; then
   echo "==> Restoring .NET dependencies"
   dotnet restore ./mcp-benchmark-validation.sln --locked-mode
@@ -159,15 +164,22 @@ if $run_node; then
   echo "==> Testing repository Node companions"
   node --test ./scripts/tests/*.test.mjs
 
-  echo "==> Installing npm dependencies"
   pushd ./mcpval-mcp >/dev/null
-  npm ci
 
   echo "==> Testing npm package"
   npm test
 
   echo "==> Building npm package"
   npm run build
+
+  if $run_dotnet; then
+    echo "==> Testing SDK wrapper with the actual CLI and owned STDIO fixture"
+    integration_cli="$repo_root/Mcp.Benchmark.CLI/bin/$configuration/net8.0/mcpval"
+    if [[ -f "${integration_cli}.exe" ]]; then integration_cli="${integration_cli}.exe"; fi
+    MCPVAL_INTEGRATION_CLI="$integration_cli" npm run test:integration
+  else
+    echo "Actual CLI integration not run: --skip-dotnet selected."
+  fi
 
   if $run_audits; then
     echo "==> Running npm audit"

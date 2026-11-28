@@ -4,6 +4,48 @@ namespace Mcp.Benchmark.CLI.Utilities;
 
 internal static class AtomicFileWriter
 {
+    public static async Task<IReadOnlyList<string>> WriteBundleAsync(
+        string approvedRoot,
+        string bundleName,
+        Func<string, CancellationToken, Task<IReadOnlyList<string>>> writeContents,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(approvedRoot);
+        ArgumentException.ThrowIfNullOrWhiteSpace(bundleName);
+        ArgumentNullException.ThrowIfNull(writeContents);
+        cancellationToken.ThrowIfCancellationRequested();
+        var root = Path.GetFullPath(approvedRoot);
+        Directory.CreateDirectory(root);
+        var destination = Path.GetFullPath(Path.Combine(root, bundleName));
+        EnsureApprovedDirectChild(root, destination);
+        var staging = Path.Combine(root, $".pending-{Guid.NewGuid():N}");
+        var committed = false;
+        try
+        {
+            Directory.CreateDirectory(staging);
+            var stagedPaths = await writeContents(staging, cancellationToken).ConfigureAwait(false);
+            var expected = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (var path in stagedPaths)
+            {
+                var fullPath = Path.GetFullPath(path);
+                EnsureApprovedDirectChild(staging, fullPath);
+                if (!File.Exists(fullPath) || !expected.Add(fullPath))
+                    throw new InvalidOperationException("Artifact bundle contains missing or duplicate subjects.");
+            }
+            if (expected.Count == 0 || !expected.SetEquals(Directory.GetFiles(staging)) || Directory.GetDirectories(staging).Length != 0)
+                throw new InvalidOperationException("Artifact bundle subjects do not match the staged files.");
+            cancellationToken.ThrowIfCancellationRequested();
+            EnsureApprovedDirectChild(root, destination);
+            Directory.Move(staging, destination);
+            committed = true;
+            return stagedPaths.Select(path => Path.Combine(destination, Path.GetFileName(path))).ToArray();
+        }
+        finally
+        {
+            if (!committed && Directory.Exists(staging)) Directory.Delete(staging, recursive: true);
+        }
+    }
+
     public static async Task WriteAllTextAsync(
         string destinationPath,
         string content,

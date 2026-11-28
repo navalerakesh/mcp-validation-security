@@ -1,7 +1,9 @@
-<testsuites name="MCP Validator" tests="14" failures="3" errors="0" skipped="4" time="12.000">
+<testsuites name="MCP Validator" tests="16" failures="4" errors="0" skipped="4" time="12.000">
   <testsuite name="assurance-coreprotocol" tests="7" failures="1" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
       <property name="assuranceProfile" value="provider" />
@@ -90,6 +92,8 @@ Evidence: protocol/MCP.INIT.VERSION_NEGOTIATION</system-out>
   <testsuite name="assurance-operations" tests="2" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
       <property name="assuranceProfile" value="provider" />
@@ -120,6 +124,8 @@ Evidence: coverage:error-handling:error-handling-matrix:Covered</system-out>
   <testsuite name="assurance-security" tests="2" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
       <property name="assuranceProfile" value="provider" />
@@ -156,6 +162,8 @@ Evidence: probe-prompt-get-reflection-200</system-out>
   <testsuite name="assurance-capabilitycontract" tests="2" failures="0" errors="0" skipped="2" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
       <property name="assuranceProfile" value="provider" />
@@ -198,6 +206,8 @@ Evidence:</system-out>
   <testsuite name="assurance-certificate" tests="1" failures="1" errors="0" skipped="0" time="12.000" timestamp="2026-04-20T10:00:00.0000000Z">
     <properties>
       <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
       <property name="endpoint" value="https://snapshot.example.test/mcp" />
       <property name="transport" value="http" />
       <property name="assuranceProfile" value="provider" />
@@ -223,6 +233,65 @@ Verified official conformance evidence is required.
 A verified signed attestation is required.
 A verified provider harness receipt with target-bound authorization is required.
 Repeated-run consistency of at least 99.0% is required.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="run-integrity" tests="1" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.run" name="Recorded run termination" time="0.000">
+      <system-out>Recommended exit: 1. Execution termination is separate from target assurance and policy.</system-out>
+    </testcase>
+  </testsuite>
+  <testsuite name="host-policy" tests="1" failures="1" errors="0" skipped="0" time="0.000" timestamp="2026-04-20T10:00:00.0000000Z">
+    <properties>
+      <property name="validationId" value="validation-snapshot-001" />
+      <property name="runTerminationOutcome" value="Succeeded" />
+      <property name="recommendedExitCode" value="1" />
+      <property name="endpoint" value="https://snapshot.example.test/mcp" />
+      <property name="transport" value="http" />
+      <property name="assuranceProfile" value="provider" />
+      <property name="certificateEligibility" value="Ineligible" />
+      <property name="coreConformance" value="Nonconformant" />
+      <property name="securityAssurance" value="IssuesFound" />
+      <property name="operationalReadiness" value="Ready" />
+      <property name="policyMode" value="strict" />
+      <property name="specProfile" value="2025-11-25" />
+    </properties>
+    <testcase classname="validation.policy" name="Policy Gate (strict)" time="0.000">
+      <failure message="Strict policy blocked the validation result with 6 blocking signal(s).">Strict policy blocked the validation result with 6 blocking signal(s).
+Recommended Exit Code: 1
+Suppressed Signals: 0
+Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server does not advertise prompts capability.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Reason: One tool response omitted the outer result object.
+Reason: Server ignored the requested MCP protocol version.
+Reason: Server reflected untrusted prompt content without sanitization.
+Blocking Claim: protocol:mcp-init-version-negotiation - CoreProtocol/Initialization: Server ignored the requested MCP protocol version.
+Blocking Claim: vulnerability:mcp-security-prompt-injection:prompt-get - Security/prompt:get: Server reflected untrusted prompt content without sanitization.</failure>
+      <system-out>Strict policy blocked the validation result with 6 blocking signal(s).
+Recommended Exit Code: 1
+Suppressed Signals: 0
+Reason: Critical error recorded: Prompt validation hit an unsafe reflection path.
+Reason: Server does not advertise prompts capability.
+Reason: Tool 'delete_repo' does not declare annotations.destructiveHint.
+Reason: One tool response omitted the outer result object.
+Reason: Server ignored the requested MCP protocol version.
+Reason: Server reflected untrusted prompt content without sanitization.
+Blocking Claim: protocol:mcp-init-version-negotiation - CoreProtocol/Initialization: Server ignored the requested MCP protocol version.
+Blocking Claim: vulnerability:mcp-security-prompt-injection:prompt-get - Security/prompt:get: Server reflected untrusted prompt content without sanitization.</system-out>
     </testcase>
   </testsuite>
 </testsuites>

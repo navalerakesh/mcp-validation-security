@@ -9,7 +9,7 @@
 [![NuGet](https://img.shields.io/nuget/v/McpVal?label=nuget&logo=nuget)](https://www.nuget.org/packages/McpVal)
 [![npm](https://img.shields.io/npm/v/mcpval-localmcp?label=npm&logo=npm)](https://www.npmjs.com/package/mcpval-localmcp)
 
-> Validate that an MCP server is safe and usable for AI agents. MCP Validator checks protocol compliance, security posture, AI safety, and operational readiness, then produces a trust assessment plus shareable artifacts for engineering and governance workflows.
+> Assess an MCP server's protocol conformance, security posture, AI-facing risks and operational readiness using recorded evidence. MCP Validator produces separate assessments and shareable artifacts; missing evidence is not a pass, and an assessment is not a guarantee that a server is safe.
 
 ## Distribution Channels
 
@@ -24,6 +24,12 @@
 ![MCP Validator](https://raw.githubusercontent.com/navalerakesh/mcp-validation-security/main/docs/Resources/mcp-benchmark-intro.png)
 
 ## Install
+
+### Upgrading from 2.x
+
+This codebase targets the 3.x release family. Upgrade the CLI and local MCP wrapper together. The current canonical assurance-result schema is `3.8.0`; consumers must handle unavailable measurements as null and use recorded artifact paths rather than assume a flat output directory. Historical `2.x` results remain readable through the documented migration path. See [schema compatibility](docs/SchemaCompatibility.md) and [available releases](https://github.com/navalerakesh/mcp-validation-security/releases); local qualification does not establish publication.
+
+> **Breaking changes:** Before upgrading automation, follow the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30), including comprehensive admission, strict configuration and artifact-path changes.
 
 Install from NuGet:
 
@@ -44,12 +50,15 @@ Each GitHub release includes SHA-256 checksums plus an SPDX SBOM for the standal
 
 ## Run Your First Validation
 
-Validate a remote MCP endpoint:
+Start with explicit Safe inventory. The current comprehensive default requires admitted execution, pinned official conformance evidence, and the approved signed identity security baseline. Missing prerequisites fail before target contact; see [comprehensive admission](Mcp.Benchmark.CLI/README.md#comprehensive-admission).
+
+Inventory a remote MCP endpoint:
 
 ```bash
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -59,6 +68,7 @@ Validate an authenticated server and interpret the result for all documented cli
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
+  --assurance inventory \
   --token "$MCP_TOKEN" \
   --output ./mcp-reports
 ```
@@ -69,6 +79,7 @@ Validate a local STDIO server:
 mcpval validate \
   --server "npx -y @modelcontextprotocol/server-everything" \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -87,7 +98,9 @@ Runs the full suite across protocol, tools, prompts, resources, security, and pe
 | `--mcpspec <profile>` | Selects the embedded protocol profile, such as `latest`, `2026-07-28`, or a supported historical revision. `latest` resolves visibly in the execution plan. |
 | <code>--access &lt;public&#124;authenticated&#124;enterprise&gt;</code> | Declares the intended exposure model so auth expectations are evaluated correctly. |
 | <code>--policy &lt;advisory&#124;balanced&#124;strict&gt;</code> | Applies host-side gating without mutating raw findings. |
-| <code>--assurance &lt;inventory&#124;ci&#124;provider&gt;</code> | Selects V2 evidence requirements, independent assessments, and certificate eligibility. Inventory never issues a provider certificate. |
+| <code>--assurance &lt;comprehensive&#124;inventory&#124;ci&#124;provider&gt;</code> | Selects evidence requirements; comprehensive is the default. Inventory never issues a provider certificate. |
+| `--identity-baseline <selection.json>` | Supplies the approved signed identity controls, independently selected contract and observer public key. Required for comprehensive execution. |
+| `--validation-id <id>` | Supplies an independently reserved run ID; signed baseline evidence must match it. Otherwise the CLI generates the run ID. |
 | `--baseline <result.json>` | Compares this run with a compatible prior canonical result. |
 | `--conformance-results <wrapper.json>` | Imports a bounded, provenance-bearing wrapper for the pinned official conformance runner. External evidence remains separately attributable and affects only applicable claims. |
 | `--provider-harness <manifest.json>` | Supplies a signed set of prior repeated-run receipts bound to the target, protocol revision, and dry-run execution-plan digest. Provider assurance requires this input. |

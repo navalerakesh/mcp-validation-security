@@ -427,7 +427,7 @@ public class EdgeCaseAndBugTests
     {
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
         contentSafety.Setup(x => x.AnalyzePrompt(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>())).Returns(new List<ContentSafetyFinding>());
-        return new PromptValidator(new Mock<ILogger<PromptValidator>>().Object, _httpClient.Object, new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, contentSafety.Object);
+        return new PromptValidator(new Mock<ILogger<PromptValidator>>().Object, _httpClient.Object, new JsonSchemaValidator(), new EmbeddedSchemaRegistry(), contentSafety.Object);
     }
 
     private SecurityValidator CreateSecurityValidator()

@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Services;
 
@@ -15,10 +16,15 @@ public static class AssuranceExitCodeMapper
     public static int Map(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
+        if (result.OverallStatus == ValidationStatus.Cancelled) return TimeoutOrCancellation;
         if (IsTargetUnavailable(result)) return TargetUnavailable;
+        if (result.Run.TerminationOutcome == ValidationOutcome.Error) return RuntimeIntegrityFailure;
         if (result.OverallStatus == ValidationStatus.Error && result.CriticalErrors.Count > 0)
             return RuntimeIntegrityFailure;
-        return Map(result.Assurance, result.PolicyOutcome);
+        var exitCode = Map(result.Assurance, result.PolicyOutcome);
+        return exitCode == Satisfied && result.Run.TerminationOutcome != ValidationOutcome.Succeeded
+            ? Incomplete
+            : exitCode;
     }
 
     public static int Map(AssuranceEvaluation assurance, ValidationPolicyOutcome? policyOutcome)
@@ -35,7 +41,24 @@ public static class AssuranceExitCodeMapper
             };
         }
 
-        if (string.Equals(assurance.Profile.ProfileId, "ci", StringComparison.Ordinal))
+        var comprehensive = string.Equals(assurance.Profile.ProfileId, AssuranceProfileCatalog.Comprehensive.ProfileId, StringComparison.Ordinal);
+        var requiredExtensions = assurance.RequiredExtensionIds ?? [];
+        var selectedExtensions = assurance.Assessments.ExtensionReadiness
+            .Where(extension => requiredExtensions.Contains(extension.ExtensionId, StringComparer.Ordinal)).ToArray();
+        var requiredComprehensiveClaims = comprehensive ? assurance.Claims.Where(claim =>
+            claim.Applicability == AssuranceApplicability.Applicable &&
+            (claim.Dimension != AssuranceDimension.Extension || requiredExtensions.Contains(claim.Subject, StringComparer.Ordinal)) &&
+            claim.Authority is not (AssuranceAuthority.Heuristic or AssuranceAuthority.ModelAdvisory) &&
+            (claim.RequirementLevel is AssuranceRequirementLevel.Must or AssuranceRequirementLevel.SecurityControl or AssuranceRequirementLevel.OperationalObjective ||
+             claim.RequirementLevel == AssuranceRequirementLevel.Policy &&
+             claim.Dimension is (AssuranceDimension.CoreProtocol or AssuranceDimension.CapabilityContract) &&
+             claim.Outcome is (AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error or AssuranceClaimOutcome.Incomplete) ||
+             claim.Dimension is AssuranceDimension.ControlledApplication or AssuranceDimension.ExecutionIntegrity)).ToArray() : [];
+        if (comprehensive && (requiredComprehensiveClaims.Any(claim => claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error) ||
+            selectedExtensions.Any(extension => extension.Status == ExtensionReadinessStatus.IssuesFound)))
+            return Failed;
+
+        if (comprehensive || string.Equals(assurance.Profile.ProfileId, "ci", StringComparison.Ordinal))
         {
             if (assurance.Assessments.CoreConformance.Status == CoreConformanceStatus.Nonconformant ||
                 assurance.Assessments.SecurityAssurance.Status == SecurityAssuranceStatus.IssuesFound ||
@@ -52,6 +75,24 @@ public static class AssuranceExitCodeMapper
                 return Incomplete;
             }
         }
+
+        if (comprehensive && (assurance.Assessments.CoreConformance.Status != CoreConformanceStatus.Conformant ||
+            assurance.Assessments.SecurityAssurance.Status != SecurityAssuranceStatus.Verified ||
+            assurance.Assessments.OperationalReadiness.Status != OperationalReadinessStatus.Ready ||
+            assurance.Assessments.ExternalConformance.VerificationStatus != OfficialConformanceVerificationStatus.Verified ||
+            assurance.Assessments.ExternalConformance.Status is not (ExternalConformanceStatus.Verified or ExternalConformanceStatus.Nonconformant or ExternalConformanceStatus.Incomplete) ||
+            assurance.RequiredExtensionIds == null ||
+            assurance.RequiredIdentityControls == null ||
+            ControlledIdentitySecurityBaseline.RequiredClaimIds.Any(claimId => assurance.Claims.Count(claim =>
+                claim.ClaimId == claimId && claim.Dimension == AssuranceDimension.Security &&
+                claim.RequirementLevel == AssuranceRequirementLevel.SecurityControl && claim.Authority == AssuranceAuthority.DeterministicSecurity &&
+                claim.Outcome == AssuranceClaimOutcome.Satisfied) != 1) ||
+            requiredExtensions.Any(extensionId => selectedExtensions.Count(extension => extension.ExtensionId == extensionId) != 1) ||
+            selectedExtensions.Any(extension => extension.Status != ExtensionReadinessStatus.Ready) ||
+            assurance.EvidenceSummary.TotalDeclarations == 0 || assurance.EvidenceSummary.EvidenceCoverageRatio != 1 ||
+            assurance.EvidenceSummary.Covered != assurance.EvidenceSummary.ApplicableDeclarations ||
+            requiredComprehensiveClaims.Any(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))))
+            return Incomplete;
 
         return policyOutcome?.RecommendedExitCode ?? Satisfied;
     }

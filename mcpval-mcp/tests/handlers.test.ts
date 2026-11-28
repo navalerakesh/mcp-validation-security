@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test, { after } from "node:test";
 import { config } from "../src/config.js";
 import { handleDiscover, handleHealthCheck, handleValidate } from "../src/handlers.js";
@@ -15,9 +15,10 @@ import { join } from "node:path";
 
 const args = process.argv.slice(2);
 if (args.includes("--version")) {
-  process.stdout.write("mcpval test harness\\n");
+  process.stdout.write(process.env.MOCK_CLI_VERSION ?? ${JSON.stringify(`mcpval ${config.server.version}\n`)});
   process.exit(0);
 }
+if (process.env.MOCK_LAUNCH_AUDIT) await writeFile(process.env.MOCK_LAUNCH_AUDIT, args[0]);
 
 const outputIndex = args.indexOf("--output");
 if (outputIndex >= 0) {
@@ -65,6 +66,47 @@ async function createMockCli(): Promise<string> {
   await writeFile(scriptPath, runnerScript, "utf-8");
   await chmod(scriptPath, 0o755);
   return scriptPath;
+}
+
+const currentMajor = config.server.version.split(".")[0];
+for (const [name, version, compatible] of [
+  ["current release", `mcpval ${config.server.version}`, true],
+  ["same major stable release", `mcpval ${currentMajor}.1.2`, true],
+  ["published older major", "mcpval 2.0.1", false],
+  ["future major", `mcpval ${Number(currentMajor) + 1}.0.0`, false],
+  ["prerelease", `mcpval ${currentMajor}.0.0-rc.1`, false],
+  ["malformed output", "private-version-marker", false],
+] as const) {
+  test(`CLI release compatibility: ${name}`, async () => {
+    const cli = await createMockCli();
+    const audit = join(dirname(cli), "launch.txt");
+    const previousPath = process.env[config.cliPathEnvVar];
+    const previousVersion = process.env.MOCK_CLI_VERSION;
+    const previousAudit = process.env.MOCK_LAUNCH_AUDIT;
+    process.env[config.cliPathEnvVar] = cli;
+    process.env.MOCK_CLI_VERSION = version;
+    process.env.MOCK_LAUNCH_AUDIT = audit;
+    try {
+      const result = await handleHealthCheck({ server: "https://example.test/mcp", access: "public", interactive: false });
+      if (compatible) {
+        assert.equal(result.isError, false);
+        assert.equal(await readFile(audit, "utf8"), "health-check");
+      } else {
+        assert.equal(result.isError, true);
+        assert.equal(result.structuredContent.exitCode, 70);
+        assert.equal((result.structuredContent.error as { code: string }).code, "CLI_VERSION_INCOMPATIBLE");
+        assert.doesNotMatch(result.text, /private-version-marker/);
+        await assert.rejects(readFile(audit), { code: "ENOENT" });
+      }
+    } finally {
+      if (previousPath === undefined) delete process.env[config.cliPathEnvVar];
+      else process.env[config.cliPathEnvVar] = previousPath;
+      if (previousVersion === undefined) delete process.env.MOCK_CLI_VERSION;
+      else process.env.MOCK_CLI_VERSION = previousVersion;
+      if (previousAudit === undefined) delete process.env.MOCK_LAUNCH_AUDIT;
+      else process.env.MOCK_LAUNCH_AUDIT = previousAudit;
+    }
+  });
 }
 
 test("handleValidate preserves result json and marks non-zero policy exits as tool errors", async () => {
@@ -369,6 +411,35 @@ test("handleValidate uses standard mode for operator-enabled provider assurance"
     else delete process.env[config.cliPathEnvVar];
     if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture;
     else delete process.env.MOCK_CAPTURE_ARGS;
+  }
+});
+
+test("handleValidate forwards comprehensive admission only from operator configuration", async () => {
+  const cli = await createMockCli();
+  const previousCli = process.env[config.cliPathEnvVar];
+  const previousCapture = process.env.MOCK_CAPTURE_ARGS;
+  const admission = config.comprehensiveAssurance as unknown as { conformanceResultsPath?: string; identityBaselinePath?: string; validationId?: string; executionMode: "standard"; enabled: boolean };
+  const previous = { ...admission };
+  process.env[config.cliPathEnvVar] = cli;
+  process.env.MOCK_CAPTURE_ARGS = "1";
+  try {
+    for (const enabled of [false, true]) {
+      Object.assign(admission, { enabled, executionMode: "standard", conformanceResultsPath: "/operator/conformance.json", identityBaselinePath: "/operator/identity.json", validationId: "reserved-run" });
+      const result = await handleValidate({ server: "https://example.test/mcp", access: "public", interactive: false, verbose: false });
+      const args = JSON.parse(result.text.split("\n\n", 2)[1]) as string[];
+      assert.deepEqual(args.slice(0, 3), ["validate", "--assurance", "comprehensive"]);
+      assert.equal(args.includes("--mode"), enabled);
+      assert.equal(args.includes("--conformance-results"), enabled);
+      assert.equal(args.includes("--identity-baseline"), enabled);
+      assert.equal(args.includes("--validation-id"), enabled);
+      if (enabled) assert.equal(args[args.indexOf("--conformance-results") + 1], "/operator/conformance.json");
+      if (enabled) assert.equal(args[args.indexOf("--identity-baseline") + 1], "/operator/identity.json");
+      if (enabled) assert.equal(args[args.indexOf("--validation-id") + 1], "reserved-run");
+    }
+  } finally {
+    Object.assign(admission, previous);
+    if (previousCli) process.env[config.cliPathEnvVar] = previousCli; else delete process.env[config.cliPathEnvVar];
+    if (previousCapture) process.env.MOCK_CAPTURE_ARGS = previousCapture; else delete process.env.MOCK_CAPTURE_ARGS;
   }
 });
 

@@ -80,6 +80,8 @@ public interface IValidationScenarioPack : IValidationPack
 
 public sealed class ValidationScenarioDescriptor
 {
+    public EvaluationLane? Lane { get; init; }
+
     public required ValidationDescriptorKey Key { get; init; }
 
     public required ValidationRevision Revision { get; init; }

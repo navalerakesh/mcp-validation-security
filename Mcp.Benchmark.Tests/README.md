@@ -15,7 +15,7 @@ Mcp.Benchmark.Tests/
 Key fixture assets:
 
 - `Fixtures/McpFixtureProfiles.cs` provides reusable compliant, partially compliant, and unsafe MCP response sets.
-- `Fixtures/Servers/` contains runnable STDIO sample servers for process-backed validation scenarios.
+- `Fixtures/Servers/` contains runnable STDIO and owned HTTP sample servers for process-backed validation scenarios.
 - `Fixtures/ReportSnapshots/` protects executive report output from unintended regressions.
 
 ## Running Tests
@@ -23,8 +23,11 @@ Key fixture assets:
 Run the full suite:
 
 ```bash
+npm --prefix mcpval-mcp ci
 dotnet test
 ```
+
+The owned HTTP identity fixture uses the lockfile-pinned Node MCP SDK. The repository gate installs it before .NET tests; `--skip-node` assumes these dependencies are already installed. Missing fixture dependencies fail explicitly rather than skipping qualification. The identity pilot uses ephemeral issued opaque credentials, a fixed object/action policy and a separately credentialed observer inside the same trusted fixture. It is not proof of an independent production oracle, external issuer security or enterprise enforcement.
 
 Run a filtered slice:
 
@@ -33,9 +36,12 @@ dotnet test --filter Category=Unit
 dotnet test --filter Category=Integration
 ```
 
+Native Windows supervision tests require Windows job objects and the freshly built CLI selected by `MCPVAL_WINDOWS_TEST_CLI`. The nested-job test identifies the controller and supervisor by retained process handles and executable paths rather than assuming they are the only active job members. Runtime or console descendants may also be counted; successful cleanup still requires the entire outer job to reach and remain at zero active processes, alongside the inner supervisor's zero-process receipt.
+
 ## Adding Coverage
 
 - Add unit tests under `Unit/` when the behavior is deterministic and dependency boundaries can be isolated.
+- Command tests that read or mutate process-wide console state or `Environment.ExitCode` use the existing nonparallel `Console output` collection. Retaining/restoring a value alone does not isolate concurrent tests.
 - Add integration tests under `Integration/` when transport behavior, serialization, or orchestration matters.
 - Add architecture tests under `Architecture/` when a dependency rule or boundary must stay enforced.
 - Update snapshots when a report change is intentional and reviewed, not as a shortcut around a regression.

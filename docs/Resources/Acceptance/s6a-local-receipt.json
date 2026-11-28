@@ -1,0 +1,864 @@
+{
+  "status": "local-s6a-static-reporting-and-lifecycle-parity-qualified",
+  "baseCommit": "23d3cff1e4cd3d6135d9609ef606395d4b2925bf",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-11T08:02:57.777Z",
+  "sourceIdentity": "f523271ba34d4120cecafa2f92ac97d642f0b7a3f060f882ba88f6afcb019930",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s6a-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "78e8e74b5a13e3fba57d88875de28d8d28423b72ec7f68f315883f84df480670"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Models/OperationalArtifacts.cs",
+      "sha256": "5bf7e83846a339ae9f730631c1d6d0ce363909063c3a7e887daff2eadad3a584"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Services/ExecutionGovernanceService.cs",
+      "sha256": "d67996d856a7aefda243d911a8ba38c17854bc81c4950b43b4b3e99e1f048e87"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/BoundedArtifactReader.cs",
+      "sha256": "7c51961bef0c12e175f5516a28fd3e929d67dfaf0071276ff93c72c5ba493cbe"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/ArtifactContracts.cs",
+      "sha256": "b4ddac00cd0a49ef1325451e2d3aac08828df8f2f413a6c9823c51f15a23d3c5"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationArchitectureModels.cs",
+      "sha256": "4c38da141298a61370de4bd629b50638e80abfebaa182b1a3d3354713f49e906"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationFinding.cs",
+      "sha256": "a9299666841b77d2553a3bc235c67b1946b79c5277e5d2209c6786468b1f1c46"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationOutcome.cs",
+      "sha256": "13b7bc213a7f3e67f15a121b110d762a5a41601d69962871d9b3d530f9b58f5c"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationResults.cs",
+      "sha256": "007c0224e01ac9df05a38a76fd7b1c5c72935128e821ed50f23b64e1682d7f42"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/AssuranceExitCodeMapper.cs",
+      "sha256": "fe4844e26a78b634ec5eff98332bcc7dfb73db99d6b93b8a0a093eda963daf92"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/McpValidatorService.cs",
+      "sha256": "f60d1c7c48395dcb3732c97a5ff6cecf29979bee9ef114384d96cfe0f7286ff3"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/MarkdownReportGenerator.cs",
+      "sha256": "f3a291bcbc1058893010e07d444e0abc012f2d8583f02b56aafe3a77b2a2efbb"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ReportContextFormatter.cs",
+      "sha256": "706704d1ea3c0eb88a8bcdeb9644d4153dbbf290110d04b63ca38bb54db6866a"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ValidationHtmlReportComposer.cs",
+      "sha256": "5ef89078bf1651d2a83d6bbe5073e8fa3d6d43c6eb5824e3bbbbde4123bd11e1"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ValidationHtmlReportDocumentFactory.cs",
+      "sha256": "2b52b99f5375bd14e3cab86ac0837836e0635ff29a179fcb254feb39ce7ff20b"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ValidationHtmlReportTheme.cs",
+      "sha256": "3c7fa4ba1e7ef1459b554f112ebd32fffa204191166241fb853bd14970e7e417"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/Reporting/ValidationReportRenderer.cs",
+      "sha256": "f4b792847eb2d8b2dccf7b48285d5055df5cf3d7bfb8e26ffb8ba279f2fe0bc6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/html.snap",
+      "sha256": "4daea80ee53565e681edbbc7f908ebf98bf0ec630afcacc9cecfbf3a07308f1d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/json.snap",
+      "sha256": "96634cb6d2d15a10f5af56a4945f76d4d97b84c3e73b18040b1a0f9c4f39c04f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/junit.snap",
+      "sha256": "fed7cbea556d488d6fbe4207ae719245cebb373e74e2f16355b691e000565396"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/markdown.snap",
+      "sha256": "1031a2916f38e7e51c104b0d8cc2746f0cbf6518a7d1306e8cc34cccb391c7e2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/sarif.snap",
+      "sha256": "bd9b2dde8f8e34f6361cd6ee6f13e6ad19ee77567a6b80dbcaf430e954b1ffd7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/xml.snap",
+      "sha256": "1063a334ae0fa00a761bf63ea692edf75858d1e7fd97d1b672ded7a1e20ec568"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Reporting/ValidationHtmlAccessibilityTests.cs",
+      "sha256": "58664e6469417a2237360f6c686620005bb50c2d846da12612e3c4946f11e886"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Reporting/ValidationReportRendererTests.cs",
+      "sha256": "fd034637ca6ed17edb59402a9883c386ed295b30d7b19bf03f50923fe412dcb1"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/ExecutionGovernanceDigestTests.cs",
+      "sha256": "7462ac5132fd85784d8044cf3f6be9f7906ec01d4a8b273db4f3ea59811a72ba"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/McpValidatorServiceUnitTests.cs",
+      "sha256": "fb47e765430056ab7e6313864bf05fc5f0d86dc7c4ed5290ce9fbec35b41cb32"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Utilities/BoundedArtifactReaderTests.cs",
+      "sha256": "afa3b2b27d7d8a3430de0fe10631b7c15106fb879bbe27aa8a07074142279ba3"
+    },
+    {
+      "path": "docs/SchemaCompatibility.md",
+      "sha256": "cbd0fed317298818d456852700b9980b780c084a5a8b88a93d5457f3c29d4bb9"
+    },
+    {
+      "path": "docs/Schemas/mcpval-audit-manifest.schema.json",
+      "sha256": "8a767ec8b9a8602fb595b0b1b2e378bc6602e2b048816648c7534964eb9a1d25"
+    },
+    {
+      "path": "docs/Schemas/mcpval-validation-result.schema.json",
+      "sha256": "87d5c15c4fd7a9d90786122cddbc014c527cbf2f6f1276464341f092beb0bfe9"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-integration.test.ts",
+      "sha256": "5ce63e30bf1853b8d3ab6c1941f3db3dcef4b69584288846b312a950d0cb753a"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-runner.test.ts",
+      "sha256": "7700a40319d62f6c741e5a52eee23de34e6be997f28805cd598d5a2c594acd52"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s3-package-qualification.mjs",
+      "sha256": "7883c228027281c6e43cbb9e14ef099ebdcb905992300a838b599b11f6cb50cb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s3-receipt.mjs",
+      "sha256": "b38fb9dc8e5c5588d7bb53a523e40e63beb57021763aec23be467b7f5a2979d0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s4-package-qualification.mjs",
+      "sha256": "1cb14c1fb6c8872096269ca64770d63baecceac486e4af39aee827c66d3abcab"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s5-package-qualification.mjs",
+      "sha256": "a5d3dfb9153a2d845fb8738fe287bf7db3a0c37e25dcd1062ec4315cee3efa65"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-1024.png",
+      "sha256": "d6ff6539cf31b1052cf23d6439c5b8f76c4bdc676be13a09fa56dd1a944a0b72"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-1440.png",
+      "sha256": "734908e42d5407ea26f87b777e0807f765fea22277ccc70b83fae39e3dbd195a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-320.png",
+      "sha256": "3ef8a3502d0457e40f83d226ff0b9c88887a35f970384e550eb2f9ce5f786d0c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-390.png",
+      "sha256": "958ad1aa81a2da28240bd3ea8f861aafcdd4c604c412d2dea2aaf9ae37a67468"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-768.png",
+      "sha256": "29bee54234fa0b7aba61870aab1876edd80ecf257d1d95f98426286489db5a90"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-browser.json",
+      "sha256": "6773f13cac9abf3767e9827c0027deef73575a02a831cd0086f9e5288809afcb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-forced-colors.png",
+      "sha256": "a6872a759de00ea69ddfc06f06d51f94adf3ad1d427ce83f6634c7ec79189fd9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-links.log",
+      "sha256": "ca505521b7e134405081dc5bb4de736599404371572de7f50260443aee32458e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-markdown.log",
+      "sha256": "21820cc7d40a2946da7c894b0a29b1118084e30cd089243ab9209a7b1131ae37"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification.mjs",
+      "sha256": "a314d5c44b3cc29aaf1120cf79868c3eac4172b379466d9efdd9f2055bfb6b77"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/base-receipt.json",
+      "sha256": "b2c571e520940f75fab5cd1ef525ef70a00e45c0011a1e6dc19018c43d8da9df"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-audit.json",
+      "sha256": "c8b142f7bcfc2405e628f92c3402c1641bb0137d4b7de5cca927f647f8c48e32"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-profile-summary.json",
+      "sha256": "9bbfed0286e33e8012a1d01c16446e87ad92a7991a59da5ca05090a7ecf12593"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-report.html",
+      "sha256": "a72386903ebfa9761f97fa22ef199ed81b6edace5b4c7fccc33207bc317ac8c6"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-report.md",
+      "sha256": "7ac4c4002c6e616bf561506b9573ba5e5214d08623f97bffaf084e2b35c4ac54"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-result.json",
+      "sha256": "8395b382c9a42d663c4c53bbf4bd101d2df79da6c21b476ec25eca9282e5d2a8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-results.junit.xml",
+      "sha256": "4a81eb234e674b02455aabcae6e3ca219fd9e7b96c039c982fac44c3f6c90ccf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/artifacts/mcp-validation-20261111-073411-038-dd7c308619ce/mcp-validation-20261111-073411-038-dd7c308619ce-results.sarif.json",
+      "sha256": "43181eccfe93daa6ae73231962f62920eb758372cd3f992757c7edc7f6ce512d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/methods.jsonl",
+      "sha256": "8668bca1a2f361095effbd4019cdadb925b43df8ca878568a861743fc89b5a4e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/processes.jsonl",
+      "sha256": "0c9e87500348e43487e4cfbb88a928d832f5451c7f20c14ca422aba5d6c396c2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/receipt.json",
+      "sha256": "3edb9dc1ac5c0e2db01c97ccf79363aad1c5abd86e345e96254c8b6439c0f56a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/canonical-oracle/stdout.json",
+      "sha256": "58d40027ffcc9c747588388ae35b5c233848689d53723581f5cd962d76fb2e5d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/commands.json",
+      "sha256": "59135f20d79e39b38158b4bfca97f4239b341eddb4a37809b5175e0f4ae946fc"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/current-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/current-version.stdout",
+      "sha256": "bea85434b54db5e8403063e37f592cae294af26680fa4c55875f16aac91bb851"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/distribution-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/distribution-smoke.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/dotnet-pack.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/dotnet-pack.stdout",
+      "sha256": "46cda832f1794a36b4e8ac290a321489fb88c45a810e3b3a21dcf59f2dc1bf83"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-canonical.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-canonical.stdout",
+      "sha256": "58d40027ffcc9c747588388ae35b5c233848689d53723581f5cd962d76fb2e5d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-lifecycle.stdout",
+      "sha256": "53cc5b7693c07d149acff7722c2dcf07fc2a990fbd28a3debd7367bfe202ba4c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-schema.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/installed-schema.stdout",
+      "sha256": "4b93b36c0e9d94f1a3d855e20718d3e414d80f62d641b9577057a9dbe591f634"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-init.stdout",
+      "sha256": "65c65e6b1705ed333f729f9eb32cf1c3470dd6eca0e98e9e9d9222f4dd415a83"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-install.stdout",
+      "sha256": "f03894ad999422f86bc27c9b27f14d4c4e884c670b09d76b71ab9b57a404660e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-pack-dry-run.stderr",
+      "sha256": "4758a92d35e467c7d2ca1e55033975e0cec6bd83e4e48c9f607a98cab4b4021d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-pack-dry-run.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-pack.stderr",
+      "sha256": "4758a92d35e467c7d2ca1e55033975e0cec6bd83e4e48c9f607a98cab4b4021d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-pack.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/npm-smoke.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/tool-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/logs/tool-install.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "11c4fc62188cd9c00fe9a960e6c5fc2e0cf6d716ae6d90e346a6695f279540bc"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "80f62a6a03003c919a87fe0dc40213943c507455a44f2992ee97b1cc2237e126"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-package-qualification/receipt.json",
+      "sha256": "b835342e36e16f179cc9a3b2b54605dd2371f250f48b84db1d24cebffdb16421"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-pdf-inspection.json",
+      "sha256": "d7fe76f8bf3e712c076c7efde0a138a9c6cfeb78a51e3254fb36ce67f4325c4d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-print-first-page.png",
+      "sha256": "3d8307c17e61bdbd33f567e31309a00b52e7530dc2f480ec4ad0a7435d6b1c50"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-print-media-first-page.png",
+      "sha256": "8d631540c9cb83b6f3c8bd4eb7a7039b2fa8bec60be2b7f37c7d98f8e7fd90ad"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-print-media-inspection.json",
+      "sha256": "452bf525e70a6f48c08ec2e33dcf3de7c48d81c0109c726414b07c42578f3280"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-print-media.json",
+      "sha256": "c77e8dbfd07887ec05227e6f826077916319e368eee0efc6a6d3806c284b51f7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-print-media.pdf",
+      "sha256": "40aa5903c18c7faaf1ab98cc5ad1cf7d5ec9433bf91a1f654ed08b8973eef4fa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-report.pdf",
+      "sha256": "b8583ef651d21326a3cb2766a08837a9123e16306c02217f0faa604f5bf41310"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-final-repository-gate.log",
+      "sha256": "e63a8285d1b935726c172af79c5849a40a912bddc91366ab2cc9de064f2b7d21"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-mutation-gate.log",
+      "sha256": "1c014bbf90d6f20db96afdf9ab35a55a2b60bd112fb699c17860958360926f26"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-package-qualification.mjs",
+      "sha256": "ff7f1f09e844dfc3dd5110107b1cc586b8bc2962ea1cc73ea12f5bc8b16fdec9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s6a-receipt.mjs",
+      "sha256": "7fe92ce019c58530c08a8c247025b764b3ce2b52f281f1d6e30fac20bbcd5fe9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-additive-termination-compatibility.trx",
+      "sha256": "c2b824bac458b120a113166042698e265aefb97fc72239bd420cb6ea6fa07e04"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-audit-run-termination.trx",
+      "sha256": "d4e1bb781c27a5a2a8951085d1cc052f3da87b8223a8c5c5b2d0bf6ba7f7977e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-complete-claims-after.trx",
+      "sha256": "787b987cf70088cf45a2860139dddbb8fe82a0ee3c53b4eb61ea5d6aaeaf1aeb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-complete-claims-before.trx",
+      "sha256": "3f6c0133664aa9f82f3aa0dc9dac716bb656aee86bffb41facdcf790e70bb6ac"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-document-opening-after.trx",
+      "sha256": "ef0aa69e261abce777d5217e0696e6bd042b2df2ca007846c7a5b60ef69d09c8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-document-opening-before.trx",
+      "sha256": "c997d2307ae0951cb9fb82763c87be81b8ea6e810ede89efcef8339429a556e6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-document-opening-renderers-after.trx",
+      "sha256": "854e11a017f504563fe857e0af06253390753e122b8f31256e9333a4291d3c4c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-document-opening-renderers.trx",
+      "sha256": "e148bec0c8fdfefb872311f6046f82207c70991b4260036faace7d99fd637d1a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-execution-assurance-separation.trx",
+      "sha256": "c3255ea48fb4bc8ca64bbce7fe961ed84915fd35e66c023a534a2dba95da3f72"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-format-applicability-semantics-after.trx",
+      "sha256": "a1646edecae5f72cf736a10c3d4c7cd9783787a15f8d61ca33d9d1f4ae2813ee"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-incomplete-summary-parity.trx",
+      "sha256": "37490b3f4aa2980bb2455b529cfc1e864d6d6cdb1d21d30ad80839f94cee0a38"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-inventory-completion-after.trx",
+      "sha256": "9b92652328f23cde2d05789c8614b7c0d9a674ab66f568780177ce04ec820a95"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-inventory-completion-before.trx",
+      "sha256": "76d102c6dd052e4a98186a09ca4a85c5d5ede28be48f46984f14dcabd28cd286"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-junit-run-policy-after.trx",
+      "sha256": "013a67f9d801a4f7696181d04f38937ac3ba563e01121fb9c86bc99d56c04e52"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-junit-run-policy.trx",
+      "sha256": "b6f8b7fe187c83f8b8ad4f38056f03011269399c3bf7723f2ca30f1ce2c461d5"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-markdown-canonical-parity.trx",
+      "sha256": "35767bc51a9c7d7339eb24f701fb52e8a0406ec6af41f58887c417e40b4265fa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-narrow-fact-layout.trx",
+      "sha256": "a57dcfff17862ebf53ae5435ce538a70a1224957854fc6c386722ca141ca7654"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-offline-content-policy.trx",
+      "sha256": "b6d2001a25ad6c32f6408592dd629738a277950918af70a3ccccacab20b96a67"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-parity-full-diagnostic.trx",
+      "sha256": "4ffe604f90b2b39693b416198b0c6057d83fd9acc6e7eaa8f5c4bc57a2730da8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-parity-snapshot-generation.trx",
+      "sha256": "57b2f702be487f596ec6b28060b855237c3d07ef79b7c8154b65f5cdc5c8e665"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-parity-snapshots-after.trx",
+      "sha256": "a1c4418f49f56fdcd049b064b2983294f6d1b19daa422563b7b879fcc1a0cb9e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-policy-exit-outcomes-after.trx",
+      "sha256": "86481cd414cb3029f9ac871c9b2bc46ab701efb20e01fc69d6e9022a5eb24d56"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-print-reference-style.trx",
+      "sha256": "628dddfe6d5d8e481eced11e69c11599747b208a1e620766bc4c3bcc7011a1fe"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-recorded-termination-reporters.trx",
+      "sha256": "f099635235a322f07afa46e3aae43f756f4740f768972b920c24c962733b6dd6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-returned-framework-error-after.trx",
+      "sha256": "e1bf827435fab4aa28660599ab9e99b7b7776962607eb197b2735ac81be94c87"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-returned-framework-error-before.trx",
+      "sha256": "6e3525a2f104f0721cf14b21daf85d01c1fd0a8a080325234fb082f80fecd360"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-review-repairs-renderers.trx",
+      "sha256": "6ddc2706382b316593a756f6dd8afde7399896c149b9fadc0a1329260316ecda"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-admission.trx",
+      "sha256": "80c459fbfc6a5654ab7a6059e1e8f9090fd214b92d1d011a36c4ad70ec84a4aa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-callers.trx",
+      "sha256": "87cc3a25e9617279635e54107cb1ee9ba441de155c9a7d46047bf9cae0c67b34"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-enum-admission.trx",
+      "sha256": "c1ba224d6080a83f5ae6cb04aa6988a8bfa1fa0d198b7c88abbe858f3536150d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-roundtrip-after.trx",
+      "sha256": "1b9fd7ab69a1515d2aa196adbf9b45d4d89574cae1cc376ccd986a43a47cc5bd"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-roundtrip-reproduced.trx",
+      "sha256": "0b54d450255cb38e8e5bbd79cf78b7c05f7fef582a3c5c8f95725a8bbb130566"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-run-termination-states.trx",
+      "sha256": "ea46c122f7133569092255511335fcefac330214e434fa0e03c41701151e0463"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-sarif-execution-policy.trx",
+      "sha256": "2fab762b907c51bc39a503ee414f775cf54bca22f01ad40407126c56a4e7edb2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-sarif-unknown-termination.trx",
+      "sha256": "d9b8e4a902cb9a615eef48ca9446bf06fbc45a1fd35dd66c4177eee97ce01087"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-section-parameter-rename.trx",
+      "sha256": "88c4077c7c78ba23b07a9d5b466b16c7d1eafebf3217ccc1e5784d0468796931"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-document-full-before-snapshot.trx",
+      "sha256": "cc18f81ae0bb21a3e06d7a937979e52eb738ba228e77300111f06e7a9720ed98"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-glossary.trx",
+      "sha256": "c3411ab844ab792c46e7fef0e59916749a22aadd496840f2aaf489da740875f3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-sections-after.trx",
+      "sha256": "b886b03239629818dd7adb4934ec19be76edb9c647ac8e878283c0ba40750a21"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-sections.trx",
+      "sha256": "8adb674ba1794968fe81a6b5a5778810d544f3f3fb6f47044925d9dcd8f64f13"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-snapshot-generation.trx",
+      "sha256": "96b436cb347f6a0201b1ecfdb8093915cd18373160bba47bd37edfc2ff38629f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-static-snapshots-after.trx",
+      "sha256": "59f535a3262f1cd772da47c06fc667d153a868511a3d85428e642c0fa4bba936"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-summary-snapshot-generation.trx",
+      "sha256": "ef585e51d2cb22f8421a8b7a1572f317966cc876eb24b2aba497bfa0191df81d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-summary-snapshots-after.trx",
+      "sha256": "872ae4840217ce15313fe5fa1f93ad253096276409f40764eb2f0f62a0f02cd4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-typed-bootstrap-after.trx",
+      "sha256": "7e4c4d3bf9cf1886b0601ecf95473a3f1ff81419487ebee95fb7b3b59e38223f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-typed-bootstrap-before.trx",
+      "sha256": "56e775e64ab113e3f3bb7f03b35d0e4defb78fd867bff34f1e4ebaa4ce26df57"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6-xml-markdown-evidence-parity.trx",
+      "sha256": "98cddab2288f5d6f3cde1a617463f397515ef357e0867bd7dfc22ad122a99cb2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6a-opening-spacing.trx",
+      "sha256": "743f9e91670f3a780d4da6d2c6789098f521edb9c22b0d68e8d50d8acc56e0a8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6a-spacing-snapshot-generation.trx",
+      "sha256": "98869e31f58a6c5d8c0017221391de60faff0a91a5ad8c6f4979e84fa1977374"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s6a-spacing-snapshots-after.trx",
+      "sha256": "1e764779c7c52b361aa87008fcd37dbcc695142184423aeccc78cec354639934"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/stryker-s6a-final/reports/mutation-report.json",
+      "sha256": "c84e2348fb69192ee4fc672f12f3ca502ad7f1551026241fe13ed335095e25dc"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1646,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 164,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 3,
+    "mutationPercent": 94.03,
+    "mutationExit": 0,
+    "mutationScopes": [
+      "Services/AssuranceAssessmentEngine.cs",
+      "Services/ProviderHarnessEvaluator.cs",
+      "Services/RuleCalibrationEvaluator.cs"
+    ],
+    "mutationSourceMatches": true,
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedCanonicalValidatedWith": "AJV draft2020-12",
+    "receiverAuditNoActiveCalls": true,
+    "ownedProcessExitObserved": true,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "markdownFiles": 45,
+    "linkChecks": {
+      "total": 139,
+      "ok": 129,
+      "excluded": 5,
+      "redirected": 5,
+      "errors": 0
+    },
+    "packageHashes": {
+      "nuget": "80f62a6a03003c919a87fe0dc40213943c507455a44f2992ee97b1cc2237e126",
+      "npm": "11c4fc62188cd9c00fe9a960e6c5fc2e0cf6d716ae6d90e346a6695f279540bc"
+    },
+    "installedBundleSubjectDigestsVerified": 6,
+    "installedRunTerminationVerified": true,
+    "installedAuditTerminationVerified": true,
+    "installedCompleteClaimCount": 23,
+    "installedStaticDocumentAndPolicyVerified": true,
+    "browserViewports": [
+      {
+        "width": 1440,
+        "documentWidth": 1425,
+        "headingFont": "30px",
+        "coverageHeadingBottom": 942.921875,
+        "claimCount": 23,
+        "anchorsValid": true,
+        "uniqueIds": true,
+        "disclosures": 0,
+        "external": []
+      },
+      {
+        "width": 1024,
+        "documentWidth": 1009,
+        "headingFont": "30px",
+        "coverageHeadingBottom": 932.921875,
+        "claimCount": 23,
+        "anchorsValid": true,
+        "uniqueIds": true,
+        "disclosures": 0,
+        "external": []
+      },
+      {
+        "width": 768,
+        "documentWidth": 753,
+        "headingFont": "30px",
+        "coverageHeadingBottom": 971.921875,
+        "claimCount": 23,
+        "anchorsValid": true,
+        "uniqueIds": true,
+        "disclosures": 0,
+        "external": []
+      },
+      {
+        "width": 390,
+        "documentWidth": 375,
+        "headingFont": "30px",
+        "coverageHeadingBottom": 1534.03125,
+        "claimCount": 23,
+        "anchorsValid": true,
+        "uniqueIds": true,
+        "disclosures": 0,
+        "external": []
+      },
+      {
+        "width": 320,
+        "documentWidth": 305,
+        "headingFont": "30px",
+        "coverageHeadingBottom": 1672.828125,
+        "claimCount": 23,
+        "anchorsValid": true,
+        "uniqueIds": true,
+        "disclosures": 0,
+        "external": []
+      }
+    ],
+    "contentPolicyEnforcement": {
+      "scriptBlocked": true,
+      "inlineStyleBlocked": true,
+      "violations": [
+        "style-src-attr",
+        "script-src-elem"
+      ]
+    },
+    "noScriptParity": [
+      {
+        "width": 1440,
+        "sameDocumentText": true,
+        "anchorReached": true
+      },
+      {
+        "width": 320,
+        "sameDocumentText": true,
+        "anchorReached": true
+      }
+    ],
+    "keyboardAnchorPassed": true,
+    "printMediaExplicitlyVerified": true,
+    "pdfPages": 39
+  },
+  "requirements": [
+    {
+      "id": "S6A/R01/R03/R06/R11/static-document",
+      "code": [
+        "ValidationHtmlReportDocumentFactory",
+        "ValidationHtmlReportComposer",
+        "ValidationHtmlReportTheme"
+      ],
+      "tests": [
+        "ValidationReportRendererTests",
+        "ValidationHtmlAccessibilityTests",
+        "ReportSnapshotTests"
+      ],
+      "accepted": "Static scoped decision, configuration versus execution, complete canonical claim detail, accurate incomplete-claim summary, visible evidence/actions, deterministic anchors and unframed opening; not the complete S6 interaction/design program"
+    },
+    {
+      "id": "S6A/R12/R13/R14/scoped-offline-containment",
+      "code": [
+        "ValidationHtmlReportComposer",
+        "ValidationHtmlReportTheme",
+        "ReportCommand"
+      ],
+      "tests": [
+        "ValidationHtmlAccessibilityTests",
+        "ReportCommandTests",
+        "installed browser and explicit-print-media checks"
+      ],
+      "accepted": "Encoded static content, hash-bound stylesheet and blocked script/inline styles, no external loads, matched-width no-script content, keyboard anchors and retained PDF text in the recorded local environment"
+    },
+    {
+      "id": "S6A/R20/recorded-lifecycle",
+      "code": [
+        "ValidationRunDocument",
+        "ValidationResult",
+        "ValidationOutcomeTaxonomy",
+        "AssuranceExitCodeMapper",
+        "McpValidatorService",
+        "BoundedArtifactReader"
+      ],
+      "tests": [
+        "ValidationReportRendererTests",
+        "McpValidatorServiceUnitTests",
+        "BoundedArtifactReaderTests",
+        "PublicArtifactSchemaTests"
+      ],
+      "accepted": "Optional run termination survives redaction/JSON; unknown legacy evidence cannot earn success; cancellation, typed bootstrap rejection, returned framework errors and completed target violations remain distinct"
+    },
+    {
+      "id": "S6A/R20/format-lanes",
+      "code": [
+        "ValidationReportRenderer",
+        "MarkdownReportGenerator",
+        "ExecutionGovernanceService",
+        "AuditManifest"
+      ],
+      "tests": [
+        "ValidationReportRendererTests",
+        "ExecutionGovernanceDigestTests",
+        "PublicArtifactSchemaTests",
+        "ReportSnapshotTests"
+      ],
+      "accepted": "Complete human claim/reference detail, XML provenance and observed coverage outcomes, SARIF invocation versus policy distinction, JUnit run/policy/certificate applicability, and digest-bound audit lifecycle metadata; broader CI/interface matrix remains open"
+    }
+  ],
+  "authority": {
+    "productPrinciples": "DESIGN-PRINCIPLES.md",
+    "productPrinciplesSha256": "ed88a354f37b8488e98133ebdacd1f27c6db9a39844944155464283e5d9d7e61",
+    "reportDesign": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/../McpVal-HTML-Assessment-Report-Design.md",
+    "sarifRevision": "OASIS SARIF 2.1.0 Standard, 27 March 2020",
+    "sarifSource": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/os/sarif-v2.1.0-os.html",
+    "sarifSections": [
+      "3.20.14",
+      "3.27.9",
+      "3.27.10"
+    ],
+    "compatibilityContract": "docs/SchemaCompatibility.md"
+  },
+  "contracts": {
+    "assuranceResult": "3.1.0",
+    "auditManifest": "2.2.0",
+    "previousResultsReadable": [
+      "2.0.0",
+      "2.1.0",
+      "2.2.0",
+      "2.3.0",
+      "3.0.0"
+    ],
+    "outcomeTaxonomy": "1.1.0",
+    "ruleCatalog": "2026-11-10.5",
+    "lifecycleAdmission": "Optional field; omitted/null unknown, only four canonical terminal values or their defined numeric forms, ambiguous/invalid values rejected",
+    "snapshotChanges": "Six formats intentionally revised for static document structure, complete claims/provenance, lifecycle/exit separation and schema/catalog metadata; eight normal-mode snapshot/culture-stability controls passed"
+  },
+  "reviews": {
+    "type": "Independent AI source/golden reviews with parent-executed counterexamples and repairs",
+    "closedFindings": [
+      "Lost policy/exit and exact error counts",
+      "Returned framework error falsely marked complete",
+      "Typed bootstrap rejection falsely marked complete",
+      "Incomplete-claim summary contradicted outcome table"
+    ],
+    "scope": "First S6 static-report/lifecycle-parity submilestone only"
+  },
+  "notAccepted": [
+    "All S6 requirements, full document-design/interaction refinement, complete R18 corpus, R19 scale budgets or complete CI-interface matrix",
+    "S7 identity/state/relay pilot and S8 aggregate budget/benchmark/adoption work",
+    "Native Windows/Linux qualification; 23 Windows-native skips are not passes",
+    "Manual VoiceOver/NVDA, 200-percent text enlargement, full accessibility conformance or human comprehension studies",
+    "Tagged PDF accessibility, native extraction reading order or complete page-by-page print quality",
+    "Original customer incident reconciliation, approved enterprise identities/oracles or production assurance",
+    "Whole-product mutation coverage; the configured gate covers only three Core evaluators",
+    "Protected remote checks, registry publication, signing infrastructure or release readiness"
+  ],
+  "notes": [
+    "No push, publish, live enterprise targets or model inference",
+    "S5 remains the immutable prior accepted checkpoint; package version 2.0.1 is not source identity",
+    "Unknown historical lifecycle evidence is not repaired by guessing from timestamps or assurance outcomes",
+    "An initial cross-width no-script comparison differed because of responsive table headers; matched-width comparisons retained exact text assertions",
+    "Earlier relative browser PDF paths were not workspace paths; final PDF/screenshots use explicit owned absolute paths",
+    "Earlier PDF exports retained screen-media emulation; the explicitly verified print-media artifact supersedes them and those exports do not prove a print-CSS defect",
+    "Static glossary choice retains content without script/disclosure dependence; native text extraction can reorder wrapped text",
+    "Final desktop fold repair reduced spacing, not font size or retained evidence",
+    "All owned temporary report servers were stopped after browser qualification"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

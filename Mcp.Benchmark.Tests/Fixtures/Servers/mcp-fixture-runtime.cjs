@@ -390,7 +390,7 @@ function createProfiles() {
   };
 }
 
-function writeResponse(response) {
+function writeWireResponse(response) {
   process.stdout.write(`${JSON.stringify(response)}\n`);
 }
 
@@ -466,7 +466,8 @@ function validateToolCall(profile, request) {
   return null;
 }
 
-function startFixtureServer(profileName) {
+function startFixtureServer(profileName, observeMethod = () => {}, shouldRespond = () => true, transformResponse = response => response, configureProfile = () => {}) {
+  const writeResponse = response => writeWireResponse(transformResponse(response));
   const profiles = createProfiles();
   const profile = profiles[profileName];
   let initializedNotificationReceived = false;
@@ -475,6 +476,8 @@ function startFixtureServer(profileName) {
   if (!profile) {
     throw new Error(`Unknown fixture profile: ${profileName}`);
   }
+
+  configureProfile(profile);
 
   const createProfileSuccess = (id, result, method) => {
     if (!profile.modernResults || !result || typeof result !== "object" || Array.isArray(result)) {
@@ -507,21 +510,26 @@ function startFixtureServer(profileName) {
     try {
       request = JSON.parse(line);
     } catch {
+      observeMethod("fixture:malformed-json");
       writeResponse(createError(null, -32700, "Parse error"));
       return;
     }
 
-    const id = Object.prototype.hasOwnProperty.call(request, "id") ? request.id : null;
+    const id = request && typeof request === "object" && Object.prototype.hasOwnProperty.call(request, "id") ? request.id : null;
     if (!request || typeof request !== "object" || Array.isArray(request) || request.jsonrpc !== "2.0" || typeof request.method !== "string") {
+      observeMethod("fixture:invalid-request");
       writeResponse(createError(id, -32600, "Invalid Request"));
       return;
     }
     if (Object.prototype.hasOwnProperty.call(request, "params") &&
         (request.params === null || typeof request.params !== "object" || Array.isArray(request.params))) {
+      observeMethod("fixture:invalid-params");
       writeResponse(createError(id, -32602, "Invalid params"));
       return;
     }
 
+    observeMethod(request.method);
+    if (!shouldRespond(request.method)) return;
     switch (request.method) {
       case "initialize":
         initializedNotificationReceived = false;

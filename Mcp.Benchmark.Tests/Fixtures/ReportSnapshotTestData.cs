@@ -7,6 +7,40 @@ namespace Mcp.Benchmark.Tests.Fixtures;
 
 public static class ReportSnapshotTestData
 {
+    public static ValidationResult CreateLargeReportResult()
+    {
+        var result = CreateComprehensiveResult();
+        result.ValidationId = "synthetic-large-report-10000-claims-1000-tools";
+        result.ServerConfig.Endpoint = "https://large-report.example.invalid/mcp";
+        result.Run.SchemaVersion = result.ProtocolVersion;
+        result.CapabilitySnapshot = null;
+        for (var index = result.ToolValidation!.ToolResults.Count; index < 1000; index++)
+        {
+            result.ToolValidation.ToolResults.Add(new IndividualToolResult
+            {
+                ToolName = $"synthetic-tool-{index:D4}",
+                Description = "Synthetic scale-fixture tool; invocation was not executed.",
+                Status = TestStatus.Skipped
+            });
+        }
+        result.ToolValidation.ToolsDiscovered = result.ToolValidation.ToolResults.Count;
+        result.ToolValidation.Message = "Synthetic scale fixture; additional tool invocations were not executed.";
+        var context = new AssuranceEvaluationContext { ExecutionMode = ExecutionMode.Standard };
+        var initial = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Provider, context);
+        for (var index = initial.Claims.Count; index < 10_000; index++)
+        {
+            result.Evidence.Coverage.Add(ValidationCoverageFactory.FromOutcome(
+                "synthetic-scale", $"synthetic-obligation-{index:D5}", ValidationOutcome.Unavailable,
+                "Synthetic layout/performance obligation; no target evidence was collected."));
+        }
+        result.Assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Provider, context);
+        result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(result.Assurance);
+        result.Run.TerminationOutcome = result.CriticalErrors.Count > 0 || result.Assurance.Claims.Any(claim => claim.Outcome == AssuranceClaimOutcome.Error)
+            ? ValidationOutcome.Error : ValidationOutcome.Succeeded;
+        result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, new ValidationPolicyConfig { Mode = ValidationPolicyModes.Strict });
+        return result;
+    }
+
     public static ValidationResult CreateComprehensiveResult()
     {
         var authProbe = new ProbeContext
@@ -79,6 +113,15 @@ public static class ReportSnapshotTestData
             ServerProfileSource = ServerProfileSource.UserDeclared,
             ValidationConfig = new McpValidatorConfiguration
             {
+                Assurance = new AssurancePolicyConfig { Profile = AssuranceProfileCatalog.Inventory.ProfileId },
+                Validation = new ValidationConfig
+                {
+                    Categories = new ValidationScenarios
+                    {
+                        PerformanceTesting = new PerformanceTestingConfig { TestMemoryUsage = true },
+                        SecurityTesting = new SecurityTestingConfig { TestBufferOverflow = true, TestResourceExhaustion = true }
+                    }
+                },
                 Reporting = new ReportingConfig
                 {
                     DetailLevel = ReportDetailLevel.Full,

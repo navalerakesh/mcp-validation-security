@@ -11,6 +11,21 @@ namespace Mcp.Benchmark.Tests.Unit;
 
 public class ProtocolComplianceValidatorUnitTests : IDisposable
 {
+    [Theory]
+    [InlineData("2025-11-25", ValidationConstants.Methods.Ping)]
+    [InlineData("2026-07-28", ValidationConstants.Methods.ServerDiscover)]
+    public async Task FormatProbes_ShouldUseTheResolvedProtocolEra(string version, string method)
+    {
+        await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.test/mcp", Transport = "http", ProtocolVersion = version },
+            new ProtocolComplianceConfig { ProtocolVersion = version, TestJsonRpcCompliance = true, TestMessageFormat = true });
+
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), method, It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.AtLeast(2));
+        if (method == ValidationConstants.Methods.ServerDiscover)
+            _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Ping,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private readonly Mock<ILogger<ProtocolComplianceValidator>> _loggerMock;
     private readonly Mock<IMcpHttpClient> _mcpHttpClientMock;
     private readonly IProtocolRuleRegistry _ruleRegistry;
@@ -244,6 +259,31 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
     }
 
     [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_CancelledTransportSuite_ShouldRetainEarlierViolation()
+    {
+        using var cancellation = new CancellationTokenSource();
+        _mcpHttpClientMock.Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .Returns((HttpTransportProbeRequest request, CancellationToken token) =>
+            {
+                if (request.Method == "GET")
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<HttpTransportProbeResponse>(cancellation.Token);
+                }
+                return Task.FromResult(CreateTransportProbeResponse(request, 200, """{"jsonrpc":"2.0","id":1,"result":{}}"""));
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" }, cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.StreamableHttpTransport.Should().NotBeNull();
+        result.StreamableHttpTransport!.Probes.Should().Contain(probe => probe.CheckId == ValidationConstants.CheckIds.HttpNotificationStatus && probe.Passed == false);
+        result.Violations.Should().Contain(violation => violation.CheckId == ValidationConstants.CheckIds.HttpNotificationStatus);
+    }
+
+    [Fact]
     public async Task ValidateJsonRpcComplianceAsync_With2025_11_25TransportFailures_ShouldReportStreamableHttpViolations()
     {
         _mcpHttpClientMock
@@ -315,6 +355,9 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             .Setup(client => client.SendHttpTransportProbeAsync(It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
             {
+                using var body = System.Text.Json.JsonDocument.Parse(request.Body ?? "{}");
+                if (body.RootElement.TryGetProperty("method", out var method) && method.ValueEquals(ValidationConstants.Methods.Ping))
+                    return CreateTransportProbeResponse(request, 404, "{\"jsonrpc\":\"2.0\",\"id\":\"removed-ping\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"}}");
                 if (request.Body?.Contains("subscriptions/listen", StringComparison.Ordinal) == true)
                 {
                     return CreateSubscriptionProbeResponse(request, "mcpval-subscription-http");
@@ -388,9 +431,13 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             ValidationConstants.Methods.LoggingSetLevel,
             It.IsAny<object?>(),
             It.IsAny<CancellationToken>()), Times.Never);
-        result.Findings.Should().Contain(finding =>
+        result.Findings.Should().NotContain(finding =>
             finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported &&
             finding.Component == "io.modelcontextprotocol/logLevel");
+        result.OptionalCapabilityObservations.Should().ContainSingle(observation =>
+            observation.Capability == McpSpecConstants.Capabilities.Logging &&
+            observation.Declared && !observation.Attempted && observation.Supported == null &&
+            observation.Classification == ProbeResponseClassification.Unknown);
         result.Findings.Should().Contain(finding =>
             finding.RuleId == ValidationFindingRuleIds.ModernTasksExtensionNegotiated &&
             finding.Component == "io.modelcontextprotocol/tasks");
@@ -682,7 +729,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.Initialize,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{},\"completions\":{}}},\"id\":\"init\"}"));
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{},\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -690,7 +737,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.LoggingSetLevel,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateMethodNotFoundResponse());
+            .ReturnsAsync(CreateMethodNotFoundResponse(ValidationConstants.Methods.LoggingSetLevel));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -698,7 +745,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.CompletionComplete,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateMethodNotFoundResponse());
+            .ReturnsAsync(CreateMethodNotFoundResponse(ValidationConstants.Methods.CompletionComplete));
 
         var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
             new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
@@ -708,8 +755,322 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(401)]
+    [InlineData(403)]
+    [InlineData(404)]
+    [InlineData(503)]
+    public async Task ValidateJsonRpcComplianceAsync_UnverifiedOptionalProbe_ShouldNotClaimSupportOrTargetMismatch(int statusCode)
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{},\"completions\":{}}},\"id\":\"init\"}"));
+        foreach (var method in new[] { ValidationConstants.Methods.LoggingSetLevel, ValidationConstants.Methods.CompletionComplete })
+            _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), method, It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = statusCode });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-03-26" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
+
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported);
+    }
+
+    [Theory]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"result\":{}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"1.0\",\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"result\":{}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"id\":\"other\",\"id\":\"sent\",\"result\":{}}")]
+    [InlineData("2025-11-25", "completions", "completion/complete", "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"result\":{\"completion\":{\"values\":false,\"values\":[]}}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"id\":\"other\",\"result\":{}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"result\":{},\"error\":{\"code\":-32601,\"message\":\"Missing\"}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"id\":\"other\",\"error\":{\"code\":-32601,\"message\":\"Missing\"}}")]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"error\":{\"code\":-32601}}")]
+    [InlineData("2025-11-25", "completions", "completion/complete", "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"result\":{\"completion\":{\"values\":false}}}")]
+    [InlineData("2026-07-28", "completions", "completion/complete", "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"result\":{\"resultType\":\"complete\"}}")]
+    public async Task ValidateJsonRpcComplianceAsync_InvalidOptionalResponse_ShouldNotEstablishSupport(
+        string version, string capability, string method, string body)
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"result\":{\"capabilities\":{\"" + capability + "\":{},\"prompts\":{}}}}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), method,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true,
+                StatusCode = 200,
+                RawJson = body,
+                ProbeContext = new ProbeContext { Method = method, RequestId = "sent", ProtocolVersion = version }
+            });
+        _mcpHttpClientMock.Setup(client => client.SendHttpTransportProbeAsync(
+                It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
+                CreateTransportProbeResponse(request, 503, string.Empty));
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = version },
+            new ProtocolComplianceConfig
+            {
+                ProtocolVersion = version,
+                ModernDiscovery = version == "2026-07-28"
+                    ? new ModernDiscoveryEvidence { IsValid = true, CapabilityNames = [capability, "prompts"], SupportedVersions = [version] }
+                    : null
+            });
+
+        result.OptionalCapabilityObservations.Should().ContainSingle(observation =>
+            observation.Capability == capability && observation.Attempted && observation.Supported == null,
+            "probe evidence must be retained; status {0}, message {1}", result.Status, result.Message);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported);
+    }
+
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 0)]
+    [InlineData(true, 4095)]
+    [InlineData(true, 4096)]
+    public async Task ValidateJsonRpcComplianceAsync_CompletionProbe_ShouldRequireObservedReference(bool hasReference, int invalidArguments)
+    {
+        object? parameters = null;
+        var calls = 0;
+        var expectedDispatch = hasReference && invalidArguments < CatalogEnumerationLimits.MaximumItems;
+        var arguments = Enumerable.Repeat<object?>(null, invalidArguments).Append(new { name = "query" }).ToArray();
+        var catalog = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            jsonrpc = "2.0", id = "catalog",
+            result = new { prompts = new object?[] { null, new { name = "observed-prompt", arguments } } }
+        });
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.PromptsList,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse(hasReference
+                ? catalog
+                : "{\"jsonrpc\":\"2.0\",\"id\":\"catalog\",\"result\":{\"prompts\":[null,{\"name\":\"no-arguments\"}]}}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.CompletionComplete,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, CancellationToken>((_, _, value, _) => { parameters = value; calls++; })
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"complete\",\"result\":{\"completion\":{\"values\":[]}}}",
+                ValidationConstants.Methods.CompletionComplete, "complete"));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-11-25" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
+
+        calls.Should().Be(expectedDispatch ? 1 : 0);
+        result.OptionalCapabilityObservations.Should().ContainSingle(observation =>
+            observation.Capability == McpSpecConstants.Capabilities.Completions && observation.Attempted == expectedDispatch &&
+            observation.Supported == (expectedDispatch ? true : null));
+        if (hasReference && !expectedDispatch)
+            result.OptionalCapabilityObservations.Should().Contain(observation =>
+                observation.Capability == McpSpecConstants.Capabilities.Completions && observation.Classification == ProbeResponseClassification.PolicyBlocked);
+        if (expectedDispatch)
+        {
+            var request = System.Text.Json.JsonSerializer.SerializeToNode(new
+                { jsonrpc = "2.0", id = "complete", method = ValidationConstants.Methods.CompletionComplete, @params = parameters });
+            request!["params"]!["ref"]!["name"]!.GetValue<string>().Should().Be("observed-prompt");
+            request["params"]!["argument"]!["name"]!.GetValue<string>().Should().Be("query");
+            SchemaValidationHelpers.ValidateDefinition(new EmbeddedSchemaRegistry(), new JsonSchemaValidator(),
+                ProtocolVersions.V2025_11_25, "CompleteRequest", request).IsValid.Should().BeTrue();
+        }
+    }
+
+    [Theory]
+    [InlineData(401, ProbeResponseClassification.AuthenticationChallenge)]
+    [InlineData(503, ProbeResponseClassification.NoResponse)]
+    [InlineData(200, ProbeResponseClassification.ParserBoundary)]
+    [InlineData(-1, ProbeResponseClassification.PolicyBlocked)]
+    public async Task ValidateJsonRpcComplianceAsync_CompletionPreparationFailure_ShouldNotDispatch(
+        int statusCode, ProbeResponseClassification expected)
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.PromptsList,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                StatusCode = statusCode, IsSuccess = statusCode == 200, RawJson = "{\"result\":{\"prompts\":false}}",
+                ProbeContext = statusCode < 0 ? new ProbeContext { ResponseClassification = ProbeResponseClassification.PolicyBlocked } : null
+            });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-11-25" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
+
+        result.OptionalCapabilityObservations.Should().ContainSingle(observation =>
+            observation.Capability == McpSpecConstants.Capabilities.Completions && !observation.Attempted &&
+            observation.Supported == null && observation.Classification == expected &&
+            observation.PreparationMethod == ValidationConstants.Methods.PromptsList);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.CompletionComplete,
+            It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Fact]
-    public async Task ValidateJsonRpcComplianceAsync_WithSupportedOptionalMethods_ShouldEmitStructuredSupportFindings()
+    public async Task ValidateJsonRpcComplianceAsync_LoggingProbe_ShouldSupplyValidParameters()
+    {
+        object? parameters = null;
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{}}},\"id\":\"init\"}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.LoggingSetLevel,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, CancellationToken>((_, _, value, _) => parameters = value)
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"logging\",\"result\":{}}",
+                ValidationConstants.Methods.LoggingSetLevel, "logging"));
+
+        await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-11-25" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-11-25" });
+
+        parameters.Should().NotBeNull();
+        var request = System.Text.Json.JsonSerializer.SerializeToNode(new
+            { jsonrpc = "2.0", id = "logging", method = ValidationConstants.Methods.LoggingSetLevel, @params = parameters });
+        SchemaValidationHelpers.ValidateDefinition(new EmbeddedSchemaRegistry(), new JsonSchemaValidator(),
+            ProtocolVersions.V2025_11_25, "SetLevelRequest", request!).IsValid.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("2025-03-26", "logging", "logging/setLevel", "{}", true)]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{}", true)]
+    [InlineData("2025-11-25", "completions", "completion/complete", "{\"completion\":{\"values\":[]}}", true)]
+    [InlineData("2026-07-28", "completions", "completion/complete", "{\"resultType\":\"complete\",\"completion\":{\"values\":[]}}", true)]
+    [InlineData("2025-03-26", "logging", "logging/setLevel", "{\"code\":-32601,\"message\":\"Method not found\"}", false)]
+    [InlineData("2025-11-25", "logging", "logging/setLevel", "{\"code\":-32601,\"message\":\"Method not found\"}", false)]
+    public async Task ValidateJsonRpcComplianceAsync_CorrelatedOptionalResponse_ShouldRetainConclusiveEvidence(
+        string version, string capability, string method, string payload, bool expectedSupport)
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"init\",\"result\":{\"capabilities\":{\"" + capability + "\":{},\"prompts\":{}}}}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), method,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true,
+                StatusCode = 200,
+                RawJson = "{\"jsonrpc\":\"2.0\",\"id\":\"sent\",\"" + (expectedSupport ? "result" : "error") + "\":" + payload + "}",
+                ProbeContext = new ProbeContext { Method = method, RequestId = "sent", ProtocolVersion = version }
+            });
+        _mcpHttpClientMock.Setup(client => client.SendHttpTransportProbeAsync(
+                It.IsAny<HttpTransportProbeRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((HttpTransportProbeRequest request, CancellationToken _) =>
+                CreateTransportProbeResponse(request, 503, string.Empty));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = version },
+            new ProtocolComplianceConfig
+            {
+                ProtocolVersion = version,
+                ModernDiscovery = version == "2026-07-28"
+                    ? new ModernDiscoveryEvidence { IsValid = true, CapabilityNames = [capability, "prompts"], SupportedVersions = [version] }
+                    : null
+            });
+
+        result.OptionalCapabilityObservations.Should().ContainSingle(observation =>
+            observation.Capability == capability && observation.Attempted && observation.Supported == expectedSupport);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateJsonRpcComplianceAsync_BlockedOptionalProbe_ShouldRetainPolicyOutcome(bool throws)
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{},\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
+        foreach (var method in new[] { ValidationConstants.Methods.LoggingSetLevel, ValidationConstants.Methods.CompletionComplete })
+        {
+            var setup = _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), method,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()));
+            if (throws) setup.ThrowsAsync(new Mcp.Benchmark.Core.Exceptions.OperationAdmissionException("Synthetic admission denial."));
+            else setup.ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = false,
+                StatusCode = -1,
+                ProbeContext = new ProbeContext { ResponseClassification = ProbeResponseClassification.PolicyBlocked }
+            });
+        }
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-03-26" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
+
+        result.OptionalCapabilityObservations.Should().HaveCount(2).And.OnlyContain(observation =>
+            observation.Declared && observation.Supported == null &&
+            observation.Classification == ProbeResponseClassification.PolicyBlocked);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported ||
+            finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsDeclaredButUnsupported);
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_ResultTextContainingErrorCode_ShouldNotBeMethodNotFound()
+    {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{}}},\"id\":\"init\"}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.LoggingSetLevel,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"logging\",\"result\":{\"text\":\"Documented code -32601\"}}",
+                ValidationConstants.Methods.LoggingSetLevel, "logging"));
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-03-26" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
+
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingDeclaredButUnsupported);
+        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateJsonRpcComplianceAsync_OptionalProbeCancellation_ShouldRetainCompletedObservation(bool cancelDuringPreparation)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.Initialize,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"logging\":{},\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.LoggingSetLevel,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"logging\",\"result\":{}}",
+                ValidationConstants.Methods.LoggingSetLevel, "logging"));
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.CompletionComplete,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                cancellation.Cancel();
+                return Task.FromCanceled<JsonRpcResponse>(cancellation.Token);
+            });
+        if (cancelDuringPreparation)
+            _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.PromptsList,
+                    It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    cancellation.Cancel();
+                    return Task.FromCanceled<JsonRpcResponse>(cancellation.Token);
+                });
+
+        var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", ProtocolVersion = "2025-03-26" },
+            new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" }, cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.OptionalCapabilityObservations.Should().Contain(observation => observation.Method == ValidationConstants.Methods.LoggingSetLevel && observation.Supported == true);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.CompletionComplete,
+            It.IsAny<object?>(), It.IsAny<CancellationToken>()), cancelDuringPreparation ? Times.Never() : Times.Once());
+    }
+
+    [Fact]
+    public async Task ValidateJsonRpcComplianceAsync_WithSupportedOptionalMethods_ShouldRespectRequestDirection()
     {
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -717,7 +1078,7 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.Initialize,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"roots\":{},\"logging\":{},\"sampling\":{},\"completions\":{}}},\"id\":\"init\"}"));
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"capabilities\":{\"roots\":{},\"logging\":{},\"sampling\":{},\"completions\":{},\"prompts\":{}}},\"id\":\"init\"}"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -733,7 +1094,8 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.LoggingSetLevel,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"logging\"}"));
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"logging\"}",
+                ValidationConstants.Methods.LoggingSetLevel, "logging"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -749,18 +1111,23 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 ValidationConstants.Methods.CompletionComplete,
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"completion\":{\"values\":[]}},\"id\":\"complete\"}"));
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"completion\":{\"values\":[]}},\"id\":\"complete\"}",
+                ValidationConstants.Methods.CompletionComplete, "complete"));
 
         var result = await CreateValidator().ValidateJsonRpcComplianceAsync(
             new McpServerConfig { Endpoint = "http://localhost:8080/mcp", Transport = "http" },
             new ProtocolComplianceConfig { ProtocolVersion = "2025-03-26" });
 
-        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityRootsSupported);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityRootsSupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupported);
-        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilitySamplingSupported);
+        result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilitySamplingSupported);
         result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported);
         result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityLoggingSupportedButUndeclared);
         result.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.OptionalCapabilityCompletionsSupportedButUndeclared);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.RootsList,
+            It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mcpHttpClientMock.Verify(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.SamplingCreateMessage,
+            It.IsAny<object?>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -1128,6 +1495,9 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
 
     private void SetupHappyPathHttpClient()
     {
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.PromptsList,
+            It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"id\":\"catalog\",\"result\":{\"prompts\":[{\"name\":\"observed-prompt\",\"arguments\":[{\"name\":\"query\"}]}]}}"));
         _mcpHttpClientMock
             .Setup(client => client.ValidateErrorCodesAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcErrorValidationResult
@@ -1174,6 +1544,10 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
                 It.IsAny<object?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{},\"id\":\"ping\"}"));
+
+        _mcpHttpClientMock.Setup(client => client.CallAsync(It.IsAny<string>(), ValidationConstants.Methods.ServerDiscover,
+                It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateSuccessResponse("{\"jsonrpc\":\"2.0\",\"result\":{\"resultType\":\"complete\"},\"id\":\"discovery\"}"));
 
         _mcpHttpClientMock
             .Setup(client => client.CallAsync(
@@ -1278,18 +1652,20 @@ public class ProtocolComplianceValidatorUnitTests : IDisposable
             .ReturnsAsync((StdioTransportProbeRequest request, CancellationToken _) => CreateDefaultStdioTransportProbeResponse(request));
     }
 
-    private static JsonRpcResponse CreateSuccessResponse(string rawJson) => new()
+    private static JsonRpcResponse CreateSuccessResponse(string rawJson, string? method = null, string? requestId = null) => new()
     {
         StatusCode = 200,
         IsSuccess = true,
-        RawJson = rawJson
+        RawJson = rawJson,
+        ProbeContext = requestId is null ? null : new ProbeContext { Method = method, RequestId = requestId }
     };
 
-    private static JsonRpcResponse CreateMethodNotFoundResponse() => new()
+    private static JsonRpcResponse CreateMethodNotFoundResponse(string? method = null) => new()
     {
         StatusCode = 200,
         IsSuccess = true,
-        RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":\"missing\"}"
+        RawJson = "{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32601,\"message\":\"Method not found\"},\"id\":\"missing\"}",
+        ProbeContext = method is null ? null : new ProbeContext { Method = method, RequestId = "missing" }
     };
 
     private static JsonRpcResponse CreateParseErrorResponse() => new()

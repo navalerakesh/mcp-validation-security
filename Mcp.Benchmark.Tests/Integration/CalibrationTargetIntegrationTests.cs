@@ -18,6 +18,7 @@ namespace Mcp.Benchmark.Tests.Integration;
 
 public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerTestFixture>
 {
+    private const string AdmittedFixtureToken = "owned-calibration-credential";
     private readonly McpServerTestFixture _fixture;
     private readonly ProtocolComplianceValidator _protocolValidator;
     private readonly SecurityValidator _securityValidator;
@@ -46,6 +47,49 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
                 fixture.McpClient));
     }
 
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task ProtectedTarget_ShouldKeepProtocolAndSecurityOutcomesIndependentWithoutReconfiguration(
+        bool acceptsInvalidCredentials, bool hasCredentials)
+    {
+        _fixture.ResetMockServer();
+        ConfigureProtectedTarget(acceptsInvalidCredentials);
+        var serverConfig = hasCredentials
+            ? _fixture.CreateAuthenticatedServerConfig(token: AdmittedFixtureToken)
+            : _fixture.CreateTestServerConfig();
+        _fixture.McpClient.SetAuthentication(serverConfig.Authentication);
+
+        var protocol = await _protocolValidator.ValidateJsonRpcComplianceAsync(
+            serverConfig, new ProtocolComplianceConfig { TestJsonRpcCompliance = true, ProtocolVersion = "2024-11-05" });
+        protocol.Status.Should().Be(hasCredentials ? TestStatus.Passed : TestStatus.AuthRequired, protocol.Message);
+        var protocolRequests = _fixture.MockServer.LogEntries.ToArray();
+        protocolRequests.Should().NotBeEmpty();
+        foreach (var entry in protocolRequests)
+            (entry.RequestMessage?.Headers?.ContainsKey("Authorization") == true).Should().Be(hasCredentials,
+                "active protocol probes must use only the admitted run credential");
+
+        var security = await _securityValidator.PerformSecurityAssessmentAsync(
+            serverConfig, new SecurityTestingConfig { TestInputValidation = false, TestInjectionAttacks = false, TestAuthenticationBypass = true });
+        var scenarios = security.AuthenticationTestResult!.TestScenarios;
+        scenarios.Where(scenario => scenario.TestType == "No Auth").Should().NotBeEmpty()
+            .And.OnlyContain(scenario => scenario.StatusCode == "401",
+                "explicit unauthenticated probes must not inherit the admitted credential");
+        scenarios.Where(scenario => scenario.TestType == "Invalid Token").Should().NotBeEmpty()
+            .And.OnlyContain(scenario => scenario.StatusCode == (acceptsInvalidCredentials ? "200" : "401"));
+        var result = new ValidationResult { ProtocolCompliance = protocol, SecurityTesting = security };
+        var assurance = AssuranceAssessmentEngine.Evaluate(result, AssuranceProfileCatalog.Inventory);
+        assurance.Assessments.CoreConformance.Status.Should().NotBe(CoreConformanceStatus.Nonconformant);
+        if (!hasCredentials)
+            assurance.Assessments.CoreConformance.Status.Should().Be(CoreConformanceStatus.Incomplete);
+        if (acceptsInvalidCredentials)
+            assurance.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.IssuesFound);
+        else
+            assurance.Assessments.SecurityAssurance.Status.Should().NotBe(SecurityAssuranceStatus.IssuesFound);
+    }
+
     [Fact]
     public async Task RunnableHttpTargets_ShouldMatchCorpusVerdictsAndScoreRanges()
     {
@@ -53,24 +97,15 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
         foreach (var targetKind in new[] { "compliant", "vulnerable", "malformed", "unavailable", "throttled", "auth-protected" })
         {
             _fixture.ResetMockServer();
-            if (targetKind == "vulnerable")
-            {
-                ConfigureProtocolCompliantTarget(requireAuthentication: false);
-            }
-            else
-            {
-                ConfigureTarget(targetKind);
-            }
-            var serverConfig = _fixture.CreateTestServerConfig();
+            ConfigureTarget(targetKind);
+            var serverConfig = targetKind == "vulnerable"
+                ? _fixture.CreateAuthenticatedServerConfig(token: AdmittedFixtureToken)
+                : _fixture.CreateTestServerConfig(timeoutMs: 10000);
+            _fixture.McpClient.SetAuthentication(serverConfig.Authentication);
 
             var protocolResult = await _protocolValidator.ValidateJsonRpcComplianceAsync(
                 serverConfig,
                 new ProtocolComplianceConfig { TestJsonRpcCompliance = true, ProtocolVersion = "2024-11-05" });
-            if (targetKind == "vulnerable")
-            {
-                _fixture.ResetMockServer();
-                ConfigureTarget(targetKind);
-            }
             var securityResult = await _securityValidator.PerformSecurityAssessmentAsync(
                 serverConfig,
                 new SecurityTestingConfig
@@ -92,7 +127,9 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
                 assurance.Assessments.CoreConformance.Status.Should().NotBe(CoreConformanceStatus.Nonconformant, evidence);
             if (targetKind == "vulnerable")
                 assurance.Assessments.SecurityAssurance.Status.Should().Be(SecurityAssuranceStatus.IssuesFound, evidence);
-            score.OverallScore.Should().Be(expected.Score, targetKind);
+            score.OverallScore.Should().Be(expected.Score,
+                "{0}; protocol {1}: {2}; security {3}: {4}", targetKind,
+                protocolResult.Status, protocolResult.Message, securityResult.Status, securityResult.Message);
             observedScores[targetKind] = score.OverallScore;
         }
 
@@ -105,7 +142,8 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
 
     private async Task<TargetObservation> ObserveTargetAsync(string targetKind, string endpoint)
     {
-        var baseline = await _fixture.McpClient.CallAsync(endpoint, "tools/list", new { }, CancellationToken.None);
+        var baseline = await _fixture.McpClient.CallAsync(
+            endpoint, "tools/list", new { }, new AuthenticationConfig(), CancellationToken.None);
         JsonRpcResponse? credentialVariant = null;
         if (baseline.StatusCode == 401)
         {
@@ -124,17 +162,7 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
     {
         if (targetKind == "vulnerable")
         {
-            ConfigureProtocolCompliantTarget(requireAuthentication: true);
-            _fixture.MockServer
-                .Given(Request.Create()
-                    .WithPath("/mcp")
-                    .WithHeader("Authorization", new RegexMatcher("^Bearer .+", ignoreCase: true)))
-                .RespondWith(JsonRpcSuccess());
-            _fixture.MockServer
-                .Given(Request.Create().WithPath("/mcp"))
-                .RespondWith(Response.Create()
-                    .WithStatusCode(401)
-                    .WithHeader("WWW-Authenticate", "Bearer realm=\"calibration\""));
+            ConfigureProtectedTarget(acceptsInvalidCredentials: true);
             return;
         }
 
@@ -163,6 +191,24 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
             .RespondWith(response!);
     }
 
+    private void ConfigureProtectedTarget(bool acceptsInvalidCredentials)
+    {
+        ConfigureProtocolCompliantTarget(requireAuthentication: true);
+        if (acceptsInvalidCredentials)
+        {
+            _fixture.MockServer
+                .Given(Request.Create()
+                    .WithPath("/mcp")
+                    .WithHeader("Authorization", new RegexMatcher("^Bearer .+", ignoreCase: true)))
+                .RespondWith(JsonRpcSuccess());
+        }
+        _fixture.MockServer
+            .Given(Request.Create().WithPath("/mcp"))
+            .RespondWith(Response.Create()
+                .WithStatusCode(401)
+                .WithHeader("WWW-Authenticate", "Bearer realm=\"calibration\""));
+    }
+
     private void ConfigureProtocolCompliantTarget(bool requireAuthentication)
     {
         RegisterProtocolResponse(@"^\{\s*invalid", JsonRpcError(-32700), requireAuthentication);
@@ -178,14 +224,14 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
             .WithHeader("Content-Type", new RegexMatcher("^text/plain", ignoreCase: true));
         if (requireAuthentication)
         {
-            contentTypeRequest.WithHeader("Authorization", "Bearer invalid-calibration-token");
+            contentTypeRequest.WithHeader("Authorization", $"Bearer {AdmittedFixtureToken}");
         }
         _fixture.MockServer.Given(contentTypeRequest).RespondWith(Response.Create().WithStatusCode(415));
 
         var successRequest = Request.Create().WithPath("/mcp");
         if (requireAuthentication)
         {
-            successRequest.WithHeader("Authorization", "Bearer invalid-calibration-token");
+            successRequest.WithHeader("Authorization", $"Bearer {AdmittedFixtureToken}");
         }
         _fixture.MockServer.Given(successRequest).RespondWith(JsonRpcSuccess());
     }
@@ -197,20 +243,38 @@ public sealed class CalibrationTargetIntegrationTests : IClassFixture<McpServerT
             .WithBody(new RegexMatcher(bodyPattern));
         if (requireAuthentication)
         {
-            request.WithHeader("Authorization", "Bearer invalid-calibration-token");
+            request.WithHeader("Authorization", $"Bearer {AdmittedFixtureToken}");
         }
         _fixture.MockServer.Given(request).RespondWith(response);
     }
 
-    private static IResponseBuilder JsonRpcError(int code) => Response.Create()
-        .WithStatusCode(200)
-        .WithHeader("Content-Type", "application/json")
-        .WithBody($"{{\"jsonrpc\":\"2.0\",\"error\":{{\"code\":{code},\"message\":\"Calibration error\"}},\"id\":\"calibration\"}}");
+    private static IResponseBuilder JsonRpcError(int code) => JsonRpcFixtureResponse(code);
 
-    private static IResponseBuilder JsonRpcSuccess() => Response.Create()
-        .WithStatusCode(200)
-        .WithHeader("Content-Type", "application/json")
-        .WithBody("{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[]},\"id\":\"calibration\"}");
+    private static IResponseBuilder JsonRpcSuccess() => JsonRpcFixtureResponse(null);
+
+    private static IResponseBuilder JsonRpcFixtureResponse(int? errorCode) => Response.Create().WithCallback(request =>
+    {
+        JsonElement? requestId = null;
+        try
+        {
+            using var body = JsonDocument.Parse(request.Body ?? "null");
+            if (body.RootElement.ValueKind == JsonValueKind.Object && body.RootElement.TryGetProperty("id", out var value) &&
+                value.ValueKind is JsonValueKind.String or JsonValueKind.Number) requestId = value.Clone();
+        }
+        catch (JsonException) { }
+        return new WireMock.ResponseMessage
+        {
+            StatusCode = 200,
+            Headers = new Dictionary<string, WireMock.Types.WireMockList<string>> { ["Content-Type"] = new("application/json") },
+            BodyData = new WireMock.Util.BodyData
+            {
+                DetectedBodyType = WireMock.Types.BodyType.String,
+                BodyAsString = errorCode.HasValue
+                    ? JsonSerializer.Serialize(new { jsonrpc = "2.0", error = new { code = errorCode.Value, message = "Calibration error" }, id = requestId })
+                    : JsonSerializer.Serialize(new { jsonrpc = "2.0", result = new { tools = Array.Empty<object>() }, id = requestId })
+            }
+        };
+    });
 
     private static ValidationResult BuildValidationResult(
         string targetKind,

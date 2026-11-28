@@ -59,6 +59,17 @@ public class JsonRpcErrorTest
     public bool IsValid { get; set; }
 }
 
+[Flags]
+public enum JsonRpcErrorProbeSelection
+{
+    None = 0,
+    ParseError = 1,
+    InvalidRequest = 2,
+    MethodNotFound = 4,
+    InvalidParams = 8,
+    All = ParseError | InvalidRequest | MethodNotFound | InvalidParams
+}
+
 public class JsonRpcErrorValidationResult
 {
     public List<JsonRpcErrorTest> Tests { get; set; } = new();

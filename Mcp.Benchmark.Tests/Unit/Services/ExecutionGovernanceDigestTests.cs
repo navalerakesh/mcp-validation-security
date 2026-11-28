@@ -7,7 +7,68 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ExecutionGovernanceDigestTests : IDisposable
 {
+    [Theory]
+    [InlineData("comprehensive")]
+    [InlineData("inventory")]
+    public void PlanOnlyAudit_ShouldRetainSelectedProfileWithoutAssessmentCredit(string profile)
+    {
+        var configuration = new McpValidatorConfiguration();
+        configuration.Server.Endpoint = "https://example.test/mcp";
+        configuration.Assurance.Profile = profile;
+        configuration.Execution!.DryRun = true;
+        var governance = new ExecutionGovernanceService();
+        var plan = governance.BuildValidationPlan(new CliSessionContext("profile-plan"), configuration, null);
+        var manifest = governance.BuildAuditManifest(plan, null, [], null);
+
+        plan.AssuranceProfile.Should().Be(profile);
+        manifest.AssuranceProfile.Should().Be(profile);
+        manifest.RecommendedExitCode.Should().BeNull();
+        manifest.RunTerminationOutcome.Should().BeNull();
+        manifest.ExecutedChecks.Should().BeEmpty();
+        manifest.CoreConformance.Should().Be(CoreConformanceStatus.Incomplete);
+    }
+
     private readonly string _directory = Path.Combine(Path.GetTempPath(), $"mcpval-audit-{Guid.NewGuid():N}");
+
+    [Theory]
+    [InlineData("http", "https://example.test/mcp?access_token=secret#fragment", "https://example.test/mcp")]
+    [InlineData("stdio", "node /tmp/owned-server.cjs", "node /tmp/owned-server.cjs")]
+    public void CapturedRunTarget_ShouldMatchPlanAndRemainImmutable(string transport, string endpoint, string digestInput)
+    {
+        var configuration = new McpValidatorConfiguration { Server = new McpServerConfig { Transport = transport, Endpoint = endpoint } };
+        var request = ValidationRunRequest.Capture(configuration, "admitted-run");
+        var plan = new ExecutionGovernanceService().BuildCommandPlan(new CliSessionContext("session-test"), "validate",
+            configuration.Server, configuration.Execution, outputDirectory: null, plannedChecks: [], plannedArtifacts: []);
+
+        configuration.Server.Endpoint = "https://changed.invalid/mcp";
+        request.CreateConfiguration().Server.Endpoint = "https://mutated-copy.invalid/mcp";
+
+        request.TargetIdentitySha256.Should().Be(ArtifactDigestUtility.ComputeText(digestInput));
+        request.TargetIdentitySha256.Should().Be(plan.TargetDigest);
+        request.CreateConfiguration().Server.Endpoint.Should().Be(endpoint);
+    }
+
+    [Theory]
+    [InlineData(ValidationStatus.Error, ValidationOutcome.Error, 70)]
+    [InlineData(ValidationStatus.Cancelled, ValidationOutcome.Cancelled, 124)]
+    [InlineData(ValidationStatus.InProgress, null, 2)]
+    public void BuildAuditManifest_ShouldRetainRecordedTermination(ValidationStatus status, ValidationOutcome? outcome, int exit)
+    {
+        var result = new ValidationResult { OverallStatus = status };
+        var manifest = new ExecutionGovernanceService().BuildAuditManifest(new ExecutionPlan(), result, [], null);
+
+        manifest.RunTerminationOutcome.Should().Be(outcome);
+        manifest.RecommendedExitCode.Should().Be(exit);
+    }
+
+    [Fact]
+    public void BuildAuditManifest_PlanOnly_ShouldNotInventExecutionOutcome()
+    {
+        var manifest = new ExecutionGovernanceService().BuildAuditManifest(new ExecutionPlan(), null, [], null);
+
+        manifest.RunTerminationOutcome.Should().BeNull();
+        manifest.RecommendedExitCode.Should().BeNull();
+    }
 
     [Fact]
     public void BuildAuditManifest_ShouldDigestFinalArtifactBytesAndVersionedCatalogs()

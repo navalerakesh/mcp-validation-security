@@ -463,7 +463,7 @@ public class MarkdownReportGeneratorTests
 
         report.Should().Contain("Recommended Remediation Order");
         var bootstrapIndex = report.IndexOf("Priority 1: Bootstrap & Protocol Version", StringComparison.Ordinal);
-        var authIndex = report.IndexOf("Priority 2: Authentication Boundary", StringComparison.Ordinal);
+        var authIndex = report.IndexOf("Priority 2: Security & Authorization Boundaries", StringComparison.Ordinal);
         var capabilityIndex = report.IndexOf("Priority 3: Advertised Capabilities", StringComparison.Ordinal);
         var safetyIndex = report.IndexOf("Priority 4: AI Safety, Security, And Performance", StringComparison.Ordinal);
 

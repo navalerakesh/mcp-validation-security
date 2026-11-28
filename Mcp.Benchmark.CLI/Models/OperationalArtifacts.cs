@@ -57,8 +57,31 @@ public sealed class ValidationAttestation
     public string SignatureBase64 { get; init; } = string.Empty;
 }
 
+public enum ConfigurationSourceKind
+{
+    Default,
+    File,
+    Profile,
+    CommandLine,
+    Governance
+}
+
+public sealed record ConfigurationSettingOrigin(
+    string Setting,
+    ConfigurationSourceKind Source,
+    string Pointer,
+    ConfigurationSourceKind? ReplacedSource,
+    string Reason);
+
 public sealed class ExecutionPlan
 {
+    public string ValidationId { get; set; } = string.Empty;
+
+    public string AssuranceProfile { get; init; } = AssuranceProfileCatalog.Inventory.ProfileId;
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; set; }
+
     public string ValidatorDigest { get; init; } = string.Empty;
 
     public string ConfigDigest { get; init; } = string.Empty;
@@ -101,6 +124,12 @@ public sealed class ExecutionPlan
 
     public int MaxResponseBytes { get; init; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
 
+    public int MaxCatalogPayloadCharacters { get; init; } = ExecutionPolicyDefaults.DefaultMaxCatalogPayloadCharacters;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GlobalTimeoutMinutes { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Mcp.Benchmark.Core.Services.RequestDemandEstimate? RequestDemand { get; init; }
+
     public bool AllowPrivateAddresses { get; init; }
 
     public bool RequiresElevatedRiskAcknowledgement { get; init; }
@@ -132,6 +161,13 @@ public sealed class ExecutionPlan
 
 public sealed class AuditManifest
 {
+    public ValidationOutcome? RunTerminationOutcome { get; init; }
+
+    public int? RecommendedExitCode { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ConfigurationSettingOrigin>? ConfigurationSources { get; init; }
+
     public string DocumentType { get; init; } = ArtifactContracts.AuditManifestDocumentType;
 
     public string DocumentSchemaVersion { get; init; } = ArtifactContracts.AuditManifestSchemaVersion;
@@ -180,6 +216,12 @@ public sealed class AuditManifest
     public int TimeoutSeconds { get; init; }
 
     public int MaxResponseBytes { get; init; } = ExecutionPolicyDefaults.DefaultMaxResponseBytes;
+
+    public int MaxCatalogPayloadCharacters { get; init; } = ExecutionPolicyDefaults.DefaultMaxCatalogPayloadCharacters;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? GlobalTimeoutMinutes { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Mcp.Benchmark.Core.Services.RequestDemandEstimate? RequestDemand { get; init; }
 
     public IReadOnlyList<string> AllowedHosts { get; init; } = Array.Empty<string>();
 

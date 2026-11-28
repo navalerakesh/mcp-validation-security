@@ -42,6 +42,8 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| **Core Conformance** | **{result.Assurance.Assessments.CoreConformance.Status}** |");
         sb.AppendLine($"| **Security Assurance** | **{result.Assurance.Assessments.SecurityAssurance.Status}** |");
         sb.AppendLine($"| **Operational Readiness** | **{result.Assurance.Assessments.OperationalReadiness.Status}** |");
+        sb.AppendLine($"| **Run Termination** | {ReportContextFormatter.FormatRunTermination(result.Run.TerminationOutcome)} |");
+        sb.AppendLine($"| **Recommended Exit** | {AssuranceExitCodeMapper.Map(result)} |");
         if (evidenceSummary.TotalDeclarations > 0)
         {
             sb.AppendLine($"| **Evidence Coverage** | **{FormatPercent(evidenceSummary.EvidenceCoverageRatio, "F1")}** |");
@@ -56,11 +58,13 @@ public class MarkdownReportGenerator : IReportGenerator
         if (result.Run.OperationalMetrics is { } operations)
         {
             sb.AppendLine($"| **Validator Overhead** | {operations.ValidatorOverheadMs:F1} ms |");
-            sb.AppendLine($"| **Target Latency (50th / 95th / 99th Percentile)** | {operations.TargetLatencyP50Ms:F1} / {operations.TargetLatencyP95Ms:F1} / {operations.TargetLatencyP99Ms:F1} ms |");
-            sb.AppendLine($"| **Retries / Queue 95th Percentile** | {operations.RetryCount} / {operations.QueueTimeP95Ms:F1} ms |");
-            sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {operations.ThroughputRequestsPerSecond:F2} requests/second |");
-            sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {operations.ErrorRate:P1} aggregate failure rate |");
+            sb.AppendLine($"| **Target Latency (50th / 95th / 99th Percentile)** | {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP50Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} / {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP95Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} / {ReportContextFormatter.FormatOperationalMetric(operations.TargetLatencyP99Ms, operations.TargetLatencySampleCount > 0, "F1", "ms")} |");
+            sb.AppendLine($"| **Retries / Queue 95th Percentile** | {operations.RetryCount} / {ReportContextFormatter.FormatOperationalMetric(operations.QueueTimeP95Ms, operations.QueueTimeSampleCount > 0, "F1", "ms")} |");
+            sb.AppendLine($"| **Retry Delay / Throughput** | {operations.RetryDelayMs:F1} ms / {ReportContextFormatter.FormatOperationalMetric(operations.ThroughputRequestsPerSecond, operations.TotalRunDurationMs > 0, "F2", "requests/second")} |");
+            sb.AppendLine($"| **Transport Attempts / Failure Rate** | {operations.RequestsCompleted}/{operations.RequestsStarted} completed · {operations.RequestsFailed} failed / {ReportContextFormatter.FormatOperationalMetric(operations.ErrorRate, operations.RequestsCompleted > 0, "P1")} aggregate failure rate |");
             sb.AppendLine($"| **Budget / Rejected Responses** | {operations.RequestBudgetLimit} / {operations.TruncatedResponseCount} |");
+            if (operations.CatalogPayloadCharacterLimit != null || operations.CatalogPayloadCharactersReserved != null)
+                sb.AppendLine($"| **Catalog Payload Budget** | {ReportContextFormatter.FormatCatalogBudget(operations)} |");
             sb.AppendLine($"| **Operational Evidence Coverage** | {operations.EvidenceCoverageRatio:P1} |");
         }
         sb.AppendLine($"| **Transport** | {result.ServerConfig.Transport?.ToUpper() ?? "HTTP"} |");
@@ -745,28 +749,39 @@ public class MarkdownReportGenerator : IReportGenerator
         }
         if (assurance.CertificateEligibility.Reasons.Count == 0)
         {
-            sb.AppendLine("- All requirements for the selected assurance profile are satisfied.");
+            sb.AppendLine($"- {ReportContextFormatter.FormatMissingEligibilityExplanation(assurance.CertificateEligibility.Status)}");
         }
         sb.AppendLine();
 
-        var nonSuccessClaims = assurance.Claims
-            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
+        var claims = assurance.Claims
             .OrderBy(claim => claim.Dimension)
             .ThenBy(claim => claim.ClaimId, StringComparer.Ordinal)
-            .Take(20)
             .ToList();
-        if (nonSuccessClaims.Count == 0)
+        if (claims.Count == 0)
         {
+            sb.AppendLine("No claims recorded.");
+            sb.AppendLine();
             return;
         }
 
-        sb.AppendLine("### Non-Success Claims");
+        sb.AppendLine("### Recorded Claims");
         sb.AppendLine();
-        sb.AppendLine("| Claim | Dimension | Authority | Outcome | Confidence | Summary |");
-        sb.AppendLine("| :--- | :--- | :--- | :--- | :--- | :--- |");
-        foreach (var claim in nonSuccessClaims)
+        foreach (var claim in claims)
         {
-            sb.AppendLine($"| `{EscapeInlineCode(claim.ClaimId)}` | {claim.Dimension} | {claim.Authority} | **{claim.Outcome}** | {claim.Confidence} | {EscapeTableCell(claim.Summary)} |");
+            sb.AppendLine($"#### `{EscapeInlineCode(claim.ClaimId)}`");
+            sb.AppendLine();
+            sb.AppendLine($"{EscapeMarkdownText(claim.Summary)}");
+            sb.AppendLine();
+            sb.AppendLine($"- Subject: {EscapeMarkdownText(claim.Subject)}");
+            sb.AppendLine($"- Outcome: **{claim.Outcome}**; dimension: {claim.Dimension}; requirement: {claim.RequirementLevel}");
+            sb.AppendLine($"- Authority: {claim.Authority}; recorded confidence: {claim.Confidence}");
+            sb.AppendLine($"- Applicability: {claim.Applicability}; {EscapeMarkdownText(claim.ApplicabilityReason ?? "No reason recorded.")}");
+            sb.AppendLine($"- Source revision: `{EscapeInlineCode(claim.Source.Revision)}`; source: `{EscapeInlineCode(claim.Source.Uri ?? "Not recorded")}`");
+            sb.AppendLine($"- Recorded correction: {EscapeMarkdownText(claim.Remediation ?? "Not recorded.")}");
+            if (claim.EvidenceIds.Count == 0) sb.AppendLine("- Evidence references: none recorded.");
+            foreach (var evidenceId in claim.EvidenceIds)
+                sb.AppendLine($"- Evidence reference: `{EscapeInlineCode(evidenceId)}`");
+            sb.AppendLine();
         }
         sb.AppendLine();
     }
@@ -789,6 +804,14 @@ public class MarkdownReportGenerator : IReportGenerator
         sb.AppendLine($"| Deterministic validator overhead | {metrics.ValidatorOverheadMs:F1} ms |");
         sb.AppendLine($"| Requests started / completed / failed | {metrics.RequestsStarted} / {metrics.RequestsCompleted} / {metrics.RequestsFailed} |");
         sb.AppendLine($"| Retained latency / queue samples | {metrics.TargetLatencySampleCount} / {metrics.QueueTimeSampleCount} |");
+        sb.AppendLine($"| Latency sample window | {ReportContextFormatter.FormatMetricWindow(metrics.TargetLatencyWindow)} |");
+        sb.AppendLine($"| Queue sample window | {ReportContextFormatter.FormatMetricWindow(metrics.QueueTimeWindow)} |");
+        if (metrics.ValidatorProcessResources is { } resources)
+        {
+            sb.AppendLine($"| Validator process CPU time | {ReportContextFormatter.FormatOperationalMetric(resources.ProcessorTimeDeltaMs, true, "F1", "ms")} |");
+            sb.AppendLine($"| Validator process working set (start / end) | {ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetStartBytes, true, "F0", "bytes")} / {ReportContextFormatter.FormatOperationalMetric(resources.WorkingSetEndBytes, true, "F0", "bytes")} |");
+            sb.AppendLine("| Resource observation scope | Concurrent process activity included; not target-server telemetry |");
+        }
         sb.AppendLine($"| Evidence coverage | {metrics.EvidenceCoverageRatio:P1} |");
         sb.AppendLine();
         sb.AppendLine("### Stage And Rule Timings");
@@ -1306,7 +1329,8 @@ public class MarkdownReportGenerator : IReportGenerator
             sb.AppendLine("| :--- | :--- | :--- | :--- | :---: | :--- |");
             foreach (var coverage in result.Evidence.Coverage)
             {
-                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` | `{coverage.Blocker}` | {coverage.Confidence} | {EscapeTableCell(coverage.Reason ?? "-")} |");
+                sb.AppendLine($"| `{coverage.LayerId}` | `{coverage.Scope}` | `{coverage.Status}` ({coverage.Outcome}) | `{coverage.Blocker}` | {coverage.Confidence} | {EscapeTableCell(coverage.Reason ?? "-")} |");
+                sb.AppendLine($"| | | Observed: {coverage.ObservedOutcome?.ToString() ?? "Not recorded"} | Lane: {coverage.Lane?.ToString() ?? "Not recorded"} | Origin: {coverage.Origin?.ToString() ?? "Not recorded"} | |");
             }
             sb.AppendLine();
         }

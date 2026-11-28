@@ -84,8 +84,22 @@ public class McpValidatorConfiguration
             ClientProfiles = ClientProfiles,
             Evaluation = Evaluation?.Clone()
         };
-        return JsonSerializer.Deserialize<McpValidatorConfiguration>(JsonSerializer.Serialize(redacted))
+        var clone = JsonSerializer.Deserialize<McpValidatorConfiguration>(JsonSerializer.Serialize(redacted))
             ?? throw new InvalidOperationException("Unable to clone validator configuration.");
+        foreach (var scenario in clone.Validation?.Categories?.ToolTesting?.CustomScenarios ?? [])
+        {
+            if (scenario == null) continue;
+            scenario.Parameters = null;
+            scenario.ExpectedResult = null;
+            scenario.ClientInputRounds = null;
+        }
+        foreach (var scenario in clone.Validation?.Categories?.PromptTesting?.CustomScenarios ?? [])
+        {
+            if (scenario == null) continue;
+            scenario.Arguments = null;
+            scenario.ClientInputRounds = null;
+        }
+        return clone;
     }
 
     /// <summary>
@@ -105,7 +119,7 @@ public class McpValidatorConfiguration
 public sealed class AssurancePolicyConfig
 {
     [JsonPropertyName("profile")]
-    public string Profile { get; set; } = "inventory";
+    public string Profile { get; set; } = Mcp.Benchmark.Core.Constants.AssuranceProfileCatalog.Comprehensive.ProfileId;
 }
 
 /// <summary>
@@ -366,6 +380,10 @@ public class McpServerConfig
         var lower = key.ToLowerInvariant();
 
         return lower.Contains("authorization") ||
+             lower.Contains("session") ||
+             lower.Contains("cookie") ||
+             lower.Contains("password") ||
+             lower.Contains("credential") ||
                lower.Contains("auth") ||
                lower.Contains("token") ||
                lower.Contains("secret") ||

@@ -9,7 +9,8 @@ public enum AssuranceDimension
     Extension,
     ClientCompatibility,
     ExternalConformance,
-    ExecutionIntegrity
+    ExecutionIntegrity,
+    ControlledApplication
 }
 
 public enum AssuranceRequirementLevel
@@ -199,6 +200,9 @@ public enum ExternalConformanceStatus
 
 public sealed class ExternalConformanceAssuranceAssessment
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public OfficialConformanceVerificationStatus? VerificationStatus { get; init; }
+
     public ExternalConformanceStatus Status { get; init; } = ExternalConformanceStatus.NotProvided;
 
     public string? RequirementSetRevision { get; init; }
@@ -274,6 +278,8 @@ public sealed class AssuranceProfileManifest
 
 public sealed class AssuranceEvaluationContext
 {
+    public ControlledIdentitySecurityRequirement? RequiredIdentityControls { get; init; }
+
     public ExecutionMode ExecutionMode { get; init; } = ExecutionMode.Safe;
 
     public bool HasSignedAttestation { get; init; }
@@ -291,6 +297,12 @@ public sealed class AssuranceEvaluationContext
 
 public sealed class AssuranceEvaluation
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledIdentitySecurityRequirement? RequiredIdentityControls { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<string>? RequiredExtensionIds { get; init; }
+
     public string ContractVersion { get; init; } = "2.0.0";
 
     public required AssuranceProfileManifest Profile { get; init; }

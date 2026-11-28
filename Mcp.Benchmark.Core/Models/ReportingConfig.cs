@@ -220,7 +220,8 @@ public class TestExecutionConfig
     public int DefaultTestTimeoutMs { get; set; } = 120000;
 
     /// <summary>
-    /// Gets or sets the global timeout for the entire test suite in minutes.
+    /// Gets or sets the total active validation deadline in minutes.
+    /// CLI invocations include target resolution and session startup; caller cancellation can shorten the deadline.
     /// </summary>
     public int GlobalTimeoutMinutes { get; set; } = 60;
 

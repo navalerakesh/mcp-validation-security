@@ -5,6 +5,15 @@ namespace Mcp.Benchmark.Core.Models;
 /// </summary>
 public class LoadTestResult
 {
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? PeakInFlightRequests { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public int? TimingSampleCount { get; set; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public double? ObservationDurationMs { get; set; }
+
     /// <summary>
     /// Gets or sets the maximum number of concurrent connections tested.
     /// </summary>
@@ -208,7 +217,7 @@ public class ResourceUsageMetrics
     /// <summary>
     /// Gets or sets whether resource usage remained within acceptable limits.
     /// </summary>
-    public bool WithinAcceptableLimits { get; set; } = false;
+    public bool? WithinAcceptableLimits { get; set; }
 
     /// <summary>
     /// Gets or sets any resource exhaustion events detected.
@@ -224,27 +233,27 @@ public class MemoryUsageMetrics
     /// <summary>
     /// Gets or sets the initial memory usage in bytes.
     /// </summary>
-    public long InitialMemoryBytes { get; set; } = 0;
+    public long? InitialMemoryBytes { get; set; }
 
     /// <summary>
     /// Gets or sets the peak memory usage in bytes.
     /// </summary>
-    public long PeakMemoryBytes { get; set; } = 0;
+    public long? PeakMemoryBytes { get; set; }
 
     /// <summary>
     /// Gets or sets the final memory usage in bytes.
     /// </summary>
-    public long FinalMemoryBytes { get; set; } = 0;
+    public long? FinalMemoryBytes { get; set; }
 
     /// <summary>
     /// Gets or sets the average memory usage in bytes.
     /// </summary>
-    public long AverageMemoryBytes { get; set; } = 0;
+    public long? AverageMemoryBytes { get; set; }
 
     /// <summary>
     /// Gets or sets whether memory leaks were detected.
     /// </summary>
-    public bool MemoryLeaksDetected { get; set; } = false;
+    public bool? MemoryLeaksDetected { get; set; }
 }
 
 /// <summary>
@@ -255,17 +264,17 @@ public class CpuUsageMetrics
     /// <summary>
     /// Gets or sets the average CPU usage percentage.
     /// </summary>
-    public double AverageCpuUsagePercent { get; set; } = 0.0;
+    public double? AverageCpuUsagePercent { get; set; }
 
     /// <summary>
     /// Gets or sets the peak CPU usage percentage.
     /// </summary>
-    public double PeakCpuUsagePercent { get; set; } = 0.0;
+    public double? PeakCpuUsagePercent { get; set; }
 
     /// <summary>
     /// Gets or sets whether CPU usage remained within acceptable limits.
     /// </summary>
-    public bool WithinAcceptableLimits { get; set; } = false;
+    public bool? WithinAcceptableLimits { get; set; }
 }
 
 /// <summary>
@@ -276,22 +285,22 @@ public class NetworkUsageMetrics
     /// <summary>
     /// Gets or sets the total bytes sent.
     /// </summary>
-    public long TotalBytesSent { get; set; } = 0;
+    public long? TotalBytesSent { get; set; }
 
     /// <summary>
     /// Gets or sets the total bytes received.
     /// </summary>
-    public long TotalBytesReceived { get; set; } = 0;
+    public long? TotalBytesReceived { get; set; }
 
     /// <summary>
     /// Gets or sets the average network latency in milliseconds.
     /// </summary>
-    public double AverageNetworkLatencyMs { get; set; } = 0.0;
+    public double? AverageNetworkLatencyMs { get; set; }
 
     /// <summary>
     /// Gets or sets the number of network errors encountered.
     /// </summary>
-    public int NetworkErrors { get; set; } = 0;
+    public int? NetworkErrors { get; set; }
 }
 
 /// <summary>

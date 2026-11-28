@@ -9,6 +9,8 @@ These instructions govern local Copilot agent behavior. They do not replace bran
 - For MCP extension or official-conformance work, also follow [docs/Design/ExtensionIntegrationProposal.md](../docs/Design/ExtensionIntegrationProposal.md).
 - Do not infer protocol behavior from memory. Verify current official MCP specifications, extension lifecycle pages, schemas, conformance scenarios, and changelogs. Record the dated revision or immutable source digest that governs the change.
 
+For report changes, follow the [quality and layout contract](../docs/Design/ReportQualityStandard.md) and [report validation skill](./skills/report-quality-validation/SKILL.md); verify generated artifacts before acceptance.
+
 ## Evidence And Product Truth
 
 - Evidence precedes findings, scoring, verdicts, compatibility interpretation, and presentation.

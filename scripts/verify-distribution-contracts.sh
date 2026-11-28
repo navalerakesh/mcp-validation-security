@@ -225,8 +225,8 @@ grep -Fq 'mcr.microsoft.com/dotnet/sdk:8.0.419@sha256:' Dockerfile || {
   echo "Dockerfile build image must pin the exact reviewed SDK from global.json." >&2
   exit 1
 }
-grep -Fq 'mcr.microsoft.com/dotnet/runtime-deps:8.0.25-jammy-chiseled@sha256:' Dockerfile || {
-  echo "Dockerfile runtime image must pin the SDK-compatible runtime patch." >&2
+grep -Fq 'mcr.microsoft.com/dotnet/runtime-deps:8.0.25-jammy-chiseled-extra@sha256:' Dockerfile || {
+  echo "Dockerfile runtime image must pin the SDK-compatible runtime patch with globalization support." >&2
   exit 1
 }
 

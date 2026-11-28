@@ -13,7 +13,7 @@ public class JsonSchemaValidator : ISchemaValidator
 {
     private static readonly Dialect ExtensibleDraft202012 = CreateExtensibleDraft202012();
 
-    public SchemaValidationResult Validate(JsonNode instance, JsonNode schema)
+    public SchemaValidationResult Validate(JsonNode? instance, JsonNode schema)
     {
         try
         {
@@ -27,7 +27,7 @@ public class JsonSchemaValidator : ISchemaValidator
             // Convert JsonNode to JsonElement for evaluation
             // Note: JsonSchema.Net supports JsonNode, but we are seeing compilation errors suggesting it wants JsonElement.
             // This conversion ensures compatibility.
-            using var doc = JsonDocument.Parse(instance.ToJsonString());
+            using var doc = JsonDocument.Parse(instance?.ToJsonString() ?? "null");
 
             // Evaluate the instance against the schema
             var result = jsonSchema.Evaluate(doc.RootElement, new EvaluationOptions
@@ -118,23 +118,6 @@ public class JsonSchemaValidator : ISchemaValidator
             schema.ToJsonString(),
             new BuildOptions { Dialect = ExtensibleDraft202012 });
 
-    private static Dialect CreateExtensibleDraft202012()
-    {
-        var vocabularies = new[]
-        {
-            Vocabulary.Draft202012_Core,
-            Vocabulary.Draft202012_Applicator,
-            Vocabulary.Draft202012_Unevaluated,
-            Vocabulary.Draft202012_Validation,
-            Vocabulary.Draft202012_MetaData,
-            Vocabulary.Draft202012_FormatAnnotation,
-            Vocabulary.Draft202012_Content
-        };
-        return new Dialect(vocabularies.SelectMany(vocabulary => vocabulary.Keywords))
-        {
-            Id = Dialect.Draft202012.Id,
-            RefIgnoresSiblingKeywords = Dialect.Draft202012.RefIgnoresSiblingKeywords,
-            AllowUnknownKeywords = true
-        };
-    }
+    private static Dialect CreateExtensibleDraft202012() =>
+        Dialect.Draft202012.With([], allowUnknownKeywords: true);
 }

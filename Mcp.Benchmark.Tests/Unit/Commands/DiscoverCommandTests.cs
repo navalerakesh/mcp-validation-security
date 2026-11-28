@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
 
+[Collection("Console output")]
 public sealed class DiscoverCommandTests
 {
     [Fact]

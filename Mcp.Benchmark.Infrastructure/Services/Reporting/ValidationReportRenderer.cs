@@ -6,6 +6,7 @@ using System.Text.Json;
 using System.Xml.Linq;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 
 namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
@@ -49,6 +50,11 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 new XElement("GeneratedAt", ResolveArtifactTime(validationResult).ToString("yyyy-MM-ddTHH:mm:ssZ")),
                 new XElement("ValidationId", validationResult.ValidationId)
             ),
+            new XElement("RunIntegrity",
+                new XElement("TerminationOutcome",
+                    new XAttribute("recorded", validationResult.Run.TerminationOutcome.HasValue),
+                    validationResult.Run.TerminationOutcome?.ToString()),
+                new XElement("RecommendedExitCode", AssuranceExitCodeMapper.Map(validationResult))),
             new XElement("Server",
                 new XElement("Endpoint", validationResult.ServerConfig.Endpoint),
                 new XElement("Transport", validationResult.ServerConfig.Transport)
@@ -75,8 +81,15 @@ public class ValidationReportRenderer : IValidationReportRenderer
                             new XAttribute("requirementLevel", claim.RequirementLevel),
                             new XAttribute("outcome", claim.Outcome),
                             new XAttribute("confidence", claim.Confidence),
+                            new XAttribute("applicability", claim.Applicability),
                             new XElement("Subject", claim.Subject),
                             new XElement("Summary", claim.Summary),
+                            new XElement("ApplicabilityReason", claim.ApplicabilityReason),
+                            new XElement("Source",
+                                new XAttribute("revision", claim.Source.Revision),
+                                new XElement("Uri", claim.Source.Uri),
+                                new XElement("Sha256", claim.Source.Sha256)),
+                            new XElement("EvidenceReferences", claim.EvidenceIds.Select(id => new XElement("EvidenceId", id))),
                             claim.Remediation == null ? null : new XElement("Remediation", claim.Remediation))))
             ),
             new XElement("Summary",
@@ -561,16 +574,24 @@ public class ValidationReportRenderer : IValidationReportRenderer
                 id = validationResult.ValidationId,
                 description = new { text = "MCP validation run" }
             },
-            invocations = new[]
+            properties = new
+            {
+                runTerminationOutcome = validationResult.Run.TerminationOutcome?.ToString(),
+                recommendedExitCode = AssuranceExitCodeMapper.Map(validationResult),
+                executionEvidenceAvailable = validationResult.Run.TerminationOutcome.HasValue
+            },
+            invocations = validationResult.Run.TerminationOutcome.HasValue ? new object[]
             {
                 new
                 {
-                    executionSuccessful = AssuranceExitCodeMapper.Map(validationResult.Assurance, validationResult.PolicyOutcome) == AssuranceExitCodeMapper.Satisfied,
+                    executionSuccessful = validationResult.Run.TerminationOutcome == ValidationOutcome.Succeeded,
                     startTimeUtc = validationResult.StartTime.ToUniversalTime().ToString("O"),
                     endTimeUtc = validationResult.EndTime?.ToUniversalTime().ToString("O"),
                     properties = new
                     {
                         validationId = validationResult.ValidationId,
+                        runTerminationOutcome = validationResult.Run.TerminationOutcome?.ToString(),
+                        recommendedExitCode = AssuranceExitCodeMapper.Map(validationResult),
                         endpoint = validationResult.ServerConfig.Endpoint,
                         transport = validationResult.ServerConfig.Transport,
                         assuranceProfile = validationResult.Assurance.Profile.ProfileId,
@@ -586,12 +607,12 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         specProfile = validationResult.ValidationConfig.Reporting.SpecProfile
                     }
                 }
-            },
+            } : Array.Empty<object>(),
             results = entries.Select(entry => new
             {
                 ruleId = entry.RuleId,
                 level = entry.Level,
-                kind = entry.Source == "coverage" ? "review" : entry.Level == "note" ? "informational" : "fail",
+                kind = entry.Kind,
                 message = new { text = entry.Message },
                 partialFingerprints = new { logicalIdentity = entry.Fingerprint },
                 locations = string.IsNullOrWhiteSpace(entry.Component)
@@ -657,6 +678,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
 
                 suite.Add(new XElement("properties",
                     new XElement("property", new XAttribute("name", "validationId"), new XAttribute("value", validationResult.ValidationId)),
+                    new XElement("property", new XAttribute("name", "runTerminationOutcome"), new XAttribute("value", validationResult.Run.TerminationOutcome?.ToString() ?? "NotRecorded")),
+                    new XElement("property", new XAttribute("name", "recommendedExitCode"), new XAttribute("value", AssuranceExitCodeMapper.Map(validationResult))),
                     new XElement("property", new XAttribute("name", "endpoint"), new XAttribute("value", validationResult.ServerConfig.Endpoint ?? string.Empty)),
                     new XElement("property", new XAttribute("name", "transport"), new XAttribute("value", validationResult.ServerConfig.Transport ?? string.Empty)),
                     new XElement("property", new XAttribute("name", "assuranceProfile"), new XAttribute("value", validationResult.Assurance.Profile.ProfileId)),
@@ -960,6 +983,10 @@ public class ValidationReportRenderer : IValidationReportRenderer
                         new XAttribute("layerId", coverage.LayerId),
                         new XAttribute("scope", coverage.Scope),
                         new XAttribute("status", coverage.Status.ToString()),
+                        new XAttribute("outcome", coverage.Outcome.ToString()),
+                        coverage.ObservedOutcome.HasValue ? new XAttribute("observedOutcome", coverage.ObservedOutcome.Value.ToString()) : null,
+                        coverage.Lane.HasValue ? new XAttribute("lane", coverage.Lane.Value.ToString()) : null,
+                        coverage.Origin.HasValue ? new XAttribute("origin", coverage.Origin.Value.ToString()) : null,
                         new XAttribute("blocker", coverage.Blocker.ToString()),
                         new XAttribute("confidence", coverage.Confidence.ToString()),
                         coverage.ProbeContext == null ? null : BuildProbeContextElement(coverage.ProbeContext),
@@ -1230,9 +1257,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
             {
                 var level = claim.Outcome switch
                 {
-                    AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => "error",
-                    AssuranceClaimOutcome.ReviewRequired => "warning",
-                    _ => "note"
+                    AssuranceClaimOutcome.Violated => "error",
+                    _ => "none"
                 };
                 var properties = new Dictionary<string, object?>
                 {
@@ -1259,7 +1285,13 @@ public class ValidationReportRenderer : IValidationReportRenderer
                     Properties: properties,
                     Source: claim.Authority.ToString(),
                     Category: claim.Dimension.ToString(),
-                    Fingerprint: claim.ClaimId);
+                    Fingerprint: claim.ClaimId,
+                    Kind: claim.Outcome switch
+                    {
+                        AssuranceClaimOutcome.Violated => "fail",
+                        AssuranceClaimOutcome.ReviewRequired => "review",
+                        _ => "open"
+                    });
             })
             .ToArray();
     }
@@ -1691,7 +1723,8 @@ public class ValidationReportRenderer : IValidationReportRenderer
         string? HelpUri,
         Dictionary<string, object?> Properties,
         string Source,
-        string Fingerprint);
+        string Fingerprint,
+        string Kind = "fail");
 
     private static IReadOnlyList<JunitTestCase> BuildJunitTestCases(ValidationResult validationResult)
     {
@@ -1717,12 +1750,31 @@ public class ValidationReportRenderer : IValidationReportRenderer
             status: validationResult.Assurance.CertificateEligibility.Status switch
             {
                 CertificateEligibilityStatus.Eligible => TestStatus.Passed,
+                CertificateEligibilityStatus.Ineligible when !string.Equals(
+                    validationResult.Assurance.Profile.ProfileId, AssuranceProfileCatalog.Provider.ProfileId, StringComparison.Ordinal) => TestStatus.Skipped,
                 CertificateEligibilityStatus.Ineligible => TestStatus.Failed,
                 _ => TestStatus.Inconclusive
             },
             duration: validationResult.Duration ?? TimeSpan.Zero,
             message: validationResult.Assurance.CertificateEligibility.Status.ToString(),
             details: string.Join(Environment.NewLine, validationResult.Assurance.CertificateEligibility.Reasons)));
+
+        testCases.Add(CreateJunitTestCase(
+            suiteName: "run-integrity",
+            className: "validation.run",
+            name: "Recorded run termination",
+            status: validationResult.Run.TerminationOutcome switch
+            {
+                ValidationOutcome.Succeeded => TestStatus.Passed,
+                ValidationOutcome.Error => TestStatus.Error,
+                ValidationOutcome.Cancelled => TestStatus.Cancelled,
+                _ => TestStatus.Inconclusive
+            },
+            duration: TimeSpan.Zero,
+            message: $"Run termination: {validationResult.Run.TerminationOutcome?.ToString() ?? "NotRecorded"}",
+            details: $"Recommended exit: {AssuranceExitCodeMapper.Map(validationResult)}. Execution termination is separate from target assurance and policy."));
+        if (validationResult.PolicyOutcome is { } policyOutcome)
+            testCases.Add(CreatePolicyJunitTestCase(policyOutcome, validationResult));
 
         return testCases;
     }

@@ -35,9 +35,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> PerformLoadTestingAsync(McpServerConfig serverConfig, PerformanceTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Load Testing", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Load Testing", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
             var targetConcurrency = Math.Clamp(config.MaxConcurrentConnections, 1, 512);
             var concurrentConnections = ValidationCalibration.GetInitialPerformanceProbeConcurrency(serverConfig, targetConcurrency);
             var probeRoundCount = 0;
@@ -166,6 +165,9 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
 
             result.LoadTesting = new LoadTestResult
             {
+                TimingSampleCount = finalRound.ResponseTimes.Count,
+                PeakInFlightRequests = finalRound.PeakInFlightRequests,
+                ObservationDurationMs = finalRound.Duration.TotalMilliseconds,
                 MaxConcurrentConnections = concurrentConnections,
                 TotalRequests = finalRound.TotalRequests,
                 SuccessfulRequests = finalRound.SuccessfulRequests,
@@ -195,6 +197,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 Source = ValidationRuleSource.Guideline,
                 Metadata = new Dictionary<string, string>
                 {
+                    ["requirementLevel"] = nameof(AssuranceRequirementLevel.May),
                     ["requests"] = finalRound.TotalRequests.ToString(),
                     ["concurrency"] = concurrentConnections.ToString(),
                     ["operation"] = ValidationConstants.Methods.ToolsList
@@ -221,7 +224,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 });
             }
 
-            result.ResourceUsage = new ResourceUsageMetrics { WithinAcceptableLimits = true };
+            result.ResourceUsage = new ResourceUsageMetrics();
             result.Throughput = new ThroughputMetrics
             {
                 RequestsPerSecond = requestsPerSecond,
@@ -245,42 +248,6 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             result.PerformanceBottlenecks.AddRange(
                 PerformanceMetricsCalculator.IdentifyBottlenecks(avgResponseTime, result.LoadTesting.ErrorRate, p99));
 
-            // Measure tools/call latency (single sequential call) if a tool exists
-            try
-            {
-                var listResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
-                if (listResponse.IsSuccess && !string.IsNullOrEmpty(listResponse.RawJson))
-                {
-                    using var doc = System.Text.Json.JsonDocument.Parse(listResponse.RawJson);
-                    if (doc.RootElement.TryGetProperty("result", out var res) &&
-                        res.TryGetProperty("tools", out var tools) &&
-                        tools.ValueKind == System.Text.Json.JsonValueKind.Array &&
-                        tools.GetArrayLength() > 0)
-                    {
-                        var firstTool = tools[0];
-                        if (firstTool.TryGetProperty("name", out var nameEl))
-                        {
-                            var toolName = nameEl.GetString();
-                            var callSw = System.Diagnostics.Stopwatch.StartNew();
-                            var callResponse = await _httpClient.CallAsync(
-                                serverConfig.Endpoint!,
-                                ValidationConstants.Methods.ToolsCall,
-                                new { name = toolName, arguments = new { } },
-                                serverConfig.Authentication, ct);
-                            callSw.Stop();
-
-                            var callLatency = callResponse.ElapsedMs ?? callSw.Elapsed.TotalMilliseconds;
-                            result.PerformanceBottlenecks.AddRange(
-                                PerformanceMetricsCalculator.IdentifyBottlenecks(0, 0, 0, callLatency, toolName));
-                        }
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarning(ex, "Failed to measure tools/call latency");
-            }
-
             // Calculate Score using Strategy
             result.Score = _scoringStrategy.CalculateScore(result);
             result.MeasurementDisposition = PerformanceMeasurementEvaluator.HasObservedMetrics(result)
@@ -294,6 +261,13 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             }
 
             result.Status = result.PerformanceBottlenecks.Count == 0 ? TestStatus.Passed : TestStatus.Failed;
+            if (config.TestResponseTimes && finalRound.ResponseTimes.Count != finalRound.TotalRequests)
+            {
+                if (result.Status == TestStatus.Passed) result.Status = TestStatus.Inconclusive;
+                result.Score = 0;
+                result.Throughput.MeetsPerformanceTargets = false;
+                result.Message = "Required latency samples are incomplete; recorded request and throughput measurements remain available.";
+            }
 
             Logger.LogInformation("Load testing completed: {Requests} requests, {RPS:F1} RPS, {AvgTime:F1}ms avg response time",
                 result.LoadTesting.TotalRequests, result.LoadTesting.RequestsPerSecond, result.LoadTesting.AverageResponseTimeMs);
@@ -339,10 +313,12 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         var rateLimitedRequests = 0;
         var transientFailures = 0;
         var responseTimes = new List<double>();
+        var inFlightRequests = 0;
+        var peakInFlightRequests = 0;
 
         Logger.LogInformation("Starting load test with {Requests} requests, {Connections} concurrent connections", totalRequests, concurrentConnections);
 
-        var loadTestStart = DateTime.UtcNow;
+        var loadStopwatch = System.Diagnostics.Stopwatch.StartNew();
         var tasks = new List<Task>();
         using var semaphore = new SemaphoreSlim(concurrentConnections);
 
@@ -351,17 +327,23 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             tasks.Add(Task.Run(async () =>
             {
                 await semaphore.WaitAsync(ct);
+                lock (responseTimes)
+                {
+                    inFlightRequests++;
+                    peakInFlightRequests = Math.Max(peakInFlightRequests, inFlightRequests);
+                }
                 try
                 {
                     var response = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
                     // Preserve sub-millisecond timing for fast local/STDIO
                     // servers while still excluding validator queueing.
-                    var elapsed = response.ElapsedMs ?? 0;
+                    var elapsed = response.ElapsedMs;
 
                     lock (responseTimes)
                     {
-                        responseTimes.Add(elapsed);
+                        if (elapsed is { } timing && double.IsFinite(timing) && timing >= 0)
+                            responseTimes.Add(timing);
                         if (response.IsSuccess)
                         {
                             successfulRequests++;
@@ -398,6 +380,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
                 }
                 finally
                 {
+                    lock (responseTimes) { inFlightRequests--; }
                     semaphore.Release();
                 }
             }, ct));
@@ -412,7 +395,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
             rateLimitedRequests,
             transientFailures,
             responseTimes,
-            DateTime.UtcNow - loadTestStart);
+            peakInFlightRequests,
+            loadStopwatch.Elapsed);
     }
 
     private sealed record LoadProbeRound(
@@ -422,6 +406,7 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
         int RateLimitedRequests,
         int TransientFailures,
         List<double> ResponseTimes,
+        int PeakInFlightRequests,
         TimeSpan Duration);
 
     /// <summary>
@@ -429,9 +414,8 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> BenchmarkResponseTimesAsync(McpServerConfig serverConfig, IEnumerable<string> operations, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Response Time Benchmarking", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Response Time Benchmarking", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
             var operationBenchmarks = new Dictionary<string, OperationBenchmark>();
             var failedOperations = 0;
 
@@ -480,40 +464,81 @@ public class PerformanceValidator : BaseValidator<PerformanceValidator>, IPerfor
     /// </summary>
     public async Task<PerformanceTestResult> TestResourceExhaustionAsync(McpServerConfig serverConfig, IEnumerable<string> resourceTypes, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Resource Exhaustion", async (ct) =>
+        return await ExecuteValidationAsync<PerformanceTestResult>(serverConfig, "Resource Exhaustion", async (result, ct) =>
         {
-            var result = new PerformanceTestResult();
-            var exhaustionEvents = new List<string>();
+            var transportEvents = result.PerformanceBottlenecks;
+            var observedFailedResponses = 0;
 
             foreach (var resourceType in resourceTypes)
             {
+                var tasks = new List<Task<JsonRpcResponse>>();
+                var errors = new List<Exception>();
                 try
                 {
-                    var tasks = new List<Task<JsonRpcResponse>>();
-                    for (int i = 0; i < 50; i++)
+                    for (var requestIndex = 0; requestIndex < 50; requestIndex++)
                     {
-                        tasks.Add(_httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct));
-                    }
-                    var responses = await Task.WhenAll(tasks);
-                    var failedResponses = responses.Count(response => !response.IsSuccess);
-                    if (failedResponses > 0)
-                    {
-                        exhaustionEvents.Add($"Resource exhaustion probe for {resourceType} returned {failedResponses}/{responses.Length} failed responses.");
+                        ct.ThrowIfCancellationRequested();
+                        tasks.Add(_httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct)
+                            ?? throw new InvalidOperationException("Resource-probe dispatch returned no operation."));
                     }
                 }
-                catch (Exception ex)
+                catch (Exception exception) { errors.Add(exception); }
+                try { await Task.WhenAll(tasks); }
+                catch { }
+
+                var responses = tasks.Where(task => task.IsCompletedSuccessfully).Select(task => task.Result).ToArray();
+                errors.AddRange(tasks.Where(task => task.IsFaulted).SelectMany(task => task.Exception!.Flatten().InnerExceptions));
+                if (tasks.Any(task => task.IsCanceled)) errors.Add(new OperationCanceledException());
+                var failedResponses = responses.Count(response => response != null && !response.IsSuccess && response.StatusCode > 0 &&
+                    !ValidationReliability.IsRetryableHttpStatusCode(response.StatusCode) &&
+                    !AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication &&
+                    response.ProbeContext?.ResponseClassification != ProbeResponseClassification.PolicyBlocked &&
+                    !JsonRpcResponseInspector.IsMethodNotFound(response));
+                observedFailedResponses += failedResponses;
+                if (failedResponses > 0)
+                    transportEvents.Add($"Transport probe for {resourceType} returned {failedResponses}/{tasks.Count} failed responses; resource exhaustion was not established.");
+                if (cancellationToken.IsCancellationRequested)
                 {
-                    exhaustionEvents.Add($"Resource exhaustion detected for {resourceType}: {ex.Message}");
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Cancelled;
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                if (errors.Any(ValidationReliability.IsPolicyBlockedException) ||
+                    responses.Any(response => response?.ProbeContext?.ResponseClassification == ProbeResponseClassification.PolicyBlocked))
+                {
+                    result.Status = TestStatus.Inconclusive;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Blocked;
+                    result.Message = "Resource probe was blocked by local execution policy.";
+                    return result;
+                }
+                if (responses.Any(response => AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication))
+                {
+                    result.Status = TestStatus.AuthRequired;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.AuthRequired;
+                    result.Message = "Resource probe requires authentication; resource telemetry remains unavailable.";
+                    return result;
+                }
+                if (errors.Any(exception => exception is not (TimeoutException or OperationCanceledException or HttpRequestException or IOException or NotSupportedException)))
+                {
+                    result.Status = TestStatus.Error;
+                    result.MeasurementDisposition = PerformanceMeasurementDisposition.Unavailable;
+                    result.Message = "Resource probe encountered a local framework error; completed transport evidence was retained.";
+                    return result;
+                }
+                if (errors.Count > 0 || responses.Any(response => response == null || response.StatusCode <= 0 ||
+                    ValidationReliability.IsRetryableHttpStatusCode(response.StatusCode) || JsonRpcResponseInspector.IsMethodNotFound(response)))
+                {
+                    result.Status = observedFailedResponses > 0 ? TestStatus.Failed : TestStatus.Inconclusive;
+                    result.MeasurementDisposition = observedFailedResponses == 0 && errors.Any(exception => exception is TimeoutException or OperationCanceledException)
+                        ? PerformanceMeasurementDisposition.TimedOut : PerformanceMeasurementDisposition.Unavailable;
+                    result.Message = "Resource probe had incomplete transport evidence; completed outcomes were retained without resource-exhaustion claims.";
+                    return result;
                 }
             }
 
-            result.ResourceUsage = new ResourceUsageMetrics
-            {
-                WithinAcceptableLimits = exhaustionEvents.Count == 0,
-                ResourceExhaustionEvents = exhaustionEvents
-            };
-
-            result.Status = exhaustionEvents.Count == 0 ? TestStatus.Passed : TestStatus.Failed;
+            result.ResourceUsage = new ResourceUsageMetrics();
+            result.MeasurementDisposition = PerformanceMeasurementDisposition.Unavailable;
+            result.Message = "Transport outcomes were observed; target CPU, memory and resource-limit telemetry was not measured.";
+            result.Status = transportEvents.Count == 0 ? TestStatus.Inconclusive : TestStatus.Failed;
             return result;
         }, cancellationToken);
     }

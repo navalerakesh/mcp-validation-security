@@ -7,6 +7,190 @@ namespace Mcp.Benchmark.Tests.Unit.Services;
 
 public sealed class ValidationObservabilityTests
 {
+    [Theory]
+    [InlineData("GET")]
+    [InlineData("POST")]
+    [InlineData("PUT")]
+    [InlineData("PATCH")]
+    [InlineData("DELETE")]
+    [InlineData("HEAD")]
+    [InlineData("OPTIONS")]
+    [InlineData("CONNECT")]
+    [InlineData("TRACE")]
+    [InlineData("OTHER")]
+    public void FailureAttribution_ShouldPreserveOnlyTheCanonicalMethodVocabulary(string method)
+    {
+        RequestFailureCount.NormalizeMethod(method).Should().Be(method);
+        RequestFailureCount.NormalizeMethod(method.ToLowerInvariant()).Should().Be("OTHER");
+        RequestFailureCount.NormalizeMethod("private-method-canary").Should().Be("OTHER");
+        RequestFailureCount.NormalizeMethod(null).Should().Be("OTHER");
+    }
+
+    [Fact]
+    public void CatalogMeasurements_ShouldAcceptThePublishedMaximumWithoutInventingCorrelation()
+    {
+        var maximum = Mcp.Benchmark.Core.Constants.ExecutionPolicyDefaults.MaximumCatalogPayloadCharacters;
+        ValidationOperationalMetrics.IsValidCatalogBudget(maximum, maximum).Should().BeTrue();
+        ValidationOperationalMetrics.IsValidCatalogBudget(0, maximum).Should().BeTrue();
+        ValidationOperationalMetrics.IsValidCatalogBudget(maximum + 1L, maximum).Should().BeFalse();
+        new ValidationOperationalMetrics().RunCorrelationId.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(100)]
+    [InlineData(599)]
+    public void FailureAttribution_ShouldAcceptHttpStatusBoundaries(int status)
+    {
+        RequestFailureCount.IsValidCollection([new("GET", status, RequestFailureKind.HttpStatus, 1)], 1).Should().BeTrue();
+        RequestFailureCount.IsValidCollection([new("GET", status, RequestFailureKind.RequestException, 1)], 1).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(RequestFailureKind.Unspecified)]
+    [InlineData(RequestFailureKind.RequestException)]
+    [InlineData(RequestFailureKind.ResponseRejected)]
+    [InlineData(RequestFailureKind.RequestCancelled)]
+    public void FailureAttribution_ShouldPreserveNonHttpFailureKindsWithoutAStatus(RequestFailureKind kind)
+    {
+        RequestFailureCount.IsValidCollection([new("POST", null, kind, 2)], 2).Should().BeTrue();
+        RequestFailureCount.IsValidCollection([new("POST", 200, kind, 2)], 2).Should().BeFalse();
+        RequestFailureCount.IsValidCollection([new("POST", null, kind, 0)], 0).Should().BeFalse();
+    }
+
+    [Fact]
+    public void FailureAttribution_ShouldPreserveMissingnessAndRejectOversizedOrOverflowingCollections()
+    {
+        RequestFailureCount.IsValidCollection(null, 3).Should().BeTrue("a historical absent breakdown is unknown, not an empty measured breakdown");
+        RequestFailureCount.IsValidCollection([], 3).Should().BeFalse();
+        var methods = new[] { "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS", "CONNECT", "TRACE", "OTHER" };
+        var entries = new List<RequestFailureCount>();
+        foreach (var method in methods)
+        {
+            for (var status = 100; status <= 599; status++) entries.Add(new(method, status, RequestFailureKind.HttpStatus, 1));
+            foreach (var kind in new[] { RequestFailureKind.Unspecified, RequestFailureKind.RequestException, RequestFailureKind.ResponseRejected, RequestFailureKind.RequestCancelled })
+                entries.Add(new(method, null, kind, 1));
+        }
+        entries.Should().HaveCount(RequestFailureCount.MaximumBuckets);
+        RequestFailureCount.IsValidCollection(entries, entries.Count).Should().BeTrue();
+        entries.Add(entries[0]);
+        RequestFailureCount.IsValidCollection(entries, entries.Count).Should().BeFalse();
+        RequestFailureCount.IsValidCollection(
+            [new("GET", null, RequestFailureKind.RequestException, int.MaxValue), new("POST", null, RequestFailureKind.RequestException, int.MaxValue)],
+            -2).Should().BeFalse("failure totals are accumulated without signed integer overflow");
+    }
+
+    [Fact]
+    public void CanonicalClone_ShouldRemoveInvalidAttributionAndIsolateValidEntries()
+    {
+        var result = new ValidationResult();
+        var entries = new List<RequestFailureCount> { new("POST", 405, RequestFailureKind.HttpStatus, 1) };
+        result.Run.OperationalMetrics = new ValidationOperationalMetrics { RequestsFailed = 1, RequestFailures = entries };
+        var clone = result.CloneWithoutSecrets();
+        entries[0] = new RequestFailureCount("secret-method-canary", 405, RequestFailureKind.HttpStatus, 1);
+
+        clone.Run.OperationalMetrics!.RequestFailures!.Single().Method.Should().Be("POST");
+        var sanitized = result.CloneWithoutSecrets();
+        sanitized.Run.OperationalMetrics!.RequestFailures.Should().BeNull();
+        sanitized.Run.OperationalMetrics.RequestsFailed.Should().Be(1);
+        System.Text.Json.JsonSerializer.Serialize(sanitized).Should().NotContain("secret-method-canary");
+    }
+
+    [Fact]
+    public void FailureBreakdown_ShouldAccountForFailuresWithoutPersistingUntrustedValues()
+    {
+        using var run = ValidationObservability.BeginRun("failure-breakdown", 8);
+        ValidationObservability.RecordRequestCompleted("POST", 1, false, 405);
+        ValidationObservability.RecordRequestCompleted("POST", 1, false, 405);
+        ValidationObservability.RecordRequestCompleted("GET", 1, false, failureKind: RequestFailureKind.RequestException);
+        ValidationObservability.RecordRequestCompleted("GET", 1, false, failureKind: RequestFailureKind.RequestCancelled);
+        ValidationObservability.RecordRequestCompleted("secret-method-canary", 1, false, 999, (RequestFailureKind)999);
+        ValidationObservability.RecordRequestCompleted("POST", 1, true, 200);
+        ValidationObservability.RecordResponseRejected();
+        ValidationObservability.RecordResponseRejected(responseWasInitiallySuccessful: false);
+
+        var metrics = run.Complete(10);
+
+        metrics.RequestsFailed.Should().Be(6);
+        metrics.RequestFailures!.Sum(failure => failure.Count).Should().Be(metrics.RequestsFailed);
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("POST", 405, RequestFailureKind.HttpStatus, 2));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("GET", null, RequestFailureKind.RequestException, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("GET", null, RequestFailureKind.RequestCancelled, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("OTHER", null, RequestFailureKind.Unspecified, 1));
+        metrics.RequestFailures.Should().Contain(new RequestFailureCount("OTHER", null, RequestFailureKind.ResponseRejected, 1));
+        System.Text.Json.JsonSerializer.Serialize(metrics).Should().NotContain("secret-method-canary");
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-1)]
+    public void Complete_ShouldRejectInvalidElapsedTime(double duration)
+    {
+        using var run = ValidationObservability.BeginRun("invalid-elapsed", 1);
+
+        FluentActions.Invoking(() => run.Complete(duration)).Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(double.NegativeInfinity)]
+    [InlineData(-1)]
+    public void Complete_ShouldRejectInvalidDurationSamplesWithoutInventingZero(double duration)
+    {
+        using var run = ValidationObservability.BeginRun("invalid-duration", 1);
+        ValidationObservability.RecordQueue(duration);
+        ValidationObservability.RecordRequestStarted("tools/list");
+        ValidationObservability.RecordRequestCompleted("tools/list", duration, success: false);
+
+        var metrics = run.Complete(1000);
+
+        metrics.RequestsCompleted.Should().Be(1);
+        metrics.RequestsFailed.Should().Be(1);
+        metrics.ErrorRate.Should().Be(1);
+        metrics.TargetLatencyP50Ms.Should().BeNull();
+        metrics.QueueTimeP95Ms.Should().BeNull();
+        var document = System.Text.Json.JsonSerializer.SerializeToNode(metrics, new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;
+        document["targetLatencyWindow"]!["rejectedCount"]!.GetValue<long>().Should().Be(1);
+        document["queueTimeWindow"]!["rejectedCount"]!.GetValue<long>().Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Complete_ShouldDistinguishAbsentMeasurementsFromMeasuredZero(bool measured)
+    {
+        using var run = ValidationObservability.BeginRun("zero-or-absent", 1);
+        if (measured)
+        {
+            ValidationObservability.RecordQueue(0);
+            ValidationObservability.RecordRequestStarted("tools/list");
+            ValidationObservability.RecordRequestCompleted("tools/list", 0, success: true);
+        }
+
+        var metrics = run.Complete(0);
+
+        if (measured)
+        {
+            metrics.TargetLatencyP50Ms.Should().Be(0);
+            metrics.TargetLatencyP95Ms.Should().Be(0);
+            metrics.TargetLatencyP99Ms.Should().Be(0);
+            metrics.QueueTimeP95Ms.Should().Be(0);
+            metrics.ErrorRate.Should().Be(0);
+        }
+        else
+        {
+            ((object?)metrics.TargetLatencyP50Ms).Should().BeNull();
+            ((object?)metrics.TargetLatencyP95Ms).Should().BeNull();
+            ((object?)metrics.TargetLatencyP99Ms).Should().BeNull();
+            ((object?)metrics.QueueTimeP95Ms).Should().BeNull();
+            ((object?)metrics.ErrorRate).Should().BeNull();
+        }
+        ((object?)metrics.ThroughputRequestsPerSecond).Should().BeNull("zero elapsed time cannot define a rate");
+        metrics.TargetLatencySampleCount.Should().Be(measured ? 1 : 0);
+    }
+
     [Fact]
     public void Complete_ShouldAggregateOperationalMetricsAndPercentiles()
     {
@@ -72,20 +256,32 @@ public sealed class ValidationObservabilityTests
         ValidationObservability.Meter.Version.Should().Be(ValidationObservability.InstrumentationVersion);
     }
 
-    [Fact]
-    public void SoakWithHighCardinalityMethodNames_ShouldAggregateWithoutPersistingNames()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SoakWithHighCardinalityMethodNames_ShouldAggregateWithoutPersistingNames(bool failed)
     {
         using var run = ValidationObservability.BeginRun("soak", 10_000);
         for (var index = 0; index < 10_000; index++)
         {
             ValidationObservability.RecordRequestStarted($"untrusted-method-{index}");
-            ValidationObservability.RecordRequestCompleted($"untrusted-method-{index}", index % 10, success: true);
+            ValidationObservability.RecordRequestCompleted($"untrusted-method-{index}", index % 10, success: !failed, httpStatusCode: index % 1000);
         }
 
         var metrics = run.Complete(1_000);
 
         metrics.RequestsCompleted.Should().Be(10_000);
+        metrics.RequestFailures!.Count.Should().BeLessThanOrEqualTo(501);
+        metrics.RequestFailures.Sum(entry => entry.Count).Should().Be(failed ? 10_000 : 0);
+        System.Text.Json.JsonSerializer.Serialize(metrics.RequestFailures).Should().NotContain("untrusted-method");
         metrics.TargetLatencySampleCount.Should().Be(4096);
+        var document = System.Text.Json.JsonSerializer.SerializeToNode(metrics, new System.Text.Json.JsonSerializerOptions
+            { PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase })!;
+        document["targetLatencyWindow"].Should().NotBeNull();
+        document["targetLatencyWindow"]!["observedCount"]!.GetValue<long>().Should().Be(10_000);
+        document["targetLatencyWindow"]!["retainedCount"]!.GetValue<int>().Should().Be(4096);
+        document["targetLatencyWindow"]!["discardedCount"]!.GetValue<long>().Should().Be(5904);
+        document["targetLatencyWindow"]!["strategy"]!.GetValue<string>().Should().Be("mostRecent");
         metrics.StageDurationMs.Keys.Should().NotContain(key => key.Contains("untrusted-method", StringComparison.Ordinal));
     }
 

@@ -1,0 +1,11 @@
+{
+  "name": "mcpval-report-quality",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@napi-rs/canvas": "1.2.0",
+    "@axe-core/playwright": "4.14.1",
+    "pdfjs-dist": "6.5.438",
+    "playwright": "1.65.1"
+  }
+}

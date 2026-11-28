@@ -222,7 +222,7 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
                     ""id"": ""version-test""
                 }}"));
 
-        var serverConfig = _testFixture.CreateTestServerConfig();
+        var serverConfig = _testFixture.CreateTestServerConfig(timeoutMs: 10000);
         var protocolConfig = new ProtocolComplianceConfig
         {
             TestJsonRpcCompliance = true,
@@ -234,7 +234,8 @@ public class ProtocolComplianceValidatorIntegrationTests : IClassFixture<McpServ
 
         // Assert
         result.Should().NotBeNull();
-        result.Status.Should().BeOneOf(TestStatus.Passed, TestStatus.Failed, TestStatus.Error);
+        result.Status.Should().BeOneOf(
+            [TestStatus.Passed, TestStatus.Failed, TestStatus.Error], "fixture result: {0}", result.Message);
         result.Duration.Should().BeGreaterThan(TimeSpan.Zero);
     }
 

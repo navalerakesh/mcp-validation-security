@@ -79,6 +79,16 @@ cosign verify-attestation "$digest" --type spdxjson \
 gh attestation verify "oci://$digest" --repo navalerakesh/mcp-validation-security
 ```
 
+From a matching source checkout, run the same container smoke used by CI:
+
+```bash
+scripts/smoke-distribution.sh --version VERSION --container IMAGE_OR_DIGEST
+```
+
+This checks the exact version and renders the repository's public-only signed fixture into an actual HTML report, with networking and additional capabilities disabled. It uses the image's default user and cleans up its own container and copied report. A version-only check does not exercise report dependencies.
+
+The pinned runtime uses the globalization-capable `jammy-chiseled-extra` variant because canonical artifact formatting requires ICU. The smaller plain chiseled variant is for globalization-invariant applications; changing report culture to hide a missing runtime dependency is not an equivalent fix. See the [official .NET image guidance](https://learn.microsoft.com/en-us/dotnet/core/docker/container-images), reviewed at [source revision d577c6a](https://github.com/dotnet/docs/blob/d577c6a3de6a4422bfd5fb1b52fec9b100452ba4/docs/core/docker/container-images.md).
+
 Stable releases update `latest`, major, and minor Action tags. Prerelease versions publish to the `preview` npm/container channel and do not move stable Action tags.
 
 `DISTRIBUTION-MANIFEST.json` binds the exact version and source commit to the NuGet/npm package hashes, pushed OCI digest, and digest of the complete release-asset checksum file. Verify and recompute it before comparing channel values:

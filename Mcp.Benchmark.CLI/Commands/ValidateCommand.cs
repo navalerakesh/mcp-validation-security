@@ -42,6 +42,7 @@ public class ValidateCommand
     private readonly IMcpHttpClient _httpClient;
     private readonly CliSessionContext _sessionContext;
     private readonly IOfficialConformanceEvidenceImporter _officialConformanceEvidenceImporter;
+    private readonly TimeProvider _timeProvider;
 
     public ValidateCommand(
         IMcpValidatorService validatorService,
@@ -57,7 +58,8 @@ public class ValidateCommand
         ISessionArtifactStore artifactStore,
         IMcpHttpClient httpClient,
         CliSessionContext sessionContext,
-        IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null)
+        IOfficialConformanceEvidenceImporter? officialConformanceEvidenceImporter = null,
+        TimeProvider? timeProvider = null)
     {
         _validatorService = validatorService ?? throw new ArgumentNullException(nameof(validatorService));
         _consoleOutput = consoleOutput ?? throw new ArgumentNullException(nameof(consoleOutput));
@@ -73,6 +75,7 @@ public class ValidateCommand
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _sessionContext = sessionContext ?? throw new ArgumentNullException(nameof(sessionContext));
         _officialConformanceEvidenceImporter = officialConformanceEvidenceImporter ?? UnavailableOfficialConformanceEvidenceImporter.Instance;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     private sealed class UnavailableOfficialConformanceEvidenceImporter : IOfficialConformanceEvidenceImporter
@@ -123,7 +126,9 @@ public class ValidateCommand
         string[]? extensionIds = null,
         FileInfo? providerHarnessFile = null,
         FileInfo? providerAuthorizationKeyFile = null,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        FileInfo? identityBaselineFile = null,
+        string? validationId = null)
     {
         var structuredOutput = string.Equals(outputFormat, "json", StringComparison.OrdinalIgnoreCase);
         _consoleOutput.SetVerbose(verbose);
@@ -147,13 +152,15 @@ public class ValidateCommand
             // Load and normalize configuration
             var profileOverride = ParseServerProfile(serverProfile);
             var contentSafetyContextOverride = ParseContentSafetyContextProfile(contentSafetyContext);
-            configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride, contentSafetyContextOverride);
+            var sources = new ConfigurationSourceTracker();
+            configuration = await LoadConfigurationAsync(server, specProfile, configFile, profileOverride, contentSafetyContextOverride, sources, cancellationToken);
             configuration.Server.ProtocolEra = CommandConnectionHelper.ParseProtocolEra(protocolEra) ?? configuration.Server.ProtocolEra;
-            ApplyPolicyOverride(configuration, policyMode);
-            ApplyAssuranceOverride(configuration, assuranceProfile);
-            ApplyClientProfileOverride(configuration, clientProfiles);
-            ApplyExtensionOverride(configuration, extensionIds);
-            ApplyReportingOverrides(configuration, reportDetail);
+            if (!string.IsNullOrWhiteSpace(protocolEra)) sources.RecordCommandLine(value => value.Server.ProtocolEra, "--protocol-era");
+            ApplyPolicyOverride(configuration, policyMode, sources);
+            ApplyAssuranceOverride(configuration, assuranceProfile, sources);
+            ApplyClientProfileOverride(configuration, clientProfiles, sources);
+            ApplyExtensionOverride(configuration, extensionIds, sources);
+            ApplyReportingOverrides(configuration, reportDetail, sources);
             ExecutionPolicyOverrides.Apply(
                 configuration,
                 maxConcurrency,
@@ -168,9 +175,16 @@ public class ValidateCommand
                 traceMode,
                 confirmElevatedRisk,
                 enableModelEval,
-                allowedOrigins);
+                allowedOrigins,
+                sources);
             configuration.Execution ??= new ExecutionPolicy();
-            ApplyTestExecutionOverrides(configuration, configuration.Execution.MaxConcurrency);
+            ApplyTestExecutionOverrides(configuration, configuration.Execution.MaxConcurrency, sources);
+            var comprehensiveErrors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, conformanceResultsFile != null, configuration.Execution.DryRun);
+            if (comprehensiveErrors.Count > 0)
+                throw new CliUsageException(string.Join(" ", comprehensiveErrors));
+            if (configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && !configuration.Execution.DryRun &&
+                _validatorService is not ICorrelatedMcpValidatorService)
+                throw new CliUsageException("Comprehensive assessment requires a validator service supporting immutable admitted run requests.");
             targetEndpoint = configuration.Server.Endpoint ?? targetEndpoint;
             var effectiveProfile = configuration.Server.Profile;
 
@@ -190,20 +204,23 @@ public class ValidateCommand
             EnsureAuthenticationPrerequisites(effectiveProfile, configuration, token, interactive, targetEndpoint);
 
             // Apply authentication overrides from CLI if provided
-            ApplyAuthenticationOverrides(configuration, token, interactive);
+            CommandConnectionHelper.ApplyAuthenticationOverrides(configuration.Server, token, interactive, sources);
 
             // Apply output directory override if specified
             if (outputDirectory != null)
             {
                 configuration.Reporting.OutputDirectory = outputDirectory.FullName;
+                sources.RecordCommandLine(value => value.Reporting.OutputDirectory, "--output");
             }
             if (signAttestation.HasValue)
             {
                 configuration.Reporting.SignAttestation = signAttestation.Value;
+                sources.RecordCommandLine(value => value.Reporting.SignAttestation, "--sign-attestation");
             }
             if (regressionOnly.HasValue)
             {
                 configuration.Policy.RegressionOnly = regressionOnly.Value;
+                sources.RecordCommandLine(value => value.Policy.RegressionOnly, "--regression-only");
             }
 
             var explicitOutputDirectory = ResolveExplicitOutputDirectory(outputDirectory, configuration);
@@ -246,6 +263,10 @@ public class ValidateCommand
 
             _sessionContext.ApplyExecutionPolicy(configuration.Execution);
             var executionPlan = _executionGovernanceService.BuildValidationPlan(_sessionContext, configuration, explicitOutputDirectory);
+            if (validationId != null && !ControlledEvidenceAdmission.IsValidIdentifier(validationId))
+                throw new CliUsageException("The reserved validation ID is invalid.");
+            executionPlan.ValidationId = validationId ?? _sessionContext.SessionId;
+            executionPlan.ConfigurationSources = sources.Snapshot(configuration);
             if (!executionPlan.IsValid)
             {
                 throw new CliUsageException(BuildExecutionErrorMessage(executionPlan.ValidationErrors));
@@ -254,7 +275,34 @@ public class ValidateCommand
 
             var conformanceEvidenceJson = await LoadOfficialConformanceEvidenceAsync(
                 conformanceResultsFile,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && !configuration.Execution.DryRun
+                    ? new OfficialConformanceImportContext
+                    {
+                        ExpectedTargetIdentitySha256 = executionPlan.TargetDigest,
+                        ExpectedProtocolVersion = executionPlan.ResolvedSchemaVersion
+                    } : null).ConfigureAwait(false);
+            var baselineResult = baselineFile == null ? null : await LoadBaselineAsync(baselineFile, cancellationToken).ConfigureAwait(false);
+            ControlledIdentitySecurityRequirement? identityControls = null;
+            if (identityBaselineFile != null)
+            {
+                identityControls = await BoundedArtifactReader.ReadIdentityBaselineAsync(identityBaselineFile, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    ControlledIdentitySecurityBaseline.VerifyRequirement(identityControls, executionPlan.ValidationId,
+                        executionPlan.TargetDigest, DateTimeOffset.UtcNow, cancellationToken);
+                    if (!ControlledIdentitySecurityBaseline.HasCompleteSelection(identityControls))
+                        throw new InvalidDataException("The selected baseline does not identify all required control cases.");
+                }
+                catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
+                {
+                    throw new CliUsageException("The selected signed identity baseline could not be admitted.", exception);
+                }
+            }
+            if (!configuration.Execution.DryRun && configuration.Assurance.Profile == AssuranceProfileCatalog.Comprehensive.ProfileId && identityControls == null)
+                throw new CliUsageException("Comprehensive assessment requires --identity-baseline with the selected signed security controls.");
+            if (identityControls != null && _validatorService is not ICorrelatedMcpValidatorService)
+                throw new CliUsageException("Identity baseline admission requires correlated validation execution.");
             ProviderHarnessManifest? providerHarnessManifest = null;
             ProviderAuthorizationVerification? providerAuthorizationVerification = null;
             ProviderHarnessAssessment? providerHarnessAssessment = null;
@@ -318,7 +366,11 @@ public class ValidateCommand
                 return;
             }
 
-            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan);
+            var deadlineMinutes = executionPlan.GlobalTimeoutMinutes
+                ?? throw new InvalidOperationException("Validation execution plan is missing the configured total-run deadline.");
+            using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(deadlineMinutes), _timeProvider);
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+            var targetResolutionErrors = await _executionGovernanceService.ValidateTargetResolutionAsync(executionPlan, cts.Token);
             if (targetResolutionErrors.Count > 0)
             {
                 throw new CliUsageException(BuildExecutionErrorMessage(targetResolutionErrors));
@@ -330,20 +382,20 @@ public class ValidateCommand
             _httpClient.ConfigureExecutionPolicy(transportExecutionPolicy);
             configuration.Server.ProtocolVersion = executionPlan.ResolvedSchemaVersion;
 
-            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            cts.CancelAfter(TimeSpan.FromMinutes(10));
             await _httpClient.StartSessionAsync(configuration.Server.Endpoint!, configuration.Server.Environment, cts.Token);
 
             _consoleOutput.ShowProgress(ValidationMessages.Progress.Initializing);
 
+            var requestId = executionPlan.ValidationId;
+            var request = conformanceEvidenceJson == null ? ValidationRunRequest.Capture(configuration, requestId)
+                : ValidationRunRequest.CaptureWithConformance(configuration, conformanceEvidenceJson, requestId);
+            if (identityControls != null) request = request.WithIdentityControls(identityControls);
             var result = _validatorService is ICorrelatedMcpValidatorService correlatedValidatorService
-                ? await correlatedValidatorService.ValidateServerAsync(
-                    ValidationRunRequest.Capture(configuration, _sessionContext.SessionId),
-                    cts.Token)
+                ? await correlatedValidatorService.ValidateServerAsync(request, cts.Token)
                 : await _validatorService.ValidateServerAsync(configuration, cts.Token);
-            if (result.ValidationId != _sessionContext.SessionId)
+            if (result.ValidationId != requestId)
             {
-                result.ValidationId = _sessionContext.SessionId;
+                result.ValidationId = requestId;
                 if (result.Run.OperationalMetrics != null)
                 {
                     result.Run.OperationalMetrics.RunCorrelationId = result.ValidationId;
@@ -357,7 +409,7 @@ public class ValidateCommand
             {
                 throw new CliUsageException(ex.Message);
             }
-            if (conformanceEvidenceJson != null)
+            if (conformanceEvidenceJson != null && _validatorService is not ICorrelatedMcpValidatorService)
             {
                 AttachOfficialConformanceEvidence(
                     result,
@@ -367,7 +419,7 @@ public class ValidateCommand
             }
 
             var assuranceProfileManifest = AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile);
-            var certificationTime = DateTimeOffset.UtcNow;
+            var certificationTime = ValidationAssessmentClock.GetTimestamp(result);
             var suppressionAssessment = ValidationPolicyEvaluator.AssessSuppressions(
                 configuration.Policy,
                 certificationTime);
@@ -411,10 +463,10 @@ public class ValidateCommand
                     InvalidWaiverCount = suppressionAssessment.InvalidSuppressions.Count
                 });
 
-            if (baselineFile != null)
+            if (baselineResult != null)
             {
                 result.BaselineComparison = ValidationBaselineEvaluator.Compare(
-                    await LoadBaselineAsync(baselineFile, cancellationToken),
+                    baselineResult,
                     result);
             }
             result.PolicyOutcome = ValidationPolicyEvaluator.Evaluate(result, configuration.Policy);
@@ -463,12 +515,21 @@ public class ValidateCommand
             // Persist Markdown report if requested
             if (!string.IsNullOrWhiteSpace(explicitOutputDirectory))
             {
-                artifactPaths = await SaveValidationResultsAsync(
-                    result,
-                    explicitOutputDirectory,
-                    verbose,
-                    executionPlan,
-                    modelEvaluationArtifact);
+                using var artifactPersistence = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                try
+                {
+                    artifactPaths = await SaveValidationResultsAsync(
+                        result,
+                        explicitOutputDirectory,
+                        verbose,
+                        executionPlan,
+                        modelEvaluationArtifact,
+                        artifactPersistence.Token);
+                }
+                catch (OperationCanceledException exception)
+                {
+                    throw new IOException("Artifact bundle publication did not complete.", exception);
+                }
             }
             else
             {
@@ -575,7 +636,7 @@ public class ValidateCommand
         return await BoundedArtifactReader.ReadValidationResultAsync(baselineFile, cancellationToken).ConfigureAwait(false);
     }
 
-    private static void ApplyTestExecutionOverrides(McpValidatorConfiguration configuration, int? maxConcurrency)
+    private static void ApplyTestExecutionOverrides(McpValidatorConfiguration configuration, int? maxConcurrency, ConfigurationSourceTracker sources)
     {
         if (configuration.TestExecution == null)
         {
@@ -594,18 +655,25 @@ public class ValidateCommand
             configuration.TestExecution.MaxParallelThreads = normalized;
             configuration.TestExecution.DefaultTestTimeoutMs = Math.Max(1000, configuration.Server.TimeoutMs);
             configuration.Validation.Categories.PerformanceTesting.MaxConcurrentConnections = normalized;
+            sources.Record(value => value.TestExecution.MaxParallelThreads, ConfigurationSourceKind.Governance,
+                nameof(ExecutionPolicy.MaxConcurrency), "Derived from the effective concurrency budget.");
+            sources.Record(value => value.TestExecution.DefaultTestTimeoutMs, ConfigurationSourceKind.Governance,
+                nameof(McpServerConfig.TimeoutMs), "Derived from the effective request timeout.");
+            sources.Record(value => value.Validation.Categories.PerformanceTesting.MaxConcurrentConnections, ConfigurationSourceKind.Governance,
+                nameof(ExecutionPolicy.MaxConcurrency), "Derived from the effective concurrency budget.");
         }
     }
 
-    private static void ApplyPolicyOverride(McpValidatorConfiguration configuration, string? policyMode)
+    private static void ApplyPolicyOverride(McpValidatorConfiguration configuration, string? policyMode, ConfigurationSourceTracker sources)
     {
         configuration.Policy ??= new ValidationPolicyConfig();
         configuration.Policy.Mode = ValidationPolicyEvaluator.NormalizeMode(string.IsNullOrWhiteSpace(policyMode)
             ? configuration.Policy.Mode
             : policyMode);
+        if (!string.IsNullOrWhiteSpace(policyMode)) sources.RecordCommandLine(value => value.Policy.Mode, "--policy");
     }
 
-    private static void ApplyAssuranceOverride(McpValidatorConfiguration configuration, string? assuranceProfile)
+    private static void ApplyAssuranceOverride(McpValidatorConfiguration configuration, string? assuranceProfile, ConfigurationSourceTracker sources)
     {
         var requestedProfile = string.IsNullOrWhiteSpace(assuranceProfile)
             ? configuration.Assurance.Profile
@@ -613,6 +681,7 @@ public class ValidateCommand
         try
         {
             configuration.Assurance.Profile = AssuranceProfileCatalog.Resolve(requestedProfile).ProfileId;
+            if (!string.IsNullOrWhiteSpace(assuranceProfile)) sources.RecordCommandLine(value => value.Assurance.Profile, "--assurance");
         }
         catch (ArgumentException ex)
         {
@@ -620,7 +689,7 @@ public class ValidateCommand
         }
     }
 
-    private static void ApplyClientProfileOverride(McpValidatorConfiguration configuration, string[]? clientProfiles)
+    private static void ApplyClientProfileOverride(McpValidatorConfiguration configuration, string[]? clientProfiles, ConfigurationSourceTracker sources)
     {
         if (clientProfiles == null || clientProfiles.Length == 0)
         {
@@ -641,9 +710,10 @@ public class ValidateCommand
         {
             Profiles = normalizedProfiles
         };
+        sources.RecordCommandLine(value => value.ClientProfiles!.Profiles, "--client-profile");
     }
 
-    private static void ApplyExtensionOverride(McpValidatorConfiguration configuration, string[]? extensionIds)
+    private static void ApplyExtensionOverride(McpValidatorConfiguration configuration, string[]? extensionIds, ConfigurationSourceTracker sources)
     {
         if (extensionIds == null || extensionIds.Length == 0)
         {
@@ -656,11 +726,13 @@ public class ValidateCommand
             .Distinct(StringComparer.Ordinal)
             .OrderBy(value => value, StringComparer.Ordinal)
             .ToList();
+        sources.RecordCommandLine(value => value.Validation.Extensions, "--extension");
     }
 
     private async Task<string?> LoadOfficialConformanceEvidenceAsync(
         FileInfo? conformanceResultsFile,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OfficialConformanceImportContext? requiredContext = null)
     {
         if (conformanceResultsFile == null)
         {
@@ -673,7 +745,9 @@ public class ValidateCommand
                 conformanceResultsFile,
                 OfficialConformanceContract.MaximumEvidenceBytes,
                 cancellationToken).ConfigureAwait(false);
-            _officialConformanceEvidenceImporter.Import(json);
+            var imported = _officialConformanceEvidenceImporter.Import(json, requiredContext);
+            if (requiredContext != null && imported.Assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
+                throw new CliUsageException("Comprehensive assessment requires verified official conformance evidence for the selected target and protocol.");
             return json;
         }
         catch (Mcp.Benchmark.Core.Exceptions.OfficialConformanceEvidenceException exception)
@@ -712,16 +786,23 @@ public class ValidateCommand
         }
     }
 
-    private static void ApplyReportingOverrides(McpValidatorConfiguration configuration, string? reportDetail)
+    private static void ApplyReportingOverrides(McpValidatorConfiguration configuration, string? reportDetail, ConfigurationSourceTracker sources)
     {
         configuration.Reporting ??= new ReportingConfig();
         if (TryParseReportDetailLevel(reportDetail, out var detailLevel))
         {
-            configuration.Reporting.ApplyDetailLevel(detailLevel);
+            sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.CommandLine, "--report-detail",
+                "Explicit CLI reporting detail.", () => configuration.Reporting.ApplyDetailLevel(detailLevel));
+            sources.RecordCommandLine(value => value.Reporting.DetailLevel, "--report-detail");
             return;
         }
 
-        configuration.Reporting.NormalizeDetailLevel();
+        var previousDetail = configuration.Reporting.DetailLevel;
+        sources.RecordBooleanChanges(configuration, ConfigurationSourceKind.Profile, nameof(ReportingConfig.DetailLevel),
+            "Normalized reporting detail profile.", configuration.Reporting.NormalizeDetailLevel);
+        if (previousDetail != configuration.Reporting.DetailLevel)
+            sources.Record(value => value.Reporting.DetailLevel, ConfigurationSourceKind.Profile, nameof(ReportingConfig.DetailLevel),
+                "Detail derived from effective reporting preferences.");
     }
 
     private static bool TryParseReportDetailLevel(string? rawDetailLevel, out ReportDetailLevel detailLevel)
@@ -736,52 +817,31 @@ public class ValidateCommand
         return false;
     }
 
-    private static void ApplyAuthenticationOverrides(
-        McpValidatorConfiguration configuration,
-        string? token,
-        bool interactive)
-    {
-        if (string.IsNullOrEmpty(token) &&
-            !interactive)
-        {
-            return;
-        }
-
-        var auth = configuration.Server.Authentication ??= new AuthenticationConfig();
-
-        if (!string.IsNullOrEmpty(token))
-        {
-            auth.Token = token;
-            auth.Type = string.IsNullOrEmpty(auth.Type) || auth.Type == "none"
-                ? "bearer"
-                : auth.Type;
-            auth.Required = true;
-        }
-
-        auth.AllowInteractive = interactive;
-    }
-
-    private static void NormalizeServerConfig(McpServerConfig serverConfig, string server)
+    private static void NormalizeServerConfig(McpServerConfig serverConfig, string server, ConfigurationSourceTracker sources)
     {
         if (!string.IsNullOrWhiteSpace(server))
         {
             serverConfig.Endpoint = server;
+            sources.RecordCommandLine(value => value.Server.Endpoint, "--server");
 
             if (Uri.TryCreate(server, UriKind.Absolute, out var uri))
             {
                 if (uri.Scheme is "http" or "https")
                 {
                     serverConfig.Transport = "http";
+                    sources.Record(value => value.Server.Transport, ConfigurationSourceKind.CommandLine, "--server", "Transport inferred from CLI endpoint.");
                 }
                 else if (uri.Scheme is "ws" or "wss")
                 {
                     serverConfig.Transport = "websocket";
+                    sources.Record(value => value.Server.Transport, ConfigurationSourceKind.CommandLine, "--server", "Transport inferred from CLI endpoint.");
                 }
             }
             else if (server.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ||
                      server.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 serverConfig.Transport = "http";
+                sources.Record(value => value.Server.Transport, ConfigurationSourceKind.CommandLine, "--server", "Transport inferred from CLI endpoint.");
             }
         }
     }
@@ -797,29 +857,41 @@ public class ValidateCommand
         configuration.Reporting.SpecProfile = specProfile;
     }
 
-    private static async Task<McpValidatorConfiguration> LoadConfigurationAsync(
+    private async Task<McpValidatorConfiguration> LoadConfigurationAsync(
         string server,
         string? specProfile,
         FileInfo? configFile,
         McpServerProfile? serverProfileOverride,
-        ContentSafetyContextProfile? contentSafetyContextOverride)
+        ContentSafetyContextProfile? contentSafetyContextOverride,
+        ConfigurationSourceTracker sources,
+        CancellationToken cancellationToken)
     {
         McpValidatorConfiguration configuration;
 
-        if (configFile?.Exists == true)
+        if (configFile is not null)
         {
-            var json = await BoundedArtifactReader.ReadTextAsync(configFile, BoundedArtifactReader.MaximumConfigurationBytes).ConfigureAwait(false);
-            configuration = JsonSerializer.Deserialize<McpValidatorConfiguration>(json) ?? new McpValidatorConfiguration();
+            var document = await _sessionContext.ReadConfigurationAsync(configFile, cancellationToken).ConfigureAwait(false);
+            configuration = document.Configuration;
+            sources.RecordFileSettings(document.SuppliedSettings);
         }
         else
         {
             configuration = new McpValidatorConfiguration();
         }
 
-        NormalizeServerConfig(configuration.Server, server);
+        NormalizeServerConfig(configuration.Server, server, sources);
         ApplySpecProfile(configuration, specProfile);
         ApplyServerProfileOverride(configuration, serverProfileOverride);
         ApplyContentSafetyContextOverride(configuration, contentSafetyContextOverride);
+
+        if (!string.IsNullOrWhiteSpace(specProfile))
+        {
+            sources.RecordCommandLine(value => value.Reporting.SpecProfile, "--mcpspec");
+            sources.Record(value => value.Validation.Categories.ProtocolCompliance.ProtocolVersion, ConfigurationSourceKind.Profile,
+                "--mcpspec", "Protocol validation revision selected by the MCP specification profile.");
+        }
+        if (serverProfileOverride.HasValue) sources.RecordCommandLine(value => value.Server.Profile, "--access");
+        if (contentSafetyContextOverride.HasValue) sources.RecordCommandLine(value => value.Server.ContentSafetyContext, "--risk-context");
 
         return configuration;
     }
@@ -1036,14 +1108,27 @@ public class ValidateCommand
         string outputDirectory,
         bool verbose,
         ExecutionPlan executionPlan,
-        ModelEvaluationArtifact? modelEvaluationArtifact)
+        ModelEvaluationArtifact? modelEvaluationArtifact,
+        CancellationToken cancellationToken)
     {
-        if (!Directory.Exists(outputDirectory))
-        {
-            Directory.CreateDirectory(outputDirectory);
-        }
-
         var baseName = CreateArtifactBaseName(result.ValidationId);
+        var paths = await AtomicFileWriter.WriteBundleAsync(outputDirectory, baseName,
+            (staging, token) => WriteValidationBundleContentsAsync(result, staging, baseName, verbose,
+                executionPlan, modelEvaluationArtifact, token), cancellationToken);
+        foreach (var path in paths) _logger.LogInformation("Validation artifact published: {Path}", path);
+        _consoleOutput.WriteSuccess($"Reports generated: {string.Join(", ", paths.Where(path => path.EndsWith("-report.md", StringComparison.Ordinal) || path.EndsWith("-report.html", StringComparison.Ordinal)))}");
+        return paths;
+    }
+
+    private async Task<IReadOnlyList<string>> WriteValidationBundleContentsAsync(
+        ValidationResult result,
+        string outputDirectory,
+        string baseName,
+        bool verbose,
+        ExecutionPlan executionPlan,
+        ModelEvaluationArtifact? modelEvaluationArtifact,
+        CancellationToken cancellationToken)
+    {
 
         // Always work from a redacted clone when persisting artifacts so that
         // no tokens, passwords or sensitive headers are written to disk.
@@ -1052,12 +1137,12 @@ public class ValidateCommand
         // Human‑readable Markdown report used by most users.
         var markdownPath = Path.Combine(outputDirectory, $"{baseName}-report.md");
         var reportContent = _reportGenerator.GenerateReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(markdownPath, reportContent, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(markdownPath, reportContent, outputDirectory, cancellationToken);
 
         var htmlPath = Path.Combine(outputDirectory, $"{baseName}-report.html");
         var includeDetailedSections = safeResult.ValidationConfig.Reporting.IncludesDetailedSections();
         var html = _reportRenderer.GenerateHtmlReport(safeResult, safeResult.ValidationConfig.Reporting, includeDetailedSections);
-        await AtomicFileWriter.WriteAllTextAsync(htmlPath, html, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(htmlPath, html, outputDirectory, cancellationToken);
 
         // Machine‑readable JSON snapshot for offline reporting (mcpval report).
         var jsonPath = Path.Combine(outputDirectory, $"{baseName}-result.json");
@@ -1067,22 +1152,15 @@ public class ValidateCommand
             ?? throw new InvalidOperationException("Failed to serialize validation result to JSON.");
         AnnotatePerformanceMeasurementState(jsonRoot, safeResult.PerformanceTesting);
         var json = jsonRoot.ToJsonString(jsonOptions);
-        await AtomicFileWriter.WriteAllTextAsync(jsonPath, json, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(jsonPath, json, outputDirectory, cancellationToken);
 
         var sarifPath = Path.Combine(outputDirectory, $"{baseName}-results.sarif.json");
         var sarif = _reportRenderer.GenerateSarifReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(sarifPath, sarif, outputDirectory);
+        await AtomicFileWriter.WriteAllTextAsync(sarifPath, sarif, outputDirectory, cancellationToken);
 
         var junitPath = Path.Combine(outputDirectory, $"{baseName}-results.junit.xml");
         var junit = _reportRenderer.GenerateJunitReport(safeResult);
-        await AtomicFileWriter.WriteAllTextAsync(junitPath, junit, outputDirectory);
-
-        _logger.LogInformation("Markdown report saved: {MarkdownPath}", markdownPath);
-        _logger.LogInformation("HTML report saved: {HtmlPath}", htmlPath);
-        _logger.LogInformation("Validation result JSON saved: {JsonPath}", jsonPath);
-        _logger.LogInformation("SARIF report saved: {SarifPath}", sarifPath);
-        _logger.LogInformation("JUnit report saved: {JunitPath}", junitPath);
-        _consoleOutput.WriteSuccess($"Reports generated: {markdownPath} and {htmlPath}");
+        await AtomicFileWriter.WriteAllTextAsync(junitPath, junit, outputDirectory, cancellationToken);
 
         var savedPaths = new List<string> { markdownPath, htmlPath, jsonPath, sarifPath, junitPath };
 
@@ -1092,7 +1170,7 @@ public class ValidateCommand
             var attestation = ValidationAttestationSigner.Sign(safeResult.ValidationId, jsonPath, privateKeyPem);
             var attestationPath = Path.Combine(outputDirectory, $"{baseName}-attestation.json");
             var attestationJson = JsonSerializer.Serialize(attestation, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(attestationPath, attestationJson, outputDirectory);
+            await AtomicFileWriter.WriteAllTextAsync(attestationPath, attestationJson, outputDirectory, cancellationToken);
             savedPaths.Add(attestationPath);
         }
 
@@ -1102,8 +1180,7 @@ public class ValidateCommand
             var profileSummaryPath = Path.Combine(outputDirectory, $"{baseName}-profile-summary.json");
             var profileSummary = BuildClientProfileSummary(safeResult);
             var profileSummaryJson = JsonSerializer.Serialize(profileSummary, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(profileSummaryPath, profileSummaryJson, outputDirectory);
-            _logger.LogInformation("Client profile summary saved: {Path}", profileSummaryPath);
+            await AtomicFileWriter.WriteAllTextAsync(profileSummaryPath, profileSummaryJson, outputDirectory, cancellationToken);
             savedPaths.Add(profileSummaryPath);
         }
 
@@ -1111,8 +1188,7 @@ public class ValidateCommand
         {
             var modelEvaluationPath = Path.Combine(outputDirectory, $"{baseName}-model-evaluation.json");
             var modelEvaluationJson = JsonSerializer.Serialize(modelEvaluationArtifact, jsonOptions);
-            await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, outputDirectory);
-            _logger.LogInformation("Model evaluation artifact saved: {Path}", modelEvaluationPath);
+            await AtomicFileWriter.WriteAllTextAsync(modelEvaluationPath, modelEvaluationJson, outputDirectory, cancellationToken);
             savedPaths.Add(modelEvaluationPath);
         }
 
@@ -1123,8 +1199,7 @@ public class ValidateCommand
             modelEvaluationArtifact);
         var auditManifestPath = Path.Combine(outputDirectory, $"{baseName}-audit.json");
         var auditManifestJson = JsonSerializer.Serialize(auditManifest, jsonOptions);
-        await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, outputDirectory);
-        _logger.LogInformation("Audit manifest saved: {Path}", auditManifestPath);
+        await AtomicFileWriter.WriteAllTextAsync(auditManifestPath, auditManifestJson, outputDirectory, cancellationToken);
         savedPaths.Add(auditManifestPath);
 
         return savedPaths;
@@ -1211,6 +1286,10 @@ public class ValidateCommand
         Console.WriteLine($"Timeout: {executionPlan.TimeoutSeconds}s per request");
         Console.WriteLine($"Response Limit: {executionPlan.MaxResponseBytes} bytes");
         Console.WriteLine($"Request Budget: {executionPlan.MaxRequests}");
+        Console.WriteLine($"Catalog Payload Budget: {executionPlan.MaxCatalogPayloadCharacters} characters across native catalogs");
+        Console.WriteLine($"Total Run Deadline: {executionPlan.GlobalTimeoutMinutes} minutes");
+        if (executionPlan.RequestDemand is { } demand)
+            Console.WriteLine($"Planned Request Demand: at least {demand.KnownMinimumAttempts} for successful admitted scope; upper estimate {(demand.HasUnknownExpansion ? "unknown" : demand.KnownMinimumAttempts.ToString(System.Globalization.CultureInfo.InvariantCulture))}. Actual limit: {demand.EnforcedAttemptLimit}.");
         Console.WriteLine($"Concurrency: {executionPlan.MaxConcurrency}");
         Console.WriteLine($"Provider Plan SHA-256: {executionPlan.ProviderExecutionPlanSha256}");
         Console.WriteLine($"Allowed Hosts: {(executionPlan.AllowedHosts.Count == 0 ? "(target host only)" : string.Join(", ", executionPlan.AllowedHosts))}");
@@ -1252,6 +1331,8 @@ public class ValidateCommand
             plan.MaxConcurrency,
             plan.TimeoutSeconds,
             plan.MaxResponseBytes,
+            plan.MaxCatalogPayloadCharacters,
+            plan.GlobalTimeoutMinutes,
             AllowedHosts = plan.AllowedHosts.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
             AllowedOrigins = plan.AllowedOrigins.OrderBy(value => value, StringComparer.Ordinal).ToArray(),
             PlannedChecks = plan.PlannedChecks.OrderBy(value => value, StringComparer.Ordinal).ToArray()

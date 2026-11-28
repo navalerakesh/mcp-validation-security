@@ -3,11 +3,13 @@ namespace Mcp.Benchmark.Core.Constants;
 public static class ArtifactContracts
 {
     public const string SchemaVersion = "1.0.0";
-    public const string ValidationResultSchemaVersion = "2.0.0";
-    public const string AuditManifestSchemaVersion = "2.0.0";
-    public const string ClientProfileSummarySchemaVersion = "2.0.0";
+    public const string ValidationResultSchemaVersion = "3.8.0";
+    public const string AuditManifestSchemaVersion = "2.4.0";
+    public const string ClientProfileSummarySchemaVersion = "2.1.0";
     public const string OfficialConformanceEvidenceSchemaVersion = "1.0.0";
     public const string ProviderHarnessSchemaVersion = "2.0.0";
+    public const string CommandManifestSchemaVersion = "1.0.0";
+    public const string CommandManifestDocumentType = "mcpval.command-manifest";
     public const string ValidationResultDocumentType = "mcpval.assurance-result";
     public const string AuditManifestDocumentType = "mcpval.audit-manifest";
     public const string ClientProfileSummaryDocumentType = "mcpval.client-profile-summary";
@@ -17,7 +19,7 @@ public static class ArtifactContracts
     public const string CliResultDocumentType = "mcpval.cli-result";
     public const string CliErrorDocumentType = "mcpval.cli-error";
     public const string ValidationAttestationDocumentType = "mcpval.validation-attestation";
-    public const string ModelEvaluationSchemaVersion = "2.0.0";
+    public const string ModelEvaluationSchemaVersion = "2.1.0";
 
     public static bool IsCompatible(string documentType, string schemaVersion)
     {
@@ -33,6 +35,7 @@ public static class ArtifactContracts
             ClientProfileSummaryDocumentType => ClientProfileSummarySchemaVersion,
             OfficialConformanceEvidenceDocumentType => OfficialConformanceEvidenceSchemaVersion,
             ProviderHarnessDocumentType => ProviderHarnessSchemaVersion,
+            CommandManifestDocumentType => CommandManifestSchemaVersion,
             ModelEvaluationDocumentType => ModelEvaluationSchemaVersion,
             CliResultDocumentType or CliErrorDocumentType or ValidationAttestationDocumentType => SchemaVersion,
             _ => null
@@ -40,7 +43,8 @@ public static class ArtifactContracts
 
         return currentVersion != null &&
             TryParseVersion(currentVersion, out var currentMajor) &&
-            candidateMajor == currentMajor;
+            (candidateMajor == currentMajor ||
+                documentType == ValidationResultDocumentType && currentMajor == 3 && candidateMajor == 2);
     }
 
     private static bool TryParseVersion(string? value, out int major)

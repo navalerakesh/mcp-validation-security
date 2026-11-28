@@ -78,7 +78,7 @@ export const ValidateInputSchema = z.object({
   mcpspec: McpSpecSchema.optional(),
   protocolEra: ProtocolEraSchema.optional(),
   policy: z.enum(["advisory", "balanced", "strict"]).optional().describe("Host-side gating mode. Does not change raw findings."),
-  assurance: z.enum(["inventory", "ci", "provider"]).optional().describe("Assurance profile used for independent assessments and certificate eligibility. Defaults to inventory."),
+  assurance: z.enum(["comprehensive", "inventory", "ci", "provider"]).optional().describe("Defaults to comprehensive, which fails closed without required execution admission and conformance evidence. Select inventory explicitly for Safe discovery."),
   clientProfile: z.array(ClientProfileSchema).optional().describe("Optional client compatibility profiles to evaluate. Omit to use the CLI default host set."),
   extension: z.array(ExtensionIdSchema).max(16).optional().describe("Optional MCP extension IDs to assess. Active probes remain constrained by the wrapper's safe execution mode."),
   reportDetail: z.enum(["full", "minimal"]).optional().describe("Detail level for temporary CLI human artifacts. The wrapper returns canonical JSON evidence rather than embedding large HTML reports in model context."),
@@ -116,7 +116,7 @@ export const tools = [
     name: "health_check",
     description:
       "Quick connectivity check on an MCP server. " +
-      "Verifies the server responds to the MCP initialize handshake and reports protocol version.",
+      "Checks version-appropriate MCP discovery or initialization and reports observed protocol evidence.",
     inputSchema: HealthCheckInputSchema,
   },
   {

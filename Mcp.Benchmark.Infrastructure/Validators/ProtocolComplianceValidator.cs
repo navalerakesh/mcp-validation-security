@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Exceptions;
 using Mcp.Benchmark.Core.Resources;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
@@ -25,26 +26,31 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     private readonly IProtocolRuleRegistry _ruleRegistry;
     private readonly IValidationApplicabilityResolver _applicabilityResolver;
     private readonly IProtocolFeatureResolver _protocolFeatureResolver;
+    private readonly ISchemaRegistry _schemaRegistry;
+    private readonly ISchemaValidator _schemaValidator;
 
     public ProtocolComplianceValidator(
         ILogger<ProtocolComplianceValidator> logger,
         IMcpHttpClient httpClient,
         IProtocolRuleRegistry ruleRegistry,
         IValidationApplicabilityResolver applicabilityResolver,
-        IProtocolFeatureResolver protocolFeatureResolver)
+        IProtocolFeatureResolver protocolFeatureResolver,
+        ISchemaRegistry? schemaRegistry = null,
+        ISchemaValidator? schemaValidator = null)
         : base(logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _ruleRegistry = ruleRegistry ?? throw new ArgumentNullException(nameof(ruleRegistry));
         _applicabilityResolver = applicabilityResolver ?? throw new ArgumentNullException(nameof(applicabilityResolver));
         _protocolFeatureResolver = protocolFeatureResolver ?? throw new ArgumentNullException(nameof(protocolFeatureResolver));
+        _schemaRegistry = schemaRegistry ?? new EmbeddedSchemaRegistry();
+        _schemaValidator = schemaValidator ?? new JsonSchemaValidator();
     }
 
     public async Task<ComplianceTestResult> ValidateJsonRpcComplianceAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "JSON-RPC Compliance", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "JSON-RPC Compliance", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
             var ruleContext = new ProtocolValidationContext(_httpClient, serverConfig.Endpoint!);
 
             if (!config.TestMessageFormat && !config.TestNotifications)
@@ -114,17 +120,19 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 ? 1.0
                 : observableErrorTests.Count(t => t.IsValid) / (double)observableErrorTests.Count;
 
-            // Test 2: Request Format Compliance
-            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, ct);
-
-            // Test 3: Response Format Compliance
-            var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, ct);
-
             var applicabilityContext = _applicabilityResolver.Build(
                 serverConfig,
                 config.ProtocolVersion ?? serverConfig.ProtocolVersion,
                 Array.Empty<string>());
             var protocolFeatures = _protocolFeatureResolver.Resolve(applicabilityContext);
+            var formatProbeMethod = protocolFeatures.Era == McpProtocolEra.Modern
+                ? ValidationConstants.Methods.ServerDiscover : ValidationConstants.Methods.Ping;
+
+            // Test 2: Request Format Compliance
+            var requestFormatCompliant = await ValidateRequestFormatAsync(serverConfig, errorValidation, formatProbeMethod, ct);
+
+            // Test 3: Response Format Compliance
+            var responseFormatCompliant = await ValidateResponseFormatAsync(serverConfig.Endpoint!, formatProbeMethod, ct);
 
             // Test 4: Batch Processing Compliance
             var batchProbe = protocolFeatures.SupportsBatchJsonRpc
@@ -161,20 +169,38 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             }
 
             var streamableHttpTransport = ShouldValidateStreamableHttpTransport(serverConfig, protocolFeatures.NegotiatedProtocolVersion)
-                ? protocolFeatures.Era == McpProtocolEra.Modern
-                    ? await ValidateModernHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, config.ModernDiscovery, ct)
-                    : await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
+                ? new StreamableHttpTransportTestResult()
                 : null;
             result.StreamableHttpTransport = streamableHttpTransport;
 
             var stdioTransport = ShouldValidateStdioTransport(serverConfig)
-                ? protocolFeatures.Era == McpProtocolEra.Modern
-                    ? await ValidateModernStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, ct)
-                    : await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, ct)
+                ? new StdioTransportTestResult()
                 : null;
             result.StdioTransport = stdioTransport;
+            try
+            {
+                if (streamableHttpTransport is not null)
+                {
+                    if (protocolFeatures.Era == McpProtocolEra.Modern)
+                        await ValidateModernHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, config.ModernDiscovery, streamableHttpTransport, ct);
+                    else
+                        await ValidateStreamableHttpTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, streamableHttpTransport, ct);
+                }
+                if (stdioTransport is not null)
+                {
+                    if (protocolFeatures.Era == McpProtocolEra.Modern)
+                        await ValidateModernStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, stdioTransport, ct);
+                    else
+                        await ValidateStdioTransportAsync(serverConfig, protocolFeatures.NegotiatedProtocolVersion, skippedRawStdioErrorTests, stdioTransport, ct);
+                }
+            }
+            finally
+            {
+                if (streamableHttpTransport is not null) ApplyStreamableHttpTransportFindings(result, result.Violations, streamableHttpTransport);
+                if (stdioTransport is not null) ApplyStdioTransportFindings(result, result.Violations, stdioTransport);
+            }
 
-            var violations = new List<ComplianceViolation>();
+            var violations = result.Violations;
 
             // Calculate score early to determine violation severity
             var preliminaryScores = new[] {
@@ -317,16 +343,6 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                     ComplianceChecks.SpecReferences[ComplianceChecks.Protocol.JsonRpcFormat]));
             }
 
-            if (streamableHttpTransport is not null)
-            {
-                ApplyStreamableHttpTransportFindings(result, violations, streamableHttpTransport);
-            }
-
-            if (stdioTransport is not null)
-            {
-                ApplyStdioTransportFindings(result, violations, stdioTransport);
-            }
-
             var declaredCapabilities = await GetDeclaredCapabilitiesAsync(
                 serverConfig.Endpoint!,
                 protocolFeatures.NegotiatedProtocolVersion,
@@ -335,22 +351,27 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
             // Calculate comprehensive compliance score (now 8 scored tests total)
             // Probe optional MCP capabilities for structured findings and capability-aware reporting.
-            var rootsSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Roots) &&
-                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.RootsList, ct);
-            var loggingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) &&
-                (protocolFeatures.Era == McpProtocolEra.Modern ||
-                 await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.LoggingSetLevel, ct));
-            var samplingSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Sampling) &&
-                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.SamplingCreateMessage, ct);
-            var completionSupported = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) &&
-                await ProbeMethodSupportAsync(serverConfig.Endpoint!, ValidationConstants.Methods.CompletionComplete, ct);
+            var loggingDeclared = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging);
+            var completionDeclared = declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions);
+            var optionalObservations = new List<CapabilityMethodObservation>();
+            result.OptionalCapabilityObservations = optionalObservations;
+            var loggingObservation = loggingDeclared && protocolFeatures.Era != McpProtocolEra.Modern
+                ? await ProbeMethodSupportAsync(serverConfig.Endpoint!, McpSpecConstants.Capabilities.Logging, ValidationConstants.Methods.LoggingSetLevel, protocolFeatures.SchemaVersion, new { level = "info" }, ct)
+                : new CapabilityMethodObservation(McpSpecConstants.Capabilities.Logging, ValidationConstants.Methods.LoggingSetLevel,
+                    loggingDeclared, false, null, ProbeResponseClassification.Unknown, null);
+                    optionalObservations.Add(loggingObservation);
+            var completionObservation = completionDeclared
+                ? await ProbeCompletionSupportAsync(serverConfig.Endpoint!, declaredCapabilities, protocolFeatures.SchemaVersion, ct)
+                : new CapabilityMethodObservation(McpSpecConstants.Capabilities.Completions, ValidationConstants.Methods.CompletionComplete,
+                    false, false, null, ProbeResponseClassification.Unknown, null);
+                    optionalObservations.Add(completionObservation);
+            var loggingSupported = loggingObservation.Supported;
+            var completionSupported = completionObservation.Supported;
 
             ApplyOptionalCapabilityFindings(
                 result,
                 declaredCapabilities,
-                rootsSupported,
                 loggingSupported,
-                samplingSupported,
                 completionSupported,
                 protocolFeatures.Era == McpProtocolEra.Modern);
 
@@ -468,9 +489,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             result.Message = AppendCapabilityProbeMessage(
                 result.Message,
                 declaredCapabilities,
-                rootsSupported,
                 loggingSupported,
-                samplingSupported,
                 completionSupported,
                 protocolFeatures.Era == McpProtocolEra.Modern);
 
@@ -482,14 +501,12 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         McpServerConfig serverConfig,
         string protocolVersion,
         IReadOnlyCollection<JsonRpcErrorTest> skippedRawStdioErrorTests,
+        StdioTransportTestResult result,
         CancellationToken ct)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StdioTransportTestResult
-        {
-            ProtocolVersion = normalizedVersion
-        };
+        result.ProtocolVersion = normalizedVersion;
 
         var messageResponse = await _httpClient.SendStdioTransportProbeAsync(
             new StdioTransportProbeRequest
@@ -577,12 +594,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     private async Task<StdioTransportTestResult> ValidateModernStdioTransportAsync(
         McpServerConfig serverConfig,
         string protocolVersion,
+        StdioTransportTestResult result,
         CancellationToken cancellationToken)
     {
         const string subscriptionId = "mcpval-subscription-stdio";
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StdioTransportTestResult { ProtocolVersion = normalizedVersion };
+        result.ProtocolVersion = normalizedVersion;
         var request = CreateModernSubscriptionEnvelope(normalizedVersion, subscriptionId);
         var acknowledgment = await _httpClient.SendStdioTransportProbeAsync(new StdioTransportProbeRequest
         {
@@ -635,14 +653,11 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         return result;
     }
 
-    private async Task<StreamableHttpTransportTestResult> ValidateStreamableHttpTransportAsync(McpServerConfig serverConfig, string protocolVersion, CancellationToken ct)
+    private async Task<StreamableHttpTransportTestResult> ValidateStreamableHttpTransportAsync(McpServerConfig serverConfig, string protocolVersion, StreamableHttpTransportTestResult result, CancellationToken ct)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StreamableHttpTransportTestResult
-        {
-            ProtocolVersion = normalizedVersion
-        };
+        result.ProtocolVersion = normalizedVersion;
 
         var initializeResponse = await _httpClient.SendHttpTransportProbeAsync(
             CreateTransportProbeRequest(
@@ -693,8 +708,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
         if (!string.IsNullOrWhiteSpace(result.SessionId) && result.SessionIdVisibleAscii == true)
         {
-            var propagated = notificationResponse.RequestHeaders.TryGetValue("MCP-Session-Id", out var propagatedSessionId) &&
-                             string.Equals(propagatedSessionId, result.SessionId, StringComparison.Ordinal);
+            var propagated = notificationResponse.RequestSessionIdMatchesSession;
             result.Probes.Add(CreateTransportProbe(
                 "session-id-propagated",
                 ValidationConstants.CheckIds.HttpSessionPropagation,
@@ -703,7 +717,9 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                 "After initialization returns MCP-Session-Id, subsequent requests in the same logical session must carry that session id.",
                 "The follow-up notification request includes the same MCP-Session-Id value.",
                 notificationResponse,
-                propagated ? "Session id was propagated." : "Follow-up request did not include the initialized MCP-Session-Id value.",
+                propagated == true ? "Session id was propagated." : propagated == false
+                    ? "Follow-up request did not include the initialized MCP-Session-Id value."
+                    : "Session propagation evidence was unavailable from the transport.",
                 ViolationSeverity.High));
 
             var missingSessionResponse = await _httpClient.SendHttpTransportProbeAsync(
@@ -803,17 +819,18 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         McpServerConfig serverConfig,
         string protocolVersion,
         ModernDiscoveryEvidence? modernDiscovery,
+        StreamableHttpTransportTestResult result,
         CancellationToken cancellationToken)
     {
         var endpoint = serverConfig.Endpoint!;
         var normalizedVersion = SchemaRegistryProtocolVersions.NormalizeRequestedVersion(protocolVersion);
-        var result = new StreamableHttpTransportTestResult { ProtocolVersion = normalizedVersion };
+        result.ProtocolVersion = normalizedVersion;
 
         var matchingResponse = await _httpClient.SendHttpTransportProbeAsync(
             CreateTransportProbeRequest(
                 endpoint,
                 "POST",
-                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, normalizedVersion, "modern-matching"),
+                CreateModernRequestEnvelope(ValidationConstants.Methods.ServerDiscover, normalizedVersion, "modern-matching"),
                 normalizedVersion),
             cancellationToken);
         result.Probes.Add(CreateTransportProbe(
@@ -855,7 +872,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             CreateTransportProbeRequest(
                 endpoint,
                 "POST",
-                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, ProtocolVersions.V2025_11_25.Value, "modern-mismatch"),
+                CreateModernRequestEnvelope(ValidationConstants.Methods.ServerDiscover, ProtocolVersions.V2025_11_25.Value, "modern-mismatch"),
                 normalizedVersion),
             cancellationToken);
         result.Probes.Add(CreateTransportProbe(
@@ -874,7 +891,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             CreateTransportProbeRequest(
                 endpoint,
                 "POST",
-                CreateModernRequestEnvelope(ValidationConstants.Methods.Ping, unsupportedVersion, "modern-unsupported"),
+                CreateModernRequestEnvelope(ValidationConstants.Methods.ServerDiscover, unsupportedVersion, "modern-unsupported"),
                 unsupportedVersion),
             cancellationToken);
         result.Probes.Add(CreateTransportProbe(
@@ -1606,21 +1623,132 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     /// <summary>
     /// Probes whether the server supports a given method by calling it and checking the response.
-    /// Returns true if the server responds with anything other than MethodNotFound (-32601).
+    /// Keeps transport, authentication and observed method outcomes distinct.
     /// </summary>
-    private async Task<bool> ProbeMethodSupportAsync(string endpoint, string method, CancellationToken ct)
+    private async Task<CapabilityMethodObservation> ProbeCompletionSupportAsync(
+        string endpoint, IReadOnlySet<string> capabilities, string protocolVersion, CancellationToken ct)
     {
+        var preparationAttempted = false;
+        CapabilityMethodObservation Unattempted(ProbeResponseClassification classification, int? statusCode = null) =>
+            new(McpSpecConstants.Capabilities.Completions, ValidationConstants.Methods.CompletionComplete,
+                true, false, null, classification, statusCode,
+                preparationAttempted ? ValidationConstants.Methods.PromptsList : null);
+
+        if (!capabilities.Contains(McpSpecConstants.Capabilities.Prompts))
+            return Unattempted(ProbeResponseClassification.Unknown);
         try
         {
-            var response = await _httpClient.CallAsync(endpoint, method, null, ct);
-            if (!string.IsNullOrEmpty(response.RawJson) && response.RawJson.Contains("-32601", StringComparison.Ordinal)) return false; // MethodNotFound
-            if (response.IsSuccess) return true;
-            if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true; // Auth-blocked but exists
-            return response.StatusCode != 404;
+            ct.ThrowIfCancellationRequested();
+            preparationAttempted = true;
+            var latestPage = await _httpClient.CallAsync(endpoint, ValidationConstants.Methods.PromptsList, null, ct);
+            var evidence = new CatalogEnumerationEvidence();
+            var issues = new List<string>();
+            var argumentsInspected = 0;
+            await foreach (var prompt in BoundedCatalogReader.ReadAsync(latestPage, "prompts", CatalogEnumerationLimits.MaximumItems,
+                evidence, issues, async (cursor, token) => latestPage = await _httpClient.CallAsync(
+                    endpoint, ValidationConstants.Methods.PromptsList, new { cursor }, token), ct))
+            {
+                if (!TryReadCompletionIdentifier(prompt, "name", out var promptName) ||
+                    !prompt.TryGetProperty("arguments", out var arguments) || arguments.ValueKind != JsonValueKind.Array) continue;
+                foreach (var argument in arguments.EnumerateArray())
+                {
+                    ct.ThrowIfCancellationRequested();
+                    if (++argumentsInspected > CatalogEnumerationLimits.MaximumItems)
+                        return Unattempted(ProbeResponseClassification.PolicyBlocked);
+                    if (!TryReadCompletionIdentifier(argument, "name", out var argumentName)) continue;
+                    return await ProbeMethodSupportAsync(endpoint, McpSpecConstants.Capabilities.Completions,
+                        ValidationConstants.Methods.CompletionComplete, protocolVersion,
+                        new { @ref = new { type = McpSpecConstants.PromptReferenceType, name = promptName },
+                            argument = new { name = argumentName, value = string.Empty } }, ct);
+                }
+            }
+            if (latestPage?.ProbeContext?.ResponseClassification == ProbeResponseClassification.PolicyBlocked)
+                return Unattempted(ProbeResponseClassification.PolicyBlocked, latestPage.StatusCode);
+            return Unattempted(evidence.Termination switch
+            {
+                CatalogEnumerationTermination.AuthenticationRequired => ProbeResponseClassification.AuthenticationChallenge,
+                CatalogEnumerationTermination.TransportFailure => ProbeResponseClassification.NoResponse,
+                CatalogEnumerationTermination.MalformedPage => ProbeResponseClassification.ParserBoundary,
+                CatalogEnumerationTermination.BudgetExceeded => ProbeResponseClassification.PolicyBlocked,
+                _ => ProbeResponseClassification.Unknown
+            }, latestPage?.StatusCode);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+        catch (OperationCanceledException) { return Unattempted(ProbeResponseClassification.Timeout); }
+        catch (Exception exception) when (ValidationReliability.IsPolicyBlockedException(exception))
+        { return Unattempted(ProbeResponseClassification.PolicyBlocked); }
+        catch { return Unattempted(ProbeResponseClassification.NoResponse); }
+    }
+
+    private static bool TryReadCompletionIdentifier(JsonElement value, string property, out string identifier)
+    {
+        identifier = string.Empty;
+        if (value.ValueKind != JsonValueKind.Object || !value.TryGetProperty(property, out var text) ||
+            text.ValueKind != JsonValueKind.String) return false;
+        identifier = text.GetString()!;
+        return !string.IsNullOrWhiteSpace(identifier) && identifier.Length <= 4096;
+    }
+
+    private async Task<CapabilityMethodObservation> ProbeMethodSupportAsync(string endpoint, string capability, string method, string protocolVersion, object? parameters, CancellationToken ct)
+    {
+        JsonRpcResponse? response = null;
+        try
+        {
+            ct.ThrowIfCancellationRequested();
+            response = await _httpClient.CallAsync(endpoint, method, parameters, ct);
+            if (response?.ProbeContext?.ResponseClassification == ProbeResponseClassification.PolicyBlocked)
+                return new(capability, method, true, true, null, ProbeResponseClassification.PolicyBlocked, response.StatusCode);
+            if (response is null || response.StatusCode <= 0)
+                return new(capability, method, true, true, null, ProbeResponseClassification.NoResponse, response?.StatusCode);
+            if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
+                return new(capability, method, true, true, null, ProbeResponseClassification.AuthenticationChallenge, response.StatusCode);
+            using var document = JsonDocument.Parse(response.RawJson ?? "{}");
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object ||
+                string.IsNullOrEmpty(response.ProbeContext?.RequestId) ||
+                !string.Equals(response.ProbeContext.Method, method, StringComparison.Ordinal) ||
+                !root.TryGetProperty("id", out var responseId) || responseId.ValueKind != JsonValueKind.String ||
+                !responseId.ValueEquals(response.ProbeContext.RequestId) ||
+                root.TryGetProperty("result", out _) == root.TryGetProperty("error", out _))
+                return new(capability, method, true, true, null, ProbeResponseClassification.ParserBoundary, response.StatusCode);
+            var isError = root.TryGetProperty("error", out var error);
+            var selectedVersion = new ProtocolVersion(protocolVersion);
+            if (!SchemaValidationHelpers.TryValidateResponseDefinition(
+                _schemaRegistry, _schemaValidator, selectedVersion,
+                isError ? "JSONRPCErrorResponse" : "JSONRPCResultResponse", response.RawJson, Logger,
+                out var envelopeValidation, isError ? "JSONRPCError" : "JSONRPCResponse") || envelopeValidation?.IsValid != true)
+                return new(capability, method, true, true, null, ProbeResponseClassification.ParserBoundary, response.StatusCode);
+            if (isError)
+                return new(capability, method, true, true, error.GetProperty("code").GetInt32() == -32601 ? false : null,
+                    ProbeResponseClassification.ProtocolError, response.StatusCode);
+            if (!response.IsSuccess || response.StatusCode is < 200 or >= 300)
+                return new(capability, method, true, true, null, ProbeResponseClassification.TransportFailure, response.StatusCode);
+            var supported = SchemaValidationHelpers.TryValidateListResult(
+                _schemaRegistry, _schemaValidator, selectedVersion,
+                method == ValidationConstants.Methods.CompletionComplete ? "CompleteResult" : "EmptyResult",
+                response.RawJson, Logger, out var resultValidation) && resultValidation?.IsValid == true;
+            return new(capability, method, true, true, supported ? true : null,
+                supported ? ProbeResponseClassification.Success : ProbeResponseClassification.ParserBoundary, response.StatusCode);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (OperationCanceledException)
+        {
+            return new(capability, method, true, true, null, ProbeResponseClassification.Timeout, response?.StatusCode);
+        }
+        catch (Exception exception) when (ValidationReliability.IsPolicyBlockedException(exception))
+        {
+            return new(capability, method, true, true, null, ProbeResponseClassification.PolicyBlocked, response?.StatusCode);
+        }
+        catch (Exception exception) when (exception is JsonException or FormatException or InvalidOperationException)
+        {
+            return new(capability, method, true, true, null, ProbeResponseClassification.ParserBoundary, response?.StatusCode);
         }
         catch
         {
-            return false;
+            return new(capability, method, true, true, null, ProbeResponseClassification.NoResponse, null);
         }
     }
 
@@ -1639,10 +1767,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
     private static string AppendCapabilityProbeMessage(
         string? existingMessage,
         IReadOnlySet<string> declaredCapabilities,
-        bool rootsSupported,
-        bool loggingSupported,
-        bool samplingSupported,
-        bool completionSupported,
+        bool? loggingSupported,
+        bool? completionSupported,
         bool isModern)
     {
         var segments = new List<string>();
@@ -1656,13 +1782,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             segments.Add($"declared capabilities: {string.Join(", ", declaredCapabilities.OrderBy(static value => value, StringComparer.OrdinalIgnoreCase))}");
         }
 
-        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Roots, ValidationConstants.Methods.RootsList, rootsSupported));
+        segments.Add($"{ValidationConstants.Methods.RootsList}: client-side capability; server probe not applicable");
         segments.Add(FormatCapabilityProbeStatus(
             declaredCapabilities,
             McpSpecConstants.Capabilities.Logging,
             isModern ? "io.modelcontextprotocol/logLevel" : ValidationConstants.Methods.LoggingSetLevel,
             loggingSupported));
-        segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Sampling, ValidationConstants.Methods.SamplingCreateMessage, samplingSupported));
+        segments.Add($"{ValidationConstants.Methods.SamplingCreateMessage}: client-side capability; server probe not applicable");
         segments.Add(FormatCapabilityProbeStatus(declaredCapabilities, McpSpecConstants.Capabilities.Completions, ValidationConstants.Methods.CompletionComplete, completionSupported));
 
         return string.Join(" | ", segments);
@@ -1672,36 +1798,26 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         IReadOnlySet<string> declaredCapabilities,
         string capability,
         string method,
-        bool supported)
+        bool? supported)
     {
         if (!declaredCapabilities.Contains(capability))
         {
             return $"{method}: not advertised";
         }
 
-        return $"{method}: {(supported ? "supported" : "not supported")}";
+        return $"{method}: {(supported == true ? "supported" : supported == false ? "not supported" : "advertised; support unverified")}";
     }
 
     private static void ApplyOptionalCapabilityFindings(
         ComplianceTestResult result,
         IReadOnlySet<string> declaredCapabilities,
-        bool rootsSupported,
-        bool loggingSupported,
-        bool samplingSupported,
-        bool completionSupported,
+        bool? loggingSupported,
+        bool? completionSupported,
         bool isModern)
     {
         AddOptionalCapabilitySupportedFinding(
             result,
-            rootsSupported,
-            ValidationFindingRuleIds.OptionalCapabilityRootsSupported,
-            ValidationConstants.Methods.RootsList,
-            McpSpecConstants.Capabilities.Roots,
-            "Server responded to roots/list, indicating optional roots workflow support.");
-
-        AddOptionalCapabilitySupportedFinding(
-            result,
-            loggingSupported,
+            loggingSupported == true,
             ValidationFindingRuleIds.OptionalCapabilityLoggingSupported,
             isModern ? "io.modelcontextprotocol/logLevel" : ValidationConstants.Methods.LoggingSetLevel,
             McpSpecConstants.Capabilities.Logging,
@@ -1711,21 +1827,13 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
         AddOptionalCapabilitySupportedFinding(
             result,
-            samplingSupported,
-            ValidationFindingRuleIds.OptionalCapabilitySamplingSupported,
-            ValidationConstants.Methods.SamplingCreateMessage,
-            McpSpecConstants.Capabilities.Sampling,
-            "Server responded to sampling/createMessage, indicating optional sampling workflows are available.");
-
-        AddOptionalCapabilitySupportedFinding(
-            result,
-            completionSupported,
+            completionSupported == true,
             ValidationFindingRuleIds.OptionalCapabilityCompletionsSupported,
             ValidationConstants.Methods.CompletionComplete,
             McpSpecConstants.Capabilities.Completions,
             "Server responded to completion/complete, indicating optional completions are available.");
 
-        if (!isModern && declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && !loggingSupported)
+        if (!isModern && declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported == false)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -1745,7 +1853,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             });
         }
 
-        if (!isModern && !declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported)
+        if (!isModern && !declaredCapabilities.Contains(McpSpecConstants.Capabilities.Logging) && loggingSupported == true)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -1765,7 +1873,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             });
         }
 
-        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && !completionSupported)
+        if (declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && completionSupported == false)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -1785,7 +1893,7 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
             });
         }
 
-        if (!declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && completionSupported)
+        if (!declaredCapabilities.Contains(McpSpecConstants.Capabilities.Completions) && completionSupported == true)
         {
             result.Findings.Add(new ValidationFinding
             {
@@ -2073,10 +2181,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     public async Task<ComplianceTestResult> ValidateInitializationAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Initialization Compliance", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "Initialization Compliance", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
-
             // Per MCP spec: client sends initialize with its preferred protocolVersion.
             // Server responds with the version it supports (may differ).
             // We test version negotiation by requesting the latest spec version,
@@ -2228,9 +2334,8 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
 
     public async Task<ComplianceTestResult> ValidateNotificationHandlingAsync(McpServerConfig serverConfig, ProtocolComplianceConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Notification Handling", async (ct) =>
+        return await ExecuteValidationAsync<ComplianceTestResult>(serverConfig, "Notification Handling", async (result, ct) =>
         {
-            var result = new ComplianceTestResult();
             var probe = await CheckNotificationHandlingAsync(serverConfig.Endpoint!, ct);
 
             if (probe.IsCompliant == null)
@@ -2260,15 +2365,15 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
         }, cancellationToken);
     }
 
-    private async Task<bool> ValidateRequestFormatAsync(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation, CancellationToken cancellationToken)
+    private async Task<bool> ValidateRequestFormatAsync(McpServerConfig serverConfig, JsonRpcErrorValidationResult errorValidation, string method, CancellationToken cancellationToken)
     {
         // Test 1: Valid request
-        var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, "ping", null, cancellationToken);
+        var validResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, method, null, cancellationToken);
 
         // If auth failed, we consider it "compliant" for protocol structure (server correctly rejected us)
         if (AuthenticationChallengeInterpreter.Inspect(validResponse).RequiresAuthentication) return true;
 
-        if (!validResponse.IsSuccess && validResponse.StatusCode != 404) return false; // 404 is fine for ping
+        if (!validResponse.IsSuccess && (method != ValidationConstants.Methods.Ping || validResponse.StatusCode != 404)) return false;
 
         var parseErrorTest = errorValidation.Tests.FirstOrDefault(test => test.ExpectedErrorCode == -32700);
         if (parseErrorTest is null)
@@ -2287,9 +2392,9 @@ public class ProtocolComplianceValidator : BaseValidator<ProtocolComplianceValid
                classification.ErrorCode == -32700;
     }
 
-    private async Task<bool> ValidateResponseFormatAsync(string endpoint, CancellationToken cancellationToken)
+    private async Task<bool> ValidateResponseFormatAsync(string endpoint, string method, CancellationToken cancellationToken)
     {
-        var response = await _httpClient.CallAsync(endpoint, "ping", null, cancellationToken);
+        var response = await _httpClient.CallAsync(endpoint, method, null, cancellationToken);
 
         // If auth failed, we can't validate response format, but we shouldn't fail the test
         if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication) return true;

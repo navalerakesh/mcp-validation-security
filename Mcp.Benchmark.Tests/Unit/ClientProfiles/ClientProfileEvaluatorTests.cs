@@ -8,6 +8,437 @@ public class ClientProfileEvaluatorTests
 {
     private readonly ClientProfileEvaluator _evaluator = new();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Evaluate_CallContracts_ShouldRequirePerItemExecutionEvidence(bool completed)
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation!.ToolResults.Single().ExecutionSuccessful = completed;
+        result.PromptTesting = new()
+        {
+            Status = TestStatus.Passed, PromptsDiscovered = 1,
+            PromptResults = [new() { PromptName = "review", Status = TestStatus.Passed, ExecutionSuccessful = completed }]
+        };
+        result.ResourceTesting = new()
+        {
+            Status = TestStatus.Passed, ResourcesDiscovered = 1,
+            TemplateCatalogEnumeration = CompletedEmptyCatalog(),
+            ResourceResults = [new() { ResourceUri = "file:///review", Status = TestStatus.Passed, AccessSuccessful = completed }]
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+        foreach (var id in new[] { "tool-tools-contract", "prompt-prompts-contract", "resource-resources-contract" })
+            assessment.Requirements.Single(requirement => requirement.RequirementId == id).Outcome.Should()
+                .Be(completed ? ClientProfileRequirementOutcome.Satisfied : ClientProfileRequirementOutcome.Warning);
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData(CatalogEnumerationTermination.AuthenticationRequired, false)]
+    [InlineData(CatalogEnumerationTermination.Complete, true)]
+    public void Evaluate_CompletedStaticReads_ShouldNotHideUnknownTemplateDiscovery(
+        CatalogEnumerationTermination? termination, bool satisfied)
+    {
+        var result = CreateToolOnlyValidationResult();
+        var templates = termination is null ? null : CompletedEmptyCatalog();
+        if (templates is not null)
+        {
+            templates.Termination = termination!.Value;
+            templates.IsComplete = satisfied;
+        }
+        result.ResourceTesting = new()
+        {
+            Status = TestStatus.Passed, ResourcesDiscovered = 1, TemplateCatalogEnumeration = templates,
+            ResourceResults = [new() { ResourceUri = "file:///review", Status = TestStatus.Passed, AccessSuccessful = true }]
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "resource-resources-contract")
+            .Outcome.Should().Be(satisfied ? ClientProfileRequirementOutcome.Satisfied : ClientProfileRequirementOutcome.Warning);
+    }
+
+    [Theory]
+    [InlineData("""{"result":{"tools":[],"nextCursor":"page2"}}""")]
+    [InlineData("""{"result":{"tools":42}}""")]
+    [InlineData("""{"result":{"tools":[]}}""")]
+    public void Evaluate_SnapshotAlone_ShouldNotCertifyAnEmptyCatalog(string raw)
+    {
+        var result = new ValidationResult
+        {
+            CapabilitySnapshot = new()
+            {
+                Payload = new()
+                {
+                    CapabilityDeclarationsAvailable = true, AdvertisedCapabilities = ["tools"],
+                    ToolListingSucceeded = true, ToolListResponse = new() { IsSuccess = true, RawJson = raw }
+                }
+            }
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        foreach (var id in new[] { "tool-tools-present", "tool-tools-contract" })
+            assessment.Requirements.Single(requirement => requirement.RequirementId == id).Outcome.Should()
+                .Be(ClientProfileRequirementOutcome.Warning, "snapshot success is not bounded complete-enumeration evidence");
+    }
+
+    [Fact]
+    public void Evaluate_RejectedTemplate_ShouldNotEarnSurfaceCreditOrHideItsContractFailure()
+    {
+        var result = new ValidationResult
+        {
+            ToolValidation = new() { CatalogEnumeration = CompletedEmptyCatalog() },
+            PromptTesting = new() { CatalogEnumeration = CompletedEmptyCatalog() },
+            ResourceTesting = new()
+            {
+                Status = TestStatus.Failed, CatalogEnumeration = CompletedEmptyCatalog(), ResourceTemplatesDiscovered = 1,
+                TemplateCatalogEnumeration = new()
+                {
+                    IsComplete = true, Termination = CatalogEnumerationTermination.Complete,
+                    PageAttempts = 1, ParsedPages = 1, RawItemsObserved = 1, RejectedItems = 1
+                },
+                Findings = [new()
+                {
+                    RuleId = ValidationFindingRuleIds.ResourceTemplateListItemInvalid,
+                    Component = "resources/templates/list", Severity = ValidationFindingSeverity.High,
+                    Summary = "Template entry is not a metadata object."
+                }]
+            }
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "interactive-surfaces")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "resource-resources-contract")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Failed);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData(TestStatus.AuthRequired)]
+    [InlineData(TestStatus.Skipped)]
+    [InlineData(TestStatus.Error)]
+    [InlineData(TestStatus.Passed)]
+    public void Evaluate_UnobservedCatalogs_ShouldNotClaimAbsentCapabilities(TestStatus? status)
+    {
+        var result = new ValidationResult();
+        if (status is { } recorded)
+        {
+            result.ToolValidation = new() { Status = recorded };
+            result.PromptTesting = new() { Status = recorded };
+            result.ResourceTesting = new() { Status = recorded };
+        }
+
+        var compatibility = _evaluator.Evaluate(result, new() { Profiles = ["all"] })!;
+        var surfaceRequirements = new[]
+        {
+            "interactive-surfaces", "tool-tools-present", "tool-tools-contract",
+            "prompt-prompts-contract", "resource-resources-contract"
+        };
+        foreach (var assessment in compatibility.Assessments)
+        {
+            assessment.FailedRequirements.Should().Be(0, "unavailable discovery is not a demonstrated incompatibility");
+            assessment.Requirements.Where(requirement => surfaceRequirements.Contains(requirement.RequirementId))
+                .Should().NotBeEmpty().And.OnlyContain(requirement =>
+                    requirement.Outcome == ClientProfileRequirementOutcome.Warning &&
+                    !string.IsNullOrWhiteSpace(requirement.Recommendation));
+            assessment.Summary.Should().Contain("required compatibility check(s) remain unverified");
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Evaluate_EmptyCatalogs_ShouldRequireEnumerationRatherThanSnapshotCounts(bool useSnapshot)
+    {
+        var result = new ValidationResult();
+        if (useSnapshot)
+        {
+            result.CapabilitySnapshot = new()
+            {
+                IsSuccessful = true,
+                Payload = new() { ToolListingSucceeded = true, PromptListingSucceeded = true, ResourceListingSucceeded = true }
+            };
+            result.ResourceTesting = new() { TemplateCatalogEnumeration = CompletedEmptyCatalog() };
+        }
+        else
+        {
+            result.ToolValidation = new() { CatalogEnumeration = CompletedEmptyCatalog() };
+            result.PromptTesting = new() { CatalogEnumeration = CompletedEmptyCatalog() };
+            result.ResourceTesting = new()
+            {
+                CatalogEnumeration = CompletedEmptyCatalog(), TemplateCatalogEnumeration = CompletedEmptyCatalog()
+            };
+        }
+
+        var compatibility = _evaluator.Evaluate(result, new() { Profiles = ["all"] })!;
+        foreach (var assessment in compatibility.Assessments)
+        {
+            assessment.Requirements.Where(requirement => requirement.RequirementId.EndsWith("-contract", StringComparison.Ordinal))
+                .Should().OnlyContain(requirement => requirement.Outcome == (useSnapshot
+                    ? ClientProfileRequirementOutcome.Warning : ClientProfileRequirementOutcome.NotApplicable));
+            assessment.Requirements.Where(requirement => requirement.RequirementId is "interactive-surfaces" or "tool-tools-present")
+                .Should().ContainSingle().Which.Outcome.Should().Be(useSnapshot
+                    ? ClientProfileRequirementOutcome.Warning : ClientProfileRequirementOutcome.Failed);
+        }
+    }
+
+    [Fact]
+    public void Evaluate_RejectedCatalogItems_ShouldNotEstablishAnEmptySurface()
+    {
+        var enumeration = CompletedEmptyCatalog();
+        enumeration.RawItemsObserved = 1;
+        enumeration.RejectedItems = 1;
+        var result = new ValidationResult { ToolValidation = new() { CatalogEnumeration = enumeration } };
+
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-present")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-contract")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+    }
+
+    [Fact]
+    public void Evaluate_PartialCatalog_ShouldNotClaimCompleteMetadataForRecoveredTools()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation!.CatalogEnumeration = new()
+        {
+            Termination = CatalogEnumerationTermination.BudgetExceeded, PageAttempts = 1, ParsedPages = 1,
+            RawItemsObserved = 1, RecoveredItems = 1, ContinuationObserved = true
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        foreach (var id in new[] { "tool-tools-contract", "tool-tool-descriptions", "tool-tool-annotations" })
+            assessment.Requirements.Single(requirement => requirement.RequirementId == id)
+                .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+    }
+
+    [Theory]
+    [InlineData(false, false, ClientProfileRequirementOutcome.Warning)]
+    [InlineData(true, false, ClientProfileRequirementOutcome.Failed)]
+    [InlineData(true, true, ClientProfileRequirementOutcome.Warning)]
+    public void Evaluate_DeclaredCapabilityAbsence_ShouldRequireRecordedDeclarations(
+        bool declarationsAvailable, bool toolsAdvertised, ClientProfileRequirementOutcome expected)
+    {
+        var result = new ValidationResult
+        {
+            CapabilitySnapshot = new()
+            {
+                Payload = new()
+                {
+                    CapabilityDeclarationsAvailable = declarationsAvailable,
+                    AdvertisedCapabilities = toolsAdvertised ? ["tools"] : []
+                }
+            }
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-present")
+            .Outcome.Should().Be(expected);
+    }
+
+    [Fact]
+    public void Evaluate_KnownContractFailure_ShouldSurviveZeroRecoveredComponents()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.PromptTesting = new()
+        {
+            Status = TestStatus.Failed,
+            Findings = [new()
+            {
+                RuleId = ValidationFindingRuleIds.PromptMissingName, Severity = ValidationFindingSeverity.High,
+                Component = "prompts/list", Summary = "A recorded prompt entry has no name."
+            }]
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+        var requirement = assessment.Requirements.Single(requirement => requirement.RequirementId == "prompt-prompts-contract");
+        requirement.Outcome.Should().Be(ClientProfileRequirementOutcome.Failed);
+        requirement.RuleIds.Should().Contain(ValidationFindingRuleIds.PromptMissingName);
+    }
+
+    [Fact]
+    public void Evaluate_RecordedSnapshotCounts_ShouldEstablishPresenceButNotContractSuccess()
+    {
+        var result = new ValidationResult
+        {
+            CapabilitySnapshot = new()
+            {
+                Payload = new() { ToolListingSucceeded = true, DiscoveredToolsCount = 2 }
+            }
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-present")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Satisfied);
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tools-contract")
+            .Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+    }
+
+    private static CatalogEnumerationEvidence CompletedEmptyCatalog() => new()
+    {
+        IsComplete = true, Termination = CatalogEnumerationTermination.Complete, PageAttempts = 1, ParsedPages = 1
+    };
+
+    [Theory]
+    [InlineData(null, ClientProfileRequirementOutcome.Warning, ClientProfileRequirementOutcome.Warning)]
+    [InlineData(0, ClientProfileRequirementOutcome.Failed, ClientProfileRequirementOutcome.NotApplicable)]
+    [InlineData(2, ClientProfileRequirementOutcome.Satisfied, ClientProfileRequirementOutcome.Warning)]
+    public void Evaluate_ResourceTemplates_ShouldNotBeLostOrCountedAsReadContracts(
+        int? templates, ClientProfileRequirementOutcome surfaceOutcome, ClientProfileRequirementOutcome contractOutcome)
+    {
+        var result = new ValidationResult
+        {
+            ToolValidation = new() { CatalogEnumeration = CompletedEmptyCatalog() },
+            PromptTesting = new() { CatalogEnumeration = CompletedEmptyCatalog() },
+            ResourceTesting = new() { CatalogEnumeration = CompletedEmptyCatalog() }
+        };
+        if (templates is { } count)
+        {
+            result.ResourceTesting.ResourceTemplatesDiscovered = count;
+            result.ResourceTesting.TemplateCatalogEnumeration = CompletedEmptyCatalog();
+            result.ResourceTesting.TemplateCatalogEnumeration.RawItemsObserved = count;
+            result.ResourceTesting.TemplateCatalogEnumeration.RecoveredItems = count;
+        }
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+        var surface = assessment.Requirements.Single(requirement => requirement.RequirementId == "interactive-surfaces");
+        surface.Outcome.Should().Be(surfaceOutcome);
+        if (templates > 0) surface.Summary.Should().Contain("2 resource template(s)");
+        assessment.Requirements.Single(requirement => requirement.RequirementId == "resource-resources-contract")
+            .Outcome.Should().Be(contractOutcome);
+    }
+
+    [Fact]
+    public void Evaluate_ShouldReplaceOnlyItsPriorInterpretationRevisionAndRemainIdempotent()
+    {
+        var result = CreateToolOnlyValidationResult();
+        var baseline = new ValidationCoverageDeclaration
+        {
+            LayerId = "protocol", Scope = "recorded", Status = ValidationCoverageStatus.Covered
+        };
+        result.Evidence.Coverage.Add(baseline);
+        result.Evidence.AppliedPacks.Add(new()
+        {
+            Key = new("client-profile-pack/built-in"), Kind = ValidationPackKind.ClientProfilePack,
+            Revision = new("2026-04"), DisplayName = "Historical interpretation", Stability = ValidationStability.Stable
+        });
+        var neutralAssurance = result.Assurance;
+
+        _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] });
+        _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] });
+
+        result.Evidence.AppliedPacks.Where(pack => pack.Key.Value == "client-profile-pack/built-in")
+            .Should().ContainSingle().Which.Revision.Value.Should().Be(ClientProfileCatalog.InterpretationRevision);
+        result.Evidence.Coverage.Should().Contain(baseline);
+        result.Evidence.Coverage.Count(item => item.LayerId == "client-profiles").Should().Be(1);
+        result.Assurance.Should().BeSameAs(neutralAssurance);
+    }
+
+    [Theory]
+    [InlineData(TestStatus.Passed, true)]
+    [InlineData(TestStatus.Skipped, false)]
+    [InlineData(TestStatus.AuthRequired, false)]
+    [InlineData(TestStatus.Error, false)]
+    public void Evaluate_ShouldNotCreditUncompletedContractEvidence(TestStatus status, bool satisfied)
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation!.Status = status;
+        result.PromptTesting = new()
+        {
+            PromptsDiscovered = 1, Status = status,
+            PromptResults = [new() { PromptName = "review", Status = status, ExecutionSuccessful = satisfied }]
+        };
+        result.ResourceTesting = new()
+        {
+            ResourcesDiscovered = 1, Status = status,
+            TemplateCatalogEnumeration = CompletedEmptyCatalog(),
+            ResourceResults = [new() { ResourceUri = "file:///review", Status = status, AccessSuccessful = satisfied }]
+        };
+
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+
+        foreach (var id in new[] { "tool-tools-contract", "prompt-prompts-contract", "resource-resources-contract" })
+            assessment.Requirements.Single(requirement => requirement.RequirementId == id).Outcome.Should().Be(
+                satisfied ? ClientProfileRequirementOutcome.Satisfied : ClientProfileRequirementOutcome.Warning);
+        if (!satisfied)
+            assessment.Summary.Should().Contain("required compatibility check(s) remain unverified")
+                .And.NotContain("Required compatibility checks passed");
+    }
+
+    [Fact]
+    public void Evaluate_CountWithoutMetadata_ShouldNotAssertEveryToolIsDocumented()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation = new() { ToolsDiscovered = 2, Status = TestStatus.Passed };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["claude-code"] })!.Assessments.Single();
+
+        foreach (var id in new[] { "tool-tools-contract", "tool-tool-descriptions", "tool-tool-titles", "tool-tool-annotations", "tool-destructive-hint", "tool-description-size" })
+        {
+            var requirement = assessment.Requirements.Single(requirement => requirement.RequirementId == id);
+            requirement.Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+            requirement.ExampleComponents.Should().BeEmpty("unrecorded tool identities must not be invented");
+        }
+    }
+
+    [Theory]
+    [InlineData("author_search", false)]
+    [InlineData("authenticate_user", true)]
+    [InlineData("schema compliance helper", true)]
+    [InlineData("Authentication Discovery", true)]
+    public void Evaluate_ShouldNotDiscardObservedToolsBasedOnWordsInTheirNames(string name, bool catalogRecorded)
+    {
+        var result = CreateToolOnlyValidationResult();
+        var tools = result.ToolValidation!;
+        tools.ToolsDiscovered = 0;
+        tools.DiscoveredToolNames.Clear();
+        if (catalogRecorded) tools.DiscoveredToolNames.Add(name);
+        tools.ToolResults.Single().ToolName = name;
+        tools.ToolResults.Single().Description = null;
+
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        var description = assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tool-descriptions");
+
+        description.Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+        description.ExampleComponents.Should().ContainSingle().Which.Should().Be(name);
+    }
+
+    [Fact]
+    public void Evaluate_ShouldPreserveCaseDistinctToolIdentities()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation = new()
+        {
+            Status = TestStatus.Passed,
+            DiscoveredToolNames = ["author_search", "AUTHOR_SEARCH"],
+            ToolResults = [new() { ToolName = "author_search" }, new() { ToolName = "AUTHOR_SEARCH" }]
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        var description = assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tool-descriptions");
+
+        description.Outcome.Should().Be(ClientProfileRequirementOutcome.Warning);
+        description.Summary.Should().StartWith("2/2");
+        description.ExampleComponents.Should().Equal("author_search", "AUTHOR_SEARCH");
+
+        foreach (var name in result.ToolValidation.DiscoveredToolNames)
+            result.ToolValidation.Findings.Add(new()
+            {
+                RuleId = ValidationFindingRuleIds.ToolCallMissingContentArray, Component = name,
+                Summary = "Recorded contract failure.", Severity = ValidationFindingSeverity.High
+            });
+        var failed = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single()
+            .Requirements.Single(requirement => requirement.RequirementId == "tool-tools-contract");
+        failed.Outcome.Should().Be(ClientProfileRequirementOutcome.Failed);
+        failed.ExampleComponents.Should().Equal("author_search", "AUTHOR_SEARCH");
+    }
+
+    [Fact]
+    public void Evaluate_ShouldNotPromoteHistoricalAuthPlaceholdersIntoToolEvidence()
+    {
+        var result = CreateToolOnlyValidationResult();
+        result.ToolValidation = new()
+        {
+            ToolResults = [new() { ToolName = "Authentication Discovery", WwwAuthenticateHeader = "Bearer" }]
+        };
+        var assessment = _evaluator.Evaluate(result, new() { Profiles = ["github-copilot-cli"] })!.Assessments.Single();
+        var description = assessment.Requirements.Single(requirement => requirement.RequirementId == "tool-tool-descriptions");
+        description.Outcome.Should().Be(ClientProfileRequirementOutcome.Warning,
+            "an authentication placeholder neither represents a tool nor proves an empty catalog");
+        description.ExampleComponents.Should().BeEmpty();
+    }
+
     [Fact]
     public void Evaluate_WithoutExplicitProfiles_ShouldDefaultToAllSupportedProfiles()
     {

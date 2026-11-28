@@ -54,10 +54,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
     /// </summary>
     public async Task<SecurityTestResult> PerformSecurityAssessmentAsync(McpServerConfig serverConfig, SecurityTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, ValidationMessages.Titles.SecurityValidation, async (ct) =>
+        return await ExecuteValidationAsync<SecurityTestResult>(serverConfig, ValidationMessages.Titles.SecurityValidation, async (result, ct) =>
         {
-            var result = new SecurityTestResult();
-
             // 1. Authentication Testing
             var authTestResult = await _authValidator.ValidateAuthenticationComplianceAsync(serverConfig, ct);
             result.AuthenticationTestResult = authTestResult;
@@ -274,10 +272,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
     /// </summary>
     public async Task<SecurityTestResult> ValidateInputSanitizationAsync(McpServerConfig serverConfig, IEnumerable<SecurityTestPayload> payloads, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, ValidationMessages.Security.InputValidation, async (ct) =>
+        return await ExecuteValidationAsync<SecurityTestResult>(serverConfig, ValidationMessages.Security.InputValidation, async (result, ct) =>
         {
-            var result = new SecurityTestResult();
-
             // Discover a tool with a string argument to test against
             string? targetTool = null;
             string? targetArgument = null;
@@ -393,10 +389,8 @@ public class SecurityValidator : BaseValidator<SecurityValidator>, ISecurityVali
     /// </summary>
     public async Task<SecurityTestResult> SimulateAttackVectorsAsync(McpServerConfig serverConfig, IEnumerable<string> attackVectors, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, ValidationMessages.Security.AttackSimulation, async (ct) =>
+        return await ExecuteValidationAsync<SecurityTestResult>(serverConfig, ValidationMessages.Security.AttackSimulation, async (result, ct) =>
         {
-            var result = new SecurityTestResult();
-
             // 1. Discover targets FIRST (Stop attacking the listing endpoint)
             Logger.LogInformation("Discovering potential attack targets via tools/list...");
             string? targetTool = null;

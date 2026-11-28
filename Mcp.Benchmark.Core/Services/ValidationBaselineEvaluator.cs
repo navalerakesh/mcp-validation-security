@@ -40,7 +40,7 @@ public static class ValidationBaselineEvaluator
         return new AssuranceBaselineComparison
         {
             BaselineValidationId = baseline.ValidationId,
-            BaselineDocumentSchemaVersion = baseline.DocumentSchemaVersion,
+            BaselineDocumentSchemaVersion = baseline.Run.SourceDocumentSchemaVersion ?? baseline.DocumentSchemaVersion,
             ProfileId = current.Assurance.Profile.ProfileId,
             ProfileRevision = current.Assurance.Profile.Revision,
             CoreConformanceBefore = before.CoreConformance.Status,
@@ -54,14 +54,30 @@ public static class ValidationBaselineEvaluator
             EvidenceCoverageDelta = coverageDelta,
             EvidenceConfidenceDelta = confidenceDelta,
             IsRegression = newClaims.Length > 0 ||
-                CoreRank(after.CoreConformance.Status) < CoreRank(before.CoreConformance.Status) ||
-                SecurityRank(after.SecurityAssurance.Status) < SecurityRank(before.SecurityAssurance.Status) ||
-                OperationsRank(after.OperationalReadiness.Status) < OperationsRank(before.OperationalReadiness.Status) ||
-                CertificateRank(current.Assurance.CertificateEligibility.Status) < CertificateRank(baseline.Assurance.CertificateEligibility.Status),
+                HasAssessmentDegradation(before.CoreConformance.Status, after.CoreConformance.Status,
+                    before.SecurityAssurance.Status, after.SecurityAssurance.Status,
+                    before.OperationalReadiness.Status, after.OperationalReadiness.Status,
+                    baseline.Assurance.CertificateEligibility.Status, current.Assurance.CertificateEligibility.Status),
             NewNonSuccessClaims = newClaims,
             ResolvedNonSuccessClaimIds = resolvedClaimIds
         };
     }
+
+    public static bool HasAssessmentDegradation(AssuranceBaselineComparison comparison)
+    {
+        ArgumentNullException.ThrowIfNull(comparison);
+        return HasAssessmentDegradation(comparison.CoreConformanceBefore, comparison.CoreConformanceAfter,
+            comparison.SecurityAssuranceBefore, comparison.SecurityAssuranceAfter,
+            comparison.OperationalReadinessBefore, comparison.OperationalReadinessAfter,
+            comparison.CertificateEligibilityBefore, comparison.CertificateEligibilityAfter);
+    }
+
+    private static bool HasAssessmentDegradation(CoreConformanceStatus coreBefore, CoreConformanceStatus coreAfter,
+        SecurityAssuranceStatus securityBefore, SecurityAssuranceStatus securityAfter,
+        OperationalReadinessStatus operationsBefore, OperationalReadinessStatus operationsAfter,
+        CertificateEligibilityStatus certificateBefore, CertificateEligibilityStatus certificateAfter) =>
+        CoreRank(coreAfter) < CoreRank(coreBefore) || SecurityRank(securityAfter) < SecurityRank(securityBefore) ||
+        OperationsRank(operationsAfter) < OperationsRank(operationsBefore) || CertificateRank(certificateAfter) < CertificateRank(certificateBefore);
 
     private static IEnumerable<AssuranceClaim> GetNonSuccessClaims(ValidationResult result) =>
         result.Assurance.Claims.Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable));

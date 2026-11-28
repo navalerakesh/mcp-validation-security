@@ -3,7 +3,7 @@
  * Each handler builds CLI args from validated input, runs the CLI, and formats output.
  * All outputs are sanitized to prevent injection payload reflection.
  */
-import { runCli, isCliAvailable, getCliVersion } from "./cli-runner.js";
+import { runCli, getCliAvailability, getCliVersion, type CliResult } from "./cli-runner.js";
 import { config } from "./config.js";
 import type { z } from "zod";
 import type { ValidateInputSchema, HealthCheckInputSchema, DiscoverInputSchema } from "./tools.js";
@@ -27,16 +27,23 @@ const untrustedContentMetadata = {
 /**
  * Handles the `validate` tool call.
  */
-export async function handleValidate(input: ValidateInput): Promise<ToolExecutionResult> {
+export async function handleValidate(input: ValidateInput, signal?: AbortSignal): Promise<ToolExecutionResult> {
   const targetPolicyFailure = enforceTargetPolicy(input.server);
   if (targetPolicyFailure) return targetPolicyFailure;
 
-  const available = await isCliAvailable();
-  if (!available) return commandError("validate", "CLI_NOT_INSTALLED", cliNotInstalledMessage());
+  const preflight = await checkCliAvailability("validate", signal);
+  if (preflight) return preflight;
 
   const args: string[] = [];
   if (input.policy) args.push("--policy", input.policy);
-  if (input.assurance) args.push("--assurance", input.assurance);
+  const assurance = input.assurance ?? "comprehensive";
+  args.push("--assurance", assurance);
+  if (assurance === "comprehensive" && config.comprehensiveAssurance.enabled) {
+    args.push("--mode", config.comprehensiveAssurance.executionMode,
+      "--conformance-results", config.comprehensiveAssurance.conformanceResultsPath!,
+      "--identity-baseline", config.comprehensiveAssurance.identityBaselinePath!,
+      "--validation-id", config.comprehensiveAssurance.validationId!);
+  }
   if (input.assurance === "provider") {
     if (!config.providerAssurance.enabled) {
       return commandError(
@@ -71,11 +78,14 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
 
   const result = await runCli({
     command: "validate",
+    signal,
     args,
     captureResultJson: true,
     configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
   }, buildTokenEnvironment(input.token));
 
+  const cleanupFailure = unconfirmedCleanup("validate", result);
+  if (cleanupFailure) return cleanupFailure;
   if (result.resultJson) {
     return {
       text: frameUntrusted(formatValidationResult(result.resultJson)),
@@ -104,12 +114,12 @@ export async function handleValidate(input: ValidateInput): Promise<ToolExecutio
 /**
  * Handles the `health_check` tool call.
  */
-export async function handleHealthCheck(input: HealthCheckInput): Promise<ToolExecutionResult> {
+export async function handleHealthCheck(input: HealthCheckInput, signal?: AbortSignal): Promise<ToolExecutionResult> {
   const targetPolicyFailure = enforceTargetPolicy(input.server);
   if (targetPolicyFailure) return targetPolicyFailure;
 
-  const available = await isCliAvailable();
-  if (!available) return commandError("health-check", "CLI_NOT_INSTALLED", cliNotInstalledMessage());
+  const preflight = await checkCliAvailability("health-check", signal);
+  if (preflight) return preflight;
 
   const args: string[] = [];
   if (input.protocolEra) args.push("--protocol-era", input.protocolEra);
@@ -117,10 +127,13 @@ export async function handleHealthCheck(input: HealthCheckInput): Promise<ToolEx
 
   const result = await runCli({
     command: "health-check",
+    signal,
     args,
     configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
   }, buildTokenEnvironment(input.token));
 
+  const cleanupFailure = unconfirmedCleanup("health-check", result);
+  if (cleanupFailure) return cleanupFailure;
   return {
     text: frameUntrusted(result.stdout || result.stderr || "Health check completed."),
     isError: result.exitCode !== 0,
@@ -136,12 +149,12 @@ export async function handleHealthCheck(input: HealthCheckInput): Promise<ToolEx
 /**
  * Handles the `discover` tool call.
  */
-export async function handleDiscover(input: DiscoverInput): Promise<ToolExecutionResult> {
+export async function handleDiscover(input: DiscoverInput, signal?: AbortSignal): Promise<ToolExecutionResult> {
   const targetPolicyFailure = enforceTargetPolicy(input.server);
   if (targetPolicyFailure) return targetPolicyFailure;
 
-  const available = await isCliAvailable();
-  if (!available) return commandError("discover", "CLI_NOT_INSTALLED", cliNotInstalledMessage());
+  const preflight = await checkCliAvailability("discover", signal);
+  if (preflight) return preflight;
 
   const args = ["--format", input.format];
   if (input.protocolEra) args.push("--protocol-era", input.protocolEra);
@@ -149,10 +162,13 @@ export async function handleDiscover(input: DiscoverInput): Promise<ToolExecutio
 
   const result = await runCli({
     command: "discover",
+    signal,
     args,
     configJson: buildServerConfig(input.server, input.access, input.token, input.interactive),
   }, buildTokenEnvironment(input.token));
 
+  const cleanupFailure = unconfirmedCleanup("discover", result);
+  if (cleanupFailure) return cleanupFailure;
   return {
     text: frameUntrusted(result.stdout || result.stderr || "Discovery completed."),
     isError: result.exitCode !== 0,
@@ -212,11 +228,34 @@ function enforceTargetPolicy(server: string): ToolExecutionResult | undefined {
   return undefined;
 }
 
-function commandError(command: string, code: string, message: string): ToolExecutionResult {
+async function checkCliAvailability(command: string, signal?: AbortSignal): Promise<ToolExecutionResult | undefined> {
+  if (signal?.aborted) return commandError(command, "CLI_CANCELLED", "CLI operation cancelled before availability probing.", 124);
+  const availability = await getCliAvailability(signal);
+  const cleanupFailure = unconfirmedCleanup(command, availability);
+  if (cleanupFailure) return cleanupFailure;
+  if (signal?.aborted || availability.exitCode === 124)
+    return commandError(command, "CLI_CANCELLED_OR_TIMED_OUT", "CLI availability probing was cancelled or timed out.", 124);
+  if (availability.exitCode !== 0)
+    return commandError(command, "CLI_NOT_AVAILABLE", cliNotInstalledMessage(), 70);
+  const requiredMajor = config.server.version.split(".")[0];
+  const cliVersion = /^mcpval ([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/.exec(availability.stdout.trim());
+  if (!/^[1-9][0-9]*$/.test(requiredMajor) || cliVersion?.[1] !== requiredMajor)
+    return commandError(command, "CLI_VERSION_INCOMPATIBLE",
+      "The selected CLI must be a stable release from the same major release family as this wrapper. Upgrade both packages together or correct MCPVAL_CLI_PATH. No target command was launched.", 70);
+  return undefined;
+}
+
+function unconfirmedCleanup(command: string, result: CliResult): ToolExecutionResult | undefined {
+  return result.processCleanupConfirmed === false
+    ? commandError(command, "CLI_CLEANUP_UNCONFIRMED", "Owned CLI process cleanup is unconfirmed; operation artifacts are retained and further launches are blocked.", 70)
+    : undefined;
+}
+
+function commandError(command: string, code: string, message: string, exitCode = 1): ToolExecutionResult {
   return {
     text: message,
     isError: true,
-    structuredContent: { command, exitCode: 1, error: { code, message } },
+    structuredContent: { command, exitCode, error: { code, message } },
   };
 }
 

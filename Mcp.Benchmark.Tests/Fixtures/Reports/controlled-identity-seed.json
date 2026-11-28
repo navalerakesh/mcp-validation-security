@@ -1,0 +1,733 @@
+{
+  "documentType": "mcpval.assurance-result",
+  "documentSchemaVersion": "3.8.0",
+  "producer": {
+    "name": "MCP Validator",
+    "version": "2.0.1",
+    "packageId": "McpVal",
+    "repositoryUrl": "https://github.com/navalerakesh/mcp-validation-security",
+    "packageUrl": "https://www.nuget.org/packages/McpVal#versions-body-tab"
+  },
+  "run": {
+    "validationId": "run-1",
+    "terminationOutcome": null,
+    "protocolVersion": null,
+    "schemaVersion": null,
+    "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "executionPlanSha256": null,
+    "executionMode": "safe",
+    "plannedChecks": [],
+    "applicabilityContext": null,
+    "initializationHandshake": null,
+    "capabilitySnapshot": null,
+    "modernDiscovery": null,
+    "bootstrapHealth": null
+  },
+  "measurements": {
+    "protocolCompliance": null,
+    "toolValidation": null,
+    "resourceTesting": null,
+    "promptTesting": null,
+    "securityTesting": null,
+    "performanceTesting": null,
+    "errorHandling": null,
+    "officialConformance": null,
+    "extensions": [],
+    "layers": [],
+    "scenarios": [
+      {
+        "scenarioId": "selected-signed-matrix",
+        "displayName": "Selected signed matrix",
+        "status": "notRun",
+        "summary": null,
+        "controlledIdentity": {
+          "sourceEvidenceSha256": "58efb2261c9a0907ec2d6a48da1a0b46dde6f95a8a50e5601ceda71bbb76c5ba",
+          "verifiedObserverKeyId": "ad7970c69e5677252d4ca301c67c2dc0bb294fed49ebe204bf2803108123ec6c",
+          "admittedContract": {
+            "contractRevision": "1.1.0",
+            "policyRevision": "fixture-policy-v1",
+            "toolName": "owned-action",
+            "observerId": "observer-1",
+            "cases": [
+              {
+                "securityChallenge": "actorSubstitution",
+                "caseId": "actor-probe",
+                "binding": {
+                  "runId": "run-1",
+                  "operationId": "operation-actor-probe",
+                  "attemptId": "attempt-actor-probe",
+                  "requestId": "request-actor-probe",
+                  "boundaryId": "boundary-1",
+                  "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "argumentsSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                  "actorAlias": "actor-a",
+                  "objectAlias": "object-a"
+                },
+                "scopePredicateId": "object-policy",
+                "expectedEffectiveActorAlias": "actor-a",
+                "expectedDecision": "denied",
+                "identityRole": "callerAssertion",
+                "isPositiveControl": false,
+                "positiveControlCaseId": "control"
+              },
+              {
+                "securityChallenge": "unauthorizedActorOrObject",
+                "caseId": "authorization-probe",
+                "binding": {
+                  "runId": "run-1",
+                  "operationId": "operation-authorization-probe",
+                  "attemptId": "attempt-authorization-probe",
+                  "requestId": "request-authorization-probe",
+                  "boundaryId": "boundary-1",
+                  "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "actorAlias": "actor-a",
+                  "objectAlias": "object-b"
+                },
+                "scopePredicateId": "object-policy",
+                "expectedEffectiveActorAlias": "actor-a",
+                "expectedDecision": "denied",
+                "identityRole": "callerAssertion",
+                "isPositiveControl": false,
+                "positiveControlCaseId": "control"
+              },
+              {
+                "caseId": "control",
+                "binding": {
+                  "runId": "run-1",
+                  "operationId": "operation-control",
+                  "attemptId": "attempt-control",
+                  "requestId": "request-control",
+                  "boundaryId": "boundary-1",
+                  "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "actorAlias": "actor-a",
+                  "objectAlias": "object-a"
+                },
+                "scopePredicateId": "object-policy",
+                "expectedEffectiveActorAlias": "actor-a",
+                "expectedDecision": "allowed",
+                "identityRole": "callerAssertion",
+                "isPositiveControl": true,
+                "positiveControlCaseId": null
+              },
+              {
+                "securityChallenge": "insufficientScope",
+                "caseId": "scope-probe",
+                "binding": {
+                  "runId": "run-1",
+                  "operationId": "operation-scope-probe",
+                  "attemptId": "attempt-scope-probe",
+                  "requestId": "request-scope-probe",
+                  "boundaryId": "boundary-1",
+                  "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                  "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                  "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                  "actorAlias": "actor-a",
+                  "objectAlias": "object-a"
+                },
+                "scopePredicateId": "object-policy",
+                "expectedEffectiveActorAlias": "actor-a",
+                "expectedDecision": "denied",
+                "identityRole": "callerAssertion",
+                "isPositiveControl": false,
+                "positiveControlCaseId": "control"
+              }
+            ],
+            "maximumEvidenceAge": "00:01:00",
+            "maximumObservationDelay": "00:00:05"
+          },
+          "recordedObservations": [
+            {
+              "caseId": "actor-probe",
+              "binding": {
+                "runId": "run-1",
+                "operationId": "operation-actor-probe",
+                "attemptId": "attempt-actor-probe",
+                "requestId": "request-actor-probe",
+                "boundaryId": "boundary-1",
+                "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "argumentsSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+                "actorAlias": "actor-a",
+                "objectAlias": "object-a"
+              },
+              "observerId": "observer-1",
+              "scopePredicateId": "object-policy",
+              "operationStartedAt": "2026-11-21T23:59:55+00:00",
+              "operationEndedAt": "2026-11-21T23:59:57+00:00",
+              "observedAt": "2026-11-21T23:59:59+00:00",
+              "observerOutcome": "succeeded",
+              "complete": true,
+              "preconditionsSatisfied": true,
+              "decision": "denied",
+              "effectiveActorMatched": true,
+              "authenticationBindingMatched": true,
+              "scopeMatched": true,
+              "delegationBindingMatched": null,
+              "approvalBindingMatched": null
+            },
+            {
+              "caseId": "authorization-probe",
+              "binding": {
+                "runId": "run-1",
+                "operationId": "operation-authorization-probe",
+                "attemptId": "attempt-authorization-probe",
+                "requestId": "request-authorization-probe",
+                "boundaryId": "boundary-1",
+                "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "actorAlias": "actor-a",
+                "objectAlias": "object-b"
+              },
+              "observerId": "observer-1",
+              "scopePredicateId": "object-policy",
+              "operationStartedAt": "2026-11-21T23:59:55+00:00",
+              "operationEndedAt": "2026-11-21T23:59:57+00:00",
+              "observedAt": "2026-11-21T23:59:59+00:00",
+              "observerOutcome": "succeeded",
+              "complete": true,
+              "preconditionsSatisfied": true,
+              "decision": "denied",
+              "effectiveActorMatched": true,
+              "authenticationBindingMatched": true,
+              "scopeMatched": true,
+              "delegationBindingMatched": null,
+              "approvalBindingMatched": null
+            },
+            {
+              "caseId": "control",
+              "binding": {
+                "runId": "run-1",
+                "operationId": "operation-control",
+                "attemptId": "attempt-control",
+                "requestId": "request-control",
+                "boundaryId": "boundary-1",
+                "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "actorAlias": "actor-a",
+                "objectAlias": "object-a"
+              },
+              "observerId": "observer-1",
+              "scopePredicateId": "object-policy",
+              "operationStartedAt": "2026-11-21T23:59:40+00:00",
+              "operationEndedAt": "2026-11-21T23:59:45+00:00",
+              "observedAt": "2026-11-21T23:59:50+00:00",
+              "observerOutcome": "succeeded",
+              "complete": true,
+              "preconditionsSatisfied": true,
+              "decision": "allowed",
+              "effectiveActorMatched": true,
+              "authenticationBindingMatched": true,
+              "scopeMatched": true,
+              "delegationBindingMatched": null,
+              "approvalBindingMatched": null
+            },
+            {
+              "caseId": "scope-probe",
+              "binding": {
+                "runId": "run-1",
+                "operationId": "operation-scope-probe",
+                "attemptId": "attempt-scope-probe",
+                "requestId": "request-scope-probe",
+                "boundaryId": "boundary-1",
+                "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+                "actorAlias": "actor-a",
+                "objectAlias": "object-a"
+              },
+              "observerId": "observer-1",
+              "scopePredicateId": "object-policy",
+              "operationStartedAt": "2026-11-21T23:59:55+00:00",
+              "operationEndedAt": "2026-11-21T23:59:57+00:00",
+              "observedAt": "2026-11-21T23:59:59+00:00",
+              "observerOutcome": "succeeded",
+              "complete": true,
+              "preconditionsSatisfied": true,
+              "decision": "denied",
+              "effectiveActorMatched": true,
+              "authenticationBindingMatched": true,
+              "scopeMatched": true,
+              "delegationBindingMatched": null,
+              "approvalBindingMatched": null
+            }
+          ],
+          "recordedGaps": [],
+          "evidenceIntegrityOutcome": "succeeded",
+          "assessedAt": "2026-11-22T00:00:00+00:00",
+          "outcome": "succeeded",
+          "cases": [
+            {
+              "caseId": "actor-probe",
+              "outcome": "succeeded",
+              "observationOutcome": "succeeded",
+              "decisionOutcome": "succeeded",
+              "effectiveActorOutcome": "succeeded",
+              "authenticationBindingOutcome": "succeeded",
+              "scopeOutcome": "succeeded",
+              "roleBindingOutcome": "notApplicable",
+              "positiveControlOutcome": "succeeded"
+            },
+            {
+              "caseId": "authorization-probe",
+              "outcome": "succeeded",
+              "observationOutcome": "succeeded",
+              "decisionOutcome": "succeeded",
+              "effectiveActorOutcome": "succeeded",
+              "authenticationBindingOutcome": "succeeded",
+              "scopeOutcome": "succeeded",
+              "roleBindingOutcome": "notApplicable",
+              "positiveControlOutcome": "succeeded"
+            },
+            {
+              "caseId": "control",
+              "outcome": "succeeded",
+              "observationOutcome": "succeeded",
+              "decisionOutcome": "succeeded",
+              "effectiveActorOutcome": "succeeded",
+              "authenticationBindingOutcome": "succeeded",
+              "scopeOutcome": "succeeded",
+              "roleBindingOutcome": "notApplicable",
+              "positiveControlOutcome": "notApplicable"
+            },
+            {
+              "caseId": "scope-probe",
+              "outcome": "succeeded",
+              "observationOutcome": "succeeded",
+              "decisionOutcome": "succeeded",
+              "effectiveActorOutcome": "succeeded",
+              "authenticationBindingOutcome": "succeeded",
+              "scopeOutcome": "succeeded",
+              "roleBindingOutcome": "notApplicable",
+              "positiveControlOutcome": "succeeded"
+            }
+          ],
+          "reason": "Identity outcomes apply only to the admitted policy matrix and independent observer; they do not establish universal enforcement.",
+          "retryPermitted": false
+        },
+        "findings": []
+      }
+    ]
+  },
+  "evidence": {
+    "observations": [],
+    "coverage": [],
+    "appliedPacks": []
+  },
+  "compatibility": {
+    "clientCompatibility": null
+  },
+  "startTime": "2026-11-22T00:00:00Z",
+  "endTime": "2026-11-22T00:00:00Z",
+  "duration": "00:00:00",
+  "serverConfig": {
+    "endpoint": null,
+    "transport": "stdio",
+    "protocolVersion": null,
+    "protocolEra": "auto",
+    "authentication": null,
+    "timeoutMs": 120000,
+    "headers": {},
+    "environment": {},
+    "profile": "unspecified"
+  },
+  "serverProfile": "unspecified",
+  "serverProfileSource": "unknown",
+  "validationConfig": {
+    "server": {
+      "endpoint": null,
+      "transport": "stdio",
+      "protocolVersion": null,
+      "protocolEra": "auto",
+      "authentication": null,
+      "timeoutMs": 120000,
+      "headers": {},
+      "environment": {},
+      "profile": "unspecified"
+    },
+    "validation": {
+      "categories": {
+        "protocol": {
+          "testJsonRpcCompliance": true,
+          "testInitialization": true,
+          "testCapabilities": true,
+          "testNotifications": true,
+          "testMessageFormat": true,
+          "protocolVersion": "latest"
+        },
+        "tools": {
+          "testToolDiscovery": true,
+          "testToolExecution": true,
+          "testParameterValidation": true,
+          "specificTools": [],
+          "preDiscoveredAuth": null,
+          "customScenarios": []
+        },
+        "resources": {
+          "maxResources": 1000,
+          "testResourceDiscovery": true,
+          "testResourceReading": true,
+          "testUriValidation": true,
+          "testSubscriptions": true,
+          "specificResources": []
+        },
+        "prompts": {
+          "testPromptDiscovery": true,
+          "testPromptExecution": true,
+          "testArgumentValidation": true,
+          "specificPrompts": [],
+          "customScenarios": []
+        },
+        "security": {
+          "testInputValidation": true,
+          "testInjectionAttacks": true,
+          "testAuthenticationBypass": true,
+          "testBufferOverflow": false,
+          "testMalformedMessages": true,
+          "testResourceExhaustion": false,
+          "customPayloads": [],
+          "maxTestDurationSeconds": 300
+        },
+        "performance": {
+          "testConcurrentRequests": true,
+          "testResponseTimes": true,
+          "testMemoryUsage": false,
+          "testThroughput": true,
+          "maxConcurrentConnections": 100,
+          "loadTestDurationSeconds": 60,
+          "responseTimeThresholdMs": 1000,
+          "customScenarios": []
+        },
+        "errorHandling": {
+          "testInvalidMethods": true,
+          "testMalformedJson": true,
+          "testConnectionInterruption": true,
+          "testTimeoutHandling": true,
+          "testGracefulDegradation": true,
+          "customErrorScenarios": []
+        }
+      },
+      "extensions": []
+    },
+    "reporting": {
+      "outputDirectory": null,
+      "formats": [
+        "json",
+        "html"
+      ],
+      "detailLevel": "full",
+      "includeDetailedLogs": false,
+      "includePerformanceMetrics": true,
+      "includeSecurityDetails": true,
+      "generateComplianceSummary": true,
+      "signAttestation": false,
+      "customTemplates": {},
+      "minimumLogLevel": "information",
+      "specProfile": "latest",
+      "includeSpecReferences": true
+    },
+    "policy": {
+      "mode": "balanced",
+      "suppressions": [],
+      "regressionOnly": false
+    },
+    "assurance": {
+      "profile": "comprehensive"
+    },
+    "testExecution": {
+      "continueOnFailure": true,
+      "enableParallelExecution": true,
+      "maxParallelThreads": 10,
+      "defaultTestTimeoutMs": 120000,
+      "globalTimeoutMinutes": 60,
+      "retryAttempts": 3,
+      "retryDelayMs": 1000,
+      "randomizeExecutionOrder": false,
+      "includeCategories": [],
+      "excludeCategories": [],
+      "customFilters": [],
+      "enableProgressReporting": true,
+      "captureSnapshots": false,
+      "environmentVariables": {}
+    }
+  },
+  "executionLogs": [],
+  "criticalErrors": [],
+  "recommendations": [],
+  "summary": {
+    "totalTests": 0,
+    "passedTests": 0,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "authRequiredTests": 0,
+    "inconclusiveTests": 0,
+    "criticalIssues": 0,
+    "warnings": 0,
+    "passRate": 0,
+    "coverageRatio": 1,
+    "evidenceConfidenceRatio": 1
+  },
+  "policyDecision": null,
+  "assurance": {
+    "requiredIdentityControls": {
+      "contract": {
+        "contractRevision": "1.1.0",
+        "policyRevision": "fixture-policy-v1",
+        "toolName": "owned-action",
+        "observerId": "observer-1",
+        "cases": [
+          {
+            "caseId": "control",
+            "binding": {
+              "runId": "run-1",
+              "operationId": "operation-control",
+              "attemptId": "attempt-control",
+              "requestId": "request-control",
+              "boundaryId": "boundary-1",
+              "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "actorAlias": "actor-a",
+              "objectAlias": "object-a"
+            },
+            "scopePredicateId": "object-policy",
+            "expectedEffectiveActorAlias": "actor-a",
+            "expectedDecision": "allowed",
+            "identityRole": "callerAssertion",
+            "isPositiveControl": true,
+            "positiveControlCaseId": null
+          },
+          {
+            "securityChallenge": "actorSubstitution",
+            "caseId": "actor-probe",
+            "binding": {
+              "runId": "run-1",
+              "operationId": "operation-actor-probe",
+              "attemptId": "attempt-actor-probe",
+              "requestId": "request-actor-probe",
+              "boundaryId": "boundary-1",
+              "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "argumentsSha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+              "actorAlias": "actor-a",
+              "objectAlias": "object-a"
+            },
+            "scopePredicateId": "object-policy",
+            "expectedEffectiveActorAlias": "actor-a",
+            "expectedDecision": "denied",
+            "identityRole": "callerAssertion",
+            "isPositiveControl": false,
+            "positiveControlCaseId": "control"
+          },
+          {
+            "securityChallenge": "insufficientScope",
+            "caseId": "scope-probe",
+            "binding": {
+              "runId": "run-1",
+              "operationId": "operation-scope-probe",
+              "attemptId": "attempt-scope-probe",
+              "requestId": "request-scope-probe",
+              "boundaryId": "boundary-1",
+              "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "actorAlias": "actor-a",
+              "objectAlias": "object-a"
+            },
+            "scopePredicateId": "object-policy",
+            "expectedEffectiveActorAlias": "actor-a",
+            "expectedDecision": "denied",
+            "identityRole": "callerAssertion",
+            "isPositiveControl": false,
+            "positiveControlCaseId": "control"
+          },
+          {
+            "securityChallenge": "unauthorizedActorOrObject",
+            "caseId": "authorization-probe",
+            "binding": {
+              "runId": "run-1",
+              "operationId": "operation-authorization-probe",
+              "attemptId": "attempt-authorization-probe",
+              "requestId": "request-authorization-probe",
+              "boundaryId": "boundary-1",
+              "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+              "argumentsSha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+              "actorAlias": "actor-a",
+              "objectAlias": "object-b"
+            },
+            "scopePredicateId": "object-policy",
+            "expectedEffectiveActorAlias": "actor-a",
+            "expectedDecision": "denied",
+            "identityRole": "callerAssertion",
+            "isPositiveControl": false,
+            "positiveControlCaseId": "control"
+          }
+        ],
+        "maximumEvidenceAge": "00:01:00",
+        "maximumObservationDelay": "00:00:05"
+      },
+      "admission": {
+        "runId": "run-1",
+        "targetIdentitySha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "routeIdentitySha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "observerId": "observer-1"
+      },
+      "signedEvidenceJson": "{\"documentType\":\"mcpval.controlled-identity-evidence\",\"documentSchemaVersion\":\"1.1.0\",\"contract\":{\"contractRevision\":\"1.1.0\",\"policyRevision\":\"fixture-policy-v1\",\"toolName\":\"owned-action\",\"observerId\":\"observer-1\",\"cases\":[{\"caseId\":\"control\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-control\",\"attemptId\":\"attempt-control\",\"requestId\":\"request-control\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"scopePredicateId\":\"object-policy\",\"expectedEffectiveActorAlias\":\"actor-a\",\"expectedDecision\":\"allowed\",\"identityRole\":\"callerAssertion\",\"isPositiveControl\":true,\"positiveControlCaseId\":null},{\"securityChallenge\":\"actorSubstitution\",\"caseId\":\"actor-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-actor-probe\",\"attemptId\":\"attempt-actor-probe\",\"requestId\":\"request-actor-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"scopePredicateId\":\"object-policy\",\"expectedEffectiveActorAlias\":\"actor-a\",\"expectedDecision\":\"denied\",\"identityRole\":\"callerAssertion\",\"isPositiveControl\":false,\"positiveControlCaseId\":\"control\"},{\"securityChallenge\":\"insufficientScope\",\"caseId\":\"scope-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-scope-probe\",\"attemptId\":\"attempt-scope-probe\",\"requestId\":\"request-scope-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"scopePredicateId\":\"object-policy\",\"expectedEffectiveActorAlias\":\"actor-a\",\"expectedDecision\":\"denied\",\"identityRole\":\"callerAssertion\",\"isPositiveControl\":false,\"positiveControlCaseId\":\"control\"},{\"securityChallenge\":\"unauthorizedActorOrObject\",\"caseId\":\"authorization-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-authorization-probe\",\"attemptId\":\"attempt-authorization-probe\",\"requestId\":\"request-authorization-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-b\"},\"scopePredicateId\":\"object-policy\",\"expectedEffectiveActorAlias\":\"actor-a\",\"expectedDecision\":\"denied\",\"identityRole\":\"callerAssertion\",\"isPositiveControl\":false,\"positiveControlCaseId\":\"control\"}],\"maximumEvidenceAge\":\"00:01:00\",\"maximumObservationDelay\":\"00:00:05\"},\"observations\":[{\"caseId\":\"control\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-control\",\"attemptId\":\"attempt-control\",\"requestId\":\"request-control\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"observerId\":\"observer-1\",\"scopePredicateId\":\"object-policy\",\"operationStartedAt\":\"2026-11-21T23:59:40+00:00\",\"operationEndedAt\":\"2026-11-21T23:59:45+00:00\",\"observedAt\":\"2026-11-21T23:59:50+00:00\",\"observerOutcome\":\"succeeded\",\"complete\":true,\"preconditionsSatisfied\":true,\"decision\":\"allowed\",\"effectiveActorMatched\":true,\"authenticationBindingMatched\":true,\"scopeMatched\":true,\"delegationBindingMatched\":null,\"approvalBindingMatched\":null},{\"caseId\":\"actor-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-actor-probe\",\"attemptId\":\"attempt-actor-probe\",\"requestId\":\"request-actor-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"observerId\":\"observer-1\",\"scopePredicateId\":\"object-policy\",\"operationStartedAt\":\"2026-11-21T23:59:55+00:00\",\"operationEndedAt\":\"2026-11-21T23:59:57+00:00\",\"observedAt\":\"2026-11-21T23:59:59+00:00\",\"observerOutcome\":\"succeeded\",\"complete\":true,\"preconditionsSatisfied\":true,\"decision\":\"denied\",\"effectiveActorMatched\":true,\"authenticationBindingMatched\":true,\"scopeMatched\":true,\"delegationBindingMatched\":null,\"approvalBindingMatched\":null},{\"caseId\":\"scope-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-scope-probe\",\"attemptId\":\"attempt-scope-probe\",\"requestId\":\"request-scope-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-a\"},\"observerId\":\"observer-1\",\"scopePredicateId\":\"object-policy\",\"operationStartedAt\":\"2026-11-21T23:59:55+00:00\",\"operationEndedAt\":\"2026-11-21T23:59:57+00:00\",\"observedAt\":\"2026-11-21T23:59:59+00:00\",\"observerOutcome\":\"succeeded\",\"complete\":true,\"preconditionsSatisfied\":true,\"decision\":\"denied\",\"effectiveActorMatched\":true,\"authenticationBindingMatched\":true,\"scopeMatched\":true,\"delegationBindingMatched\":null,\"approvalBindingMatched\":null},{\"caseId\":\"authorization-probe\",\"binding\":{\"runId\":\"run-1\",\"operationId\":\"operation-authorization-probe\",\"attemptId\":\"attempt-authorization-probe\",\"requestId\":\"request-authorization-probe\",\"boundaryId\":\"boundary-1\",\"targetIdentitySha256\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"routeIdentitySha256\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"argumentsSha256\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"actorAlias\":\"actor-a\",\"objectAlias\":\"object-b\"},\"observerId\":\"observer-1\",\"scopePredicateId\":\"object-policy\",\"operationStartedAt\":\"2026-11-21T23:59:55+00:00\",\"operationEndedAt\":\"2026-11-21T23:59:57+00:00\",\"observedAt\":\"2026-11-21T23:59:59+00:00\",\"observerOutcome\":\"succeeded\",\"complete\":true,\"preconditionsSatisfied\":true,\"decision\":\"denied\",\"effectiveActorMatched\":true,\"authenticationBindingMatched\":true,\"scopeMatched\":true,\"delegationBindingMatched\":null,\"approvalBindingMatched\":null}],\"issuedAt\":\"2026-11-22T00:00:00+00:00\",\"expiresAt\":\"2026-11-22T00:01:00+00:00\",\"signatureAlgorithm\":\"ECDSA_P256_SHA256_P1363\",\"signingKeyId\":\"ad7970c69e5677252d4ca301c67c2dc0bb294fed49ebe204bf2803108123ec6c\",\"signatureBase64\":\"/eb5z0ll42omuNVH2DXoct3nmwKowT46vhz3WD4TdFetBnvD0bz9ekJS4\\u002Bxsa/pFYxFATiy\\u002BkhfpHEPU4/Cyvw==\"}",
+      "trustedObserverPublicKeyPem": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAErc2yq/TwnW3a47tOvcFx9r5nJ2+5\nB8lMHMEgxMenfrQTQi0mdTU8gF8/im61CWFmHY3MKvgr/kTVN7iCKHaNDA==\n-----END PUBLIC KEY-----",
+      "actorBindingCaseId": "actor-probe",
+      "scopeEnforcementCaseId": "scope-probe",
+      "authorizationCaseId": "authorization-probe"
+    },
+    "requiredExtensionIds": [],
+    "contractVersion": "2.0.0",
+    "profile": {
+      "profileId": "comprehensive",
+      "revision": "2026-11-24.2",
+      "minimumExecutionMode": "standard",
+      "minimumEvidenceCoverageRatio": 1,
+      "minimumEvidenceConfidenceRatio": 0,
+      "minimumRepeatedRunConsistency": 0,
+      "requiresOfficialConformance": true,
+      "requiresSignedAttestation": false,
+      "requiresRepeatedRuns": false,
+      "certificateEligible": false
+    },
+    "claims": [
+      {
+        "claimId": "security-baseline:actor-binding",
+        "subject": "actor-binding",
+        "dimension": "security",
+        "requirementLevel": "securityControl",
+        "authority": "deterministicSecurity",
+        "source": {
+          "uri": null,
+          "revision": "fixture-policy-v1",
+          "sha256": "865d62544dc34590c4800d495b9a452b823ff0b24cd5588cefe398fba41ad339"
+        },
+        "applicability": "applicable",
+        "applicabilityReason": null,
+        "outcome": "satisfied",
+        "confidence": "high",
+        "evidenceIds": [
+          "selected-signed-matrix"
+        ],
+        "summary": "The security control is satisfied within the selected identity matrix only.",
+        "remediation": "Supply the selected signed observer matrix, including positive and denial controls, bound to this run and target.",
+        "metadata": {}
+      },
+      {
+        "claimId": "security-baseline:scope-enforcement",
+        "subject": "scope-enforcement",
+        "dimension": "security",
+        "requirementLevel": "securityControl",
+        "authority": "deterministicSecurity",
+        "source": {
+          "uri": null,
+          "revision": "fixture-policy-v1",
+          "sha256": "865d62544dc34590c4800d495b9a452b823ff0b24cd5588cefe398fba41ad339"
+        },
+        "applicability": "applicable",
+        "applicabilityReason": null,
+        "outcome": "satisfied",
+        "confidence": "high",
+        "evidenceIds": [
+          "selected-signed-matrix"
+        ],
+        "summary": "The security control is satisfied within the selected identity matrix only.",
+        "remediation": "Supply the selected signed observer matrix, including positive and denial controls, bound to this run and target.",
+        "metadata": {}
+      },
+      {
+        "claimId": "security-baseline:actor-action-object-authorization",
+        "subject": "actor-action-object-authorization",
+        "dimension": "security",
+        "requirementLevel": "securityControl",
+        "authority": "deterministicSecurity",
+        "source": {
+          "uri": null,
+          "revision": "fixture-policy-v1",
+          "sha256": "865d62544dc34590c4800d495b9a452b823ff0b24cd5588cefe398fba41ad339"
+        },
+        "applicability": "applicable",
+        "applicabilityReason": null,
+        "outcome": "satisfied",
+        "confidence": "high",
+        "evidenceIds": [
+          "selected-signed-matrix"
+        ],
+        "summary": "The security control is satisfied within the selected identity matrix only.",
+        "remediation": "Supply the selected signed observer matrix, including positive and denial controls, bound to this run and target.",
+        "metadata": {}
+      }
+    ],
+    "assessments": {
+      "coreConformance": {
+        "status": "incomplete",
+        "requiredClaims": 0,
+        "satisfiedRequiredClaims": 0,
+        "blockingClaimIds": [],
+        "incompleteClaimIds": []
+      },
+      "securityAssurance": {
+        "status": "verified",
+        "deterministicControlClaims": 3,
+        "reviewClaimCount": 0,
+        "issueClaimIds": [],
+        "incompleteClaimIds": []
+      },
+      "operationalReadiness": {
+        "status": "incomplete",
+        "objectiveClaims": 0,
+        "failedClaimIds": [],
+        "incompleteClaimIds": []
+      },
+      "extensionReadiness": [],
+      "clientCompatibility": [],
+      "externalConformance": {
+        "status": "notProvided",
+        "requirementSetRevision": null,
+        "requirementSetSha256": null,
+        "creditedPassed": 0,
+        "failed": 0,
+        "skipped": 0,
+        "conflictCount": 0
+      }
+    },
+    "evidenceSummary": {
+      "totalDeclarations": 0,
+      "applicableDeclarations": 0,
+      "covered": 0,
+      "authRequired": 0,
+      "inconclusive": 0,
+      "skipped": 0,
+      "notApplicable": 0,
+      "unavailable": 0,
+      "blocked": 0,
+      "evidenceCoverageRatio": 0,
+      "evidenceConfidenceRatio": 0,
+      "confidenceLevel": "none",
+      "categories": []
+    },
+    "certificateEligibility": {
+      "status": "ineligible",
+      "profileId": "comprehensive",
+      "reasons": [
+        "Assurance profile 'comprehensive' does not issue provider certificates.",
+        "Execution mode Safe is below required mode Standard.",
+        "Core conformance is Incomplete.",
+        "Operational readiness is Incomplete.",
+        "Evidence coverage 0.0% is below 100.0%.",
+        "Verified official conformance evidence is required."
+      ],
+      "evidenceCoverageRatio": 0,
+      "evidenceConfidenceRatio": 0
+    }
+  }
+}

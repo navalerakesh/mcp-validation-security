@@ -4,6 +4,8 @@ using Mcp.Compliance.Spec;
 
 namespace Mcp.Benchmark.Infrastructure.Registries;
 
+internal enum ToolStructuredOutputShape { NotDefined, Object, AnyJson }
+
 public sealed class BuiltInProtocolFeaturePack : IProtocolFeaturePack
 {
     private readonly ISchemaRegistry _schemaRegistry;
@@ -24,6 +26,11 @@ public sealed class BuiltInProtocolFeaturePack : IProtocolFeaturePack
     };
 
     public ValidationApplicability Applicability => new();
+
+    internal static ToolStructuredOutputShape GetToolStructuredOutputShape(string protocolVersion) =>
+        ProtocolEraVersions.IsModern(protocolVersion) ? ToolStructuredOutputShape.AnyJson :
+        string.CompareOrdinal(protocolVersion, ProtocolVersions.V2025_06_18.Value) >= 0
+            ? ToolStructuredOutputShape.Object : ToolStructuredOutputShape.NotDefined;
 
     public ProtocolFeatureSet BuildFeatureSet(ValidationApplicabilityContext context)
     {

@@ -1,4 +1,5 @@
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
 
 namespace Mcp.Benchmark.Core.Services;
 
@@ -32,8 +33,10 @@ public static class OfficialConformanceReconciler
                     continue;
                 }
 
-                var officialEvidenceId = $"official-conformance/{scenario.ScenarioId}/{check.Id}";
-                var conflictId = $"evidence-conflict/{scenario.ScenarioId}/{check.Id}";
+                var officialEvidenceId = OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex);
+                var conflictId = check.SourceIndex.HasValue
+                    ? $"evidence-conflict/{officialEvidenceId}"
+                    : $"evidence-conflict/{scenario.ScenarioId}/{check.Id}";
                 var relatedEvidence = nativeFailure.EvidenceIds
                     .Append(officialEvidenceId)
                     .Distinct(StringComparer.Ordinal)

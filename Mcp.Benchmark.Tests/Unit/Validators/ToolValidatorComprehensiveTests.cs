@@ -1,6 +1,8 @@
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Infrastructure.Services.Reporting;
 using Mcp.Benchmark.Infrastructure.Authentication;
 using Mcp.Benchmark.Infrastructure.Services;
 using Mcp.Benchmark.Infrastructure.Validators;
@@ -22,14 +24,272 @@ namespace Mcp.Benchmark.Tests.Unit.Validators;
 /// </summary>
 public class ToolValidatorComprehensiveTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticModernInputRequired_ShouldRemainIncompleteWithoutInventingContentFailures(bool executionOnly)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        var response = new JsonRpcResponse
+        {
+            IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"input_required","inputRequests":{"roots":{"method":"roots/list"}},"requestState":"private-continuation"}}"""
+        };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly
+            ? await _validator.ValidateToolExecutionAsync(server, new ToolTestingConfig())
+            : await _validator.ValidateToolDiscoveryAsync(server, new ToolTestingConfig());
+        var tool = result.ToolResults.Single(item => item.ToolName == "owned-tool");
+        tool.Status.Should().Be(TestStatus.Inconclusive);
+        tool.ExecutionSuccessful.Should().BeFalse();
+        tool.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallMissingContentArray);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-continuation");
+    }
+
+    [Theory]
+    [InlineData(false, "complete", TestStatus.Passed)]
+    [InlineData(true, "complete", TestStatus.Passed)]
+    [InlineData(false, "tool-error", TestStatus.Failed)]
+    [InlineData(true, "tool-error", TestStatus.Failed)]
+    [InlineData(false, "malformed", TestStatus.Failed)]
+    [InlineData(true, "malformed", TestStatus.Failed)]
+    public async Task AutomaticModernCompletion_ShouldUseTheSamePositiveResponseContract(
+        bool executionOnly, string variant, TestStatus expected)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        var payload = variant switch
+        {
+            "tool-error" => """{"resultType":"complete","isError":true,"content":[{"type":"text","text":"private-result-canary"}]}""",
+            "malformed" => """{"resultType":"complete","content":[{"type":"text","text":42}]}""",
+            _ => """{"resultType":"complete","content":[{"type":"text","text":"private-result-canary"}]}"""
+        };
+        var response = new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":""" + payload + "}" };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(response);
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, new ToolTestingConfig())
+            : await _validator.ValidateToolDiscoveryAsync(server, new ToolTestingConfig());
+        var tool = result.ToolResults.Single(item => item.ToolName == "owned-tool");
+        tool.Status.Should().Be(expected);
+        tool.ExecutionSuccessful.Should().Be(expected == TestStatus.Passed);
+        if (variant == "malformed")
+            tool.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallResponseValidationFailed);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-result-canary");
+    }
+
+    [Fact]
+    public async Task AuthenticationDiscovery_ShouldRemainAuthEvidence_NotInventToolExecution()
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, "[]", authenticated: false);
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ToolTestingConfig
+            {
+                TestToolExecution = false, TestParameterValidation = false,
+                PreDiscoveredAuth = new AuthDiscoveryInfo { WwwAuthenticateHeader = "Bearer", DiscoveryTimeMs = 12 }
+            });
+        result.ToolResults.Should().BeEmpty();
+        result.ToolsDiscovered.Should().Be(0);
+        result.AuthenticationSecurity.Should().NotBeNull();
+        result.AuthenticationSecurity!.AuthenticationRequired.Should().BeTrue();
+        result.AuthenticationSecurity.ChallengeDurationMs.Should().Be(12);
+        var report = new ValidationReportRenderer().GenerateHtmlReport(
+            new ValidationResult { ToolValidation = result }, new ReportingConfig(), false);
+        report.Should().NotContain("Successful tool-execution result records:");
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ExplicitClientInputs_ShouldCompleteBothToolPathsOnlyForMatchingRequests(bool executionOnly, bool mismatch)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: executionOnly);
+        using var requests = System.Text.Json.JsonDocument.Parse("""{"roots":{"method":"roots/list"}}""");
+        using var responses = System.Text.Json.JsonDocument.Parse("""{"roots":{"roots":[]}}""");
+        var calls = 0;
+        JsonRpcResponse Reply(object? parameters)
+        {
+            calls++;
+            var call = parameters.Should().BeOfType<ToolCallParameters>().Subject;
+            call.ClientCapabilities!.Value.GetProperty("roots").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Object);
+            if (calls == 1)
+                return new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                    RawJson = $$$"""{"jsonrpc":"2.0","id":"first","result":{"resultType":"input_required","inputRequests":{"{{{(mismatch ? "other" : "roots")}}}":{"method":"roots/list"}},"requestState":"private-round-canary"}}""" };
+            call.RequestState.Should().Be("private-round-canary");
+            System.Text.Json.JsonElement.DeepEquals(call.InputResponses!.Value, responses.RootElement).Should().BeTrue();
+            return new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":"second","result":{"resultType":"complete","content":[{"type":"text","text":"private-round-canary"}]}}""" };
+        }
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, object? parameters, CancellationToken _) => Reply(parameters));
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string _, string _, object? parameters, AuthenticationConfig? _, CancellationToken _) => Reply(parameters));
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario
+        {
+            ToolName = "owned-tool",
+            ClientInputRounds = [new ToolClientInputRound { ExpectedRequests = requests.RootElement, Responses = responses.RootElement }]
+        }] };
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, config) : await _validator.ValidateToolDiscoveryAsync(server, config);
+        var tool = result.ToolResults.Single(entry => entry.ToolName == "owned-tool");
+        tool.Status.Should().Be(mismatch ? TestStatus.Inconclusive : TestStatus.Passed);
+        tool.ExecutionSuccessful.Should().Be(!mismatch);
+        calls.Should().Be(mismatch ? 1 : 2);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("private-round-canary");
+    }
+
+    [Theory]
+    [InlineData("exception", TestStatus.Error)]
+    [InlineData("metadata", TestStatus.Failed)]
+    [InlineData("resource-link", TestStatus.Passed)]
+    public async Task ExplicitPositiveArguments_ShouldPreserveFailurePrivacyAndValidResourceLinks(string variant, TestStatus expected)
+    {
+        UseEmbeddedSchemas();
+        const string canary = "private-call-exception-canary";
+        var tool = variant == "metadata" ? """{"name":"owned-tool","icons":"invalid","inputSchema":{"type":"object"}}"""
+            : """{"name":"owned-tool","inputSchema":{"type":"object"}}""";
+        SetupToolsList(_httpClient, $"[{tool}]", authenticated: false);
+        const string positiveResponse = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[{"type":"resource_link","name":"artifact","uri":"https://example.invalid/artifact"}]}}""";
+        if (variant == "resource-link")
+        {
+            var registry = new EmbeddedSchemaRegistry();
+            var validation = SchemaValidationHelpers.ValidateDefinition(registry, new JsonSchemaValidator(),
+                SchemaValidationHelpers.ResolveProtocolVersion(registry, "2026-07-28"), "CallToolResultResponse",
+                System.Text.Json.Nodes.JsonNode.Parse(positiveResponse)!);
+            validation.IsValid.Should().BeTrue(string.Join("; ", validation.Errors));
+        }
+        var call = _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()));
+        if (variant == "exception") call.ThrowsAsync(new InvalidOperationException(canary));
+        else call.ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+            RawJson = positiveResponse });
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned-tool", Parameters = new() { ["value"] = canary } }] });
+        var observed = result.ToolResults.Single(entry => entry.ToolName == "owned-tool");
+        observed.Status.Should().Be(expected, string.Join("; ", observed.Issues));
+        observed.ExecutionSuccessful.Should().Be(expected == TestStatus.Passed);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain(canary);
+        if (variant == "metadata") _httpClient.Invocations.Should().NotContain(invocation => invocation.Arguments.Count > 1 && Equals(invocation.Arguments[1], "tools/call"));
+    }
+
+    [Fact]
+    public async Task ExplicitPositiveArguments_ShouldNotUseSyntheticAuthenticationRowAsExecutionEvidence()
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, "[]", authenticated: false);
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" }, new ToolTestingConfig
+        {
+            TestToolExecution = false, TestParameterValidation = false,
+            PreDiscoveredAuth = new AuthDiscoveryInfo { WwwAuthenticateHeader = "Bearer" },
+            CustomScenarios = [new ToolTestScenario { ToolName = "Authentication Discovery", Parameters = new() }]
+        });
+        result.ToolResults.Should().Contain(entry => entry.ToolName == "Authentication Discovery" && !entry.ExecutionSuccessful && entry.Status != TestStatus.Passed);
+        result.Status.Should().NotBe(TestStatus.Passed);
+    }
+
+    [Theory]
+    [InlineData(false, "disabled")]
+    [InlineData(true, "disabled")]
+    [InlineData(false, "missing")]
+    [InlineData(true, "missing")]
+    [InlineData(false, "duplicate")]
+    [InlineData(true, "duplicate")]
+    public async Task ExplicitPositiveArguments_ShouldRetainUnexecutedObligations(bool executionOnly, string variant)
+    {
+        UseEmbeddedSchemas();
+        const string tool = """{"name":"owned-tool","inputSchema":{"type":"object"}}""";
+        SetupToolsList(_httpClient, variant == "missing" ? "[]" : variant == "duplicate" ? $"[{tool},{tool}]" : $"[{tool}]", authenticated: executionOnly);
+        var response = new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[]}}""" };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>())).ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>())).ReturnsAsync(response);
+        var config = new ToolTestingConfig
+        {
+            TestToolExecution = variant != "disabled", TestParameterValidation = false,
+            CustomScenarios = [new ToolTestScenario { ToolName = "owned-tool", Parameters = new() }]
+        };
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, config) : await _validator.ValidateToolDiscoveryAsync(server, config);
+
+        _httpClient.Invocations.Should().NotContain(invocation => invocation.Arguments.Count > 1 && Equals(invocation.Arguments[1], "tools/call"));
+        result.ToolResults.Where(entry => entry.ToolName == "owned-tool").Should().NotBeEmpty()
+            .And.OnlyContain(entry => !entry.ExecutionSuccessful && entry.Status != TestStatus.Passed);
+        result.Status.Should().NotBe(TestStatus.Passed);
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task ExplicitPositiveArguments_ShouldValidateOriginalConditionalSchemaAndRemainPrivate(bool executionOnly, bool valid)
+    {
+        UseEmbeddedSchemas();
+        const string canary = "private-operator-argument-canary";
+        SetupToolsList(_httpClient, """
+            [{"name":"owned-tool","description":"Reads an admitted value.","inputSchema":{"type":"object",
+              "properties":{"kind":{"type":"string"},"phone":{"type":"string"}},
+              "if":{"properties":{"kind":{"const":"phone"}},"required":["kind"]},"then":{"required":["phone"]}}}]
+            """, authenticated: executionOnly);
+        object? captured = null;
+        var response = new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+            RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[{"type":"text","text":"private-operator-argument-canary"}]}}""" };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, CancellationToken>((_, _, parameters, _) => captured = parameters).ReturnsAsync(response);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, AuthenticationConfig?, CancellationToken>((_, _, parameters, _, _) => captured = parameters).ReturnsAsync(response);
+        var arguments = new Dictionary<string, object> { ["kind"] = "phone" };
+        if (valid) arguments["phone"] = canary;
+        var config = new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned-tool", Parameters = arguments }] };
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" };
+
+        var result = executionOnly ? await _validator.ValidateToolExecutionAsync(server, config) : await _validator.ValidateToolDiscoveryAsync(server, config);
+
+        var tool = result.ToolResults.Single(entry => entry.ToolName == "owned-tool");
+        if (valid)
+        {
+            captured.Should().NotBeNull();
+            var sent = System.Text.Json.JsonSerializer.SerializeToElement(captured).GetProperty("arguments");
+            sent.GetProperty("phone").GetString().Should().Be(canary);
+            sent.GetProperty("kind").GetString().Should().Be("phone");
+            tool.ExecutionSuccessful.Should().BeTrue();
+            tool.Status.Should().Be(TestStatus.Passed);
+        }
+        else
+        {
+            captured.Should().BeNull();
+            tool.ExecutionSuccessful.Should().BeFalse();
+            tool.Status.Should().NotBe(TestStatus.Passed);
+        }
+        _httpClient.Invocations.Count(invocation => invocation.Arguments.Count > 1 && Equals(invocation.Arguments[1], "tools/call"))
+            .Should().Be(valid ? 1 : 0);
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain(canary);
+    }
+
     private readonly ToolValidator _validator;
     private readonly Mock<IMcpHttpClient> _httpClient;
     private readonly Mock<IAuthenticationService> _authService;
+    private readonly Mock<ISchemaRegistry> _schemaRegistry;
 
     public ToolValidatorComprehensiveTests()
     {
         _httpClient = new Mock<IMcpHttpClient>();
         var schemaRegistry = new Mock<ISchemaRegistry>();
+        _schemaRegistry = schemaRegistry;
         _authService = new Mock<IAuthenticationService>();
         var contentSafety = new Mock<IContentSafetyAnalyzer>();
         contentSafety.Setup(x => x.AnalyzeTool(It.IsAny<string>())).Returns(new List<ContentSafetyFinding>());
@@ -42,6 +302,445 @@ public class ToolValidatorComprehensiveTests
             _authService.Object,
             contentSafety.Object,
             new ToolAiReadinessAnalyzer());
+    }
+
+    private void UseEmbeddedSchemas()
+    {
+        var embedded = new EmbeddedSchemaRegistry();
+        _schemaRegistry.Setup(registry => registry.ListSchemas()).Returns(() => embedded.ListSchemas());
+        _schemaRegistry.Setup(registry => registry.GetSchema(It.IsAny<ProtocolVersion>(), It.IsAny<string>(), It.IsAny<string>()))
+            .Returns((ProtocolVersion version, string area, string name) => embedded.GetSchema(version, area, name));
+    }
+
+    [Theory]
+    [InlineData("protocol-error", TestStatus.Failed)]
+    [InlineData("tool-error", TestStatus.Failed)]
+    [InlineData("input-required", TestStatus.Inconclusive)]
+    [InlineData("text-number", TestStatus.Failed)]
+    [InlineData("null-id", TestStatus.Failed)]
+    [InlineData("duplicate", TestStatus.Inconclusive)]
+    [InlineData("malformed", TestStatus.Inconclusive)]
+    public async Task ExplicitPositiveResponse_ShouldNotPassErrorsOrMalformedContent(string variant, TestStatus expected)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """[{"name":"owned-tool","inputSchema":{"type":"object"}}]""", authenticated: false);
+        const string canary = "private-response-canary";
+        var raw = variant switch
+        {
+            "protocol-error" => """{"jsonrpc":"2.0","id":"call","error":{"code":-32602,"message":"private-response-canary"}}""",
+            "tool-error" => """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","isError":true,"content":[{"type":"text","text":"private-response-canary"}]}}""",
+            "input-required" => """{"jsonrpc":"2.0","id":"call","result":{"resultType":"inputRequired","inputRequests":[]}}""",
+            "text-number" => """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[{"type":"text","text":42}]}}""",
+            "null-id" => """{"jsonrpc":"2.0","id":null,"result":{"resultType":"complete","content":[]}}""",
+            "duplicate" => """{"jsonrpc":"2.0","id":"call","result":{"isError":true,"isError":false,"resultType":"complete","content":[]}}""",
+            _ => "{ private-response-canary"
+        };
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200, RawJson = raw });
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = "2026-07-28" },
+            new ToolTestingConfig { CustomScenarios = [new ToolTestScenario { ToolName = "owned-tool", Parameters = new() { ["value"] = canary } }] });
+        var toolResult = result.ToolResults.Single(tool => tool.ToolName == "owned-tool");
+        toolResult.Status.Should().Be(expected);
+        toolResult.ExecutionSuccessful.Should().BeFalse();
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain(canary);
+    }
+
+    [Theory]
+    [InlineData("2026-07-28", false, TestStatus.Failed)]
+    [InlineData("2026-07-28", true, TestStatus.Failed)]
+    [InlineData("2025-11-25", false, TestStatus.Passed)]
+    public async Task ValidateToolDiscovery_ShouldRejectInvalidParameterHeadersBeforeExecution(string version, bool execute, TestStatus expected)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, """
+            [{"name":"invalid-header","description":"Reads a test value.","inputSchema":{"type":"object","properties":{"value":{"type":"string","x-mcp-header":"Bad Name"}}}},
+             {"name":"valid-neighbor","description":"Reads a test value.","inputSchema":{"type":"object"}}]
+            """, authenticated: false);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":"call","result":{"resultType":"complete","content":[{"type":"text","text":"ok"}]}}""" });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+        {
+            Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = version
+        }, new ToolTestingConfig { TestToolExecution = execute, TestParameterValidation = false });
+
+        var invalid = result.ToolResults.Single(tool => tool.ToolName == "invalid-header");
+        invalid.Status.Should().Be(expected);
+        invalid.MetadataValid.Should().Be(expected == TestStatus.Passed);
+        invalid.ExecutionSuccessful.Should().BeFalse();
+        result.ToolResults.Single(tool => tool.ToolName == "valid-neighbor").Status.Should().Be(TestStatus.Passed);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<CancellationToken>()),
+            Times.Exactly(execute ? 1 : 0));
+        if (expected == TestStatus.Failed)
+            invalid.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolInputSchemaInvalid)
+                .Which.SpecReference.Should().Be("https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task ValidateToolDiscovery_ShouldTreatPresentCursorAsOpaqueEvenWhenEmptyOrWhitespace(string cursor)
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"first\",\"inputSchema\":{\"type\":\"object\"}}],\"nextCursor\":" + System.Text.Json.JsonSerializer.Serialize(cursor) + "}}" });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"last\",\"inputSchema\":{\"type\":\"object\"}}]}}" });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.DiscoveredToolNames.Should().Equal("first", "last");
+        result.CatalogEnumeration!.PageAttempts.Should().Be(2);
+        result.CatalogEnumeration.IsComplete.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_AuthRequiredContinuation_ShouldRetainDistinctOutcome()
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"tools\":[{\"name\":\"retained\",\"inputSchema\":{\"type\":\"object\"}}],\"nextCursor\":\"next\"}}" });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = 401 });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.DiscoveredToolNames.Should().Equal("retained");
+        result.Status.Should().Be(TestStatus.AuthRequired);
+        result.AiReadinessScore.Should().Be(-1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateToolDiscovery_ContinuationBudget_ShouldStopAndNotPersistCursor(bool oversizedCursor)
+    {
+        var cursor = oversizedCursor ? new string('x', CatalogEnumerationLimits.MaximumCursorCharacters + 1) : "cursor-canary-0";
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"tools\":[],\"nextCursor\":" + System.Text.Json.JsonSerializer.Serialize(cursor) + "}}" });
+        var continuations = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Returns(() => Task.FromResult(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"tools\":[],\"nextCursor\":\"cursor-canary-" + ++continuations + "\"}}" }));
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.CatalogEnumeration!.Termination.Should().Be(CatalogEnumerationTermination.BudgetExceeded);
+        result.CatalogEnumeration.PageAttempts.Should().Be(oversizedCursor ? 1 : CatalogEnumerationLimits.MaximumPages);
+        continuations.Should().Be(oversizedCursor ? 0 : CatalogEnumerationLimits.MaximumPages - 1);
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.CatalogEnumeration.IsComplete.Should().BeFalse();
+        System.Text.Json.JsonSerializer.Serialize(result).Should().NotContain("cursor-canary");
+    }
+
+    [Fact]
+    public async Task ValidateToolExecution_ShouldGenerateRequiredLocalReferenceConstant()
+    {
+        SetupToolsList(_httpClient, """
+            [{"name":"fixture","description":"Reads a test value.","inputSchema":{"type":"object","$defs":{"value":{"type":["string","null"],"const":"permitted"}},"properties":{"value":{"$ref":"#/$defs/value"}},"required":["value"]}}]
+            """, authenticated: true);
+        object? captured = null;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(),
+                It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, AuthenticationConfig?, CancellationToken>((_, _, parameters, _, _) => captured = parameters)
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200 });
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.Status.Should().Be(TestStatus.Passed);
+        captured.Should().NotBeNull();
+        System.Text.Json.JsonSerializer.SerializeToElement(captured).GetProperty("arguments").GetProperty("value").GetString().Should().Be("permitted");
+    }
+
+    [Fact]
+    public async Task ValidateToolExecution_UnsatisfiableInput_ShouldNotDispatchSyntheticCall()
+    {
+        SetupToolsList(_httpClient, """
+            [{"name":"fixture","inputSchema":{"type":"object","properties":{"value":false},"required":["value"]}}]
+            """, authenticated: true);
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.ToolResults.Should().ContainSingle();
+        result.ToolResults[0].Status.Should().Be(TestStatus.Inconclusive);
+        result.ToolResults[0].ExecutionSuccessful.Should().BeFalse();
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(),
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateToolExecution_OversizedConstant_ShouldNotCloneAndDispatchLargeCandidate()
+    {
+        var tool = new
+        {
+            name = "fixture",
+            inputSchema = new
+            {
+                type = "object",
+                properties = new { value = new Dictionary<string, object> { ["const"] = new string('x', 100000) } },
+                required = new[] { "value" }
+            }
+        };
+        SetupToolsList(_httpClient, System.Text.Json.JsonSerializer.Serialize(new[] { tool }), authenticated: true);
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.ToolResults.Should().ContainSingle();
+        result.ToolResults[0].Status.Should().Be(TestStatus.Inconclusive);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(),
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task ValidateToolExecution_MissingInputSchema_ShouldNotTreatCompatibilityDefaultAsEvidence()
+    {
+        SetupToolsList(_httpClient, "[{\"name\":\"fixture\"}]", authenticated: true);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200 });
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.ToolResults.Should().ContainSingle();
+        result.ToolResults[0].Status.Should().Be(TestStatus.Inconclusive);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(),
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"object\",\"$defs\":{\"unused\":{\"$ref\":\"#/$defs/unused\"}}}")]
+    [InlineData("{\"type\":\"object\",\"$defs\":{\"unused\":{\"anyOf\":[true,true]}}}")]
+    [InlineData("{\"type\":\"object\",\"$defs\":{\"unused\":{\"type\":\"string\",\"pattern\":\"(a+)+$\"}}}")]
+    public async Task ValidateToolExecution_UnsupportedValidationDependency_ShouldNotDispatch(string schema)
+    {
+        SetupToolsList(_httpClient, "[{\"name\":\"fixture\",\"inputSchema\":" + schema + "}]", authenticated: true);
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(),
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(16, true)]
+    [InlineData(17, false)]
+    public async Task ValidateToolExecution_RepeatedConstants_ShouldRespectAggregateCandidateBudget(int count, bool expectedCall)
+    {
+        var properties = Enumerable.Range(0, count).ToDictionary(index => $"value{index}",
+            _ => new Dictionary<string, string> { ["$ref"] = "#/$defs/value" });
+        var schema = new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["$defs"] = new { value = new Dictionary<string, string> { ["const"] = new string('x', 4000) } },
+            ["properties"] = properties,
+            ["required"] = properties.Keys.ToArray()
+        };
+        SetupToolsList(_httpClient, System.Text.Json.JsonSerializer.Serialize(new[] { new { name = "fixture", inputSchema = schema } }), authenticated: true);
+        object? captured = null;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Callback<string, string, object?, AuthenticationConfig?, CancellationToken>((_, _, parameters, _, _) => captured = parameters)
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200 });
+
+        var result = await _validator.ValidateToolExecutionAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" }, new ToolTestingConfig());
+
+        result.Status.Should().Be(expectedCall ? TestStatus.Passed : TestStatus.Inconclusive);
+        if (expectedCall)
+        {
+            captured.Should().NotBeNull();
+            System.Text.Json.JsonSerializer.SerializeToElement(captured).GetProperty("arguments").GetRawText().Length.Should().BeLessThanOrEqualTo(64 * 1024);
+        }
+        else captured.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateToolDiscovery_WhenLaterPageIsCancelled_ShouldRetainEarlierInventory(bool malformedEntry)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true,
+                StatusCode = 200,
+                RawJson = malformedEntry
+                    ? """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"retained","inputSchema":{"type":"object"}},null],"nextCursor":"next"}}"""
+                    : """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"retained","inputSchema":{"type":"object"}}],"nextCursor":"next"}}"""
+            });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(),
+                It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                cancellation.Cancel();
+                return Task.FromCanceled<JsonRpcResponse>(cancellation.Token);
+            });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false }, cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.ToolsDiscovered.Should().Be(1);
+        result.DiscoveredToolNames.Should().Equal("retained");
+        result.ToolsTestPassed.Should().Be(0);
+        result.ToolsTestFailed.Should().Be(malformedEntry ? 1 : 0);
+        result.CatalogEnumeration.Should().NotBeNull();
+        result.CatalogEnumeration!.RawItemsObserved.Should().Be(malformedEntry ? 2 : 1);
+        result.CatalogEnumeration.RecoveredItems.Should().Be(1);
+        result.CatalogEnumeration.RejectedItems.Should().Be(malformedEntry ? 1 : 0);
+        result.CatalogEnumeration.PageAttempts.Should().Be(2);
+        result.CatalogEnumeration.ParsedPages.Should().Be(1);
+        result.CatalogEnumeration.IsComplete.Should().BeFalse();
+        if (malformedEntry)
+        {
+            result.Issues.Should().Contain(issue => issue.Contains("item rejected", StringComparison.Ordinal));
+            result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolListItemInvalid);
+            var canonical = new ValidationResult { ToolValidation = result, OverallStatus = ValidationStatus.Cancelled };
+            canonical.Assurance = AssuranceAssessmentEngine.Evaluate(canonical, AssuranceProfileCatalog.Resolve("inventory"), new AssuranceEvaluationContext());
+            canonical.Assurance.Claims.Should().Contain(claim => claim.Outcome == AssuranceClaimOutcome.Violated &&
+                claim.Metadata.ContainsKey("ruleId") && claim.Metadata["ruleId"] == ValidationFindingRuleIds.ToolListItemInvalid);
+            new ValidationReportRenderer().GenerateSarifReport(canonical).Should().Contain(ValidationFindingRuleIds.ToolListItemInvalid);
+        }
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithEmptyFirstPageAndFailedNextPage_ShouldNotPassCatalog()
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":1,"result":{"tools":[],"nextCursor":"next"}}"""
+            });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(),
+                It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = 500 });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.ToolsDiscovered.Should().Be(0);
+        result.ToolsTestPassed.Should().Be(0);
+        result.Issues.Should().Contain(issue => issue.Contains("page 2 failed", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_ShouldRetainTypedIncompleteSchemaInspectionInCanonicalEvidence()
+    {
+        SetupToolsList(_httpClient, """
+            [{"name":"referenced","inputSchema":{"type":"object","properties":{"value":{"$ref":"#/$defs/missing"}}}}]
+            """);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.DiscoveredToolNames.Should().Equal("referenced");
+        result.AiReadinessScore.Should().Be(-1);
+        result.AiReadinessAnalyzedSchemaCount.Should().Be(0);
+        result.AiReadinessInspectionIssues.Should().ContainSingle(issue => issue.Status == SchemaInspectionStatus.UnresolvedReference);
+        var canonical = new ValidationResult { ToolValidation = result };
+        var json = System.Text.Json.JsonSerializer.Serialize(canonical);
+        var restored = System.Text.Json.JsonSerializer.Deserialize<ValidationResult>(json)!;
+        restored.ToolValidation.Should().NotBeNull();
+        restored.ToolValidation!.AiReadinessInspectionIssues.Should().ContainSingle(issue => issue.Status == SchemaInspectionStatus.UnresolvedReference);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WithMalformedMiddleItem_ShouldRetainNeighborsAndFailCatalog()
+    {
+        SetupToolsList(_httpClient, """
+            [{"name":"first","inputSchema":{"type":"object"}},
+             {"name":"malformed","description":42,"inputSchema":{"type":"object"}},
+             {"name":"last","inputSchema":{"type":"object"}}]
+            """);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.DiscoveredToolNames.Should().Equal("first", "last");
+        result.Status.Should().Be(TestStatus.Failed);
+        result.ToolsTestFailed.Should().BeGreaterThan(0);
+        result.Issues.Should().Contain(issue => issue.Contains("item rejected", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_ShouldSeparateMalformedPageFromRejectedItemCounts()
+    {
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true, StatusCode = 200,
+                RawJson = """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"retained","inputSchema":{"type":"object"}}],"nextCursor":"next"}}"""
+            });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object?>(),
+                It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200, RawJson = "{invalid" });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.CatalogEnumeration.Should().NotBeNull();
+        result.CatalogEnumeration!.RawItemsObserved.Should().Be(1);
+        result.CatalogEnumeration.RecoveredItems.Should().Be(1);
+        result.CatalogEnumeration.RejectedItems.Should().Be(0);
+        result.CatalogEnumeration.RejectedPages.Should().Be(1);
+        result.CatalogEnumeration.ParsedPages.Should().Be(1);
+        result.CatalogEnumeration.IsComplete.Should().BeFalse();
+        result.ToolsTestFailed.Should().Be(0);
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.AiReadinessScore.Should().Be(-1);
+    }
+
+    [Theory]
+    [InlineData("[null]")]
+    [InlineData("[{\"name\":\"invalid\",\"annotations\":null}]")]
+    [InlineData("[{\"name\":\"invalid\",\"annotations\":{\"readOnlyHint\":\"true\"}}]")]
+    [InlineData("[{\"description\":\"missing name\"}]")]
+    public async Task ValidateToolDiscovery_WithOnlyRejectedItems_ShouldNotReportEmptyCatalogPass(string tools)
+    {
+        SetupToolsList(_httpClient, tools);
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.Status.Should().Be(TestStatus.Failed);
+        result.ToolsTestPassed.Should().Be(0);
+        result.ToolsTestFailed.Should().BeGreaterThan(0);
+    }
+
+    [Fact]
+    public async Task ValidateToolDiscovery_WhenAdvisoryAnalysisThrows_ShouldRetainCollectedTool()
+    {
+        SetupToolsList(_httpClient, "[{\"name\":\"retained\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
+        var analyzer = new Mock<IToolAiReadinessAnalyzer>();
+        analyzer.Setup(service => service.AnalyzeCatalog(It.IsAny<IReadOnlyCollection<ToolAiReadinessTarget>>(),
+                It.IsAny<string?>(), It.IsAny<long?>()))
+            .Throws(new InvalidOperationException("late advisory failure"));
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzeTool(It.IsAny<string>())).Returns(new List<ContentSafetyFinding>());
+        var validator = new ToolValidator(new Mock<ILogger<ToolValidator>>().Object, _httpClient.Object,
+            new JsonSchemaValidator(), new Mock<ISchemaRegistry>().Object, _authService.Object, safety.Object, analyzer.Object);
+
+        var result = await validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig { TestToolExecution = false, TestParameterValidation = false });
+
+        result.Status.Should().Be(TestStatus.Error);
+        result.ToolResults.Should().Contain(tool => tool.ToolName == "retained");
+        analyzer.Verify(service => service.AnalyzeCatalog(It.IsAny<IReadOnlyCollection<ToolAiReadinessTarget>>(),
+            It.IsAny<string?>(), It.IsAny<long?>()), Times.Once);
     }
 
     [Fact]
@@ -164,7 +863,9 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.Status.Should().Be(TestStatus.AuthRequired);
-        result.ToolResults.Should().OnlyContain(tool => tool.Status != TestStatus.Failed);
+        result.ToolResults.Should().BeEmpty("an authentication challenge is not a discovered or executed tool");
+        result.ToolsDiscovered.Should().Be(0);
+        result.AuthenticationSecurity!.AuthenticationRequired.Should().BeTrue();
         result.Issues.Should().Contain(issue => issue.Contains("requires authentication", StringComparison.OrdinalIgnoreCase));
         _authService.Verify(service => service.GetTokenAsync(
             It.IsAny<AuthMetadata>(),
@@ -363,7 +1064,7 @@ public class ToolValidatorComprehensiveTests
     }
 
     [Fact]
-    public async Task ValidateToolDiscovery_WithTimeoutOnToolCall_ShouldPassAsInfraIssue()
+    public async Task ValidateToolDiscovery_WithTimeoutOnToolCall_ShouldRemainInconclusiveWithoutPassCredit()
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         SetupToolsList(_httpClient, "[{\"name\":\"slow_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}}}]");
@@ -373,8 +1074,38 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolDiscoveryAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         var toolResult = result.ToolResults.FirstOrDefault(t => t.ToolName == "slow_tool");
-        toolResult!.Status.Should().Be(TestStatus.Passed);
-        toolResult.Issues.Should().Contain(i => i.Contains("Network/timeout"));
+        toolResult!.Status.Should().Be(TestStatus.Inconclusive);
+        toolResult.ExecutionSuccessful.Should().BeFalse();
+        toolResult.DiscoveredCorrectly.Should().BeTrue();
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.ToolsTestPassed.Should().Be(0);
+        result.ToolsTestFailed.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ValidateToolDiscovery_WithCancelledInvocation_ShouldRetainMetadataWithoutPassCredit(bool callerCancellation)
+    {
+        using var cancellation = new CancellationTokenSource();
+        SetupToolsList(_httpClient, """[{"name":"cancelled_tool","inputSchema":{"type":"object","properties":{}}}]""");
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                if (callerCancellation) cancellation.Cancel();
+                return Task.FromException<JsonRpcResponse>(new OperationCanceledException(cancellation.Token));
+            });
+
+        var result = await _validator.ValidateToolDiscoveryAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" },
+            new ToolTestingConfig(), cancellation.Token);
+
+        result.Status.Should().Be(callerCancellation ? TestStatus.Cancelled : TestStatus.Inconclusive);
+        result.ToolsDiscovered.Should().Be(1);
+        result.ToolResults.Should().ContainSingle();
+        result.ToolResults[0].DiscoveredCorrectly.Should().BeTrue();
+        result.ToolResults[0].ExecutionSuccessful.Should().BeFalse();
+        result.ToolsTestPassed.Should().Be(0);
     }
 
     [Fact]
@@ -544,7 +1275,7 @@ public class ToolValidatorComprehensiveTests
     [Fact]
     public async Task ValidateToolDiscovery_WithOutputSchemaAndMatchingStructuredContent_ShouldPassSchemaCheck()
     {
-        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http", ProtocolVersion = "2025-11-25" };
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":\"42\"}},\"id\":1}");
 
@@ -556,10 +1287,58 @@ public class ToolValidatorComprehensiveTests
         toolResult.Status.Should().Be(TestStatus.Passed);
     }
 
+    [Theory]
+    [InlineData("2026-07-28", "array", "[1,2]", true)]
+    [InlineData("2026-07-28", "string", "\"value\"", true)]
+    [InlineData("2026-07-28", "number", "42", true)]
+    [InlineData("2026-07-28", "boolean", "true", true)]
+    [InlineData("2026-07-28", "null", "null", true)]
+    [InlineData("2025-11-25", "array", "[1,2]", false)]
+    [InlineData("2025-11-25", "null", "null", false)]
+    [InlineData("2026-07-28", "array", "42", false)]
+    public async Task ValidateToolDiscovery_StructuredContent_ShouldFollowSelectedRevision(
+        string revision, string outputType, string content, bool expectedPass)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"},\"outputSchema\":{\"type\":\"" + outputType + "\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":" + content + "}}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", Transport = "http", ProtocolVersion = revision }, new ToolTestingConfig());
+
+        var tool = result.ToolResults.Single(tool => tool.ToolName == "structured_tool");
+        tool.Status.Should().Be(expectedPass ? TestStatus.Passed : TestStatus.Failed);
+        if (expectedPass)
+            tool.Findings.Should().NotContain(finding => finding.RuleId == ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid ||
+                finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentInvalid || finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+        else if (revision == "2026-07-28")
+            tool.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentSchemaMismatch);
+    }
+
+    [Theory]
+    [InlineData("2024-11-05", true)]
+    [InlineData("2025-03-26", true)]
+    [InlineData("2025-06-18", false)]
+    [InlineData("2025-11-25", false)]
+    [InlineData("2026-07-28", true)]
+    public async Task ValidateToolDiscovery_StructuredContentWithoutOutputSchema_ShouldStillFollowWireShape(string revision, bool expectedPass)
+    {
+        UseEmbeddedSchemas();
+        SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\"}}]");
+        SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"resultType\":\"complete\",\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":[]}}");
+
+        var result = await _validator.ValidateToolDiscoveryAsync(new McpServerConfig
+            { Endpoint = "https://example.invalid/mcp", ProtocolVersion = revision }, new ToolTestingConfig());
+
+        var tool = result.ToolResults.Single(tool => tool.ToolName == "structured_tool");
+        tool.Status.Should().Be(expectedPass ? TestStatus.Passed : TestStatus.Failed);
+        tool.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.ToolCallStructuredContentInvalid).Should().Be(!expectedPass);
+    }
+
     [Fact]
     public async Task ValidateToolDiscovery_WithOutputSchemaMismatch_ShouldEmitStructuredContentFinding()
     {
-        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
+        var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http", ProtocolVersion = "2025-11-25" };
         SetupToolsList(_httpClient, "[{\"name\":\"structured_tool\",\"inputSchema\":{\"type\":\"object\",\"properties\":{}},\"outputSchema\":{\"type\":\"object\",\"required\":[\"answer\"],\"properties\":{\"answer\":{\"type\":\"string\"}}}}]");
         SetupToolCall(_httpClient, 200, "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}],\"structuredContent\":{\"answer\":7}},\"id\":1}");
 
@@ -751,6 +1530,68 @@ public class ToolValidatorComprehensiveTests
 
     // ─── Tool Execution Standalone ───────────────────────────────
 
+    [Theory]
+    [InlineData(true, 400)]
+    [InlineData(true, 404)]
+    [InlineData(false, 400)]
+    [InlineData(false, 404)]
+    [InlineData(false, -1)]
+    public async Task ToolInvocation_WithoutExpectedResponse_ShouldNotEarnExecutionCredit(bool discovery, int statusCode)
+    {
+        const string catalog = """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"fixture","inputSchema":{"type":"object"}}]}}""";
+        SetupToolsList(_httpClient, """[{"name":"fixture","inputSchema":{"type":"object"}}]""");
+        SetupToolCall(_httpClient, statusCode, null);
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200, RawJson = catalog });
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = statusCode });
+        var server = new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" };
+
+        var result = discovery
+            ? await _validator.ValidateToolDiscoveryAsync(server, new ToolTestingConfig())
+            : await _validator.ValidateToolExecutionAsync(server, new ToolTestingConfig());
+
+        result.Status.Should().Be(TestStatus.Inconclusive);
+        result.ToolsTestPassed.Should().Be(0);
+        result.ToolResults.Should().OnlyContain(tool => !tool.ExecutionSuccessful);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateToolExecution_Cancellation_ShouldRetainFirstToolAndNotInvokeSecond(bool schemaObserved)
+    {
+        using var cancellation = new CancellationTokenSource();
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true, StatusCode = 200,
+                RawJson = schemaObserved
+                    ? """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"first","inputSchema":{"type":"object"}},{"name":"second","inputSchema":{"type":"object"}}]}}"""
+                    : """{"jsonrpc":"2.0","id":1,"result":{"tools":[{"name":"first"},{"name":"second"}]}}"""
+            });
+        var invocations = 0;
+        _httpClient.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                invocations++;
+                cancellation.Cancel();
+                return Task.FromCanceled<JsonRpcResponse>(cancellation.Token);
+            });
+
+        var result = await _validator.ValidateToolExecutionAsync(
+            new McpServerConfig { Endpoint = "https://example.invalid/mcp", Transport = "http" }, new ToolTestingConfig(), cancellation.Token);
+
+        invocations.Should().Be(schemaObserved ? 1 : 0);
+        result.Status.Should().Be(schemaObserved ? TestStatus.Cancelled : TestStatus.Inconclusive);
+        result.ToolsDiscovered.Should().Be(2);
+        if (schemaObserved)
+            result.ToolResults.Should().ContainSingle().Which.ToolName.Should().Be("first");
+        else
+            result.ToolResults.Should().HaveCount(2).And.OnlyContain(tool => !tool.ExecutionSuccessful);
+        result.ToolsTestPassed.Should().Be(0);
+    }
+
     [Fact]
     public async Task ValidateToolExecution_WithAuth_ShouldReturnAuthRequired()
     {
@@ -763,15 +1604,19 @@ public class ToolValidatorComprehensiveTests
         result.Status.Should().Be(TestStatus.AuthRequired);
     }
 
-    [Fact]
-    public async Task ValidateToolExecution_WithTools_ShouldCallEach()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ValidateToolExecution_WithTools_ShouldCallEach(bool schemaObserved)
     {
         var config = new McpServerConfig { Endpoint = "https://test.com/mcp", Transport = "http" };
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse
             {
                 StatusCode = 200, IsSuccess = true,
-                RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"t1\"},{\"name\":\"t2\"}]},\"id\":1}"
+                RawJson = schemaObserved
+                    ? "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"t1\",\"inputSchema\":{\"type\":\"object\"}},{\"name\":\"t2\",\"inputSchema\":{\"type\":\"object\"}}]},\"id\":1}"
+                    : "{\"jsonrpc\":\"2.0\",\"result\":{\"tools\":[{\"name\":\"t1\"},{\"name\":\"t2\"}]},\"id\":1}"
             });
         _httpClient.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(), It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JsonRpcResponse { StatusCode = 200, IsSuccess = true, RawJson = "{\"jsonrpc\":\"2.0\",\"result\":{\"content\":[{\"type\":\"text\",\"text\":\"ok\"}]},\"id\":1}" });
@@ -779,7 +1624,10 @@ public class ToolValidatorComprehensiveTests
         var result = await _validator.ValidateToolExecutionAsync(config, new ToolTestingConfig(), CancellationToken.None);
 
         result.ToolsDiscovered.Should().Be(2);
-        result.ToolsTestPassed.Should().Be(2);
+        result.ToolsTestPassed.Should().Be(schemaObserved ? 2 : 0);
+        result.Status.Should().Be(schemaObserved ? TestStatus.Passed : TestStatus.Inconclusive);
+        _httpClient.Verify(client => client.CallAsync(It.IsAny<string>(), "tools/call", It.IsAny<object>(),
+            It.IsAny<AuthenticationConfig>(), It.IsAny<CancellationToken>()), Times.Exactly(schemaObserved ? 2 : 0));
     }
 
     // ─── Stdio Transport ─────────────────────────────────────────
@@ -798,14 +1646,19 @@ public class ToolValidatorComprehensiveTests
 
     // ─── Helpers ─────────────────────────────────────────────────
 
-    private static void SetupToolsList(Mock<IMcpHttpClient> mock, string toolsJson)
+    private static void SetupToolsList(Mock<IMcpHttpClient> mock, string toolsJson, bool authenticated = false)
     {
-        mock.Setup(x => x.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new JsonRpcResponse
-            {
-                StatusCode = 200, IsSuccess = true,
-                RawJson = $"{{\"jsonrpc\":\"2.0\",\"result\":{{\"tools\":{toolsJson}}},\"id\":1}}"
-            });
+        var response = new JsonRpcResponse
+        {
+            StatusCode = 200, IsSuccess = true,
+            RawJson = $"{{\"jsonrpc\":\"2.0\",\"result\":{{\"tools\":{toolsJson}}},\"id\":1}}"
+        };
+        if (authenticated)
+            mock.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
+        else
+            mock.Setup(client => client.CallAsync(It.IsAny<string>(), "tools/list", It.IsAny<object>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(response);
     }
 
     private static void SetupToolCall(Mock<IMcpHttpClient> mock, int statusCode, string? rawJson)

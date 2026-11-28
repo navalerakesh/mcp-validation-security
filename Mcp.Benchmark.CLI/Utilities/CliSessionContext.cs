@@ -1,5 +1,6 @@
 using System;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.CLI.Exceptions;
 
 namespace Mcp.Benchmark.CLI.Utilities;
 
@@ -9,6 +10,53 @@ namespace Mcp.Benchmark.CLI.Utilities;
 public sealed class CliSessionContext
 {
     private readonly object _sync = new();
+    private string? _preparedConfigurationPath;
+    private ConfigurationDocument? _preparedConfiguration;
+
+    internal void PrepareConfiguration(FileInfo file, ConfigurationDocument document)
+    {
+        lock (_sync)
+        {
+            _preparedConfigurationPath = file.FullName;
+            _preparedConfiguration = document;
+        }
+    }
+
+    internal async Task<ConfigurationDocument> ReadConfigurationAsync(FileInfo file, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (_sync)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (_preparedConfiguration is not null)
+            {
+                EnsurePreparedConfigurationPath(file);
+                var document = _preparedConfiguration;
+                _preparedConfiguration = null;
+                _preparedConfigurationPath = null;
+                return document;
+            }
+        }
+        return await BoundedArtifactReader.ReadConfigurationDocumentAsync(file, cancellationToken).ConfigureAwait(false);
+    }
+
+    internal ConfigurationDocument GetPreparedConfiguration(FileInfo file)
+    {
+        lock (_sync)
+        {
+            if (_preparedConfiguration is null)
+                throw new CliUsageException("Configuration must be normalized before host construction.");
+            EnsurePreparedConfigurationPath(file);
+            return _preparedConfiguration;
+        }
+    }
+
+    private void EnsurePreparedConfigurationPath(FileInfo file)
+    {
+        if (!string.Equals(_preparedConfigurationPath, file.FullName,
+            OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new CliUsageException("Prepared configuration belongs to a different invocation input.");
+    }
 
     public CliSessionContext(string sessionId)
         : this(sessionId, string.Empty, string.Empty, string.Empty, string.Empty, PersistenceMode.Ephemeral, RedactionLevel.Strict)

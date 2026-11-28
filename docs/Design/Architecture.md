@@ -102,7 +102,7 @@ stateDiagram-v2
 `validate --output <folder>` writes the standard explicit-output artifact set:
 
 - Markdown report for human review
-- HTML report for sharing, with Certificate Eligibility, Core Conformance, and Security Assurance surfaced as the top decision cards
+- HTML report for sharing, with one selected-profile decision panel and separate execution, assurance, policy and certificate facts; the [report quality contract](ReportQualityStandard.md) owns layout and interaction rules
 - JSON result as the canonical machine-readable record
 - SARIF for CI and code-scanning pipelines
 - Audit manifest describing the execution plan, saved artifacts, and persistence context

@@ -12,6 +12,69 @@ public sealed class AtomicFileWriterTests : IDisposable
     }
 
     [Fact]
+    public async Task WriteBundleAsync_ShouldPublishAllSubjectsAtOneDirectoryBoundary()
+    {
+        var destination = Path.Combine(_directory, "bundle");
+        var paths = await AtomicFileWriter.WriteBundleAsync(_directory, "bundle", async (staging, token) =>
+        {
+            var result = Path.Combine(staging, "result.json");
+            await AtomicFileWriter.WriteAllTextAsync(result, "result", staging, token);
+            Directory.Exists(destination).Should().BeFalse();
+            var audit = Path.Combine(staging, "audit.json");
+            await AtomicFileWriter.WriteAllTextAsync(audit, "audit", staging, token);
+            Directory.Exists(destination).Should().BeFalse();
+            return [result, audit];
+        });
+
+        paths.Should().BeEquivalentTo(Path.Combine(destination, "result.json"), Path.Combine(destination, "audit.json"));
+        Directory.GetFileSystemEntries(_directory).Should().ContainSingle().Which.Should().Be(destination);
+        (await File.ReadAllTextAsync(paths[0])).Should().Be("result");
+        (await File.ReadAllTextAsync(paths[1])).Should().Be("audit");
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("render-failure")]
+    [InlineData("unlisted")]
+    [InlineData("duplicate")]
+    public async Task WriteBundleAsync_IncompleteSubjects_ShouldNotPublishOrLeaveStaging(string fault)
+    {
+        using var cancellation = new CancellationTokenSource();
+        var action = () => AtomicFileWriter.WriteBundleAsync(_directory, "bundle", async (staging, token) =>
+        {
+            var path = Path.Combine(staging, "result.json");
+            await AtomicFileWriter.WriteAllTextAsync(path, "partial", staging, token);
+            if (fault == "cancel") cancellation.Cancel();
+            if (fault == "render-failure") throw new IOException("Synthetic rendering failure.");
+            return fault == "unlisted" ? [] : fault == "duplicate" ? new[] { path, path } : [path];
+        }, cancellation.Token);
+
+        await action.Should().ThrowAsync<Exception>();
+
+        Directory.GetFileSystemEntries(_directory).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task WriteBundleAsync_ExistingBundle_ShouldRemainUnchangedAfterCollision()
+    {
+        var destination = Path.Combine(_directory, "bundle");
+        Directory.CreateDirectory(destination);
+        var existing = Path.Combine(destination, "result.json");
+        await File.WriteAllTextAsync(existing, "existing");
+        var action = () => AtomicFileWriter.WriteBundleAsync(_directory, "bundle", async (staging, token) =>
+        {
+            var path = Path.Combine(staging, "result.json");
+            await AtomicFileWriter.WriteAllTextAsync(path, "replacement", staging, token);
+            return [path];
+        });
+
+        await action.Should().ThrowAsync<IOException>();
+
+        (await File.ReadAllTextAsync(existing)).Should().Be("existing");
+        Directory.GetFileSystemEntries(_directory).Should().ContainSingle().Which.Should().Be(destination);
+    }
+
+    [Fact]
     public async Task WriteAllTextAsync_ShouldPublishCompleteFileWithoutTemporaryResidue()
     {
         var destination = Path.Combine(_directory, "result.json");

@@ -227,17 +227,13 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
                 throw Invalid("Official conformance evidence contains too many checks in a scenario.");
             }
 
-            var checkIds = new HashSet<string>(StringComparer.Ordinal);
             foreach (var check in scenario.Checks)
             {
                 RequireText(check.Id, "check ID");
                 RequireText(check.Name, "check name");
                 RequireText(check.Description, "check description");
-                if (!checkIds.Add(check.Id))
-                {
-                    throw Invalid("Official conformance evidence contains duplicate check IDs within a scenario.");
-                }
-
+                if (HasMissingPrerequisite(check) && check.Status is not (OfficialConformanceCheckStatus.Failure or OfficialConformanceCheckStatus.Warning))
+                    throw Invalid("Official conformance prerequisite metadata contradicts the check status.");
                 if (check.ErrorMessage?.Length > OfficialConformanceContract.MaximumErrorDetailLength)
                 {
                     throw Invalid("Official conformance error detail exceeds the supported limit.");
@@ -325,8 +321,7 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
         ICollection<ValidationObservation> observations)
     {
         var checks = scenario.Checks
-            .OrderBy(check => check.Id, StringComparer.Ordinal)
-            .Select(check => ProjectCheck(scenario, check, verified, coverage, observations))
+            .Select((check, index) => ProjectCheck(scenario, check, index, verified, coverage, observations))
             .ToArray();
 
         return new OfficialConformanceScenarioAssessment
@@ -347,14 +342,18 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
     private static OfficialConformanceCheckAssessment ProjectCheck(
         OfficialConformanceScenarioRecord scenario,
         OfficialConformanceCheckRecord check,
+        int sourceIndex,
         bool verified,
         ICollection<ValidationCoverageDeclaration> coverage,
         ICollection<ValidationObservation> observations)
     {
         var hasError = !string.IsNullOrEmpty(check.ErrorMessage);
+        var prerequisiteMissing = HasMissingPrerequisite(check);
+        var notApplicable = IsOptionalSseObservation(scenario, check, verified);
+        var evidenceId = OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, sourceIndex);
         observations.Add(new ValidationObservation
         {
-            Id = $"official-conformance/{scenario.ScenarioId}/{check.Id}",
+            Id = evidenceId,
             LayerId = LayerId,
             Component = check.Name,
             ObservationKind = "official-conformance-check",
@@ -369,9 +368,16 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
             }
         });
 
-        coverage.Add(CreateCoverage(scenario, check, verified));
+        coverage.Add(prerequisiteMissing
+            ? Coverage(evidenceId, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive, "The pinned runner could not exercise this check because a prerequisite was missing.")
+            : notApplicable
+            ? Coverage(evidenceId, ValidationCoverageStatus.NotApplicable, ValidationOutcome.NotApplicable, "The pinned runner observed JSON responses; optional SSE-stream behavior was not applicable.")
+            : CreateCoverage(check, verified, evidenceId));
         return new OfficialConformanceCheckAssessment
         {
+            SourceIndex = sourceIndex,
+            PrerequisiteMissing = prerequisiteMissing,
+            Applicability = notApplicable ? AssuranceApplicability.NotApplicable : AssuranceApplicability.Applicable,
             Id = check.Id,
             Name = check.Name,
             Description = check.Description,
@@ -382,40 +388,65 @@ public sealed class OfficialConformanceEvidenceImporter : IOfficialConformanceEv
         };
     }
 
+    private static bool HasMissingPrerequisite(OfficialConformanceCheckRecord check) =>
+        check.Details is { ValueKind: JsonValueKind.Object } details && details.TryGetProperty("untestable", out var untestable) &&
+        untestable.ValueKind == JsonValueKind.True;
+
+    private static bool IsOptionalSseObservation(OfficialConformanceScenarioRecord scenario, OfficialConformanceCheckRecord check, bool verified)
+    {
+        if (!verified || scenario.ScenarioId != "server-sse-multiple-streams" || check.Id != "server-sse-streams-functional" ||
+            check.Status != OfficialConformanceCheckStatus.Info || check.Details is not { ValueKind: JsonValueKind.Object } details ||
+            !scenario.Checks.Any(candidate => candidate.Id == "server-accepts-multiple-post-streams" &&
+                candidate.Status is OfficialConformanceCheckStatus.Success or OfficialConformanceCheckStatus.Failure) ||
+            !details.TryGetProperty("numSseStreams", out var streams) || streams.ValueKind != JsonValueKind.Number ||
+            !streams.TryGetInt32(out var streamCount) || streamCount != 0 ||
+            !details.TryGetProperty("results", out var results) || results.ValueKind != JsonValueKind.Array || results.GetArrayLength() != 3)
+            return false;
+        var indices = new HashSet<int>();
+        foreach (var result in results.EnumerateArray())
+        {
+            if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("type", out var type) ||
+                type.ValueKind != JsonValueKind.String || type.GetString() != "json" ||
+                !result.TryGetProperty("skipped", out var skipped) || skipped.ValueKind != JsonValueKind.True ||
+                !result.TryGetProperty("index", out var index) || index.ValueKind != JsonValueKind.Number ||
+                !index.TryGetInt32(out var indexValue) || indexValue is < 0 or >= 3 || !indices.Add(indexValue)) return false;
+        }
+        return true;
+    }
+
     private static ValidationCoverageDeclaration CreateCoverage(
-        OfficialConformanceScenarioRecord scenario,
         OfficialConformanceCheckRecord check,
-        bool verified)
+        bool verified,
+        string scope)
     {
         if (!verified)
         {
-            return Coverage(scenario, check, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
+            return Coverage(scope, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
                 "Official conformance provenance is not pinned and verified.");
         }
 
         return check.Status switch
         {
-            OfficialConformanceCheckStatus.Success => Coverage(scenario, check, ValidationCoverageStatus.Covered, ValidationOutcome.Succeeded),
-            OfficialConformanceCheckStatus.Failure => Coverage(scenario, check, ValidationCoverageStatus.Covered, ValidationOutcome.Failed),
-            OfficialConformanceCheckStatus.Skipped => Coverage(scenario, check, ValidationCoverageStatus.Skipped, ValidationOutcome.Skipped,
+            OfficialConformanceCheckStatus.Success => Coverage(scope, ValidationCoverageStatus.Covered, ValidationOutcome.Succeeded),
+            OfficialConformanceCheckStatus.Failure => Coverage(scope, ValidationCoverageStatus.Covered, ValidationOutcome.Failed),
+            OfficialConformanceCheckStatus.Skipped => Coverage(scope, ValidationCoverageStatus.Skipped, ValidationOutcome.Skipped,
                 "The official conformance runner skipped this check."),
-            OfficialConformanceCheckStatus.Warning => Coverage(scenario, check, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
+            OfficialConformanceCheckStatus.Warning => Coverage(scope, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
                 "The official conformance runner reported a warning."),
-            OfficialConformanceCheckStatus.Info => Coverage(scenario, check, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
+            OfficialConformanceCheckStatus.Info => Coverage(scope, ValidationCoverageStatus.Inconclusive, ValidationOutcome.Inconclusive,
                 "The official conformance runner reported informational evidence only."),
             _ => throw Invalid("Official conformance evidence contains an unknown check status.")
         };
     }
 
     private static ValidationCoverageDeclaration Coverage(
-        OfficialConformanceScenarioRecord scenario,
-        OfficialConformanceCheckRecord check,
+        string scope,
         ValidationCoverageStatus status,
         ValidationOutcome outcome,
         string? reason = null) => new()
         {
             LayerId = LayerId,
-            Scope = $"{scenario.ScenarioId}/{check.Id}",
+            Scope = scope,
             Status = status,
             ObservedOutcome = outcome,
             Lane = EvaluationLane.ExternalConformance,

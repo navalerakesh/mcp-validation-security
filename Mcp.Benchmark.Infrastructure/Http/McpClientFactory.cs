@@ -4,9 +4,12 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Constants;
+using Mcp.Benchmark.Core.Exceptions;
 using Mcp.Compliance.Spec;
 using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Client;
@@ -34,6 +37,11 @@ public sealed class McpClientFactory : IMcpClientFactory
     private const string DefaultClientName = "MCP-Compliance-Validator";
 
     private readonly ConcurrentDictionary<McpClientCacheKey, Lazy<Task<CachedClient>>> _clients = new();
+    private readonly object _lifecycleLock = new();
+    private readonly CancellationTokenSource _lifetimeCancellation = new();
+    private readonly List<Task> _retiredCleanup = new();
+    private Task? _disposeTask;
+    private bool _disposed;
     private readonly ILogger<McpClientFactory> _logger;
     private readonly ILoggerFactory _loggerFactory;
     private readonly GovernedHttpClientProvider _httpClientProvider;
@@ -64,26 +72,45 @@ public sealed class McpClientFactory : IMcpClientFactory
         string? protocolVersion,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(serverConfig.Endpoint))
         {
             throw new ArgumentException("Server endpoint is required to create an MCP client.", nameof(serverConfig));
         }
-
         var normalizedProtocol = protocolVersion ?? serverConfig.ProtocolVersion;
-        var effectiveAuth = perRequestAuthentication ?? serverConfig.Authentication;
-        var key = CreateCacheKey(serverConfig.Endpoint, normalizedProtocol, effectiveAuth, serverConfig.Headers, effectiveAuth?.CustomHeaders);
+        var snapshot = CaptureClientConfiguration(serverConfig, perRequestAuthentication, normalizedProtocol);
+        var effectiveAuth = snapshot.Authentication;
+        var key = CreateCacheKey(snapshot.Endpoint!, normalizedProtocol, effectiveAuth, snapshot.Headers, effectiveAuth?.CustomHeaders);
 
-        var lazyClient = _clients.GetOrAdd(key, _ =>
-            new Lazy<Task<CachedClient>>(() => CreateClientAsync(serverConfig, normalizedProtocol, effectiveAuth, cancellationToken)));
+        Lazy<Task<CachedClient>> lazyClient;
+        Task<CachedClient> initialization;
+        lock (_lifecycleLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            lazyClient = _clients.GetOrAdd(key, _ =>
+                new Lazy<Task<CachedClient>>(() => CreateClientAsync(snapshot, normalizedProtocol, effectiveAuth, _lifetimeCancellation.Token)));
+            initialization = lazyClient.Value;
+        }
 
         try
         {
-            var cachedClient = await lazyClient.Value.ConfigureAwait(false);
+            var cachedClient = await initialization.WaitAsync(cancellationToken).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
             return cachedClient.Client;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (SdkClientCleanupException)
+        {
+            throw;
         }
         catch
         {
-            _clients.TryRemove(key, out _);
+            lock (_lifecycleLock)
+                if (_clients.TryGetValue(key, out var current) && ReferenceEquals(current, lazyClient))
+                    _clients.TryRemove(key, out _);
             throw;
         }
     }
@@ -100,59 +127,94 @@ public sealed class McpClientFactory : IMcpClientFactory
         }
 
         var normalizedProtocol = protocolVersion ?? serverConfig.ProtocolVersion;
-        var effectiveAuth = perRequestAuthentication ?? serverConfig.Authentication;
-        var key = CreateCacheKey(serverConfig.Endpoint, normalizedProtocol, effectiveAuth, serverConfig.Headers, effectiveAuth?.CustomHeaders);
+        var snapshot = CaptureClientConfiguration(serverConfig, perRequestAuthentication, normalizedProtocol);
+        var effectiveAuth = snapshot.Authentication;
+        var key = CreateCacheKey(snapshot.Endpoint!, normalizedProtocol, effectiveAuth, snapshot.Headers, effectiveAuth?.CustomHeaders);
 
-        if (_clients.TryRemove(key, out var lazyClient) && lazyClient.IsValueCreated)
+        Task? cleanup = null;
+        lock (_lifecycleLock)
         {
-            try
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            _retiredCleanup.RemoveAll(task => task.IsCompletedSuccessfully);
+            if (_clients.TryRemove(key, out var lazyClient) && lazyClient.IsValueCreated)
             {
-                var cachedClient = await lazyClient.Value.ConfigureAwait(false);
-                await cachedClient.DisposeAsync().ConfigureAwait(false);
+                cleanup = DisposeEntryAsync(lazyClient);
+                _retiredCleanup.Add(cleanup);
             }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "Error disposing cached MCP client for {Endpoint}", serverConfig.Endpoint);
-            }
+        }
+        if (cleanup != null) await cleanup.WaitAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        lock (_lifecycleLock)
+        {
+            _disposed = true;
+            return new ValueTask(_disposeTask ??= DisposeCoreAsync());
         }
     }
 
-    public async ValueTask DisposeAsync()
+    private async Task DisposeCoreAsync()
     {
-        var disposeTasks = new List<Task>();
-        foreach (var entry in _clients.Values)
-        {
-            if (!entry.IsValueCreated)
-            {
-                continue;
-            }
-
-            disposeTasks.Add(DisposeEntryAsync(entry));
-        }
-
+        var entries = _clients.Values.ToArray();
         _clients.Clear();
-        if (disposeTasks.Count > 0)
+        try
         {
-            await Task.WhenAll(disposeTasks).ConfigureAwait(false);
+            var cleanup = new List<Task> { _lifetimeCancellation.CancelAsync() };
+            cleanup.AddRange(_retiredCleanup);
+            cleanup.AddRange(entries.Where(entry => entry.IsValueCreated).Select(DisposeEntryAsync));
+            await Task.WhenAll(cleanup).ConfigureAwait(false);
         }
-
-        if (_ownsHttpClientProvider)
+        finally
         {
-            _httpClientProvider.Dispose();
+            if (_ownsHttpClientProvider) _httpClientProvider.Dispose();
+            _lifetimeCancellation.Dispose();
         }
     }
 
     private async Task DisposeEntryAsync(Lazy<Task<CachedClient>> lazyClient)
     {
+        CachedClient cachedClient;
         try
         {
-            var cachedClient = await lazyClient.Value.ConfigureAwait(false);
-            await cachedClient.DisposeAsync().ConfigureAwait(false);
+            cachedClient = await lazyClient.Value.ConfigureAwait(false);
         }
+        catch (SdkClientCleanupException) { throw; }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Error disposing cached MCP client entry");
+            _logger.LogDebug("MCP client initialization did not complete ({ErrorType}).", ex.GetType().Name);
+            return;
         }
+        await cachedClient.DisposeAsync().ConfigureAwait(false);
+    }
+
+    private static McpServerConfig CaptureClientConfiguration(
+        McpServerConfig serverConfig, AuthenticationConfig? perRequestAuthentication, string? protocolVersion)
+    {
+        if (!Uri.TryCreate(serverConfig.Endpoint, UriKind.Absolute, out var endpoint) || endpoint.Scheme is not ("http" or "https"))
+            throw new OperationAdmissionException("Execution policy requires an absolute HTTP or HTTPS endpoint.");
+        if (!string.IsNullOrEmpty(endpoint.UserInfo))
+            throw new OperationAdmissionException("Execution policy blocked a request URI containing user-info.");
+        var snapshot = new McpServerConfig
+        {
+            Endpoint = endpoint.AbsoluteUri,
+            ProtocolVersion = protocolVersion,
+            ProtocolEra = serverConfig.ProtocolEra,
+            Transport = serverConfig.Transport,
+            TimeoutMs = serverConfig.TimeoutMs
+        };
+        var selectedAuthentication = perRequestAuthentication ?? serverConfig.Authentication;
+        snapshot.Authentication = selectedAuthentication is null ? null : new AuthenticationConfig
+        {
+            Type = selectedAuthentication.Type,
+            Token = McpAuthenticationHelper.ResolveToken(selectedAuthentication),
+            Username = selectedAuthentication.Username,
+            Password = selectedAuthentication.Password,
+            AllowInteractive = selectedAuthentication.AllowInteractive,
+            CustomHeaders = new Dictionary<string, string>(selectedAuthentication.CustomHeaders, StringComparer.OrdinalIgnoreCase)
+        };
+        snapshot.Headers = new Dictionary<string, string>(serverConfig.Headers, StringComparer.OrdinalIgnoreCase);
+        return snapshot;
     }
 
     private async Task<CachedClient> CreateClientAsync(
@@ -183,9 +245,18 @@ public sealed class McpClientFactory : IMcpClientFactory
             InitializationTimeout = TimeSpan.FromMilliseconds(serverConfig.TimeoutMs > 0 ? serverConfig.TimeoutMs : 60000)
         };
 
-        _logger.LogDebug("Creating MCP client for {Endpoint} (protocol {ProtocolVersion})", endpoint, protocolVersion ?? "auto");
-        var client = await McpClient.CreateAsync(transport, clientOptions, _loggerFactory, cancellationToken).ConfigureAwait(false);
-        return new CachedClient(client, transport);
+        _logger.LogDebug("Creating MCP client for host {Host} (protocol {ProtocolVersion})", endpoint.Host, protocolVersion ?? "auto");
+        try
+        {
+            var client = await McpClient.CreateAsync(transport, clientOptions, _loggerFactory, cancellationToken).ConfigureAwait(false);
+            return new CachedClient(client, transport);
+        }
+        catch
+        {
+            try { await transport.DisposeAsync().ConfigureAwait(false); }
+            catch { throw new SdkClientCleanupException("transport"); }
+            throw;
+        }
     }
 
     private static GovernedHttpClientProvider CreateCompatibilityHttpClientProvider()
@@ -216,32 +287,23 @@ public sealed class McpClientFactory : IMcpClientFactory
     {
         if (string.IsNullOrWhiteSpace(protocolVersion))
         {
-            headers.Remove("MCP-Protocol-Version");
+            headers.Remove(McpSpecConstants.ProtocolVersionHeader);
             return;
         }
 
-        headers["MCP-Protocol-Version"] = protocolVersion.Trim();
+        headers[McpSpecConstants.ProtocolVersionHeader] = protocolVersion.Trim();
     }
 
     private static void ApplyAuthentication(IDictionary<string, string> headers, AuthenticationConfig? authentication)
     {
+        headers.Remove("Authorization");
         var headerValue = McpAuthenticationHelper.BuildAuthorizationHeaderValue(authentication);
-
-        if (headerValue is null)
+        if (string.IsNullOrEmpty(headerValue))
         {
-            headers.Remove("Authorization");
-            return;
+            headerValue = authentication?.CustomHeaders.SingleOrDefault(header =>
+                string.Equals(header.Key, "Authorization", StringComparison.OrdinalIgnoreCase)).Value;
         }
-
-        // For the transport-level SDK, an explicit empty token simply means
-        // "no Authorization header".
-        if (headerValue.Length == 0)
-        {
-            headers.Remove("Authorization");
-            return;
-        }
-
-        headers["Authorization"] = headerValue;
+        if (!string.IsNullOrWhiteSpace(headerValue)) headers["Authorization"] = headerValue;
     }
 
     private static IDictionary<string, string> BuildHeaders(
@@ -257,7 +319,7 @@ public sealed class McpClientFactory : IMcpClientFactory
         {
             foreach (var (key, value) in defaultHeaders)
             {
-                if (string.IsNullOrWhiteSpace(key) || value is null)
+                if (string.IsNullOrWhiteSpace(key) || value is null || McpAuthenticationHelper.IsRuntimeProtocolHeader(key))
                 {
                     continue;
                 }
@@ -270,7 +332,7 @@ public sealed class McpClientFactory : IMcpClientFactory
         {
             foreach (var (key, value) in authHeaders)
             {
-                if (string.IsNullOrWhiteSpace(key) || value is null)
+                if (string.IsNullOrWhiteSpace(key) || value is null || McpAuthenticationHelper.IsRuntimeProtocolHeader(key))
                 {
                     continue;
                 }
@@ -301,53 +363,23 @@ public sealed class McpClientFactory : IMcpClientFactory
             return "none";
         }
 
-        var builder = new StringBuilder();
-        builder.Append(authentication.Type?.ToLowerInvariant());
-        builder.Append('|');
-        builder.Append(McpAuthenticationHelper.ResolveToken(authentication));
-        builder.Append('|');
-        builder.Append(authentication.Username);
-        builder.Append('|');
-        builder.Append(authentication.Password);
-        builder.Append('|');
-        builder.Append(authentication.AllowInteractive);
-        return builder.ToString();
+        return JsonSerializer.Serialize(new
+        {
+            type = authentication.Type?.ToLowerInvariant(),
+            token = McpAuthenticationHelper.ResolveToken(authentication),
+            username = authentication.Username,
+            password = authentication.Password,
+            allowInteractive = authentication.AllowInteractive
+        });
     }
 
     private static string BuildHeaderKeyMaterial(
         IDictionary<string, string>? defaultHeaders,
         IDictionary<string, string>? authHeaders)
     {
-        var pairs = new List<string>();
-
-        void AppendHeaders(IDictionary<string, string>? source)
-        {
-            if (source == null)
-            {
-                return;
-            }
-
-            foreach (var (key, value) in source)
-            {
-                if (string.IsNullOrWhiteSpace(key))
-                {
-                    continue;
-                }
-
-                pairs.Add($"{key.ToLowerInvariant()}={value}");
-            }
-        }
-
-        AppendHeaders(defaultHeaders);
-        AppendHeaders(authHeaders);
-
-        if (pairs.Count == 0)
-        {
-            return "none";
-        }
-
-        pairs.Sort(StringComparer.Ordinal);
-        return string.Join('|', pairs);
+        return JsonSerializer.Serialize(BuildHeaders(defaultHeaders, authHeaders)
+            .OrderBy(header => header.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(header => new { name = header.Key.ToLowerInvariant(), value = header.Value }));
     }
 
     private static string ComputeFingerprint(string keyMaterial)
@@ -362,6 +394,9 @@ public sealed class McpClientFactory : IMcpClientFactory
         string AuthFingerprint,
         string HeaderFingerprint);
 
+    private sealed class SdkClientCleanupException(string component)
+        : InvalidOperationException($"SDK {component} cleanup did not complete.");
+
     private sealed class CachedClient : IAsyncDisposable
     {
         public CachedClient(McpClient client, IAsyncDisposable transport)
@@ -375,8 +410,12 @@ public sealed class McpClientFactory : IMcpClientFactory
 
         public async ValueTask DisposeAsync()
         {
-            await Client.DisposeAsync().ConfigureAwait(false);
-            await Transport.DisposeAsync().ConfigureAwait(false);
+            var failures = new List<string>();
+            try { await Client.DisposeAsync().ConfigureAwait(false); }
+            catch { failures.Add("client"); }
+            try { await Transport.DisposeAsync().ConfigureAwait(false); }
+            catch { failures.Add("transport"); }
+            if (failures.Count > 0) throw new SdkClientCleanupException(string.Join(" and ", failures));
         }
     }
 }

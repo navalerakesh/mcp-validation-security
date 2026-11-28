@@ -16,6 +16,7 @@ using Moq;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
 
+[Collection("Console output")]
 public sealed class ProviderCertificationCommandTests : IDisposable
 {
     private readonly string _root = Path.Combine(Path.GetTempPath(), $"mcpval-provider-command-{Guid.NewGuid():N}");
@@ -89,8 +90,9 @@ public sealed class ProviderCertificationCommandTests : IDisposable
             providerAuthorizationKeyFile: new FileInfo(trustedKeyPath));
 
         Environment.ExitCode.Should().Be(0);
-        var resultPath = Directory.GetFiles(output, "*-result.json").Should().ContainSingle().Subject;
-        var attestationPath = Directory.GetFiles(output, "*-attestation.json").Should().ContainSingle().Subject;
+        var bundle = Directory.GetDirectories(output).Should().ContainSingle().Subject;
+        var resultPath = Directory.GetFiles(bundle, "*-result.json").Should().ContainSingle().Subject;
+        var attestationPath = Directory.GetFiles(bundle, "*-attestation.json").Should().ContainSingle().Subject;
         var result = JsonSerializer.Deserialize<ValidationResult>(
             await File.ReadAllTextAsync(resultPath),
             ArtifactJsonOptions.Create(writeIndented: false, propertyNameCaseInsensitive: true));

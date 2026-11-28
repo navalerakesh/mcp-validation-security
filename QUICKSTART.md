@@ -2,6 +2,8 @@
 
 This guide gets you from installation to a first validation run and explains what the CLI produces.
 
+> **Breaking changes:** This guide describes 3.0 behavior. Existing users should follow the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30) and upgrade the CLI and local MCP wrapper together. Availability is determined by the published release, not this guide.
+
 ## 1. Install `mcpval`
 
 Choose the distribution model that matches your environment.
@@ -25,12 +27,13 @@ docker run --rm ghcr.io/navalerakesh/mcp-validation-security:latest --help
 
 ## 2. Validate A Remote MCP Server
 
-Start with a standard HTTP or HTTPS endpoint.
+Start with an HTTP or HTTPS endpoint in explicit Safe inventory mode. Comprehensive execution additionally requires the [signed security baseline and independent run admission](Mcp.Benchmark.CLI/README.md#comprehensive-admission); it fails closed without prerequisites.
 
 ```bash
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -40,6 +43,8 @@ Host-specific compatibility interpretation is included by default. Add `--client
 mcpval validate \
   --server https://example.test/mcp \
   --access public \
+  --assurance inventory \
+  --client-profile github-copilot-cli \
   --output ./mcp-reports
 ```
 
@@ -51,6 +56,7 @@ Use `--access authenticated` when the target is expected to require credentials.
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
+  --assurance inventory \
   --token "$MCP_TOKEN" \
   --output ./mcp-reports
 ```
@@ -61,6 +67,7 @@ When a strategy supports it, you can use an interactive login flow instead of pa
 mcpval validate \
   --server https://example.test/mcp \
   --access authenticated \
+  --assurance inventory \
   --interactive \
   --output ./mcp-reports
 ```
@@ -73,6 +80,7 @@ mcpval validate \
 mcpval validate \
   --server "npx -y @modelcontextprotocol/server-everything" \
   --access public \
+  --assurance inventory \
   --output ./mcp-reports
 ```
 
@@ -82,7 +90,7 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 
 ## 5. Review The Generated Artifacts
 
-`validate --output <folder>` writes the standard artifact set for every run:
+An admitted validation run with `--output <folder>` publishes its artifacts together in a per-run `mcp-validation-*` subdirectory. Follow the paths returned by the CLI; admission failures before a run starts do not produce assessment evidence. A completed bundle includes:
 
 - `mcp-validation-<timestamp>-report.md` - Markdown report for people
 - `mcp-validation-<timestamp>-report.html` - HTML report for sharing
@@ -93,7 +101,7 @@ The CLI automatically treats non-URL `--server` values as STDIO commands.
 
 The CLI also writes `mcp-validation-<timestamp>-profile-summary.json` so CI or dashboards can consume the per-profile outcome rollup directly. Use `--client-profile` only to narrow the evaluated host set.
 
-Generated reports are full by default, but stay compact by summarizing each section and adding short action hints. The HTML report starts with Certificate Eligibility, Core Conformance, and Security Assurance, with operational readiness and evidence completeness visible immediately. Use `--report-detail minimal` when you want the executive-only view.
+Generated reports use full detail by default. HTML starts with the target, selected scope and assessment decision, keeping execution, assurance, policy and certificate disposition separate. Coverage and priority actions precede supporting domain evidence and provenance. `--report-detail minimal` reduces supporting detail without dropping the canonical claims or glossary; it is not an executive-only summary. See [Reports And Evidence](docs/Reporting.md).
 
 For regression-only CI gating:
 
@@ -101,6 +109,7 @@ For regression-only CI gating:
 mcpval validate \
   --server https://example.com/mcp \
   --assurance ci \
+  --mode standard \
   --baseline ./approved-result.json \
   --regression-only \
   --output-format json \
@@ -114,17 +123,19 @@ To combine a run with pinned official conformance evidence, supply a wrapper tha
 ```bash
 mcpval validate \
   --server https://example.com/mcp \
+  --assurance ci --mode standard \
   --conformance-results ./official-conformance-wrapper.json \
   --output ./mcp-reports
 ```
 
-The wrapper target digest and protocol version must match the validation run. Official checks retain their own authority and affect only applicable conformance claims; extensions remain separate. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit.
+This active CI example requires an owned or explicitly authorized target. The wrapper target digest and protocol version must match the validation run. Official checks retain their own authority and affect only applicable conformance claims; extensions remain separate. Exact runner, source, package, requirement-set, scenario, and wrapper digests are retained for audit. Comprehensive assurance additionally requires the signed identity baseline and reserved run ID described above.
 
 Advertised Apps and Skills extensions are detected automatically. Explicitly authorize Skills content reads only on a reviewed target:
 
 ```bash
 mcpval validate \
   --server https://example.com/mcp \
+  --assurance ci \
   --mode standard \
   --extension io.modelcontextprotocol/skills \
   --output ./mcp-reports
@@ -136,10 +147,12 @@ Use the saved JSON result when you need a different artifact format for downstre
 
 ```bash
 mcpval report \
-  --input ./mcp-reports/mcp-validation-20260421-031745-result.json \
+  --input "$RESULT_JSON_PATH" \
   --format junit \
-  --output ./mcp-reports/mcp-validation-20260421-031745.junit.xml
+  --output ./mcp-reports/replayed-results.junit.xml
 ```
+
+Set `RESULT_JSON_PATH` to the actual `*-result.json` path returned by validation, including its per-run subdirectory.
 
 Supported offline formats are `html`, `xml`, `sarif`, and `junit`.
 

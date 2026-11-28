@@ -10,16 +10,196 @@ using Mcp.Benchmark.CLI.Utilities;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Core.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 
 namespace Mcp.Benchmark.Tests.Unit.Commands;
 
+[Collection("Console output")]
 public sealed class ValidateCommandTests : IDisposable
 {
     private readonly List<string> _sessionRoots = new();
     private readonly List<string> _tempFiles = new();
     private readonly int _originalExitCode = Environment.ExitCode;
+
+    [Fact]
+    public async Task ConfiguredInvocationDeadline_ShouldIncludeStartupWithoutRestartingAtValidation()
+    {
+        var clock = new InvocationClock();
+        var path = Path.Combine(Path.GetTempPath(), $"deadline-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(path);
+        await File.WriteAllTextAsync(path, """{"testExecution":{"globalTimeoutMinutes":20}}""");
+        var transport = new Mock<IMcpHttpClient>();
+        transport.Setup(client => client.StartSessionAsync(It.IsAny<string>(), It.IsAny<IReadOnlyDictionary<string, string>?>(), It.IsAny<CancellationToken>()))
+            .Returns((string _, IReadOnlyDictionary<string, string>? _, CancellationToken token) =>
+            {
+                clock.Advance(TimeSpan.FromMinutes(8));
+                token.IsCancellationRequested.Should().BeFalse();
+                return Task.CompletedTask;
+            });
+        var validator = new Mock<IMcpValidatorService>();
+        validator.Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
+            .Returns((McpValidatorConfiguration _, CancellationToken token) =>
+            {
+                clock.Advance(TimeSpan.FromMinutes(2));
+                token.IsCancellationRequested.Should().BeFalse("there is no hidden ten-minute host limit");
+                clock.Advance(TimeSpan.FromMinutes(10));
+                token.IsCancellationRequested.Should().BeTrue("startup and validation share the invocation deadline");
+                return Task.FromCanceled<ValidationResult>(token);
+            });
+        var command = new ValidateCommand(validator.Object, Mock.Of<IConsoleOutputService>(), Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext(),
+            timeProvider: clock);
+        await command.ExecuteAsync("https://1.1.1.1/mcp", null, null, new FileInfo(path), false, assuranceProfile: "inventory");
+        Environment.ExitCode.Should().Be(AssuranceExitCodeMapper.TimeoutOrCancellation);
+        clock.CreatedTimers.Should().Be(1);
+        clock.DueTime.Should().Be(TimeSpan.FromMinutes(20));
+        clock.Disposed.Should().BeTrue();
+        validator.Verify(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private sealed class InvocationClock : TimeProvider
+    {
+        private TimerCallback? _callback;
+        private object? _state;
+        private TimeSpan _elapsed;
+        public int CreatedTimers { get; private set; }
+        public TimeSpan DueTime { get; private set; }
+        public bool Disposed { get; private set; }
+        public void Advance(TimeSpan duration)
+        {
+            _elapsed += duration;
+            if (_elapsed >= DueTime && !Disposed) _callback!(_state);
+        }
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            _callback = callback; _state = state; DueTime = dueTime; CreatedTimers++;
+            return new Timer(this);
+        }
+        private sealed class Timer(InvocationClock clock) : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => throw new InvalidOperationException("Invocation deadline must not restart.");
+            public void Dispose() => clock.Disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
+    }
+
+    [Theory]
+    [InlineData(McpServerProfile.Public, false, false)]
+    [InlineData(McpServerProfile.Public, true, true)]
+    [InlineData(McpServerProfile.Authenticated, false, true)]
+    [InlineData(McpServerProfile.Enterprise, false, true)]
+    public void SuppliedToken_ShouldNotRedefinePublicAuthenticationRequirements(McpServerProfile profile, bool configuredRequired, bool expected)
+    {
+        var server = new McpServerConfig { Profile = profile, Authentication = new AuthenticationConfig { Required = configuredRequired } };
+        CommandConnectionHelper.ApplyAuthenticationOverrides(server, "synthetic-fixture-credential", false);
+        server.Authentication.Required.Should().Be(expected);
+        server.Authentication.Token.Should().Be("synthetic-fixture-credential");
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("different-run", false)]
+    [InlineData("reserved-run", true)]
+    public async Task IdentityBaseline_ShouldMatchIndependentlyReservedPlanId(string? validationId, bool admitted)
+    {
+        const string endpoint = "https://example.invalid/mcp";
+        var holder = new ValidationResult();
+        Mcp.Benchmark.Tests.Unit.Services.ControlledIdentityEvaluatorTests.AddSecurityBaseline(holder, runId: "reserved-run",
+            targetDigest: ValidationTargetIdentity.ComputeDigest(new McpServerConfig { Endpoint = endpoint, Transport = "http" }), assessedAt: DateTimeOffset.UtcNow);
+        var file = Path.Combine(Path.GetTempPath(), $"identity-baseline-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(file);
+        await File.WriteAllTextAsync(file, JsonSerializer.Serialize(holder.Assurance.RequiredIdentityControls, ArtifactJsonOptions.Create(writeIndented: false)));
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        validator.As<ICorrelatedMcpValidatorService>();
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var output = new Mock<IConsoleOutputService>();
+        var command = new ValidateCommand(validator.Object, output.Object, Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(endpoint, null, null, null, false, assuranceProfile: "inventory", dryRun: true,
+            identityBaselineFile: new FileInfo(file), validationId: validationId);
+
+        Environment.ExitCode.Should().Be(admitted ? 0 : AssuranceExitCodeMapper.UsageError);
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+        if (!admitted) output.Verify(value => value.WriteError(It.Is<string>(message => message.Contains("baseline could not be admitted"))), Times.Once);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("standard")]
+    public async Task ExecuteAsync_DefaultComprehensive_ShouldRejectMissingPrerequisitesBeforeContact(string? mode)
+    {
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var output = new Mock<IConsoleOutputService>();
+        var command = new ValidateCommand(validator.Object, output.Object, Mock.Of<IClientProfileEvaluator>(),
+            Mock.Of<IReportGenerator>(), Mock.Of<IValidationReportRenderer>(), Mock.Of<IGitHubActionsReporter>(),
+            NullLogger<ValidateCommand>.Instance, Mock.Of<INextStepAdvisor>(), new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(), Mock.Of<ISessionArtifactStore>(), transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(server: "https://example.invalid/mcp", outputDirectory: null, specProfile: null,
+            configFile: null, verbose: false, executionMode: mode);
+
+        Environment.ExitCode.Should().Be(AssuranceExitCodeMapper.UsageError);
+        output.Verify(value => value.WriteError(It.Is<string>(message => message.Contains("Comprehensive assessment requires"))), Times.Once);
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("null")]
+    [InlineData("{\"server\":null}")]
+    [InlineData("{\"server\":{\"heders\":{\"X-Route\":\"route\"}}}")]
+    [InlineData("{\"server\":{\"endpoint\":\"first\",\"Endpoint\":\"second\"}}")]
+    [InlineData("{\"schemaVersion\":\"2.0.0\"}")]
+    [InlineData("{\"schemaVersion\":\"1.0.0\",\"SchemaVersion\":\"1.0.0\"}")]
+    public async Task ExecuteAsync_WithInvalidExplicitConfiguration_ShouldRejectBeforeValidation(string? json)
+    {
+        var configPath = Path.Combine(Path.GetTempPath(), $"invalid-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(configPath);
+        if (json is not null) await File.WriteAllTextAsync(configPath, json);
+        var consoleOutput = new Mock<IConsoleOutputService>();
+        var validatorService = new Mock<IMcpValidatorService>();
+        var command = new ValidateCommand(
+            validatorService.Object,
+            consoleOutput.Object,
+            new Mock<IClientProfileEvaluator>().Object,
+            new Mock<IReportGenerator>().Object,
+            new Mock<IValidationReportRenderer>().Object,
+            new Mock<IGitHubActionsReporter>().Object,
+            NullLogger<ValidateCommand>.Instance,
+            new Mock<INextStepAdvisor>().Object,
+            new ExecutionGovernanceService(),
+            new NoOpModelEvaluationExecutor(),
+            new Mock<ISessionArtifactStore>().Object,
+            new Mock<IMcpHttpClient>().Object,
+            CreateSessionContext());
+
+        await command.ExecuteAsync(
+            server: "https://1.1.1.1/mcp",
+            outputDirectory: null,
+            specProfile: null,
+            configFile: new FileInfo(configPath),
+            verbose: false,
+            token: null,
+            interactive: false,
+            serverProfile: null,
+            maxConcurrency: null);
+
+        Environment.ExitCode.Should().NotBe(0);
+        validatorService.Invocations.Should().BeEmpty();
+        var expectedDiagnostic = json is null ? "not found" : "Configuration";
+        consoleOutput.Verify(output => output.WriteError(It.Is<string>(message =>
+            message.Contains(expectedDiagnostic, StringComparison.OrdinalIgnoreCase))), Times.AtLeastOnce());
+    }
 
     [Fact]
     public async Task ExecuteAsync_WithAdvisoryPolicy_ShouldReturnExitCodeZeroForValidationFailures()
@@ -60,6 +240,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         Environment.ExitCode.Should().Be(0, string.Join("; ", consoleOutput.Invocations
@@ -108,6 +289,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Strict);
 
         Environment.ExitCode.Should().Be(1);
@@ -180,6 +362,7 @@ public sealed class ValidateCommandTests : IDisposable
                         interactive: false,
                         serverProfile: null,
                         maxConcurrency: null,
+                        assuranceProfile: "inventory",
                         policyMode: null);
 
                 Environment.ExitCode.Should().Be(1);
@@ -189,23 +372,48 @@ public sealed class ValidateCommandTests : IDisposable
                     capturedConfiguration.Policy.Suppressions[0].SignalId.Should().Be("POLICY.TRUST.L4_MINIMUM");
         }
 
-    [Fact]
-    public async Task ExecuteAsync_WithOutputDirectory_ShouldPersistFullReportsByDefault()
+    [Theory]
+    [InlineData(false, ValidationStatus.Passed, false)]
+    [InlineData(true, ValidationStatus.Passed, false)]
+    [InlineData(false, ValidationStatus.Cancelled, false)]
+    [InlineData(false, ValidationStatus.Error, false)]
+    [InlineData(false, ValidationStatus.Cancelled, true)]
+    [InlineData(false, ValidationStatus.Error, true)]
+    [InlineData(true, ValidationStatus.Error, false)]
+    public async Task ExecuteAsync_WithOutputDirectory_ShouldPersistFullReportsByDefault(
+        bool failRendering, ValidationStatus terminalStatus, bool withBaseline)
     {
         var sessionContext = CreateSessionContext();
+        using var cancellation = new CancellationTokenSource();
         var outputRoot = Path.Combine(Path.GetTempPath(), $"validate-output-{Guid.NewGuid():N}");
         Directory.CreateDirectory(outputRoot);
         _sessionRoots.Add(outputRoot);
+        FileInfo? baselineFile = null;
+        if (withBaseline)
+        {
+            var baselineRoot = Path.Combine(Path.GetTempPath(), $"validate-baseline-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(baselineRoot);
+            _sessionRoots.Add(baselineRoot);
+            baselineFile = new FileInfo(Path.Combine(baselineRoot, "baseline.json"));
+            var baseline = new ValidationResult { OverallStatus = ValidationStatus.Passed };
+            baseline.Assurance = Mcp.Benchmark.Core.Services.AssuranceAssessmentEngine.Evaluate(baseline, AssuranceProfileCatalog.Inventory);
+            await File.WriteAllTextAsync(baselineFile.FullName, JsonSerializer.Serialize(baseline, ArtifactJsonOptions.Create()));
+        }
 
         var consoleOutput = new Mock<IConsoleOutputService>(MockBehavior.Loose);
         var validatorService = new Mock<IMcpValidatorService>();
         validatorService
             .Setup(service => service.ValidateServerAsync(It.IsAny<McpValidatorConfiguration>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult
+            .Returns(() =>
             {
-                OverallStatus = ValidationStatus.Passed,
-                ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
-                ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
+                if (terminalStatus != ValidationStatus.Passed) cancellation.Cancel();
+                return Task.FromResult(new ValidationResult
+                {
+                    OverallStatus = terminalStatus, EndTime = DateTime.UtcNow,
+                    CriticalErrors = terminalStatus == ValidationStatus.Error ? ["retained-framework-evidence"] : [],
+                    ServerConfig = new McpServerConfig { Endpoint = "https://1.1.1.1/mcp", Transport = "http" },
+                    ValidationConfig = new McpValidatorConfiguration { Reporting = new ReportingConfig() }
+                });
             });
 
         var reportGenerator = new Mock<IReportGenerator>();
@@ -215,6 +423,11 @@ public sealed class ValidateCommandTests : IDisposable
         reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>())).Returns("<html></html>");
         reportRenderer.Setup(renderer => renderer.GenerateSarifReport(It.IsAny<ValidationResult>())).Returns("{}");
         reportRenderer.Setup(renderer => renderer.GenerateJunitReport(It.IsAny<ValidationResult>())).Returns("<testsuites />");
+        if (failRendering)
+            reportRenderer.Setup(renderer => renderer.GenerateHtmlReport(It.IsAny<ValidationResult>(), It.IsAny<ReportingConfig>(), It.IsAny<bool>()))
+                .Throws(terminalStatus == ValidationStatus.Error
+                    ? new OperationCanceledException("Synthetic publication cancellation.")
+                    : new InvalidOperationException("Synthetic rendering failure."));
 
         var command = new ValidateCommand(
             validatorService.Object,
@@ -241,13 +454,33 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
-            policyMode: ValidationPolicyModes.Advisory);
+            assuranceProfile: "inventory",
+            policyMode: ValidationPolicyModes.Advisory,
+            baselineFile: baselineFile,
+            cancellationToken: cancellation.Token);
 
+        if (failRendering)
+        {
+            Environment.ExitCode.Should().Be(70);
+            Directory.GetFileSystemEntries(outputRoot).Should().BeEmpty("an incomplete report set must not be published");
+            return;
+        }
+        Directory.GetFiles(outputRoot).Should().BeEmpty();
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         Directory.GetFiles(outputRoot, "*-report.md").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-report.html").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-results.sarif.json").Should().ContainSingle();
         Directory.GetFiles(outputRoot, "*-results.junit.xml").Should().ContainSingle();
+        Environment.ExitCode.Should().Be(terminalStatus switch
+        {
+            ValidationStatus.Cancelled => 124,
+            ValidationStatus.Error => 70,
+            _ => 0
+        });
+        if (terminalStatus == ValidationStatus.Error)
+            (await File.ReadAllTextAsync(Directory.GetFiles(outputRoot, "*-result.json").Single()))
+                .Should().Contain("retained-framework-evidence");
 
         reportRenderer.Verify(renderer => renderer.GenerateHtmlReport(
             It.IsAny<ValidationResult>(),
@@ -303,6 +536,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
         capturedExecutionPolicy.Should().NotBeNull();
@@ -376,8 +610,10 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
         var performance = document.RootElement
@@ -455,8 +691,10 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var jsonPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
         using var document = JsonDocument.Parse(await File.ReadAllTextAsync(jsonPath));
         var performance = document.RootElement
@@ -527,8 +765,10 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         var expectedArtifactPaths = Directory.GetFiles(outputRoot)
             .OrderBy(path => path, StringComparer.Ordinal)
             .ToArray();
@@ -609,6 +849,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             clientProfiles: new[] { "claude-code" });
 
@@ -649,6 +890,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             executionMode: null,
             dryRun: true);
@@ -687,6 +929,53 @@ public sealed class ValidateCommandTests : IDisposable
 
         Environment.ExitCode.Should().Be(0);
         validatorService.VerifyNoOtherCalls();
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_DryRun_ShouldProjectFileCliProfileAndGovernanceOriginsWithoutValues()
+    {
+        var configPath = Path.Combine(Path.GetTempPath(), $"origin-config-{Guid.NewGuid():N}.json");
+        _tempFiles.Add(configPath);
+        await File.WriteAllTextAsync(configPath,
+            "{\"schemaVersion\":\"1.0.0\",\"server\":{\"endpoint\":\"https://1.1.1.1/mcp\",\"Headers\":{\"canary-header-key\":\"canary-header-value\"}},\"validation\":{\"categories\":{\"tools\":{\"TestToolExecution\":true}}}}");
+        var realGovernance = new ExecutionGovernanceService();
+        var governance = new Mock<IExecutionGovernanceService>();
+        ExecutionPlan? capturedPlan = null;
+        AuditManifest? capturedAudit = null;
+        governance.Setup(service => service.BuildValidationPlan(It.IsAny<CliSessionContext>(), It.IsAny<McpValidatorConfiguration>(), It.IsAny<string?>()))
+            .Returns((CliSessionContext session, McpValidatorConfiguration configuration, string? output) =>
+                capturedPlan = realGovernance.BuildValidationPlan(session, configuration, output));
+        governance.Setup(service => service.BuildAuditManifest(It.IsAny<ExecutionPlan>(), It.IsAny<ValidationResult?>(), It.IsAny<IReadOnlyList<string>>(), It.IsAny<ModelEvaluationArtifact?>()))
+            .Returns((ExecutionPlan plan, ValidationResult? result, IReadOnlyList<string> artifacts, ModelEvaluationArtifact? model) =>
+                capturedAudit = realGovernance.BuildAuditManifest(plan, result, artifacts, model));
+        var validator = new Mock<IMcpValidatorService>(MockBehavior.Strict);
+        var transport = new Mock<IMcpHttpClient>(MockBehavior.Strict);
+        var command = new ValidateCommand(validator.Object, new Mock<IConsoleOutputService>().Object,
+            new Mock<IClientProfileEvaluator>().Object, new Mock<IReportGenerator>().Object,
+            new Mock<IValidationReportRenderer>().Object, new Mock<IGitHubActionsReporter>().Object,
+            NullLogger<ValidateCommand>.Instance, new Mock<INextStepAdvisor>().Object,
+            governance.Object, new NoOpModelEvaluationExecutor(), new Mock<ISessionArtifactStore>().Object,
+            transport.Object, CreateSessionContext());
+
+        await command.ExecuteAsync(server: "https://1.1.1.1/mcp", outputDirectory: null,
+            specProfile: "2025-11-25", configFile: new FileInfo(configPath), verbose: false, dryRun: true);
+
+        Environment.ExitCode.Should().Be(0);
+        capturedPlan.Should().NotBeNull();
+        capturedAudit.Should().NotBeNull();
+        var origins = capturedPlan!.ConfigurationSources!;
+        var endpoint = origins.Single(origin => origin.Setting == "$.server.endpoint");
+        endpoint.Source.Should().Be(ConfigurationSourceKind.CommandLine);
+        endpoint.ReplacedSource.Should().Be(ConfigurationSourceKind.File);
+        origins.Single(origin => origin.Setting == "$.server.Headers").Source.Should().Be(ConfigurationSourceKind.File);
+        origins.Single(origin => origin.Setting == "$.validation.categories.tools.TestToolExecution")
+            .Source.Should().Be(ConfigurationSourceKind.Governance);
+        origins.Should().Contain(origin => origin.Source == ConfigurationSourceKind.Profile && origin.Pointer == "--mcpspec");
+        origins.Should().Contain(origin => origin.Source == ConfigurationSourceKind.Default);
+        JsonSerializer.Serialize(capturedAudit!.ConfigurationSources).Should().Be(JsonSerializer.Serialize(origins)).And.NotContain("canary");
+        validator.VerifyNoOtherCalls();
+        transport.VerifyNoOtherCalls();
+        governance.Verify(service => service.ValidateTargetResolutionAsync(It.IsAny<ExecutionPlan>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -776,9 +1065,11 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             enableModelEval: true);
 
+        outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
         Directory.GetFiles(outputRoot, "*-model-evaluation.json").Should().ContainSingle();
         var modelEvaluationPath = Directory.GetFiles(outputRoot, "*-model-evaluation.json").Single();
         var modelEvaluationJson = await File.ReadAllTextAsync(modelEvaluationPath);
@@ -840,6 +1131,7 @@ public sealed class ValidateCommandTests : IDisposable
             interactive: false,
             serverProfile: null,
             maxConcurrency: null,
+            assuranceProfile: "inventory",
             policyMode: ValidationPolicyModes.Advisory,
             enableModelEval: true);
 
@@ -905,8 +1197,10 @@ public sealed class ValidateCommandTests : IDisposable
                 configFile: null,
                 verbose: false,
                 policyMode: ValidationPolicyModes.Advisory,
+                assuranceProfile: "inventory",
                 signAttestation: true);
 
+            outputRoot = Directory.GetDirectories(outputRoot).Should().ContainSingle().Subject;
             var resultPath = Directory.GetFiles(outputRoot, "*-result.json").Should().ContainSingle().Subject;
             var attestationPath = Directory.GetFiles(outputRoot, "*-attestation.json").Should().ContainSingle().Subject;
             var attestation = JsonSerializer.Deserialize<ValidationAttestation>(

@@ -203,12 +203,6 @@ export async function collectOfficialScenarios(resultsDirectory, pin) {
       throw new Error(`Official result contains invalid checks for scenario: ${scenarioId}.`);
     }
     const checks = rawChecks.map(normalizeCheck);
-    const checkIds = new Set();
-    for (const check of checks) {
-      if (!checkIds.add(check.id)) {
-        throw new Error(`Official result contains duplicate check IDs for scenario: ${scenarioId}.`);
-      }
-    }
     const classification = notScored.get(scenarioId);
     scenarios.push({
       scenarioId,
@@ -223,7 +217,7 @@ export async function collectOfficialScenarios(resultsDirectory, pin) {
   return scenarios.sort((left, right) => left.scenarioId.localeCompare(right.scenarioId));
 }
 
-function hasCompleteScenarioSet(scenarios, pin) {
+export function hasCompleteScenarioSet(scenarios, pin) {
   const expected = new Set([
     ...pin.requirementSet.requiredServerScenarios,
     ...pin.requirementSet.notScoredServerScenarios.map(scenario => scenario.scenarioId)

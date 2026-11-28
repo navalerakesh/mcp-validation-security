@@ -147,10 +147,8 @@ public class ConsoleOutputService : IConsoleOutputService
             WriteInfo($"Server Version: {result.ServerVersion}");
         }
 
-        if (!string.IsNullOrEmpty(result.ProtocolVersion))
-        {
-            WriteInfo($"Protocol Version: {result.ProtocolVersion}");
-        }
+        var observedProtocol = string.IsNullOrWhiteSpace(result.ProtocolVersion) ? "not recorded" : result.ProtocolVersion;
+        Console.WriteLine($"Observed Protocol Version: {System.Text.Json.JsonEncodedText.Encode(observedProtocol)}");
 
         var handshake = result.InitializationDetails;
         var handshakePayload = handshake?.Payload;

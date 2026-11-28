@@ -1,0 +1,396 @@
+{
+  "status": "local-s1-input-and-provenance-qualified",
+  "baseCommit": "0a72ece4171e9e49a0c586ce0beca7e00b4f8ad6",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-10T19:41:20.529Z",
+  "sourceIdentity": "648ebfc4297e283aab61c197faad58eb1e4233fff418ab2183e6a74a5fd46363",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s1-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "596ba9eccb726be25e49ac2ee1e1c994c61aaf63e9d9a70018bb60bebcdaf654"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/HealthCheckCommand.cs",
+      "sha256": "636383e37f703b94f67163b328584e646a17d30d620e34d6e761b8be9fdf854b"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/ReportCommand.cs",
+      "sha256": "99c59f4c986c247beaeb741af121ad49588091769be8c908d3779ede118f9fd6"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/ValidateCommand.cs",
+      "sha256": "2ba07b49c4560779aa23052cdb66b833d47ac089c225638b148a4ff218dbfd97"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Models/OperationalArtifacts.cs",
+      "sha256": "73b567e64751a5a577c52b17be3499ef0b76ff3690389ca7f8c2f3ca23a9505b"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Program.cs",
+      "sha256": "2b9e378655f696806eb71a615894196bbc33e26ff8d6c129b1eb77e14fe947b8"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/README.md",
+      "sha256": "ddb50c9c6d809432e09826ad55a63d696bca7e6fcc87fe4fd6aa736560656a32"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Services/ExecutionGovernanceService.cs",
+      "sha256": "7b21344d9b36eed88ab16645b7e73bb7fcfa30b2f541afb21444010710e72576"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/BoundedArtifactReader.cs",
+      "sha256": "4ed16cf767e9d723e5c58322c9817b3cbc293705029c4a042b45017ca5789329"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/CliSessionContext.cs",
+      "sha256": "0ad88cd4d4afff99c64c76df270d35ba59142733515adabf70f89211249e7b5d"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/ConfigurationSourceTracker.cs",
+      "sha256": "8cecade241a07821d6f1f3d664a1d953742b290f5221e33fc70fdeb94a3cb744"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/ExecutionPolicyOverrides.cs",
+      "sha256": "fac8e9af20d8c6a6cd09ab7a885598d22be3dc236eb3ba6e1c70fa0fbddf2d59"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/ArtifactContracts.cs",
+      "sha256": "e60deaffc2831702c07df85f10bc7c025bc82c644ca88e24d3fa2e0db2826322"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Architecture/RunScopedCompositionTests.cs",
+      "sha256": "0a53e7efc508a40b30fb78e595084590e34037540745377ed77430b227687b1f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Commands/HealthCheckCommandTests.cs",
+      "sha256": "91e3063316e56fccbb57984c44550e2feb33765a87f9ca2a8733c5f0bd09971e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Commands/ReportCommandTests.cs",
+      "sha256": "048b5dc2a75e57c33bcd12a4bc3cf7696aed3b547e08f2bc62052aaeefd34378"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Commands/ValidateCommandTests.cs",
+      "sha256": "b2879909dcf3557e1a9464699819ad18faa2972d47544d83427558f87943551c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Contracts/PublicArtifactSchemaTests.cs",
+      "sha256": "d40a24d074c4697c295eff87615b607a41ae8eed7c6bdaa5d2f96ee3f3bbe30b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Utilities/BoundedArtifactReaderTests.cs",
+      "sha256": "889cf55a6d63688fa1a0b47afcd961fff560a07c611ceec5f6bb95264787ec53"
+    },
+    {
+      "path": "docs/SchemaCompatibility.md",
+      "sha256": "ffdb251487c50d0f14ae6de8d6fd19e7c5947b9a6035d220e0189d8b03d74477"
+    },
+    {
+      "path": "docs/Schemas/mcpval-audit-manifest.schema.json",
+      "sha256": "e9fc577655a195dd6d6955f40f45043f8f7a91f411cd0bdb8bbfc66ada3f2572"
+    },
+    {
+      "path": "docs/Schemas/mcpval-configuration-v1.schema.json",
+      "sha256": "4b93b36c0e9d94f1a3d855e20718d3e414d80f62d641b9577057a9dbe591f634"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-closed-repository-gate.log",
+      "sha256": "b02cfc6553648b5c09d4ba974f94ea6cc7e69146f59bd2e002e89fbb67dc8929"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-links.log",
+      "sha256": "e61f931a219d1cb3c18cf20f89bd5061e5aaf3771b056fdd3ae77b0730ea8e5e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/commands.json",
+      "sha256": "6d773857ac6e6045f458911742c01fd6d6532e28684ff48bd096b3bc9a9c9b3c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/configuration-matrix/receipt.json",
+      "sha256": "d4b990f00ea75c53365b64751ee05206df9b548fa4eea2f689e5888f25a53cc3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/configuration-matrix/summary.json",
+      "sha256": "62885ed6e66cd87ab8ce2d6a8400466bcdd9a0856691844ebb1436d3a3d20e09"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/logs/installed-lifecycle.log",
+      "sha256": "1359ae09ba5b8858fd82698bcb12882c0d428e4c0011449bf9635698868974c2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "41ded7f2fd9eae92748ce86aba31c771461e40b3b5c104eb76f44e9820b0b6f8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "718df4ca929b7443b891512eb621e818537cc9d22d973c6ea7553316baa32434"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/receipt.json",
+      "sha256": "d5b58f1d9b1071c62b73c0623bc899cf478bff6c231b95b22f680e88200e7daf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-package-qualification/configuration-matrix/invalid-utf8-report.log",
+      "sha256": "cf4131640fb82b060259bb10cd9ff22a4c4487ca35a247a825dddbf751b962fe"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-package-qualification/configuration-matrix/receipt.json",
+      "sha256": "64a55078e59edf3e858dd6d982a1732ece303c2dbe46d6c1b95c993d5b84360d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-package-qualification/fifo-probe/after.json",
+      "sha256": "aeccb7f4c6fdd42b7befc8a3b464b2be5710e5ed9a04ffbb6a4479dba067b877"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-package-qualification/fifo-probe/before.json",
+      "sha256": "b7a96facffbf983f09410036008b411710dc647ae16470f561cb90214e111eaa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-alias-terminators-after.trx",
+      "sha256": "fcb9e0af621838d3bb76ce5d54e950c955997ef3365d407cf8058c69c9a0b03d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-alias-terminators-before.trx",
+      "sha256": "2f7254c96937d88ee7193c830a8cd12187ccfd80b9213fca226bba1566a4a3b3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-audit-origin-contract.trx",
+      "sha256": "65debfd7f70fe0a643b6fdfdaabeb8c01c9f1cc542e1302e23fbeaccbb8ce816"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-command-contract-matrix.trx",
+      "sha256": "8f7e8e00d55342b33ae7957680748b232e733e4aab2ffb6921ff72cdca984ae7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-boundaries.trx",
+      "sha256": "15c48dcab8323565266bd20f276964f963ee3895126c3ab39b5afb61dcb95e82"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-encoding-after.trx",
+      "sha256": "1d13c71f395ab3b584b34c2db052b34e607e0ddf0afcbe1ac6ad299fe31bba0b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-encoding-before.trx",
+      "sha256": "a02663ccc310a554b859028a9aaac82966e294556bdb4087106e181306fd0b2c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-migration.trx",
+      "sha256": "c0a56b1a83308e31bd556efb0ff5bae37038d385b0d905e4b41deebc307eac88"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-origins-after.trx",
+      "sha256": "e75fa6974f80cc466900c48f3828feb654f84af241770907a9e4d643220b0f87"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-origins.trx",
+      "sha256": "1f14aee534ab2b369788216131cccc1aa137e271fea1a8e6fae77989f73e073e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-public-contract.trx",
+      "sha256": "330eb467f1c0faa292967104ca5cebbf632514c9c4adadfffebedca330012516"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-reviewed-contract.trx",
+      "sha256": "6d608b2cd272f95002dc2c4c95e69197fdd1a4ff1c217b22bd62be3326ca1b1a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-schema.trx",
+      "sha256": "080b89fe569af504995452b89ea1c03b8686ff3bc8c90b4b8bc82f2490ceaf01"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-source-paths.trx",
+      "sha256": "1185ae7b3d07ac087a6ddba52c7dc41415af03c0b84ba1bca073074ef3bbd8f4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-configuration-version.trx",
+      "sha256": "21c80d7b56e647cc215bb064d48286a02d671d8d151eb826732cdb5eb675f5ba"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-empty-input-boundary.trx",
+      "sha256": "39b2285680393fc1b51462dfd3ac6aed46efb4d452c1ac2b2aa6ac11ed9e6f2d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-enum-collection-after.trx",
+      "sha256": "4b1ed748fa5f00073d2bf0981d67bbf69f115633f9411564324dbf5862d79728"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-enum-collection-before.trx",
+      "sha256": "2e55fb0cf69a3c0ba72f504884c92527d12d54a4bbf7c667bac5c169db3df3cd"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-enum-schema-agreement.trx",
+      "sha256": "c4d0b2b82bfaf0cb6e80852c37eac69003acab72041d6ada3f71c2271d62c482"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-execution-policy-origins.trx",
+      "sha256": "ad48749a8b3737c985442f319402568e2a1b049c1d1d4bca185d58a4c9588997"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-host-admission-review-closure.trx",
+      "sha256": "f13ab01308526e317f1824743bf9df869a52493037f1d5ae99556306f5d2f6f8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-host-config-only-aliases.trx",
+      "sha256": "066bba2b54ae4f70ed6d6d523cb3c7766bb15683b973d3d26fe5ad95a1e15a50"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-normalized-host-boundary-after.trx",
+      "sha256": "4aed419b766f4ddf0476d5bee8e83322c60e26252cc73b77c756d70321bd68fd"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-normalized-host-boundary.trx",
+      "sha256": "fac2eef59e84d7fd8bafecb6f2a8693dfd97932d4f4864b09acf820e0f2a514d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-published-schema-final.trx",
+      "sha256": "228048cc4c631d1b41ded811571d254d32200b34ae10d6bbbc443a6671ba3f46"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-report-origin-flow.trx",
+      "sha256": "52d6df122e1c619130c115f46db066331cb76e3ec27e47d748550544aa1e89b6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-report-origin-receipt.trx",
+      "sha256": "0563a7e1f020054e691071f1aec5f819d7c58eda5b5574f321ac639de951cd91"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-suite-integration-repairs.trx",
+      "sha256": "4e3cbbe926d605c3acf89345078bbb0bd34fc7aaa9c619e9f4c40a911043ae3c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-timeout-precedence-after.trx",
+      "sha256": "6adac2d828b68769d0dc000c24afd3589f87245a50cfb572137d34b8c9272f6b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-timeout-precedence-before.trx",
+      "sha256": "91039cdff02df3715bb9895b024fa36dcc780ec2eeae2205eae5109a35966238"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-timeout-precedence-confirmed-before.trx",
+      "sha256": "357836c04151df3ef55c286829c210c55e12ece9eaf45f089c4e8fc2433916d3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-timeout-source-matrix-after.trx",
+      "sha256": "7e9e3beb6f0399d895bf46457fedfdd74914ad30882e15bb16a994ef09b30e40"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-timeout-source-matrix.trx",
+      "sha256": "9cef63108c257104028a1f6b174329850cf4f4427421a289a45fea2717249256"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-undefined-enum-after.trx",
+      "sha256": "1e8bba2707a9b6bfd22d463afb672810f57d6b7d31391b89ea3db75aba49674a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-undefined-enum-before.trx",
+      "sha256": "c11d20e2f3e859a3d8c1778758e9c110d7a7499413493e6d02d7797352897d15"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-validation-origin-flow.trx",
+      "sha256": "762d4366f6a845472399ab2d5c4b213f045b26819fb3c46b571caf9acb9756a7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-validation-origins.trx",
+      "sha256": "ea584249b2b0a24a82ab8170abac6bbebf995a235285d815bafa20a3f0b071a4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s1-versioned-contracts.trx",
+      "sha256": "08eec2cc023aa1907e182beee62bf1ad19b9ca010a8a4a9e7f242afbbe775960"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/documentation-oracle/expanded-receipt.json",
+      "sha256": "c522ac570e22f41c8f5c3d4f8082e39781b812883815175318a7a10bd72a3ca0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/documentation-oracle/published-example-receipt.json",
+      "sha256": "75a2738fcc95cd4c7c3a451a0fb6e0b2ae752b0f55640d2b66c787c20c48e0a8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s1-final-package-qualification/documentation-oracle/published-example.log",
+      "sha256": "e30b05c5d527907af11623c0edee1a93d9fc8ffffd0ba278723ada1a02393b51"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1289,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 150,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 3,
+    "installedConfigurationCases": 102,
+    "entrypoints": 4,
+    "ajvStructuralControls": 11,
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedSchemaMatchesPublished": true,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "markdownFiles": 45,
+    "linkChecks": {
+      "total": 130,
+      "ok": 120,
+      "excluded": 5,
+      "redirected": 5,
+      "errors": 0
+    },
+    "publishedConfigurationExamples": 1,
+    "markdownDocumentsScannedForExamples": 40
+  },
+  "requirements": [
+    {
+      "id": "S1/I01/W01",
+      "code": [
+        "BoundedArtifactReader",
+        "Program.Main",
+        "CliSessionContext",
+        "ConfigurationSourceTracker",
+        "ExecutionPolicyOverrides",
+        "ValidateCommand",
+        "CommandConnectionHelper",
+        "ReportCommand"
+      ],
+      "tests": [
+        "BoundedArtifactReaderTests",
+        "HealthCheckCommandTests",
+        "ValidateCommandTests",
+        "ReportCommandTests",
+        "PublicArtifactSchemaTests",
+        "RunScopedCompositionTests"
+      ],
+      "accepted": "Strict versioned normalized input, legacy migration, source tracking and local entrypoint/package qualification"
+    }
+  ],
+  "reviews": {
+    "boundary": "Independent AI reviews; concrete alias, enum-collection and host-admission findings reproduced and repaired",
+    "latest": "READY FOR BUILD GATE scoped to host admission; not human certification"
+  },
+  "notAccepted": [
+    "S2-S8 recovery slices",
+    "Native Windows and Linux platform qualification; Windows cases are explicit skips",
+    "Original customer incident reconciliation W00",
+    "Hostile filesystem path replacement: metadata and length checks are not a sandbox",
+    "Exhaustive fuzz proof or arbitrary third-party adapter/configuration compatibility"
+  ],
+  "notes": [
+    "Configuration schema1.0.0 is separate from audit2.1.0 and MCP protocol revisions",
+    "Legacy configuration without version remains accepted; audit2.0.0 remains readable",
+    "Configuration origins group dictionaries and collections without arbitrary keys or values",
+    "One normalized configuration is transferred to the invocation owner without repeated full-config cloning",
+    "Earlier failed fixtures, host/package probes and full gates are retained and not counted as passes",
+    "Process-global exit-code parser tests reuse the existing non-parallel console collection; protocol concurrency tests remain enabled",
+    "No push, publish, live enterprise targets or model inference",
+    "Initial documentation scans found no complete configuration examples; a complete versioned example was added and verified. Empty scan is not counted as a pass."
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

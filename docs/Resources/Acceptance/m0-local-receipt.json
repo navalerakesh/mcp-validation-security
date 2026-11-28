@@ -1,0 +1,682 @@
+{
+  "status": "local-scope-qualified-native-windows-pending",
+  "baseCommit": "7e3584539cdbaee7cedf6b9de83d3bbb064dafdc",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-10T17:40:19.779Z",
+  "sourceIdentity": "14d9c78e5937e6d7aa4b60f306391d34e2259b1d20ded180cca40f6866775764",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/m0-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "96426cb2b25e038743570c25beb83e8a6cda7e20b843eaebc045b801f719cfe1"
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "483cb4c8b536d01b8728dfb85d06bdb955692282d84502a52e739a8fc83757dd"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Abstractions/IWindowsJobProcess.cs",
+      "sha256": "373910d494d65a3710dc6ba346bd00e2f8a9de592f8e377e3a285ddae22762f0"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/HealthCheckCommand.cs",
+      "sha256": "3a1c7636262be628ec4d0922e0e6cff2354b5263d578b4b63fa496c30629eb21"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/ReportCommand.cs",
+      "sha256": "c758339b760c157947a25e2e4dd47c10e04e55bc3033aeebd381bf7db157321b"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Commands/ValidateCommand.cs",
+      "sha256": "f1fe1efec0a74e447d6ec171cc7a7e659d2231dd8c4652f4f2b0845bd54c22a3"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Models/WindowsSupervisorProtocol.cs",
+      "sha256": "3755a0be779bf721d7ef354421abb436c51a70b7ab76026fd32bac8c728ec2e4"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Program.cs",
+      "sha256": "c878c545132931f08fc74d4bdbb21c51396cfe9a6b4f223be5eb096e4f3f37cc"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/README.md",
+      "sha256": "13fe4324aef14ba2230eeddd21036bd68ecd29e360fe452caa2442eeb58bbafb"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Services/WindowsSupervisorHost.cs",
+      "sha256": "59fdc4c74f3cbcb320de8de543c3eab6aa81461af1fdb4a0f11022c3adc3c555"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/BoundedArtifactReader.cs",
+      "sha256": "59fe5ad165025fc48afc723e0c3d4f436156feda6ed603150c35f9216c705286"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/WindowsJobProcess.cs",
+      "sha256": "98716409763f30c882ec676e4a9a5fcd631ad384dec6fbed756c7322aa1e0e73"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Utilities/WindowsSupervisorConsoleStreams.cs",
+      "sha256": "d28c3a2cb225836e246416f8965db28427d21217dc8f8116061c19db1d76666e"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Abstractions/IMcpHttpClient.cs",
+      "sha256": "5b02f6099fbd64f597c1f5fe80ed01f9089efe9543ba335bcdcff0d88921f3f1"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/RuleCalibrationPolicy.cs",
+      "sha256": "b2d6cabb5c122b6d45140555ae4001f31db0e30dda668044385c406e1172989f"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/McpValidatorConfiguration.cs",
+      "sha256": "e250656f565e4a20a029098c7e0190fbc1afe3b00070d3e5b3e274277a114baa"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/McpHttpModels.cs",
+      "sha256": "8f7c157cc3d8c65ce92d4de6931504bcb6105d1dde6085d62a58dfc8304108f9"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/StreamableHttpTransportModels.cs",
+      "sha256": "bee949210ff7a0d147cbe427425a0b9403497a6a538e61042ac81d1cb8ae3842"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationFinding.cs",
+      "sha256": "000c5529b4ddca59298eb224c1ba1e33565555be11f665a8ecce72a9a1b956f0"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/RuleCalibrationEvaluator.cs",
+      "sha256": "f07781c3b0618603cfdf1dd0bf738f9a3fa416ea39fe8a62f0a4466a026ee2dd"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/ValidationReliability.cs",
+      "sha256": "7c0ef39174ef602186d6758731171492b5bcf7f9e420ad5786c026c3b52ec99b"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Http/McpAuthenticationHelper.cs",
+      "sha256": "6cc3e39c02a5a8e420be28faba588d46d778cc1789428e2aa8292084c7bd92ad"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Http/McpHttpClient.cs",
+      "sha256": "699ab315735bb7802ff776b24615f84ad4db41bded5d75dff1f947a97895f52c"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Http/StdioMcpClientAdapter.cs",
+      "sha256": "b8b80907f51f1c31810543933cd933d5e90e723c324189adcdb285d35ccf6b29"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/McpValidatorService.cs",
+      "sha256": "f22160e4f23f9186e5ebc3e00257672c415767731a17b2ee520c428b6bbbdad6"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/ToolAiReadinessAnalyzer.cs",
+      "sha256": "45042fb25c116014420a0f4680ff322d3f9e072f2ed84f18c9a90b9b031334ee"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/BaseValidator.cs",
+      "sha256": "addfa1944b7a8dc3d1e9490810ea42fb9c9f0cbb4641406c71f5be29ccd9b99f"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ErrorHandlingValidator.cs",
+      "sha256": "efebc1c8228a286dbc8733a67c4180a7cd7bbaeb9cc4f022cf6356ee0fbc0954"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/PerformanceValidator.cs",
+      "sha256": "b131e013649c4a2a038347bd7644e33ccedba4c2318c2418329320402699611f"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/PromptValidator.cs",
+      "sha256": "cef6e00418f21179c86df3aebe0323178f72c3e9a54274a5d9da4b05c1bc4211"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ProtocolComplianceValidator.cs",
+      "sha256": "97dafca1c85c01f8bc2ae4f3b60ad10e8a422806688ffc5bb3e994876a0d41af"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ResourceValidator.cs",
+      "sha256": "31ccedeb90f01bdcd20aaadf7e0b823a65d9d154ac833ff976613b96b6d61621"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/SecurityValidator.cs",
+      "sha256": "111ff26c2fe8118c625c99f0b56308d5a3a8a048076c633780a4663a47891efb"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Validators/ToolValidator.cs",
+      "sha256": "4d2fe72b747712c92fac37bf4afefa7fdb60fff9cb96cc771db60716b0079584"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/json.snap",
+      "sha256": "d0434c69e20cf21c8cd525ab37ece30c508f0e3ac1e5d1cf8613627fe1701f83"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/sarif.snap",
+      "sha256": "e87e21f7fee7b9a4716ce8606eff71784a55f183af258a4191a8eeebb8c3799a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/README.md",
+      "sha256": "e3e6dde0f57ccc05344bc1e2b6a76585daa62ee7f2dac861c0518067787bc967"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-compliant.cjs",
+      "sha256": "247c4b09be5a48e0ed97615dd735c582a2b3eefd8e472c8573a3333c8334e45f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-runtime.cjs",
+      "sha256": "dd6c79a9f704b5dac4f7f7d34eab0896e0ca5b5de417b01d61a33eca3e0dbf81"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/windows-supervisor-breakaway.ps1",
+      "sha256": "017bdcd358e68c62dac3be603dca1f12c1316df1955ed14423ac0e5bc1cb3cf0"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/windows-supervisor-parent.cjs",
+      "sha256": "b9ec63e1e4fa094bb2f7bd6c1452d9f1e5dd3db856692eb044d59d07eaed970d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/windows-supervisor-tree.cjs",
+      "sha256": "1782494009408991f213008ed23b2ce0825a254f3521787ff6958a931f8b3b94"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Integration/FixtureServerProcessIntegrationTests.cs",
+      "sha256": "0f7c4dd17186f6c145b2054278b14b570cf926a867f5c922922eed7018305664"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Integration/WindowsSupervisorNativeTests.cs",
+      "sha256": "5614ad403d2963cfec5588d26909ae3e1e43b9cac4d2c75febd151742fdf2fe0"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Commands/ValidateCommandTests.cs",
+      "sha256": "98dfbdb1390ef8deefc2dfc39e5c93fb71d565d5f3736aaf2e523ad8fd2b6b17"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Http/McpHttpClientCapabilitiesTests.cs",
+      "sha256": "6987e26eed2c5a07d59786b36a2586e0adf46dcd602f9acc3d9740e872e3c1c9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Http/McpHttpClientInitializeTests.cs",
+      "sha256": "526d6a81b41e93d0c84c2fc5b34f7b7902568486fcb2603d708a53ef5cb2d374"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/McpValidatorServiceUnitTests.cs",
+      "sha256": "b57b3258053b8e3ccb442367b3f2aa62921d0096e9194a9b1249b30312dd0e8b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/RuleCalibrationEvaluatorTests.cs",
+      "sha256": "3ddd2ac7617883870344caae285ac11c3cdc47a5c83e82f80f5464517cbf1f38"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/ToolAiReadinessAnalyzerTests.cs",
+      "sha256": "6977460d3695842bab6bebc2098eb806c10dee075b4b34982bf8c5c400c0ca2e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/WindowsSupervisorHostTests.cs",
+      "sha256": "46039386cc98005dbe47ef3e9d3f4d62b20bd7a1ce38292cfcbc920e7fb7d403"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Utilities/BoundedArtifactReaderTests.cs",
+      "sha256": "2236f4a981cef13c9a60c559135bfb52b0c70c2bbaedb5e16b98c22f8600b65a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Utilities/WindowsJobInteropTests.cs",
+      "sha256": "6627fa2c89eea99f6d9e3f523a8c0f29a1875099c56d8def163bb88830b8b4a6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Utilities/WindowsSupervisorProtocolTests.cs",
+      "sha256": "f8ae39d545c03068e39157c6500ddd0e182811700396260c718181aa472763c4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/BaseValidatorTests.cs",
+      "sha256": "1f3b2cc3d8a82970b09b5cbd0d600a36c2f68408992255a4920036c85dc851fc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/ErrorHandlingValidatorUnitTests.cs",
+      "sha256": "982793efd8234f437841c4e0506ac451c1064ca3bb1c6bf5a00840bb010bf859"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/ProtocolComplianceValidatorUnitTests.cs",
+      "sha256": "804868a0ceabfcaca57b1837cf1edccc7afb9aca1dec5105146f6210e84ba380"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Validators/ToolValidatorComprehensiveTests.cs",
+      "sha256": "c8b0255536b49bad3259faeb674b7130c7e8fd099efa6b2b05c0cbceffa0202a"
+    },
+    {
+      "path": "SECURITY.md",
+      "sha256": "3595f03bd083a6003aafe1e099626617d66c17ea0c899842a49a8bb495c5df94"
+    },
+    {
+      "path": "docs/CalibrationMethodology.md",
+      "sha256": "3ba757ae062b2777f8663587775ffd01e46c4aa9226b97f4663c8a7f0f3a0d6a"
+    },
+    {
+      "path": "mcpval-mcp/README.md",
+      "sha256": "183a143319496d295ee110acfb6ffa3d95d91e67cf448f7571d4b39d9d3d3198"
+    },
+    {
+      "path": "mcpval-mcp/package.json",
+      "sha256": "a5fb7229bbe4397099fd8139d5ea1ad734558a9b55547e054cfb30f438cee87c"
+    },
+    {
+      "path": "mcpval-mcp/src/cli-runner.ts",
+      "sha256": "ea6dc9a20b6d6372c55b083af095f63b442d10c488ca53b4348730d76666d5a5"
+    },
+    {
+      "path": "mcpval-mcp/src/config.ts",
+      "sha256": "ba12bbcd065f681ccca3c5ce1e07b3c41b6705c88bc9446c82cdfec585d647aa"
+    },
+    {
+      "path": "mcpval-mcp/src/handlers.ts",
+      "sha256": "99026506133db3730d75e9506e8b68209fa2c7f02dc306bc2e8f8232877630dd"
+    },
+    {
+      "path": "mcpval-mcp/src/index.ts",
+      "sha256": "ac144e61ce70648ec80ce1fedc30933ba34550877d8e18be830c6846bac916b6"
+    },
+    {
+      "path": "mcpval-mcp/src/windows-supervisor.ts",
+      "sha256": "9e05d1584c9232e95f9fe686943ed12717ee7969f922224475e3ad7811cc8632"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-integration.test.ts",
+      "sha256": "6d717dfc25c360a25e4d51d2c9f461710c776cae84f2f31b351580c9d73f48b2"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-lifecycle.test.ts",
+      "sha256": "0c8937dfadc0be740f256974097fe046f78d3d3bd47b11f0e97ac9e2367dac08"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-runner.test.ts",
+      "sha256": "d3c067f273b4c24596e4e2bc9ebcd45b555f74eb51f9be0c98ef11b683a9e058"
+    },
+    {
+      "path": "mcpval-mcp/tests/windows-supervisor.test.ts",
+      "sha256": "4adc2aff19dec26d243744e995a15fb60106b63bcec57ca523bdf2e604173eb2"
+    },
+    {
+      "path": "scripts/validate-repo.sh",
+      "sha256": "6f8b5bc61687dd0ba2f98927a12448aa24ba3aeecca0cb148171afc88afc90ee"
+    },
+    {
+      "path": "scripts/verify-windows-supervision-results.ps1",
+      "sha256": "3d6e0cf069b020d9754823da6c05d4c060fd598eba804387e3fef0f04c26ebb3"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-actionlint-docker-started.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-actionlint-docker.log",
+      "sha256": "b66502e53c68fdcc89804d95015c7089aa4940a10ed4ca5f10396b93587f7927"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-calibration-reason-mutation.log",
+      "sha256": "0037cc62fafef459b97b1cdda9fcfbacd27910abc8577db40e8109d4328864e3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-final-links.log",
+      "sha256": "7c575954003bbdeb94b3e010c9f21bda9441040cd5a94d42544e664abe67dfe0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-final-repository-gate.log",
+      "sha256": "f588c23c1ebbe5728355041d8729663a1427c4598fcf5d8b67fc50f018b43f19"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/m0-post-review-repository-gate.log",
+      "sha256": "122c0aa0007e55abef3d7e840db56f5ed32fee27857a58b42950cef1424cd04f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/package-qualification/actionlint-1.7.7-verified/receipt.json",
+      "sha256": "6a0a959423e2a61463d841dd5c698849b5035ae0ddffd81f291698de44aacad5"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/package-qualification/installed-lifecycle-confirmed.log",
+      "sha256": "a350c735a16edb5780ef63eef031d539089f05ffbcf04105fad75a7e860858b5"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/package-qualification/npm-pack/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "41ded7f2fd9eae92748ce86aba31c771461e40b3b5c104eb76f44e9820b0b6f8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/package-qualification/nuget-pack/McpVal.2.0.1.nupkg",
+      "sha256": "4c1976683518d7099682ed521e9f93ab84f01982d2411d2658589c8cdc6f569b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/package-qualification/product-assembly-identity-corrected.json",
+      "sha256": "500d042167e56813a7bb513ff5c6848a37b63ecdf47ebfd912ed8f87a6aa274f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/wn-current-11-mutation.log",
+      "sha256": "87523a7550279c5160ca59548f56105ea85cd18a8fdb2a318743b6c0e3cbd11c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/applicability-failure-after.trx",
+      "sha256": "c949deed0b551c5976cdbb64c113d8fa214d4d1d0ee16b118fad17ef51e53610"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/applicability-failure-before.trx",
+      "sha256": "37b99ecd82d31fd9bea4b0a0bd20c6ae45bf93dc974b065a8a976cbb3d33fefb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar-http-after.trx",
+      "sha256": "eb442e7b9013d113d6b4b5cabea301f492ad4d77ab9cf486a890404cb707b5a8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar-http-before.trx",
+      "sha256": "c51a2a811504b817fcfed04607815bd9addac446e7eb36d177f259cdfc22dec1"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar-http-defaults-after.trx",
+      "sha256": "20b471918d1d7f38ddaec7ac62b10014ab0b207a752486c09ffbc5317db6e502"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar-http-defaults-before.trx",
+      "sha256": "0292a520e49550629ca095d1a6346d83b4172f2033e67e606d15ca8cc1ae1de9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar02-after.trx",
+      "sha256": "b1638fb52032848f83ae8a19f0efd913512b6e14a18bc00e731060cccb453a8b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar03-response-after.trx",
+      "sha256": "1c462d470f66f93c8eb03351e225ba270d48220a576b4f85da592adc86a46531"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar03-response-before.trx",
+      "sha256": "7ca67435efe45d1c4e200898707852c9d74a63b0e88369245cd5ff1fe813b5ac"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar06-after.trx",
+      "sha256": "e2d045fc5d231fa4c69fbcec61ef60e96e8177f303934b72b9dac760c01d1c88"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar06-before.trx",
+      "sha256": "a881a31b6411f9a7c3f1d823914738fbdcd478cec11afca8fbae88dabecd7dee"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar06-canonical-after.trx",
+      "sha256": "6d53699212bcca98061185c4d634ec72c5e5b36ba905bba8089995cb42278dff"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar07-after.trx",
+      "sha256": "3e75468f4433ae0e6f1f14dabd03b047242ba83e9ba69825d95ee95f09fd0b46"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar07-before.trx",
+      "sha256": "aa71daec5e156a69957cb399cb403762998ed51042838d0edcac7019b925ffa2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar07-report-schedule.trx",
+      "sha256": "9d2469a14871714edcf6176c232f3841b855989a8bdfbbe6b051f4cc31f2968b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar07-summary-bootstrap-after.trx",
+      "sha256": "4bf4f1d1d5410bcd984df743e75739a5fbc556186715ae4b31d288e1a27d4555"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar07-summary-bootstrap-before.trx",
+      "sha256": "eeae21d2d38767438c767ad28723c48645f7484cc1ba43b7e0bbe11d9ad41ade"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar08-after.trx",
+      "sha256": "8bd43c8d9154ad27390ba3a3e981475d72616b818c323074f8bbba5b3b5c76d4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/ar08-before.trx",
+      "sha256": "6055621edd0071bf744a7418130db25f16dde2ad5a75efb0bc4dfef83f8f82fc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/calibration-determinism-final.trx",
+      "sha256": "c7fe3eb10f1cf58389fb793fc5b36366fd7525bda1a615beacb6ae48f6797b9c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/calibration-reason-counts.trx",
+      "sha256": "7d057e8019e337e9186c32a94428409f700806f6394de1d35a8539179caea46e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/error-mixed-qualification.trx",
+      "sha256": "645c4a54b63c4c5a6744730722681abfdb4bfc8d2a7b167fbd61b44b13f873e8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/extension-partial-after.trx",
+      "sha256": "357dc3b25b040a8dfb3de3c4f263af7f86b614aca74dd66312842a97e7a87b87"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/extension-partial-before.trx",
+      "sha256": "c3301d6bd3b96fc9e94ff72f93c62da5ef9a75b4d1dea8be0a82a03d57ef9982"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/fixture-audit-regression.trx",
+      "sha256": "23fb745d70e4540efe1c41b2c202a5922937ba8df2431553b25c16abcfcabe6f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/protocol-partial-after.trx",
+      "sha256": "3df092014dabde79931a77dec7080c22ddc8f7e2da86f53a93317f0df16d32f3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/protocol-partial-before.trx",
+      "sha256": "9cbcd22fc0447a1e1a8b91e1d8f29d07591f2323f43516336026c46da620e089"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/review3-after.trx",
+      "sha256": "78f5cf0d57b7b8602455ce6d6abe70e27e82a31687f55266c471f8ef7c8e351a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/review3-before.trx",
+      "sha256": "a4ff8e4bd24373422ff90e8be5c7ae9a39cbe1a986a1936aa73f437fa9ce4e7e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/selective-probes-after.trx",
+      "sha256": "8072137b4b3d2616b7d298568ff2a64becc5d10b1ab1efad23ca734b495968e9"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/selective-probes-before.trx",
+      "sha256": "152fd0dafe5249db9a679d985b2b8c1a4f050fd7cd1dfc856dc9e2ff68a60291"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/selective-probes-transport-regression.trx",
+      "sha256": "f6ceeee4255aa3e9f96794dfc1c4d7964581726860cefab0350235aa239da854"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/selective-probes-wire-matrix.trx",
+      "sha256": "d220f6b1283888cfbfac0c853fbf5b1329874aa8d72d12c5d03fc301e83b519f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/session-snapshot-after.trx",
+      "sha256": "4a8aeaf8622b4d2f16b399f42d3417ecac7d98d4d0eb1cbb00eb5e9b754d26db"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/session-snapshot-before.trx",
+      "sha256": "dccbf7eea00cce959b7fc9f59b7cb74433fbfafc16f48ba022b558a34923fd2a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/stryker-m0-reason-counts/reports/mutation-report.json",
+      "sha256": "a1729ab99d1d25552fca1305010f2d51b6f2f9f638817abb4522538878d9c8be"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/stryker-wn-current/reports/mutation-report.json",
+      "sha256": "1f2c52f1286814a2a8266049995ce584dfd3a2d2f61391139289e31cb9ab5f66"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/tool-execution-after.trx",
+      "sha256": "7cecee8ed2a464bf41fe217de962e6dc7b21323e5dacd39bb3026faa64f3b290"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/tool-execution-before.trx",
+      "sha256": "af3dd3c719e6a77a533d0154eb4776af8de47599b7b9dcc3e0bb9512fead45b1"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/uncertain-retry-after.trx",
+      "sha256": "fbdcc662b56de769ac27faed82aad2ce7ddf982835644a2db58540172fc586f3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/uncertain-retry-before.trx",
+      "sha256": "58a520b36703393fb53fb743d8e838db8f6c6573aeffc8a4134a0dd6be443b4d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-admission-race-after.trx",
+      "sha256": "d69440c6a393c9098a96eda0e3ca6e4b04e1197e7cc1ec5a0db95023f1886337"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-admission-race-before.trx",
+      "sha256": "773fccd4b125dd97d50481e6bb918115fce87a19345879b8d56030536eeee6a6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-host-admission-after.trx",
+      "sha256": "cbb2c2ac4529c05b265f6f0c93a4642cbb84df18a7d163de9ae3c22d18b39506"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-host-admission-before.trx",
+      "sha256": "2c55973de830da32ba56abf5f2b24e2c5a6318610ca772fb72c3174782c174f4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-host-io-drain.trx",
+      "sha256": "0148a31121228b685f1bd2bbc4f25eb4ee80f97251b9fd417806ef28b780cd8f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-host-ready-handshake.trx",
+      "sha256": "5932ddec73d5075f8b318bea5a24c3aea53a0eb589f374309c3c5fdfafbf42bf"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-host-resume-admission.trx",
+      "sha256": "c8d66a4a0a20b1738b31ee42e8749e263b9816e19b6046d54e42b87b18cde5ef"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-parent-decode-after.trx",
+      "sha256": "87e1c46b274d9d7c595c2831d6a58716a2a42b30560bba91bfda3d706a86b7fa"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-parent-decode-before.trx",
+      "sha256": "ef05101fd1229d4f87602c85332258638aa8022128481b0b2104934a4e0f07a1"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervision-focused.trx",
+      "sha256": "c861e1a86ce971b990ba8e9cd9f1dfc01728c9acd6040b5843fc755aff2d4b99"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervision-portable-host.trx",
+      "sha256": "1c53335cd8bbef2ed77c9c2df0f3424561919bdd494acb174a3eb0c14b224aa3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervision-portable-initial.trx",
+      "sha256": "472ca6b9d611439b11b0c079d346b815cfdf534b4089958d6eaf2d1972c10ce5"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervision-portable-owner.trx",
+      "sha256": "5f7954c30b8ff183e760a2f226f7ecff21918d1a297362085846a2cd51824ebc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervision-portable.trx",
+      "sha256": "d6e3cc0602a27c079e3c95f31c14f091c7a571393512041fd7d4118028a2c9e6"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervisor-host-faults.trx",
+      "sha256": "db4cae1b2f9b40dbb22fa8115703dc1a33b629372523729887cf49f59335108b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervisor-host-initial.trx",
+      "sha256": "f23fd3f48afa841f731690f6e06dbafac2c4034f531b337772a9f46c4953a6cb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervisor-portable-current.trx",
+      "sha256": "458fdcb1173d818a4d445f1a1b667957c968f0011d1aeea18554d5768e36f03b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/windows-supervisor-protocol.trx",
+      "sha256": "d7dbb336df8a0adcacb94776af617cc35be015ba4c199941cff01237b9f9b857"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1222,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperUnit": 150,
+    "actualCliLifecycle": 2,
+    "nodeCompanions": 3,
+    "installedLifecycle": 2,
+    "mutationPercent": 92.11,
+    "mutationSourceScopes": [
+      {
+        "file": "Mcp.Benchmark.Core/Services/AssuranceAssessmentEngine.cs",
+        "sourceMatches": true,
+        "counts": {
+          "Ignored": 12,
+          "Survived": 13,
+          "Killed": 195,
+          "CompileError": 22
+        }
+      },
+      {
+        "file": "Mcp.Benchmark.Core/Services/ProviderHarnessEvaluator.cs",
+        "sourceMatches": true,
+        "counts": {
+          "Ignored": 23,
+          "Killed": 196,
+          "Survived": 16,
+          "NoCoverage": 3,
+          "CompileError": 30
+        }
+      },
+      {
+        "file": "Mcp.Benchmark.Core/Services/RuleCalibrationEvaluator.cs",
+        "sourceMatches": true,
+        "counts": {
+          "Ignored": 1,
+          "Killed": 64,
+          "CompileError": 14,
+          "Survived": 7
+        }
+      }
+    ],
+    "actionlintVersion": "1.7.7",
+    "actionlintExit": 0,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCritical": 0,
+    "npmVulnerabilities": 0,
+    "focusedCalibrationMutation": {
+      "percent": 98.59,
+      "exitCode": 0,
+      "previousArithmeticSurvivorsKilled": 6,
+      "remainingSurvivor": "Ordinal versus reverse-ordinal case representative remains deterministic under the case-insensitive transport identity contract"
+    },
+    "pinnedDockerActionlint": {
+      "image": "rhysd/actionlint:1.7.7@sha256:887a259a5a534f3c4f36cb02dca341673c6089431057242cdc931e9f133147e9",
+      "exitCode": 0,
+      "previousAttempt": "Blocked by stopped daemon; user explicitly authorized Docker Desktop startup before successful execution"
+    },
+    "documentation": {
+      "markdownFiles": 45,
+      "markdownExit": 0,
+      "linksTotal": 126,
+      "linksOk": 116,
+      "linksExcluded": 5,
+      "linksRedirected": 5,
+      "linksErrors": 0,
+      "linksExit": 0
+    }
+  },
+  "acceptedScope": [
+    "AR-01 through AR-08 reproduced defect repairs under recorded local tests",
+    "POSIX wrapper lifecycle and actual installed-package Safe fixture path",
+    "Portable Windows supervisor protocol/admission/interop contract tests"
+  ],
+  "notAccepted": [
+    "Native Windows Job Object behavior:23 cases require actual Windows CI",
+    "Linux-native lifecycle and multi-RID installation qualification",
+    "Remaining S1-S8 contracts listed in tracker",
+    "Original customer incident reconciliation and human/enterprise qualification"
+  ],
+  "notes": [
+    "No push or publication",
+    "Mutation score applies only to its three named evaluators",
+    "Taskkill and PID-tree cleanup are not accepted Windows fallbacks",
+    "Raw logs may contain workstation paths and are not public support bundles",
+    "Earlier incorrect pack/lint summaries are superseded only by separately retained corrected evidence"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

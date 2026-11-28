@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MCP Validator Generated Command Manifest",
+  "type": "object",
+  "required": ["documentType", "documentSchemaVersion", "precedence", "validation", "rootOptions", "commands"],
+  "properties": {
+    "documentType": { "const": "mcpval.command-manifest" },
+    "documentSchemaVersion": { "const": "1.0.0" },
+    "precedence": { "type": "string" },
+    "validation": { "type": "string" },
+    "rootOptions": { "type": "array", "items": { "$ref": "#/properties/commands/items/properties/options/items" } },
+    "commands": {
+      "type": "array",
+      "items": {
+        "type": "object", "required": ["name", "description", "options"],
+        "properties": {
+          "name": { "type": "string" },
+          "description": { "type": ["string", "null"] },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "aliases", "type", "required", "allowMultipleArgumentsPerToken", "arity", "hasCommandDefault", "defaultValue", "secrecy", "description"],
+              "properties": {
+                "name": { "type": "string" },
+                "aliases": { "type": "array", "items": { "type": "string" } },
+                "type": { "type": ["string", "null"] },
+                "required": { "type": "boolean" },
+                "allowMultipleArgumentsPerToken": { "type": "boolean" },
+                "arity": {
+                  "type": "object", "additionalProperties": false, "required": ["minimum", "maximum"],
+                  "properties": { "minimum": { "type": "integer", "minimum": 0 }, "maximum": { "type": "integer", "minimum": 0 } }
+                },
+                "hasCommandDefault": { "type": "boolean" },
+                "defaultValue": {},
+                "secrecy": { "enum": ["operator-input", "transient-secret"] },
+                "description": { "type": ["string", "null"] }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

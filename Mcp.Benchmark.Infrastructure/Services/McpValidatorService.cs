@@ -7,6 +7,7 @@ using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
+using Mcp.Benchmark.Core.Utilities;
 using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Infrastructure.Scenarios;
 using Mcp.Benchmark.Infrastructure.Utilities;
@@ -37,6 +38,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     private readonly IHealthCheckService _healthCheckService;
     private readonly ITelemetryService _telemetryService;
     private readonly ILogger<McpValidatorService> _logger;
+    private readonly IValidatorProcessResourceSampler _processResourceSampler;
+    private readonly TimeProvider _timeProvider;
+    private static readonly IOfficialConformanceEvidenceImporter ConformanceImporter = new OfficialConformanceEvidenceImporter();
 
     /// <summary>
     /// Initializes a new instance of the McpValidatorService class.
@@ -58,7 +62,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         IAggregateScoringStrategy scoringStrategy,
         IHealthCheckService healthCheckService,
         ITelemetryService telemetryService,
-        ILogger<McpValidatorService> logger)
+        ILogger<McpValidatorService> logger,
+        IValidatorProcessResourceSampler? processResourceSampler = null,
+        TimeProvider? timeProvider = null)
     {
         _protocolValidator = protocolValidator ?? throw new ArgumentNullException(nameof(protocolValidator));
         _toolValidator = toolValidator ?? throw new ArgumentNullException(nameof(toolValidator));
@@ -77,6 +83,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         _healthCheckService = healthCheckService ?? throw new ArgumentNullException(nameof(healthCheckService));
         _telemetryService = telemetryService ?? throw new ArgumentNullException(nameof(telemetryService));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _processResourceSampler = processResourceSampler ?? new ValidatorProcessResourceSampler();
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     /// <summary>
@@ -94,6 +102,41 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     {
         ArgumentNullException.ThrowIfNull(request);
         var configuration = request.CreateConfiguration();
+        cancellationToken.ThrowIfCancellationRequested();
+        var globalTimeout = configuration.TestExecution?.GlobalTimeoutMinutes ?? new TestExecutionConfig().GlobalTimeoutMinutes;
+        if (globalTimeout <= 0 || globalTimeout > ExecutionPolicyDefaults.MaximumTimeoutSeconds / 60)
+            throw new ValidationSessionException("GlobalTimeoutMinutes must be a positive, supported total-run deadline.", ValidationStatus.Failed);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(globalTimeout), _timeProvider);
+        using var runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = runCancellation.Token;
+        using var catalogBudget = ValidationCatalogBudget.BeginRun(request.OperationPolicy.MaxCatalogPayloadCharacters);
+        var admissionErrors = ComprehensiveAssessmentRequirements.GetPreflightErrors(configuration, request.ConformanceEvidenceJson != null);
+        if (admissionErrors.Count > 0)
+            throw new ValidationSessionException(string.Join(" ", admissionErrors), ValidationStatus.Failed);
+        OfficialConformanceImportResult? importedConformance = null;
+        if (request.ConformanceEvidenceJson != null)
+        {
+            importedConformance = ConformanceImporter.Import(request.ConformanceEvidenceJson, new OfficialConformanceImportContext
+            {
+                ExpectedTargetIdentitySha256 = request.TargetIdentitySha256,
+                ExpectedProtocolVersion = AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId
+                    ? configuration.Server.ProtocolVersion : null
+            });
+            if (AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId &&
+                importedConformance.Assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified)
+                throw new ValidationSessionException("Comprehensive assessment requires verified conformance evidence.", ValidationStatus.Failed);
+        }
+        ControlledIdentityScenarioPack? identityBaselinePack = null;
+        if (AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile).ProfileId == AssuranceProfileCatalog.Comprehensive.ProfileId || request.IdentityControls != null)
+        {
+            if (request.IdentityControls == null)
+                throw new ValidationSessionException("Comprehensive assessment requires the selected signed identity security baseline.", ValidationStatus.Failed);
+            var assessment = ControlledIdentitySecurityBaseline.VerifyRequirement(request.IdentityControls, request.RequestId,
+                request.TargetIdentitySha256, DateTimeOffset.UtcNow, cancellationToken);
+            if (!ControlledIdentitySecurityBaseline.HasCompleteSelection(request.IdentityControls))
+                throw new ValidationSessionException("The identity security baseline does not select all required control cases.", ValidationStatus.Failed);
+            identityBaselinePack = new ControlledIdentityScenarioPack(assessment, request.IdentityControls.Admission);
+        }
         ConfigureTransportPolicy(configuration.Server, configuration.Execution, force: true);
         var safeTarget = configuration.Server.CloneWithoutSecrets().Endpoint ?? "Unknown";
         _logger.LogInformation("Starting comprehensive validation for target: {Target}", safeTarget);
@@ -109,15 +152,92 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             ProtocolVersion = configuration.Server.ProtocolVersion
         };
         result.ValidationId = request.RequestId;
+        result.Run.TargetIdentitySha256 = request.TargetIdentitySha256;
+        result.Run.ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe;
+        var categoryEvidenceProjected = false;
+        var scenarioEvidenceProjected = false;
+        IReadOnlyList<ScenarioPackExecutionPlan> scenarioPlans = [];
+        var assuranceEvaluationAttempted = false;
+        var summaryCalculationAttempted = false;
+        var processResourcesAtStart = CaptureProcessResources();
         var runStopwatch = System.Diagnostics.Stopwatch.StartNew();
         using var runTelemetry = ValidationObservability.BeginRun(
             result.ValidationId,
             configuration.Execution?.MaxRequests ?? ExecutionPolicyDefaults.DefaultMaxRequests);
 
+        var conformanceAttached = false;
+        var conformanceBound = false;
+        void AttachConformance()
+        {
+            if (conformanceAttached || !conformanceBound || importedConformance == null) return;
+            conformanceAttached = true;
+            var reconciliation = OfficialConformanceReconciler.Reconcile(importedConformance.Assessment, AssuranceClaimProjector.Project(result));
+            importedConformance.Assessment.Conflicts.AddRange(reconciliation.Conflicts);
+            importedConformance.Assessment.Decisions.AddRange(reconciliation.Decisions);
+            if (reconciliation.Conflicts.Count > 0) importedConformance.Assessment.VerificationStatus = OfficialConformanceVerificationStatus.Conflict;
+            result.Assessments.OfficialConformance = importedConformance.Assessment;
+            result.Evidence.Coverage.AddRange(importedConformance.Coverage);
+            result.Evidence.Observations.AddRange(importedConformance.Observations);
+        }
+
         ValidationResult CompleteRun()
         {
+            try
+            {
+                if (!categoryEvidenceProjected && configuration.Validation?.Categories is { } terminalCategories)
+                {
+                    PopulateProtocolDetails(result);
+                    PopulateAssessmentLayers(result);
+                    PopulateCoverage(result, terminalCategories, result.OverallStatus);
+                    categoryEvidenceProjected = true;
+                }
+                if (!scenarioEvidenceProjected)
+                {
+                    FinalizeScenarioPlans(result, scenarioPlans, cancellationToken.IsCancellationRequested);
+                    scenarioEvidenceProjected = true;
+                }
+                if (!assuranceEvaluationAttempted)
+                {
+                    if (!summaryCalculationAttempted)
+                    {
+                        summaryCalculationAttempted = true;
+                        var terminalStatus = result.OverallStatus;
+                        try { CalculateOverallResults(result); }
+                        finally { result.OverallStatus = terminalStatus; }
+                    }
+                    assuranceEvaluationAttempted = true;
+                    AttachConformance();
+                    result.Assurance = AssuranceAssessmentEngine.Evaluate(
+                        result,
+                        AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
+                        new AssuranceEvaluationContext
+                        {
+                            ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe,
+                            RequiredIdentityControls = request.IdentityControls,
+                            RequiredExtensionIds = configuration.Validation?.Extensions ?? []
+                        });
+                }
+            }
+            catch (Exception finalizationException)
+            {
+                result.OverallStatus = ValidationStatus.Error;
+                result.CriticalErrors.Add("Validation framework error: retained evidence could not be fully interpreted.");
+                _logger.LogError("Partial evidence finalization failed with {ExceptionType}", finalizationException.GetType().Name);
+            }
+            var processResourcesAtEnd = CaptureProcessResources();
             runStopwatch.Stop();
+            result.Summary.CriticalIssues = result.CriticalErrors.Count;
             result.Run.OperationalMetrics = runTelemetry.Complete(runStopwatch.Elapsed.TotalMilliseconds);
+            result.Run.OperationalMetrics.CatalogPayloadCharactersReserved = catalogBudget.Reserved;
+            result.Run.OperationalMetrics.CatalogPayloadCharacterLimit = catalogBudget.Limit;
+            var processorTimeDelta = processResourcesAtStart != null && processResourcesAtEnd != null &&
+                processResourcesAtStart.TotalProcessorTime >= TimeSpan.Zero &&
+                processResourcesAtEnd.TotalProcessorTime >= processResourcesAtStart.TotalProcessorTime
+                    ? (double?)(processResourcesAtEnd.TotalProcessorTime - processResourcesAtStart.TotalProcessorTime).TotalMilliseconds : null;
+            result.Run.OperationalMetrics.ValidatorProcessResources = new ValidatorProcessResourceMetrics(
+                processorTimeDelta,
+                processResourcesAtStart?.WorkingSetBytes > 0 ? processResourcesAtStart.WorkingSetBytes : null,
+                processResourcesAtEnd?.WorkingSetBytes > 0 ? processResourcesAtEnd.WorkingSetBytes : null);
             result.Run.OperationalMetrics.EvidenceCoverageRatio = result.Assurance?.EvidenceSummary.EvidenceCoverageRatio
                 ?? ValidationEvidenceSummarizer.Summarize(result.Evidence.Coverage).EvidenceCoverageRatio;
             return result;
@@ -146,6 +266,12 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             });
 
             result.OverallStatus = vex.Status;
+            result.Run.TerminationOutcome = vex.Status switch
+            {
+                ValidationStatus.Cancelled => ValidationOutcome.Cancelled,
+                ValidationStatus.Error => ValidationOutcome.Error,
+                _ => ValidationOutcome.Inconclusive
+            };
             result.CriticalErrors.Add(vex.Message);
             result.EndTime = DateTime.UtcNow;
             return CompleteRun();
@@ -166,56 +292,102 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             _telemetryService.TrackException(ex);
             return CompleteRun();
         }
-
-        // Replace the mutable server config reference with the effective (cloned) instance
-        configuration.Server = session.EffectiveServer;
-        result.ServerConfig = session.EffectiveServer;
-        result.ProtocolVersion = session.ProtocolVersion ?? session.EffectiveServer.ProtocolVersion;
-        result.InitializationHandshake = session.InitializationHandshake;
-        result.ModernDiscovery = session.ModernDiscovery;
-        result.BootstrapHealth = session.BootstrapHealth;
-        result.ServerProfile = session.ServerProfile;
-        result.ServerProfileSource = session.ServerProfileSource;
-
-        var effectiveConcurrency = ValidationCalibration.GetFunctionalProbeConcurrency(session.EffectiveServer, requestedConcurrency);
-        if (effectiveConcurrency != calibratedConcurrency)
+        catch (Exception bootstrapException)
         {
-            _httpClient.SetConcurrencyLimit(effectiveConcurrency);
-        }
-
-        if (session.CapabilitySnapshot != null)
-        {
-            result.CapabilitySnapshot = session.CapabilitySnapshot;
-            PropagateCapabilitySnapshot(configuration, session.CapabilitySnapshot);
-        }
-
-        var selectedClientProfiles = configuration.ClientProfiles?.Profiles?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray()
-            ?? Array.Empty<string>();
-        var selectedExtensions = configuration.Validation?.Extensions ?? new List<string>();
-        var applicabilityContext = selectedExtensions.Count == 0
-            ? _applicabilityResolver.Build(session, configuration, selectedClientProfiles)
-            : _applicabilityResolver.Build(session, configuration, selectedClientProfiles, selectedExtensions);
-        result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
-        result.Run.ApplicabilityContext = applicabilityContext;
-        PopulateAppliedPacks(result, applicabilityContext);
-
-        configuration.Validation ??= new ValidationConfig();
-        configuration.Validation.Categories ??= new ValidationScenarios();
-        var categories = configuration.Validation.Categories;
-        categories.ProtocolCompliance.ModernDiscovery = session.ModernDiscovery?.Payload;
-
-        if (session.AuthDiscovery != null)
-        {
-            categories.ToolTesting.PreDiscoveredAuth = session.AuthDiscovery;
-        }
-
-        foreach (var log in session.SessionLogs)
-        {
-            result.ExecutionLogs.Add(log);
+            result.OverallStatus = ValidationStatus.Error;
+            result.EndTime = DateTime.UtcNow;
+            result.CriticalErrors.Add("Validation framework error: session bootstrap failed.");
+            _logger.LogError("Validation bootstrap failed with {ExceptionType}", bootstrapException.GetType().Name);
+            _telemetryService.TrackEvent("ValidationSessionFailed");
+            return CompleteRun();
         }
 
         try
         {
+            // Replace the mutable server config reference with the effective (cloned) instance
+            configuration.Server = session.EffectiveServer;
+            result.ServerConfig = session.EffectiveServer;
+            result.ProtocolVersion = session.ProtocolVersion ?? session.EffectiveServer.ProtocolVersion;
+            result.InitializationHandshake = session.InitializationHandshake;
+            result.ModernDiscovery = session.ModernDiscovery;
+            result.BootstrapHealth = session.BootstrapHealth;
+            result.ServerProfile = session.ServerProfile;
+            result.ServerProfileSource = session.ServerProfileSource;
+            if (importedConformance != null && importedConformance.Assessment.Target.ProtocolVersion != result.ProtocolVersion)
+            {
+                importedConformance = null;
+                result.Run.TerminationOutcome = ValidationOutcome.Inconclusive;
+                result.CriticalErrors.Add("Admitted conformance evidence does not match the negotiated protocol; active validation was not started.");
+                result.EndTime = DateTime.UtcNow;
+                return CompleteRun();
+            }
+
+            conformanceBound = importedConformance != null;
+            var effectiveConcurrency = ValidationCalibration.GetFunctionalProbeConcurrency(session.EffectiveServer, requestedConcurrency);
+            if (effectiveConcurrency != calibratedConcurrency)
+            {
+                _httpClient.SetConcurrencyLimit(effectiveConcurrency);
+            }
+
+            if (session.CapabilitySnapshot != null)
+            {
+                result.CapabilitySnapshot = session.CapabilitySnapshot;
+                PropagateCapabilitySnapshot(configuration, session.CapabilitySnapshot);
+            }
+
+            var selectedClientProfiles = configuration.ClientProfiles?.Profiles?.Where(value => !string.IsNullOrWhiteSpace(value)).ToArray()
+                ?? Array.Empty<string>();
+            var selectedExtensions = configuration.Validation?.Extensions ?? new List<string>();
+            var applicabilityContext = selectedExtensions.Count == 0
+                ? _applicabilityResolver.Build(session, configuration, selectedClientProfiles)
+                : _applicabilityResolver.Build(session, configuration, selectedClientProfiles, selectedExtensions);
+            result.Run.SchemaVersion = applicabilityContext.SchemaVersion;
+            result.Run.ApplicabilityContext = applicabilityContext;
+            PopulateAppliedPacks(result, applicabilityContext);
+            var resolvedScenarioPacks = _scenarioPackRegistry.Resolve(applicabilityContext)
+                .Concat(identityBaselinePack == null ? [] : new IValidationScenarioPack[] { identityBaselinePack }).ToArray();
+            scenarioPlans = resolvedScenarioPacks.Select(pack => new ScenarioPackExecutionPlan(pack.Descriptor)).ToArray();
+            var planningFailed = false;
+            var plannedScenarioIdentities = new HashSet<(string Layer, string Scope)>();
+            for (var packIndex = 0; packIndex < resolvedScenarioPacks.Length; packIndex++)
+            {
+                try
+                {
+                    foreach (var scenario in resolvedScenarioPacks[packIndex].GetScenarios())
+                    {
+                        if (scenario?.Descriptor is not { } descriptor)
+                            throw new InvalidOperationException("Scenario planning returned an invalid descriptor.");
+                        if (string.IsNullOrWhiteSpace(descriptor.Key.Value) || string.IsNullOrWhiteSpace(descriptor.LayerKey) ||
+                            !plannedScenarioIdentities.Add(ScenarioCoverageIdentity(descriptor.LayerKey, descriptor.Key.Value)))
+                            throw new InvalidOperationException("Scenario planning returned an empty or ambiguous obligation identity.");
+                        scenarioPlans[packIndex].Pending.Enqueue(new PlannedScenario(scenario, descriptor));
+                    }
+                    scenarioPlans[packIndex].Prepared = true;
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+                catch (Exception planningException)
+                {
+                    planningFailed = true;
+                    _logger.LogError("Scenario planning failed with {ExceptionType}", planningException.GetType().Name);
+                }
+            }
+            if (planningFailed) throw new InvalidOperationException("Scenario planning did not complete.");
+
+            configuration.Validation ??= new ValidationConfig();
+            configuration.Validation.Categories ??= new ValidationScenarios();
+            var categories = configuration.Validation.Categories;
+            categories.ProtocolCompliance.ModernDiscovery = session.ModernDiscovery?.Payload;
+
+            if (session.AuthDiscovery != null)
+            {
+                categories.ToolTesting.PreDiscoveredAuth = session.AuthDiscovery;
+            }
+
+            foreach (var log in session.SessionLogs)
+            {
+                result.ExecutionLogs.Add(log);
+            }
+
             _logger.LogInformation("Checking Protocol Compliance Config: {Enabled}", categories.ProtocolCompliance.TestJsonRpcCompliance);
             Func<Task<CategoryOutcome<ComplianceTestResult>?>> collectProtocol = () => categories.ProtocolCompliance.TestJsonRpcCompliance
                 ? ExecuteCategoryAsync(
@@ -253,12 +425,6 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     cancellationToken)
                 : Task.FromResult<CategoryOutcome<SecurityTestResult>?>(null);
 
-            CategoryOutcome<ComplianceTestResult>? protocolOutcome;
-            CategoryOutcome<ToolTestResult>? toolOutcome;
-            CategoryOutcome<ResourceTestResult>? resourceOutcome;
-            CategoryOutcome<PromptTestResult>? promptOutcome;
-            CategoryOutcome<SecurityTestResult>? securityOutcome;
-
             if (ShouldCollectCategoriesInParallel(configuration))
             {
                 using (ValidationObservability.MeasureStage("validation.categories"))
@@ -268,31 +434,31 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
                     var resourceTask = collectResources();
                     var promptTask = collectPrompts();
                     var securityTask = collectSecurity();
-                    await Task.WhenAll(protocolTask, toolTask, resourceTask, promptTask, securityTask);
-                    protocolOutcome = protocolTask.Result;
-                    toolOutcome = toolTask.Result;
-                    resourceOutcome = resourceTask.Result;
-                    promptOutcome = promptTask.Result;
-                    securityOutcome = securityTask.Result;
+                    try
+                    {
+                        await Task.WhenAll(protocolTask, toolTask, resourceTask, promptTask, securityTask);
+                    }
+                    finally
+                    {
+                        ApplyCompletedCategory(protocolTask, value => result.ProtocolCompliance = value, result);
+                        ApplyCompletedCategory(toolTask, value => result.ToolValidation = value, result);
+                        ApplyCompletedCategory(resourceTask, value => result.ResourceTesting = value, result);
+                        ApplyCompletedCategory(promptTask, value => result.PromptTesting = value, result);
+                        ApplyCompletedCategory(securityTask, value => result.SecurityTesting = value, result);
+                    }
                 }
             }
             else
             {
                 using (ValidationObservability.MeasureStage("validation.categories"))
                 {
-                    protocolOutcome = await collectProtocol();
-                    toolOutcome = await collectTools();
-                    resourceOutcome = await collectResources();
-                    promptOutcome = await collectPrompts();
-                    securityOutcome = await collectSecurity();
+                    ApplyCategoryOutcome(await collectProtocol(), value => result.ProtocolCompliance = value, result);
+                    ApplyCategoryOutcome(await collectTools(), value => result.ToolValidation = value, result);
+                    ApplyCategoryOutcome(await collectResources(), value => result.ResourceTesting = value, result);
+                    ApplyCategoryOutcome(await collectPrompts(), value => result.PromptTesting = value, result);
+                    ApplyCategoryOutcome(await collectSecurity(), value => result.SecurityTesting = value, result);
                 }
             }
-
-            ApplyCategoryOutcome(protocolOutcome, value => result.ProtocolCompliance = value, result);
-            ApplyCategoryOutcome(toolOutcome, value => result.ToolValidation = value, result);
-            ApplyCategoryOutcome(resourceOutcome, value => result.ResourceTesting = value, result);
-            ApplyCategoryOutcome(promptOutcome, value => result.PromptTesting = value, result);
-            ApplyCategoryOutcome(securityOutcome, value => result.SecurityTesting = value, result);
 
             if (IsErrorHandlingEnabled(categories.ErrorHandling))
             {
@@ -353,27 +519,39 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             PopulateProtocolDetails(result);
             PopulateAssessmentLayers(result);
             PopulateCoverage(result, categories);
+            categoryEvidenceProjected = true;
             using (ValidationObservability.MeasureStage("validation.scenarios"))
             {
-                await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, cancellationToken);
+                await ExecuteScenarioPacksAsync(result, applicabilityContext, configuration, scenarioPlans, cancellationToken);
+                FinalizeScenarioPlans(result, scenarioPlans, cancellationToken.IsCancellationRequested);
+                scenarioEvidenceProjected = true;
             }
 
             // Calculate overall results
             using (ValidationObservability.MeasureStage("validation.scoring"))
             {
+                summaryCalculationAttempted = true;
                 CalculateOverallResults(result);
             }
 
+            assuranceEvaluationAttempted = true;
+            AttachConformance();
             result.Assurance = AssuranceAssessmentEngine.Evaluate(
                 result,
                 AssuranceProfileCatalog.Resolve(configuration.Assurance.Profile),
                 new AssuranceEvaluationContext
                 {
-                    ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe
+                    ExecutionMode = configuration.Execution?.Mode ?? ExecutionMode.Safe,
+                    RequiredIdentityControls = request.IdentityControls,
+                    RequiredExtensionIds = configuration.Validation.Extensions
                 });
             result.OverallStatus = AssuranceAssessmentEngine.DetermineValidationStatus(
                 result.Assurance,
                 result.CriticalErrors.Count > 0);
+            result.Run.TerminationOutcome = result.CriticalErrors.Count > 0 ||
+                result.Assurance.Claims.Any(claim => claim.Outcome == AssuranceClaimOutcome.Error)
+                ? ValidationOutcome.Error
+                : ValidationOutcome.Succeeded;
 
             // Rewrite hardcoded MCP spec URLs (e.g. /specification/2025-11-25/...) to the
             // protocol version actually negotiated, when that version has an embedded
@@ -435,9 +613,9 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         {
             result.OverallStatus = ValidationStatus.Error;
             result.EndTime = DateTime.UtcNow;
-            result.CriticalErrors.Add($"Validation framework error: {ex.Message}");
-            _logger.LogError(ex, "Validation failed with critical error");
-            _telemetryService.TrackException(ex);
+            result.CriticalErrors.Add("Validation framework error: execution or evidence processing failed.");
+            _logger.LogError("Validation failed with {ExceptionType}", ex.GetType().Name);
+            _telemetryService.TrackEvent("ValidationFrameworkFailed");
             return CompleteRun();
         }
     }
@@ -461,6 +639,12 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             _logger.LogError(ex, "{CategoryName} failed", categoryName);
             return new CategoryOutcome<T>(createFailure(ex), $"{categoryName} error: {ex.Message}");
         }
+    }
+
+    private static void ApplyCompletedCategory<T>(Task<CategoryOutcome<T>?> task, Action<T> apply, ValidationResult result)
+    {
+        if (task.IsCompletedSuccessfully)
+            ApplyCategoryOutcome(task.Result, apply, result);
     }
 
     private static void ApplyCategoryOutcome<T>(
@@ -602,17 +786,27 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         });
     }
 
-    private static void PopulateCoverage(ValidationResult result, ValidationScenarios categories)
+    private ValidatorProcessResourceSnapshot? CaptureProcessResources()
+    {
+        try { return _processResourceSampler.Capture(); }
+        catch (Exception exception)
+        {
+            _logger.LogDebug("Validator process resource observation unavailable ({ExceptionType}).", exception.GetType().Name);
+            return null;
+        }
+    }
+
+    private static void PopulateCoverage(ValidationResult result, ValidationScenarios categories, ValidationStatus? terminalStatus = null)
     {
         result.Evidence.Coverage.Clear();
 
-        AddCoverage(result.Evidence.Coverage, "protocol-core", "json-rpc", categories.ProtocolCompliance.TestJsonRpcCompliance, result.ProtocolCompliance);
-        AddCoverage(result.Evidence.Coverage, "tool-surface", "tools/list", categories.ToolTesting.TestToolDiscovery, result.ToolValidation);
-        AddCoverage(result.Evidence.Coverage, "resource-surface", "resources/list", categories.ResourceTesting.TestResourceDiscovery, result.ResourceTesting);
-        AddCoverage(result.Evidence.Coverage, "prompt-surface", "prompts/list", categories.PromptTesting.TestPromptDiscovery, result.PromptTesting);
-        AddCoverage(result.Evidence.Coverage, "security-boundaries", "security-assessment", categories.SecurityTesting.TestInputValidation, result.SecurityTesting);
-        AddCoverage(result.Evidence.Coverage, "performance", "load-testing", categories.PerformanceTesting.TestConcurrentRequests, result.PerformanceTesting);
-        AddCoverage(result.Evidence.Coverage, "error-handling", "error-handling", IsErrorHandlingEnabled(categories.ErrorHandling), result.ErrorHandling);
+        AddCoverage(result.Evidence.Coverage, "protocol-core", "json-rpc", categories.ProtocolCompliance.TestJsonRpcCompliance, result.ProtocolCompliance, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "tool-surface", "tools/list", categories.ToolTesting.TestToolDiscovery, result.ToolValidation, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "resource-surface", "resources/list", categories.ResourceTesting.TestResourceDiscovery, result.ResourceTesting, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "prompt-surface", "prompts/list", categories.PromptTesting.TestPromptDiscovery, result.PromptTesting, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "security-boundaries", "security-assessment", categories.SecurityTesting.TestInputValidation, result.SecurityTesting, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "performance", "load-testing", categories.PerformanceTesting.TestConcurrentRequests, result.PerformanceTesting, terminalStatus);
+        AddCoverage(result.Evidence.Coverage, "error-handling", "error-handling", IsErrorHandlingEnabled(categories.ErrorHandling), result.ErrorHandling, terminalStatus);
     }
 
     private static void AddCoverage(
@@ -620,7 +814,8 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
         string layerId,
         string scope,
         bool enabled,
-        TestResultBase? testResult)
+        TestResultBase? testResult,
+        ValidationStatus? terminalStatus)
     {
         if (!enabled)
         {
@@ -643,11 +838,13 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             {
                 LayerId = layerId,
                 Scope = scope,
-                Status = ValidationCoverageStatus.Unavailable,
-                ObservedOutcome = ValidationOutcome.Unavailable,
-                Blocker = ValidationEvidenceBlocker.Unimplemented,
+                Status = terminalStatus == ValidationStatus.Cancelled ? ValidationCoverageStatus.Blocked : ValidationCoverageStatus.Unavailable,
+                ObservedOutcome = terminalStatus == ValidationStatus.Cancelled ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable,
+                Blocker = terminalStatus.HasValue ? ValidationEvidenceBlocker.None : ValidationEvidenceBlocker.Unimplemented,
                 Confidence = EvidenceConfidenceLevel.None,
-                Reason = "Validation category did not produce a result."
+                Reason = terminalStatus.HasValue
+                    ? "Run ended before this enabled category produced evidence."
+                    : "Validation category did not produce a result."
             });
             return;
         }
@@ -659,15 +856,39 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             testResult.Message));
     }
 
+    private sealed record PlannedScenario(IValidationScenario Scenario, ValidationScenarioDescriptor Descriptor);
+
+    private sealed record EmittedScenarioCoverage(
+        ValidationCoverageDeclaration Coverage, ICollection<ValidationCoverageDeclaration> Destination,
+        ValidationPackDescriptor Pack, ValidationScenarioDescriptor Scenario);
+
+    private static (string Layer, string Scope) ScenarioCoverageIdentity(string layer, string scope) =>
+        (layer.ToUpperInvariant(), scope.ToUpperInvariant());
+
+    private sealed class ScenarioPackExecutionPlan(ValidationPackDescriptor descriptor)
+    {
+        public ValidationPackDescriptor Descriptor { get; } = descriptor;
+        public Queue<PlannedScenario> Pending { get; } = new();
+        public bool Prepared { get; set; }
+        public bool Finalized { get; set; }
+        public List<ValidationCoverageDeclaration> ExtensionCoverage { get; } = [];
+        public List<ValidationFinding> ExtensionFindings { get; } = [];
+    }
+
     private async Task ExecuteScenarioPacksAsync(
         ValidationResult result,
         ValidationApplicabilityContext applicabilityContext,
         McpValidatorConfiguration configuration,
+        IReadOnlyList<ScenarioPackExecutionPlan> plans,
         CancellationToken cancellationToken)
     {
         result.Assessments.Scenarios.Clear();
         result.Assessments.Extensions.Clear();
         result.Evidence.Observations.Clear();
+        var reservedScopes = plans.SelectMany(plan => plan.Pending).ToDictionary(
+            scenario => ScenarioCoverageIdentity(scenario.Descriptor.LayerKey, scenario.Descriptor.Key.Value));
+        var categoryScopes = result.Evidence.Coverage.Select(item => ScenarioCoverageIdentity(item.LayerId, item.Scope)).ToHashSet();
+        var emittedScopes = new Dictionary<(string Layer, string Scope), EmittedScenarioCoverage>();
 
         var scenarioContext = new ValidationScenarioContext
         {
@@ -677,35 +898,117 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             ValidationResult = result
         };
 
-        foreach (var pack in _scenarioPackRegistry.Resolve(applicabilityContext))
+        foreach (var plan in plans)
         {
-            var extensionCoverage = new List<ValidationCoverageDeclaration>();
-            var extensionFindings = new List<ValidationFinding>();
-            foreach (var scenario in pack.GetScenarios())
+            while (plan.Pending.TryPeek(out var scenario))
             {
-                var execution = await scenario.ExecuteAsync(scenarioContext, cancellationToken);
+                cancellationToken.ThrowIfCancellationRequested();
+                var execution = await scenario.Scenario.ExecuteAsync(scenarioContext, cancellationToken);
+                if (execution?.Scenario?.Findings == null || execution.Coverage == null || execution.Observations == null ||
+                    execution.Coverage.Count == 0 ||
+                    execution.Scenario.Findings.Any(finding => finding == null) ||
+                    execution.Coverage.Any(coverage => coverage == null || !Enum.IsDefined(coverage.Status)) ||
+                    execution.Observations.Any(observation => observation == null))
+                    throw new InvalidOperationException("Scenario returned malformed evidence.");
+                var containerLane = plan.Descriptor.ExtensionId == null ? EvaluationLane.Baseline : EvaluationLane.ExtensionReadiness;
+                var expectedLane = scenario.Descriptor.Lane ?? plan.Descriptor.Lane ?? containerLane;
+                var coverageIdentities = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (!string.Equals(execution.Scenario.ScenarioId, scenario.Descriptor.Key.Value, StringComparison.Ordinal) ||
+                    !execution.Coverage.Any(coverage => string.Equals(coverage.Scope, scenario.Descriptor.Key.Value, StringComparison.Ordinal)) ||
+                    execution.Coverage.Any(coverage =>
+                        !string.Equals(coverage.LayerId, scenario.Descriptor.LayerKey, StringComparison.Ordinal) ||
+                        (coverage.Lane ?? containerLane) != expectedLane ||
+                        string.IsNullOrWhiteSpace(coverage.Scope) || !coverageIdentities.Add(coverage.Scope) ||
+                        categoryScopes.Contains(ScenarioCoverageIdentity(coverage.LayerId, coverage.Scope)) ||
+                        reservedScopes.TryGetValue(ScenarioCoverageIdentity(coverage.LayerId, coverage.Scope), out var owner) &&
+                            !ReferenceEquals(owner, scenario)))
+                    throw new InvalidOperationException("Scenario evidence does not account for its planned obligation identity and lane.");
+                var collisions = execution.Coverage.Select(item => ScenarioCoverageIdentity(item.LayerId, item.Scope))
+                    .Where(emittedScopes.ContainsKey).ToArray();
+                if (collisions.Length > 0)
+                {
+                    foreach (var identity in collisions)
+                    {
+                        var existing = emittedScopes[identity];
+                        var incoming = execution.Coverage.Single(item => ScenarioCoverageIdentity(item.LayerId, item.Scope) == identity);
+                        AddObservations(result.Evidence.Observations,
+                        [
+                            CreateCoverageConflictObservation(existing.Coverage, existing.Pack, existing.Scenario),
+                            CreateCoverageConflictObservation(incoming, plan.Descriptor, scenario.Descriptor)
+                        ]);
+                        existing.Destination.Remove(existing.Coverage);
+                        existing.Destination.Add(new ValidationCoverageDeclaration
+                        {
+                            LayerId = existing.Coverage.LayerId, Scope = existing.Coverage.Scope,
+                            Lane = existing.Coverage.Lane, Origin = existing.Coverage.Origin, ProbeContext = existing.Coverage.ProbeContext,
+                            Status = ValidationCoverageStatus.Blocked, ObservedOutcome = ValidationOutcome.Blocked,
+                            Confidence = EvidenceConfidenceLevel.None,
+                            Reason = "Multiple scenarios claimed this coverage identity; no positive evidence credit is retained."
+                        });
+                    }
+                    throw new InvalidOperationException("Scenario results contain conflicting coverage ownership.");
+                }
+                ICollection<ValidationCoverageDeclaration> destination = plan.Descriptor.ExtensionId == null
+                    ? result.Evidence.Coverage : plan.ExtensionCoverage;
+                foreach (var item in execution.Coverage)
+                    emittedScopes.Add(ScenarioCoverageIdentity(item.LayerId, item.Scope),
+                        new EmittedScenarioCoverage(item, destination, plan.Descriptor, scenario.Descriptor));
                 result.Assessments.Scenarios.Add(execution.Scenario);
-                if (pack.Descriptor.ExtensionId == null)
+                if (plan.Descriptor.ExtensionId == null)
                 {
                     AddCoverageDeclarations(result.Evidence.Coverage, execution.Coverage);
                 }
                 else
                 {
-                    extensionCoverage.AddRange(execution.Coverage);
-                    extensionFindings.AddRange(execution.Scenario.Findings);
+                    plan.ExtensionCoverage.AddRange(execution.Coverage);
+                    plan.ExtensionFindings.AddRange(execution.Scenario.Findings);
                 }
                 AddObservations(result.Evidence.Observations, execution.Observations);
-            }
-
-            if (pack.Descriptor.ExtensionId != null)
-            {
-                result.Assessments.Extensions.Add(BuildExtensionAssessment(
-                    pack.Descriptor,
-                    extensionCoverage,
-                    extensionFindings));
+                plan.Pending.Dequeue();
             }
         }
     }
+
+    private static void FinalizeScenarioPlans(ValidationResult result, IReadOnlyList<ScenarioPackExecutionPlan> plans, bool cancelled)
+    {
+        foreach (var plan in plans)
+        {
+            if (plan.Finalized) continue;
+            if (!plan.Prepared)
+            {
+                var planningGap = CreatePendingScenarioCoverage(plan.Descriptor.Key.Value, plan.Descriptor.Key.Value, cancelled,
+                    "Scenario inventory could not be completed; remaining scenario identities are unavailable.", plan.Descriptor.Lane);
+                if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [planningGap]);
+                else plan.ExtensionCoverage.Add(planningGap);
+            }
+            foreach (var pending in plan.Pending)
+            {
+                var gap = CreatePendingScenarioCoverage(pending.Descriptor.LayerKey, pending.Descriptor.Key.Value, cancelled,
+                    "Scenario execution ended before this planned scenario produced complete evidence.", pending.Descriptor.Lane ?? plan.Descriptor.Lane);
+                if (plan.Descriptor.ExtensionId == null) AddCoverageDeclarations(result.Evidence.Coverage, [gap]);
+                else plan.ExtensionCoverage.Add(gap);
+            }
+            if (plan.Descriptor.ExtensionId != null)
+            {
+                result.Assessments.Extensions.Add(BuildExtensionAssessment(
+                    plan.Descriptor,
+                    plan.ExtensionCoverage,
+                    plan.ExtensionFindings));
+            }
+                    plan.Finalized = true;
+        }
+    }
+
+    private static ValidationCoverageDeclaration CreatePendingScenarioCoverage(string layerId, string scope, bool cancelled, string reason, EvaluationLane? lane = null) => new()
+    {
+        Lane = lane,
+        LayerId = layerId,
+        Scope = scope,
+        Status = cancelled ? ValidationCoverageStatus.Blocked : ValidationCoverageStatus.Unavailable,
+        ObservedOutcome = cancelled ? ValidationOutcome.Cancelled : ValidationOutcome.Unavailable,
+        Confidence = EvidenceConfidenceLevel.None,
+        Reason = reason
+    };
 
     private static ExtensionAssessment BuildExtensionAssessment(
         ValidationPackDescriptor descriptor,
@@ -714,7 +1017,7 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
     {
         var summary = ValidationEvidenceSummarizer.Summarize(coverage);
         var hasFailure = coverage.Any(item => item.Status == ValidationCoverageStatus.Covered && item.ObservedOutcome == ValidationOutcome.Failed);
-        var hasReviewSignal = findings.Any(finding => finding.Severity >= ValidationFindingSeverity.Medium) ||
+        var hasReviewSignal = coverage.Count == 0 || findings.Any(finding => finding.Severity >= ValidationFindingSeverity.Medium) ||
             coverage.Any(ValidationEvidenceSummarizer.IsEvidenceDebt);
         var verdict = descriptor.ExtensionStage switch
         {
@@ -735,10 +1038,39 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             SpecificationSha256 = descriptor.SpecificationSha256 ?? new string('0', 64),
             Verdict = verdict,
             EvidenceSummary = summary,
+            Coverage = coverage.ToArray(),
             Findings = findings
                 .DistinctBy(finding => (finding.RuleId, finding.Component, finding.Summary))
                 .ToArray()
         };
+    }
+
+    private static ValidationObservation CreateCoverageConflictObservation(
+        ValidationCoverageDeclaration coverage, ValidationPackDescriptor pack, ValidationScenarioDescriptor scenario)
+    {
+        var observation = new ValidationObservation
+        {
+            Id = "coverage-conflict-" + CanonicalJsonDigest.ComputeObject(new
+            {
+                Pack = pack.Key.Value, Scenario = scenario.Key.Value, coverage.LayerId, coverage.Scope
+            }),
+            LayerId = coverage.LayerId, Component = "scenario-framework", ObservationKind = ValidationObservation.CoverageConflictKind,
+            ScenarioId = scenario.Key.Value, Lane = coverage.Lane, Origin = EvidenceOrigin.DeterministicAggregation,
+            ProbeContexts = coverage.ProbeContext is { } probe ? [probe] : null,
+            Metadata =
+            {
+                ["attribution"] = "validator-framework", ["creditEligible"] = "false",
+                ["packId"] = pack.Key.Value, ["packRevision"] = pack.Revision.Value,
+                ["scenarioRevision"] = scenario.Revision.Value, [ValidationObservation.CoverageScopeMetadataKey] = coverage.Scope,
+                ["returnedStatus"] = coverage.Status.ToString(), ["returnedConfidence"] = coverage.Confidence.ToString(),
+                ["returnedBlocker"] = coverage.Blocker.ToString()
+            }
+        };
+        if (coverage.ObservedOutcome is { } outcome) observation.Metadata["returnedOutcome"] = outcome.ToString();
+        if (coverage.Reason is { } reason) observation.Metadata["returnedReason"] = reason;
+        if (coverage.Lane is { } lane) observation.Metadata["returnedLane"] = lane.ToString();
+        if (coverage.Origin is { } origin) observation.Metadata["returnedOrigin"] = origin.ToString();
+        return observation;
     }
 
     private static void AddCoverageDeclarations(
@@ -1181,6 +1513,28 @@ public class McpValidatorService : IMcpValidatorService, ICorrelatedMcpValidator
             totalTests += result.ToolValidation.ToolsDiscovered;
             passedTests += result.ToolValidation.ToolsTestPassed;
             failedTests += result.ToolValidation.ToolsTestFailed;
+            var discoveredTools = result.ToolValidation.DiscoveredToolNames.ToHashSet(StringComparer.Ordinal);
+            var recordedTools = result.ToolValidation.ToolResults.Where(tool => discoveredTools.Contains(tool.ToolName)).ToArray();
+            skippedTests += recordedTools.Count(tool => tool.Status == TestStatus.Skipped);
+            authRequiredTests += recordedTools.Count(tool => tool.Status == TestStatus.AuthRequired);
+            inconclusiveTests += recordedTools.Count(tool => tool.Status == TestStatus.Inconclusive);
+        }
+
+        if (result.ResourceTesting is { } resources)
+            AddCatalogOutcomes(resources.ResourcesDiscovered, resources.ResourceResults.Select(resource => resource.Status), resources.Status);
+        if (result.PromptTesting is { } prompts)
+            AddCatalogOutcomes(prompts.PromptsDiscovered, prompts.PromptResults.Select(prompt => prompt.Status), prompts.Status);
+
+        void AddCatalogOutcomes(int discovered, IEnumerable<TestStatus> statuses, TestStatus catalogStatus)
+        {
+            var observed = statuses.ToArray();
+            if (observed.Length == 0 && discovered == 0) observed = [catalogStatus];
+            totalTests += Math.Max(discovered, observed.Length);
+            passedTests += observed.Count(status => status == TestStatus.Passed);
+            failedTests += observed.Count(status => status == TestStatus.Failed);
+            skippedTests += observed.Count(status => status == TestStatus.Skipped);
+            authRequiredTests += observed.Count(status => status == TestStatus.AuthRequired);
+            inconclusiveTests += observed.Count(status => status == TestStatus.Inconclusive);
         }
 
         // Aggregate security testing results

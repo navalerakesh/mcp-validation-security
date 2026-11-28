@@ -8,6 +8,45 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class ReportContextFormatter
 {
+    internal static string FormatClaimOutcome(AssuranceClaimOutcome outcome) => outcome switch
+    {
+        AssuranceClaimOutcome.ReviewRequired => "Review required",
+        AssuranceClaimOutcome.NotApplicable => "Not applicable",
+        _ => outcome.ToString()
+    };
+
+    internal static string FormatRunTermination(ValidationOutcome? outcome) => outcome switch
+    {
+        ValidationOutcome.Succeeded => "Execution completed; assurance is assessed separately",
+        ValidationOutcome.Cancelled => "Cancelled",
+        ValidationOutcome.Error => "Validator error",
+        ValidationOutcome.Inconclusive => "Partial execution",
+        null => "Not recorded",
+        _ => outcome.Value.ToString()
+    };
+
+    internal static string FormatMissingEligibilityExplanation(CertificateEligibilityStatus status) =>
+        status == CertificateEligibilityStatus.Eligible
+            ? "Certificate eligibility requirements for the selected profile are satisfied."
+            : "No certificate-eligibility explanation was recorded for this profile.";
+
+    internal static string FormatOperationalMetric(double? value, bool measured, string format, string unit = "") =>
+        measured && value is { } number && double.IsFinite(number) && number >= 0
+            ? number.ToString(format, CultureInfo.InvariantCulture) + (unit.Length == 0 ? string.Empty : " " + unit)
+            : "Unavailable";
+
+    internal static string FormatCatalogBudget(ValidationOperationalMetrics metrics) =>
+        !ValidationOperationalMetrics.IsValidCatalogBudget(metrics.CatalogPayloadCharactersReserved, metrics.CatalogPayloadCharacterLimit)
+            ? "Native catalog payload budget is invalid"
+            : metrics.CatalogPayloadCharacterLimit == null ? "Native catalog payload budget not recorded"
+            : FormattableString.Invariant($"{metrics.CatalogPayloadCharactersReserved}/{metrics.CatalogPayloadCharacterLimit} native catalog payload characters reserved; not whole-process memory");
+
+    internal static string FormatMetricWindow(MetricSampleWindow? window) =>
+        window is { ObservedCount: >= 0, RetainedCount: >= 0, Capacity: > 0, RejectedCount: >= 0 } &&
+        window.RetainedCount <= window.Capacity && window.DiscardedCount >= 0
+            ? FormattableString.Invariant($"Most recent {window.RetainedCount} of {window.ObservedCount} observations; {window.DiscardedCount} discarded; {window.RejectedCount} rejected")
+            : "Sample window unavailable";
+
     private const int MaxDisplayValueLength = 180;
 
     private static readonly string[] PreferredKeyOrder =
@@ -114,7 +153,7 @@ internal static class ReportContextFormatter
         return KnownLabels.TryGetValue(key, out var label) ? label : HumanizeKey(key);
     }
 
-    private static string HumanizeKey(string key)
+    internal static string HumanizeKey(string key)
     {
         var builder = new StringBuilder(key.Length + 8);
         char previous = '\0';

@@ -2,15 +2,28 @@
  * CLI runner — executes the mcpval CLI and captures structured output.
  * Single responsibility: spawn process, capture stdout/stderr, parse results.
  */
-import { execFile } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync } from "node:fs";
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
 import { config } from "./config.js";
+import { startWindowsSupervisedCli } from "./windows-supervisor.js";
 
-const execFileAsync = promisify(execFile);
+const activeExecutions = new Set<{ cancel: () => void; settled: Promise<CliResult>; cleanup: { failed: boolean } }>();
+const activeInvocations = new Set<Promise<CliResult>>();
+const unresolvedArtifactRoots = new Set<string>();
+let shuttingDown = false;
+let cleanupDegraded = false;
+
+export async function shutdownCliProcesses(): Promise<void> {
+  shuttingDown = true;
+  const executions = [...activeExecutions];
+  for (const execution of executions) execution.cancel();
+  const outcomes = await Promise.allSettled([...executions.map(execution => execution.settled), ...activeInvocations]);
+  if (executions.some(execution => execution.cleanup.failed) || outcomes.some(outcome => outcome.status === "rejected") || unresolvedArtifactRoots.size > 0)
+    throw new Error("Owned CLI process or artifact cleanup failed after all cleanup tasks drained.");
+}
 
 export interface CliResult {
   exitCode: number;
@@ -18,6 +31,7 @@ export interface CliResult {
   stderr: string;
   /** Parsed JSON result from the output directory, if available */
   resultJson?: Record<string, unknown>;
+  processCleanupConfirmed?: boolean;
 }
 
 export interface CliInvocation {
@@ -25,6 +39,109 @@ export interface CliInvocation {
   args?: string[];
   configJson?: Record<string, unknown>;
   captureResultJson?: boolean;
+  signal?: AbortSignal;
+}
+
+async function terminateOwnedTree(child: ChildProcess, abandoned: () => boolean): Promise<void> {
+  if (!child.pid) return;
+  const signalGroup = (signal: NodeJS.Signals | 0): boolean => {
+    try { process.kill(-child.pid!, signal); return true; }
+    catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ESRCH") return false;
+      throw error;
+    }
+  };
+  if (!signalGroup("SIGTERM")) return;
+  await new Promise<void>(resolve => setTimeout(resolve, config.processTerminationGraceMs));
+  signalGroup("SIGKILL");
+  while (signalGroup(0)) {
+    if (abandoned()) throw new Error("Owned process-group exit remains unconfirmed.");
+    await new Promise<void>(resolve => setTimeout(resolve, config.processExitPollMs));
+  }
+}
+
+async function executeOwnedCli(file: string, args: string[], environment: NodeJS.ProcessEnv, signal?: AbortSignal, timeoutMs: number = config.defaultTimeoutMs): Promise<CliResult> {
+  if (cleanupDegraded) return { exitCode: 70, stdout: "", stderr: "Owned CLI cleanup is unconfirmed; new launches are blocked.", processCleanupConfirmed: false };
+  if (shuttingDown || signal?.aborted) return { exitCode: 124, stdout: "", stderr: "CLI operation cancelled before launch." };
+  if (process.platform === "win32") {
+    const execution = startWindowsSupervisedCli(file, args, environment, signal, timeoutMs);
+    activeExecutions.add(execution);
+    try { return await execution.settled; }
+    finally {
+      if (execution.cleanup.failed) cleanupDegraded = true;
+      else activeExecutions.delete(execution);
+    }
+  }
+  const child = spawn(file, args, {
+    env: environment, windowsHide: true, detached: true, stdio: ["ignore", "pipe", "pipe"],
+  });
+  const stdout: Buffer[] = [];
+  const stderr: Buffer[] = [];
+  let retainedBytes = 0;
+  let termination: Promise<void> | undefined;
+  let forcedExit: number | undefined;
+  let failure: string | undefined;
+  const cleanup = { failed: false };
+  let finished = false;
+  let cleanupDeadline: ReturnType<typeof setTimeout> | undefined;
+  let finish: (code: number | null) => void = () => {};
+  const unconfirmed = () => {
+    if (finished) return;
+    cleanup.failed = true;
+    cleanupDegraded = true;
+    forcedExit = 70;
+    failure = "CLI process-tree termination could not be confirmed; operation artifacts are retained.";
+    child.stdout?.destroy();
+    child.stderr?.destroy();
+    child.unref();
+    finish(null);
+  };
+  const stop = (exitCode?: number) => {
+    if (exitCode !== undefined) forcedExit ??= exitCode;
+    if (!finished && !cleanupDeadline) cleanupDeadline = setTimeout(unconfirmed, config.processCleanupTimeoutMs);
+    termination ??= terminateOwnedTree(child, () => cleanup.failed).catch(unconfirmed);
+  };
+  const collect = (target: Buffer[], chunk: Buffer) => {
+    const remaining = Math.max(0, config.maximumCliOutputBytes - retainedBytes);
+    if (remaining > 0) target.push(Buffer.from(chunk.subarray(0, remaining)));
+    retainedBytes += Math.min(remaining, chunk.length);
+    if (chunk.length > remaining) { failure = "CLI output exceeded the configured byte limit."; stop(70); }
+  };
+  child.stdout!.on("data", (chunk: Buffer) => collect(stdout, chunk));
+  child.stderr!.on("data", (chunk: Buffer) => collect(stderr, chunk));
+  const streamFailure = () => { failure = "CLI output stream failed."; stop(70); };
+  child.stdout!.on("error", streamFailure);
+  child.stderr!.on("error", streamFailure);
+  const onAbort = () => stop(124);
+  signal?.addEventListener("abort", onAbort, { once: true });
+  if (signal?.aborted) onAbort();
+  const timeout = setTimeout(() => stop(124), timeoutMs);
+  child.once("exit", () => stop());
+  const settled = new Promise<CliResult>(resolve => {
+    child.once("error", () => { failure = "CLI process could not be started or controlled."; forcedExit = 70; });
+    finish = code => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      if (cleanupDeadline) clearTimeout(cleanupDeadline);
+      signal?.removeEventListener("abort", onAbort);
+      resolve({
+        exitCode: forcedExit ?? code ?? 70,
+        stdout: Buffer.concat(stdout).toString("utf8"),
+        stderr: failure ?? Buffer.concat(stderr).toString("utf8"),
+        processCleanupConfirmed: !cleanup.failed,
+      });
+    };
+    child.once("close", async code => {
+      stop();
+      await termination;
+      finish(code);
+    });
+  });
+  const execution = { cancel: () => stop(124), settled, cleanup };
+  activeExecutions.add(execution);
+  try { return await settled; }
+  finally { if (!cleanup.failed) activeExecutions.delete(execution); }
 }
 
 /**
@@ -55,14 +172,17 @@ export function resolveCliPath(): string {
 /**
  * Checks if the mcpval CLI is available.
  */
-export async function isCliAvailable(): Promise<boolean> {
+export async function getCliAvailability(signal?: AbortSignal): Promise<CliResult> {
   try {
     const cliPath = resolveCliPath();
-    await execFileAsync(cliPath, ["--version"], { timeout: 10_000 });
-    return true;
+    return await executeOwnedCli(cliPath, ["--version"], process.env, signal, config.cliVersionTimeoutMs);
   } catch {
-    return false;
+    return { exitCode: 70, stdout: "", stderr: "CLI availability could not be established." };
   }
+}
+
+export async function isCliAvailable(signal?: AbortSignal): Promise<boolean> {
+  return (await getCliAvailability(signal)).exitCode === 0;
 }
 
 /**
@@ -71,8 +191,8 @@ export async function isCliAvailable(): Promise<boolean> {
 export async function getCliVersion(): Promise<string> {
   try {
     const cliPath = resolveCliPath();
-    const { stdout } = await execFileAsync(cliPath, ["--version"], { timeout: 10_000 });
-    return stdout.trim();
+    const result = await executeOwnedCli(cliPath, ["--version"], process.env, undefined, config.cliVersionTimeoutMs);
+    return result.exitCode === 0 ? result.stdout.trim() : "not installed";
   } catch {
     return "not installed";
   }
@@ -83,47 +203,56 @@ export async function getCliVersion(): Promise<string> {
  * @param invocation Command-specific invocation payload
  * @param extraEnv Additional environment variables
  */
-export async function runCli(invocation: CliInvocation, extraEnv?: Record<string, string>): Promise<CliResult> {
+export function runCli(invocation: CliInvocation, extraEnv?: Record<string, string>): Promise<CliResult> {
+  const pending = runCliInvocation(invocation, extraEnv);
+  activeInvocations.add(pending);
+  return pending.finally(() => activeInvocations.delete(pending));
+}
+
+async function runCliInvocation(invocation: CliInvocation, extraEnv?: Record<string, string>): Promise<CliResult> {
+  if (cleanupDegraded) return { exitCode: 70, stdout: "", stderr: "Owned CLI cleanup is unconfirmed; new launches are blocked.", processCleanupConfirmed: false };
   const cliPath = resolveCliPath();
   const tempRoot = await mkdtemp(join(tmpdir(), "mcpval-mcp-"));
   const outputDir = join(tempRoot, "artifacts");
   const configPath = invocation.configJson ? join(tempRoot, "config.json") : undefined;
 
   const fullArgs = [invocation.command, ...(invocation.args ?? [])];
-
-  if (configPath && invocation.configJson) {
-    await writeFile(configPath, `${JSON.stringify(invocation.configJson, null, 2)}\n`, "utf-8");
-    fullArgs.push("--config", configPath);
-  }
-
-  if (invocation.captureResultJson) {
-    fullArgs.push("--output", outputDir);
-  }
+  let preserveArtifacts = false;
 
   try {
-    const { stdout, stderr } = await execFileAsync(cliPath, fullArgs, {
-      timeout: config.defaultTimeoutMs,
-      encoding: "utf-8",
-      env: { ...process.env, ...extraEnv },
-    });
+    if (configPath && invocation.configJson) {
+      await writeFile(configPath, `${JSON.stringify(invocation.configJson, null, 2)}\n`, { encoding: "utf-8", mode: 0o600 });
+      fullArgs.push("--config", configPath);
+    }
+    if (invocation.captureResultJson) fullArgs.push("--output", outputDir);
+    const execution = await executeOwnedCli(cliPath, fullArgs, { ...process.env, ...extraEnv }, invocation.signal);
 
+    preserveArtifacts = execution.processCleanupConfirmed === false;
+    const resultJson = invocation.captureResultJson && !preserveArtifacts ? await loadResultJson(outputDir) : undefined;
+    if (invocation.captureResultJson && execution.exitCode === 0 && resultJson === undefined) {
+      return { ...execution, exitCode: 70, stderr: "CLI completed without one readable committed result artifact.", resultJson };
+    }
+
+    return { ...execution, resultJson };
+  } catch {
     const resultJson = invocation.captureResultJson ? await loadResultJson(outputDir) : undefined;
 
-    return { exitCode: 0, stdout, stderr, resultJson };
-  } catch (error: unknown) {
-    const err = error as { code?: unknown; killed?: boolean; stdout?: string; stderr?: string; message?: string };
-    const resultJson = invocation.captureResultJson ? await loadResultJson(outputDir) : undefined;
-
-    // Log to stderr for debugging (STDIO safe)
-    console.error(`mcpval CLI execution failed: ${err.message ?? "unknown error"}`);
+    console.error("mcpval CLI invocation failed before completion.");
     return {
-      exitCode: normalizeCliExitCode(err),
-      stdout: err.stdout ?? "",
-      stderr: err.stderr ?? (err.message ?? "CLI execution failed"),
+      exitCode: 70,
+      stdout: "",
+      stderr: "CLI invocation failed before completion.",
       resultJson,
     };
   } finally {
-    await rm(tempRoot, { recursive: true, force: true });
+    if (!preserveArtifacts) {
+      try { await rm(tempRoot, { recursive: true, force: true }); }
+      catch {
+        unresolvedArtifactRoots.add(tempRoot);
+        cleanupDegraded = true;
+        throw new Error("Owned CLI artifact cleanup failed; artifacts are retained and further launches are blocked.");
+      }
+    }
   }
 }
 
@@ -136,14 +265,49 @@ export function normalizeCliExitCode(error: { code?: unknown; killed?: boolean }
 
 async function loadResultJson(dir: string): Promise<Record<string, unknown> | undefined> {
   try {
-    const files = await readdir(dir);
-    const resultFile = files.find((f) => f.endsWith("-result.json"));
-    if (!resultFile) return undefined;
+    const entries = await readdir(dir, { withFileTypes: true });
+    const resultFiles = entries
+      .filter(entry => entry.isFile() && !entry.name.startsWith(".") && entry.name.endsWith("-result.json"))
+      .map(entry => join(dir, entry.name));
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith("mcp-validation-")) continue;
+      const bundle = join(dir, entry.name);
+      const files = await readdir(bundle, { withFileTypes: true });
+      resultFiles.push(...files
+        .filter(file => file.isFile() && !file.name.startsWith(".") && file.name.endsWith("-result.json"))
+        .map(file => join(bundle, file.name)));
+    }
+    if (resultFiles.length !== 1) return undefined;
 
-    const content = await readFile(join(dir, resultFile), "utf-8");
-    return JSON.parse(content);
+    const file = await open(resultFiles[0], "r");
+    try {
+      const buffer = Buffer.alloc(config.maximumCliOutputBytes + 1);
+      let length = 0;
+      while (length < buffer.length) {
+        const { bytesRead } = await file.read(buffer, length, buffer.length - length, null);
+        if (bytesRead === 0) break;
+        length += bytesRead;
+      }
+      if (length > config.maximumCliOutputBytes) return undefined;
+      const content = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, length));
+      const result: unknown = JSON.parse(content);
+      if (result === null || typeof result !== "object" || Array.isArray(result)) return undefined;
+      const artifact = result as Record<string, unknown>;
+      if (artifact.documentType !== "mcpval.assurance-result" || !isCompatibleResultVersion(artifact.documentSchemaVersion) ||
+          artifact.assurance === null || typeof artifact.assurance !== "object" || Array.isArray(artifact.assurance)) return undefined;
+      return artifact;
+    } finally {
+      await file.close();
+    }
   } catch {
     return undefined;
   }
+}
+
+function isCompatibleResultVersion(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const parts = value.split(".");
+  return parts.length === 3 && (parts[0] === "2" || parts[0] === "3") && parts.every(part =>
+    part.length <= 10 && /^(0|[1-9][0-9]*)$/.test(part) && Number(part) <= 2147483647);
 }
 

@@ -8,6 +8,9 @@ namespace Mcp.Benchmark.Core.Constants;
 /// </summary>
 public static class McpSpecConstants
 {
+    public const string NameHeader = "Mcp-Name";
+    public const string ParameterHeaderPrefix = "Mcp-Param-";
+
     /// <summary>
     /// Current MCP protocol version as defined by the official specification.
     /// Reference: https://modelcontextprotocol.io/specification/basic/protocol
@@ -37,6 +40,11 @@ public static class McpSpecConstants
     /// Reference: https://modelcontextprotocol.io/specification/basic/lifecycle#initialization
     /// </summary>
     public const string InitializedNotification = "notifications/initialized";
+    public const string CancelledNotification = "notifications/cancelled";
+    public const string SessionIdHeader = "MCP-Session-Id";
+    public const string ProtocolVersionHeader = "MCP-Protocol-Version";
+    public const string MethodHeader = "Mcp-Method";
+    public const string PromptReferenceType = "ref/prompt";
 
     /// <summary>
     /// Standard MCP capability names as defined in the specification.

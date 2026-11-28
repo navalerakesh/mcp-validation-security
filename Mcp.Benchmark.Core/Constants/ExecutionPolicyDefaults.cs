@@ -12,4 +12,6 @@ public static class ExecutionPolicyDefaults
     public const int DefaultMaxResponseBytes = 1024 * 1024;
     public const int MaximumResponseBytes = 16 * 1024 * 1024;
     public const int DefaultMaxSubprocessOutputBytes = 256 * 1024;
+    public const int DefaultMaxCatalogPayloadCharacters = CatalogEnumerationLimits.MaximumPayloadCharacters;
+    public const int MaximumCatalogPayloadCharacters = 4 * CatalogEnumerationLimits.MaximumPayloadCharacters;
 }

@@ -26,8 +26,25 @@
     "certificateEligibility"
   ],
   "properties": {
+    "configurationSources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["setting", "source", "pointer", "reason"],
+        "properties": {
+          "setting": { "type": "string", "pattern": "^\\$\\.", "maxLength": 4096 },
+          "source": { "enum": ["default", "file", "profile", "commandLine", "governance"] },
+          "pointer": { "type": "string", "minLength": 1, "maxLength": 256 },
+          "replacedSource": { "enum": [null, "default", "file", "profile", "commandLine", "governance"] },
+          "reason": { "type": "string", "minLength": 1, "maxLength": 1024 }
+        },
+        "additionalProperties": false
+      }
+    },
     "documentType": { "const": "mcpval.audit-manifest" },
-    "documentSchemaVersion": { "const": "2.0.0" },
+    "documentSchemaVersion": { "enum": ["2.0.0", "2.1.0", "2.2.0", "2.3.0", "2.4.0"] },
+    "runTerminationOutcome": { "enum": [null, "succeeded", "inconclusive", "cancelled", "error"] },
+    "recommendedExitCode": { "type": ["integer", "null"], "minimum": 0 },
     "timestampUtc": { "type": "string", "format": "date-time" },
     "commandName": { "type": "string", "minLength": 1 },
     "validationId": { "type": "string", "minLength": 1 },
@@ -39,12 +56,35 @@
     "protocolEra": { "enum": ["legacy", "modern"] },
     "protocolEraSelection": { "enum": ["auto", "legacy", "modern"] },
     "executionMode": { "enum": ["safe", "standard", "elevated"] },
-    "assuranceProfile": { "enum": ["inventory", "ci", "provider"] },
+    "assuranceProfile": { "enum": ["comprehensive", "inventory", "ci", "provider"] },
     "coreConformance": { "enum": ["conformant", "nonconformant", "incomplete"] },
     "securityAssurance": { "enum": ["verified", "issuesFound", "incomplete"] },
     "operationalReadiness": { "enum": ["ready", "notReady", "incomplete"] },
     "certificateEligibility": { "enum": ["eligible", "ineligible", "reviewRequired"] },
     "maxResponseBytes": { "type": "integer", "minimum": 1 },
+    "maxCatalogPayloadCharacters": { "type": "integer", "minimum": 1, "maximum": 67108864 },
+    "globalTimeoutMinutes": { "type": ["integer", "null"], "minimum": 1, "maximum": 35791 },
+    "requestDemand": {
+      "type": ["object", "null"],
+      "required": ["stages", "enforcedAttemptLimit", "knownMinimumAttempts", "hasUnknownExpansion"],
+      "properties": {
+        "enforcedAttemptLimit": { "type": "integer", "minimum": 1 },
+        "knownMinimumAttempts": { "type": "integer", "minimum": 0 },
+        "hasUnknownExpansion": { "type": "boolean" },
+        "stages": {
+          "type": "array", "maxItems": 16,
+          "items": {
+            "type": "object", "required": ["stage", "knownMinimumAttempts", "estimatedMaximumAttempts", "basis"],
+            "properties": {
+              "stage": { "type": "string" }, "knownMinimumAttempts": { "type": "integer", "minimum": 0 },
+              "estimatedMaximumAttempts": { "type": ["integer", "null"], "minimum": 0 }, "basis": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
     "allowedOrigins": { "type": "array", "items": { "type": "string", "format": "uri" } },
     "plannedChecks": { "type": "array", "items": { "type": "string" } },
     "executedChecks": { "type": "array", "items": { "type": "string" } },

@@ -12,6 +12,7 @@ This directory contains the durable product, architecture, and contributor docum
 | [Troubleshooting.md](Troubleshooting.md) | Common operational failures and the fastest remediation path |
 | [FeatureMatrix.md](FeatureMatrix.md) | Current command surface, transport support, artifact set, and known limitations |
 | [Reporting.md](Reporting.md) | Canonical artifacts, HTML reading order, outcome semantics, offline rendering, and safe sharing |
+| [Assessment setup](../Mcp.Benchmark.CLI/README.md#choose-report-detail-and-assessment-scope-separately) | Full detail versus active/comprehensive scope, prerequisite collection and reproducible owned examples |
 | [ProtocolCoverageMatrix.md](ProtocolCoverageMatrix.md) | Exact revision/transport/feature behavioral coverage and known limits |
 | [OfficialConformanceAndExtensions.md](OfficialConformanceAndExtensions.md) | Official conformance wrapper contract plus Apps/Skills execution and evidence boundaries |
 | [AuthenticationCoverage.md](AuthenticationCoverage.md) | Credential acquisition, registration, conformance evidence, and explicit authentication limits |
@@ -33,6 +34,7 @@ This directory contains the durable product, architecture, and contributor docum
 | --- | --- |
 | [Design/Architecture.md](Design/Architecture.md) | High-level system boundaries, runtime flow, run-state diagram, and artifact model |
 | [Design/ComponentDesign.md](Design/ComponentDesign.md) | Component ownership and interaction model across projects |
+| [Design/ReportQualityStandard.md](Design/ReportQualityStandard.md) | Report evidence semantics, visual tokens, fixed layout and print acceptance contract |
 | [Design/TechnicalArchitecture.md](Design/TechnicalArchitecture.md) | Stable code map, execution lifecycle, run-state model, and extension points |
 | [Design/ForwardArchitecturePlan.md](Design/ForwardArchitecturePlan.md) | Target-state boundary plan and longer-term architecture direction |
 | [Design/ExtensionIntegrationProposal.md](Design/ExtensionIntegrationProposal.md) | Official-source assessment and gated roadmap for conformance, Apps, Skills, and Tasks integration |

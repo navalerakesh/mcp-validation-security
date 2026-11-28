@@ -36,7 +36,8 @@ RUN case "$TARGETARCH" in amd64) rid=linux-x64 ;; arm64) rid=linux-arm64 ;; *) e
 	-p:Version="$VERSION" \
 	-o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0.25-jammy-chiseled@sha256:3040f11e41ccb3eb15272ce9d873209f24d5915a8aa6b59bd61d42d468b60246 AS final
+# Canonical report formatting requires globalization data (ICU).
+FROM mcr.microsoft.com/dotnet/runtime-deps:8.0.25-jammy-chiseled-extra@sha256:ca7e499d84863de7426e5f3d0c90256b626a1b4431394d8e05bd38c8f71a0eb9 AS final
 ARG VERSION=0.0.0
 LABEL org.opencontainers.image.version="$VERSION"
 WORKDIR /app

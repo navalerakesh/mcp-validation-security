@@ -34,8 +34,11 @@ Include the following information:
 
 | Version | Supported |
 | --- | --- |
+| `3.0.x` | Current release line under preparation; public availability depends on completed publication |
 | `2.0.x` | Yes |
 | `< 2.0` | No |
+
+> **Breaking changes:** Existing users should follow the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30). This preparation does not withdraw the support listed above or claim that 3.0 packages have been published. Report suspected vulnerabilities in the current branch through the same private reporting channel.
 
 ## Safe Use Guidance
 
@@ -45,6 +48,9 @@ When using MCP Validator against third-party or production-adjacent systems:
 - Use the same dry-run-first workflow for `mcpval health-check` and `mcpval discover` when probing third-party targets.
 - Prefer `--mode safe` unless you intentionally need a broader execution surface.
 - Safe mode performs discovery and static metadata/schema analysis only. It does not invoke target tools or run malformed, attack, or load probes.
+- Explicit positive tool arguments and synthetic client replies are operator inputs, not consent to execute. They remain subject to execution policy, byte/structure limits and the original admitted schema. Keep configuration files private; saved public clones redact arguments to null, omit client-input rounds and opaque continuation state, and cannot replay that null state as empty inputs. Modern replies require exact request matching and finite explicit rounds. Sampling uses no model, elicitation performs no automatic consent, and roots cause no filesystem discovery or reads. Unplanned requests remain incomplete.
+- Select `--assurance inventory` for Safe discovery. Comprehensive execution requires the approved signed identity baseline and an independently reserved validation ID as well as official conformance evidence; report detail does not grant execution authority.
+- Baseline observer keys must be public keys chosen independently of target responses. Contracts and observations must use nonsecret aliases. Signatures bind assertions, not observer truthfulness or independence; those remain operator prerequisites. Reusing a run ID or signed envelope does not establish a new observation.
 - Use `--allow-host` to pin the outbound host set when validating remote systems.
 - Use `--allow-origin` to authorize exact scheme/host/port combinations, especially for auxiliary authorization metadata endpoints or custom ports.
 - Do not use `--mode elevated` without an explicit review and `--confirm-elevated-risk`.
@@ -53,6 +59,9 @@ When using MCP Validator against third-party or production-adjacent systems:
 - Use `--token` or `--interactive` only when the target is expected to require authentication.
 - In automation, prefer `MCPVAL_TOKEN` over `--token` so the credential is not exposed in process arguments. Never persist the variable or generated reports outside the intended secret/artifact boundary.
 - Configuration supports `authentication.tokenRef` with the `environment` provider. The local MCP adapter writes only this reference to temporary configuration and passes the value through the child environment; direct `token` remains a redacted 1.x compatibility input.
+- Runtime protocol/session/method identity must use the governed transport configuration, not ambient `HttpClient` default headers. Such defaults are rejected before dispatch; deliberate malformed headers belong only to explicitly admitted probe inputs.
+- Session propagation is compared transiently against the request's captured session. Raw session IDs are not serialized into canonical transport results.
+- Raw RPC retries are limited to explicit discovery methods. Tool calls, initialization and unknown operations are not automatically replayed after an uncertain timeout or retryable status. This is not a guarantee of exactly-once effects at the target.
 - Treat STDIO targets as arbitrary local executables. Run them only in a disposable environment without ambient credentials when the command is not fully trusted.
 - STDIO inherits only a minimal platform environment plus explicitly configured target variables. Protocol output and stderr are byte-bounded, and persisted stderr evidence is metadata-only. These controls are process hygiene, not a sandbox claim.
 - Set `--max-concurrency` conservatively for shared or rate-limited services.

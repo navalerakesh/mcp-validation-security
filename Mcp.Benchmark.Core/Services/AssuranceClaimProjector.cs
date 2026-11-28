@@ -5,6 +5,10 @@ namespace Mcp.Benchmark.Core.Services;
 
 public static class AssuranceClaimProjector
 {
+    internal static string GetExternalCheckClaimId(string scenarioId, string checkId, int? sourceIndex) => sourceIndex is { } index
+        ? $"official:{Normalize(scenarioId)}:check:{index}"
+        : $"official:{Normalize(scenarioId)}:{Normalize(checkId)}";
+
     public static IReadOnlyList<AssuranceClaim> Project(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
@@ -186,14 +190,26 @@ public static class AssuranceClaimProjector
 
     private static void ProjectCoverage(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
+        var conflicts = result.Evidence.Observations.Where(observation =>
+            observation?.ObservationKind == ValidationObservation.CoverageConflictKind).ToArray();
+        var unscoredExternalScopes = new HashSet<string>(StringComparer.Ordinal);
+        if (result.Assessments.OfficialConformance is { VerificationStatus: OfficialConformanceVerificationStatus.Verified } external)
+        {
+            OfficialConformanceContract.ValidateCheckIdentities(external);
+            foreach (var scenario in external.Scenarios.Where(scenario => scenario.ScoringDisposition == OfficialConformanceScoringDisposition.NotScored))
+                foreach (var check in scenario.Checks)
+                    unscoredExternalScopes.Add(OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex));
+        }
         foreach (var coverage in result.Evidence.Coverage)
         {
+            var dimension = DimensionForLayer(coverage.LayerId, coverage.Lane);
             claims.Add(new AssuranceClaim
             {
                 ClaimId = $"coverage:{Normalize(coverage.LayerId)}:{Normalize(coverage.Scope)}",
                 Subject = coverage.Scope,
-                Dimension = DimensionForLayer(coverage.LayerId, coverage.Lane),
-                RequirementLevel = DimensionForLayer(coverage.LayerId, coverage.Lane) switch
+                Dimension = dimension,
+                RequirementLevel = dimension == AssuranceDimension.ExternalConformance && unscoredExternalScopes.Contains(coverage.Scope)
+                    ? AssuranceRequirementLevel.May : dimension switch
                 {
                     AssuranceDimension.Operations => AssuranceRequirementLevel.OperationalObjective,
                     AssuranceDimension.Security => AssuranceRequirementLevel.SecurityControl,
@@ -207,16 +223,29 @@ public static class AssuranceClaimProjector
                 ApplicabilityReason = coverage.Status == ValidationCoverageStatus.NotApplicable ? coverage.Reason : null,
                 Outcome = CoverageOutcome(coverage),
                 Confidence = coverage.Confidence,
-                EvidenceIds = [ValidationEvidenceIdBuilder.ForCoverage(coverage)],
+                EvidenceIds = conflicts.Length == 0 ? [ValidationEvidenceIdBuilder.ForCoverage(coverage)]
+                    : new[] { ValidationEvidenceIdBuilder.ForCoverage(coverage) }
+                        .Concat(ConflictEvidenceIds(coverage, conflicts)).ToArray(),
                 Summary = coverage.Reason ?? $"Coverage outcome: {coverage.Outcome}."
             });
         }
     }
 
+    private static IEnumerable<string> ConflictEvidenceIds(
+        ValidationCoverageDeclaration coverage, IReadOnlyList<ValidationObservation> conflicts) =>
+        conflicts.Where(observation =>
+            string.Equals(observation.LayerId, coverage.LayerId, StringComparison.OrdinalIgnoreCase) &&
+            observation.Metadata is { } metadata &&
+            metadata.TryGetValue(ValidationObservation.CoverageScopeMetadataKey, out var scope) &&
+            string.Equals(scope, coverage.Scope, StringComparison.OrdinalIgnoreCase) &&
+            !string.IsNullOrWhiteSpace(observation.Id))
+        .Select(observation => observation.Id).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
+
     private static void ProjectExternalConformance(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
         var assessment = result.Assessments.OfficialConformance;
         if (assessment == null) return;
+        OfficialConformanceContract.ValidateCheckIdentities(assessment);
 
         foreach (var scenario in assessment.Scenarios)
         {
@@ -224,20 +253,24 @@ public static class AssuranceClaimProjector
             {
                 claims.Add(new AssuranceClaim
                 {
-                    ClaimId = $"official:{Normalize(scenario.ScenarioId)}:{Normalize(check.Id)}",
+                    ClaimId = GetExternalCheckClaimId(scenario.ScenarioId, check.Id, check.SourceIndex),
                     Subject = scenario.ScenarioId,
                     Dimension = AssuranceDimension.ExternalConformance,
                     RequirementLevel = scenario.ScoringDisposition == OfficialConformanceScoringDisposition.Required
                         ? AssuranceRequirementLevel.Must
                         : AssuranceRequirementLevel.May,
                     Authority = AssuranceAuthority.OfficialConformance,
+                    Applicability = check.Status == OfficialConformanceCheckStatus.Info && !check.PrerequisiteMissing
+                        ? check.Applicability : AssuranceApplicability.Applicable,
                     Source = new AssuranceSourceReference
                     {
                         Revision = assessment.RequirementSet.Revision,
                         Sha256 = assessment.RequirementSet.Sha256
                     },
-                    Outcome = assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified
+                    Outcome = assessment.VerificationStatus != OfficialConformanceVerificationStatus.Verified || check.PrerequisiteMissing
                         ? AssuranceClaimOutcome.Incomplete
+                        : check.Status == OfficialConformanceCheckStatus.Info && check.Applicability == AssuranceApplicability.NotApplicable
+                            ? AssuranceClaimOutcome.NotApplicable
                         : check.Status switch
                         {
                             OfficialConformanceCheckStatus.Success => AssuranceClaimOutcome.Satisfied,
@@ -248,7 +281,7 @@ public static class AssuranceClaimProjector
                     Confidence = assessment.VerificationStatus == OfficialConformanceVerificationStatus.Verified
                         ? EvidenceConfidenceLevel.High
                         : EvidenceConfidenceLevel.None,
-                    EvidenceIds = [$"official-conformance/{scenario.ScenarioId}/{check.Id}"],
+                    EvidenceIds = [OfficialConformanceContract.GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex)],
                     Summary = check.Description
                 });
             }
@@ -272,7 +305,8 @@ public static class AssuranceClaimProjector
                 Outcome = decision.Gate == GateOutcome.Reject
                     ? AssuranceClaimOutcome.Violated
                     : AssuranceClaimOutcome.ReviewRequired,
-                Confidence = EvidenceConfidenceLevel.High,
+                Confidence = assessment.VerificationStatus == OfficialConformanceVerificationStatus.Verified
+                    ? EvidenceConfidenceLevel.High : EvidenceConfidenceLevel.None,
                 EvidenceIds = decision.RelatedEvidenceIds,
                 Summary = decision.Summary,
                 Metadata = new Dictionary<string, string>(decision.Metadata, StringComparer.Ordinal)
@@ -285,13 +319,20 @@ public static class AssuranceClaimProjector
 
     private static void ProjectExtensions(ValidationResult result, ICollection<AssuranceClaim> claims)
     {
+        var conflicts = result.Evidence.Observations.Where(observation =>
+            observation?.ObservationKind == ValidationObservation.CoverageConflictKind).ToArray();
         foreach (var extension in result.Assessments.Extensions)
         {
+            var coverageOutcomes = extension.Coverage.Select(CoverageOutcome).ToArray();
+            var hasCoverageFailure = coverageOutcomes.Contains(AssuranceClaimOutcome.Violated);
+            var hasCoverageError = coverageOutcomes.Contains(AssuranceClaimOutcome.Error);
             var hasSpecFailure = extension.Findings.Any(finding =>
                 finding.Source == ValidationRuleSource.Spec &&
                 finding.Severity >= ValidationFindingSeverity.High);
             var hasReviewFinding = extension.Findings.Count > 0;
-            var evidenceIncomplete = extension.EvidenceSummary.ApplicableDeclarations > 0 &&
+            var evidenceIncomplete = coverageOutcomes.Length == 0 ||
+                coverageOutcomes.Any(outcome => outcome is AssuranceClaimOutcome.Incomplete or AssuranceClaimOutcome.ReviewRequired) ||
+                extension.EvidenceSummary.ApplicableDeclarations > 0 &&
                 extension.EvidenceSummary.Covered < extension.EvidenceSummary.ApplicableDeclarations;
             claims.Add(new AssuranceClaim
             {
@@ -305,16 +346,21 @@ public static class AssuranceClaimProjector
                     Revision = extension.SpecificationRevision,
                     Sha256 = extension.SpecificationSha256
                 },
-                Outcome = hasSpecFailure
+                Outcome = hasSpecFailure || hasCoverageFailure
                     ? AssuranceClaimOutcome.Violated
+                    : hasCoverageError
+                        ? AssuranceClaimOutcome.Error
                     : evidenceIncomplete
                         ? AssuranceClaimOutcome.Incomplete
                         : hasReviewFinding
                             ? AssuranceClaimOutcome.ReviewRequired
                             : AssuranceClaimOutcome.Satisfied,
                 Confidence = extension.EvidenceSummary.ConfidenceLevel,
-                Summary = hasSpecFailure
-                    ? "Extension has specification failures."
+                EvidenceIds = conflicts.Length == 0 ? [] :
+                    extension.Coverage.SelectMany(coverage => ConflictEvidenceIds(coverage, conflicts))
+                        .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray(),
+                Summary = hasSpecFailure || hasCoverageFailure || hasCoverageError
+                    ? "Extension has recorded assessment failures."
                     : evidenceIncomplete
                         ? "Extension evidence is incomplete."
                         : hasReviewFinding
@@ -390,6 +436,7 @@ public static class AssuranceClaimProjector
 
     private static AssuranceDimension DimensionForLayer(string layerId, EvaluationLane? lane)
     {
+        if (lane == EvaluationLane.ControlledApplication) return AssuranceDimension.ControlledApplication;
         if (lane == EvaluationLane.ExtensionReadiness) return AssuranceDimension.Extension;
         if (lane == EvaluationLane.ClientCompatibility) return AssuranceDimension.ClientCompatibility;
         if (lane == EvaluationLane.ExternalConformance) return AssuranceDimension.ExternalConformance;
@@ -420,7 +467,7 @@ public static class AssuranceClaimProjector
         AssuranceDimension dimension)
     {
         if (finding.Metadata.TryGetValue("requirementLevel", out var requirementLevel) &&
-            Enum.TryParse<AssuranceRequirementLevel>(requirementLevel, ignoreCase: true, out var parsed))
+            Enum.TryParse<AssuranceRequirementLevel>(requirementLevel, ignoreCase: true, out var parsed) && Enum.IsDefined(parsed))
             return parsed;
         if (dimension == AssuranceDimension.Security) return AssuranceRequirementLevel.SecurityControl;
         if (dimension == AssuranceDimension.Operations) return AssuranceRequirementLevel.OperationalObjective;

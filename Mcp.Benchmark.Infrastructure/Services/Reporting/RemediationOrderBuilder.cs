@@ -5,435 +5,149 @@ namespace Mcp.Benchmark.Infrastructure.Services.Reporting;
 
 internal static class RemediationOrderBuilder
 {
-    private const int MaxItemsPerGroup = 5;
-
     internal static IReadOnlyList<RemediationOrderGroup> Build(ValidationResult result)
     {
         ArgumentNullException.ThrowIfNull(result);
-
-        var candidates = new List<RemediationCandidate>();
-        var protocolRuleIds = AddProtocolViolations(result, candidates);
-        var vulnerabilityRuleIds = AddSecurityVulnerabilities(result, candidates);
-        AddClaims(result, candidates, protocolRuleIds, vulnerabilityRuleIds);
-        AddPerformanceFindings(result, candidates);
-
-        return candidates
-            .Select(candidate => new { Candidate = candidate, Priority = ResolvePriority(candidate) })
-            .GroupBy(item => item.Priority)
-            .OrderBy(group => group.Key)
-            .Select(group => BuildGroup(group.Key, group.Select(item => item.Candidate)))
-            .Where(group => group.Items.Count > 0)
-            .ToList();
-    }
-
-    private static HashSet<string> AddProtocolViolations(ValidationResult result, List<RemediationCandidate> candidates)
-    {
-        var ruleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (result.ProtocolCompliance?.Violations is not { Count: > 0 } violations)
+        var candidates = new List<Candidate>();
+        var protocolIds = new HashSet<(string Rule, string Component)>();
+        var vulnerabilityIds = new HashSet<(string Rule, string Component)>();
+        foreach (var violation in result.ProtocolCompliance?.Violations ?? [])
         {
-            return ruleIds;
+            var component = string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category;
+            if (!string.IsNullOrWhiteSpace(violation.CheckId)) protocolIds.Add((violation.CheckId, component));
+            candidates.Add(new(violation.Description, violation.Recommendation, component, violation.CheckId,
+                violation.SpecReference, MapSeverity(violation.Severity), null, ValidationRuleSourceClassifier.GetSource(violation),
+                AssuranceDimension.CoreProtocol, GateOutcome.ReviewRequired));
         }
-
-        foreach (var violation in violations)
+        foreach (var vulnerability in result.SecurityTesting?.Vulnerabilities ?? [])
         {
-            if (!string.IsNullOrWhiteSpace(violation.CheckId))
-            {
-                ruleIds.Add(violation.CheckId);
-            }
-
-            candidates.Add(new RemediationCandidate(
-                Issue: violation.Description,
-                Remediation: violation.Recommendation,
-                Category: violation.Category,
-                Component: string.IsNullOrWhiteSpace(violation.Category) ? "protocol" : violation.Category,
-                RuleId: violation.CheckId,
-                SpecReference: violation.SpecReference,
-                Severity: MapSeverity(violation.Severity),
-                Gate: GateForViolation(violation.Severity),
-                Authority: ValidationRuleSourceClassifier.GetSource(violation),
-                ImpactAreas: [ImpactArea.ProtocolInteroperability, ImpactArea.CapabilityContract]));
+            if (!string.IsNullOrWhiteSpace(vulnerability.Id)) vulnerabilityIds.Add((vulnerability.Id, vulnerability.AffectedComponent));
+            candidates.Add(new(vulnerability.Description, vulnerability.Remediation, vulnerability.AffectedComponent,
+                vulnerability.Id, null, MapSeverity(vulnerability.Severity), null, ValidationRuleSourceClassifier.GetSource(vulnerability),
+                AssuranceDimension.Security, GateOutcome.ReviewRequired, SafetyFinding: true));
         }
-
-        return ruleIds;
-    }
-
-    private static HashSet<string> AddSecurityVulnerabilities(ValidationResult result, List<RemediationCandidate> candidates)
-    {
-        var ruleIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        if (result.SecurityTesting?.Vulnerabilities is not { Count: > 0 } vulnerabilities)
-        {
-            return ruleIds;
-        }
-
-        foreach (var vulnerability in vulnerabilities)
-        {
-            if (!string.IsNullOrWhiteSpace(vulnerability.Id))
-            {
-                ruleIds.Add(vulnerability.Id);
-            }
-
-            candidates.Add(new RemediationCandidate(
-                Issue: vulnerability.Description,
-                Remediation: vulnerability.Remediation,
-                Category: vulnerability.Category,
-                Component: vulnerability.AffectedComponent,
-                RuleId: vulnerability.Id,
-                SpecReference: null,
-                Severity: MapSeverity(vulnerability.Severity),
-                Gate: vulnerability.Severity is VulnerabilitySeverity.Critical or VulnerabilitySeverity.High
-                    ? GateOutcome.Reject
-                    : GateOutcome.ReviewRequired,
-                Authority: ValidationRuleSourceClassifier.GetSource(vulnerability),
-                ImpactAreas: ResolveImpactAreas(vulnerability.Category, vulnerability.AffectedComponent, vulnerability.Name, vulnerability.Description)));
-        }
-
-        return ruleIds;
-    }
-
-    private static void AddClaims(
-        ValidationResult result,
-        List<RemediationCandidate> candidates,
-        HashSet<string> protocolRuleIds,
-        HashSet<string> vulnerabilityRuleIds)
-    {
-        var claims = result.Assurance.Claims
-            .Where(claim => claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable))
-            .Where(claim => !claim.Metadata.TryGetValue("ruleId", out var ruleId) ||
-                (!protocolRuleIds.Contains(ruleId) && !vulnerabilityRuleIds.Contains(ruleId)));
-
-        foreach (var claim in claims)
+        foreach (var claim in result.Assurance.Claims.Where(claim =>
+            claim.Outcome is not (AssuranceClaimOutcome.Satisfied or AssuranceClaimOutcome.NotApplicable)))
         {
             claim.Metadata.TryGetValue("ruleId", out var ruleId);
-            candidates.Add(new RemediationCandidate(
-                Issue: claim.Summary,
-                Remediation: claim.Remediation,
-                Category: claim.Dimension.ToString(),
-                Component: claim.Subject,
-                RuleId: ruleId ?? claim.ClaimId,
-                SpecReference: claim.Source.Uri,
-                Severity: claim.Outcome is AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error
-                    ? ValidationFindingSeverity.High
-                    : ValidationFindingSeverity.Medium,
-                Gate: claim.Outcome switch
-                {
-                    AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => GateOutcome.Reject,
-                    AssuranceClaimOutcome.Incomplete => GateOutcome.CoverageDebt,
-                    _ => GateOutcome.ReviewRequired
-                },
-                Authority: claim.Authority == AssuranceAuthority.OfficialSpecification
-                    ? ValidationRuleSource.Spec
-                    : claim.Authority == AssuranceAuthority.Heuristic
-                        ? ValidationRuleSource.Heuristic
-                        : ValidationRuleSource.Guideline,
-                ImpactAreas: ResolveClaimImpactAreas(claim)));
+            if (ruleId != null && (protocolIds.Contains((ruleId, claim.Subject)) || vulnerabilityIds.Contains((ruleId, claim.Subject))))
+                continue;
+            claim.Metadata.TryGetValue("severity", out var recordedSeverity);
+            var severity = Enum.TryParse<ValidationFindingSeverity>(recordedSeverity, true, out var parsed) && Enum.IsDefined(parsed)
+                ? parsed : (ValidationFindingSeverity?)null;
+            var outside = ValidationPolicyEvaluator.IsOutsideSelectedScope(result.Assurance, claim);
+            var gate = outside ? GateOutcome.Note : claim.Outcome switch
+            {
+                AssuranceClaimOutcome.Violated or AssuranceClaimOutcome.Error => GateOutcome.Reject,
+                AssuranceClaimOutcome.Incomplete => GateOutcome.CoverageDebt,
+                _ => GateOutcome.ReviewRequired
+            };
+            var authority = claim.Authority switch
+            {
+                AssuranceAuthority.OfficialSpecification or AssuranceAuthority.OfficialConformance => ValidationRuleSource.Spec,
+                AssuranceAuthority.Heuristic or AssuranceAuthority.ModelAdvisory => ValidationRuleSource.Heuristic,
+                _ => ValidationRuleSource.Guideline
+            };
+            candidates.Add(new(claim.Summary, claim.Remediation, claim.Subject, ruleId ?? claim.ClaimId, claim.Source.Uri,
+                severity, recordedSeverity, authority, claim.Dimension, gate, claim.ClaimId, outside));
         }
+        foreach (var finding in result.PerformanceTesting?.Findings ?? [])
+        {
+            if (result.Assurance.Claims.Any(claim => claim.Subject == finding.Component &&
+                claim.Metadata.GetValueOrDefault("ruleId") == finding.RuleId)) continue;
+            candidates.Add(new(finding.Summary, finding.Recommendation, finding.Component, finding.RuleId,
+                finding.EffectiveSpecReference, finding.Severity, null, finding.EffectiveSource,
+                AssuranceDimension.Operations, GateOutcome.ReviewRequired));
+        }
+        foreach (var error in result.PerformanceTesting?.CriticalErrors ?? [])
+        {
+            if (string.IsNullOrWhiteSpace(error)) continue;
+            candidates.Add(new(error, "Investigate the interrupted performance measurement before drawing conclusions.",
+                "performance", null, null, null, null, ValidationRuleSource.Unspecified, AssuranceDimension.Operations, GateOutcome.CoverageDebt));
+        }
+
+        return candidates.GroupBy(GetPriority).OrderBy(group => group.Key).Select(group =>
+        {
+            var (title, impact) = DescribePriority(group.Key);
+            var items = group.OrderByDescending(candidate => candidate.Gate)
+                .ThenByDescending(candidate => candidate.Severity)
+                .ThenBy(candidate => ValidationAuthorityHierarchy.GetSortOrder(candidate.Authority))
+                .ThenBy(candidate => candidate.Issue, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.Component, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.RuleId, StringComparer.Ordinal)
+                .ThenBy(candidate => candidate.ClaimId, StringComparer.Ordinal)
+                .Select(BuildItem).Distinct().ToArray();
+            return new RemediationOrderGroup(group.Key, title, impact, items);
+        }).ToArray();
     }
 
-    private static IReadOnlyList<ImpactArea> ResolveClaimImpactAreas(AssuranceClaim claim)
+    private static int GetPriority(Candidate candidate)
     {
-        if (claim.Dimension == AssuranceDimension.CoreProtocol) return [ImpactArea.ProtocolInteroperability];
-        if (claim.Dimension == AssuranceDimension.CapabilityContract) return [ImpactArea.CapabilityContract];
-        if (claim.Dimension == AssuranceDimension.Operations) return [ImpactArea.OperationalResilience];
-        if (claim.Dimension == AssuranceDimension.Security &&
-            (claim.Subject.Contains("auth", StringComparison.OrdinalIgnoreCase) ||
-             claim.Subject.Contains("oauth", StringComparison.OrdinalIgnoreCase)))
-            return [ImpactArea.AuthenticationBoundary];
-        if (claim.Dimension == AssuranceDimension.Security) return [ImpactArea.UnsafeAutonomy];
-        return [ImpactArea.CoverageIntegrity];
-    }
-
-    private static void AddPerformanceFindings(ValidationResult result, List<RemediationCandidate> candidates)
-    {
-        var performance = result.PerformanceTesting;
-        if (performance is null)
+        if (candidate.OutsideSelectedScope) return 5;
+        if (candidate.Authority == ValidationRuleSource.Heuristic || candidate.SafetyFinding) return 4;
+        if (candidate.Dimension == AssuranceDimension.CoreProtocol && candidate.Authority != ValidationRuleSource.Spec &&
+            candidate.Gate == GateOutcome.ReviewRequired) return 4;
+        return candidate.Dimension switch
         {
-            return;
-        }
-
-        foreach (var finding in performance.Findings)
-        {
-            candidates.Add(new RemediationCandidate(
-                Issue: finding.Summary,
-                Remediation: finding.Recommendation,
-                Category: finding.Category,
-                Component: finding.Component,
-                RuleId: finding.RuleId,
-                SpecReference: finding.EffectiveSpecReference,
-                Severity: finding.Severity,
-                Gate: GateForFinding(finding.Severity),
-                Authority: finding.EffectiveSource,
-                ImpactAreas: [ImpactArea.OperationalResilience]));
-        }
-
-        foreach (var error in performance.CriticalErrors.Where(error => !string.IsNullOrWhiteSpace(error)))
-        {
-            candidates.Add(new RemediationCandidate(
-                Issue: error,
-                Remediation: "Resolve the performance probe error, then rerun measurement to restore trustworthy latency and load evidence.",
-                Category: "Performance",
-                Component: "performance",
-                RuleId: null,
-                SpecReference: null,
-                Severity: ValidationFindingSeverity.High,
-                Gate: GateOutcome.ReviewRequired,
-                Authority: ValidationRuleSource.Unspecified,
-                ImpactAreas: [ImpactArea.OperationalResilience]));
-        }
-    }
-
-    private static RemediationOrderGroup BuildGroup(int priority, IEnumerable<RemediationCandidate> candidates)
-    {
-        var definition = GetPriorityDefinition(priority);
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var items = candidates
-            .OrderByDescending(candidate => candidate.Gate)
-            .ThenByDescending(candidate => candidate.Severity)
-            .ThenBy(candidate => ValidationAuthorityHierarchy.GetSortOrder(candidate.Authority))
-            .ThenBy(candidate => candidate.Issue, StringComparer.OrdinalIgnoreCase)
-            .Select(candidate => BuildItem(candidate, definition))
-            .Where(item => seen.Add(BuildDedupeKey(priority, item)))
-            .Take(MaxItemsPerGroup)
-            .ToList();
-
-        return new RemediationOrderGroup(
-            Priority: priority,
-            Title: definition.Title,
-            Impact: definition.Impact,
-            Items: items);
-    }
-
-    private static RemediationOrderItem BuildItem(RemediationCandidate candidate, RemediationPriorityDefinition definition)
-    {
-        var remediation = !string.IsNullOrWhiteSpace(candidate.Remediation)
-            ? candidate.Remediation.Trim()
-            : definition.DefaultRemediation;
-
-        var evidence = !string.IsNullOrWhiteSpace(candidate.RuleId)
-            ? candidate.RuleId
-            : candidate.Category;
-
-        return new RemediationOrderItem(
-            Issue: Compact(candidate.Issue),
-            Remediation: Compact(remediation),
-            Component: string.IsNullOrWhiteSpace(candidate.Component) ? "validation" : candidate.Component,
-            Severity: candidate.Severity.ToString(),
-            Authority: ValidationAuthorityHierarchy.FormatTag(candidate.Authority),
-            Evidence: string.IsNullOrWhiteSpace(evidence) ? "validation evidence" : evidence,
-            SpecReference: candidate.SpecReference);
-    }
-
-    private static int ResolvePriority(RemediationCandidate candidate)
-    {
-        // Heuristic content-safety / AI-readiness signals are advisory and belong in the
-        // safety/security/performance bucket regardless of whether the issue text happens
-        // to mention "capability". They are NOT capability-contract violations even though
-        // they may be rendered alongside tool catalogs.
-        var ruleId = candidate.RuleId ?? string.Empty;
-        if (ruleId.StartsWith("MCP.COVERAGE.PROTOCOL", StringComparison.OrdinalIgnoreCase))
-        {
-            return 1;
-        }
-
-        if (candidate.Authority == ValidationRuleSource.Heuristic ||
-            ruleId.StartsWith("AI.", StringComparison.OrdinalIgnoreCase) ||
-            ruleId.StartsWith("ContentSafety.", StringComparison.OrdinalIgnoreCase))
-        {
-            return 4;
-        }
-
-        var haystack = BuildSearchText(candidate);
-
-        if (ContainsAny(haystack, "bootstrap", "initialize", "initialization", "handshake", "lifecycle", "protocol version", "version negotiation", "json-rpc", "transport", "streamable", "stdio", "session"))
-        {
-            return 1;
-        }
-
-        if (candidate.ImpactAreas.Contains(ImpactArea.AuthenticationBoundary) ||
-            ContainsAny(haystack, "auth", "oauth", "authorization", "authentication", "bearer", "token", "audience", "resource metadata", "protected resource"))
-        {
-            return 2;
-        }
-
-        if (candidate.ImpactAreas.Contains(ImpactArea.CapabilityContract) ||
-            ContainsAny(haystack, "capability", "capabilities", "advertised", "declared", "not advertised", "unadvertised", "coverage", "tools/list", "tools/call", "resources/list", "prompts/list", "sampling", "roots", "elicitation", "tasks"))
-        {
-            return 3;
-        }
-
-        return 4;
-    }
-
-    private static RemediationPriorityDefinition GetPriorityDefinition(int priority)
-    {
-        return priority switch
-        {
-            1 => new RemediationPriorityDefinition(
-                "Bootstrap & Protocol Version",
-                "Lifecycle, version, transport, and JSON-RPC fixes make downstream tool, resource, prompt, and auth probes trustworthy.",
-                "Fix the lifecycle or protocol contract first, then rerun validation before interpreting downstream surface results."),
-            2 => new RemediationPriorityDefinition(
-                "Authentication Boundary",
-                "Auth fixes let protected-surface failures distinguish real product behavior from missing, rejected, or mis-scoped credentials.",
-                "Fix authentication and token-boundary behavior before judging protected tool, resource, and prompt behavior."),
-            3 => new RemediationPriorityDefinition(
-                "Advertised Capabilities",
-                "Capability-contract fixes make skipped and executed tool, resource, prompt, and task checks align with what the server declared.",
-                "Align advertised capabilities with implemented surfaces so downstream validation probes run only where applicable."),
-            _ => new RemediationPriorityDefinition(
-                "AI Safety, Security, And Performance",
-                "After protocol, auth, and capability gates are stable, safety and performance evidence can be prioritized without masking core contract failures.",
-                "Address advisory safety, security, and performance evidence after the core validation contract is trustworthy.")
+            AssuranceDimension.CoreProtocol or AssuranceDimension.ExecutionIntegrity or AssuranceDimension.ExternalConformance => 1,
+            AssuranceDimension.Security or AssuranceDimension.ControlledApplication => 2,
+            AssuranceDimension.CapabilityContract or AssuranceDimension.Extension or AssuranceDimension.ClientCompatibility => 3,
+            _ => 4
         };
     }
 
-    private static string ResolveDecisionRemediation(DecisionRecord decision)
+    private static RemediationOrderItem BuildItem(Candidate candidate)
     {
-        if (decision.Metadata.TryGetValue("recommendation", out var recommendation) && !string.IsNullOrWhiteSpace(recommendation))
-        {
-            return recommendation;
-        }
-
-        var evidenceRemediation = decision.EvidenceReferences
-            .Select(reference => reference.Remediation)
-            .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
-        if (!string.IsNullOrWhiteSpace(evidenceRemediation))
-        {
-            return evidenceRemediation;
-        }
-
-        return decision.Gate == GateOutcome.CoverageDebt
-            ? "Restore authoritative evidence for this validation surface or mark the surface intentionally out of scope."
-            : string.Empty;
+        var remediation = !string.IsNullOrWhiteSpace(candidate.Remediation) ? candidate.Remediation
+            : candidate.OutsideSelectedScope ? "Review this optional evidence separately from the selected assessment gate."
+            : candidate.Gate == GateOutcome.CoverageDebt ? "Collect the missing admitted evidence; absence is not proof of a server defect."
+            : "Review the recorded finding and its source before deciding on a correction.";
+        var severity = candidate.Severity?.ToString() ?? (string.IsNullOrWhiteSpace(candidate.RecordedSeverity)
+            ? "Not recorded" : $"Unrecognized recorded severity: {candidate.RecordedSeverity}");
+        return new(Compact(candidate.Issue), Compact(remediation), candidate.Component, severity,
+            ValidationAuthorityHierarchy.FormatTag(candidate.Authority), candidate.RuleId ?? "No rule ID recorded",
+            candidate.SpecReference, candidate.ClaimId, candidate.OutsideSelectedScope);
     }
 
-    private static IReadOnlyList<ImpactArea> ResolveImpactAreas(params string?[] values)
+    private static (string Title, string Impact) DescribePriority(int priority) => priority switch
     {
-        var haystack = string.Join(" ", values.Where(value => !string.IsNullOrWhiteSpace(value)));
-        var areas = new List<ImpactArea>();
+        1 => ("Bootstrap & Protocol Version", "Establish trustworthy protocol and execution evidence before interpreting dependent results."),
+        2 => ("Security & Authorization Boundaries", "Establish the recorded identity, authorization and security-control boundaries."),
+        3 => ("Advertised Capabilities", "Align the recorded capability contracts and client expectations; preserve the distinction between discovery and execution."),
+        4 => ("AI Safety, Security, And Performance", "Review advisory safety findings and measured operational evidence within their declared scope."),
+        _ => ("Optional And Outside-Selected-Scope Evidence", "Retain optional findings without treating them as failures of the selected assessment.")
+    };
 
-        if (ContainsAny(haystack, "auth", "oauth", "token", "bearer", "authorization"))
-        {
-            areas.Add(ImpactArea.AuthenticationBoundary);
-        }
-
-        if (ContainsAny(haystack, "prompt", "injection", "tool", "destructive", "autonomy", "consent"))
-        {
-            areas.Add(ImpactArea.UnsafeAutonomy);
-        }
-
-        if (ContainsAny(haystack, "data", "secret", "credential", "resource", "exfiltration", "privacy"))
-        {
-            areas.Add(ImpactArea.DataExposure);
-        }
-
-        if (ContainsAny(haystack, "latency", "performance", "timeout", "load"))
-        {
-            areas.Add(ImpactArea.OperationalResilience);
-        }
-
-        return areas;
-    }
-
-    private static string BuildSearchText(RemediationCandidate candidate)
+    private static ValidationFindingSeverity MapSeverity(ViolationSeverity severity) => severity switch
     {
-        return string.Join(" ", new[]
-        {
-            candidate.Issue,
-            candidate.Category,
-            candidate.Component,
-            candidate.RuleId,
-            candidate.SpecReference,
-            string.Join(" ", candidate.ImpactAreas)
-        }.Where(value => !string.IsNullOrWhiteSpace(value)));
-    }
+        ViolationSeverity.Critical => ValidationFindingSeverity.Critical,
+        ViolationSeverity.High => ValidationFindingSeverity.High,
+        ViolationSeverity.Medium => ValidationFindingSeverity.Medium,
+        ViolationSeverity.Low => ValidationFindingSeverity.Low,
+        _ => ValidationFindingSeverity.Info
+    };
 
-    private static bool ContainsAny(string haystack, params string[] needles)
+    private static ValidationFindingSeverity MapSeverity(VulnerabilitySeverity severity) => severity switch
     {
-        return needles.Any(needle => haystack.Contains(needle, StringComparison.OrdinalIgnoreCase));
-    }
+        VulnerabilitySeverity.Critical => ValidationFindingSeverity.Critical,
+        VulnerabilitySeverity.High => ValidationFindingSeverity.High,
+        VulnerabilitySeverity.Medium => ValidationFindingSeverity.Medium,
+        VulnerabilitySeverity.Low => ValidationFindingSeverity.Low,
+        _ => ValidationFindingSeverity.Info
+    };
 
-    private static string BuildDedupeKey(int priority, RemediationOrderItem item)
-    {
-        var key = !string.IsNullOrWhiteSpace(item.Remediation) ? item.Remediation : item.Issue;
-        return $"{priority}:{Compact(key).ToLowerInvariant()}";
-    }
+    private static string Compact(string? text) =>
+        string.Join(" ", (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
-    private static ValidationFindingSeverity MapSeverity(ViolationSeverity severity)
-    {
-        return severity switch
-        {
-            ViolationSeverity.Critical => ValidationFindingSeverity.Critical,
-            ViolationSeverity.High => ValidationFindingSeverity.High,
-            ViolationSeverity.Medium => ValidationFindingSeverity.Medium,
-            _ => ValidationFindingSeverity.Low
-        };
-    }
-
-    private static ValidationFindingSeverity MapSeverity(VulnerabilitySeverity severity)
-    {
-        return severity switch
-        {
-            VulnerabilitySeverity.Critical => ValidationFindingSeverity.Critical,
-            VulnerabilitySeverity.High => ValidationFindingSeverity.High,
-            VulnerabilitySeverity.Medium => ValidationFindingSeverity.Medium,
-            VulnerabilitySeverity.Low => ValidationFindingSeverity.Low,
-            _ => ValidationFindingSeverity.Info
-        };
-    }
-
-    private static GateOutcome GateForViolation(ViolationSeverity severity)
-    {
-        return severity switch
-        {
-            ViolationSeverity.Critical => GateOutcome.Reject,
-            ViolationSeverity.High => GateOutcome.ReviewRequired,
-            ViolationSeverity.Medium => GateOutcome.CoverageDebt,
-            _ => GateOutcome.Note
-        };
-    }
-
-    private static GateOutcome GateForFinding(ValidationFindingSeverity severity)
-    {
-        return severity switch
-        {
-            ValidationFindingSeverity.Critical => GateOutcome.Reject,
-            ValidationFindingSeverity.High => GateOutcome.ReviewRequired,
-            ValidationFindingSeverity.Medium => GateOutcome.CoverageDebt,
-            _ => GateOutcome.Note
-        };
-    }
-
-    private static string Compact(string text)
-    {
-        return string.Join(" ", (text ?? string.Empty).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
-    }
-
-    private sealed record RemediationCandidate(
-        string Issue,
-        string? Remediation,
-        string? Category,
-        string? Component,
-        string? RuleId,
-        string? SpecReference,
-        ValidationFindingSeverity Severity,
-        GateOutcome Gate,
-        ValidationRuleSource Authority,
-        IReadOnlyList<ImpactArea> ImpactAreas);
-
-    private sealed record RemediationPriorityDefinition(string Title, string Impact, string DefaultRemediation);
+    private sealed record Candidate(
+        string Issue, string? Remediation, string Component, string? RuleId, string? SpecReference,
+        ValidationFindingSeverity? Severity, string? RecordedSeverity, ValidationRuleSource Authority,
+        AssuranceDimension Dimension, GateOutcome Gate, string? ClaimId = null,
+        bool OutsideSelectedScope = false, bool SafetyFinding = false);
 }
 
-internal sealed record RemediationOrderGroup(
-    int Priority,
-    string Title,
-    string Impact,
-    IReadOnlyList<RemediationOrderItem> Items);
+internal sealed record RemediationOrderGroup(int Priority, string Title, string Impact, IReadOnlyList<RemediationOrderItem> Items);
 
 internal sealed record RemediationOrderItem(
-    string Issue,
-    string Remediation,
-    string Component,
-    string Severity,
-    string Authority,
-    string Evidence,
-    string? SpecReference);
+    string Issue, string Remediation, string Component, string Severity, string Authority, string Evidence,
+    string? SpecReference, string? ClaimId = null, bool OutsideSelectedScope = false);

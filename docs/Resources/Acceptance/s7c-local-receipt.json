@@ -1,0 +1,937 @@
+{
+  "status": "local-s7c-import-only-identity-evidence-qualified",
+  "baseCommit": "18b469d30e3e878bc30cf77538b6cc2942d203a2",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-22T20:29:57.233Z",
+  "sourceIdentity": "0a130bf873fb7408ed39ee04b8dfff0081c4cb165b2cb42b0d37a0dc45097aa9",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s7c-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "85a99924e003614da0a980f24154728448febdd80abb37c69f362777fbf40868"
+    },
+    {
+      "path": "Mcp.Benchmark.CLI/Services/ConsoleOutputService.cs",
+      "sha256": "371e38df918f9d3cf4274865332fec7efa73adee44cd9b47ca5eaf668dea8af2"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Abstractions/ISignedControlledEvidence.cs",
+      "sha256": "3173c4be3e0a0f7e5d69b48979ae023ea65e4ba096766f2d72e2b27a381717f4"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Constants/ArtifactContracts.cs",
+      "sha256": "a161c6891e9400a789453232765dd44ccc4a3f85ac8d6c8b9704ddb5cacc4092"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ControlledIdentityEvidenceDocument.cs",
+      "sha256": "d9f77e6f639129e4717cd176059be48114491d6cb0fbd41a4b0d21b8e0cecf28"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ControlledIdentityModels.cs",
+      "sha256": "0edbf0561f93a7b83d80138cffeb180f97a91e9a484c2b8d80f36d4b86a3452f"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ControlledStateEvidenceDocument.cs",
+      "sha256": "2d9e8338d3509a2640f7b994aa16f116720ef290082a72fd55d13501448e3d47"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Models/ValidationArchitectureModels.cs",
+      "sha256": "703b24a0030b81905d82b1ee1df4eb74df6d5488a4fb24f1c3d47476693add05"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/ControlledEvidenceAdmission.cs",
+      "sha256": "5b590ef6e6938f0a0ea5bb8eb7a80d2fe900abb981167fc958b0cd805a8e2b23"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/ControlledIdentityEvaluator.cs",
+      "sha256": "1aa184a6da02b1452a089ff97db98475880b16d8a87fbab0bc8f34d79dae089c"
+    },
+    {
+      "path": "Mcp.Benchmark.Core/Services/ControlledStateEvaluator.cs",
+      "sha256": "942a02e7a52d74cb52240b91c573da59a784a779ecc25e6298abe2ffb82bfd07"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Health/HealthCheckService.cs",
+      "sha256": "504bfc50353ab243e3a808d1dc58b84cda94dc001e4f56478b8d390fbccad864"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Scenarios/ControlledIdentityScenarioPack.cs",
+      "sha256": "2577f4ac7f75b530a5e01b5c67004ca6e0ee9ae8937b3981bd5e323f61d09f77"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/ControlledIdentityEvidenceImporter.cs",
+      "sha256": "1a5230a4b6615573e95a2e724f781e1359af834c17c4439c288950c51bb27871"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/ControlledStateEvidenceImporter.cs",
+      "sha256": "7eee5ab9b2eed538551ec694d7969045d855815927ac42489575f8ba446a087d"
+    },
+    {
+      "path": "Mcp.Benchmark.Infrastructure/Services/SignedControlledEvidenceReader.cs",
+      "sha256": "bb63df22265690e108d6e3f1aa9f8cf77a58d89eccdf5a4b1307c7e1d546d29e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/ReportSnapshots/json.snap",
+      "sha256": "870bf392461f0ddd24c937017a473c73ffeb833fa63aa03acfde540458bf7b13"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/ConsoleOutputServiceUnitTests.cs",
+      "sha256": "2ae7abf2ef3c6fa95c6d20787ff5add561e7615a4de3cd5c3b247b7401a08cb5"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/ControlledIdentityEvaluatorTests.cs",
+      "sha256": "0464374bdd4741718159ff86ed707a8ef26205c53497665b9a5cc679b8a93cbc"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Unit/Services/HealthCheckServiceUnitTests.cs",
+      "sha256": "6e1c39d32b2ae733645a61d0b5f6c9c8b88ca846a2b894aac2e19cfcff70849f"
+    },
+    {
+      "path": "docs/SchemaCompatibility.md",
+      "sha256": "463a6b7c37ad438b5398058a7f85a2a70f447abddfd520d182a608cb7ebc7045"
+    },
+    {
+      "path": "docs/Schemas/mcpval-validation-result.schema.json",
+      "sha256": "e472f55481318b19ec1278cfeb3b9eac7646f607b6d3752b9863cf66173d65eb"
+    },
+    {
+      "path": "mcpval-mcp/README.md",
+      "sha256": "5e9aeb8e100bc9a403f4ab5932a6c2144e421a876d998ed83d38daec3aa82824"
+    },
+    {
+      "path": "mcpval-mcp/src/index.ts",
+      "sha256": "aa0482fbea4ac87b85ddfcc5f1404a2ebcee2c44e1c018ef1a044371a00d2033"
+    },
+    {
+      "path": "mcpval-mcp/src/tools.ts",
+      "sha256": "c344d181638c931ec2203190a658c10d8722d82592411e8acf5f7ddbf0ef186a"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-integration.test.ts",
+      "sha256": "56ef23f0a1eb9be46715957c7db989e6c1f7712131d0edecdfab4a7ea1037e2b"
+    },
+    {
+      "path": "mcpval-mcp/tests/cli-runner.test.ts",
+      "sha256": "b977f36afb2d67d51097d51aebdda779c5c64ed1cd5337c3c6376b54d057b601"
+    },
+    {
+      "path": "scripts/tests/validate-mutation.test.mjs",
+      "sha256": "5ae1811bd678ac13b6346ccffa264b31bc448bcdacc0e9d920ed317e9aaff913"
+    },
+    {
+      "path": "scripts/validate-mutation.sh",
+      "sha256": "d7441b41478bbd134d09e80af79bf8aff525bbcc77f032adcb755d19b7792217"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s3-package-qualification.mjs",
+      "sha256": "7883c228027281c6e43cbb9e14ef099ebdcb905992300a838b599b11f6cb50cb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s4-package-qualification.mjs",
+      "sha256": "1cb14c1fb6c8872096269ca64770d63baecceac486e4af39aee827c66d3abcab"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s5-package-qualification.mjs",
+      "sha256": "a5d3dfb9153a2d845fb8738fe287bf7db3a0c37e25dcd1062ec4315cee3efa65"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7a-package-qualification.mjs",
+      "sha256": "1cfbe1b3b4bb084566a92f740fe7d14080af4873ba8a1947d464f08ae983295c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/base-receipt.json",
+      "sha256": "2e9b3e8b61fa758688d8e9ef54b2b867c32f4e3a4239f5ea03940f09c16af565"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-audit.json",
+      "sha256": "07b56eb868492df27d97b5e869e3e47c134d97a9d7b9bd736ff4f2724de8922a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-profile-summary.json",
+      "sha256": "d42c098579cd984512f7362e33c943329a3d03c77c319432702f3298e7d56f79"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-report.html",
+      "sha256": "3c7e3f1657d2f77e4dd2dfeef8b62da036b196c7e8f482c9f4e63b92b7f9b9f8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-report.md",
+      "sha256": "518bfeb187f2be0bf7f4a1613c71cc730b6933928a1c72f9d64936cf09ac2396"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-result.json",
+      "sha256": "56d84eb75ce3a1da8e2acb42ce4a47a0749b16e379c48325d4f0509602672a01"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-results.junit.xml",
+      "sha256": "cc5f7b35b0873f5938f20b7ce244c826a9fa6554c47a8a0762c4d85535136e39"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-202650-781-2bb0adeaa434/mcp-validation-20261122-202650-781-2bb0adeaa434-results.sarif.json",
+      "sha256": "1b7899e9996f9e9b719be208ed97f2c8612c7dc7b039b08790fba9f94702e74d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/methods.jsonl",
+      "sha256": "8668bca1a2f361095effbd4019cdadb925b43df8ca878568a861743fc89b5a4e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/processes.jsonl",
+      "sha256": "0ebd4ea5b4bdf8cb014125b024451392966c38262d8377437b06b4368a3bb693"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/receipt.json",
+      "sha256": "28c58763bf46f87070da0900e614954f12c45ca8f2d63586588060d4d4cc488d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/canonical-oracle/stdout.json",
+      "sha256": "8d38f1cb53c9cda70283835c2cd78752f6ad093023ac71a3d1261a31a3ba0509"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/commands.json",
+      "sha256": "15cffeb245f1e583e044d82cbb791461fc5169bf86f403b887f6ba6a2360090a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/current-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/current-version.stdout",
+      "sha256": "bea85434b54db5e8403063e37f592cae294af26680fa4c55875f16aac91bb851"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/distribution-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/distribution-smoke.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/dotnet-pack.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/dotnet-pack.stdout",
+      "sha256": "e71e7fc5abb39e62a39d615b0fe0f679406dab6d3b1fae7b3bfa4d3096caa8c7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-canonical.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-canonical.stdout",
+      "sha256": "8d38f1cb53c9cda70283835c2cd78752f6ad093023ac71a3d1261a31a3ba0509"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-lifecycle.stdout",
+      "sha256": "f0c64bf040db8268cbcc5971f64c851532950584791c0d624c77bdee8c2a1c05"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-schema.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/installed-schema.stdout",
+      "sha256": "4b93b36c0e9d94f1a3d855e20718d3e414d80f62d641b9577057a9dbe591f634"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-init.stdout",
+      "sha256": "b4e176a84b13fb0d61dc101c158f1246afbf90477b89055634f9355c39100bc0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-install.stdout",
+      "sha256": "24fad5b429b16af77bd318bc1815777ca6fe04db76893ef23337e37948509d80"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-pack-dry-run.stderr",
+      "sha256": "877910e709d50abd0cec95d4008f7311ecb91462191effa2a3e79ea9bf2d5903"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-pack-dry-run.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-pack.stderr",
+      "sha256": "877910e709d50abd0cec95d4008f7311ecb91462191effa2a3e79ea9bf2d5903"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-pack.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/npm-smoke.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/tool-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/logs/tool-install.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "47de168bef14d888de20c953649db0c4618251a8a01cca197b2fe374337af95c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "6a3d7944c9eaeebc72f9dcb8814b7e4d5acc701ae0e3460bb38851a5fbfb0bb2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7c-live-aligned-package-qualification/receipt.json",
+      "sha256": "383d90d45432902dbff177561323b048070d8c19987f4a24c4e9d9d16745d433"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/links.log",
+      "sha256": "428ccaa381db0f9778f90edbcce4786e08b3f02ca7e49dd62839c4de743f37a4"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/markdown.log",
+      "sha256": "21820cc7d40a2946da7c894b0a29b1118084e30cd089243ab9209a7b1131ae37"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/package-qualification.log",
+      "sha256": "c22f6ffb7baa40b56f0a8a2d6e552db783dc3ac9f94ed4318129b64f769fb614"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/package-qualification.mjs",
+      "sha256": "7ebe18e22fd968287b41d84057cf90cfad247857a8e3665fdf5382247c56a17c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/repository-gate.log",
+      "sha256": "9037799e7ace5148f6e8a4aca0725e8d52fd3d661130bf345877bb9f8b1d3de7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/build.json",
+      "sha256": "ba92bf2d7b396190560bc83d91d2fe04b179ed25e4adfc1e66165a28fd068b37"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/github-discover.json",
+      "sha256": "0b323d2644dfc3b42fbbe43ad3fa474bf9c68cacff19daaa44295eecbd9ad683"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/github-health_check.json",
+      "sha256": "d2b65db4bcffa80a674d6bfc5e812669417a345ba84e39d208f1e85b7934a118"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/github-receipt.json",
+      "sha256": "93d39b190fb9caf22e48e39eb7434cd0e37f908b7c2f4b54a8a5c9f5956d16cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/github-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/github-validate.json",
+      "sha256": "4946493c28c869efb3805d4fbe3f3c029d4209d0ef90f4e40d1be1931aaa4dee"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/learn-discover.json",
+      "sha256": "a9523c635d7f5817539bb422c96f5027d4885341d0ab3210b942d5f75fd418a2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/learn-health_check.json",
+      "sha256": "45206a11b473a66893c72146b53dde8f0e6d5f2fd2fea729834a0cf6cec77639"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/learn-receipt.json",
+      "sha256": "26b1e7db36d381877d580aea1f315e5d7bd08f1059045857c1c7248d19e37bff"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/learn-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/learn-validate.json",
+      "sha256": "11fa53e64ffe97a3730fac8d02450e241e0ba81e8a98024c5a3012b14241d60f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-final/summary.json",
+      "sha256": "466607f9e7a4dc80cb4e66cf1015ad72e721234221bd439832f4bb1d3de41aa5"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/build.json",
+      "sha256": "40d7c382be7d0656a5ea4f2f65358180028579ab844197558913c82f2b44cac7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/github-discover.json",
+      "sha256": "7f60306f441fdeb4860d26cdba5ca493233989ef162c6da0fa18ff0e5299f14c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/github-health_check.json",
+      "sha256": "0a233d1b4eeee697c06f18725b742d5e8fac70ff67cb6d389268818672022d7a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/github-receipt.json",
+      "sha256": "91da4039fdd5a34d60545dd9970faecac2d335d97d29456ccfa5bca3f069a44b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/github-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/github-validate.json",
+      "sha256": "57e06713dd9301a065d8f80bc5533de516cb02a764ae15b442cb3d6df63fad2c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/learn-discover.json",
+      "sha256": "41c81f0b3ab0ff0791909b9527851a339b2230f0c75b9a35192557b89db95b8c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/learn-health_check.json",
+      "sha256": "7b8b41428459fe09d5c7bb64f3b755775cc06339cdf1c2a3c719d620a013c35c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/learn-receipt.json",
+      "sha256": "2840e8f799a46a055c35ab7481bf16b1aea719828b41e9a09a2b2524538f004f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/learn-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/learn-validate.json",
+      "sha256": "34b465aa7098b06576b68ad9bbc375d3a669cde492d914d5e2b9cdb94b586cba"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c-health-aligned/summary.json",
+      "sha256": "1cb96fad334d7d68b6947d148b9aed878e481c198ed59d16cbecd9c3c892ae47"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/build.json",
+      "sha256": "25aca731726622efb9539cac06bab89540cd1342f2947a1d693b2addb7fd0d7a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/github-discover.json",
+      "sha256": "0c244ce24a0e0b85665b04567c9c791d613e7e32213baea5c7b0bec5f6058b6d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/github-health_check.json",
+      "sha256": "f32f7b31765161aeb3e7065554f3a147cb2c6b18eee316edbe8e7fb5a15c0790"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/github-receipt.json",
+      "sha256": "38f2ef3f688ee47f8736b457f5ca59f48610e5bfe34d2cd746d82787ba219ad3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/github-surface.json",
+      "sha256": "46ef66fe79a7ba6d40ecfe18e1ec80a2befec235ec21a0db147a27949476ee7d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/github-validate.json",
+      "sha256": "e7363d8ef6289bcd3b4ba85a0f1c4ba57760c9ca03193d2e77dfc54606754a5c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/learn-discover.json",
+      "sha256": "bc13796995e55dc6be71b21c7adf876071eaa448527f7736ebdeea23ae6b5c07"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/learn-health_check.json",
+      "sha256": "420a5aec785bcfd4690e44aaddfb3e447dcc8dccdf74dbf2878c37669f4e9ae1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/learn-receipt.json",
+      "sha256": "adaa109172a701e3116f8363cebc78cc40e7d111e766386327a0c2bc1557ead9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/learn-surface.json",
+      "sha256": "46ef66fe79a7ba6d40ecfe18e1ec80a2befec235ec21a0db147a27949476ee7d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/learn-validate.json",
+      "sha256": "95cd8da7be59b445a1afc4b3bf087f35abe77a1de9b56bc583bf28bf812c2894"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7c/summary.json",
+      "sha256": "45bdbb32cc0b8630c90c6b1efd551c92c29c8f798b7263507cc2a60528771b33"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/stdio-live.mjs",
+      "sha256": "5876d51905addf0714f4966be114343fff998cdc904c63d6e1b8a8ddd826a3eb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/typecheck.log",
+      "sha256": "12643009ea5bb1bce68eaf27877255f8e016c2e10be6a9b043e7dae72f5c101e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/wrapper-tests.log",
+      "sha256": "be2faef508cbf3666024c72e4ea584f27f3f32c3c877644ae644607f0130597b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-final-preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-final-repository-gate.log",
+      "sha256": "436b7f894b5ab9f6866ab35bade69890e5023fc5e54c0d5218b218423f96831b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-mutation-gate.log",
+      "sha256": "ac3bda9fc10abc0a7e35c8a00d9ae58c2ecf0ac22e41c14614771d79747df267"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-package-qualification.log",
+      "sha256": "c22f6ffb7baa40b56f0a8a2d6e552db783dc3ac9f94ed4318129b64f769fb614"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-release-build.log",
+      "sha256": "489a55aced85b5bac87b08ff29b0910978fd66730cb4e5a71317a1bdc6b9d530"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-repository-gate.log",
+      "sha256": "8f449fa584e7483d5dd5115f7594a1e674e7486e5392e989217ef18c77e42a69"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/instrumented-typecheck.log",
+      "sha256": "12643009ea5bb1bce68eaf27877255f8e016c2e10be6a9b043e7dae72f5c101e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/links.log",
+      "sha256": "0574d7c63289bb4db14b2824b2c69212b808a2a167a9782c147615806b31440a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/live-aligned-release-build.log",
+      "sha256": "41bc2ea3a1685aef11c0ff7ef76a48a1d7a233fa20a44e5a5e4bafd88603c33c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/markdown.log",
+      "sha256": "21820cc7d40a2946da7c894b0a29b1118084e30cd089243ab9209a7b1131ae37"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/mutation-gate.log",
+      "sha256": "a1f4fcb00056478303c77ac8ee080b48a5c06526cb5109ab67407091387b43e1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/package-qualification-instrumented.mjs",
+      "sha256": "01af638692ffb044074195e2e3cea4a4e0b88364fb2750b4bc986a64ba4a7763"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/package-qualification.log",
+      "sha256": "c22f6ffb7baa40b56f0a8a2d6e552db783dc3ac9f94ed4318129b64f769fb614"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/package-qualification.mjs",
+      "sha256": "bdcdf38c9b6cfda0ba09c3ae208dc25c8bed5ecd0783bdbd95fc048e1379c13f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/receipt.mjs",
+      "sha256": "0abe4fec8ea78f11ec8c7c5cb0c7c112ab024351565c1008777dcfa4704ca986"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/release-build.log",
+      "sha256": "d05b14a2779bf1dc346dcf5cecdbc6fb72ba18b36a4996f98c25fc7df9104c41"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/repository-gate.log",
+      "sha256": "6812595bd5a57abfa2c316eadc581d8597d6c38bf39ed952adda0d32329c43bc"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/safety-gates.json",
+      "sha256": "8fff7eaa4f5b2e2c9ed12aaf09c082072f508717f60a3d9df2b1448dcefc7fd3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/typecheck.log",
+      "sha256": "12643009ea5bb1bce68eaf27877255f8e016c2e10be6a9b043e7dae72f5c101e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/live04-auto-health-after.trx",
+      "sha256": "084a843475ed2c398d25a749cc654049c2dd51579374f7323aa44dc5fcfc5b8b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/live04-auto-health-before.trx",
+      "sha256": "1186bfe5da163853cb9752b3d0a9b934b45ee10cb05329332c333f5642e9128d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/live04-health-closure.trx",
+      "sha256": "742eba42a0befdcde1e23ab282cd1ab10ff3003446f8bc80b4891568ae62cf56"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/live04-health-output-safety.trx",
+      "sha256": "0234ab6174329bd1bdee01a8599ec7dd78ca26c495a112eb60ef1a2900f583b8"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/live04-observed-health-output.trx",
+      "sha256": "8694eb30beec3c6affa91982ad656dbd5d944ec790f890a1aa612807aa20574a"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-canonical-identity-schema.trx",
+      "sha256": "c23631ce61f8da37b3bdc643522deed76d3eb3e3456f21e3942cb494b0fe30a3"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-case-identity-after.trx",
+      "sha256": "870b8bab03ec76f374c86427114698e964708b026d4732ed9bd0f0239bd70cd4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-case-identity-before.trx",
+      "sha256": "e98ef54910563e8a175acb1efa0bf9ab2c615f49e7a987ab4e3854eed403d0cb"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-contract-snapshots.trx",
+      "sha256": "da3a45a52d0cd1f30384c9dd5e8581ddb5cfe4fde3b85425031e6d1ad4f2bf9f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-final-boundaries.trx",
+      "sha256": "92a467a0a279cb05629266165fbeabd57046fb8287c9393efd529ee01e28e38d"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-identity-boundaries.trx",
+      "sha256": "1ca1628fc76c5cae84f3f26f685c9ceacecb397e9cf0541f59501d5c875db01f"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-identity-closure-controls.trx",
+      "sha256": "e3d1514ec6b476b41baa34e54f99f7386d76de04dda53ac4b43a85df3a022598"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-identity-initial.trx",
+      "sha256": "06405f1130e265237d732f956f5aee30f39cd8938c982e0a6cae91d685b91ca0"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-identity-pack.trx",
+      "sha256": "97eafe222dc74b0b4bc15fe416fd18dddeefd7b5c5b79f70f30205d59d2d72e0"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-identity-review-repairs.trx",
+      "sha256": "41005fe2f03ce5928e32652205bf7fe21d150bf72a85d699e0b28f66cde15776"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-import-admission-closure.trx",
+      "sha256": "11e8fcec6e3c50a703074f72b75a45c55e5ecd5da62662ac8c6c00f15d1af400"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-mutation-instrumentation-repair.trx",
+      "sha256": "a967da76bad728e7fd99dae7d2e78656a444908430070ccac2d74c40c2712d1c"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-shared-admission.trx",
+      "sha256": "6368895b9fb1aa0b95c79fbcaae861f8b4f0f8ed61fe1e3a78388587fa1924a7"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-shared-signature-boundary.trx",
+      "sha256": "bae1ad6397a633580801ab3432243091f7961244fd61da9c5d5a0df00780d796"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7c-signed-identity.trx",
+      "sha256": "a7e8479a925156fe67c63e9d03ba852a43203046aa2097eaa4247ad5bd510f31"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/stryker-s7c-instrumented/reports/mutation-report.json",
+      "sha256": "9ded1c883007d9bd8adfc1d3d420c7e013620ca7f991ec3c3e70957e8bee8532"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "S7/I08/identity-policy-evidence",
+      "code": [
+        "ControlledIdentityEvaluator",
+        "ControlledIdentityModels",
+        "ControlledEvidenceAdmission"
+      ],
+      "tests": [
+        "ControlledIdentityEvaluatorTests"
+      ],
+      "accepted": "Bounded explicit identity-policy matrix, distinct decision/actor/auth/scope/role/control outcomes, known failures preserved across gaps, quarantined malformed evidence, bounded clocks and deterministic replay"
+    },
+    {
+      "id": "S7/I08/trusted-import",
+      "code": [
+        "SignedControlledEvidenceReader",
+        "ControlledIdentityEvidenceImporter",
+        "ControlledIdentityEvidenceDocument"
+      ],
+      "tests": [
+        "ControlledIdentityEvaluatorTests",
+        "ControlledStateEvaluatorTests"
+      ],
+      "accepted": "Exact independently admitted contract and run/target/route/observer, operator-pinned signature verification, strict bounded envelope and predicate-only observed identities; prior state wire remains unchanged"
+    },
+    {
+      "id": "S7/I08/canonical-integration",
+      "code": [
+        "ControlledIdentityScenarioPack",
+        "ValidationScenarioResult"
+      ],
+      "tests": [
+        "CaseScopes_ShouldSurviveProductionAggregationAndClaimNormalization",
+        "SignedPack_ShouldRetainCaseCoverageWithoutCoreCredit"
+      ],
+      "accepted": "Opt-in evidence-only pack with per-case coverage and integrity gap; digest scopes survive production aggregation; no core-conformance or certificate credit"
+    },
+    {
+      "id": "LIVE-04/STDIO-alignment",
+      "code": [
+        "HealthCheckService",
+        "ConsoleOutputService",
+        "mcpval-mcp"
+      ],
+      "tests": [
+        "HealthCheckServiceUnitTests",
+        "ConsoleOutputServiceUnitTests",
+        "stdio-live.mjs"
+      ],
+      "accepted": "Auto-only health fallback and safely visible observed protocol; real Learn/GitHub readonly health/discovery/inventory through pinned local STDIO wrapper; explicit incomplete coverage retained"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1896,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 180,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 9,
+    "healthOutputBoundaryTests": 59,
+    "liveResults": [
+      {
+        "target": "https://learn.microsoft.com/api/mcp",
+        "auth": "none",
+        "protocol": "2025-06-18",
+        "toolCount": 3,
+        "toolExits": [
+          {
+            "tool": "health_check",
+            "exitCode": 0
+          },
+          {
+            "tool": "discover",
+            "exitCode": 0
+          },
+          {
+            "tool": "validate",
+            "exitCode": 0
+          }
+        ],
+        "claimOutcomes": {
+          "satisfied": 13,
+          "incomplete": 8,
+          "reviewRequired": 5
+        },
+        "requestsStarted": 13,
+        "requestFailures": [
+          {
+            "method": "DELETE",
+            "httpStatusCode": 405,
+            "kind": "httpStatus",
+            "count": 1
+          },
+          {
+            "method": "GET",
+            "httpStatusCode": null,
+            "kind": "requestCancelled",
+            "count": 1
+          },
+          {
+            "method": "GET",
+            "httpStatusCode": 405,
+            "kind": "httpStatus",
+            "count": 1
+          }
+        ],
+        "wrapperExitObserved": true,
+        "temporaryArtifactsRemaining": [],
+        "targetToolInvocationAttempted": false
+      },
+      {
+        "target": "https://api.githubcopilot.com/mcp/readonly",
+        "auth": "approved-local-gh-login",
+        "protocol": "2026-07-28",
+        "toolCount": 28,
+        "toolExits": [
+          {
+            "tool": "health_check",
+            "exitCode": 0
+          },
+          {
+            "tool": "discover",
+            "exitCode": 0
+          },
+          {
+            "tool": "validate",
+            "exitCode": 0
+          }
+        ],
+        "claimOutcomes": {
+          "satisfied": 12,
+          "reviewRequired": 37,
+          "incomplete": 8
+        },
+        "requestsStarted": 5,
+        "requestFailures": [],
+        "wrapperExitObserved": true,
+        "temporaryArtifactsRemaining": [],
+        "targetToolInvocationAttempted": false
+      }
+    ],
+    "identityTests": 90,
+    "combinedIdentityStateSchema": 209,
+    "sharedStateAndOwnedStdio": 93,
+    "ordinarySnapshots": 8,
+    "mutationPercent": 90.98,
+    "mutationExit": 0,
+    "mutationScopes": [
+      "AssuranceAssessmentEngine.cs",
+      "ProviderHarnessEvaluator.cs",
+      "RuleCalibrationEvaluator.cs",
+      "ControlledStateEvaluator.cs",
+      "ControlledIdentityEvaluator.cs",
+      "ControlledEvidenceAdmission.cs"
+    ],
+    "mutationOwners": [
+      {
+        "owner": "AssuranceAssessmentEngine.cs",
+        "statuses": {
+          "Ignored": 12,
+          "Survived": 11,
+          "Killed": 197,
+          "CompileError": 22
+        },
+        "scorePercent": 94.71
+      },
+      {
+        "owner": "ProviderHarnessEvaluator.cs",
+        "statuses": {
+          "Ignored": 23,
+          "Killed": 196,
+          "Survived": 16,
+          "NoCoverage": 3,
+          "CompileError": 30
+        },
+        "scorePercent": 91.16
+      },
+      {
+        "owner": "RuleCalibrationEvaluator.cs",
+        "statuses": {
+          "Ignored": 2,
+          "Killed": 223,
+          "CompileError": 35,
+          "Survived": 7
+        },
+        "scorePercent": 96.96
+      },
+      {
+        "owner": "ControlledStateEvaluator.cs",
+        "statuses": {
+          "Ignored": 1,
+          "Survived": 28,
+          "Killed": 178,
+          "CompileError": 51,
+          "NoCoverage": 1
+        },
+        "scorePercent": 85.99
+      },
+      {
+        "owner": "ControlledIdentityEvaluator.cs",
+        "statuses": {
+          "Ignored": 10,
+          "Survived": 25,
+          "Killed": 160,
+          "CompileError": 31,
+          "NoCoverage": 1
+        },
+        "scorePercent": 86.02
+      },
+      {
+        "owner": "ControlledEvidenceAdmission.cs",
+        "statuses": {
+          "Killed": 24,
+          "Survived": 5,
+          "CompileError": 1
+        },
+        "scorePercent": 82.76
+      }
+    ],
+    "mutationSourceMatches": true,
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedBundleSubjectDigestsVerified": 6,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "separateTypecheckExit": 0,
+    "markdownFiles": 45,
+    "linkChecks": {
+      "total": 149,
+      "ok": 139,
+      "errors": 0,
+      "excluded": 5,
+      "redirected": 5
+    },
+    "packageHashes": {
+      "nuget": "6a3d7944c9eaeebc72f9dcb8814b7e4d5acc701ae0e3460bb38851a5fbfb0bb2",
+      "npm": "47de168bef14d888de20c953649db0c4618251a8a01cca197b2fe374337af95c"
+    },
+    "ordinaryValidationIdentityAssessmentAbsent": true
+  },
+  "contracts": {
+    "assuranceResult": "3.4.0",
+    "identityEvidence": "1.0.0 experimental",
+    "stateEvidence": "1.0.0 unchanged",
+    "auditManifest": "2.2.0 unchanged",
+    "ruleCatalog": "2026-11-11.1 unchanged",
+    "snapshotChange": "One JSON contract-version value; no reporting-source changes"
+  },
+  "reviews": {
+    "result": "READY FOR BUILD GATE",
+    "scope": "Independent full 22-file semantic review after executable case-scope collision repair; earlier raw-identity, malformed-neighbor and observation-delay findings repaired"
+  },
+  "notAccepted": [
+    "Completed owned identity-enforcement or production collector pilot",
+    "Real backend/actor/route verification",
+    "Observer independence or alias anonymity solely from a signature or label",
+    "Whole S7 or two-boundary relay",
+    "S8 budgets, benchmark and adoption qualification",
+    "Native Windows/Linux and enterprise/human qualification",
+    "Whole-product mutation coverage",
+    "HTML design acceptance",
+    "Protected remote checks, publication or release readiness"
+  ],
+  "notes": [
+    "No push, publish, live enterprise targets or model inference",
+    "User approved existing local GitHub CLI credentials for Safe discovery/static checks only; credentials were kept in memory and guarded before response persistence",
+    "Learn/GitHub live checks used the current local MCPVal STDIO adapter; successful exits do not imply complete active or business-level coverage",
+    "Initial mutation run was stopped after Stryker excluded the entire identity evaluator; its retained log is not pass evidence",
+    "Six gate-script controls reject false-green rollback and failed log inspection without lowering thresholds",
+    "No public Learn/GitHub calls were used as identity-enforcement evidence",
+    "Route is independently host-admitted, not actively probed",
+    "Pending atomic reconciliation preserves a matrix-level obligation",
+    "Original failing regression receipts retained",
+    "Package harness historical captions are not contract evidence; actual 3.4.0 output and hashes are asserted"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

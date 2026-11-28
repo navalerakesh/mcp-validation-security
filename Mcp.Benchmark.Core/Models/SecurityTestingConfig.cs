@@ -24,7 +24,7 @@ public class SecurityTestingConfig
     /// <summary>
     /// Gets or sets whether to test for buffer overflow vulnerabilities.
     /// </summary>
-    public bool TestBufferOverflow { get; set; } = true;
+    public bool TestBufferOverflow { get; set; }
 
     /// <summary>
     /// Gets or sets whether to test malformed message handling.
@@ -34,7 +34,7 @@ public class SecurityTestingConfig
     /// <summary>
     /// Gets or sets whether to test resource exhaustion attacks.
     /// </summary>
-    public bool TestResourceExhaustion { get; set; } = true;
+    public bool TestResourceExhaustion { get; set; }
 
     /// <summary>
     /// Gets or sets custom security test payloads.
@@ -96,7 +96,7 @@ public class PerformanceTestingConfig
     /// <summary>
     /// Gets or sets whether to test memory usage under load.
     /// </summary>
-    public bool TestMemoryUsage { get; set; } = true;
+    public bool TestMemoryUsage { get; set; }
 
     /// <summary>
     /// Gets or sets whether to test throughput limits.

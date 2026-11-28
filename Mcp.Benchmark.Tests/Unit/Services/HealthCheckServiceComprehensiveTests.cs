@@ -77,7 +77,8 @@ public class HealthCheckServiceComprehensiveTests
                 StatusCode = 200,
                 ElapsedMs = 15,
                 ProtocolSemanticsValid = true,
-                ResultType = McpResultType.Complete
+                ResultType = McpResultType.Complete,
+                RawJson = """{"jsonrpc":"2.0","id":"discover","result":{"supportedVersions":["2026-07-28"],"capabilities":{},"resultType":"complete","cacheScope":"public","ttlMs":0}}"""
             });
 
         var result = await _service.PerformHealthCheckAsync(config);

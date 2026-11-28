@@ -33,6 +33,9 @@ public enum ValidationPackKind
 
 public sealed class ValidationPackDescriptor
 {
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public EvaluationLane? Lane { get; init; }
+
     public required ValidationDescriptorKey Key { get; init; }
 
     public required ValidationPackKind Kind { get; init; }
@@ -215,9 +218,14 @@ public sealed class ValidationRunDocument
 {
     public string ValidationId { get; set; } = Guid.NewGuid().ToString();
 
+    public ValidationOutcome? TerminationOutcome { get; set; }
+
     public string? ProtocolVersion { get; set; }
 
     public string? SchemaVersion { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SourceDocumentSchemaVersion { get; set; }
 
     public string? TargetIdentitySha256 { get; set; }
 
@@ -340,6 +348,15 @@ public sealed class ValidationScenarioResult
 
     public string? Summary { get; init; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledStateAssessment? ControlledState { get; init; }
+
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledIdentityMatrixAssessment? ControlledIdentity { get; init; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ControlledRelayAssessment? ControlledRelay { get; init; }
+
     public List<ValidationFinding> Findings { get; init; } = new();
 }
 
@@ -365,6 +382,9 @@ public sealed class ValidationScenarioContext
 
 public sealed class ValidationObservation
 {
+    public const string CoverageConflictKind = "scenario-coverage-conflict";
+    public const string CoverageScopeMetadataKey = "scope";
+
     public required string Id { get; init; }
 
     public required string LayerId { get; init; }
@@ -444,7 +464,8 @@ public enum ProbeResponseClassification
     TransportFailure,
     ParserBoundary,
     Timeout,
-    NoResponse
+    NoResponse,
+    PolicyBlocked
 }
 
 public sealed class ProbeContext
@@ -594,7 +615,8 @@ public enum EvaluationLane
     ExternalConformance,
     ExtensionReadiness,
     ClientCompatibility,
-    ModelAdvisory
+    ModelAdvisory,
+    ControlledApplication
 }
 
 public enum EvidenceOrigin

@@ -26,6 +26,45 @@ public static class OfficialConformanceContract
     public static IReadOnlyList<string> RequiredServerScenarios => Pin.RequirementSet.RequiredServerScenarios;
     public static IReadOnlyList<OfficialConformancePinnedScenario> NotScoredServerScenarios => Pin.RequirementSet.NotScoredServerScenarios;
 
+    public static string GetCheckEvidenceId(string scenarioId, string checkId, int? sourceIndex) => sourceIndex is { } index
+        ? $"official-conformance/{scenarioId}/check/{index}"
+        : $"official-conformance/{scenarioId}/{checkId}";
+
+    public static void ValidateCheckIdentities(OfficialConformanceAssessment assessment)
+    {
+        ArgumentNullException.ThrowIfNull(assessment);
+        if (assessment.Scenarios is null || assessment.Scenarios.Count > MaximumScenarios)
+            throw new JsonException("Official conformance scenario inventory is invalid.");
+        var scenarios = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var evidenceIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var claimIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var scenario in assessment.Scenarios)
+        {
+            if (scenario is null || string.IsNullOrWhiteSpace(scenario.ScenarioId) || scenario.ScenarioId.Length > MaximumTextLength ||
+                !scenarios.Add(scenario.ScenarioId) || scenario.Checks is null || scenario.Checks.Count > MaximumChecksPerScenario)
+                throw new JsonException("Official conformance scenario inventory is invalid.");
+            foreach (var check in scenario.Checks)
+            {
+                if (check is null || string.IsNullOrWhiteSpace(check.Id) || check.Id.Length > MaximumTextLength ||
+                    check.SourceIndex is < 0 or >= MaximumChecksPerScenario ||
+                    !evidenceIds.Add(GetCheckEvidenceId(scenario.ScenarioId, check.Id, check.SourceIndex)) ||
+                    !claimIds.Add(Mcp.Benchmark.Core.Services.AssuranceClaimProjector.GetExternalCheckClaimId(scenario.ScenarioId, check.Id, check.SourceIndex)))
+                    throw new JsonException("Official conformance check identity is invalid or ambiguous.");
+            }
+        }
+    }
+
+    public static void ValidateRetainedAssessment(OfficialConformanceAssessment assessment)
+    {
+        ValidateCheckIdentities(assessment);
+        foreach (var check in assessment.Scenarios.SelectMany(scenario => scenario.Checks))
+            if (!Enum.IsDefined(check.Status) || !Enum.IsDefined(check.Applicability) ||
+                check.Applicability == AssuranceApplicability.NotApplicable && check.Status != OfficialConformanceCheckStatus.Info ||
+                check.PrerequisiteMissing && (check.Applicability != AssuranceApplicability.Applicable ||
+                    check.Status is not (OfficialConformanceCheckStatus.Failure or OfficialConformanceCheckStatus.Warning)))
+                throw new JsonException("Official conformance check applicability or prerequisite metadata is invalid.");
+    }
+
     public static JsonSerializerOptions CreateJsonOptions() => new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

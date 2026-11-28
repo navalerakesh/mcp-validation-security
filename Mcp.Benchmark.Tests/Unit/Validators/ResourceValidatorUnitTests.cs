@@ -12,6 +12,128 @@ namespace Mcp.Benchmark.Tests.Unit;
 public class ResourceValidatorUnitTests
 {
     [Fact]
+    public async Task ValidateResourceDiscoveryAsync_CancelAfterLastItem_ShouldNotStartTemplateRequest()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resources\":[{\"uri\":\"https://example.invalid/retained\",\"name\":\"retained\"}]}}" });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzeResource(It.IsAny<string>(), It.IsAny<string>())).Returns(() =>
+        {
+            cancellation.Cancel();
+            return new List<ContentSafetyFinding>();
+        });
+        var validator = new ResourceValidator(new Mock<ILogger<ResourceValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ResourceTestingConfig { TestResourceReading = false, TestSubscriptions = false }, cancellation.Token);
+
+        result.Status.Should().Be(TestStatus.Cancelled);
+        result.ResourceResults.Should().ContainSingle(resource => resource.ResourceName == "retained");
+        client.Verify(service => service.CallAsync(It.IsAny<string>(), "resources/templates/list", It.IsAny<object?>(),
+            It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData(" ")]
+    public async Task ValidateResourceDiscoveryAsync_TemplateMissingRequiredName_ShouldBeSpecificationFailure(string? name)
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200, RawJson = "{\"result\":{\"resources\":[]}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/templates/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resourceTemplates\":[{\"uriTemplate\":\"file:///{id}\"" +
+                    (name is null ? "" : ",\"name\":" + System.Text.Json.JsonSerializer.Serialize(name)) + "}]}}" });
+        var validator = new ResourceValidator(new Mock<ILogger<ResourceValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, new Mock<IContentSafetyAnalyzer>().Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ResourceTestingConfig { TestResourceReading = false, TestSubscriptions = false });
+
+        result.Status.Should().Be(name is null ? TestStatus.Failed : TestStatus.Passed);
+        result.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.ResourceTemplateRequiredNameMissing && finding.EffectiveSource == ValidationRuleSource.Spec)
+            .Should().Be(name is null);
+    }
+
+    [Fact]
+    public async Task ValidateResourceDiscoveryAsync_MalformedTemplate_ShouldRetainLaterTemplateFindings()
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200, RawJson = "{\"result\":{\"resources\":[]}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/templates/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resourceTemplates\":[{\"name\":\"first\",\"uriTemplate\":\"file:///first/{id}\"},null,{\"name\":\"last\"}]}}" });
+        var validator = new ResourceValidator(new Mock<ILogger<ResourceValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, new Mock<IContentSafetyAnalyzer>().Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ResourceTestingConfig { TestResourceReading = false, TestSubscriptions = false });
+
+        result.Status.Should().Be(TestStatus.Failed);
+        result.Findings.Should().Contain(finding => finding.RuleId == ValidationFindingRuleIds.ResourceTemplateMissingUriTemplate && finding.Component == "last");
+    }
+
+    [Fact]
+    public async Task ValidateResourceDiscoveryAsync_ShouldRetainResourcesAcrossPages()
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = 400, RawJson = "{\"error\":{\"code\":-32601}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resources\":[{\"uri\":\"https://example.invalid/first\",\"name\":\"first\"}],\"nextCursor\":\"next\"}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<AuthenticationConfig?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resources\":[{\"uri\":\"https://example.invalid/last\",\"name\":\"last\"}]}}" });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzeResource(It.IsAny<string>(), It.IsAny<string>())).Returns([]);
+        var validator = new ResourceValidator(new Mock<ILogger<ResourceValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ResourceTestingConfig { TestResourceReading = false, TestSubscriptions = false });
+
+        result.ResourceResults.Select(resource => resource.ResourceName).Should().Equal("first", "last");
+        result.CatalogEnumeration!.RawItemsObserved.Should().Be(2);
+        result.CatalogEnumeration.ParsedPages.Should().Be(2);
+        result.CatalogEnumeration.IsComplete.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{\"uri\":42,\"name\":\"invalid\"}")]
+    public async Task ValidateResourceDiscoveryAsync_MalformedMiddleItem_ShouldRetainValidNeighbors(string invalid)
+    {
+        var client = new Mock<IMcpHttpClient>();
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse { IsSuccess = false, StatusCode = 400, RawJson = "{\"error\":{\"code\":-32601}}" });
+        client.Setup(service => service.CallAsync(It.IsAny<string>(), "resources/list", It.IsAny<object?>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new JsonRpcResponse
+            {
+                IsSuccess = true, StatusCode = 200,
+                RawJson = "{\"result\":{\"resources\":[{\"uri\":\"https://example.invalid/first\",\"name\":\"first\"}," + invalid + ",{\"uri\":\"https://example.invalid/last\",\"name\":\"last\"}]}}"
+            });
+        var safety = new Mock<IContentSafetyAnalyzer>();
+        safety.Setup(service => service.AnalyzeResource(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns([]);
+        var validator = new ResourceValidator(new Mock<ILogger<ResourceValidator>>().Object, client.Object,
+            new Mock<ISchemaValidator>().Object, new Mock<ISchemaRegistry>().Object, safety.Object);
+
+        var result = await validator.ValidateResourceDiscoveryAsync(new McpServerConfig { Endpoint = "https://example.invalid/mcp" },
+            new ResourceTestingConfig { TestResourceReading = false, TestSubscriptions = false });
+
+        result.ResourceResults.Select(resource => resource.ResourceName).Should().ContainInOrder("first", "last");
+        result.Status.Should().Be(TestStatus.Failed);
+    }
+
+    [Fact]
     public async Task ValidateResourceDiscoveryAsync_WhenResourcesCapabilityIsNotAdvertised_ShouldSkipResourceProbes()
     {
         var httpClient = new Mock<IMcpHttpClient>();

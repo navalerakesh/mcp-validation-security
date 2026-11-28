@@ -1,0 +1,821 @@
+{
+  "status": "local-s7d-owned-http-identity-pilot-qualified",
+  "baseCommit": "873ebeffee7b5e8dcec2c6b82e914fabfa9a1085",
+  "branch": "fix/enhancements_2026-11-9",
+  "observedAt": "2026-11-22T21:12:25.773Z",
+  "sourceIdentity": "319748850f8acd05077436b7618bfaad4309780367376b898ca02329b6c8d0c5",
+  "identityExclusions": [
+    "docs/EnterpriseRecoveryProgress.md",
+    "docs/Resources/Acceptance/s7d-local-receipt.json"
+  ],
+  "sourceFiles": [
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "b90b8aa655fc191c5fece1793179463c1966cb60775bef4420b2df14a531333b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Fixtures/Servers/mcp-fixture-controlled-identity.cjs",
+      "sha256": "e0c0f531f075d5c6b27efd4d303ec4918990e36e2db18c0daedbfd521a8dd6a5"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/Integration/FixtureServerProcessIntegrationTests.cs",
+      "sha256": "b126223b5f2f1e622a930c85b5a7378667d13be70a90f294ad5a1ca6da9321ac"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/README.md",
+      "sha256": "7fdbcdc204c95a3920ba7fd712980d4efdba68ac5e2cea20446740ccf0e285e8"
+    },
+    {
+      "path": "scripts/validate-repo.sh",
+      "sha256": "7c24361537a6e3b662cd1147b3af86ed63a3cfb9cd075549784acaf6466fb6d7"
+    }
+  ],
+  "evidence": [
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s3-package-qualification.mjs",
+      "sha256": "7883c228027281c6e43cbb9e14ef099ebdcb905992300a838b599b11f6cb50cb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s4-package-qualification.mjs",
+      "sha256": "1cb14c1fb6c8872096269ca64770d63baecceac486e4af39aee827c66d3abcab"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s5-package-qualification.mjs",
+      "sha256": "a5d3dfb9153a2d845fb8738fe287bf7db3a0c37e25dcd1062ec4315cee3efa65"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7a-package-qualification.mjs",
+      "sha256": "1cfbe1b3b4bb084566a92f740fe7d14080af4873ba8a1947d464f08ae983295c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/base-receipt.json",
+      "sha256": "b4036e136cba7e9f442e055ebaa19aa174d248d63e6cc74000825a21357e8fc2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-audit.json",
+      "sha256": "7d5c364c73e25ee0a29b0cc08e0830d10d0a82e9cf90ac59f67b6a41fbfe822c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-profile-summary.json",
+      "sha256": "b41ef070fe745f41b05ba5faa6ef4aa4e3c396667ccc4037a9be5f6be15ebda2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-report.html",
+      "sha256": "911b240e9df1ccee49691b68dbde585244db35135c0fe6c976c11a091583591a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-report.md",
+      "sha256": "a753f13698ed326a090284df093bff7fd03db205eaa5619bcaaf49cdcf40d503"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-result.json",
+      "sha256": "21aa61c3a59bfa10907f15bbec823c5b6ff9f519e004bf78917fcfba8b6d89f3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-results.junit.xml",
+      "sha256": "5f912707f9fefcf3b68151e6f8b7ee8bf7993c9674aec2e68622609e2c5f4bec"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/artifacts/mcp-validation-20261122-210347-288-297556abf573/mcp-validation-20261122-210347-288-297556abf573-results.sarif.json",
+      "sha256": "fd3ce44d0ec685f4982258a574de8a066a02f8a076328ee4d21b9db229beade0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/methods.jsonl",
+      "sha256": "8668bca1a2f361095effbd4019cdadb925b43df8ca878568a861743fc89b5a4e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/processes.jsonl",
+      "sha256": "531487cb409cc7ced5679f7b0b5ed4d56a8bfe5034b7fc160d89ab51cdc92613"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/receipt.json",
+      "sha256": "28c58763bf46f87070da0900e614954f12c45ca8f2d63586588060d4d4cc488d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/canonical-oracle/stdout.json",
+      "sha256": "0714d4660cb7ca6047b505384ebd69ddadb883b1a73466286e2f111c5c4b8130"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/commands.json",
+      "sha256": "3a2b844c9e5142129f270984f5c9c950413e98d32e5b6bcc57d1108f371feb3d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/current-version.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/current-version.stdout",
+      "sha256": "bea85434b54db5e8403063e37f592cae294af26680fa4c55875f16aac91bb851"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/distribution-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/distribution-smoke.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/dotnet-pack.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/dotnet-pack.stdout",
+      "sha256": "cf816fddf441f28c942d72c316fd4aef60c8c0d7c852b1d7a1e6e09c0f14a7ea"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-canonical.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-canonical.stdout",
+      "sha256": "0714d4660cb7ca6047b505384ebd69ddadb883b1a73466286e2f111c5c4b8130"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-lifecycle.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-lifecycle.stdout",
+      "sha256": "276fe2ca0375658ff6134bcf35d132e9759364cf53ccf892ef08ba021db1e1ab"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-schema.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/installed-schema.stdout",
+      "sha256": "4b93b36c0e9d94f1a3d855e20718d3e414d80f62d641b9577057a9dbe591f634"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-init.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-init.stdout",
+      "sha256": "dc267070116ea5b7a1b5a9b66a36961a476d862eab0f6195251e0c07f568d67d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-install.stdout",
+      "sha256": "a5f8e6d11cda4e82c53eaf5ae1830d3849c9bcdd8a43904a6a25d4d186a2198b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-pack-dry-run.stderr",
+      "sha256": "877910e709d50abd0cec95d4008f7311ecb91462191effa2a3e79ea9bf2d5903"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-pack-dry-run.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-pack.stderr",
+      "sha256": "877910e709d50abd0cec95d4008f7311ecb91462191effa2a3e79ea9bf2d5903"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-pack.stdout",
+      "sha256": "8e1da0b79f043dfcafcfa93a2475eb79dc125038f59a3b7093b7fd8fa1f329aa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-smoke.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/npm-smoke.stdout",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/tool-install.stderr",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/logs/tool-install.stdout",
+      "sha256": "4625ea272de87c349da60dd183b0bbba7e6470ba5370dacb0ab3eca09ec5845c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/npm/mcpval-localmcp-2.0.1.tgz",
+      "sha256": "47de168bef14d888de20c953649db0c4618251a8a01cca197b2fe374337af95c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/nuget/McpVal.2.0.1.nupkg",
+      "sha256": "2a17e92698e534aa3b5e4af9a0c4639fcc7f7f2b81f599e358acae0924bc1d92"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/0_feedbacks/2026-11-09/investigation/s7d-package-qualification/receipt.json",
+      "sha256": "c5d2e3963b5353871178f9eecc264067ea4c1a748a4dde0c402ef4c57f99095f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/build.json",
+      "sha256": "17b10b4a68ae025454e0eab9c5a0348d456ea979b2bb1d60e5a743513046ecaa"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/github-discover.json",
+      "sha256": "f1973ec9f9d1c5816371b01487d393394b5071abd677866fbbba82ae0a083271"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/github-health_check.json",
+      "sha256": "ac24119194981d83ccfcb3ca43d7036c21645813693ed14fea2aae8bef82d098"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/github-receipt.json",
+      "sha256": "8b345eb1041e8d8660b35f17ace01ec78bc5e9c1c95c702699c6aeb2c2115606"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/github-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/github-validate.json",
+      "sha256": "bf1266a40e35a45fec03f240eedfeb3855d7a1b52f6fb6dcff8e36445deb05bb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/learn-discover.json",
+      "sha256": "b6fcb33c103736692c65bacf00684219c801c198b65d1e2dcaf29aa79aee426a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/learn-health_check.json",
+      "sha256": "53c153c82ade0557f253e8fb88578596588f1754cfa2a2ed3049aa2ae49337ee"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/learn-receipt.json",
+      "sha256": "7427af68ea1886742347a4a295b141df16f8c33ae52c27ced4d136b71abae71e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/learn-surface.json",
+      "sha256": "9f94d0be65f9c858ff1f16498e1c1acef58bbab35cb25a328f8599d5e32935d1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/learn-validate.json",
+      "sha256": "6711e465a31689a9ee8b7226ce4e43fa10f0a2fd92a00f192b6083498038c1fc"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/s7d-final/summary.json",
+      "sha256": "7255c780e25696de6622fe8d87d33418e38c460d244e8fc33ffda0b973229b9c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/milestone-live-2026-11-22/stdio-live.mjs",
+      "sha256": "5876d51905addf0714f4966be114343fff998cdc904c63d6e1b8a8ddd826a3eb"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7c-identity-2026-11-22/package-qualification.mjs",
+      "sha256": "bdcdf38c9b6cfda0ba09c3ae208dc25c8bed5ecd0783bdbd95fc048e1379c13f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/broken-policy.canonical.json",
+      "sha256": "38086fcbfe5c24d71b293ae9f3d895b072bc73101f956786fe7580545b3a065b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/broken-policy.evidence.json",
+      "sha256": "cf50526885a8b055d176dcbbbc462addc4d552bf7256a859b985688d542c91a1"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/broken-policy.json",
+      "sha256": "c324dfa2cf04bf221f602df2533585fd357c24c121cc8319418100b316cb67de"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/broken-policy.observer-public.pem",
+      "sha256": "4a2476a404296b13375f4bf934b48766017083597b215d8161ebf36a92ff4f28"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/correct-policy.canonical.json",
+      "sha256": "1ccb364224b11aaa2493a3bea9680eb5d32e8cf1c8b9d16775fafc8568234db7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/correct-policy.evidence.json",
+      "sha256": "399593d02bae85c6cdd4a52edbf9935d48be96a57d9131906155beb67aac80c3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/correct-policy.json",
+      "sha256": "1c076235f19971a65ec2901df58f7d343850c001ceb7d46f31eaa51c7fa46e4d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/correct-policy.observer-public.pem",
+      "sha256": "bf1f357f74188d4e1821089cb744036bc3024bfe80ff0e364ff8574fdd27e78d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/counter-drift.canonical.json",
+      "sha256": "bfc2cda8b8ac65647bc4b717fad2bd5f1679f6416a32989478b77816c0d70c87"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/counter-drift.evidence.json",
+      "sha256": "f84613d80f98e48989a56ecbc81df1c39eeb9a11486d40d6cd91a7396c783fd7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/counter-drift.json",
+      "sha256": "1bb331c28506c53d6f6b611724bf9e40ba1c11eabd5a9f8d7d4aef3166602af5"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/counter-drift.observer-public.pem",
+      "sha256": "ff5d8a8b4b317ae84a0ccd16fb49183837959231d2ebeff8e5195d2c97ab4b33"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/observer-unavailable.canonical.json",
+      "sha256": "c6b4938b23c44f215aa6c6a7dc9cfa53e56439a17a0ae774b12f9f4486064c5b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/observer-unavailable.evidence.json",
+      "sha256": "74269a0b9dec363c1cb72b7b6a7025f76557ff011938c44f79b94830fc1eea8c"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/observer-unavailable.json",
+      "sha256": "ecc4208d873c8815a331f957107b5a0d6125ac4ae59534582ec19a9bc9cfbb4b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/canonical-evidence/observer-unavailable.observer-public.pem",
+      "sha256": "09764e6b131ebe95be60e99b8c4ca5dcb64df7fc36a806d51515108f4952caee"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/broken-policy.canonical.json",
+      "sha256": "de2e92a0e3dfc289de52ba39574615135a9f78d84004d72904aa86d1389caa01"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/broken-policy.evidence.json",
+      "sha256": "25f4e9302944c6cb25c88ee926d333be4296e9c84cb2be3010ec7a3649180e91"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/broken-policy.json",
+      "sha256": "d4215f176096c5baf23a35d81df8bcce654a1af64d42176bc6e2a4b90b77d9f4"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/broken-policy.observer-public.pem",
+      "sha256": "cfc04c859a1ed54ac7607a07fa045c13de3d894e591767119c144bd03d909d3d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/correct-policy.canonical.json",
+      "sha256": "c5fd3f0701e153c674135512baace65305476089632addfcb9ad1a0636befb78"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/correct-policy.evidence.json",
+      "sha256": "59d69e995f4419c51c0a0a5f035d261dc73a56d2e8da7652723979b554d557b9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/correct-policy.json",
+      "sha256": "b0f8d3885c0d8dc922f3b04f4fc7b9505a551850997850f6878c3f7728d71489"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/correct-policy.observer-public.pem",
+      "sha256": "ebb7c358c9bfc7c107a1d56b6e86c9a0f6624aa891e969e4f9026bf7c5a11698"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/counter-drift.canonical.json",
+      "sha256": "531ba9d7820811d3d29536aee16d10f57985f05a90260f3391770749163f275b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/counter-drift.evidence.json",
+      "sha256": "4897ee9aeb938b755d76f0c8d3ec3da15a688e1fd58a3e5ac38c43f9df47b3c9"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/counter-drift.json",
+      "sha256": "334a18f87a9d2bbc7c0f6f30da5761952de9919f233a8ab2842bff28861f17a7"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/counter-drift.observer-public.pem",
+      "sha256": "f918e999999d4990af7197457b0ec2ef878a667e247755e3ab0a844607950497"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/observer-unavailable.canonical.json",
+      "sha256": "f707343d128e1679a96d82c5e566b21281561165c4d3bd9674808d0c938c8fe8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/observer-unavailable.evidence.json",
+      "sha256": "4d41d9a86552e8cf1f148d082749d0396fd58f85239cfaa06320b8597ef91b02"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/observer-unavailable.json",
+      "sha256": "32cab8ad450dee0a22cf68424e0077fbb8937b2b4f2b79b55caf54f622a9de4a"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-evidence/observer-unavailable.observer-public.pem",
+      "sha256": "239de7b657044040880b66126c96cc85c3799433d727cf6589b5d3d1042e52d0"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/closed-repository-gate.log",
+      "sha256": "9e056dd566a578b31fe12b8aa8ac7a1aa80c5e098aec596d05ea85bfdd5d26a8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/broken-policy.evidence.json",
+      "sha256": "8ced0ca7634990132863d153111349bab6f3fcc11cececfb9d20375966223b85"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/broken-policy.json",
+      "sha256": "1b3b50ae75bd0a4ebc3dd13639419eb758cb6e0a05725007e6f3c840d5bab591"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/broken-policy.observer-public.pem",
+      "sha256": "6bcd99458f46ae974603f3cf5a51c9c23c17b9b0f17a24e688fa86cd0c335633"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/correct-policy.evidence.json",
+      "sha256": "653835db17b2d56127b1f3562f9bd9f2302aee9392f036951634b8b23e2d31bf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/correct-policy.json",
+      "sha256": "f108b0610f3186ffa48013e5fa3f61225c6c4ae50c213a5cac9f410de8826724"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/correct-policy.observer-public.pem",
+      "sha256": "8c5b93bbca56c22a29bd59b8d56c7aba5b138197a91d73dad9376e839fc91b81"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/counter-drift.evidence.json",
+      "sha256": "764750d319540a99c2c0d14110372f54ec0731b2b1abcff17d8acda540bad68e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/counter-drift.json",
+      "sha256": "d0acf8640f81b450e0257573acf640a730b48ce18dca0fdc975c637787db60e2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/counter-drift.observer-public.pem",
+      "sha256": "948ed0dcce52e1d225949b93749e772b0e885e1dba5221f6a1e1cee0d1b62f31"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/observer-unavailable.evidence.json",
+      "sha256": "fc46061dab07b912d4c24bd2d86395179eb105dcbf068ec05fba0be04a7aa401"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/observer-unavailable.json",
+      "sha256": "96e1091f903a50519e12be0be2122c68628e67614919952e34b09b440f3dade2"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/evidence/observer-unavailable.observer-public.pem",
+      "sha256": "05f9fbc0b0ccb7c2a8286c235ce7d4da8b9717d515582decd6ab06a94dde668d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/broken-policy.canonical.json",
+      "sha256": "396eb076d2e73582efaf14202de317254b94b14729501c6a015c317a8cf27159"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/broken-policy.evidence.json",
+      "sha256": "c6f0f1c93ec65e1826369078cbc322efc8241243e95ce4d3516fbc933f81b984"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/broken-policy.json",
+      "sha256": "acd79c772df1c24474f52fee858d3e0b4dd499c8793fed93b433a5aaa90e577f"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/broken-policy.observer-public.pem",
+      "sha256": "0186483cbe5a8b773b91c63027651197904265d211d12c5d6843852ecffc9c94"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/correct-policy.canonical.json",
+      "sha256": "e281dd0afabe4cd362e9d7d52e80f273c92b8a84bf48a76e7e7cda88737cd4ff"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/correct-policy.evidence.json",
+      "sha256": "45c0b51d01e93bb2e39193ee31435a5a759a50196198026bb05f4fdfe6a7291b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/correct-policy.json",
+      "sha256": "110db66a551c2ae2fb5e99c76f6c21d1048874131ff962b4e05aaad55d36db67"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/correct-policy.observer-public.pem",
+      "sha256": "0f2fb3991222ad44f717532d5cb10b91bd0dbfbde668c7cb944d66381e5a013b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/counter-drift.canonical.json",
+      "sha256": "7e352bf74cead994f64db11227690b17b6464f71c2734bd67e4adf566655c6f8"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/counter-drift.evidence.json",
+      "sha256": "5048d51c5f276e26e58e6f3d47805f873b8dfd1d27774f6a293928e514db259b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/counter-drift.json",
+      "sha256": "1a5067be9027e5f8da09047fc1ea0688a22d889b887b6601c6e8edf7193d6128"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/counter-drift.observer-public.pem",
+      "sha256": "1829b1ae7e38740d60ea3308ea731d7c4e58f2ef29576ca1bdd115a70458a79b"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/observer-unavailable.canonical.json",
+      "sha256": "1981c8a9eac512d0bc4663eefd97b006ecf52070c0c45d28dad61f01e33f337e"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/observer-unavailable.evidence.json",
+      "sha256": "360319b5b3ef1c7ee80ccee02a6941a3d44fce848071ca6aef2e56f4731ada16"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/observer-unavailable.json",
+      "sha256": "bf093a1ee1a023488854b47982d8d08ce3df614b83fce224fc1aabc15e9d49ba"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-evidence/observer-unavailable.observer-public.pem",
+      "sha256": "509105d185c8d6f88f26e0aa1aa3269ab6f80f9c658899fe19d0a6c6298b2656"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/final-repository-gate.log",
+      "sha256": "1821d4de807c443da00e4b14405a9ba9255e3858e2b8d6ebe968daccef7b3536"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/links.log",
+      "sha256": "57c3e4980fafc9cf65ac2135f7e9c0d17c256a5da97d062cb8cc272d92e5443d"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/markdown.log",
+      "sha256": "21820cc7d40a2946da7c894b0a29b1118084e30cd089243ab9209a7b1131ae37"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/package-qualification.log",
+      "sha256": "c22f6ffb7baa40b56f0a8a2d6e552db783dc3ac9f94ed4318129b64f769fb614"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/package-qualification.mjs",
+      "sha256": "129e4934e39be950d1ff9b94626f2c78f66a044a28b0e261efd8365642160f38"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/preliminary-gates.log",
+      "sha256": "05b8b1732e4627f1a7640968df28d0a834aa6ca57f3bec593f111b8b1f9b08cf"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/receipt.mjs",
+      "sha256": "2b0bd00b18b7c44d429142a0a985a5614dd42ffcc799052b87a0e3fcfdd14504"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/release-build.log",
+      "sha256": "0b609e97526e708e8cb18a52cd0a2420c011371029277182e8faf4fa55db9967"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/repository-gate.log",
+      "sha256": "b7165f5f74c254ebcc452ec1637a7e2f189738431bcd0bbf8802cf01d25e7b60"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/safety-gates.json",
+      "sha256": "8fff7eaa4f5b2e2c9ed12aaf09c082072f508717f60a3d9df2b1448dcefc7fd3"
+    },
+    {
+      "path": "BenchmarkDotNet.Artifacts/s7d-owned-identity-2026-11-22/typecheck.log",
+      "sha256": "12643009ea5bb1bce68eaf27877255f8e016c2e10be6a9b043e7dae72f5c101e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-http-identity-boundaries.trx",
+      "sha256": "8e3cb42a701eda9f625c3e8df070e46676a7c69587600c8964b8dbdc061bdfe0"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-http-identity-initial.trx",
+      "sha256": "8a23a096ee0a406df183ec1540e30e078e18d0914e0e4390e5caa473f0be06d4"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-http-identity-sdk.trx",
+      "sha256": "0ca5f56c2c8d4071b5a3ce6ec5fd70c9f2e91de1c14b79cd9ded612e0246e38e"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-bounded-readiness.trx",
+      "sha256": "b80ca057870dfba346a1cc84721291b3d697db34fe6626ab0ccf5fcb2e8ffe53"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-canonical.trx",
+      "sha256": "475f8a53508c75e94b988fb94b9578c89b2ebebfc9acc9213586c577278495a2"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-closed.trx",
+      "sha256": "fac4fc91f210de89545af08b8c03723d93713325361605e2c5614fb1bceeeabf"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-final-evidence.trx",
+      "sha256": "64b331a03b39c65491537c1fb0c2e62065782001a13e1de9c143cb8f5a531689"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-retained.trx",
+      "sha256": "4aefc327552ab2550780c9f3245afca7bdd90ba7e67a2f16359ab64fe786ff2b"
+    },
+    {
+      "path": "Mcp.Benchmark.Tests/TestResults/s7d-owned-identity-review-repairs.trx",
+      "sha256": "053a57107de79b87f158cbdb6fd161a51ba9401fba3ee69554a6b8665b1f69b5"
+    }
+  ],
+  "requirements": [
+    {
+      "id": "S7/I08/owned-identity-pilot",
+      "code": [
+        "mcp-fixture-controlled-identity.cjs",
+        "FixtureServerProcessIntegrationTests"
+      ],
+      "tests": [
+        "OwnedHttpIdentityPilot_ShouldObserveIssuedPrincipalsAndPolicy",
+        "OwnedHttpIdentityFixture_ShouldExitAtLifetimeWithParentInputOpen"
+      ],
+      "accepted": "Real SDK HTTP and governed client, issued opaque principals/scopes, fixed object policy and credential-separated trusted fixture observer; signed derived predicates, actual clocks/protocol and canonical output; explicit negative/unavailable/inconsistent controls and bounded cleanup"
+    }
+  ],
+  "results": {
+    "dotnet": {
+      "passed": 1901,
+      "failed": 0,
+      "skippedWindowsNative": 23
+    },
+    "wrapperTests": 180,
+    "actualCliLifecycle": 2,
+    "installedCliLifecycle": 2,
+    "nodeCompanions": 9,
+    "ownedPilotTests": 5,
+    "scenarios": [
+      {
+        "mode": "correct-policy",
+        "outcome": "succeeded",
+        "cases": [
+          {
+            "caseId": "claimed-actor",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "control",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "insufficient-scope",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "other-actor",
+            "outcome": "succeeded"
+          }
+        ],
+        "signatureVerified": true
+      },
+      {
+        "mode": "broken-policy",
+        "outcome": "failed",
+        "cases": [
+          {
+            "caseId": "claimed-actor",
+            "outcome": "failed"
+          },
+          {
+            "caseId": "control",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "insufficient-scope",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "other-actor",
+            "outcome": "succeeded"
+          }
+        ],
+        "signatureVerified": true
+      },
+      {
+        "mode": "observer-unavailable",
+        "outcome": "inconclusive",
+        "cases": [
+          {
+            "caseId": "claimed-actor",
+            "outcome": "inconclusive"
+          },
+          {
+            "caseId": "control",
+            "outcome": "inconclusive"
+          },
+          {
+            "caseId": "insufficient-scope",
+            "outcome": "inconclusive"
+          },
+          {
+            "caseId": "other-actor",
+            "outcome": "inconclusive"
+          }
+        ],
+        "signatureVerified": true
+      },
+      {
+        "mode": "counter-drift",
+        "outcome": "inconclusive",
+        "cases": [
+          {
+            "caseId": "claimed-actor",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "control",
+            "outcome": "succeeded"
+          },
+          {
+            "caseId": "insufficient-scope",
+            "outcome": "inconclusive"
+          },
+          {
+            "caseId": "other-actor",
+            "outcome": "succeeded"
+          }
+        ],
+        "signatureVerified": true
+      }
+    ],
+    "liveResults": [
+      {
+        "target": "https://learn.microsoft.com/api/mcp",
+        "protocol": "2025-06-18",
+        "outcomes": [
+          {
+            "tool": "health_check",
+            "exitCode": 0
+          },
+          {
+            "tool": "discover",
+            "exitCode": 0
+          },
+          {
+            "tool": "validate",
+            "exitCode": 0
+          }
+        ],
+        "claims": {
+          "satisfied": 13,
+          "incomplete": 8,
+          "reviewRequired": 5
+        }
+      },
+      {
+        "target": "https://api.githubcopilot.com/mcp/readonly",
+        "protocol": "2026-07-28",
+        "outcomes": [
+          {
+            "tool": "health_check",
+            "exitCode": 0
+          },
+          {
+            "tool": "discover",
+            "exitCode": 0
+          },
+          {
+            "tool": "validate",
+            "exitCode": 0
+          }
+        ],
+        "claims": {
+          "satisfied": 12,
+          "reviewRequired": 37,
+          "incomplete": 8
+        }
+      }
+    ],
+    "installedProductAssembliesMatching": 5,
+    "installedWrapperFilesMatching": 28,
+    "installedBundleSubjectDigestsVerified": 6,
+    "buildWarnings": 0,
+    "buildErrors": 0,
+    "nugetHighCriticalVulnerabilities": 0,
+    "npmVulnerabilities": 0,
+    "separateTypecheckExit": 0,
+    "markdownFiles": 45,
+    "linkChecks": {
+      "total": 150,
+      "ok": 140,
+      "errors": 0,
+      "excluded": 5,
+      "redirected": 5
+    },
+    "packageHashes": {
+      "nuget": "2a17e92698e534aa3b5e4af9a0c4639fcc7f7f2b81f599e358acae0924bc1d92",
+      "npm": "47de168bef14d888de20c953649db0c4618251a8a01cca197b2fe374337af95c"
+    },
+    "mutationGate": "Not triggered: fixture/test/dependency-order changes only; no production decision owner changed. Prior S7C score is not a new S7D run."
+  },
+  "contracts": {
+    "assuranceResult": "3.4.0 unchanged",
+    "identityEvidence": "1.0.0 unchanged",
+    "stateEvidence": "1.0.0 unchanged"
+  },
+  "reviews": {
+    "result": "READY FOR BUILD GATE",
+    "repairs": [
+      "Per-case assertions",
+      "Counter/ledger reconciliation",
+      "Bounded process streams",
+      "Timed exit with parent stdin open"
+    ],
+    "scope": "Trusted owned fixture and evidence pipeline only"
+  },
+  "notes": [
+    "Observer and target share the same trusted fixture; separate credentials do not establish independent production trust",
+    "No ephemeral tokens or private signing keys exported",
+    "Initial strict-SDK-mock and EOF-readiness failures retained; real SDK and bounded framing replaced them",
+    "No push, publication or model inference"
+  ],
+  "notAccepted": [
+    "Independent production identity/state witness",
+    "External OAuth issuer correctness",
+    "All identity/delegation/approval policies",
+    "Two-boundary relay and remaining S7",
+    "S8 budgets/benchmarks/adoption",
+    "Native Windows/Linux and enterprise/human qualification",
+    "HTML design acceptance",
+    "Exhaustive public-server conformance or long-term reliability",
+    "Protected remote checks/release readiness"
+  ],
+  "localCommitReadiness": "READY TO COMMIT"
+}

@@ -7,6 +7,8 @@ using System.Linq;
 using Microsoft.Extensions.Logging;
 using Mcp.Benchmark.Core.Abstractions;
 using Mcp.Benchmark.Core.Models;
+using Mcp.Benchmark.Infrastructure.Services;
+using Mcp.Benchmark.Infrastructure.Registries;
 using Mcp.Benchmark.Core.Constants;
 using Mcp.Benchmark.Core.Services;
 
@@ -48,13 +50,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolDiscoveryAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Tool Discovery", async (ct) =>
+        var explicitArguments = ToolScenarioInputs.CaptureScenarios(config);
+        var completed = await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Discovery", async (result, ct) =>
         {
-            var result = new ToolTestResult
-            {
-                ToolResults = new List<IndividualToolResult>()
-            };
-
             var capabilitySnapshot = config.CapabilitySnapshot;
             var cachedToolsListResponse = CreateResponseFromSnapshot(capabilitySnapshot);
             var snapshotTools = BuildToolListFromSnapshot(capabilitySnapshot?.Payload);
@@ -78,18 +76,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     authIssues.Add("ℹ️  Auth enforced correctly (discovered during pre-validation)");
                 }
 
-                result.ToolResults.Add(new IndividualToolResult
-                {
-                    ToolName = "Authentication Discovery",
-                    Status = TestStatus.Passed,
-                    DiscoveredCorrectly = true,
-                    MetadataValid = !string.IsNullOrEmpty(authInfo.WwwAuthenticateHeader),
-                    ExecutionSuccessful = true,
-                    ExecutionTimeMs = authInfo.DiscoveryTimeMs,
-                    Issues = authIssues,
-                    WwwAuthenticateHeader = authInfo.WwwAuthenticateHeader,
-                    AuthMetadata = authInfo.Metadata
-                });
+                AppendAuthFindings(authSecurity!, authIssues);
             }
 
             if (CapabilitySnapshotUtils.IsCapabilityExplicitlyNotAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools))
@@ -203,20 +190,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         {
                             authIssues.Add("✅ Successfully authenticated via strategy-based flow");
 
-                            // Add the auth discovery result so it's preserved in the report
-                            result.ToolResults.Add(new IndividualToolResult
-                            {
-                                ToolName = "Authentication Discovery",
-                                Status = TestStatus.Passed,
-                                DiscoveredCorrectly = true,
-                                MetadataValid = hasWwwAuth,
-                                ExecutionSuccessful = true,
-                                ExecutionTimeMs = toolsListDuration,
-                                Issues = new List<string>(authIssues),
-                                WwwAuthenticateHeader = authHeaderValue,
-                                AuthMetadata = authMetadata
-                            });
-
                             // Fall through to normal processing below...
                         }
                         else
@@ -241,25 +214,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         result.ToolsTestPassed = 0;
                         result.Issues.Add("Tool validation requires authentication: interactive authentication failed or was not completed.");
 
-                        result.ToolResults.Add(new IndividualToolResult
-                        {
-                            ToolName = "tools/list (Auth Check)",
-                            Status = TestStatus.AuthRequired,
-                            DiscoveredCorrectly = true,
-                            MetadataValid = hasWwwAuth,
-                            ExecutionSuccessful = true,
-                            ExecutionTimeMs = toolsListDuration,
-                            Issues = authIssues,
-                            WwwAuthenticateHeader = authHeaderValue,
-                            AuthMetadata = authMetadata
-                        });
                         if (authSecurity != null)
                         {
                             AppendAuthFindings(authSecurity, authIssues);
                             result.AuthenticationSecurity = authSecurity;
                             result.AuthenticationProperlyEnforced = authSecurity.AuthenticationRequired && authSecurity.HasProperAuthHeaders;
                         }
-                        NormalizeToolDiscoveryMetrics(result);
                         return result;
                     }
 
@@ -267,20 +227,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     result.Score = 0.0;
                     result.ToolsTestPassed = 0;
 
-                    result.ToolResults.Add(new IndividualToolResult
-                    {
-                        ToolName = "tools/list (Auth Check)",
-                        Status = TestStatus.AuthRequired,
-                        DiscoveredCorrectly = true,
-                        MetadataValid = hasWwwAuth,
-                        ExecutionSuccessful = true,
-                        ExecutionTimeMs = toolsListDuration,
-                        Issues = authIssues,
-                        WwwAuthenticateHeader = authHeaderValue,
-                        AuthMetadata = authMetadata
-                    });
-
-                    NormalizeToolDiscoveryMetrics(result);
+                    if (authSecurity != null) AppendAuthFindings(authSecurity, authIssues);
                     return result;
                 }
 
@@ -322,11 +269,19 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             // Treat the cached tools/list payload as the authoritative first page, then
             // continue paginated discovery so capability snapshots do not truncate catalogs.
-            var toolsList = ParseTools(toolsListResponse.RawJson);
-            var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse, ct);
-            toolsList = paginationFetch.Tools;
+            result.CatalogEnumeration = new CatalogEnumerationEvidence();
+            var paginationFetch = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, toolsListResponse,
+                (tools, rejections) =>
+                {
+                    result.ToolsDiscovered = tools.Count;
+                    result.DiscoveredToolNames = tools.Select(tool => tool.Name).ToList();
+                    result.ToolsTestFailed = checked((int)result.CatalogEnumeration.RejectedItems);
+                    result.Issues.AddRange(rejections.Except(result.Issues, StringComparer.Ordinal));
+                }, () => RecordMalformedCatalogItem(result), result.CatalogEnumeration, ct);
+            var toolsList = paginationFetch.Tools;
             toolsListPayloadChars = paginationFetch.TotalPayloadChars;
-            result.Issues.AddRange(paginationFetch.Issues);
+            result.Issues.AddRange(paginationFetch.Issues.Except(result.Issues, StringComparer.Ordinal));
+            result.ToolsTestFailed = paginationFetch.RejectedItems;
             ApplyPaginationFindings(result, paginationFetch, toolsList, toolsListPayloadChars / 4);
 
             if (toolsList.Count == 0 && snapshotTools != null && snapshotTools.Count > 0)
@@ -376,7 +331,24 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
             if (toolsList.Count == 0)
             {
-                result.Status = TestStatus.Passed;
+                if (explicitArguments.Count > 0)
+                {
+                    result.Status = TestStatus.Inconclusive;
+                    return result;
+                }
+                result.Status = result.ToolsTestFailed > 0 ? TestStatus.Failed : TestStatus.Passed;
+                if (result.ToolsTestFailed > 0)
+                {
+                    result.Message = "Tool catalog could not be fully recovered; malformed entries were rejected.";
+                    return result;
+                }
+                if (!paginationFetch.IsComplete)
+                {
+                    result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                        ? TestStatus.AuthRequired : TestStatus.Inconclusive;
+                    result.Message = "Tool catalog enumeration did not complete; an empty catalog has not been established.";
+                    return result;
+                }
                 result.ToolsTestPassed++;
                 result.Issues.Add(CapabilitySnapshotUtils.IsCapabilityAdvertised(capabilitySnapshot, McpSpecConstants.Capabilities.Tools)
                     ? "Tools capability was advertised, but tools/list returned an empty catalog; no tool executions were required."
@@ -397,7 +369,12 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             // Validate each tool and apply static content safety analysis
             foreach (var tool in toolsList)
             {
-                var toolResult = await ValidateIndividualToolAsync(serverConfig, tool, config, ct);
+                var toolResult = explicitArguments.ContainsKey(tool.Name) && toolsList.Count(candidate => candidate.Name == tool.Name) != 1
+                    ? new IndividualToolResult { ToolName = tool.Name, Status = TestStatus.Inconclusive,
+                        Issues = ["Explicit tool arguments could not be bound to one unambiguous catalog entry."] }
+                    : await ValidateIndividualToolAsync(serverConfig, tool, config, explicitArguments, ct);
+                result.ToolResults.Add(toolResult);
+                ct.ThrowIfCancellationRequested();
                 ApplyGuidelineFindings(result, tool, toolResult, config.CapabilitySnapshot);
                 result.AiSafetyControlEvidence.AddRange(toolResult.AiSafetyControlEvidence);
 
@@ -409,8 +386,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     toolResult.ContentSafetyFindings.AddRange(safetyFindings);
                     result.ContentSafetyFindings.AddRange(safetyFindings);
                 }
-
-                result.ToolResults.Add(toolResult);
 
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
                 else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
@@ -432,12 +407,20 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             }
 
             result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
+            if (!paginationFetch.IsComplete && result.Status == TestStatus.Passed)
+            {
+                result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                    ? TestStatus.AuthRequired : TestStatus.Inconclusive;
+                result.Message = "Tool catalog enumeration did not complete; retained tool results cover only the observed portion.";
+            }
 
             // AI Readiness Analysis
             ApplyAiReadinessAnalysis(result, toolsList, toolsListResponse.RawJson, toolsListPayloadChars);
 
             return result;
         }, cancellationToken);
+        RetainExplicitScenarioObligations(completed, explicitArguments);
+        return completed;
     }
 
     private void ApplyAiReadinessAnalysis(ToolTestResult result, IReadOnlyCollection<ToolInfo> tools, string? rawJson, long? totalPayloadChars = null)
@@ -446,12 +429,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             tools.Select(tool => new ToolAiReadinessTarget
             {
                 Name = tool.Name,
-                InputSchema = tool.InputSchema
+                InputSchema = tool.HasInputSchema ? tool.InputSchema : default
             }).ToList(),
             rawJson,
             totalPayloadChars);
 
-        result.AiReadinessScore = analysis.Score;
+        var catalogComplete = result.CatalogEnumeration?.IsComplete != false;
+        result.AiReadinessScore = catalogComplete ? analysis.Score : -1;
+        result.AiReadinessAnalyzedSchemaCount = analysis.AnalyzedSchemaCount;
+        result.AiReadinessInspectionIssues = analysis.InspectionIssues;
         result.EstimatedTokenCount = analysis.EstimatedTokenCount;
 
         foreach (var finding in analysis.Findings)
@@ -459,7 +445,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.AddAiReadinessFinding(finding, finding.Summary);
         }
 
-        if (!string.IsNullOrWhiteSpace(analysis.SummaryIssue))
+        if (catalogComplete && !string.IsNullOrWhiteSpace(analysis.SummaryIssue))
         {
             result.Issues.Add(analysis.SummaryIssue);
         }
@@ -476,7 +462,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
     }
 
-    private async Task<IndividualToolResult> ValidateIndividualToolAsync(McpServerConfig serverConfig, ToolInfo tool, ToolTestingConfig config, CancellationToken ct)
+    private async Task<IndividualToolResult> ValidateIndividualToolAsync(McpServerConfig serverConfig, ToolInfo tool, ToolTestingConfig config,
+        IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments, CancellationToken ct)
     {
         var result = new IndividualToolResult
         {
@@ -494,13 +481,45 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             InputParameterNames = GetInputParameterNames(tool)
         };
         ApplyAiSafetyControlEvidence(result, tool);
-        ValidateToolMetadata(tool, result);
+        var outputShape = BuiltInProtocolFeaturePack.GetToolStructuredOutputShape(
+            SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry));
+        ValidateToolMetadata(tool, result, outputShape);
+        if (explicitArguments.ContainsKey(tool.Name) && !result.MetadataValid)
+        {
+            result.Status = TestStatus.Failed;
+            result.ExecutionSuccessful = false;
+            return result;
+        }
+
+        if (tool.HasInputSchema && string.Equals(serverConfig.Transport, "http", StringComparison.OrdinalIgnoreCase) &&
+            ProtocolEraVersions.IsModern(SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry)))
+        {
+            var headerInspection = new SchemaInspectionContext(tool.InputSchema).InspectParameterHeaderSchema();
+            if (headerInspection == ValidationOutcome.Failed)
+            {
+                AddToolSpecFinding(result, ValidationFindingRuleIds.ToolInputSchemaInvalid, ValidationFindingSeverity.High,
+                    "Tool inputSchema contains invalid x-mcp-header annotations; the tool is excluded from invocation.",
+                    "Use unique HTTP token names on string, integer, or boolean properties reached only through static properties paths.",
+                    specReference: "https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#schema-extension");
+                result.Status = TestStatus.Failed;
+                result.ExecutionSuccessful = false;
+                return result;
+            }
+            if (headerInspection != ValidationOutcome.Succeeded)
+            {
+                result.Status = result.MetadataValid ? TestStatus.Inconclusive : TestStatus.Failed;
+                result.MetadataValid = false;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool header annotation inspection is incomplete under the bounded schema policy; invocation was not attempted.");
+                return result;
+            }
+        }
 
         if (!config.TestToolExecution && !config.TestParameterValidation)
         {
             result.Status = result.Issues.Any(issue => issue.StartsWith("❌", StringComparison.Ordinal))
                 ? TestStatus.Failed
-                : TestStatus.Passed;
+                : explicitArguments.ContainsKey(tool.Name) ? TestStatus.Skipped : TestStatus.Passed;
             result.ExecutionSuccessful = false;
             result.Issues.Add("Tool execution was not attempted under the active execution policy; metadata and schema checks only.");
             return result;
@@ -508,10 +527,23 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
         try
         {
+            if (!TryCreateToolCallParams(tool, serverConfig, explicitArguments, out var toolCallParams))
+            {
+                result.Status = result.MetadataValid ? TestStatus.Inconclusive : TestStatus.Failed;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool invocation was not attempted: a bounded schema-valid synthetic argument set could not be established.");
+                return result;
+            }
             var toolCallStartTime = DateTime.UtcNow;
-            var toolCallResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsCall, CreateSafeToolCallParams(tool), ct);
+            var toolCallResponse = await ExecuteToolCallAsync(serverConfig, toolCallParams, explicitArguments, false, ct);
             var toolCallDuration = (DateTime.UtcNow - toolCallStartTime).TotalMilliseconds;
             result.ExecutionTimeMs = toolCallDuration;
+
+            if (explicitArguments.ContainsKey(tool.Name) || ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
+            {
+                ValidatePositiveToolResponse(toolCallResponse, tool, result, outputShape, serverConfig.ProtocolVersion);
+                return result;
+            }
 
             if (AuthenticationChallengeInterpreter.Inspect(toolCallResponse).RequiresAuthentication)
             {
@@ -555,24 +587,15 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                     else
                     {
                         // Successful tool execution — validate response structure
-                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result, tool);
+                        ValidateToolCallResponseStructure(toolCallResponse.RawJson, result, tool, outputShape);
                     }
                 }
             }
-            else if (toolCallResponse.StatusCode == 400)
+            else if (toolCallResponse.StatusCode is 400 or 404)
             {
-                // HTTP 400 = server validated input and rejected it.
-                // This is CORRECT behavior when we send dummy arguments.
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add("✅ Server correctly rejected invalid parameters (HTTP 400)");
-            }
-            else if (toolCallResponse.StatusCode == 404)
-            {
-                // 404 may indicate the tool doesn't accept the request path — still responsive
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add($"ℹ️ Server returned 404 — tool may require specific request routing");
+                result.Status = TestStatus.Inconclusive;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add($"Tool invocation returned HTTP {toolCallResponse.StatusCode}; routing or argument rejection does not establish successful execution.");
             }
             else if (toolCallResponse.StatusCode == 500)
             {
@@ -581,14 +604,11 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 result.ExecutionSuccessful = false;
                 result.Issues.Add("❌ Server crashed (500 Internal Server Error) on tool call with test parameters");
             }
-            else if (toolCallResponse.StatusCode < 0)
+            else if (toolCallResponse.StatusCode <= 0)
             {
-                // Negative status = network/timeout error.
-                // This is NOT a server compliance failure — it's a connectivity issue.
-                // We should NOT fail the tool for this.
-                result.Status = TestStatus.Passed;
-                result.ExecutionSuccessful = true;
-                result.Issues.Add($"⚠️ Network/timeout issue (HTTP {toolCallResponse.StatusCode}). Tool may require longer timeout or specific network access. Not a compliance failure.");
+                result.Status = TestStatus.Inconclusive;
+                result.ExecutionSuccessful = false;
+                result.Issues.Add("Tool invocation did not produce an HTTP response; execution remains unverified.");
             }
             else
             {
@@ -600,16 +620,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
         catch (OperationCanceledException)
         {
-            // Timeout — not a compliance failure, it's an infrastructure issue
-            result.Status = TestStatus.Passed;
-            result.ExecutionSuccessful = true;
-            result.Issues.Add("⚠️ Tool call timed out. Tool may require longer timeout. Not a compliance failure.");
+            result.Status = ct.IsCancellationRequested ? TestStatus.Cancelled : TestStatus.Inconclusive;
+            result.ExecutionSuccessful = false;
+            result.Issues.Add("Tool invocation was cancelled or timed out; execution remains unverified.");
         }
         catch (Exception ex)
         {
-            result.Status = TestStatus.Failed;
+            result.Status = explicitArguments.ContainsKey(tool.Name) ? TestStatus.Error : TestStatus.Failed;
             result.ExecutionSuccessful = false;
-            result.Issues.Add($"Tool call exception: {ex.Message}");
+            result.Issues.Add("Tool invocation ended with a validator or transport error; exception details are not retained.");
+            Logger.LogError("Tool invocation failed with {ExceptionType}", ex.GetType().Name);
         }
 
         ApplyBlockingToolFindingStatus(result);
@@ -642,7 +662,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         return false;
     }
 
-    private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result)
+    private void ValidateToolMetadata(ToolInfo tool, IndividualToolResult result, ToolStructuredOutputShape outputShape)
     {
         // The MCP schema requires the `name` property be present (Tool.required = ["inputSchema","name"])
         // and a string. Missing/empty name is therefore a true Spec violation.
@@ -677,7 +697,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             ValidationFindingRuleIds.ToolInputSchemaRootTypeInvalid,
             isRequired: true);
 
-        ValidateJsonSchemaProperty(
+        if (outputShape != ToolStructuredOutputShape.NotDefined) ValidateJsonSchemaProperty(
             result,
             tool.HasOutputSchema,
             tool.OutputSchema,
@@ -685,7 +705,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             null,
             ValidationFindingRuleIds.ToolOutputSchemaInvalid,
             ValidationFindingRuleIds.ToolOutputSchemaRootTypeInvalid,
-            isRequired: false);
+            isRequired: false,
+            requireObjectRoot: outputShape == ToolStructuredOutputShape.Object);
 
         ValidateToolIcons(tool, result);
         ValidateToolExecutionMetadata(tool, result);
@@ -699,7 +720,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         string? missingRuleId,
         string invalidRuleId,
         string invalidRootTypeRuleId,
-        bool isRequired)
+        bool isRequired,
+        bool requireObjectRoot = true)
     {
         if (!isPresent)
         {
@@ -748,6 +770,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 $"Fix {propertyName} so it parses as JSON Schema 2020-12.",
                 schemaErrors);
         }
+
+        if (!requireObjectRoot) return;
 
         if (!schema.TryGetProperty("type", out var typeProperty) || typeProperty.ValueKind != JsonValueKind.String)
         {
@@ -907,7 +931,8 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         string summary,
         string recommendation,
         IEnumerable<string>? details = null,
-        Dictionary<string, string>? metadata = null)
+        Dictionary<string, string>? metadata = null,
+        string? specReference = null)
     {
         var finding = new ValidationFinding
         {
@@ -918,7 +943,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             Summary = summary,
             Recommendation = recommendation,
             Source = ValidationRuleSource.Spec,
-            SpecReference = "https://spec.modelcontextprotocol.io/specification/2025-11-25/server/tools"
+            SpecReference = specReference ?? "https://spec.modelcontextprotocol.io/specification/2025-11-25/server/tools"
         };
 
         if (metadata != null)
@@ -974,7 +999,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         {
             node = JsonNode.Parse(element.GetRawText());
             error = null;
-            return node is not null;
+            return node is not null || element.ValueKind == JsonValueKind.Null;
         }
         catch (Exception ex)
         {
@@ -1035,7 +1060,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
     /// - Each Content MUST have a "type" field ("text", "image", "audio", "resource")
     /// - result.isError MAY be omitted; omitted is equivalent to false per the MCP schema
     /// </summary>
-    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result, ToolInfo tool)
+    private void ValidateToolCallResponseStructure(string rawJson, IndividualToolResult result, ToolInfo tool, ToolStructuredOutputShape outputShape)
     {
         try
         {
@@ -1197,7 +1222,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 }
             }
 
-            ValidateStructuredContentAgainstOutputSchema(resultObj, result, tool);
+            ValidateStructuredContentAgainstOutputSchema(resultObj, result, tool, outputShape);
 
         }
         catch (Exception ex)
@@ -1214,8 +1239,20 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
     }
 
-    private void ValidateStructuredContentAgainstOutputSchema(JsonElement resultObj, IndividualToolResult result, ToolInfo tool)
+    private void ValidateStructuredContentAgainstOutputSchema(JsonElement resultObj, IndividualToolResult result, ToolInfo tool, ToolStructuredOutputShape outputShape)
     {
+        if (outputShape == ToolStructuredOutputShape.NotDefined) return;
+        var hasStructuredContent = resultObj.TryGetProperty("structuredContent", out var structuredContent);
+        if (hasStructuredContent && outputShape == ToolStructuredOutputShape.Object && structuredContent.ValueKind != JsonValueKind.Object)
+        {
+            AddToolSpecFinding(
+                result,
+                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
+                ValidationFindingSeverity.Critical,
+                $"Tool '{tool.Name}' returned structuredContent that is not a JSON object under the selected legacy revision.",
+                "Return structuredContent as a JSON object for legacy protocol revisions.");
+            return;
+        }
         if (!tool.HasOutputSchema)
         {
             return;
@@ -1227,7 +1264,7 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return;
         }
 
-        if (!resultObj.TryGetProperty("structuredContent", out var structuredContent))
+        if (!hasStructuredContent)
         {
             AddToolSpecFinding(
                 result,
@@ -1238,27 +1275,16 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return;
         }
 
-        if (structuredContent.ValueKind != JsonValueKind.Object)
-        {
-            AddToolSpecFinding(
-                result,
-                ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
-                ValidationFindingSeverity.Critical,
-                $"Tool '{tool.Name}' returned structuredContent that is not a JSON object.",
-                "Return structuredContent as a JSON object that matches the declared outputSchema.");
-            return;
-        }
-
         var contentConverted = TryConvertToJsonNode(structuredContent, out var structuredContentNode, out var contentError);
         var schemaConverted = TryConvertToJsonNode(tool.OutputSchema, out var outputSchemaNode, out var schemaError);
-        if (!contentConverted || structuredContentNode is null || !schemaConverted || outputSchemaNode is null)
+        if (!contentConverted || !schemaConverted || outputSchemaNode is null)
         {
             AddToolSpecFinding(
                 result,
                 ValidationFindingRuleIds.ToolCallStructuredContentInvalid,
                 ValidationFindingSeverity.High,
                 $"Tool '{tool.Name}' returned structuredContent or outputSchema that could not be parsed for validation.",
-                "Return parseable JSON objects for outputSchema and structuredContent.",
+                "Return a JSON Schema object and a structuredContent value supported by the selected protocol revision.",
                 new[] { contentError, schemaError }.OfType<string>());
             return;
         }
@@ -1281,10 +1307,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateToolExecutionAsync(McpServerConfig serverConfig, ToolTestingConfig config, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, "Tool Execution", async (ct) =>
+        var explicitArguments = ToolScenarioInputs.CaptureScenarios(config);
+        var completed = await ExecuteValidationAsync<ToolTestResult>(serverConfig, "Tool Execution", async (result, ct) =>
         {
-            var result = new ToolTestResult { ToolResults = new List<IndividualToolResult>() };
-
             // Discover tools first
             var listResponse = await _httpClient.CallAsync(serverConfig.Endpoint!, ValidationConstants.Methods.ToolsList, null, serverConfig.Authentication, ct);
 
@@ -1302,37 +1327,83 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                 return result;
             }
 
-            var tools = ParseTools(listResponse.RawJson);
+            result.CatalogEnumeration = new CatalogEnumerationEvidence();
+            var pagination = await FetchAllToolsWithPaginationAsync(serverConfig.Endpoint!, serverConfig.Authentication, listResponse,
+                (retained, rejections) =>
+                {
+                    result.ToolsDiscovered = retained.Count;
+                    result.DiscoveredToolNames = retained.Select(tool => tool.Name).ToList();
+                    result.ToolsTestFailed = checked((int)result.CatalogEnumeration.RejectedItems);
+                    result.Issues.AddRange(rejections.Except(result.Issues, StringComparer.Ordinal));
+                }, () => RecordMalformedCatalogItem(result), result.CatalogEnumeration, ct);
+            var parseIssues = pagination.Issues;
+            var tools = pagination.Tools;
+            result.ToolsDiscovered = tools.Count;
+            result.DiscoveredToolNames = tools.Select(tool => tool.Name).ToList();
+            result.ToolsTestFailed = pagination.RejectedItems;
+            result.Issues.AddRange(parseIssues.Distinct(StringComparer.Ordinal));
             if (tools.Count == 0)
             {
-                result.Status = TestStatus.Passed;
-                result.Message = "No tools to execute.";
+                result.Status = pagination.RejectedItems > 0 ? TestStatus.Failed : pagination.IsComplete ? TestStatus.Passed :
+                    result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired ? TestStatus.AuthRequired : TestStatus.Inconclusive;
+                result.Message = parseIssues.Count > 0 ? "Tool catalog could not be recovered." : "No tools to execute.";
                 return result;
             }
 
             // Execute each tool with schema-aware safe payloads
             foreach (var tool in tools)
             {
+                ct.ThrowIfCancellationRequested();
                 var toolResult = new IndividualToolResult
                 {
                     ToolName = tool.Name,
                     DiscoveredCorrectly = true,
                     MetadataValid = true
                 };
+                result.ToolResults.Add(toolResult);
+
+                if (explicitArguments.ContainsKey(tool.Name))
+                {
+                    ValidateToolMetadata(tool, toolResult, BuiltInProtocolFeaturePack.GetToolStructuredOutputShape(
+                        SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry)));
+                    if (!toolResult.MetadataValid)
+                    {
+                        toolResult.Status = TestStatus.Failed;
+                        result.ToolsTestFailed++;
+                        continue;
+                    }
+                }
+
+                if (explicitArguments.ContainsKey(tool.Name) &&
+                    ((!config.TestToolExecution && !config.TestParameterValidation) || tools.Count(candidate => candidate.Name == tool.Name) != 1))
+                {
+                    toolResult.Status = !config.TestToolExecution && !config.TestParameterValidation ? TestStatus.Skipped : TestStatus.Inconclusive;
+                    toolResult.ExecutionSuccessful = false;
+                    toolResult.Issues.Add("Explicit tool invocation was not admitted or its catalog identity was ambiguous.");
+                    continue;
+                }
 
                 try
                 {
+                    if (!TryCreateToolCallParams(tool, serverConfig, explicitArguments, out var toolCallParams))
+                    {
+                        toolResult.Status = TestStatus.Inconclusive;
+                        toolResult.ExecutionSuccessful = false;
+                        toolResult.Issues.Add("Tool invocation was not attempted: a bounded schema-valid synthetic argument set could not be established.");
+                        continue;
+                    }
                     var sw = System.Diagnostics.Stopwatch.StartNew();
-                    var callResponse = await _httpClient.CallAsync(
-                        serverConfig.Endpoint!,
-                        ValidationConstants.Methods.ToolsCall,
-                        CreateSafeToolCallParams(tool),
-                        serverConfig.Authentication,
-                        ct);
+                    var callResponse = await ExecuteToolCallAsync(serverConfig, toolCallParams, explicitArguments, true, ct);
                     sw.Stop();
                     toolResult.ExecutionTimeMs = sw.ElapsedMilliseconds;
 
-                    if (AuthenticationChallengeInterpreter.Inspect(callResponse).RequiresAuthentication)
+                    if (explicitArguments.ContainsKey(tool.Name) || ProtocolEraVersions.IsModern(serverConfig.ProtocolVersion))
+                    {
+                        ValidatePositiveToolResponse(callResponse, tool, toolResult,
+                            BuiltInProtocolFeaturePack.GetToolStructuredOutputShape(SchemaRegistryProtocolVersions.NormalizeRequestedVersion(serverConfig.ProtocolVersion, _schemaRegistry)),
+                            serverConfig.ProtocolVersion);
+                    }
+                    else if (AuthenticationChallengeInterpreter.Inspect(callResponse).RequiresAuthentication)
                     {
                         toolResult.Status = TestStatus.AuthRequired;
                         toolResult.ExecutionSuccessful = false;
@@ -1344,7 +1415,13 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         toolResult.ExecutionSuccessful = false;
                         toolResult.Issues.Add($"tools/call probe inconclusive due to transient transport pressure ({ValidationReliability.DescribeRetryableResponse(callResponse)})");
                     }
-                    else if (callResponse.IsSuccess || callResponse.StatusCode == 400)
+                    else if (callResponse.StatusCode <= 0 || callResponse.StatusCode is 400 or 404)
+                    {
+                        toolResult.Status = TestStatus.Inconclusive;
+                        toolResult.ExecutionSuccessful = false;
+                        toolResult.Issues.Add("Tool invocation did not establish the expected response; execution remains unverified.");
+                    }
+                    else if (callResponse.IsSuccess)
                     {
                         toolResult.Status = TestStatus.Passed;
                         toolResult.ExecutionSuccessful = true;
@@ -1356,14 +1433,21 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
                         toolResult.Issues.Add($"tools/call failed: HTTP {callResponse.StatusCode}");
                     }
                 }
+                catch (OperationCanceledException)
+                {
+                    toolResult.Status = ct.IsCancellationRequested ? TestStatus.Cancelled : TestStatus.Inconclusive;
+                    toolResult.ExecutionSuccessful = false;
+                    toolResult.Issues.Add("Tool invocation was cancelled or timed out; execution remains unverified.");
+                    ct.ThrowIfCancellationRequested();
+                }
                 catch (Exception ex)
                 {
-                    toolResult.Status = TestStatus.Failed;
+                    toolResult.Status = TestStatus.Error;
                     toolResult.ExecutionSuccessful = false;
-                    toolResult.Issues.Add($"tools/call exception: {ex.Message}");
+                    toolResult.Issues.Add("Tool invocation ended with a validator or transport error.");
+                    Logger.LogError("Tool invocation failed with {ExceptionType}", ex.GetType().Name);
                 }
 
-                result.ToolResults.Add(toolResult);
                 if (toolResult.Status == TestStatus.Passed) result.ToolsTestPassed++;
                 else if (toolResult.Status == TestStatus.Failed) result.ToolsTestFailed++;
             }
@@ -1371,13 +1455,36 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             result.ToolsDiscovered = tools.Count;
             result.Score = _scoringStrategy.CalculateScore(result);
             result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
+            if (!pagination.IsComplete && result.Status == TestStatus.Passed)
+                result.Status = result.CatalogEnumeration.Termination == CatalogEnumerationTermination.AuthenticationRequired
+                    ? TestStatus.AuthRequired : TestStatus.Inconclusive;
             return result;
         }, cancellationToken);
+        RetainExplicitScenarioObligations(completed, explicitArguments);
+        return completed;
+    }
+
+    private static void RetainExplicitScenarioObligations(ToolTestResult result, IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments)
+    {
+        foreach (var name in explicitArguments.Keys)
+            if (!result.DiscoveredToolNames.Contains(name, StringComparer.Ordinal) || !result.ToolResults.Any(tool => tool.ToolName == name))
+                result.ToolResults.Add(new IndividualToolResult
+                {
+                    ToolName = name, ExecutionSuccessful = false,
+                    Status = result.Status is TestStatus.AuthRequired or TestStatus.Cancelled or TestStatus.Error ? result.Status : TestStatus.Inconclusive,
+                    Issues = ["The requested explicit tool scenario was not executed; discovery or invocation evidence is unavailable."]
+                });
+        if (explicitArguments.Count == 0 || result.Status != TestStatus.Passed) return;
+        result.Status = DetermineAggregateToolStatus(result.ToolResults, result.ToolsTestFailed);
+        if (result.Status == TestStatus.Passed && result.ToolResults.Any(tool => explicitArguments.ContainsKey(tool.ToolName) && tool.Status == TestStatus.Skipped))
+            result.Status = TestStatus.Skipped;
     }
 
     private static TestStatus DetermineAggregateToolStatus(IEnumerable<IndividualToolResult> toolResults, int failedCount)
     {
         var materialized = toolResults.ToList();
+        if (materialized.Any(result => result.Status == TestStatus.Error)) return TestStatus.Error;
+        if (materialized.Any(result => result.Status == TestStatus.Cancelled)) return TestStatus.Cancelled;
         if (failedCount > 0)
         {
             return TestStatus.Failed;
@@ -1398,242 +1505,269 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
 
     public async Task<ToolTestResult> ValidateParameterValidationAsync(McpServerConfig serverConfig, string toolName, IEnumerable<ToolTestScenario> testScenarios, CancellationToken cancellationToken = default)
     {
-        return await ExecuteValidationAsync(serverConfig, $"Parameter Validation: {toolName}", async (ct) =>
+        return await ExecuteValidationAsync<ToolTestResult>(serverConfig, $"Parameter Validation: {toolName}", async (result, ct) =>
         {
             await Task.CompletedTask;
-            var result = new ToolTestResult();
             result.Status = TestStatus.Skipped;
             result.Message = "Parameter validation not yet fully implemented";
             return result;
         }, cancellationToken);
     }
 
-    private List<ToolInfo> ParseTools(string? json)
+    private static void RecordMalformedCatalogItem(ToolTestResult result)
     {
-        var tools = new List<ToolInfo>();
-        if (string.IsNullOrEmpty(json)) return tools;
-
-        try
+        if (result.Findings.Any(finding => finding.RuleId == ValidationFindingRuleIds.ToolListItemInvalid)) return;
+        result.Findings.Add(new ValidationFinding
         {
-            using var doc = JsonDocument.Parse(json);
-            if (doc.RootElement.TryGetProperty("result", out var result) &&
-                result.TryGetProperty("tools", out var toolsArray) &&
-                toolsArray.ValueKind == JsonValueKind.Array)
+            RuleId = ValidationFindingRuleIds.ToolListItemInvalid,
+            Source = ValidationRuleSource.Spec,
+            Severity = ValidationFindingSeverity.High,
+            Category = "ToolDiscovery",
+            Component = "tools/list",
+            Summary = "A tool catalog item had an invalid object, name, description, title or annotation shape.",
+            Recommendation = "Return tool objects with string names, string titles/descriptions and correctly typed annotations."
+        });
+    }
+
+    private static ToolInfo? ParseToolItem(JsonElement tool, IList<string> issues, Action reportMalformedItem)
+    {
+        if (CatalogMetadataGuard.HasMalformedText(tool, "name", "title", "description") ||
+            !tool.TryGetProperty("name", out var name) || HasMalformedToolMetadata(tool))
+        {
+            issues.Add("Tool catalog item rejected: invalid name, description, title or annotation shape.");
+            reportMalformedItem();
+            return null;
+        }
+        var info = new ToolInfo { Name = name.GetString() ?? string.Empty, RawDefinition = tool.Clone() };
+        if (tool.TryGetProperty("inputSchema", out var schema))
+        {
+            info.HasInputSchema = true;
+            info.InputSchema = schema.Clone();
+        }
+        else
+        {
+            using var empty = JsonDocument.Parse("{}");
+            info.InputSchema = empty.RootElement.Clone();
+        }
+        if (tool.TryGetProperty("outputSchema", out var outputSchema))
+        {
+            info.HasOutputSchema = true;
+            info.OutputSchema = outputSchema.Clone();
+        }
+        if (tool.TryGetProperty("icons", out var icons))
+        {
+            info.HasIcons = true;
+            info.Icons = icons.Clone();
+        }
+        if (tool.TryGetProperty("execution", out var execution))
+        {
+            info.HasExecution = true;
+            info.Execution = execution.Clone();
+        }
+        if (tool.TryGetProperty("title", out var title)) info.Title = title.GetString();
+        if (tool.TryGetProperty("description", out var description)) info.Description = description.GetString();
+        if (tool.TryGetProperty("annotations", out var annotations))
+        {
+            if (annotations.TryGetProperty("title", out var annotationTitle)) info.AnnotationTitle = annotationTitle.GetString();
+            if (annotations.TryGetProperty("readOnlyHint", out var readOnly)) info.ReadOnlyHint = readOnly.GetBoolean();
+            if (annotations.TryGetProperty("destructiveHint", out var destructive)) info.DestructiveHint = destructive.GetBoolean();
+            if (annotations.TryGetProperty("openWorldHint", out var openWorld)) info.OpenWorldHint = openWorld.GetBoolean();
+            if (annotations.TryGetProperty("idempotentHint", out var idempotent)) info.IdempotentHint = idempotent.GetBoolean();
+        }
+        if (tool.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
+        {
+            info.AppMetadata = McpAppToolMetadataParser.Parse(metadata);
+            if (metadata.TryGetProperty("anthropic/maxResultSizeChars", out var maxResultSizeChars) &&
+                maxResultSizeChars.ValueKind == JsonValueKind.Number && maxResultSizeChars.TryGetInt64(out var overrideChars))
+                info.AnthropicMaxResultSizeChars = overrideChars;
+        }
+        return info;
+    }
+
+    private static bool HasMalformedToolMetadata(JsonElement tool)
+    {
+        foreach (var property in tool.EnumerateObject())
+        {
+            if (property.Name is "title" or "description" && property.Value.ValueKind != JsonValueKind.String)
+                return true;
+            if (property.Name != "annotations") continue;
+            if (property.Value.ValueKind != JsonValueKind.Object) return true;
+            foreach (var annotation in property.Value.EnumerateObject())
             {
-                foreach (var tool in toolsArray.EnumerateArray())
-                {
-                    if (tool.TryGetProperty("name", out var name))
-                    {
-                        var info = new ToolInfo
-                        {
-                            Name = name.ValueKind == JsonValueKind.String ? name.GetString() ?? string.Empty : string.Empty,
-                            RawDefinition = tool.Clone()
-                        };
-
-                        // Parse Input Schema for Payload Generation
-                        if (tool.TryGetProperty("inputSchema", out var schema))
-                        {
-                            info.HasInputSchema = true;
-                            info.InputSchema = schema.Clone();
-                        }
-                        else
-                        {
-                            using var empty = JsonDocument.Parse("{}");
-                            info.InputSchema = empty.RootElement.Clone();
-                        }
-
-                        if (tool.TryGetProperty("outputSchema", out var outputSchema))
-                        {
-                            info.HasOutputSchema = true;
-                            info.OutputSchema = outputSchema.Clone();
-                        }
-
-                        if (tool.TryGetProperty("icons", out var icons))
-                        {
-                            info.HasIcons = true;
-                            info.Icons = icons.Clone();
-                        }
-
-                        if (tool.TryGetProperty("execution", out var execution))
-                        {
-                            info.HasExecution = true;
-                            info.Execution = execution.Clone();
-                        }
-
-                        // Parse Description (for AI readiness)
-                        if (tool.TryGetProperty("title", out var title))
-                            info.Title = title.GetString();
-
-                        if (tool.TryGetProperty("description", out var desc))
-                            info.Description = desc.GetString();
-
-                        // Parse Tool Annotations (MCP spec: title, readOnlyHint, destructiveHint, openWorldHint, idempotentHint)
-                        if (tool.TryGetProperty("annotations", out var annotations))
-                        {
-                            if (annotations.TryGetProperty("title", out var annotationTitle))
-                                info.AnnotationTitle = annotationTitle.GetString();
-                            if (annotations.TryGetProperty("readOnlyHint", out var readOnly))
-                                info.ReadOnlyHint = readOnly.GetBoolean();
-                            if (annotations.TryGetProperty("destructiveHint", out var destructive))
-                                info.DestructiveHint = destructive.GetBoolean();
-                            if (annotations.TryGetProperty("openWorldHint", out var openWorld))
-                                info.OpenWorldHint = openWorld.GetBoolean();
-                            if (annotations.TryGetProperty("idempotentHint", out var idempotent))
-                                info.IdempotentHint = idempotent.GetBoolean();
-                        }
-
-                        if (tool.TryGetProperty("_meta", out var metadata) && metadata.ValueKind == JsonValueKind.Object)
-                        {
-                            info.AppMetadata = McpAppToolMetadataParser.Parse(metadata);
-                            if (metadata.TryGetProperty("anthropic/maxResultSizeChars", out var maxResultSizeChars)
-                                && maxResultSizeChars.ValueKind == JsonValueKind.Number
-                                && maxResultSizeChars.TryGetInt64(out var overrideChars))
-                            {
-                                info.AnthropicMaxResultSizeChars = overrideChars;
-                            }
-                        }
-
-                        tools.Add(info);
-                    }
-                }
+                if (annotation.Name == "title" && annotation.Value.ValueKind != JsonValueKind.String) return true;
+                if (annotation.Name is "readOnlyHint" or "destructiveHint" or "openWorldHint" or "idempotentHint" &&
+                    annotation.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return true;
             }
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Failed to parse tools list");
-        }
-        return tools;
+        return false;
     }
 
     /// <summary>
     /// Fetches all tools with pagination support (handles nextCursor per MCP spec).
     /// </summary>
     private async Task<ToolPaginationFetchResult> FetchAllToolsWithPaginationAsync(
-        string endpoint, AuthenticationConfig? auth, JsonRpcResponse initialResponse, CancellationToken ct)
+        string endpoint, AuthenticationConfig? auth, JsonRpcResponse initialResponse, Action<List<ToolInfo>, List<string>> retainInventory,
+        Action reportMalformedItem, CatalogEnumerationEvidence enumeration, CancellationToken ct)
     {
-        var allTools = ParseTools(initialResponse.RawJson);
+        var parseIssues = new List<string>();
+        var allTools = new List<ToolInfo>();
         var issues = new List<string>();
-        var seenCursors = new HashSet<string>(StringComparer.Ordinal);
-        var totalPayloadChars = initialResponse.RawJson?.Length ?? 0;
-        var cursor = ExtractNextCursor(initialResponse.RawJson);
-        var paginationDetected = !string.IsNullOrWhiteSpace(cursor);
-        var cursorLoopDetected = false;
-        int pageCount = 1;
-        const int maxPages = 50; // Safety limit
-
-        if (paginationDetected)
+        await foreach (var item in BoundedCatalogReader.ReadAsync(initialResponse, "tools", CatalogEnumerationLimits.MaximumItems,
+            enumeration, issues, (cursor, token) => _httpClient.CallAsync(endpoint, ValidationConstants.Methods.ToolsList, new { cursor }, auth, token), ct))
         {
-            issues.Add("ℹ️ Server uses pagination for tools/list (nextCursor detected)");
-        }
-
-        while (!string.IsNullOrWhiteSpace(cursor) && pageCount < maxPages)
-        {
-            if (!seenCursors.Add(cursor))
+            var tool = ParseToolItem(item, parseIssues, reportMalformedItem);
+            if (tool is null) enumeration.RejectedItems++;
+            else
             {
-                cursorLoopDetected = true;
-                issues.Add($"⚠️ Pagination warning: tools/list repeated cursor '{cursor}' across pages");
-                break;
+                allTools.Add(tool);
+                enumeration.RecoveredItems++;
             }
-
-            pageCount++;
-            object? listParams = cursor != null ? new { cursor } : null;
-            var response = await _httpClient.CallAsync(endpoint, ValidationConstants.Methods.ToolsList, listParams, auth, ct);
-
-            if (!response.IsSuccess)
-            {
-                issues.Add($"⚠️ Pagination warning: tools/list page {pageCount} failed: HTTP {response.StatusCode}");
-                break;
-            }
-
-            var tools = ParseTools(response.RawJson);
-            allTools.AddRange(tools);
-            totalPayloadChars += response.RawJson?.Length ?? 0;
-
-            cursor = ExtractNextCursor(response.RawJson);
+            retainInventory(allTools, parseIssues);
         }
-
-        if (pageCount > 1)
-        {
-            issues.Add($"✅ Pagination: Fetched {allTools.Count} tools across {pageCount} pages");
-        }
-
-        if (!string.IsNullOrWhiteSpace(cursor) && pageCount >= maxPages)
-        {
-            issues.Add($"⚠️ Pagination warning: tools/list exceeded the validator safety limit of {maxPages} pages");
-        }
-
+        if (enumeration.ContinuationObserved) issues.Add("Server uses pagination for tools/list (nextCursor detected).");
+        if (enumeration.PageAttempts > 1)
+            issues.Add($"Pagination: retained {allTools.Count} tools after {enumeration.PageAttempts} page attempts; enumeration {(enumeration.IsComplete ? "complete" : "incomplete")}.");
+        issues.AddRange(parseIssues.Distinct(StringComparer.Ordinal));
         return new ToolPaginationFetchResult(
             allTools,
             issues,
-            pageCount,
-            paginationDetected,
-            cursorLoopDetected,
-            totalPayloadChars);
+            enumeration.PageAttempts,
+            enumeration.ContinuationObserved,
+            enumeration.Termination == CatalogEnumerationTermination.CursorLoop,
+            enumeration.PayloadCharactersObserved,
+            checked((int)enumeration.RejectedItems),
+            enumeration.IsComplete);
     }
 
-    private static string? ExtractNextCursor(string? rawJson)
+    private bool TryCreateToolCallParams(ToolInfo tool, McpServerConfig server, IReadOnlyDictionary<string, CapturedToolScenario> explicitArguments,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ToolCallParameters? parameters)
     {
-        if (string.IsNullOrWhiteSpace(rawJson))
+        parameters = null;
+        if (!tool.HasInputSchema) return false;
+        var inspection = new SchemaInspectionContext(tool.InputSchema);
+        System.Text.Json.Nodes.JsonNode? arguments;
+        if (explicitArguments.TryGetValue(tool.Name, out var supplied))
         {
-            return null;
+            if (!inspection.CanEvaluateSuppliedArguments()) return false;
+            arguments = System.Text.Json.Nodes.JsonNode.Parse(supplied.Arguments.GetRawText());
         }
+        else
+        {
+            if (!inspection.TryCreateObjectCandidate(out var generated) || generated is null) return false;
+            arguments = generated;
+        }
+        var schema = System.Text.Json.Nodes.JsonNode.Parse(tool.InputSchema.GetRawText());
+        if (schema is null || !_schemaValidator.Validate(arguments, schema).IsValid) return false;
+        var capturedArguments = JsonSerializer.SerializeToElement(arguments);
+        if (string.Equals(server.Transport, "http", StringComparison.OrdinalIgnoreCase) && ProtocolEraVersions.IsModern(server.ProtocolVersion) &&
+            !inspection.TryCreateParameterHeaders(capturedArguments, out _)) return false;
+        JsonElement? capabilities = null;
+        if (supplied is { ClientInputRounds.Count: > 0 })
+        {
+            if (!ProtocolEraVersions.IsModern(server.ProtocolVersion)) return false;
+            capabilities = SyntheticToolClientInputs.CreateCapabilities(supplied, server.ProtocolVersion!, _schemaRegistry, _schemaValidator);
+        }
+        parameters = new ToolCallParameters(tool.Name, capturedArguments, tool.InputSchema) { ClientCapabilities = capabilities };
+        return true;
+    }
 
+    private Task<JsonRpcResponse> ExecuteToolCallAsync(McpServerConfig server, ToolCallParameters parameters,
+        IReadOnlyDictionary<string, CapturedToolScenario> scenarios, bool includeAuthentication, CancellationToken cancellationToken)
+    {
+        Task<JsonRpcResponse> Send(ToolCallParameters request, CancellationToken token) => includeAuthentication
+            ? _httpClient.CallAsync(server.Endpoint!, ValidationConstants.Methods.ToolsCall, request, server.Authentication, token)
+            : _httpClient.CallAsync(server.Endpoint!, ValidationConstants.Methods.ToolsCall, request, token);
+
+        return scenarios.TryGetValue(parameters.Name, out var scenario) && scenario.ClientInputRounds.Count > 0
+            ? SyntheticToolClientInputs.ExecuteAsync(parameters, scenario, server.ProtocolVersion!, _schemaRegistry, _schemaValidator, Send, cancellationToken)
+            : Send(parameters, cancellationToken);
+    }
+
+    private void ValidatePositiveToolResponse(JsonRpcResponse response, ToolInfo tool, IndividualToolResult result,
+        ToolStructuredOutputShape outputShape, string? protocolVersion)
+    {
+        result.ExecutionSuccessful = false;
+        result.Status = TestStatus.Inconclusive;
+        if (response.ResultType == McpResultType.InputRequired)
+            result.Issues.Add("The tool interaction did not complete within its admitted client-input plan; execution remains unverified.");
+        if (AuthenticationChallengeInterpreter.Inspect(response).RequiresAuthentication)
+        {
+            result.Status = TestStatus.AuthRequired;
+            return;
+        }
+        if (response.StatusCode <= 0 || ValidationReliability.ShouldRetryRpcResponse(response)) return;
+        if (!response.IsSuccess) { result.Status = TestStatus.Failed; return; }
+        if (string.IsNullOrWhiteSpace(response.RawJson) || response.RawJson.Length > ExecutionPolicyDefaults.DefaultMaxResponseBytes ||
+            System.Text.Encoding.UTF8.GetByteCount(response.RawJson) > ExecutionPolicyDefaults.DefaultMaxResponseBytes) return;
         try
         {
-            using var doc = JsonDocument.Parse(rawJson);
-            if (doc.RootElement.TryGetProperty("result", out var result) &&
-                result.TryGetProperty("nextCursor", out var nextCursor) &&
-                nextCursor.ValueKind == JsonValueKind.String)
+            using var document = JsonDocument.Parse(response.RawJson, new JsonDocumentOptions { AllowDuplicateProperties = false });
+            var root = document.RootElement;
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("jsonrpc", out var version) ||
+                version.ValueKind != JsonValueKind.String || !version.ValueEquals("2.0") || !root.TryGetProperty("id", out _)) return;
+            if (root.TryGetProperty("error", out _)) { result.Status = TestStatus.Failed; return; }
+            if (!root.TryGetProperty("result", out var payload) || payload.ValueKind != JsonValueKind.Object) return;
+            if (ProtocolEraVersions.IsModern(protocolVersion) && (!payload.TryGetProperty("resultType", out var resultType) ||
+                resultType.ValueKind != JsonValueKind.String || !resultType.ValueEquals("complete")))
             {
-                return nextCursor.GetString();
+                if (response.ResultType != McpResultType.InputRequired && resultType.ValueKind == JsonValueKind.String &&
+                    resultType.ValueEquals("input_required"))
+                    result.Issues.Add("The tool requested client input that was not completed; execution remains unverified.");
+                return;
             }
-        }
-        catch
-        {
-            // Ignore malformed cursor payloads here and let schema validation surface the rest.
-        }
-
-        return null;
-    }
-
-    private object CreateSafeToolCallParams(ToolInfo tool)
-    {
-        var args = new Dictionary<string, object>();
-
-        try
-        {
-            if (tool.InputSchema.ValueKind != JsonValueKind.Undefined &&
-                tool.InputSchema.TryGetProperty("properties", out var props))
+            if (payload.TryGetProperty("isError", out var error))
             {
-                foreach (var prop in props.EnumerateObject())
+                if (error.ValueKind is not (JsonValueKind.True or JsonValueKind.False)) return;
+                if (error.GetBoolean()) { result.Status = TestStatus.Failed; return; }
+            }
+            var selectedVersion = SchemaValidationHelpers.ResolveProtocolVersion(_schemaRegistry, protocolVersion);
+            if (!SchemaValidationHelpers.TryValidateResponseDefinition(_schemaRegistry, _schemaValidator, selectedVersion,
+                "CallToolResultResponse", response.RawJson, Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance,
+                out var envelopeValidation, fallbackDefinitionName: "JSONRPCResponse") || envelopeValidation == null) return;
+            if (!envelopeValidation.IsValid)
+            {
+                RecordSchemaFailure(envelopeValidation);
+                return;
+            }
+            var payloadValidation = SchemaValidationHelpers.ValidateDefinition(_schemaRegistry, _schemaValidator, selectedVersion,
+                "CallToolResult", JsonNode.Parse(payload.GetRawText())!);
+            if (!payloadValidation.IsValid)
+            {
+                RecordSchemaFailure(payloadValidation);
+                return;
+            }
+            if (tool.HasOutputSchema && !new SchemaInspectionContext(tool.OutputSchema).CanEvaluateSuppliedArguments()) return;
+            var inspected = new IndividualToolResult { ToolName = tool.Name, MetadataValid = true, Status = TestStatus.Passed };
+            ValidateStructuredContentAgainstOutputSchema(payload, inspected, tool, outputShape);
+            result.Status = inspected.Findings.Any(finding => finding.Severity >= ValidationFindingSeverity.High)
+                ? TestStatus.Failed : inspected.Findings.Count > 0 || !inspected.MetadataValid ? TestStatus.Inconclusive : TestStatus.Passed;
+            result.ExecutionSuccessful = result.Status == TestStatus.Passed;
+            foreach (var finding in inspected.Findings)
+                result.AddFinding(new ValidationFinding
                 {
-                    // Generate dummy value based on type
-                    if (prop.Value.TryGetProperty("type", out var type))
-                    {
-                        var typeStr = type.GetString();
-                        switch (typeStr)
-                        {
-                            case "string": args[prop.Name] = "test-check"; break;
-                            case "integer": args[prop.Name] = 1; break;
-                            case "number": args[prop.Name] = 1.0; break;
-                            case "boolean": args[prop.Name] = true; break;
-                            case "array": args[prop.Name] = new object[] { }; break;
-                            case "object": args[prop.Name] = new { }; break;
-                        }
-                    }
-                }
-            }
+                    RuleId = finding.RuleId, Category = finding.Category, Component = tool.Name, Severity = finding.Severity,
+                    Source = finding.Source, SpecReference = finding.SpecReference,
+                    Summary = "The positive tool response did not satisfy the declared response contract.",
+                    Recommendation = "Inspect the target response privately and correct the declared response contract."
+                }, "The positive tool response did not satisfy the declared response contract.");
         }
-        catch (Exception ex)
-        {
-            Logger.LogWarning($"Failed to generate safe payload for tool {tool.Name}: {ex.Message}");
-        }
+        catch (JsonException) { }
+        result.Issues.Add("Positive tool response assessed; argument values and response content are not retained.");
 
-        return new
+        void RecordSchemaFailure(SchemaValidationResult validation)
         {
-            name = tool.Name,
-            arguments = args
-        };
+            var unavailable = SchemaValidationHelpers.HasSchemaProcessingError(validation);
+            result.Status = unavailable ? TestStatus.Inconclusive : TestStatus.Failed;
+            if (unavailable) return;
+            result.AddFinding(new ValidationFinding
+            {
+                RuleId = ValidationFindingRuleIds.ToolCallResponseValidationFailed,
+                Category = "ProtocolCompliance", Component = tool.Name, Severity = ValidationFindingSeverity.High,
+                Source = ValidationRuleSource.Spec,
+                Summary = "The completed tool response does not satisfy the selected protocol schema.",
+                Recommendation = "Return a valid tools/call response for the negotiated protocol; inspect response content privately."
+            }, "The completed tool response failed protocol schema validation; response content is not retained.");
+        }
     }
 
     private static List<string> GetInputParameterNames(ToolInfo tool)
@@ -1931,27 +2065,6 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         }
     }
 
-    private static void NormalizeToolDiscoveryMetrics(ToolTestResult result)
-    {
-        if (result.ToolsDiscovered == 0 &&
-            result.DiscoveredToolNames.Count == 0 &&
-            result.ToolResults.Count > 0 &&
-            result.ToolResults.All(IsSyntheticAuthEntry))
-        {
-            result.ToolsDiscovered = result.ToolResults.Count;
-        }
-    }
-
-    private static bool IsSyntheticAuthEntry(IndividualToolResult toolResult)
-    {
-        if (toolResult == null)
-        {
-            return false;
-        }
-
-        return toolResult.ToolName?.Contains("auth", StringComparison.OrdinalIgnoreCase) == true;
-    }
-
     private static List<string> BuildSchemaIssueList(string header, IEnumerable<string> details)
     {
         var issues = new List<string>();
@@ -1987,7 +2100,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
         int PageCount,
         bool PaginationDetected,
         bool CursorLoopDetected,
-        long TotalPayloadChars);
+        long TotalPayloadChars,
+        int RejectedItems,
+        bool IsComplete);
 
     private static JsonRpcResponse? CreateResponseFromSnapshot(TransportResult<CapabilitySummary>? snapshot)
     {
@@ -2006,10 +2121,9 @@ public class ToolValidator : BaseValidator<ToolValidator>, IToolValidator
             return null;
         }
 
-        var parsedTools = ParseTools(summary.ToolListResponse?.RawJson);
-        if (parsedTools.Count > 0)
+        if (!string.IsNullOrWhiteSpace(summary.ToolListResponse?.RawJson))
         {
-            return parsedTools;
+            return null;
         }
 
         if (summary.Tools == null || summary.Tools.Count == 0)
