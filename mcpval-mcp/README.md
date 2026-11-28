@@ -6,6 +6,8 @@
 
 Local MCP server that wraps the [mcpval CLI](https://github.com/navalerakesh/mcp-validation-security) — validate MCP servers from any AI agent.
 
+> **Breaking changes:** Upgrade this wrapper and the CLI together within the stable 3.x release family. Follow the [3.0 upgrade checklist](../docs/SchemaCompatibility.md#upgrading-to-30); support for historical result files does not imply compatibility with an older CLI.
+
 ## Quick Start (npx — no install needed)
 
 ```bash

@@ -4,6 +4,8 @@ This project hosts the `mcpval` command-line application. It is the composition 
 
 If you are looking for installation or end-user usage guidance, start with the repository [README](../README.md) and [QUICKSTART](../QUICKSTART.md). This document focuses on what this source project owns inside the solution.
 
+> **Breaking changes:** For 3.0 adoption, use the [upgrade checklist](../docs/SchemaCompatibility.md#upgrading-to-30). Package release versions, artifact schemas and assurance-policy revisions are separate contracts.
+
 ## Responsibilities
 
 | Concern | Owned here | Lives elsewhere |
@@ -27,7 +29,7 @@ If you are looking for installation or end-user usage guidance, start with the r
 
 Transport support is intentionally command-specific: `validate` and `health-check` support HTTP and STDIO targets today, `discover` is HTTP-first, and `report` is offline only.
 
-`validate --assurance comprehensive|inventory|ci|provider` selects the V2 assurance contract. The default is `comprehensive`, policy revision `2026-11-23.1`: execution requires explicit standard or elevated admission, pinned target-bound official conformance evidence, and the signed identity baseline described below. Missing prerequisites are rejected before target contact; missing required assessment evidence cannot earn a successful exit. Safe execution remains the default mode, so use `--assurance inventory` explicitly for discovery/static assessment. A dry run is planning only, not assessment acceptance. General per-check completeness and a fully evidenced comprehensive owned run are still under qualification; see the [recovery tracker](../docs/EnterpriseRecoveryProgress.md).
+`validate --assurance comprehensive|inventory|ci|provider` selects the evidence-first assurance contract. The default is `comprehensive`, policy revision `2026-11-24.2`: execution requires explicit standard or elevated admission, pinned target-bound official conformance evidence, and the signed identity baseline described below. Missing prerequisites are rejected before target contact; missing required assessment evidence cannot earn a successful exit. Safe execution remains the default mode, so use `--assurance inventory` explicitly for discovery/static assessment. A dry run is planning only, not assessment acceptance. General per-check completeness and a fully evidenced comprehensive owned run are still under qualification; see the [recovery tracker](../docs/EnterpriseRecoveryProgress.md).
 
 Default performance scope is client-observable catalog latency, concurrent requests and throughput, not an application workload SLA or capacity-limit guarantee. Target memory, buffer-overflow and resource-exhaustion qualification are explicit additional requirements (`testMemoryUsage`, `testBufferOverflow`, `testResourceExhaustion` default to false). Selecting them in a comprehensive request currently fails closed because the required operator-owned observer or isolated stress harness is unavailable. Generic load measurement never selects and invokes an advertised application tool.
 
@@ -35,7 +37,7 @@ Default performance scope is client-observable catalog latency, concurrent reque
 
 ## Comprehensive Admission
 
-The current comprehensive policy revision is `2026-11-23.1`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
+The current comprehensive policy revision is `2026-11-24.2`. Its mandatory identity baseline covers actor binding, scope enforcement and actor/action/object authorization through the existing signed-observer matrix. These controls do not earn MCP core-conformance credit or prove universal security.
 
 Reserve the validation ID independently before collecting the controlled observations. `--identity-baseline` reads a bounded JSON selection containing `contract`, `admission`, `signedEvidenceJson`, `trustedObserverPublicKeyPem`, `actorBindingCaseId`, `scopeEnforcementCaseId`, and `authorizationCaseId`. It uses the existing identity contract and original signed envelope, not a second observation format. The three selected denial cases must declare the corresponding signed challenges and reference successful positive controls. Supply only nonsecret run-local aliases and an independently trusted public key, never a private key or credentials.
 

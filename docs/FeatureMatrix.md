@@ -2,6 +2,8 @@
 
 This document summarizes the current product surface for the public `mcpval` CLI.
 
+This matrix describes the 3.0.0 codebase, not publication status. Check the [release channel](https://github.com/navalerakesh/mcp-validation-security/releases) for available artifacts and the [3.0 upgrade checklist](SchemaCompatibility.md#upgrading-to-30) before migrating. Supported behavior and independently qualified assurance are different claims; limitations below remain part of the product scope.
+
 ## Command Surface
 
 | Command | Purpose | Status |
@@ -10,7 +12,7 @@ This document summarizes the current product surface for the public `mcpval` CLI
 | `mcpval health-check` | Fast connectivity and initialization probe | Stable |
 | `mcpval discover` | Capability discovery output for debugging and documentation | Stable for HTTP transport |
 | `mcpval report` | Offline rendering from saved validation results | Stable |
-| `mcpval config-schema` | Configuration schema; `--commands` emits execution-owned CLI option metadata | Unreleased command manifest |
+| `mcpval config-schema` | Configuration schema; `--commands` emits execution-owned CLI option metadata | Included in 3.0.0 |
 | `mcpval --list-spec-profiles` | Show embedded MCP spec profiles supported by the current build | Stable |
 
 ## Transport Support
@@ -64,9 +66,9 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | MCP Apps | Stable passive tool/UI linkage and settings checks; standard-mode bounded `resources/read` plus HTML5, CSP origin, permission, and executable-content analysis |
 | MCP Skills | Beta Preview catalog, manifest, URI, collision, digest/size, and risk-bearing frontmatter checks; explicitly authorized bounded SKILL.md integrity/frontmatter/content analysis |
 | Security | Authentication behavior, access-aware enforcement, content safety analysis, and attack simulation coverage |
-| Performance | Latency, throughput, concurrency handling, and execution stability |
+| Performance | Client-observable catalog/request latency, throughput, concurrency and execution stability under admitted policy; no automatic application-tool workload or target capacity guarantee |
 | Reporting | Console summaries plus Markdown, HTML, JSON, SARIF, JUnit, audit manifests, and optional client-profile/model-evaluation companions from `validate`; HTML, XML, SARIF, and JUnit from `report`. HTML opens with profile-aware framing, tested scope, independent assessments, and an accessible claim distribution. |
-| CI gating | Inventory, CI, comprehensive and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`). Unreleased Action typed outputs distinguish verified publication/partial/planning/missing/corrupt artifacts while retaining the human-readable default. |
+| CI gating | Inventory, CI, comprehensive and provider assurance profiles plus advisory, balanced, and strict host policy modes; exits distinguish deterministic failure (`1`), incomplete/review (`2`), usage (`64`), runtime integrity (`70`), target unavailable (`75`), and timeout/cancellation (`124`). Action typed outputs included in 3.0.0 distinguish verified publication/partial/planning/missing/corrupt artifacts while retaining the human-readable default. |
 
 ## Execution Modes
 
@@ -77,6 +79,8 @@ Tool input/output schemas and returned `structuredContent` are evaluated with JS
 | `elevated` | Broadest configured active surface with explicit acknowledgement | Isolated environments with reviewed target ownership |
 
 Incomplete safe-mode evidence produces explicit incomplete claims and a partial/review disposition, not a fabricated failure or provider certificate.
+
+Assurance profile and execution mode are independent. Comprehensive is the default assurance profile and requires explicit active admission and prerequisite evidence; select `--assurance inventory` to use the default Safe mode for a first assessment.
 
 Apps linked-resource reads require standard/elevated mode. Skills content reads require standard/elevated mode plus explicit `--extension io.modelcontextprotocol/skills`; passive Skills catalog analysis remains Preview. Apps HTML is parsed but never rendered, and Skills scripts/instructions are analyzed but never executed.
 
@@ -113,6 +117,8 @@ These profiles do not mutate the underlying findings. They provide an additional
 
 Current built-in client profiles are documentation-derived and are explicitly labeled `Interpreted`; executable client verification remains planned and cannot be inferred from these assessments.
 
+Metadata/listing success does not establish tool-call, prompt-get or resource-read contract success. Those requirements need completed per-item execution evidence; unknown catalogs remain unverified, and raw rejected template counts do not establish a usable surface.
+
 When profile evaluation is enabled, `validate` also emits `*-profile-summary.json` for dashboards and CI systems that only need the compatibility rollup.
 
 ## Known Product Limitation
@@ -120,6 +126,8 @@ When profile evaluation is enabled, `validate` also emits `*-profile-summary.jso
 The main transport gap in the public CLI is still `discover` for STDIO targets. The command returns a clear not-supported error instead of crashing, but process-backed capability discovery has not been implemented yet.
 
 The local MCP wrapper accepts remote endpoints by default. Agent-triggered local STDIO commands require the operator to restart the wrapper with explicit local-execution authority in an isolated environment.
+
+Target memory, buffer-overflow and resource-exhaustion qualification require an operator-owned observer or isolated harness that is not supplied by generic load measurement; selecting these additional comprehensive requirements fails closed. Validator allocation budgets and diagnostic timing workloads are documented in [BenchmarkBaseline.md](BenchmarkBaseline.md). Schema-catalog timing remains variable in the measured shared-host runs; allocation guards are not universal latency guarantees.
 
 Application admission plus raw/SDK connect-time DNS and exact-origin enforcement are active, including rebinding checks, direct approved-address connections, disabled ambient proxies, and disabled automatic redirects. Network-enforced egress remains required before a hosted multi-tenant deployment is claimed.
 

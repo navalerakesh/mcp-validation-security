@@ -9,7 +9,7 @@
 [![NuGet](https://img.shields.io/nuget/v/McpVal?label=nuget&logo=nuget)](https://www.nuget.org/packages/McpVal)
 [![npm](https://img.shields.io/npm/v/mcpval-localmcp?label=npm&logo=npm)](https://www.npmjs.com/package/mcpval-localmcp)
 
-> Validate that an MCP server is safe and usable for AI agents. MCP Validator checks protocol compliance, security posture, AI safety, and operational readiness, then produces a trust assessment plus shareable artifacts for engineering and governance workflows.
+> Assess an MCP server's protocol conformance, security posture, AI-facing risks and operational readiness using recorded evidence. MCP Validator produces separate assessments and shareable artifacts; missing evidence is not a pass, and an assessment is not a guarantee that a server is safe.
 
 ## Distribution Channels
 
@@ -28,6 +28,8 @@
 ### Upgrading from 2.x
 
 This codebase targets the 3.x release family. Upgrade the CLI and local MCP wrapper together. The current canonical assurance-result schema is `3.8.0`; consumers must handle unavailable measurements as null and use recorded artifact paths rather than assume a flat output directory. Historical `2.x` results remain readable through the documented migration path. See [schema compatibility](docs/SchemaCompatibility.md) and [available releases](https://github.com/navalerakesh/mcp-validation-security/releases); local qualification does not establish publication.
+
+> **Breaking changes:** Before upgrading automation, follow the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30), including comprehensive admission, strict configuration and artifact-path changes.
 
 Install from NuGet:
 

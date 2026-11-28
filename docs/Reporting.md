@@ -2,9 +2,13 @@
 
 MCP Validator renders every report from one canonical `mcpval.assurance-result` JSON document. Renderers do not contact the target, rerun probes, or recompute validation decisions.
 
+> **Breaking changes:** Report consumers upgrading to 3.0 must handle nullable measurements and per-run artifact paths. See the [upgrade checklist](SchemaCompatibility.md#upgrading-to-30); the package version is not the artifact schema version.
+
 ## Artifact Set
 
 A validation run with `--output <directory>` writes:
+
+Artifacts are committed together beneath a per-run `mcp-validation-*` subdirectory. Use returned paths rather than assuming a flat output directory; `.pending-*` staging directories are not completed bundles.
 
 | Artifact | Purpose |
 | --- | --- |

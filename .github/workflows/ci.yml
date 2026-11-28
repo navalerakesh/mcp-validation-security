@@ -695,6 +695,14 @@ jobs:
           draft: false
           prerelease: ${{ steps.tag.outputs.prerelease == 'true' }}
           body: |
+            ## Changes and upgrade guidance
+
+            > **Breaking changes:** Before upgrading automation, read the [release changelog](https://github.com/${{ github.repository }}/blob/${{ steps.tag.outputs.tag }}/CHANGELOG.md) and [migration checklist](https://github.com/${{ github.repository }}/blob/${{ steps.tag.outputs.tag }}/docs/SchemaCompatibility.md#upgrading-to-30). These links are pinned to this release, not the moving default branch.
+
+            Upgrade the CLI and local MCP wrapper together. Package versions and artifact schema versions are separate contracts; missing measurements are not zeroes or passing evidence. Use explicit Safe inventory for first contact, and supply the required admission and evidence for comprehensive assessment.
+
+            See the release-pinned [feature scope](https://github.com/${{ github.repository }}/blob/${{ steps.tag.outputs.tag }}/docs/FeatureMatrix.md) and [performance evidence and limits](https://github.com/${{ github.repository }}/blob/${{ steps.tag.outputs.tag }}/docs/BenchmarkBaseline.md). Publication does not imply universal security, native-client certification or target-capacity guarantees.
+
             ## Distribution
 
             This release is published across multiple public channels. GitHub Marketplace is only the listing for the root composite action used with `uses: navalerakesh/mcp-validation-security@...`.

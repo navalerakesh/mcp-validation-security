@@ -1,5 +1,7 @@
 # V2 Intentional Breaking Changes
 
+> **Historical design record:** This document records the earlier V1-to-V2 migration decisions, not the current release version, adoption status or complete compatibility policy. For the 3.0 release and supported historical artifact reads, follow [Schema Compatibility And Migration](SchemaCompatibility.md#upgrading-to-30).
+
 ## Purpose
 
 MCP Validator V2 intentionally breaks the unreleased V1 semantic contract to establish a provider-dependency-grade assurance model. The project has no production users requiring runtime compatibility, so retaining ambiguous score and verdict behavior would create long-term risk without user value.

@@ -34,8 +34,11 @@ Include the following information:
 
 | Version | Supported |
 | --- | --- |
+| `3.0.x` | Current release line under preparation; public availability depends on completed publication |
 | `2.0.x` | Yes |
 | `< 2.0` | No |
+
+> **Breaking changes:** Existing users should follow the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30). This preparation does not withdraw the support listed above or claim that 3.0 packages have been published. Report suspected vulnerabilities in the current branch through the same private reporting channel.
 
 ## Safe Use Guidance
 

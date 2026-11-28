@@ -8,7 +8,17 @@ The format is based on Keep a Changelog, and this project follows semantic versi
 
 ## 3.0.0 - 2026-11-25
 
-Release preparation: this entry does not establish publication or completion of required release gates.
+Release preparation: the heading date records preparation, not publication. The GitHub release records the actual publication timestamp after required gates and deployment approvals complete.
+
+### Upgrade Summary
+
+> **Breaking changes:** Read the [3.0 upgrade checklist](docs/SchemaCompatibility.md#upgrading-to-30) before updating automation.
+
+- Upgrade the stable CLI and local MCP wrapper together within the same major release family.
+- Handle nullable unmeasured values and the assurance-result `3.8.0` schema independently of the package version.
+- Use explicit Safe inventory for first contact; the comprehensive default requires admitted active execution and signed/pinned prerequisite evidence.
+- Correct invalid configuration and follow returned per-run artifact paths. Public redacted inputs cannot replace the original private execution configuration.
+- Performance scope remains measured client/validator behavior, not universal target safety, memory or capacity certification. See [performance evidence and limits](docs/BenchmarkBaseline.md).
 
 ### Added
 
